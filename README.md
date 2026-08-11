@@ -1,5 +1,7 @@
 # FuzzTLA
 
+[![CI](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml)
+
 FuzzTLA is work-in-progress on the grant "Hardened Testing of TLA+ Model Checkers" supported by the TLA<sup>+</sup> Foundation.
 
 The project uses Apalache's Java façade for its TLA+ intermediate representation to synthesize TLA+ specifications.
