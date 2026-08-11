@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -eu
+
+script_dir=$(CDPATH= cd -P "$(dirname "$0")" && pwd)
+project_dir=$(dirname "$script_dir")
+jar="$project_dir/target/fuzztla.jar"
+
+if ! command -v java >/dev/null 2>&1; then
+    printf '%s\n' "fuzztla: Java was not found on PATH." >&2
+    exit 127
+fi
+
+if [ ! -f "$jar" ]; then
+    printf '%s\n' \
+        "fuzztla: executable JAR not found: $jar" \
+        "Run 'make package' in $project_dir." >&2
+    exit 1
+fi
+
+exec java -jar "$jar" "$@"
