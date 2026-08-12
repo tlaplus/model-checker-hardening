@@ -131,8 +131,9 @@ elements at once.
 
 The byte encoding is implementation-local. Enum declaration order, expression
 catalog order, or generator composition changes may reinterpret an existing
-input. The corpus therefore preserves raw inputs, but the project does not yet
-promise cross-version decoding compatibility.
+input. The corpus therefore preserves the raw generator bytes in the CBOR
+`input` field, but the project does not yet promise cross-version decoding
+compatibility.
 
 ## 5. Type-directed construction
 

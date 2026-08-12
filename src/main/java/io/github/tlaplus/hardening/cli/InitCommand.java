@@ -1,7 +1,7 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.pbt.CorpusDirectory;
-import io.github.tlaplus.hardening.pbt.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;

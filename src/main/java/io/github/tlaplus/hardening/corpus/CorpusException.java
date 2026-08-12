@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.pbt;
+package io.github.tlaplus.hardening.corpus;
 
 /** Reports an invalid corpus layout or corpus entry. */
 public final class CorpusException extends Exception {

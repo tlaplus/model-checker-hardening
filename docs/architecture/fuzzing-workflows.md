@@ -172,7 +172,17 @@ The fields have the following meaning:
     - When `"kind"` is `"expr"`, the field `"input"` encodes a single TLA<sup>+</sup> expression.
     - When `"kind"` is `"module"`, the field `"input"` encodes a single TLA<sup>+</sup> module.
 
-### 2.3. Stage
+### 2.3. Corpus storage
+
+Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
+
+ - The filename contains the lowercase SHA-256 digest of the byte string in `"input"`,
+   not of the complete CBOR document. A stage may therefore add or update metadata
+   without changing the input's identity or filename.
+
+ - `<stage-status>` is a directory like `00-inputs` and `02tlc-pass`.
+
+### 2.4. Stage
 
 When an input passes through a stage, this stage stores its metadata under `stages.<stage name>`.
 The metadata depends on the stage. The minimal set of fields is:
