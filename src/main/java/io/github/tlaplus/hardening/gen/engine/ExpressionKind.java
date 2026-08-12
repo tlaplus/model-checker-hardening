@@ -11,15 +11,14 @@ sealed interface ExpressionKind
                 SetExpressionKind,
                 SequenceExpressionKind,
                 OtherExpressionKind {
-    /** Reports whether this form can produce the requested type. */
-    boolean isApplicable(IrType type);
+    /** Reports whether this form can produce the requested type, independent of lexical scope. */
+    boolean isTypeApplicable(IrType type);
 }
 
 /** Type-polymorphic and terminal expression forms. */
 enum GeneralExpressionKind implements ExpressionKind {
     TERMINAL,
     NAME,
-    VARIABLE_DECLARATION,
     IF_THEN_ELSE,
     LABEL,
     BOUNDED_CHOOSE,
@@ -36,9 +35,9 @@ enum GeneralExpressionKind implements ExpressionKind {
     VARIANT_GET_UNSAFE;
 
     @Override
-    public boolean isApplicable(IrType type) {
+    public boolean isTypeApplicable(IrType type) {
         return switch (this) {
-            case TERMINAL -> true;
+            case TERMINAL, NAME -> true;
             default -> !(type instanceof OperatorType);
         };
     }
@@ -82,7 +81,7 @@ enum BooleanExpressionKind implements ExpressionKind {
     TEMPORAL_FORALL;
 
     @Override
-    public boolean isApplicable(IrType type) {
+    public boolean isTypeApplicable(IrType type) {
         return type == PrimitiveType.BOOL;
     }
 }
@@ -101,7 +100,7 @@ enum IntegerExpressionKind implements ExpressionKind {
     LENGTH;
 
     @Override
-    public boolean isApplicable(IrType type) {
+    public boolean isTypeApplicable(IrType type) {
         return type == PrimitiveType.INT;
     }
 }
@@ -130,7 +129,7 @@ enum SetExpressionKind implements ExpressionKind {
     DOMAIN;
 
     @Override
-    public boolean isApplicable(IrType type) {
+    public boolean isTypeApplicable(IrType type) {
         if (!(type instanceof SetType(IrType setElem))) {
             return false;
         }
@@ -160,7 +159,7 @@ enum SequenceExpressionKind implements ExpressionKind {
     SUBSEQUENCE;
 
     @Override
-    public boolean isApplicable(IrType type) {
+    public boolean isTypeApplicable(IrType type) {
         return type instanceof SequenceType;
     }
 }
@@ -180,7 +179,7 @@ enum OtherExpressionKind implements ExpressionKind {
     LAMBDA;
 
     @Override
-    public boolean isApplicable(IrType type) {
+    public boolean isTypeApplicable(IrType type) {
         return switch (this) {
             case STRING_LITERAL, VARIANT_TAG -> type == PrimitiveType.STRING;
             case MODEL_VALUE, PARSED_MODEL_VALUE -> type instanceof ConstantType;

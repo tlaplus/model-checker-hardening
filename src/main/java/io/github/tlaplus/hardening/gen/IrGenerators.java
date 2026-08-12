@@ -14,10 +14,11 @@ import org.apalache_mc.tla.jir.TlaCheckedBuilder;
  * A successful run therefore returns an expression accepted by Apalache's checked Java builder,
  * rather than assembling unchecked IR nodes directly.
  *
- * <p>The result is one {@link TlaEx}, not a module or an operator declaration. Generated expressions
- * may contain typed free names, which are valid at the IR-expression level but are not declarations
- * in a closed TLA+ module. Callers that need a complete module are responsible for supplying an
- * appropriate declaration context around the expression.
+ * <p>The result is one {@link TlaEx}, not a module or an operator declaration. Actual name
+ * references are selected only from the active generation scope. The expression-only entry point
+ * starts with an empty scope, and lexical constructs such as quantifiers, functions, lambdas, and
+ * LET expressions introduce the bindings their bodies may reference. Model-value literals may
+ * contain identifier-like text, but they are IR values rather than name references.
  *
  * <p>All choices come from the supplied {@link Draw}. A new internal builder, name supply, and
  * resource counter are created for every run, so a generator returned by this class can be reused
@@ -44,8 +45,9 @@ import org.apalache_mc.tla.jir.TlaCheckedBuilder;
  * <p>This class contains no random source, search procedure, retry loop, or shrinker. It is a
  * deterministic decoder intended to be driven by an external mutational fuzzer or another producer
  * of byte arrays.
- * Expected semantic dead ends are reported as {@link InputRejectedException}; exhaustion and
- * resource-budget fallback are not rejections.
+ * Expected semantic dead ends, such as selecting a state-variable form when no state variable is
+ * in scope, are reported as {@link InputRejectedException}; exhaustion and resource-budget fallback
+ * are not rejections.
  *
  * @see Generator
  * @see Draw
@@ -80,9 +82,9 @@ public final class IrGenerators {
      * <p>Builder validation failures are propagated as runtime exceptions. Such a failure indicates
      * either a defect in an expression form implemented here or an incompatibility with the linked
      * Apalache version; malformed or exhausted input alone is handled by deterministic fallback
-     * expressions and is not considered an error. A future expression form that cannot satisfy a
-     * decoded semantic constraint may instead throw {@link InputRejectedException}; callers
-     * may skip that input without suppressing other runtime failures.
+     * expressions and is not considered an error. A selected form that cannot satisfy a decoded
+     * semantic constraint instead throws {@link InputRejectedException}; callers may skip that
+     * input without suppressing other runtime failures.
      *
      * @param config immutable limits applied to every generation
      * @return reusable generator of checked TLA+ IR expressions

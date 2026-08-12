@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -45,27 +46,19 @@ class NameScopeTest {
     }
 
     @Test
-    void nameChoiceIncludesScopedNamesAndADeferredFreshAlternative() {
+    void bindingChoiceIsDeferredAndDoesNotInventAFreshAlternative() {
         var scopedContext = context();
-        var scopedDraw = new Draw(new byte[] {0});
+        var scopedDraw = new Draw(new byte[] {99});
         var binding = new ScopedName("bound", PrimitiveType.BOOL);
-        scopedDraw.draw(scopedContext.withBinding(binding, bodyDraw -> {
-            assertEquals(
-                    "bound",
-                    bodyDraw.draw(scopedContext.chooseName(PrimitiveType.BOOL, "free")));
-            return null;
-        }));
-        assertEquals("next0", scopedContext.fresh("next"));
+        var choice = scopedContext.chooseBinding(PrimitiveType.BOOL);
 
-        var freshContext = context();
-        var freshDraw = new Draw(new byte[] {1});
-        freshDraw.draw(freshContext.withBinding(binding, bodyDraw -> {
-            assertEquals(
-                    "free0",
-                    bodyDraw.draw(freshContext.chooseName(PrimitiveType.BOOL, "free")));
+        scopedDraw.draw(scopedContext.withBinding(binding, bodyDraw -> {
+            assertEquals(binding, bodyDraw.draw(choice));
             return null;
         }));
-        assertEquals("next1", freshContext.fresh("next"));
+
+        assertEquals(1, scopedDraw.remaining());
+        assertEquals("next0", scopedContext.fresh("next"));
     }
 
     @Test
@@ -76,16 +69,19 @@ class NameScopeTest {
 
         assertEquals("first", chooseFrom(bindings, 0));
         assertEquals("second", chooseFrom(bindings, 1));
-        assertEquals("free0", chooseFrom(bindings, 2));
+        assertEquals("first", chooseFrom(bindings, 2));
     }
 
     @Test
-    void missingCompatibleNamesConsumeNoChoiceByte() {
+    void missingCompatibleBindingsRejectWithoutConsumingAChoiceByte() {
         var context = context();
         var draw = new Draw(new byte[] {42});
 
-        assertEquals("int0", draw.draw(context.chooseName(PrimitiveType.INT, "int")));
+        assertThrows(
+                InputRejectedException.class,
+                () -> draw.draw(context.chooseBinding(PrimitiveType.INT)));
         assertEquals(1, draw.remaining());
+        assertEquals("next0", context.fresh("next"));
     }
 
     @Test
@@ -93,23 +89,45 @@ class NameScopeTest {
         var context = context();
         var binding = new ScopedName("bound", PrimitiveType.BOOL);
         var scoped = context.withBinding(binding, draw -> {
-            assertEquals(
-                    "bound",
-                    draw.draw(context.chooseName(PrimitiveType.BOOL, "free")));
+            assertEquals(binding, draw.draw(context.chooseBinding(PrimitiveType.BOOL)));
             throw new IllegalStateException("failure");
         });
 
-        assertEquals(
-                "free0",
-                new Draw(new byte[0]).draw(
-                        context.chooseName(PrimitiveType.BOOL, "free")));
+        assertThrows(
+                InputRejectedException.class,
+                () -> new Draw(new byte[0]).draw(
+                        context.chooseBinding(PrimitiveType.BOOL)));
         assertThrows(
                 IllegalStateException.class,
                 () -> new Draw(new byte[] {0}).draw(scoped));
-        assertEquals(
-                "free1",
-                new Draw(new byte[0]).draw(
-                        context.chooseName(PrimitiveType.BOOL, "free")));
+        assertThrows(
+                InputRejectedException.class,
+                () -> new Draw(new byte[0]).draw(
+                        context.chooseBinding(PrimitiveType.BOOL)));
+    }
+
+    @Test
+    void specializedQueriesRespectRolesTypesAndShadowing() {
+        var scope = new NameScope();
+        var state = ScopedName.stateVariable("shared", PrimitiveType.INT);
+        var operatorType = new OperatorType(
+                List.of(PrimitiveType.INT), PrimitiveType.BOOL);
+        var operator = new ScopedName("Predicate", operatorType);
+        var shadow = new ScopedName("shared", PrimitiveType.BOOL);
+
+        scope.withBindings(List.of(state, operator), () -> {
+            assertEquals(List.of(state), scope.stateVariables());
+            assertEquals(List.of(operator), scope.operatorsReturning(PrimitiveType.BOOL));
+            assertEquals(List.of(), scope.operatorsReturning(PrimitiveType.INT));
+
+            scope.withBinding(shadow, () -> {
+                assertEquals(List.of(), scope.stateVariables());
+                assertEquals(List.of(shadow), scope.matching(PrimitiveType.BOOL));
+                assertEquals(List.of(), scope.matching(PrimitiveType.INT));
+                return null;
+            });
+            return null;
+        });
     }
 
     private GenerationContext context() {
@@ -120,6 +138,7 @@ class NameScopeTest {
         var context = context();
         var draw = new Draw(new byte[] {(byte) input});
         return draw.draw(context.withBindings(
-                bindings, context.chooseName(PrimitiveType.BOOL, "free")));
+                        bindings, context.chooseBinding(PrimitiveType.BOOL)))
+                .name();
     }
 }

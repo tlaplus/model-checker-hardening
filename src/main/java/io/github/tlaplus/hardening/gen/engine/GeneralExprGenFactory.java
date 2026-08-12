@@ -1,13 +1,14 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.ConstT1;
+import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.math.BigInteger;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExpressionPair;
+import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.TlaBuilderExpr;
-import org.apalache_mc.tla.jir.TlaDeclarations;
 
 /** Constructs terminal and type-polymorphic expression generators. */
 final class GeneralExprGenFactory extends AbstractExprGenFactory {
@@ -30,8 +31,6 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
             return switch (kind) {
                 case TERMINAL -> draw.draw(terminal(type));
                 case NAME -> draw.draw(name(type));
-                case VARIABLE_DECLARATION -> builder().varDeclAsNameEx(
-                        TlaDeclarations.variable(context.fresh("v"), type.toTlaType()));
                 case IF_THEN_ELSE -> builder().ite(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
                         draw.draw(expression(type, nextDepth)),
@@ -59,28 +58,45 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of a small expression requiring no recursive generation. */
+    /** Returns a byte-free generator of a closed expression for the requested type. */
     Generator<TlaBuilderExpr> terminal(IrType type) {
-        return draw -> {
-            if (type == PrimitiveType.BOOL) {
-                return builder().bool(false);
+        return draw -> switch (type) {
+            case PrimitiveType primitive -> switch (primitive) {
+                case BOOL -> builder().bool(false);
+                case INT -> builder().integer(BigInteger.ZERO);
+                case STRING -> builder().str("");
+            };
+            case ConstantType constantType ->
+                builder().constant("default", (ConstT1) constantType.toTlaType());
+            case SetType(IrType element) -> builder().emptySet(element.toTlaType());
+            case SequenceType(IrType element) -> builder().emptySeq(element.toTlaType());
+            case FunctionType functionType -> {
+                var binding = context.freshBinding("terminalArg", functionType.argument());
+                var variable = builder().name(
+                        binding.name(), functionType.argument().toTlaType());
+                var domain = builder().emptySet(functionType.argument().toTlaType());
+                var pair = new ExpressionPair<>(variable, domain);
+                yield builder().funDef(
+                        draw.draw(terminal(functionType.result())),
+                        BuilderArrays.pairs(List.of(pair)));
             }
-            if (type == PrimitiveType.INT) {
-                return builder().integer(BigInteger.ZERO);
+            case TupleType tupleType -> builder().tuple(BuilderArrays.expressions(
+                    tupleType.elements().stream()
+                            .map(element -> draw.draw(terminal(element)))
+                            .toList()));
+            case RecordType recordType -> builder().record(BuilderArrays.named(
+                    recordType.fields().stream()
+                            .map(field -> new NamedExpression<>(
+                                    field.name(), draw.draw(terminal(field.type()))))
+                            .toList()));
+            case VariantType variantType -> {
+                var field = variantType.fields().getFirst();
+                yield builder().variant(
+                        field.name(),
+                        draw.draw(terminal(field.type())),
+                        (VariantT1) variantType.toTlaType());
             }
-            if (type == PrimitiveType.STRING) {
-                return builder().str("");
-            }
-            if (type instanceof ConstantType constantType) {
-                return builder().constant("default", (ConstT1) constantType.toTlaType());
-            }
-            if (type instanceof SetType(IrType element)) {
-                return builder().emptySet(element.toTlaType());
-            }
-            if (type instanceof SequenceType(IrType element)) {
-                return builder().emptySeq(element.toTlaType());
-            }
-            return draw.draw(name(type));
+            case OperatorType operatorType -> draw.draw(otherFactory.lambda(operatorType, 0));
         };
     }
 
@@ -130,13 +146,13 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
     private Generator<TlaBuilderExpr> operatorApplication(
             IrType resultType, int remainingDepth) {
         return draw -> {
-            var argumentTypes = draw.draw(BasicGenerators.listOf(
-                    typeFactory.valueType(), 0, context.config().maximumCollectionSize()));
-            var operatorType = new OperatorType(argumentTypes, resultType);
-            var arguments = argumentTypes.stream()
+            var binding = draw.draw(context.chooseOperatorReturning(resultType));
+            var operatorType = (OperatorType) binding.type();
+            var arguments = operatorType.arguments().stream()
                     .map(type -> draw.draw(expression(type, remainingDepth - 1)))
                     .toArray(TlaBuilderExpr[]::new);
-            return builder().operApply(draw.draw(name(operatorType)), arguments);
+            var operator = builder().name(binding.name(), operatorType.toTlaType());
+            return builder().operApply(operator, arguments);
         };
     }
 
@@ -220,9 +236,11 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of a typed scoped-or-fresh name. */
+    /** Returns a generator of an exactly typed scoped name. */
     private Generator<TlaBuilderExpr> name(IrType type) {
-        return draw -> builder().name(
-                draw.draw(context.chooseName(type, type.prefix())), type.toTlaType());
+        return draw -> {
+            var binding = draw.draw(context.chooseBinding(type));
+            return builder().name(binding.name(), type.toTlaType());
+        };
     }
 }

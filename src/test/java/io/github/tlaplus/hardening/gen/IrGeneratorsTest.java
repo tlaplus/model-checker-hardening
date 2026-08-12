@@ -60,32 +60,23 @@ class IrGeneratorsTest {
     }
 
     @Test
-    void shortAndAdversarialInputsAlwaysBuildAndPrint() {
+    void shortAndAdversarialInputsBuildPrintOrRejectCleanly() {
         for (var value = 0; value < 256; value++) {
-            assertFalse(print(IrGenerators.expressions().generate(new byte[] {(byte) value}))
-                    .isEmpty());
-            assertFalse(print(IrGenerators.expressions()
-                            .generate(new byte[] {0, (byte) value}))
-                    .isEmpty());
+            assertBuildsOrRejects(new byte[] {(byte) value});
+            assertBuildsOrRejects(new byte[] {0, (byte) value});
         }
 
         var random = new Random(0x5eedL);
         for (var sample = 0; sample < 5000; sample++) {
             var input = new byte[random.nextInt(65)];
             random.nextBytes(input);
-            try {
-                assertFalse(print(IrGenerators.expressions().generate(input)).isEmpty());
-            } catch (RuntimeException failure) {
-                throw new AssertionError(
-                        "generation failed for input " + Base64.getEncoder().encodeToString(input),
-                        failure);
-            }
+            assertBuildsOrRejects(input);
         }
 
         var full = new byte[8192];
         java.util.Arrays.fill(full, (byte) 0xff);
         var bounded = new IrGenerationConfig(3, 12, 256, 8, 32, 16);
-        assertFalse(print(IrGenerators.expressions(bounded).generate(full)).isEmpty());
+        assertBuildsOrRejects(bounded, full);
 
         var longStructuredInput = Base64.getMimeDecoder()
                 .decode(
@@ -101,7 +92,23 @@ class IrGeneratorsTest {
                         PC9uYW1lPgogIDxkZXNjcmlwdGlvbj5Ub29scyBmb3Igc3ludGhlc2l6aW5nIFRMQSsgc3Bl
                         Y2lmaWNhdGlvbnMgdG8gaGFyZGVuIG1vZGVsIGM=
                         """);
-        assertFalse(print(IrGenerators.expressions().generate(longStructuredInput)).isEmpty());
+        assertBuildsOrRejects(longStructuredInput);
+    }
+
+    private void assertBuildsOrRejects(byte[] input) {
+        assertBuildsOrRejects(IrGenerationConfig.defaults(), input);
+    }
+
+    private void assertBuildsOrRejects(IrGenerationConfig config, byte[] input) {
+        try {
+            assertFalse(print(IrGenerators.expressions(config).generate(input)).isEmpty());
+        } catch (InputRejectedException expected) {
+            // Some forms intentionally reject when the current scope cannot satisfy them.
+        } catch (RuntimeException failure) {
+            throw new AssertionError(
+                    "generation failed for input " + Base64.getEncoder().encodeToString(input),
+                    failure);
+        }
     }
 
     private String print(TlaEx expression) {
