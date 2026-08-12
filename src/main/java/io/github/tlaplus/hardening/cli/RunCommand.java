@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening;
+package io.github.tlaplus.hardening.cli;
 
 import java.util.Arrays;
 import java.util.concurrent.Callable;

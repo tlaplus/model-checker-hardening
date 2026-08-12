@@ -35,6 +35,7 @@
     <picocli.version>4.7.7</picocli.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <vavr.version>1.0.1</vavr.version>
   </properties>
 
   <repositories>
@@ -62,6 +63,16 @@
       <groupId>org.apalache-mc</groupId>
       <artifactId>tla-ir-java</artifactId>
       <version>${apalache.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apalache-mc</groupId>
+      <artifactId>tla-io_2.13</artifactId>
+      <version>${apalache.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vavr</groupId>
+      <artifactId>vavr</artifactId>
+      <version>${vavr.version}</version>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>

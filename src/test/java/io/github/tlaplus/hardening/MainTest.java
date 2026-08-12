@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
 class MainTest {
@@ -18,6 +21,7 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla"));
         assertTrue(result.out().contains("init"));
+        assertTrue(result.out().contains("print"));
         assertTrue(result.out().contains("run"));
         assertEquals("", result.err());
     }
@@ -139,6 +143,59 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("Unknown option: '--seed=42'"));
+    }
+
+    @Test
+    void printsPrintHelp() {
+        var result = execute("print", "--help");
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains("Usage: fuzztla print [-h] FILE"));
+        assertTrue(result.out().contains("Binary generator input"));
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void requiresPrintInput() {
+        var result = execute("print");
+
+        assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
+        assertTrue(result.err().contains("Missing required parameter: 'FILE'"));
+    }
+
+    @Test
+    void printsExpressionFromEmptyFile(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("empty.bin");
+        java.nio.file.Files.createFile(input);
+
+        var result = execute("print", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals("FALSE" + System.lineSeparator(), result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void reportsUnreadablePrintInput(@TempDir Path directory) {
+        var missing = directory.resolve("missing.bin");
+
+        var result = execute("print", missing.toString());
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
+        assertEquals("", result.out());
+        assertTrue(result.err().contains("fuzztla: cannot read"));
+        assertTrue(result.err().contains("missing.bin"));
+    }
+
+    @Test
+    void rejectsExtraPrintArguments(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("input.bin");
+        java.nio.file.Files.createFile(input);
+
+        var result = execute("print", input.toString(), "extra");
+
+        assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
+        assertTrue(result.err().contains("Unmatched argument"));
     }
 
     private Result execute(String... args) {

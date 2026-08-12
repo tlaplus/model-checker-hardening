@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening;
+package io.github.tlaplus.hardening.cli;
 
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
@@ -11,12 +11,12 @@ import picocli.CommandLine.Spec;
         name = "fuzztla",
         description = "Synthesize TLA+ specifications to harden model checkers.",
         mixinStandardHelpOptions = true,
-        subcommands = {InitCommand.class, RunCommand.class},
+        subcommands = {InitCommand.class, PrintCommand.class, RunCommand.class},
         versionProvider = FuzzTlaCommand.VersionProvider.class)
-final class FuzzTlaCommand implements Callable<Integer> {
+public final class FuzzTlaCommand implements Callable<Integer> {
     @Spec private CommandSpec spec;
 
-    static int execute(String... args) {
+    public static int execute(String... args) {
         return new CommandLine(new FuzzTlaCommand()).execute(args);
     }
 
