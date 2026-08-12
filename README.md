@@ -50,20 +50,57 @@ java -jar target/fuzztla.jar --help
 
 ## Commands
 
-Initialize a FuzzTLA project or run property-based fuzzing with:
+Initialize a corpus in the default `corpus` directory with:
 
 ```sh
 ./bin/fuzztla init
-./bin/fuzztla run --how=pbt
 ```
 
-The command structure and argument validation are in place, but initialization and property-based fuzzing are not implemented yet. These commands report that status and exit with code `1`.
+Use `--corpus` to select another directory. Initialization creates this layout without overwriting an existing configuration:
+
+```text
+corpus/
+├── config.toml
+└── 00inputs/
+```
+
+The default configuration is:
+
+```toml
+[generator]
+maximum_type_depth = 3
+maximum_expression_depth = 32
+maximum_nodes = 16
+maximum_collection_size = 8
+maximum_string_bytes = 32
+maximum_integer_bytes = 16
+
+[pbt]
+# Target number of unique, accepted inputs in 00inputs.
+corpus_entries = 1000
+# Inclusive upper bound on a randomly generated input's length.
+maximum_input_bytes = 1024
+```
+
+Populate the corpus with property-based inputs by running:
+
+```sh
+./bin/fuzztla run --how=pbt
+./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42
+```
+
+The configured `corpus_entries` is a target total, not a number added on every run. Before generating anything, FuzzTLA verifies every existing entry's filename, content hash, and acceptance by the configured IR generator. It then tries random byte arrays until the target contains that many unique accepted inputs. Lengths are selected from uniformly chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through `maximum_input_bytes`—and uniformly within the selected bucket.
+
+The effective nonnegative seed and run counters are printed as an aligned summary on success. Supplying that seed with the same configuration and starting corpus reproduces the pseudorandom candidate stream. Inputs are stored unchanged as `00inputs/<sha256>.expr`, where the filename contains the lowercase SHA-256 digest of the raw bytes. Only `InputRejectedException` skips a candidate; other generator failures stop the run.
 
 Generate a deterministic, typed TLA+ expression from an arbitrary binary file with:
 
 ```sh
 ./bin/fuzztla print input.bin
+./bin/fuzztla print --corpus=corpus corpus/00inputs/example.expr
 ```
+
+Without `--corpus`, `print` uses the built-in generator defaults. With it, the command uses the generator settings in that corpus's `config.toml`, which is necessary to replay inputs created with changed limits.
 
 The binary input is interpreted directly by FuzzTLA's generator framework. Variable-length values use per-element continuation markers—an odd byte continues and an even byte terminates—instead of a length prefix. The encoding is implementation-local and may change between versions; a suffix may remain unused when the selected expression is complete.
 

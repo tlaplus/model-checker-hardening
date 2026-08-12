@@ -5,10 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.PbtConfig;
+import io.github.tlaplus.hardening.config.TomlConfig;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.pbt.CorpusDirectory;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -60,19 +69,54 @@ class MainTest {
         var result = execute("init", "--help");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.out().contains("Usage: fuzztla init [-h]"));
+        assertTrue(result.out().contains("Usage: fuzztla init"));
+        assertTrue(result.out().contains("--corpus=DIR"));
         assertFalse(result.out().contains("--version"));
         assertEquals("", result.err());
     }
 
     @Test
-    void reportsInitAsNotImplemented() {
-        var result = execute("init");
+    void initializesDefaultConfigurationAndInputDirectory(@TempDir Path directory)
+            throws Exception {
+        var corpus = directory.resolve("custom-corpus");
+
+        var result = execute("init", "--corpus=" + corpus);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains(corpus.toString()));
+        assertEquals("", result.err());
+        assertEquals(
+                FuzzTlaConfig.defaults(),
+                TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME)));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME)));
+    }
+
+    @Test
+    void initializesInsideAnExistingDirectoryWithoutRemovingContents(@TempDir Path directory)
+            throws Exception {
+        var corpus = directory.resolve("corpus");
+        Files.createDirectories(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME));
+        var marker = corpus.resolve("keep-me");
+        Files.writeString(marker, "preserved");
+
+        var result = execute("init", "--corpus=" + corpus);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals("preserved", Files.readString(marker));
+        assertTrue(Files.isRegularFile(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME)));
+    }
+
+    @Test
+    void refusesToOverwriteExistingConfiguration(@TempDir Path directory) {
+        var corpus = directory.resolve("corpus");
+        assertEquals(
+                CommandLine.ExitCode.OK,
+                execute("init", "--corpus=" + corpus).exitCode());
+
+        var result = execute("init", "--corpus=" + corpus);
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
-        assertEquals("", result.out());
-        assertEquals(
-                "fuzztla: init is not implemented yet" + System.lineSeparator(), result.err());
+        assertTrue(result.err().contains("configuration already exists"));
     }
 
     @Test
@@ -96,7 +140,10 @@ class MainTest {
         var result = execute("run", "--help");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.out().contains("Usage: fuzztla run [-h] --how=TECHNIQUE"));
+        assertTrue(result.out().contains("Usage: fuzztla run"));
+        assertTrue(result.out().contains("--corpus=DIR"));
+        assertTrue(result.out().contains("--seed=SEED"));
+        assertTrue(result.out().contains("Nonnegative 64-bit seed"));
         assertTrue(result.out().contains("currently: pbt"));
         assertFalse(result.out().contains("--version"));
         assertEquals("", result.err());
@@ -119,14 +166,74 @@ class MainTest {
     }
 
     @Test
-    void reportsPbtAsNotImplemented() {
-        var result = execute("run", "--how=pbt");
+    void generatesAValidHashedCorpus(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 8, 32);
+
+        var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=42");
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals("", result.err());
+        assertTrue(result.out().contains("PBT run finished for '"));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+42 random seed\\s+]")));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+8 corpus entries\\s+]")));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+0 existing entries\\s+]")));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+8 added entries\\s+]")));
+        try (var paths = Files.list(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME))) {
+            var entries = paths.toList();
+            assertEquals(8, entries.size());
+            for (var entry : entries) {
+                var input = Files.readAllBytes(entry);
+                assertEquals(hash(input) + ".expr", entry.getFileName().toString());
+            }
+        }
+        var config = TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME));
+        assertEquals(
+                8,
+                CorpusDirectory.open(corpus).verify(IrGenerators.expressions(config.generator())));
+    }
+
+    @Test
+    void treatsConfiguredCorpusSizeAsATotalTarget(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 4, 16);
+        assertEquals(
+                CommandLine.ExitCode.OK,
+                execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=7")
+                        .exitCode());
+
+        var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=7");
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(
+                summaryOutput(corpus, 7, 4, 0, 0, 0, 0),
+                result.out());
+    }
+
+    @Test
+    void reportsAnUninitializedCorpus(@TempDir Path directory) {
+        var missing = directory.resolve("missing-corpus");
+        var result = execute("run", "--how=pbt", "--corpus=" + missing, "--seed=1");
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
-        assertEquals("", result.out());
-        assertEquals(
-                "fuzztla: run --how=pbt is not implemented yet" + System.lineSeparator(),
-                result.err());
+        assertTrue(result.err().contains("corpus directory does not exist"));
+    }
+
+    @Test
+    void verifiesExistingEntriesBeforeGenerating(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 3, 16);
+        var inputDirectory = corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME);
+        Files.write(inputDirectory.resolve("not-a-hash.expr"), new byte[] {1});
+
+        var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=1");
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
+        assertTrue(result.err().contains("invalid corpus entry name"));
+        try (var entries = Files.list(inputDirectory)) {
+            assertEquals(1, entries.count());
+        }
     }
 
     @Test
@@ -134,15 +241,51 @@ class MainTest {
         var result = execute("run", "--how=pbt", "spec.tla");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
-        assertTrue(result.err().contains("Unmatched argument at index 2: 'spec.tla'"));
+        assertTrue(result.err().contains("Unmatched argument"));
     }
 
     @Test
-    void rejectsUnknownRunOptions() {
-        var result = execute("run", "--how=pbt", "--seed=42");
+    void rejectsInvalidSeed() {
+        var result = execute("run", "--how=pbt", "--seed=not-a-long");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
-        assertTrue(result.err().contains("Unknown option: '--seed=42'"));
+        assertTrue(result.err().contains("Invalid value for option '--seed'"));
+        assertTrue(result.err().contains("0.." + Long.MAX_VALUE));
+    }
+
+    @Test
+    void rejectsNegativeSeed() {
+        var result = execute("run", "--how=pbt", "--seed=-1");
+
+        assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
+        assertTrue(result.err().contains("0.." + Long.MAX_VALUE));
+    }
+
+    @Test
+    void acceptsLargestNonnegativeSeed(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 0, 0);
+
+        var result = execute(
+                "run",
+                "--how=pbt",
+                "--corpus=" + corpus,
+                "--seed=" + Long.MAX_VALUE);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(
+                summaryOutput(corpus, Long.MAX_VALUE, 0, 0, 0, 0, 0),
+                result.out());
+    }
+
+    @Test
+    void generatesANonnegativeSeedWhenNoneIsGiven(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 0, 0);
+
+        var result = execute("run", "--how=pbt", "--corpus=" + corpus);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+\\d+ random seed\\s+]")));
     }
 
     @Test
@@ -150,7 +293,8 @@ class MainTest {
         var result = execute("print", "--help");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.out().contains("Usage: fuzztla print [-h] FILE"));
+        assertTrue(result.out().contains("Usage: fuzztla print"));
+        assertTrue(result.out().contains("--corpus=DIR"));
         assertTrue(result.out().contains("Binary generator input"));
         assertEquals("", result.err());
     }
@@ -166,9 +310,22 @@ class MainTest {
     @Test
     void printsExpressionFromEmptyFile(@TempDir Path directory) throws Exception {
         var input = directory.resolve("empty.bin");
-        java.nio.file.Files.createFile(input);
+        Files.createFile(input);
 
         var result = execute("print", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals("FALSE" + System.lineSeparator(), result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void printsUsingCorpusGeneratorConfiguration(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 0, 0);
+        var input = directory.resolve("empty.bin");
+        Files.createFile(input);
+
+        var result = execute("print", "--corpus=" + corpus, input.toString());
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("FALSE" + System.lineSeparator(), result.out());
@@ -188,14 +345,81 @@ class MainTest {
     }
 
     @Test
+    void reportsUnreadablePrintCorpus(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("input.bin");
+        Files.createFile(input);
+
+        var result = execute("print", "--corpus=" + directory.resolve("missing"), input.toString());
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
+        assertTrue(result.err().contains("cannot read corpus"));
+    }
+
+    @Test
     void rejectsExtraPrintArguments(@TempDir Path directory) throws Exception {
         var input = directory.resolve("input.bin");
-        java.nio.file.Files.createFile(input);
+        Files.createFile(input);
 
         var result = execute("print", input.toString(), "extra");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("Unmatched argument"));
+    }
+
+    private Path initializeSmallCorpus(Path directory, int entries, int maximumInputBytes)
+            throws Exception {
+        var corpus = directory.resolve("corpus");
+        assertEquals(
+                CommandLine.ExitCode.OK,
+                execute("init", "--corpus=" + corpus).exitCode());
+        var config = new FuzzTlaConfig(
+                IrGenerationConfig.defaults(), new PbtConfig(entries, maximumInputBytes));
+        Files.writeString(
+                corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME),
+                TomlConfig.render(config),
+                StandardCharsets.UTF_8);
+        return corpus;
+    }
+
+    private String hash(byte[] input) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
+    }
+
+    private String summaryOutput(
+            Path corpus,
+            long seed,
+            long existing,
+            long added,
+            long attempts,
+            long rejected,
+            long duplicates) {
+        return """
+                PBT run finished for '%s'
+
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                """
+                .formatted(
+                        corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME),
+                        seed,
+                        "random seed",
+                        existing + added,
+                        "corpus entries",
+                        existing,
+                        "existing entries",
+                        added,
+                        "added entries",
+                        attempts,
+                        "attempted inputs",
+                        rejected,
+                        "rejected inputs",
+                        duplicates,
+                        "duplicate inputs");
     }
 
     private Result execute(String... args) {

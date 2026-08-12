@@ -3,7 +3,12 @@ package io.github.tlaplus.hardening.cli;
 import at.forsyte.apalache.io.lir.PrettyWriter;
 import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
+import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.pbt.CorpusDirectory;
+import io.github.tlaplus.hardening.pbt.CorpusException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -25,6 +30,12 @@ final class PrintCommand implements Callable<Integer> {
             description = "Show this help message and exit.")
     private boolean helpRequested;
 
+    @Option(
+            names = "--corpus",
+            paramLabel = "DIR",
+            description = "Use generator settings from this corpus.")
+    private Path corpus;
+
     @Parameters(index = "0", paramLabel = "FILE", description = "Binary generator input.")
     private Path input;
 
@@ -32,6 +43,23 @@ final class PrintCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        final Generator<TlaEx> generator;
+        if (corpus == null) {
+            generator = IrGenerators.expressions();
+        } else {
+            try {
+                var config = CorpusDirectory.open(corpus).readConfig();
+                generator = IrGenerators.expressions(config.generator());
+            } catch (IOException | ConfigException | CorpusException exception) {
+                spec.commandLine()
+                        .getErr()
+                        .printf(
+                                "fuzztla: cannot read corpus '%s': %s%n",
+                                corpus, CliDiagnostics.message(exception));
+                return CommandLine.ExitCode.SOFTWARE;
+            }
+        }
+
         final byte[] bytes;
         try {
             bytes = Files.readAllBytes(input);
@@ -40,12 +68,12 @@ final class PrintCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: cannot read '%s': %s%n",
-                            input, diagnostic(exception));
+                            input, CliDiagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
 
         try {
-            var expression = IrGenerators.expressions().generate(bytes);
+            var expression = generator.generate(bytes);
             var buffer = new StringWriter();
             var printWriter = new PrintWriter(buffer);
             var writer = new PrettyWriter(
@@ -59,15 +87,8 @@ final class PrintCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: cannot generate expression from '%s': %s%n",
-                            input, diagnostic(exception));
+                            input, CliDiagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
-    }
-
-    private static String diagnostic(Throwable exception) {
-        var message = exception.getMessage();
-        return message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : message;
     }
 }
