@@ -59,6 +59,14 @@ Initialize a FuzzTLA project or run property-based fuzzing with:
 
 The command structure and argument validation are in place, but initialization and property-based fuzzing are not implemented yet. These commands report that status and exit with code `1`.
 
+Generate a deterministic, typed TLA+ expression from an arbitrary binary file with:
+
+```sh
+./bin/fuzztla print input.bin
+```
+
+The binary input is interpreted directly by FuzzTLA's generator framework. Variable-length values use per-element continuation markers—an odd byte continues and an even byte terminates—instead of a length prefix. The encoding is implementation-local and may change between versions; a suffix may remain unused when the selected expression is complete.
+
 ## License
 
 Licensed under either of
