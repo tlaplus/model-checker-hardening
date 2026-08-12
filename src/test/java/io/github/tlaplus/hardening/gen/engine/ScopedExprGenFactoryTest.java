@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.io.lir.PrettyWriter;
@@ -7,6 +9,7 @@ import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -16,6 +19,15 @@ import org.junit.jupiter.api.Test;
 class ScopedExprGenFactoryTest {
     @Test
     void lexicalFormsCanSelectTheirIntroducedNames() {
+        var scopedBooleanName = applicableIndex(
+                PrimitiveType.BOOL,
+                GeneralExpressionKind.NAME,
+                new ScopedName("bound", PrimitiveType.BOOL));
+        var localOperatorType = new OperatorType(List.of(), PrimitiveType.BOOL);
+        var scopedOperatorApplication = applicableIndex(
+                PrimitiveType.BOOL,
+                GeneralExpressionKind.OPERATOR_APPLICATION,
+                new ScopedName("LocalOp", localOperatorType));
         var scenarios = List.of(
                 new Scenario(
                         PrimitiveType.BOOL,
@@ -23,7 +35,7 @@ class ScopedExprGenFactoryTest {
                                 PrimitiveType.BOOL,
                                 GeneralExpressionKind.BOUNDED_CHOOSE,
                                 0,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "bound0"),
                 new Scenario(
@@ -31,7 +43,7 @@ class ScopedExprGenFactoryTest {
                         input(
                                 PrimitiveType.BOOL,
                                 GeneralExpressionKind.UNBOUNDED_CHOOSE,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "chosen0"),
                 new Scenario(
@@ -41,7 +53,7 @@ class ScopedExprGenFactoryTest {
                                 BooleanExpressionKind.FORALL_BOUNDED,
                                 0,
                                 0,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "q0"),
                 new Scenario(
@@ -50,7 +62,7 @@ class ScopedExprGenFactoryTest {
                                 PrimitiveType.BOOL,
                                 BooleanExpressionKind.TEMPORAL_EXISTS,
                                 0,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "temporal0"),
                 new Scenario(
@@ -59,7 +71,7 @@ class ScopedExprGenFactoryTest {
                                 new SetType(PrimitiveType.BOOL),
                                 SetExpressionKind.SET_FILTER,
                                 0,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "filtered0"),
                 new Scenario(
@@ -69,7 +81,7 @@ class ScopedExprGenFactoryTest {
                                 SetExpressionKind.SET_MAP,
                                 0,
                                 0,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "mapped0"),
                 new Scenario(
@@ -78,7 +90,7 @@ class ScopedExprGenFactoryTest {
                                 new FunctionType(PrimitiveType.BOOL, PrimitiveType.BOOL),
                                 OtherExpressionKind.FUNCTION_DEFINITION,
                                 0,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "arg0"),
                 new Scenario(
@@ -87,12 +99,16 @@ class ScopedExprGenFactoryTest {
                                 new OperatorType(
                                         List.of(PrimitiveType.BOOL), PrimitiveType.BOOL),
                                 OtherExpressionKind.LAMBDA,
-                                1,
+                                scopedBooleanName,
                                 0),
                         "parameter0"),
                 new Scenario(
                         PrimitiveType.BOOL,
-                        input(PrimitiveType.BOOL, GeneralExpressionKind.LET, 0, 8, 0, 0),
+                        input(
+                                PrimitiveType.BOOL,
+                                GeneralExpressionKind.LET,
+                                0,
+                                scopedOperatorApplication),
                         "LocalOp0"));
 
         for (var scenario : scenarios) {
@@ -101,6 +117,75 @@ class ScopedExprGenFactoryTest {
                     occurrences(printed, scenario.name()) >= 2,
                     () -> scenario.name() + " was not selected in:\n" + printed);
         }
+    }
+
+    @Test
+    void nameDependentFormsAreAvailableOnlyWithCompatibleBindings() {
+        var context = new GenerationContext(IrGenerationConfig.defaults());
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+
+        assertFalse(expressionFactory.isApplicable(
+                GeneralExpressionKind.NAME, PrimitiveType.BOOL));
+        assertFalse(expressionFactory.isApplicable(
+                GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.BOOL));
+
+        var value = new ScopedName("value", PrimitiveType.BOOL);
+        new Draw(new byte[0]).draw(context.withBinding(value, ignored -> {
+            assertTrue(expressionFactory.isApplicable(
+                    GeneralExpressionKind.NAME, PrimitiveType.BOOL));
+            assertFalse(expressionFactory.isApplicable(
+                    GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.BOOL));
+            return null;
+        }));
+
+        var operatorType = new OperatorType(
+                List.of(PrimitiveType.INT), PrimitiveType.BOOL);
+        var operator = new ScopedName("Predicate", operatorType);
+        new Draw(new byte[0]).draw(context.withBinding(operator, ignored -> {
+            assertTrue(expressionFactory.isApplicable(
+                    GeneralExpressionKind.NAME, operatorType));
+            assertTrue(expressionFactory.isApplicable(
+                    GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.BOOL));
+            assertFalse(expressionFactory.isApplicable(
+                    GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.INT));
+            return null;
+        }));
+    }
+
+    @Test
+    void primeEqualRejectsOrdinaryBindingsButUsesStateVariables() {
+        var missingContext = new GenerationContext(IrGenerationConfig.defaults());
+        var missingTypes = new IrTypeGenFactory(missingContext);
+        var missingExpressions = new IrExprGenFactory(missingContext, missingTypes);
+        var missingFactory = new BooleanExprGenFactory(
+                missingContext, missingTypes, missingExpressions);
+
+        assertTrue(missingExpressions.isApplicable(
+                BooleanExpressionKind.PRIME_EQUAL, PrimitiveType.BOOL));
+        assertThrows(
+                InputRejectedException.class,
+                () -> new Draw(new byte[0]).draw(
+                        missingFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1)));
+
+        var ordinary = new ScopedName("ordinary", PrimitiveType.INT);
+        assertThrows(
+                InputRejectedException.class,
+                () -> new Draw(new byte[0]).draw(missingContext.withBinding(
+                        ordinary,
+                        missingFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1))));
+
+        var stateContext = new GenerationContext(IrGenerationConfig.defaults());
+        var stateTypes = new IrTypeGenFactory(stateContext);
+        var stateExpressions = new IrExprGenFactory(stateContext, stateTypes);
+        var stateFactory = new BooleanExprGenFactory(
+                stateContext, stateTypes, stateExpressions);
+        var state = ScopedName.stateVariable("state", PrimitiveType.INT);
+        var expression = new Draw(new byte[0]).draw(stateContext.withBinding(
+                state, stateFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1)));
+
+        var printed = print(stateContext.builder().build(expression));
+        assertTrue(printed.contains("state'"), printed);
     }
 
     private String generateAndPrint(IrType type, byte[] input) {
@@ -116,20 +201,33 @@ class ScopedExprGenFactoryTest {
     }
 
     private byte[] input(IrType type, ExpressionKind selectedKind, int... remainder) {
-        var selectedIndex = 0;
-        for (var kind : ExpressionKinds.all()) {
-            if (!kind.isApplicable(type)) {
-                continue;
-            }
-            if (kind == selectedKind) {
-                var values = new int[remainder.length + 1];
-                values[0] = selectedIndex;
-                System.arraycopy(remainder, 0, values, 1, remainder.length);
-                return bytes(values);
-            }
-            selectedIndex++;
-        }
-        throw new IllegalArgumentException(selectedKind + " is not applicable to " + type);
+        var values = new int[remainder.length + 1];
+        values[0] = applicableIndex(type, selectedKind);
+        System.arraycopy(remainder, 0, values, 1, remainder.length);
+        return bytes(values);
+    }
+
+    private int applicableIndex(
+            IrType type, ExpressionKind selectedKind, ScopedName... bindings) {
+        var context = new GenerationContext(IrGenerationConfig.defaults());
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+        return new Draw(new byte[0]).draw(context.withBindings(
+                List.of(bindings),
+                ignored -> {
+                    var selectedIndex = 0;
+                    for (var kind : ExpressionKinds.all()) {
+                        if (!expressionFactory.isApplicable(kind, type)) {
+                            continue;
+                        }
+                        if (kind == selectedKind) {
+                            return selectedIndex;
+                        }
+                        selectedIndex++;
+                    }
+                    throw new IllegalArgumentException(
+                            selectedKind + " is not applicable to " + type);
+                }));
     }
 
     private byte[] bytes(int... values) {

@@ -69,9 +69,9 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                             draw.draw(expression(new SetType(elementType), nextDepth)));
                 }
                 case PRIME_EQUAL -> {
-                    var valueType = draw.draw(typeFactory.valueType());
-                    var name = builder().name(
-                            context.fresh("state"), valueType.toTlaType());
+                    var variable = draw.draw(context.chooseStateVariable());
+                    var valueType = variable.type();
+                    var name = builder().name(variable.name(), valueType.toTlaType());
                     yield builder().primeEq(
                             name, draw.draw(expression(valueType, nextDepth)));
                 }

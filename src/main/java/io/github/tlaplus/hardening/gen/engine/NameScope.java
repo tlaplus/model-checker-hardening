@@ -2,13 +2,31 @@ package io.github.tlaplus.hardening.gen.engine;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+/** Semantic role of a name visible during expression generation. */
+enum ScopedNameKind {
+    BOUND,
+    STATE_VARIABLE
+}
+
 /** A typed name visible while recursively generating a lexical body. */
-record ScopedName(String name, IrType type) {
+record ScopedName(String name, IrType type, ScopedNameKind kind) {
+    /** Creates an ordinary lexical binding. */
+    ScopedName(String name, IrType type) {
+        this(name, type, ScopedNameKind.BOUND);
+    }
+
     ScopedName {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(kind, "kind");
+    }
+
+    /** Creates a declared state-variable binding. */
+    static ScopedName stateVariable(String name, IrType type) {
+        return new ScopedName(name, type, ScopedNameKind.STATE_VARIABLE);
     }
 }
 
@@ -19,9 +37,19 @@ final class NameScope {
     /** Returns visible names of exactly the requested type, innermost scope first. */
     List<ScopedName> matching(IrType type) {
         Objects.requireNonNull(type, "type");
-        return current.distinctBy(ScopedName::name)
-                .filter(binding -> binding.type().equals(type))
-                .asJava();
+        return matching(binding -> binding.type().equals(type));
+    }
+
+    /** Returns visible operator names whose result has the requested type. */
+    List<ScopedName> operatorsReturning(IrType resultType) {
+        Objects.requireNonNull(resultType, "resultType");
+        return matching(binding -> binding.type() instanceof OperatorType operatorType
+                && operatorType.result().equals(resultType));
+    }
+
+    /** Returns visible declared state variables, innermost scope first. */
+    List<ScopedName> stateVariables() {
+        return matching(binding -> binding.kind() == ScopedNameKind.STATE_VARIABLE);
     }
 
     /** Runs a computation with one additional visible binding. */
@@ -43,5 +71,10 @@ final class NameScope {
         } finally {
             current = previous;
         }
+    }
+
+    /** Filters the visible, shadow-resolved bindings. */
+    private List<ScopedName> matching(Predicate<? super ScopedName> predicate) {
+        return current.distinctBy(ScopedName::name).filter(predicate).asJava();
     }
 }

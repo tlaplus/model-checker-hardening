@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.List;
+import java.util.function.Supplier;
 import org.apalache_mc.tla.jir.TlaCheckedBuilder;
 
 /**
@@ -42,19 +44,32 @@ final class GenerationContext {
         return new ScopedName(fresh(prefix), type);
     }
 
-    /**
-     * Selects a compatible scoped name or a fresh-name alternative with the cursor's balanced
-     * modulo mapping. The fresh identifier is allocated only when its final alternative is chosen;
-     * with no compatible scoped names, no selection byte is consumed.
-     */
-    Generator<String> chooseName(IrType type, String freshPrefix) {
-        return draw -> {
-            var scoped = scope.matching(type);
-            var selected = Math.toIntExact(draw.drawLong(0, scoped.size()));
-            return selected == scoped.size()
-                    ? fresh(freshPrefix)
-                    : scoped.get(selected).name();
-        };
+    /** Reports whether an exactly typed binding is currently visible. */
+    boolean hasBinding(IrType type) {
+        return !scope.matching(type).isEmpty();
+    }
+
+    /** Selects an exactly typed visible binding without inventing a free name. */
+    Generator<ScopedName> chooseBinding(IrType type) {
+        return chooseScoped(
+                () -> scope.matching(type), "no binding of type " + type + " is in scope");
+    }
+
+    /** Reports whether a visible operator returns the requested type. */
+    boolean hasOperatorReturning(IrType resultType) {
+        return !scope.operatorsReturning(resultType).isEmpty();
+    }
+
+    /** Selects a visible operator whose result has the requested type. */
+    Generator<ScopedName> chooseOperatorReturning(IrType resultType) {
+        return chooseScoped(
+                () -> scope.operatorsReturning(resultType),
+                "no operator returning " + resultType + " is in scope");
+    }
+
+    /** Selects a declared state variable or rejects when the scope contains none. */
+    Generator<ScopedName> chooseStateVariable() {
+        return chooseScoped(scope::stateVariables, "no state variable is in scope");
     }
 
     /** Returns a generator that runs its body with one additional lexical binding. */
@@ -78,5 +93,17 @@ final class GenerationContext {
     /** Returns a fresh variant-tag identifier from the shared field supply. */
     String freshTag() {
         return "Tag" + fieldCount++;
+    }
+
+    /** Defers candidate lookup until the generator runs inside its intended lexical scope. */
+    private Generator<ScopedName> chooseScoped(
+            Supplier<List<ScopedName>> candidates, String missingMessage) {
+        return draw -> {
+            var available = candidates.get();
+            if (available.isEmpty()) {
+                throw new InputRejectedException(missingMessage);
+            }
+            return draw.choose(available);
+        };
     }
 }

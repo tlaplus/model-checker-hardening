@@ -31,12 +31,12 @@ final class IrExprGenFactory {
      * <p>Calling this factory consumes no bytes and does not increment the node counter. Those
      * effects occur only when the returned generator is invoked.
      *
-     * <p>Applicability is counted before the index is drawn, and only the selected form is built.
-     * The catalog contains at most 256 entries, so every nonterminal selection consumes exactly
-     * one byte. Modulo reduction maps the 256 byte values round-robin over the applicable forms,
-     * assigning each form either the floor or ceiling of {@code 256 / formCount} values. Rejection
-     * sampling is intentionally avoided because its variable consumption would make mutation-fuzzer
-     * inputs sensitive to preceding choices.
+     * <p>Type and current lexical-scope applicability are counted before the index is drawn, and
+     * only the selected form is built. The catalog contains at most 256 entries, so every
+     * nonterminal selection consumes exactly one byte. Modulo reduction maps the 256 byte values
+     * round-robin over the applicable forms, assigning each form either the floor or ceiling of
+     * {@code 256 / formCount} values. Rejection sampling is intentionally avoided because its
+     * variable consumption would make mutation-fuzzer inputs sensitive to preceding choices.
      */
     Generator<TlaBuilderExpr> mkGen(IrType type, int remainingDepth) {
         return draw -> {
@@ -48,7 +48,7 @@ final class IrExprGenFactory {
 
             var formCount = 0;
             for (var kind : ExpressionKinds.all()) {
-                if (kind.isApplicable(type)) {
+                if (isApplicable(kind, type)) {
                     formCount++;
                 }
             }
@@ -59,12 +59,26 @@ final class IrExprGenFactory {
 
             var selected = Math.toIntExact(draw.drawLong(0, formCount - 1L));
             for (var kind : ExpressionKinds.all()) {
-                if (kind.isApplicable(type) && selected-- == 0) {
+                if (isApplicable(kind, type) && selected-- == 0) {
                     return draw.draw(mkGen(kind, type, remainingDepth));
                 }
             }
             throw new IllegalStateException("unreachable expression choice");
         };
+    }
+
+    /** Reports whether a form's type and lexical-scope requirements are currently satisfied. */
+    boolean isApplicable(ExpressionKind kind, IrType type) {
+        if (!kind.isTypeApplicable(type)) {
+            return false;
+        }
+        if (kind == GeneralExpressionKind.NAME) {
+            return context.hasBinding(type);
+        }
+        if (kind == GeneralExpressionKind.OPERATOR_APPLICATION) {
+            return context.hasOperatorReturning(type);
+        }
+        return true;
     }
 
     /** Returns the generator supplied by a selected kind's typed family. */
