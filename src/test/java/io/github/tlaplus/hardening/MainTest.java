@@ -8,9 +8,11 @@ import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
+import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
-import io.github.tlaplus.hardening.pbt.CorpusDirectory;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -186,8 +188,11 @@ class MainTest {
             var entries = paths.toList();
             assertEquals(8, entries.size());
             for (var entry : entries) {
-                var input = Files.readAllBytes(entry);
-                assertEquals(hash(input) + ".expr", entry.getFileName().toString());
+                var corpusInput = CorpusInputCodec.decode(Files.readAllBytes(entry));
+                assertEquals(CorpusInput.Kind.EXPRESSION, corpusInput.kind());
+                assertEquals(
+                        hash(corpusInput.input()) + ".cbor",
+                        entry.getFileName().toString());
             }
         }
         var config = TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME));
@@ -225,7 +230,7 @@ class MainTest {
     void verifiesExistingEntriesBeforeGenerating(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 3, 16);
         var inputDirectory = corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME);
-        Files.write(inputDirectory.resolve("not-a-hash.expr"), new byte[] {1});
+        Files.write(inputDirectory.resolve("not-a-hash.cbor"), new byte[] {1});
 
         var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=1");
 
@@ -295,7 +300,7 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla print"));
         assertTrue(result.out().contains("--corpus=DIR"));
-        assertTrue(result.out().contains("Binary generator input"));
+        assertTrue(result.out().contains("CBOR corpus input"));
         assertEquals("", result.err());
     }
 
@@ -309,8 +314,8 @@ class MainTest {
 
     @Test
     void printsExpressionFromEmptyFile(@TempDir Path directory) throws Exception {
-        var input = directory.resolve("empty.bin");
-        Files.createFile(input);
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", input.toString());
 
@@ -320,10 +325,29 @@ class MainTest {
     }
 
     @Test
+    void rejectsRawAndUnsupportedPrintInputs(@TempDir Path directory) throws Exception {
+        var raw = directory.resolve("raw.bin");
+        Files.write(raw, new byte[] {0});
+        var module = directory.resolve("module.cbor");
+        Files.write(
+                module,
+                CorpusInputCodec.encode(
+                        new CorpusInput(CorpusInput.Kind.MODULE, new byte[] {0})));
+
+        var rawResult = execute("print", raw.toString());
+        var moduleResult = execute("print", module.toString());
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, rawResult.exitCode());
+        assertTrue(rawResult.err().contains("cannot decode"));
+        assertEquals(CommandLine.ExitCode.SOFTWARE, moduleResult.exitCode());
+        assertTrue(moduleResult.err().contains("unsupported input kind 'module'"));
+    }
+
+    @Test
     void printsUsingCorpusGeneratorConfiguration(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 0, 0);
-        var input = directory.resolve("empty.bin");
-        Files.createFile(input);
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", "--corpus=" + corpus, input.toString());
 
@@ -334,20 +358,20 @@ class MainTest {
 
     @Test
     void reportsUnreadablePrintInput(@TempDir Path directory) {
-        var missing = directory.resolve("missing.bin");
+        var missing = directory.resolve("missing.cbor");
 
         var result = execute("print", missing.toString());
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertEquals("", result.out());
         assertTrue(result.err().contains("fuzztla: cannot read"));
-        assertTrue(result.err().contains("missing.bin"));
+        assertTrue(result.err().contains("missing.cbor"));
     }
 
     @Test
     void reportsUnreadablePrintCorpus(@TempDir Path directory) throws Exception {
-        var input = directory.resolve("input.bin");
-        Files.createFile(input);
+        var input = directory.resolve("input.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", "--corpus=" + directory.resolve("missing"), input.toString());
 
@@ -357,8 +381,8 @@ class MainTest {
 
     @Test
     void rejectsExtraPrintArguments(@TempDir Path directory) throws Exception {
-        var input = directory.resolve("input.bin");
-        Files.createFile(input);
+        var input = directory.resolve("input.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", input.toString(), "extra");
 

@@ -95,7 +95,7 @@ public final class TomlConfig {
                 maximum_integer_bytes = %d
 
                 [pbt]
-                # Target number of unique, accepted inputs in 00inputs.
+                # Target number of unique, accepted inputs in 00-inputs.
                 corpus_entries = %d
                 # Inclusive upper bound on a randomly generated input's length.
                 maximum_input_bytes = %d

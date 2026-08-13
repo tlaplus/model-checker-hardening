@@ -5,10 +5,13 @@ import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
+import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
-import io.github.tlaplus.hardening.pbt.CorpusDirectory;
-import io.github.tlaplus.hardening.pbt.CorpusException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -22,7 +25,9 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
 
-@Command(name = "print", description = "Generate and print a TLA+ expression from a binary file.")
+@Command(
+        name = "print",
+        description = "Generate and print a TLA+ expression from a CBOR corpus input.")
 final class PrintCommand implements Callable<Integer> {
     @Option(
             names = {"-h", "--help"},
@@ -36,7 +41,7 @@ final class PrintCommand implements Callable<Integer> {
             description = "Use generator settings from this corpus.")
     private Path corpus;
 
-    @Parameters(index = "0", paramLabel = "FILE", description = "Binary generator input.")
+    @Parameters(index = "0", paramLabel = "FILE", description = "CBOR corpus input.")
     private Path input;
 
     @Spec private CommandSpec spec;
@@ -60,9 +65,9 @@ final class PrintCommand implements Callable<Integer> {
             }
         }
 
-        final byte[] bytes;
+        final byte[] encoded;
         try {
-            bytes = Files.readAllBytes(input);
+            encoded = Files.readAllBytes(input);
         } catch (IOException exception) {
             spec.commandLine()
                     .getErr()
@@ -72,8 +77,28 @@ final class PrintCommand implements Callable<Integer> {
             return CommandLine.ExitCode.SOFTWARE;
         }
 
+        final CorpusInput corpusInput;
         try {
-            var expression = generator.generate(bytes);
+            corpusInput = CorpusInputCodec.decode(encoded);
+        } catch (CorpusInputFormatException exception) {
+            spec.commandLine()
+                    .getErr()
+                    .printf(
+                            "fuzztla: cannot decode '%s': %s%n",
+                            input, CliDiagnostics.message(exception));
+            return CommandLine.ExitCode.SOFTWARE;
+        }
+        if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
+            spec.commandLine()
+                    .getErr()
+                    .printf(
+                            "fuzztla: cannot generate expression from '%s': unsupported input kind '%s'%n",
+                            input, corpusInput.kind().encodedName());
+            return CommandLine.ExitCode.SOFTWARE;
+        }
+
+        try {
+            var expression = generator.generate(corpusInput.input());
             var buffer = new StringWriter();
             var printWriter = new PrintWriter(buffer);
             var writer = new PrettyWriter(

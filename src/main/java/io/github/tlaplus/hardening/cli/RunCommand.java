@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.config.ConfigException;
-import io.github.tlaplus.hardening.pbt.CorpusDirectory;
-import io.github.tlaplus.hardening.pbt.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.pbt.PbtException;
 import io.github.tlaplus.hardening.pbt.PbtRunSummary;
 import io.github.tlaplus.hardening.pbt.PbtRunner;

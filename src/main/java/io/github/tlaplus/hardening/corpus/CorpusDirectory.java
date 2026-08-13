@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.pbt;
+package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
@@ -21,9 +21,9 @@ import java.util.regex.Pattern;
 /** Owns the on-disk layout and integrity checks for one FuzzTLA corpus. */
 public final class CorpusDirectory {
     public static final String CONFIG_FILE_NAME = "config.toml";
-    public static final String INPUT_DIRECTORY_NAME = "00inputs";
+    public static final String INPUT_DIRECTORY_NAME = "00-inputs";
 
-    private static final Pattern INPUT_FILE_NAME = Pattern.compile("([0-9a-f]{64})\\.expr");
+    private static final Pattern INPUT_FILE_NAME = Pattern.compile("([0-9a-f]{64})\\.cbor");
     private static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
 
     private final Path root;
@@ -96,21 +96,24 @@ public final class CorpusDirectory {
         return count;
     }
 
-    /** Stores bytes under their digest and reports whether the content was already present. */
+    /** Stores an expression input under its payload digest in the documented CBOR envelope. */
     public StoreResult store(byte[] input) throws IOException, CorpusException {
-        Objects.requireNonNull(input, "input");
-        var path = inputDirectory.resolve(hash(input) + ".expr");
+        var payload = Objects.requireNonNull(input, "input").clone();
+        var path = inputDirectory.resolve(hash(payload) + ".cbor");
+        var encoded = CorpusInputCodec.encode(CorpusInput.expression(payload));
         try {
             Files.write(
                     path,
-                    input,
+                    encoded,
                     StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE);
             return StoreResult.ADDED;
         } catch (FileAlreadyExistsException exception) {
-            if (Files.isRegularFile(path, NO_FOLLOW_LINKS)
-                    && Arrays.equals(input, Files.readAllBytes(path))) {
-                return StoreResult.DUPLICATE;
+            if (Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+                var existing = decodeExpressionInput(path, Files.readAllBytes(path));
+                if (Arrays.equals(payload, existing)) {
+                    return StoreResult.DUPLICATE;
+                }
             }
             throw new CorpusException("SHA-256 collision at corpus entry: " + path, exception);
         }
@@ -121,7 +124,7 @@ public final class CorpusDirectory {
         return root;
     }
 
-    /** Returns the directory containing raw generator inputs. */
+    /** Returns the directory containing CBOR-encoded generator inputs. */
     public Path inputDirectory() {
         return inputDirectory;
     }
@@ -136,9 +139,9 @@ public final class CorpusDirectory {
         if (!matcher.matches()) {
             throw new CorpusException("invalid corpus entry name: " + path);
         }
-        var input = Files.readAllBytes(path);
+        var input = decodeExpressionInput(path, Files.readAllBytes(path));
         if (!matcher.group(1).equals(hash(input))) {
-            throw new CorpusException("corpus entry hash does not match its contents: " + path);
+            throw new CorpusException("corpus entry hash does not match its input: " + path);
         }
         try {
             generator.generate(input);
@@ -148,7 +151,27 @@ public final class CorpusDirectory {
         }
     }
 
-    /** Computes the lowercase SHA-256 digest used as a corpus entry's basename. */
+    /** Extracts the expression-generator payload from one corpus entry. */
+    private static byte[] decodeExpressionInput(Path path, byte[] encoded) throws CorpusException {
+        final CorpusInput corpusInput;
+        try {
+            corpusInput = CorpusInputCodec.decode(encoded);
+        } catch (CorpusInputFormatException exception) {
+            throw new CorpusException(
+                    "invalid CBOR corpus entry: " + path + ": " + diagnostic(exception),
+                    exception);
+        }
+        if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
+            throw new CorpusException(
+                    "unsupported corpus input kind '"
+                            + corpusInput.kind().encodedName()
+                            + "': "
+                            + path);
+        }
+        return corpusInput.input();
+    }
+
+    /** Computes the lowercase SHA-256 payload digest used as a corpus entry's basename. */
     private static String hash(byte[] input) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
