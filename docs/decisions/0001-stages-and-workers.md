@@ -57,8 +57,16 @@ Inv ==
 The expression subtree is deep-copied for `Inv`; it is not factored through
 another operator. A parser worker records its result in
 `stages.parser`, atomically updates the CBOR entry, and atomically moves it to
-the matching parser directory. Startup inventory validation completes an
-interrupted move and rejects duplicate or inconsistent entries.
+the matching parser directory. For a crash, it also writes a UTF-8
+`<sha256>.stacktrace` sidecar containing the exception stack trace or other
+crash diagnostic. The sidecar is staged before the CBOR metadata commit so
+startup recovery can complete an interrupted transition. Startup inventory
+validation completes interrupted moves and rejects duplicate or inconsistent
+entries.
+
+A SANY return value, including its generic `ERROR` result, is a parser failure.
+The crash verdict is reserved for an exception that escapes SANY, a timeout, an
+abrupt worker exit, or a worker that dies while accepting an input.
 
 Generation stops at the global entry limit. The parser then drains the closed
 queue, and the run finishes when no input is queued or in flight. If parser

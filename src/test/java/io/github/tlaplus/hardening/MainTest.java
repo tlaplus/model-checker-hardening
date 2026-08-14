@@ -331,6 +331,7 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla print"));
         assertTrue(result.out().contains("--corpus=DIR"));
+        assertTrue(result.out().contains("--spec"));
         assertTrue(result.out().contains("CBOR corpus input"));
         assertEquals("", result.err());
     }
@@ -352,6 +353,24 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("FALSE" + System.lineSeparator(), result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void printsTheCompleteParserSpecification(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+
+        var result = execute("print", "--spec", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains("MODULE FuzzInput"));
+        assertTrue(result.out()
+                .contains("EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants"));
+        assertTrue(result.out().contains("VARIABLE exprValue"));
+        assertTrue(result.out().contains("Init == exprValue = FALSE"));
+        assertTrue(result.out().contains("Next == UNCHANGED exprValue"));
+        assertTrue(result.out().contains("Inv == exprValue = FALSE"));
         assertEquals("", result.err());
     }
 

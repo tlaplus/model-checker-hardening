@@ -8,7 +8,9 @@ import java.io.DataOutputStream;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.PrintStream;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -97,18 +99,33 @@ public final class ParserWorkerMain {
             return switch (exitCode) {
                 case OK -> new ParserResult(ParserResult.Outcome.PASS, diagnostic);
                 case SYNTAX_PARSING_FAILURE,
-                                SEMANTIC_ANALYSIS_OR_LEVEL_CHECKING_FAILURE ->
+                                SEMANTIC_ANALYSIS_OR_LEVEL_CHECKING_FAILURE,
+                                ERROR ->
                         new ParserResult(ParserResult.Outcome.FAIL, diagnostic);
-                case ERROR -> new ParserResult(ParserResult.Outcome.CRASH, diagnostic);
             };
         } catch (Exception | StackOverflowError exception) {
-            var message = exception.getMessage();
             return new ParserResult(
                     ParserResult.Outcome.CRASH,
-                    message == null || message.isBlank()
-                            ? exception.getClass().getSimpleName()
-                            : message);
+                    appendDiagnostic(
+                            diagnostics.toString(StandardCharsets.UTF_8),
+                            stackTrace(exception)));
         }
+    }
+
+    static String stackTrace(Throwable exception) {
+        var output = new StringWriter();
+        exception.printStackTrace(new PrintWriter(output));
+        return output.toString();
+    }
+
+    private static String appendDiagnostic(String diagnostic, String stackTrace) {
+        if (diagnostic.isBlank()) {
+            return stackTrace;
+        }
+        if (diagnostic.endsWith("\n")) {
+            return diagnostic + stackTrace;
+        }
+        return diagnostic + System.lineSeparator() + stackTrace;
     }
 
     private static void writeResult(DataOutputStream output, ParserResult result)

@@ -186,6 +186,12 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
 
  - `<stage-status>` is a directory like `00-inputs` and `02tlc-pass`.
 
+ - A parser crash also produces
+   `01parser-crash/<sha256>.stacktrace` beside the corresponding CBOR entry.
+   The UTF-8 sidecar contains the Java stack trace when the parser threw an
+   exception, or a diagnostic for non-exceptional crashes such as a timeout.
+   Sidecars are not corpus entries and do not count towards capacity limits.
+
 ### 2.4. Stage
 
 When an input passes through a stage, this stage stores its metadata under `stages.<stage name>`.

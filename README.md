@@ -121,16 +121,23 @@ the pseudorandom candidate stream. Entries begin in
 `00-inputs/<sha256>.cbor`; the parser records tagged UTC timestamps and a verdict
 before moving each entry to its parser result directory. Only
 `InputRejectedException` skips a candidate; other generator failures stop the
-workflow.
+workflow. A crashed parser also writes
+`01parser-crash/<sha256>.stacktrace` with the exception stack trace or other
+crash diagnostic.
 
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
 ```sh
 ./bin/fuzztla print input.cbor
 ./bin/fuzztla print --corpus=corpus corpus/00-inputs/example.cbor
+./bin/fuzztla print --spec --corpus=corpus corpus/01parser-crash/example.cbor
 ```
 
-`print` always expects the CBOR envelope described above. Without `--corpus`, it uses the built-in generator defaults. With `--corpus`, it uses the generator settings in that corpus's `config.toml`, which is necessary to replay inputs created with changed limits.
+`print` always expects the CBOR envelope described above. By default, it prints
+the generated expression. `--spec` prints the complete specification passed to
+the parser. Without `--corpus`, the command uses the built-in generator defaults.
+With `--corpus`, it uses the generator settings in that corpus's `config.toml`,
+which is necessary to replay inputs created with changed limits.
 
 The embedded `input` byte string is interpreted directly by FuzzTLA's generator framework. Variable-length values use per-element continuation markers—an odd byte continues and an even byte terminates—instead of a length prefix. The encoding is implementation-local and may change between versions; a suffix may remain unused when the selected expression is complete.
 

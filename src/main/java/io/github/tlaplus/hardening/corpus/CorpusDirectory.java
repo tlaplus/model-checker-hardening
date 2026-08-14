@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -34,11 +35,14 @@ public final class CorpusDirectory {
     public static final String PARSER_PASS_DIRECTORY_NAME = "01parser-pass";
     public static final String PARSER_FAIL_DIRECTORY_NAME = "01parser-fail";
     public static final String PARSER_CRASH_DIRECTORY_NAME = "01parser-crash";
+    public static final String PARSER_CRASH_REPORT_EXTENSION = ".stacktrace";
 
     private static final String WORK_DIRECTORY_NAME = ".work";
     private static final String LOCK_FILE_NAME = ".workflow.lock";
     private static final String PARSER_STAGE_NAME = "parser";
     private static final Pattern INPUT_FILE_NAME = Pattern.compile("([0-9a-f]{64})\\.cbor");
+    private static final Pattern PARSER_CRASH_REPORT_FILE_NAME =
+            Pattern.compile("([0-9a-f]{64})\\.stacktrace");
     private static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
 
     private final Path root;
@@ -151,6 +155,8 @@ public final class CorpusDirectory {
         recoverParserTransitions(generator);
 
         var names = new HashSet<String>();
+        var parserCrashEntries = new HashSet<String>();
+        var parserCrashReports = new HashSet<String>();
         var inputs = new ArrayList<Path>();
         long parserPass = 0;
         long parserFail = 0;
@@ -159,8 +165,20 @@ public final class CorpusDirectory {
         for (var directory : stageDirectories) {
             try (var paths = Files.list(directory)) {
                 for (var path : paths.sorted().toList()) {
-                    var entry = verifyPath(path, generator);
                     var name = path.getFileName().toString();
+                    if (directory.equals(parserCrashDirectory)) {
+                        var reportMatcher = PARSER_CRASH_REPORT_FILE_NAME.matcher(name);
+                        if (reportMatcher.matches()) {
+                            if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+                                throw new CorpusException(
+                                        "parser crash report is not a regular file: " + path);
+                            }
+                            parserCrashReports.add(reportMatcher.group(1));
+                            continue;
+                        }
+                    }
+
+                    var entry = verifyPath(path, generator);
                     if (!names.add(name)) {
                         throw new CorpusException(
                                 "corpus entry appears in multiple workflow directories: " + name);
@@ -186,9 +204,19 @@ public final class CorpusDirectory {
                             parserFail++;
                         } else {
                             parserCrash++;
+                            parserCrashEntries.add(name);
                         }
                     }
                 }
+            }
+        }
+
+        for (var digest : parserCrashReports) {
+            if (!parserCrashEntries.contains(digest + ".cbor")) {
+                throw new CorpusException(
+                        "parser crash report has no matching corpus entry: "
+                                + parserCrashDirectory.resolve(
+                                        digest + PARSER_CRASH_REPORT_EXTENSION));
             }
         }
 
@@ -240,11 +268,28 @@ public final class CorpusDirectory {
         return decodeExpressionInput(path, Files.readAllBytes(path));
     }
 
-    /** Atomically records a parser result and moves the input to its result directory. */
+    /** Records a parser result and moves the input to its result directory. */
     public synchronized Path completeParser(
             Path source, String verdict, Instant startTime, Instant endTime)
             throws IOException, CorpusException {
+        return completeParser(source, verdict, startTime, endTime, "");
+    }
+
+    /**
+     * Records a parser result, preserving a crash diagnostic beside crashed inputs.
+     *
+     * <p>The diagnostic is ignored for non-crash verdicts. Crash reports are staged before the
+     * CBOR metadata commit so an interrupted transition can be completed during inventory.
+     */
+    public synchronized Path completeParser(
+            Path source,
+            String verdict,
+            Instant startTime,
+            Instant endTime,
+            String diagnostic)
+            throws IOException, CorpusException {
         requireInputPath(source);
+        Objects.requireNonNull(diagnostic, "diagnostic");
         var destinationDirectory = parserDestinations.get(verdict);
         if (destinationDirectory == null) {
             throw new IllegalArgumentException("unsupported parser verdict: " + verdict);
@@ -254,6 +299,18 @@ public final class CorpusDirectory {
         var destination = destinationDirectory.resolve(source.getFileName());
         if (Files.exists(destination, NO_FOLLOW_LINKS)) {
             throw new CorpusException("parser destination already exists: " + destination);
+        }
+
+        Path stagedCrashReport = null;
+        Path crashReportDestination = null;
+        if ("crashed".equals(verdict)) {
+            var reportName = crashReportName(source);
+            stagedCrashReport = workDirectory.resolve(reportName);
+            crashReportDestination = parserCrashDirectory.resolve(reportName);
+            if (Files.exists(crashReportDestination, NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        "parser crash report already exists: " + crashReportDestination);
+            }
         }
 
         final byte[] updated;
@@ -268,7 +325,11 @@ public final class CorpusDirectory {
         }
 
         var temporary = Files.createTempFile(workDirectory, "parser-", ".cbor");
+        var metadataCommitted = false;
         try {
+            if (stagedCrashReport != null) {
+                stageCrashReport(stagedCrashReport, diagnostic);
+            }
             Files.write(
                     temporary,
                     updated,
@@ -279,10 +340,20 @@ public final class CorpusDirectory {
                     source,
                     StandardCopyOption.ATOMIC_MOVE,
                     StandardCopyOption.REPLACE_EXISTING);
+            metadataCommitted = true;
+            if (stagedCrashReport != null) {
+                Files.move(
+                        stagedCrashReport,
+                        crashReportDestination,
+                        StandardCopyOption.ATOMIC_MOVE);
+            }
             Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
             return destination;
         } finally {
             Files.deleteIfExists(temporary);
+            if (!metadataCommitted && stagedCrashReport != null) {
+                Files.deleteIfExists(stagedCrashReport);
+            }
         }
     }
 
@@ -330,10 +401,72 @@ public final class CorpusDirectory {
                         throw new CorpusException(
                                 "cannot recover duplicate parser entry: " + destination);
                     }
+                    if ("crashed".equals(verdict.orElseThrow())) {
+                        recoverCrashReport(path);
+                    }
                     Files.move(path, destination, StandardCopyOption.ATOMIC_MOVE);
                 }
             }
         }
+    }
+
+    private void stageCrashReport(Path stagedReport, String diagnostic) throws IOException {
+        var report = diagnostic.isBlank()
+                ? "Parser crashed without a diagnostic."
+                : diagnostic;
+        if (!report.endsWith("\n")) {
+            report += System.lineSeparator();
+        }
+
+        var temporary = Files.createTempFile(workDirectory, "parser-crash-", ".tmp");
+        try {
+            Files.writeString(
+                    temporary,
+                    report,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+            Files.move(
+                    temporary,
+                    stagedReport,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    private void recoverCrashReport(Path source) throws IOException, CorpusException {
+        var reportName = crashReportName(source);
+        var stagedReport = workDirectory.resolve(reportName);
+        var destination = parserCrashDirectory.resolve(reportName);
+        if (Files.exists(destination, NO_FOLLOW_LINKS)) {
+            if (!Files.isRegularFile(destination, NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        "parser crash report is not a regular file: " + destination);
+            }
+            if (Files.exists(stagedReport, NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        "parser crash report exists in both work and result directories: "
+                                + reportName);
+            }
+            return;
+        }
+        if (Files.exists(stagedReport, NO_FOLLOW_LINKS)) {
+            if (!Files.isRegularFile(stagedReport, NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        "staged parser crash report is not a regular file: " + stagedReport);
+            }
+            Files.move(stagedReport, destination, StandardCopyOption.ATOMIC_MOVE);
+        }
+    }
+
+    private static String crashReportName(Path entry) throws CorpusException {
+        var matcher = INPUT_FILE_NAME.matcher(entry.getFileName().toString());
+        if (!matcher.matches()) {
+            throw new CorpusException("invalid corpus entry name: " + entry);
+        }
+        return matcher.group(1) + PARSER_CRASH_REPORT_EXTENSION;
     }
 
     private Entry verifyPath(Path path, Generator<?> generator)

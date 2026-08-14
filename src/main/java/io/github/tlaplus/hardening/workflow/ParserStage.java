@@ -133,7 +133,11 @@ public final class ParserStage implements WorkflowStage {
                         endTime = startTime;
                     }
                     corpus.completeParser(
-                            path, result.outcome().corpusVerdict(), startTime, endTime);
+                            path,
+                            result.outcome().corpusVerdict(),
+                            startTime,
+                            endTime,
+                            result.diagnostic());
                     inputCapacity.release();
                     increment(result.outcome());
                     if (result.outcome() == ParserResult.Outcome.CRASH) {

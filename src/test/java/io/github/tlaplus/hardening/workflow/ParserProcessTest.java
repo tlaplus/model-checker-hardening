@@ -15,6 +15,7 @@ class ParserProcessTest {
     void reusesAWorkerForFullSanyPassAndFailureResults() throws Exception {
         var valid = validSource();
         var semanticFailure = valid.replace("FALSE", "MissingName");
+        var syntaxFailure = valid.replace("FALSE", "ENABLED TRUE'");
 
         try (var worker = ParserProcess.start(STARTUP_TIMEOUT)) {
             assertEquals(
@@ -23,6 +24,9 @@ class ParserProcessTest {
             assertEquals(
                     ParserResult.Outcome.FAIL,
                     worker.parse(semanticFailure, STARTUP_TIMEOUT).outcome());
+            assertEquals(
+                    ParserResult.Outcome.FAIL,
+                    worker.parse(syntaxFailure, STARTUP_TIMEOUT).outcome());
             assertEquals(
                     ParserResult.Outcome.PASS,
                     worker.parse(valid, STARTUP_TIMEOUT).outcome());

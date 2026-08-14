@@ -155,6 +155,30 @@ class CorpusDirectoryTest {
     }
 
     @Test
+    void storesParserCrashStackTraceBesideTheCorpusEntry(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {2, 7, 1, 8};
+        corpus.store(input);
+        var source = corpus.inputPath(input);
+        var diagnostic = "java.lang.IllegalStateException: parser exploded\n"
+                + "\tat parser.Worker.parse(Worker.java:42)";
+
+        var destination = corpus.completeParser(
+                source,
+                "crashed",
+                Instant.ofEpochSecond(10),
+                Instant.ofEpochSecond(11),
+                diagnostic);
+
+        var report = corpus.parserCrashDirectory()
+                .resolve(hash(input) + CorpusDirectory.PARSER_CRASH_REPORT_EXTENSION);
+        assertEquals(corpus.parserCrashDirectory().resolve(source.getFileName()), destination);
+        assertEquals(diagnostic + System.lineSeparator(), Files.readString(report));
+        assertEquals(1, corpus.inventory(ACCEPT).parserCrashEntries());
+    }
+
+    @Test
     void recoversAMetadataUpdateInterruptedBeforeTheDirectoryMove(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
@@ -176,6 +200,34 @@ class CorpusDirectoryTest {
         assertEquals(0, inventory.inputEntries());
         assertEquals(1, inventory.parserFailEntries());
         assertTrue(Files.exists(corpus.parserFailDirectory().resolve(source.getFileName())));
+    }
+
+    @Test
+    void recoversAStagedParserCrashReport(@TempDir Path directory) throws Exception {
+        var root = directory.resolve("corpus");
+        var corpus = CorpusDirectory.initialize(root);
+        var input = new byte[] {1, 6, 1, 8};
+        corpus.store(input);
+        var source = corpus.inputPath(input);
+        Files.write(
+                source,
+                CorpusInputCodec.withStageMetadata(
+                        Files.readAllBytes(source),
+                        new StageMetadata(
+                                "parser",
+                                "crashed",
+                                Instant.ofEpochSecond(1),
+                                Instant.ofEpochSecond(2))));
+        var reportName = hash(input) + CorpusDirectory.PARSER_CRASH_REPORT_EXTENSION;
+        Files.writeString(root.resolve(".work").resolve(reportName), "stack trace\n");
+
+        var inventory = corpus.inventory(ACCEPT);
+
+        assertEquals(1, inventory.parserCrashEntries());
+        assertTrue(Files.exists(corpus.parserCrashDirectory().resolve(source.getFileName())));
+        assertEquals(
+                "stack trace\n",
+                Files.readString(corpus.parserCrashDirectory().resolve(reportName)));
     }
 
     @Test
