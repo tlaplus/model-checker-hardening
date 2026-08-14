@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow;
 
-import io.github.tlaplus.hardening.corpus.CorpusDirectory.CorpusInventory;
+import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import java.util.Objects;
 
 /** Final counters and stopping reason for one complete workflow invocation. */

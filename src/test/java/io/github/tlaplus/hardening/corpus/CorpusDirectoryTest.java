@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,8 +38,8 @@ class CorpusDirectoryTest {
         var input = new byte[] {0, 1, (byte) 0xff};
 
         assertEquals("00-inputs", corpus.inputDirectory().getFileName().toString());
-        assertEquals(CorpusDirectory.StoreResult.ADDED, corpus.store(input));
-        assertEquals(CorpusDirectory.StoreResult.DUPLICATE, corpus.store(input));
+        assertEquals(StoreResult.ADDED, corpus.store(input));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(input));
 
         var path = corpus.inputDirectory().resolve(hash(input) + ".cbor");
         var encoded = Files.readAllBytes(path);
@@ -54,7 +55,7 @@ class CorpusDirectoryTest {
         var path = corpus.inputDirectory().resolve(hash(input) + ".cbor");
         Files.write(path, encodeWithStageMetadata(input));
 
-        assertEquals(CorpusDirectory.StoreResult.DUPLICATE, corpus.store(input));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(input));
         assertEquals(1, corpus.verify(ACCEPT));
     }
 
@@ -239,6 +240,42 @@ class CorpusDirectoryTest {
         }
         try (var ignored = corpus.acquireLock()) {
             assertTrue(true);
+        }
+    }
+
+    @Test
+    void replacesAndCleansCorpusOwnedParserScratch(@TempDir Path directory)
+            throws Exception {
+        var root = directory.resolve("corpus");
+        var corpus = CorpusDirectory.initialize(root);
+        var scratchParent = root.resolve(".work").resolve("parser-tmp");
+        var staleFile = scratchParent.resolve("old-run").resolve("worker").resolve("stale");
+        Files.createDirectories(staleFile.getParent());
+        Files.writeString(staleFile, "stale");
+
+        Path runDirectory;
+        try (var ignored = corpus.acquireLock();
+                var scratch = corpus.createParserScratch()) {
+            runDirectory = scratch.directory();
+            assertTrue(Files.isDirectory(runDirectory));
+            assertTrue(runDirectory.startsWith(scratchParent));
+            assertFalse(Files.exists(staleFile));
+            Files.writeString(runDirectory.resolve("worker-artifact"), "temporary");
+        }
+
+        assertFalse(Files.exists(scratchParent));
+    }
+
+    @Test
+    void rejectsANonDirectoryParserScratchPath(@TempDir Path directory)
+            throws Exception {
+        var root = directory.resolve("corpus");
+        var corpus = CorpusDirectory.initialize(root);
+        Files.writeString(root.resolve(".work").resolve("parser-tmp"), "not a directory");
+
+        try (var ignored = corpus.acquireLock()) {
+            var failure = assertThrows(CorpusException.class, corpus::createParserScratch);
+            assertTrue(failure.getMessage().contains("parser scratch path is not a directory"));
         }
     }
 

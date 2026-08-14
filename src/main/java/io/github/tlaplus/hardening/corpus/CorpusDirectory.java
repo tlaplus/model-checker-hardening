@@ -7,7 +7,6 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -38,6 +37,7 @@ public final class CorpusDirectory {
     public static final String PARSER_CRASH_REPORT_EXTENSION = ".stacktrace";
 
     private static final String WORK_DIRECTORY_NAME = ".work";
+    private static final String PARSER_SCRATCH_DIRECTORY_NAME = "parser-tmp";
     private static final String LOCK_FILE_NAME = ".workflow.lock";
     private static final String PARSER_STAGE_NAME = "parser";
     private static final Pattern INPUT_FILE_NAME = Pattern.compile("([0-9a-f]{64})\\.cbor");
@@ -52,6 +52,7 @@ public final class CorpusDirectory {
     private final Path parserFailDirectory;
     private final Path parserCrashDirectory;
     private final Path workDirectory;
+    private final Path parserScratchDirectory;
     private final Path lockFile;
     private final List<Path> stageDirectories;
     private final Map<String, Path> parserDestinations;
@@ -64,6 +65,8 @@ public final class CorpusDirectory {
         this.parserFailDirectory = this.root.resolve(PARSER_FAIL_DIRECTORY_NAME);
         this.parserCrashDirectory = this.root.resolve(PARSER_CRASH_DIRECTORY_NAME);
         this.workDirectory = this.root.resolve(WORK_DIRECTORY_NAME);
+        this.parserScratchDirectory =
+                this.workDirectory.resolve(PARSER_SCRATCH_DIRECTORY_NAME);
         this.lockFile = this.root.resolve(LOCK_FILE_NAME);
         this.stageDirectories = List.of(
                 inputDirectory,
@@ -144,6 +147,24 @@ public final class CorpusDirectory {
             channel.close();
             throw exception;
         }
+    }
+
+    /**
+     * Creates the transient parser scratch area for one workflow invocation.
+     *
+     * <p>The caller must hold the corpus lock for the lifetime of the returned handle. Any stale
+     * parser scratch data from an interrupted invocation is removed before the new run directory
+     * is created.
+     */
+    public synchronized ParserScratch createParserScratch()
+            throws IOException, CorpusException {
+        if (Files.exists(parserScratchDirectory, NO_FOLLOW_LINKS)
+                && !Files.isDirectory(parserScratchDirectory, NO_FOLLOW_LINKS)) {
+            throw new CorpusException(
+                    "parser scratch path is not a directory: " + parserScratchDirectory);
+        }
+
+        return ParserScratch.create(parserScratchDirectory);
     }
 
     /**
@@ -561,55 +582,4 @@ public final class CorpusDirectory {
     }
 
     private record Entry(byte[] encoded) {}
-
-    public enum StoreResult {
-        ADDED,
-        DUPLICATE
-    }
-
-    /** Immutable startup inventory used to seed stage queues and capacities. */
-    public record CorpusInventory(
-            List<Path> inputs,
-            long parserPassEntries,
-            long parserFailEntries,
-            long parserCrashEntries) {
-        public CorpusInventory {
-            inputs = List.copyOf(inputs);
-            if (parserPassEntries < 0 || parserFailEntries < 0 || parserCrashEntries < 0) {
-                throw new IllegalArgumentException("corpus counters must be nonnegative");
-            }
-        }
-
-        public long inputEntries() {
-            return inputs.size();
-        }
-
-        public long parserEntries() {
-            return parserPassEntries + parserFailEntries + parserCrashEntries;
-        }
-
-        public long totalEntries() {
-            return inputEntries() + parserEntries();
-        }
-    }
-
-    /** Releases an exclusive corpus lock and its backing file channel. */
-    public static final class CorpusLock implements AutoCloseable {
-        private final FileChannel channel;
-        private final FileLock lock;
-
-        private CorpusLock(FileChannel channel, FileLock lock) {
-            this.channel = channel;
-            this.lock = lock;
-        }
-
-        @Override
-        public void close() throws IOException {
-            try {
-                lock.release();
-            } finally {
-                channel.close();
-            }
-        }
-    }
 }

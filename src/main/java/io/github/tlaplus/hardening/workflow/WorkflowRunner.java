@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.io.IOException;
@@ -38,7 +39,8 @@ public final class WorkflowRunner {
                     "maximumCpus must be in the range 1.." + availableCpus);
         }
 
-        try (var ignored = corpus.acquireLock()) {
+        try (var ignored = corpus.acquireLock();
+                var parserScratch = corpus.createParserScratch()) {
             var initial = corpus.inventory(generator);
             validateOccupancy(initial);
 
@@ -57,6 +59,7 @@ public final class WorkflowRunner {
                     maximumCpus,
                     Math.toIntExact(initial.parserEntries()),
                     corpus,
+                    parserScratch.directory(),
                     generator,
                     queue,
                     inputCapacity,
@@ -83,9 +86,9 @@ public final class WorkflowRunner {
                 control.capacityReached();
             }
 
-            parser.start();
-            pbt.start();
             try {
+                parser.start();
+                pbt.start();
                 pbt.await();
                 parser.await();
             } catch (InterruptedException exception) {
@@ -114,8 +117,7 @@ public final class WorkflowRunner {
         }
     }
 
-    private void validateOccupancy(CorpusDirectory.CorpusInventory inventory)
-            throws WorkflowException {
+    private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
         if (inventory.totalEntries() > config.workflow().maximumEntries()) {
             throw new WorkflowException(
                     "corpus contains more entries than workflow.maximum_entries");

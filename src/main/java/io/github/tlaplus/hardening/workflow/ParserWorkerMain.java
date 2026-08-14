@@ -47,6 +47,7 @@ public final class ParserWorkerMain {
         var temporaryDirectory = Files.createTempDirectory("fuzztla-sany-");
         var specification = temporaryDirectory.resolve("FuzzInput.tla");
         ToolIO.setUserDir(temporaryDirectory.toString());
+        var resolver = new SimpleFilenameToStream(temporaryDirectory.toString());
         var protocolInput = new DataInputStream(new BufferedInputStream(System.in));
 
         protocolOutput.writeInt(ParserWorkerProtocol.MAGIC);
@@ -72,7 +73,7 @@ public final class ParserWorkerMain {
                         StandardOpenOption.CREATE,
                         StandardOpenOption.TRUNCATE_EXISTING,
                         StandardOpenOption.WRITE);
-                var result = parse(specification, temporaryDirectory);
+                var result = parse(specification, resolver);
                 writeResult(protocolOutput, result);
                 if (result.outcome() == ParserResult.Outcome.CRASH) {
                     return;
@@ -84,11 +85,11 @@ public final class ParserWorkerMain {
         }
     }
 
-    private static ParserResult parse(Path specification, Path libraryDirectory) {
+    private static ParserResult parse(
+            Path specification, SimpleFilenameToStream resolver) {
         var diagnostics = new ByteArrayOutputStream();
         try (var stream = new PrintStream(diagnostics, true, StandardCharsets.UTF_8)) {
             var output = new SimpleSanyOutput(stream, LogLevel.INFO);
-            var resolver = new SimpleFilenameToStream(libraryDirectory.toString());
             var specObj = new SpecObj(specification.toString(), resolver);
             var exitCode = SANY.parse(
                     specObj,

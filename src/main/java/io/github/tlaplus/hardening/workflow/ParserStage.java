@@ -21,6 +21,7 @@ public final class ParserStage implements WorkflowStage {
     private final ParserConfig config;
     private final int workerCount;
     private final CorpusDirectory corpus;
+    private final Path scratchDirectory;
     private final Generator<TlaEx> generator;
     private final WorkQueue<Path> input;
     private final Semaphore inputCapacity;
@@ -37,6 +38,7 @@ public final class ParserStage implements WorkflowStage {
             int workerCount,
             int initialOccupancy,
             CorpusDirectory corpus,
+            Path scratchDirectory,
             Generator<TlaEx> generator,
             WorkQueue<Path> input,
             Semaphore inputCapacity,
@@ -48,6 +50,8 @@ public final class ParserStage implements WorkflowStage {
         }
         this.workerCount = workerCount;
         this.corpus = Objects.requireNonNull(corpus, "corpus");
+        this.scratchDirectory =
+                Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         this.generator = Objects.requireNonNull(generator, "generator");
         this.input = Objects.requireNonNull(input, "input");
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
@@ -92,12 +96,30 @@ public final class ParserStage implements WorkflowStage {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         input.close();
-        for (var worker : workers) {
+        final List<Thread> snapshot;
+        synchronized (this) {
+            snapshot = List.copyOf(workers);
+        }
+        for (var worker : snapshot) {
             if (worker.isAlive()) {
                 worker.interrupt();
             }
+        }
+        var interrupted = false;
+        for (var worker : snapshot) {
+            while (worker.isAlive()) {
+                try {
+                    worker.join();
+                } catch (InterruptedException exception) {
+                    interrupted = true;
+                    worker.interrupt();
+                }
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -125,7 +147,7 @@ public final class ParserStage implements WorkflowStage {
                     var source = PrettyWriter.writeAsString(
                             module, TlaWriter$.MODULE$.STANDARD_MODULES());
                     if (process == null) {
-                        process = ParserProcess.start(timeout());
+                        process = ParserProcess.start(scratchDirectory, timeout());
                     }
                     var result = process.parse(source, timeout());
                     var endTime = Instant.now();

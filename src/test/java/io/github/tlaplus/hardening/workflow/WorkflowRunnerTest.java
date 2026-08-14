@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
@@ -34,6 +35,7 @@ class WorkflowRunnerTest {
         assertEquals(12, summary.parser().processed());
         assertEquals(12, summary.corpus().totalEntries());
         assertEquals(0, summary.corpus().inputEntries());
+        assertFalse(Files.exists(corpus.root().resolve(".work").resolve("parser-tmp")));
     }
 
     @Test

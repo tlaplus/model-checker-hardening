@@ -25,6 +25,13 @@ A workflow invocation runs both implemented stages concurrently:
   state and is not thread-safe. Each JVM handles one request at a time and is
   replaced after a timeout, crash, or unexpected exit.
 
+Parser scratch storage is transient corpus state under
+`.work/parser-tmp/<run>/<worker>`. Each child JVM uses its worker directory as
+`java.io.tmpdir` and creates one reusable SANY module resolver. The parent drains
+and retains bounded child stderr, removes a worker directory after the process
+exits, and removes the complete run directory before releasing the corpus lock.
+Startup removes scratch data left by an interrupted invocation.
+
 Files move between stage-owned directories; they are not copied as independent
 jobs. The directories are the durable source of truth. A close-aware in-memory
 queue accelerates handoff from the input stage to parser workers. A fair logical
@@ -79,4 +86,6 @@ stops all stages and returns a failure.
 Parser concurrency costs one JVM per active parser worker but avoids SANY's
 shared-state races and repeated JVM startup. Disk transitions make runs
 resumable, while the shared queue and CPU budget remain process-local execution
-optimizations rather than persisted workflow state.
+optimizations rather than persisted workflow state. Corpus-owned scratch storage
+uses the corpus filesystem's capacity and bounds temporary-directory growth by
+the number of active workers rather than the number of parsed inputs.
