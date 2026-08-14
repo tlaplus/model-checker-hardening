@@ -16,7 +16,8 @@ class TomlConfigTest {
         TomlConfig.writeNew(path, FuzzTlaConfig.defaults());
 
         assertEquals(FuzzTlaConfig.defaults(), TomlConfig.read(path));
-        assertTrue(Files.readString(path).contains("corpus_entries = 1000"));
+        assertTrue(Files.readString(path).contains("maximum_entries = 1000"));
+        assertTrue(Files.readString(path).contains("timeout_seconds = 30"));
         assertTrue(Files.readString(path).contains("maximum_input_bytes = 1024"));
     }
 
@@ -37,8 +38,8 @@ class TomlConfigTest {
 
         var unknown = assertInvalid(
                 directory,
-                TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("[pbt]", "unexpected = 1\n\n[pbt]"));
+                        TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace("[workflow]", "unexpected = 1\n\n[workflow]"));
         assertTrue(unknown.getMessage().contains("unknown generator keys: unexpected"));
     }
 
@@ -57,12 +58,26 @@ class TomlConfigTest {
     }
 
     @Test
+    void rejectsTheLegacyPbtCorpusTarget(@TempDir Path directory) throws Exception {
+        var legacy = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "[pbt]",
+                                "[pbt]\ncorpus_entries = 1000"));
+
+        assertTrue(legacy.getMessage().contains("unknown pbt keys: corpus_entries"));
+    }
+
+    @Test
     void rejectsWrongTypesAndOutOfRangeIntegers(@TempDir Path directory) throws Exception {
         var wrongType = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("corpus_entries = 1000", "corpus_entries = \"many\""));
-        assertTrue(wrongType.getMessage().contains("pbt.corpus_entries"));
+                        .replace(
+                                "# Maximum number of unique entries across every workflow directory.\nmaximum_entries = 1000",
+                                "# Maximum number of unique entries across every workflow directory.\nmaximum_entries = \"many\""));
+        assertTrue(wrongType.getMessage().contains("workflow.maximum_entries"));
 
         var tooLarge = assertInvalid(
                 directory,

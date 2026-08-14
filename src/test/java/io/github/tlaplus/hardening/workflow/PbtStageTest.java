@@ -1,8 +1,7 @@
-package io.github.tlaplus.hardening.pbt;
+package io.github.tlaplus.hardening.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.PbtConfig;
@@ -12,36 +11,41 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class PbtRunnerTest {
-    private static final Generator<Void> ACCEPT = draw -> null;
+class PbtStageTest {
+    private static final Generator<Void> ACCEPT = _ -> null;
 
     @Test
-    void fillsTheCorpusToItsTargetAndThenDoesNothing(@TempDir Path directory) throws Exception {
+    void fillsTheGlobalTargetWithOneWorker(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
-        var runner = new PbtRunner(new PbtConfig(20, 16), ACCEPT);
+        var active = new AtomicInteger();
+        var maximumActive = new AtomicInteger();
+        Generator<Void> observed = draw -> {
+            var current = active.incrementAndGet();
+            maximumActive.accumulateAndGet(current, Math::max);
+            active.decrementAndGet();
+            return null;
+        };
 
-        var first = runner.run(corpus, 42);
-        var second = runner.run(corpus, 42);
+        var summary = runStage(corpus, new PbtConfig(16), observed, 20, 42);
 
-        assertEquals(0, first.existing());
-        assertEquals(20, first.added());
-        assertEquals(20, corpus.verify(ACCEPT));
-        assertEquals(new PbtRunSummary(42, 20, 0, 0, 0, 0), second);
+        assertEquals(20, summary.added());
+        assertEquals(1, maximumActive.get());
+        assertEquals(20, corpus.inventory(observed).inputEntries());
     }
 
     @Test
     void reproducesTheSameCorpusFromTheSameSeed(@TempDir Path directory) throws Exception {
         var first = CorpusDirectory.initialize(directory.resolve("first"));
         var second = CorpusDirectory.initialize(directory.resolve("second"));
-        var runner = new PbtRunner(new PbtConfig(30, 32), ACCEPT);
 
-        runner.run(first, 123456789L);
-        runner.run(second, 123456789L);
+        runStage(first, new PbtConfig(32), ACCEPT, 30, 123456789L);
+        runStage(second, new PbtConfig(32), ACCEPT, 30, 123456789L);
 
         var firstEntries = readEntries(first);
         var secondEntries = readEntries(second);
@@ -55,15 +59,14 @@ class PbtRunnerTest {
     void retriesExpectedInputRejections(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var calls = new AtomicInteger();
-        Generator<Void> rejectFirstThree = draw -> {
+        Generator<Void> rejectFirstThree = _ -> {
             if (calls.getAndIncrement() < 3) {
                 throw new InputRejectedException("retry");
             }
             return null;
         };
-        var runner = new PbtRunner(new PbtConfig(4, 8), rejectFirstThree);
 
-        var summary = runner.run(corpus, 7);
+        var summary = runStage(corpus, new PbtConfig(8), rejectFirstThree, 4, 7);
 
         assertEquals(3, summary.rejected());
         assertEquals(4, summary.added());
@@ -71,51 +74,64 @@ class PbtRunnerTest {
     }
 
     @Test
-    void reportsDuplicatesWhileCollectingTheFiniteOneByteSpace(@TempDir Path directory)
-            throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
-        var runner = new PbtRunner(new PbtConfig(257, 1), ACCEPT);
-
-        var summary = runner.run(corpus, 1);
-
-        assertEquals(257, summary.added());
-        assertTrue(summary.duplicates() > 0);
-        assertEquals(257 + summary.duplicates(), summary.attempts());
-    }
-
-    @Test
-    void stopsAfterTheDerivedAttemptLimitAndPreservesProgress(@TempDir Path directory)
+    void stopsAtTheDerivedAttemptLimitAndPreservesProgress(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var calls = new AtomicInteger();
-        Generator<Void> acceptOnce = draw -> {
+        Generator<Void> acceptOnce = _ -> {
             if (calls.getAndIncrement() > 0) {
                 throw new InputRejectedException("retry forever");
             }
             return null;
         };
-        var runner = new PbtRunner(new PbtConfig(2, 1), acceptOnce);
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var stage = new PbtStage(
+                new PbtConfig(1),
+                2,
+                0,
+                corpus,
+                acceptOnce,
+                99,
+                queue,
+                new Semaphore(2),
+                new CpuBudget(1),
+                control);
 
-        var failure = assertThrows(PbtException.class, () -> runner.run(corpus, 99));
+        stage.start();
+        stage.await();
 
-        assertEquals(10_000, failure.summary().attempts());
-        assertEquals(1, failure.summary().added());
-        assertEquals(9_999, failure.summary().rejected());
-        try (var entries = Files.list(corpus.inputDirectory())) {
-            assertEquals(1, entries.count());
-        }
-        assertTrue(failure.getMessage().contains("within 10000 attempts"));
+        assertTrue(control.hasFailed());
+        assertEquals(10_000, stage.summary().attempts());
+        assertEquals(1, stage.summary().added());
+        assertEquals(9_999, stage.summary().rejected());
+        assertEquals(1, corpus.inventory(ACCEPT).inputEntries());
     }
 
-    @Test
-    void rejectsNegativeSeedsBeforeInspectingTheCorpus(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
-        Files.write(corpus.inputDirectory().resolve("invalid"), new byte[] {1});
-        var runner = new PbtRunner(new PbtConfig(1, 0), ACCEPT);
-
-        var failure = assertThrows(IllegalArgumentException.class, () -> runner.run(corpus, -1));
-
-        assertEquals("seed must be nonnegative", failure.getMessage());
+    private PbtStageSummary runStage(
+            CorpusDirectory corpus,
+            PbtConfig config,
+            Generator<?> generator,
+            int target,
+            long seed)
+            throws Exception {
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var stage = new PbtStage(
+                config,
+                target,
+                0,
+                corpus,
+                generator,
+                seed,
+                queue,
+                new Semaphore(target),
+                new CpuBudget(1),
+                control);
+        stage.start();
+        stage.await();
+        assertTrue(!control.hasFailed());
+        return stage.summary();
     }
 
     private Map<String, byte[]> readEntries(CorpusDirectory corpus) throws Exception {

@@ -8,18 +8,12 @@ import org.junit.jupiter.api.Test;
 class PbtConfigTest {
     @Test
     void exposesConservativeDefaults() {
-        assertEquals(new PbtConfig(1_000, 1_024), PbtConfig.defaults());
+        assertEquals(new PbtConfig(1_024), PbtConfig.defaults());
     }
 
     @Test
-    void validatesLimitsAndFiniteInputCapacity() {
-        assertThrows(IllegalArgumentException.class, () -> new PbtConfig(-1, 1));
-        assertThrows(IllegalArgumentException.class, () -> new PbtConfig(1, -1));
-        assertThrows(IllegalArgumentException.class, () -> new PbtConfig(2, 0));
-        assertThrows(IllegalArgumentException.class, () -> new PbtConfig(258, 1));
-
-        assertEquals(new PbtConfig(0, 0), new PbtConfig(0, 0));
-        assertEquals(new PbtConfig(1, 0), new PbtConfig(1, 0));
-        assertEquals(new PbtConfig(257, 1), new PbtConfig(257, 1));
+    void validatesTheInputLengthLimit() {
+        assertThrows(IllegalArgumentException.class, () -> new PbtConfig(-1));
+        assertEquals(new PbtConfig(0), new PbtConfig(0));
     }
 }

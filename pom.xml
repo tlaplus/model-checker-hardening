@@ -81,6 +81,12 @@
       <groupId>org.lamport</groupId>
       <artifactId>tla2tools</artifactId>
       <version>${tla2tools.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.sun.mail</groupId>
+          <artifactId>mailapi</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.vavr</groupId>

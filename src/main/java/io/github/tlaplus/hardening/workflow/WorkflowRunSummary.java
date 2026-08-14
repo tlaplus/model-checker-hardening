@@ -1,0 +1,23 @@
+package io.github.tlaplus.hardening.workflow;
+
+import io.github.tlaplus.hardening.corpus.CorpusDirectory.CorpusInventory;
+import java.util.Objects;
+
+/** Final counters and stopping reason for one complete workflow invocation. */
+public record WorkflowRunSummary(
+        StopReason stopReason,
+        PbtStageSummary generator,
+        ParserStageSummary parser,
+        CorpusInventory corpus) {
+    public WorkflowRunSummary {
+        Objects.requireNonNull(stopReason, "stopReason");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(parser, "parser");
+        Objects.requireNonNull(corpus, "corpus");
+    }
+
+    public enum StopReason {
+        COMPLETED,
+        CAPACITY_REACHED
+    }
+}

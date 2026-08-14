@@ -13,7 +13,7 @@ import org.tomlj.TomlTable;
 
 /** Reads and writes the strict {@code config.toml} format used by a corpus. */
 public final class TomlConfig {
-    private static final Set<String> ROOT_KEYS = Set.of("generator", "pbt");
+    private static final Set<String> ROOT_KEYS = Set.of("generator", "workflow", "pbt");
     private static final Set<String> GENERATOR_KEYS = Set.of(
             "maximum_type_depth",
             "maximum_expression_depth",
@@ -21,8 +21,12 @@ public final class TomlConfig {
             "maximum_collection_size",
             "maximum_string_bytes",
             "maximum_integer_bytes");
-    private static final Set<String> PBT_KEYS =
-            Set.of("corpus_entries", "maximum_input_bytes");
+    private static final Set<String> WORKFLOW_KEYS =
+            Set.of("maximum_entries", "inputs", "parser");
+    private static final Set<String> INPUT_STAGE_KEYS = Set.of("maximum_entries");
+    private static final Set<String> PARSER_STAGE_KEYS =
+            Set.of("maximum_entries", "timeout_seconds");
+    private static final Set<String> PBT_KEYS = Set.of("maximum_input_bytes");
 
     private TomlConfig() {}
 
@@ -38,8 +42,14 @@ public final class TomlConfig {
 
         requireKeys(result, ROOT_KEYS, "root");
         var generator = requireTable(result, "generator");
+        var workflow = requireTable(result, "workflow");
+        var inputs = requireTable(workflow, "inputs");
+        var parser = requireTable(workflow, "parser");
         var pbt = requireTable(result, "pbt");
         requireKeys(generator, GENERATOR_KEYS, "generator");
+        requireKeys(workflow, WORKFLOW_KEYS, "workflow");
+        requireKeys(inputs, INPUT_STAGE_KEYS, "workflow.inputs");
+        requireKeys(parser, PARSER_STAGE_KEYS, "workflow.parser");
         requireKeys(pbt, PBT_KEYS, "pbt");
 
         try {
@@ -62,10 +72,24 @@ public final class TomlConfig {
                             generator,
                             "generator.maximum_integer_bytes",
                             "maximum_integer_bytes"));
+            var workflowConfig = new WorkflowConfig(
+                    requireInt(workflow, "workflow.maximum_entries", "maximum_entries"),
+                    new StageConfig(requireInt(
+                            inputs,
+                            "workflow.inputs.maximum_entries",
+                            "maximum_entries")),
+                    new ParserConfig(
+                            requireInt(
+                                    parser,
+                                    "workflow.parser.maximum_entries",
+                                    "maximum_entries"),
+                            requireInt(
+                                    parser,
+                                    "workflow.parser.timeout_seconds",
+                                    "timeout_seconds")));
             var pbtConfig = new PbtConfig(
-                    requireInt(pbt, "pbt.corpus_entries", "corpus_entries"),
                     requireInt(pbt, "pbt.maximum_input_bytes", "maximum_input_bytes"));
-            return new FuzzTlaConfig(generationConfig, pbtConfig);
+            return new FuzzTlaConfig(generationConfig, workflowConfig, pbtConfig);
         } catch (IllegalArgumentException exception) {
             throw new ConfigException(exception.getMessage(), exception);
         }
@@ -84,6 +108,7 @@ public final class TomlConfig {
     /** Renders the complete configuration with brief descriptions of user-facing fields. */
     public static String render(FuzzTlaConfig config) {
         var generator = config.generator();
+        var workflow = config.workflow();
         var pbt = config.pbt();
         return """
                 [generator]
@@ -94,9 +119,21 @@ public final class TomlConfig {
                 maximum_string_bytes = %d
                 maximum_integer_bytes = %d
 
+                [workflow]
+                # Maximum number of unique entries across every workflow directory.
+                maximum_entries = %d
+
+                [workflow.inputs]
+                # Maximum current occupancy of 00-inputs.
+                maximum_entries = %d
+
+                [workflow.parser]
+                # Maximum combined occupancy of the parser result directories.
+                maximum_entries = %d
+                # Wall-clock limit for parsing one generated specification.
+                timeout_seconds = %d
+
                 [pbt]
-                # Target number of unique, accepted inputs in 00-inputs.
-                corpus_entries = %d
                 # Inclusive upper bound on a randomly generated input's length.
                 maximum_input_bytes = %d
                 """
@@ -107,7 +144,10 @@ public final class TomlConfig {
                         generator.maximumCollectionSize(),
                         generator.maximumStringBytes(),
                         generator.maximumIntegerBytes(),
-                        pbt.corpusEntries(),
+                        workflow.maximumEntries(),
+                        workflow.inputs().maximumEntries(),
+                        workflow.parser().maximumEntries(),
+                        workflow.parser().timeoutSeconds(),
                         pbt.maximumInputBytes());
     }
 

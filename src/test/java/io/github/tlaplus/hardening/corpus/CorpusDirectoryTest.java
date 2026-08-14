@@ -4,13 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
-import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,7 +28,7 @@ class CorpusDirectoryTest {
         Files.createFile(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME));
         var failure =
                 assertThrows(CorpusException.class, () -> CorpusDirectory.initialize(corpus));
-        assertTrue(failure.getMessage().contains("input path is not a directory"));
+        assertTrue(failure.getMessage().contains("workflow path is not a directory"));
     }
 
     @Test
@@ -132,23 +131,76 @@ class CorpusDirectoryTest {
         assertEquals("generator defect", failure.getMessage());
     }
 
+    @Test
+    void recordsMetadataAndMovesParserEntriesAtomically(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {3, 1, 4};
+        corpus.store(input);
+        var source = corpus.inputPath(input);
+        var start = Instant.ofEpochSecond(10);
+        var end = Instant.ofEpochSecond(12);
+
+        var destination = corpus.completeParser(source, "pass", start, end);
+
+        assertEquals(corpus.parserPassDirectory().resolve(source.getFileName()), destination);
+        assertTrue(Files.notExists(source));
+        assertEquals(
+                "pass",
+                CorpusInputCodec.stageVerdict(Files.readAllBytes(destination), "parser")
+                        .orElseThrow());
+        var inventory = corpus.inventory(ACCEPT);
+        assertEquals(0, inventory.inputEntries());
+        assertEquals(1, inventory.parserPassEntries());
+    }
+
+    @Test
+    void recoversAMetadataUpdateInterruptedBeforeTheDirectoryMove(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {8, 5};
+        corpus.store(input);
+        var source = corpus.inputPath(input);
+        Files.write(
+                source,
+                CorpusInputCodec.withStageMetadata(
+                        Files.readAllBytes(source),
+                        new StageMetadata(
+                                "parser",
+                                "fail",
+                                Instant.ofEpochSecond(1),
+                                Instant.ofEpochSecond(2))));
+
+        var inventory = corpus.inventory(ACCEPT);
+
+        assertEquals(0, inventory.inputEntries());
+        assertEquals(1, inventory.parserFailEntries());
+        assertTrue(Files.exists(corpus.parserFailDirectory().resolve(source.getFileName())));
+    }
+
+    @Test
+    void rejectsConcurrentWorkflowLocks(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+
+        try (var ignored = corpus.acquireLock()) {
+            assertThrows(CorpusException.class, corpus::acquireLock);
+        }
+        try (var ignored = corpus.acquireLock()) {
+            assertTrue(true);
+        }
+    }
+
     private String hash(byte[] input) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
     }
 
     private byte[] encodeWithStageMetadata(byte[] input) throws Exception {
-        var output = new ByteArrayOutputStream();
-        try (var generator = new CBORFactory().createGenerator(output)) {
-            generator.writeStartObject(null, 3);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", input);
-            generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart("parser");
-            generator.writeStringField("verdict", "pass");
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeEndObject();
-        }
-        return output.toByteArray();
+        return CorpusInputCodec.withStageMetadata(
+                CorpusInputCodec.encode(CorpusInput.expression(input)),
+                new StageMetadata(
+                        "parser",
+                        "pass",
+                        Instant.ofEpochSecond(1),
+                        Instant.ofEpochSecond(2)));
     }
 }

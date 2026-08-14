@@ -4,11 +4,11 @@ import java.util.Objects;
 import java.util.random.RandomGenerator;
 
 /** Samples bounded lengths from uniformly selected logarithmic size buckets. */
-final class InputLengthSampler {
+public final class InputLengthSampler {
     private InputLengthSampler() {}
 
     /** Chooses among {@code 0..3}, {@code 4..7}, {@code 8..15}, and so on. */
-    static int sample(RandomGenerator random, int maximum) {
+    public static int sample(RandomGenerator random, int maximum) {
         Objects.requireNonNull(random, "random");
         if (maximum < 0) {
             throw new IllegalArgumentException("maximum must be nonnegative");

@@ -61,7 +61,10 @@ Use `--corpus` to select another directory. Initialization creates this layout w
 ```text
 corpus/
 ├── config.toml
-└── 00-inputs/
+├── 00-inputs/
+├── 01parser-pass/
+├── 01parser-fail/
+└── 01parser-crash/
 ```
 
 The default configuration is:
@@ -75,9 +78,21 @@ maximum_collection_size = 8
 maximum_string_bytes = 32
 maximum_integer_bytes = 16
 
+[workflow]
+# Maximum number of unique entries across every workflow directory.
+maximum_entries = 1000
+
+[workflow.inputs]
+# Maximum current occupancy of 00-inputs.
+maximum_entries = 1000
+
+[workflow.parser]
+# Maximum combined occupancy of the parser result directories.
+maximum_entries = 1000
+# Wall-clock limit for parsing one generated specification.
+timeout_seconds = 30
+
 [pbt]
-# Target number of unique, accepted inputs in 00-inputs.
-corpus_entries = 1000
 # Inclusive upper bound on a randomly generated input's length.
 maximum_input_bytes = 1024
 ```
@@ -86,12 +101,27 @@ Populate the corpus with property-based inputs by running:
 
 ```sh
 ./bin/fuzztla run --how=pbt
-./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42
+./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42 --max-cpus=4
 ```
 
-The configured `corpus_entries` is a target total, not a number added on every run. Before generating anything, FuzzTLA verifies every existing entry's filename, CBOR envelope, embedded-input hash, kind, and acceptance by the configured IR generator. It then tries random byte arrays until the target contains that many unique accepted inputs. Lengths are selected from uniformly chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through `maximum_input_bytes`—and uniformly within the selected bucket.
+The command runs input generation and parsing concurrently. Input generation uses
+one worker; the parser uses persistent isolated JVM workers. `--max-cpus` bounds
+active work across both stages and defaults to all available processors. Before
+starting, FuzzTLA validates every corpus entry and recovers interrupted parser
+moves.
 
-The effective nonnegative seed and run counters are printed as an aligned summary on success. Supplying that seed with the same configuration and starting corpus reproduces the pseudorandom candidate stream. Entries are stored as `00-inputs/<sha256>.cbor`, where the filename contains the lowercase SHA-256 digest of the embedded generator bytes. A newly generated entry is the CBOR map `{"kind": "expr", "input": <byte string>}`. Metadata added by later stages does not change the filename. Only `InputRejectedException` skips a candidate; other generator failures stop the run.
+The workflow tries random byte arrays until `workflow.maximum_entries` unique
+accepted inputs exist across all directories. Lengths are selected from uniformly
+chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through
+`maximum_input_bytes`—and uniformly within the selected bucket.
+
+The effective nonnegative seed and stage counters are printed on success.
+Supplying that seed with the same configuration and starting corpus reproduces
+the pseudorandom candidate stream. Entries begin in
+`00-inputs/<sha256>.cbor`; the parser records tagged UTC timestamps and a verdict
+before moving each entry to its parser result directory. Only
+`InputRejectedException` skips a candidate; other generator failures stop the
+workflow.
 
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
