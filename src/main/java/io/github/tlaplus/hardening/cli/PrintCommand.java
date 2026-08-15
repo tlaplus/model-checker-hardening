@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.cli;
 import at.forsyte.apalache.io.lir.PrettyWriter;
 import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
+import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -12,6 +13,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.FuzzInputModule;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -27,7 +29,8 @@ import picocli.CommandLine.Spec;
 
 @Command(
         name = "print",
-        description = "Generate and print a TLA+ expression from a CBOR corpus input.")
+        description =
+                "Generate and print a TLA+ expression or parser specification from a CBOR corpus input.")
 final class PrintCommand implements Callable<Integer> {
     @Option(
             names = {"-h", "--help"},
@@ -40,6 +43,11 @@ final class PrintCommand implements Callable<Integer> {
             paramLabel = "DIR",
             description = "Use generator settings from this corpus.")
     private Path corpus;
+
+    @Option(
+            names = "--spec",
+            description = "Print the complete specification passed to the parser.")
+    private boolean printSpecification;
 
     @Parameters(index = "0", paramLabel = "FILE", description = "CBOR corpus input.")
     private Path input;
@@ -99,6 +107,18 @@ final class PrintCommand implements Callable<Integer> {
 
         try {
             var expression = generator.generate(corpusInput.input());
+            if (printSpecification) {
+                var module = FuzzInputModule.create(expression);
+                var source = PrettyWriter.writeAsString(
+                        module, TlaWriter$.MODULE$.STANDARD_MODULES());
+                spec.commandLine().getOut().print(source);
+                if (!source.endsWith("\n")) {
+                    spec.commandLine().getOut().println();
+                }
+                spec.commandLine().getOut().flush();
+                return CommandLine.ExitCode.OK;
+            }
+
             var buffer = new StringWriter();
             var printWriter = new PrintWriter(buffer);
             var writer = new PrettyWriter(

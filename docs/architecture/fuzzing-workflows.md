@@ -9,6 +9,10 @@ cargofuzz).
 
 ## 1. Processing pipeline
 
+The input-generation and parser stages described below are implemented. Later
+stages remain architectural proposals. [ADR 0001][] records the stage and worker
+execution model.
+
 ### 1.1. General architecture
 
 Our fuzzing workflows follows the general architecture that is shown in the figure below. In certain workflows, some of
@@ -182,6 +186,12 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
 
  - `<stage-status>` is a directory like `00-inputs` and `02tlc-pass`.
 
+ - A parser crash also produces
+   `01parser-crash/<sha256>.stacktrace` beside the corresponding CBOR entry.
+   The UTF-8 sidecar contains the Java stack trace when the parser threw an
+   exception, or a diagnostic for non-exceptional crashes such as a timeout.
+   Sidecars are not corpus entries and do not count towards capacity limits.
+
 ### 2.4. Stage
 
 When an input passes through a stage, this stage stores its metadata under `stages.<stage name>`.
@@ -213,3 +223,4 @@ The metadata depends on the stage. The minimal set of fields is:
 [CBOR]: https://cbor.io/
 [cbor playground]: https://cbor.me
 [epoch-based date/time]: https://www.rfc-editor.org/rfc/rfc8949.html#name-epoch-based-date-time
+[ADR 0001]: ../decisions/0001-stages-and-workers.md

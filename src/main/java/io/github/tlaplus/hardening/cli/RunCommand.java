@@ -3,9 +3,9 @@ package io.github.tlaplus.hardening.cli;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
-import io.github.tlaplus.hardening.pbt.PbtException;
-import io.github.tlaplus.hardening.pbt.PbtRunSummary;
-import io.github.tlaplus.hardening.pbt.PbtRunner;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
+import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -50,6 +50,13 @@ final class RunCommand implements Callable<Integer> {
             description = "Nonnegative 64-bit seed for reproducible input generation.")
     private Long seed;
 
+    @Option(
+            names = "--max-cpus",
+            converter = CpuCountConverter.class,
+            paramLabel = "N",
+            description = "Maximum active stage jobs (default: all available processors).")
+    private int maximumCpus = Runtime.getRuntime().availableProcessors();
+
     @Spec private CommandSpec spec;
 
     @Override
@@ -59,57 +66,45 @@ final class RunCommand implements Callable<Integer> {
         };
     }
 
-    /** Runs the initial property-based corpus generation design. */
+    /** Runs property-based generation and parsing as one concurrent workflow. */
     private int runPbt() {
         try {
             var directory = CorpusDirectory.open(corpus);
             var config = directory.readConfig();
             var effectiveSeed = seed == null ? randomSeed() : seed;
-            var summary = new PbtRunner(config).run(directory, effectiveSeed);
+            var summary = new WorkflowRunner(config)
+                    .run(directory, effectiveSeed, maximumCpus);
             printSummary(directory, summary);
             return CommandLine.ExitCode.OK;
-        } catch (PbtException exception) {
-            var summary = exception.summary();
+        } catch (IOException | ConfigException | CorpusException | WorkflowException exception) {
             spec.commandLine()
                     .getErr()
                     .printf(
-                            "fuzztla: PBT failed in '%s': %s%n%n",
-                            corpus, CliDiagnostics.message(exception));
-            printCounters(spec.commandLine().getErr(), summary);
-            return CommandLine.ExitCode.SOFTWARE;
-        } catch (IOException | ConfigException | CorpusException exception) {
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot run PBT in '%s': %s%n",
+                            "fuzztla: cannot run workflow in '%s': %s%n",
                             corpus, CliDiagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         } catch (RuntimeException | StackOverflowError exception) {
             spec.commandLine()
                     .getErr()
                     .printf(
-                            "fuzztla: PBT generation failed in '%s': %s%n",
+                            "fuzztla: workflow failed in '%s': %s%n",
                             corpus, CliDiagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
     }
 
-    /** Prints replay information and all corpus-generation counters. */
-    private void printSummary(CorpusDirectory directory, PbtRunSummary summary) {
+    /** Prints replay information and stage counters. */
+    private void printSummary(CorpusDirectory directory, WorkflowRunSummary summary) {
         var out = spec.commandLine().getOut();
-        out.printf("PBT run finished for '%s'%n%n", directory.inputDirectory());
-        printCounters(out, summary);
-    }
-
-    /** Prints counters as an aligned JUnit-style summary block. */
-    private static void printCounters(PrintWriter writer, PbtRunSummary summary) {
-        printCounter(writer, summary.seed(), "random seed");
-        printCounter(writer, summary.existing() + summary.added(), "corpus entries");
-        printCounter(writer, summary.existing(), "existing entries");
-        printCounter(writer, summary.added(), "added entries");
-        printCounter(writer, summary.attempts(), "attempted inputs");
-        printCounter(writer, summary.rejected(), "rejected inputs");
-        printCounter(writer, summary.duplicates(), "duplicate inputs");
+        out.printf("Workflow run finished for '%s'%n%n", directory.root());
+        printCounter(out, summary.generator().seed(), "random seed");
+        printCounter(out, summary.corpus().totalEntries(), "corpus entries");
+        printCounter(out, summary.corpus().inputEntries(), "remaining inputs");
+        printCounter(out, summary.generator().added(), "generated inputs");
+        printCounter(out, summary.parser().passed(), "parser passed");
+        printCounter(out, summary.parser().failed(), "parser failed");
+        printCounter(out, summary.parser().crashed(), "parser crashed");
+        out.printf("[%20s %-18s]%n", summary.stopReason(), "stop reason");
     }
 
     /** Prints one aligned row in the summary block. */
@@ -166,6 +161,23 @@ final class RunCommand implements Callable<Integer> {
             } catch (NumberFormatException exception) {
                 throw new TypeConversionException(
                         "expected an integer in the range 0.." + Long.MAX_VALUE);
+            }
+        }
+    }
+
+    public static final class CpuCountConverter implements ITypeConverter<Integer> {
+        @Override
+        public Integer convert(String value) {
+            var maximum = Runtime.getRuntime().availableProcessors();
+            try {
+                var result = Integer.parseInt(value);
+                if (result <= 0 || result > maximum) {
+                    throw new NumberFormatException();
+                }
+                return result;
+            } catch (NumberFormatException exception) {
+                throw new TypeConversionException(
+                        "expected an integer in the range 1.." + maximum);
             }
         }
     }

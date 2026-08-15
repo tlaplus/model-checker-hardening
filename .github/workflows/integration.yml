@@ -1,0 +1,33 @@
+name: Integration tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pbt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Package FuzzTLA
+        run: mvn --batch-mode --no-transfer-progress -DskipTests package
+      - name: Initialize a 100-entry corpus
+        run: |
+          ./bin/fuzztla init
+          sed -i 's/^maximum_entries = .*/maximum_entries = 100/' corpus/config.toml
+      - name: Run the PBT workflow
+        run: |
+          ./bin/fuzztla run --how=pbt
+          test "$(find corpus -type f -name '*.cbor' | wc -l)" -eq 100
+          test "$(find corpus/00-inputs -type f -name '*.cbor' | wc -l)" -eq 0

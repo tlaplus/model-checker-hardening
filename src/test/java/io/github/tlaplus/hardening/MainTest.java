@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.ParserConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
+import io.github.tlaplus.hardening.config.StageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
+import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
@@ -91,6 +94,12 @@ class MainTest {
                 FuzzTlaConfig.defaults(),
                 TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME)));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME)));
+        assertTrue(Files.isDirectory(
+                corpus.resolve(CorpusDirectory.PARSER_PASS_DIRECTORY_NAME)));
+        assertTrue(Files.isDirectory(
+                corpus.resolve(CorpusDirectory.PARSER_FAIL_DIRECTORY_NAME)));
+        assertTrue(Files.isDirectory(
+                corpus.resolve(CorpusDirectory.PARSER_CRASH_DIRECTORY_NAME)));
     }
 
     @Test
@@ -145,6 +154,7 @@ class MainTest {
         assertTrue(result.out().contains("Usage: fuzztla run"));
         assertTrue(result.out().contains("--corpus=DIR"));
         assertTrue(result.out().contains("--seed=SEED"));
+        assertTrue(result.out().contains("--max-cpus=N"));
         assertTrue(result.out().contains("Nonnegative 64-bit seed"));
         assertTrue(result.out().contains("currently: pbt"));
         assertFalse(result.out().contains("--version"));
@@ -171,30 +181,39 @@ class MainTest {
     void generatesAValidHashedCorpus(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 8, 32);
 
-        var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=42");
+        var result = execute(
+                "run",
+                "--how=pbt",
+                "--corpus=" + corpus,
+                "--seed=42",
+                "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("", result.err());
-        assertTrue(result.out().contains("PBT run finished for '"));
+        assertTrue(result.out().contains("Workflow run finished for '"));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.matches("\\[\\s+42 random seed\\s+]")));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.matches("\\[\\s+8 corpus entries\\s+]")));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+0 existing entries\\s+]")));
-        assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+8 added entries\\s+]")));
-        try (var paths = Files.list(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME))) {
-            var entries = paths.toList();
-            assertEquals(8, entries.size());
-            for (var entry : entries) {
-                var corpusInput = CorpusInputCodec.decode(Files.readAllBytes(entry));
-                assertEquals(CorpusInput.Kind.EXPRESSION, corpusInput.kind());
-                assertEquals(
-                        hash(corpusInput.input()) + ".cbor",
-                        entry.getFileName().toString());
+                .anyMatch(line -> line.matches("\\[\\s+8 generated inputs\\s+]")));
+        var entryCount = 0;
+        for (var resultDirectory : java.util.List.of(
+                CorpusDirectory.PARSER_PASS_DIRECTORY_NAME,
+                CorpusDirectory.PARSER_FAIL_DIRECTORY_NAME,
+                CorpusDirectory.PARSER_CRASH_DIRECTORY_NAME)) {
+            try (var paths = Files.list(corpus.resolve(resultDirectory))) {
+                for (var entry : paths.toList()) {
+                    entryCount++;
+                    var corpusInput = CorpusInputCodec.decode(Files.readAllBytes(entry));
+                    assertEquals(CorpusInput.Kind.EXPRESSION, corpusInput.kind());
+                    assertEquals(
+                            hash(corpusInput.input()) + ".cbor",
+                            entry.getFileName().toString());
+                }
             }
         }
+        assertEquals(8, entryCount);
         var config = TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME));
         assertEquals(
                 8,
@@ -206,14 +225,24 @@ class MainTest {
         var corpus = initializeSmallCorpus(directory, 4, 16);
         assertEquals(
                 CommandLine.ExitCode.OK,
-                execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=7")
+                execute(
+                                "run",
+                                "--how=pbt",
+                                "--corpus=" + corpus,
+                                "--seed=7",
+                                "--max-cpus=1")
                         .exitCode());
 
-        var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=7");
+        var result = execute(
+                "run",
+                "--how=pbt",
+                "--corpus=" + corpus,
+                "--seed=7",
+                "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals(
-                summaryOutput(corpus, 7, 4, 0, 0, 0, 0),
+                summaryOutput(corpus, 7, 4),
                 result.out());
     }
 
@@ -274,11 +303,12 @@ class MainTest {
                 "run",
                 "--how=pbt",
                 "--corpus=" + corpus,
-                "--seed=" + Long.MAX_VALUE);
+                "--seed=" + Long.MAX_VALUE,
+                "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals(
-                summaryOutput(corpus, Long.MAX_VALUE, 0, 0, 0, 0, 0),
+                summaryOutput(corpus, Long.MAX_VALUE, 0),
                 result.out());
     }
 
@@ -286,7 +316,8 @@ class MainTest {
     void generatesANonnegativeSeedWhenNoneIsGiven(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 0, 0);
 
-        var result = execute("run", "--how=pbt", "--corpus=" + corpus);
+        var result = execute(
+                "run", "--how=pbt", "--corpus=" + corpus, "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().lines()
@@ -300,6 +331,7 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla print"));
         assertTrue(result.out().contains("--corpus=DIR"));
+        assertTrue(result.out().contains("--spec"));
         assertTrue(result.out().contains("CBOR corpus input"));
         assertEquals("", result.err());
     }
@@ -321,6 +353,24 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("FALSE" + System.lineSeparator(), result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void printsTheCompleteParserSpecification(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+
+        var result = execute("print", "--spec", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains("MODULE FuzzInput"));
+        assertTrue(result.out()
+                .contains("EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants"));
+        assertTrue(result.out().contains("VARIABLE exprValue"));
+        assertTrue(result.out().contains("Init == exprValue = FALSE"));
+        assertTrue(result.out().contains("Next == UNCHANGED exprValue"));
+        assertTrue(result.out().contains("Inv == exprValue = FALSE"));
         assertEquals("", result.err());
     }
 
@@ -397,7 +447,12 @@ class MainTest {
                 CommandLine.ExitCode.OK,
                 execute("init", "--corpus=" + corpus).exitCode());
         var config = new FuzzTlaConfig(
-                IrGenerationConfig.defaults(), new PbtConfig(entries, maximumInputBytes));
+                IrGenerationConfig.defaults(),
+                new WorkflowConfig(
+                        entries,
+                        new StageConfig(entries),
+                        new ParserConfig(entries, 10)),
+                new PbtConfig(maximumInputBytes));
         Files.writeString(
                 corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME),
                 TomlConfig.render(config),
@@ -409,16 +464,9 @@ class MainTest {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
     }
 
-    private String summaryOutput(
-            Path corpus,
-            long seed,
-            long existing,
-            long added,
-            long attempts,
-            long rejected,
-            long duplicates) {
+    private String summaryOutput(Path corpus, long seed, long total) {
         return """
-                PBT run finished for '%s'
+                Workflow run finished for '%s'
 
                 [%20d %-18s]
                 [%20d %-18s]
@@ -427,23 +475,26 @@ class MainTest {
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
+                [%20s %-18s]
                 """
                 .formatted(
-                        corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME),
+                        corpus.toAbsolutePath().normalize(),
                         seed,
                         "random seed",
-                        existing + added,
+                        total,
                         "corpus entries",
-                        existing,
-                        "existing entries",
-                        added,
-                        "added entries",
-                        attempts,
-                        "attempted inputs",
-                        rejected,
-                        "rejected inputs",
-                        duplicates,
-                        "duplicate inputs");
+                        0,
+                        "remaining inputs",
+                        0,
+                        "generated inputs",
+                        0,
+                        "parser passed",
+                        0,
+                        "parser failed",
+                        0,
+                        "parser crashed",
+                        "COMPLETED",
+                        "stop reason");
     }
 
     private Result execute(String... args) {

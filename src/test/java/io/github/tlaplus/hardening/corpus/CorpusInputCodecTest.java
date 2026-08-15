@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
+import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
@@ -141,6 +144,51 @@ class CorpusInputCodecTest {
                                 CorpusInputFormatException.class,
                                 () -> CorpusInputCodec.decode(trailing))
                         .getMessage());
+    }
+
+    @Test
+    void addsTaggedStageTimesWithoutDroppingUnknownMetadata() throws Exception {
+        var encoded = cbor(generator -> {
+            generator.writeStartObject(null, 4);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[] {4, 2});
+            generator.writeObjectFieldStart("future");
+            generator.writeNumberField("answer", 42);
+            generator.writeEndObject();
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("other");
+            generator.writeStringField("verdict", "kept");
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        var updated = CorpusInputCodec.withStageMetadata(
+                encoded,
+                new StageMetadata(
+                        "parser",
+                        "pass",
+                        Instant.ofEpochSecond(10),
+                        Instant.ofEpochSecond(12)));
+
+        var tree = new ObjectMapper(FACTORY).readTree(updated);
+        assertEquals(42, tree.path("future").path("answer").intValue());
+        assertEquals("kept", tree.path("stages").path("other").path("verdict").textValue());
+        assertEquals(
+                "pass", CorpusInputCodec.stageVerdict(updated, "parser").orElseThrow());
+
+        var taggedTimes = 0;
+        try (var parser = FACTORY.createParser(updated)) {
+            while (parser.nextToken() != null) {
+                if (("startTime".equals(parser.currentName())
+                                || "endTime".equals(parser.currentName()))
+                        && parser.nextToken() != null) {
+                    assertEquals(1, parser.getCurrentTag());
+                    taggedTimes++;
+                }
+            }
+        }
+        assertEquals(2, taggedTimes);
     }
 
     private byte[] cbor(CborWriter writer) throws Exception {
