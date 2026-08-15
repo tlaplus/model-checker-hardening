@@ -165,7 +165,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         total, new StageConfig(inputs), new ParserConfig(parser, 10)),
-                new PbtConfig(maximumInputBytes));
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
     }
 
     private Map<String, String> entryLocations(CorpusDirectory corpus) throws Exception {

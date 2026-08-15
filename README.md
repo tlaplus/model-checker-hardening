@@ -98,6 +98,12 @@ timeout_seconds = 30
 [pbt]
 # Inclusive upper bound on a randomly generated input's length.
 maximum_input_bytes = 1024
+# Number of uniformly selected collection-richness cohorts.
+richness_cohorts = 10
+# Weight multiplier for each level of collection-literal nesting.
+richness_nesting_base = 2.0
+# Base of the geometric minimum-richness schedule.
+richness_threshold_base = 1.5
 ```
 
 Populate the corpus with property-based inputs by running:
@@ -123,15 +129,32 @@ accepted inputs exist across all directories. Lengths are selected from uniforml
 chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through
 `maximum_input_bytes`—and uniformly within the selected bucket.
 
+For each missing corpus entry, the input stage uniformly selects one richness
+cohort. Cohort 0 accepts every generated expression. Cohort `c > 0` requires a
+collection-richness score of at least
+`richness_threshold_base^(c - 1)`. The score sums the size of every explicit set,
+sequence, tuple, and record literal, weighted by
+`richness_nesting_base` for each enclosing collection literal. With the default
+configuration, the ten effective integer cutoffs are `0, 1, 2, 3, 4, 6, 8, 12,
+18, 26`.
+
+The selected cohort remains fixed while generator rejections, insufficiently rich
+expressions, and duplicate inputs are retried. A failure to fill one cohort after
+10,000 candidates stops the workflow with the cohort, threshold, and best score
+in the diagnostic. The progress table reports candidate attempts, generator
+rejections, richness rejections, and duplicates separately. It also reports the
+minimum, maximum, and average richness of inputs admitted during the current run.
+
 The effective nonnegative seed is printed and flushed before corpus access or
 worker startup, and repeated in the final summary on success. Supplying that seed
 with the same configuration and starting corpus reproduces the pseudorandom
 candidate stream. Entries begin in
-`00-inputs/<sha256>.cbor`; the parser records tagged UTC timestamps and a verdict
-before moving each entry to its parser result directory. Only
-`InputRejectedException` skips a candidate; other generator failures stop the
-workflow. An unexpected generator or parser-preparation failure preserves the
-exact input and stack trace under
+`00-inputs/<sha256>.cbor`; its compact `gen` field records the selected cohort and
+admission-time richness score. The parser preserves this metadata, records tagged
+UTC timestamps and a verdict, and moves the entry to its parser result directory.
+Among generator exceptions, only `InputRejectedException` rejects a candidate;
+other failures stop the workflow. An unexpected generator or parser-preparation
+failure preserves the exact input and stack trace under
 `.work/generator-crash/<sha256>.{cbor,stacktrace}` and reports the artifact path.
 These diagnostic files do not count as corpus entries. A crashed parser writes
 `01parser-crash/<sha256>.stacktrace` with the exception stack trace or other
@@ -157,6 +180,9 @@ defaults. With `--corpus`, it uses the generator settings in that corpus's
 
 ```text
 kind: expr
+gen:
+  cohort: 7
+  richness: 18.0
 stages:
   parser:
     verdict: pass

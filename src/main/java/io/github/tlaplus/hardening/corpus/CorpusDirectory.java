@@ -257,6 +257,17 @@ public final class CorpusDirectory {
 
     /** Stores an expression input under its payload digest in {@code 00-inputs}. */
     public synchronized StoreResult store(byte[] input) throws IOException, CorpusException {
+        return storeInternal(input, null);
+    }
+
+    /** Stores an expression input and its admission-time PBT metadata. */
+    public synchronized StoreResult store(byte[] input, GenerationMetadata generation)
+            throws IOException, CorpusException {
+        return storeInternal(input, Objects.requireNonNull(generation, "generation"));
+    }
+
+    private StoreResult storeInternal(byte[] input, GenerationMetadata generation)
+            throws IOException, CorpusException {
         var payload = Objects.requireNonNull(input, "input").clone();
         var fileName = hash(payload) + ".cbor";
         for (var directory : stageDirectories) {
@@ -275,7 +286,9 @@ public final class CorpusDirectory {
         }
 
         var path = inputDirectory.resolve(fileName);
-        var encoded = CorpusInputCodec.encode(CorpusInput.expression(payload));
+        var encoded = generation == null
+                ? CorpusInputCodec.encode(CorpusInput.expression(payload))
+                : CorpusInputCodec.encode(CorpusInput.expression(payload), generation);
         try {
             Files.write(path, encoded, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
             return StoreResult.ADDED;

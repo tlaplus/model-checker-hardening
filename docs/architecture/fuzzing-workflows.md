@@ -11,13 +11,20 @@ cargofuzz).
 
 The input-generation and parser stages described below are implemented. Later
 stages remain architectural proposals. [ADR 0001][] records the stage and worker
-execution model.
+execution model. [ADR 0002][] records the property-based input admission policy.
 
 ### 1.1. General architecture
 
 Our fuzzing workflows follows the general architecture that is shown in the figure below. In certain workflows, some of
 the stages may be missing. In the future, we may add additional stages. Nevertheless, we believe that this architecture
 is general enough to encompass many fuzzing frameworks.
+
+The implemented input stage uses stratified rejection sampling to prevent empty
+collection literals from dominating the corpus. For each target entry, it selects
+one collection-richness cohort uniformly and retains that cohort until it admits a
+unique input. Candidate generation and cohort selection use independent random
+streams derived from the run seed. This policy belongs to the workflow; the IR
+decoder remains a deterministic mapping from bytes to an expression.
 
 In the figure below, the outer boxes are the stages of the pipeline, while the inner boxes are directories in the
 corpus. The names of the directories reflect the status of each input within the stage.
@@ -198,7 +205,28 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    failing input to a stage directory. It persists across workflow invocations
    and does not count towards capacity limits.
 
-### 2.4. Stage
+### 2.4. Property-based generation
+
+Every property-based input records its admission cohort and collection-richness
+score in the compact `"gen"` field:
+
+```cbor
+{
+    "kind": "expr",
+    "input": h'0123af',
+    "gen": {
+      "cohort": 7,
+      "richness": 18.0
+    }
+}
+```
+
+The metadata describes the admission decision; it is not recomputed by later
+stages. A stage must preserve it when updating the envelope. It does not
+participate in the input identity: the filename remains the digest of `"input"`.
+[ADR 0002][] specifies the score and cohort schedule.
+
+### 2.5. Stage
 
 When an input passes through a stage, this stage stores its metadata under `stages.<stage name>`.
 The metadata depends on the stage. The minimal set of fields is:
@@ -230,3 +258,4 @@ The metadata depends on the stage. The minimal set of fields is:
 [cbor playground]: https://cbor.me
 [epoch-based date/time]: https://www.rfc-editor.org/rfc/rfc8949.html#name-epoch-based-date-time
 [ADR 0001]: ../decisions/0001-stages-and-workers.md
+[ADR 0002]: ../decisions/0002-pbt-richness-score.md

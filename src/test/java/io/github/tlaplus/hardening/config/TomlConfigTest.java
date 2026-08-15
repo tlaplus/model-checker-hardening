@@ -19,6 +19,9 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("maximum_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_seconds = 30"));
         assertTrue(Files.readString(path).contains("maximum_input_bytes = 1024"));
+        assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
+        assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
+        assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
     }
 
     @Test
@@ -35,6 +38,12 @@ class TomlConfigTest {
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace("maximum_nodes = 16\n", ""));
         assertTrue(missing.getMessage().contains("missing generator keys: maximum_nodes"));
+
+        var missingRichness = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace("richness_cohorts = 10\n", ""));
+        assertTrue(missingRichness.getMessage().contains("missing pbt keys: richness_cohorts"));
 
         var unknown = assertInvalid(
                 directory,
@@ -84,6 +93,12 @@ class TomlConfigTest {
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace("maximum_input_bytes = 1024", "maximum_input_bytes = 2147483648"));
         assertTrue(tooLarge.getMessage().contains("outside the supported integer range"));
+
+        var wrongRichnessType = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace("richness_nesting_base = 2.0", "richness_nesting_base = \"two\""));
+        assertTrue(wrongRichnessType.getMessage().contains("pbt.richness_nesting_base"));
     }
 
     @Test
@@ -100,6 +115,12 @@ class TomlConfigTest {
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace("maximum_input_bytes = 1024", "maximum_input_bytes = 0"));
         assertTrue(impossibleCorpus.getMessage().contains("distinct bounded inputs"));
+
+        var invalidCohorts = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace("richness_cohorts = 10", "richness_cohorts = 0"));
+        assertTrue(invalidCohorts.getMessage().contains("richnessCohorts must be positive"));
     }
 
     private ConfigException assertInvalid(Path directory, String contents) throws Exception {

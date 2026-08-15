@@ -35,6 +35,6 @@ class WorkflowConfigTest {
                         IrGenerationConfig.defaults(),
                         new WorkflowConfig(
                                 2, new StageConfig(2), new ParserConfig(2, 30)),
-                        new PbtConfig(0)));
+                        new PbtConfig(0, 10, 2.0, 1.5)));
     }
 }

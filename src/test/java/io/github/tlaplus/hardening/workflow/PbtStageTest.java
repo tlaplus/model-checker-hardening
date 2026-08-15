@@ -1,9 +1,6 @@
 package io.github.tlaplus.hardening.workflow;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
@@ -12,32 +9,43 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.SplittableRandom;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.apalache_mc.tla.jir.TlaBuilderExpr;
+import org.apalache_mc.tla.jir.TlaCheckedBuilder;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class PbtStageTest {
-    private static final Generator<Void> ACCEPT = _ -> null;
+    private static final TlaEx EMPTY = expression(0);
+    private static final TlaEx RICH = expression(32);
+    private static final Generator<TlaEx> ACCEPT = _ -> RICH;
 
     @Test
     void fillsTheGlobalTargetWithOneWorker(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var active = new AtomicInteger();
         var maximumActive = new AtomicInteger();
-        Generator<Void> observed = draw -> {
+        Generator<TlaEx> observed = draw -> {
             var current = active.incrementAndGet();
             maximumActive.accumulateAndGet(current, Math::max);
             active.decrementAndGet();
-            return null;
+            return RICH;
         };
 
-        var summary = runStage(corpus, new PbtConfig(16), observed, 20, 42);
+        var summary = runStage(corpus, config(16), observed, 20, 42);
 
         assertEquals(20, summary.added());
         assertEquals(1, maximumActive.get());
+        assertEquals(32.0, summary.minimumRichness());
+        assertEquals(32.0, summary.maximumRichness());
+        assertEquals(32.0, summary.averageRichness());
         assertEquals(20, corpus.inventory(observed).inputEntries());
     }
 
@@ -46,8 +54,8 @@ class PbtStageTest {
         var first = CorpusDirectory.initialize(directory.resolve("first"));
         var second = CorpusDirectory.initialize(directory.resolve("second"));
 
-        runStage(first, new PbtConfig(32), ACCEPT, 30, 123456789L);
-        runStage(second, new PbtConfig(32), ACCEPT, 30, 123456789L);
+        runStage(first, config(32), ACCEPT, 30, 123456789L);
+        runStage(second, config(32), ACCEPT, 30, 123456789L);
 
         var firstEntries = readEntries(first);
         var secondEntries = readEntries(second);
@@ -61,14 +69,14 @@ class PbtStageTest {
     void retriesExpectedInputRejections(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var calls = new AtomicInteger();
-        Generator<Void> rejectFirstThree = _ -> {
+        Generator<TlaEx> rejectFirstThree = _ -> {
             if (calls.getAndIncrement() < 3) {
                 throw new InputRejectedException("retry");
             }
-            return null;
+            return RICH;
         };
 
-        var summary = runStage(corpus, new PbtConfig(8), rejectFirstThree, 4, 7);
+        var summary = runStage(corpus, config(8), rejectFirstThree, 4, 7);
 
         assertEquals(3, summary.rejected());
         assertEquals(4, summary.added());
@@ -80,16 +88,16 @@ class PbtStageTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var calls = new AtomicInteger();
-        Generator<Void> acceptOnce = _ -> {
+        Generator<TlaEx> acceptOnce = _ -> {
             if (calls.getAndIncrement() > 0) {
                 throw new InputRejectedException("retry forever");
             }
-            return null;
+            return RICH;
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
-                new PbtConfig(1),
+                config(1),
                 2,
                 0,
                 corpus,
@@ -104,9 +112,12 @@ class PbtStageTest {
         stage.await();
 
         assertTrue(control.hasFailed());
-        assertEquals(10_000, stage.summary().attempts());
+        assertEquals(10_001, stage.summary().attempts());
         assertEquals(1, stage.summary().added());
-        assertEquals(9_999, stage.summary().rejected());
+        assertEquals(10_000, stage.summary().rejected());
+        assertTrue(control.failure().getMessage().contains("richness cohort 0"));
+        assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
+        assertTrue(control.failure().getMessage().contains("best richness was 0.0"));
         assertEquals(1, corpus.inventory(ACCEPT).inputEntries());
     }
 
@@ -114,13 +125,13 @@ class PbtStageTest {
     void preservesTheCandidateAndStackTraceWhenTheGeneratorCrashes(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
-        Generator<Void> overflow = _ -> {
+        Generator<TlaEx> overflow = _ -> {
             throw new StackOverflowError("deliberate overflow");
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
-                new PbtConfig(8),
+                config(8),
                 1,
                 0,
                 corpus,
@@ -135,7 +146,7 @@ class PbtStageTest {
         stage.await();
 
         assertTrue(control.hasFailed());
-        assertTrue(control.failure() instanceof WorkflowException);
+        assertInstanceOf(WorkflowException.class, control.failure());
         assertEquals(1, stage.summary().attempts());
         try (var paths = Files.list(corpus.generatorCrashDirectory())) {
             var files = paths.toList();
@@ -156,10 +167,56 @@ class PbtStageTest {
         assertEquals(0, corpus.inventory(ACCEPT).totalEntries());
     }
 
+    @Test
+    void keepsTheSelectedCohortAcrossRichnessRejectionsAndRecordsAdmissionMetadata(
+            @TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var seed = seedSelectingNonzeroCohort();
+        var expectedCohort = firstCohort(seed, 10);
+        var calls = new AtomicInteger();
+        Generator<TlaEx> sparseThenRich = _ -> calls.getAndIncrement() == 0 ? EMPTY : RICH;
+
+        var summary = runStage(
+                corpus, new PbtConfig(16, 10, 2.0, 1.5), sparseThenRich, 1, seed);
+
+        assertEquals(1, summary.richnessRejected());
+        assertEquals(2, summary.attempts());
+        var entry = readEntries(corpus).values().iterator().next();
+        var generation = CorpusInputCodec.decodeEnvelope(entry).generation().orElseThrow();
+        assertEquals(expectedCohort, generation.cohort());
+        assertEquals(CollectionRichness.score(RICH, 2.0), generation.richness());
+    }
+
+    @Test
+    void selectsCohortsUniformlyFromTheSeededRandomStream(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var target = 100;
+        var seed = 12345L;
+
+        runStage(corpus, new PbtConfig(32, 10, 2.0, 1.5), ACCEPT, target, seed);
+
+        var expected = new HashMap<Integer, Integer>();
+        var root = new SplittableRandom(seed);
+        var cohortRandom = root.split();
+        for (var index = 0; index < target; index++) {
+            expected.merge(cohortRandom.nextInt(10), 1, Integer::sum);
+        }
+        var actual = new HashMap<Integer, Integer>();
+        for (var encoded : readEntries(corpus).values()) {
+            var cohort = CorpusInputCodec.decodeEnvelope(encoded)
+                    .generation()
+                    .orElseThrow()
+                    .cohort();
+            actual.merge(cohort, 1, Integer::sum);
+        }
+        assertEquals(expected, actual);
+    }
+
     private PbtStageSummary runStage(
             CorpusDirectory corpus,
             PbtConfig config,
-            Generator<?> generator,
+            Generator<TlaEx> generator,
             int target,
             long seed)
             throws Exception {
@@ -178,8 +235,36 @@ class PbtStageTest {
                 control);
         stage.start();
         stage.await();
-        assertTrue(!control.hasFailed());
+        assertFalse(control.hasFailed());
         return stage.summary();
+    }
+
+    private static PbtConfig config(int maximumInputBytes) {
+        return new PbtConfig(maximumInputBytes, 1, 2.0, 1.5);
+    }
+
+    private static long seedSelectingNonzeroCohort() {
+        for (long seed = 0; ; seed++) {
+            if (firstCohort(seed, 10) > 0) {
+                return seed;
+            }
+        }
+    }
+
+    private static int firstCohort(long seed, int cohorts) {
+        return new SplittableRandom(seed).split().nextInt(cohorts);
+    }
+
+    private static TlaEx expression(int sequenceSize) {
+        var builder = new TlaCheckedBuilder();
+        if (sequenceSize == 0) {
+            return builder.build(builder.bool(false));
+        }
+        var elements = new TlaBuilderExpr[sequenceSize];
+        for (var index = 0; index < sequenceSize; index++) {
+            elements[index] = builder.integer(index);
+        }
+        return builder.build(builder.seq(elements));
     }
 
     private Map<String, byte[]> readEntries(CorpusDirectory corpus) throws Exception {
