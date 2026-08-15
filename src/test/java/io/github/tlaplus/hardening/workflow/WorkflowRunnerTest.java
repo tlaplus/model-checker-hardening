@@ -17,10 +17,45 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class WorkflowRunnerTest {
+    @Test
+    void reportsInitialAndFinalProgressSnapshots(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = config(8, 3, 8, 16);
+        var observed = new CopyOnWriteArrayList<WorkflowProgress>();
+
+        var summary = new WorkflowRunner(config).run(corpus, 42, 1, observed::add);
+
+        assertTrue(observed.size() >= 2);
+        var initial = observed.getFirst();
+        assertEquals(42, initial.generator().seed());
+        assertEquals(0, initial.corpusEntries());
+        assertEquals(0, initial.remainingInputs());
+
+        var last = observed.getLast();
+        assertEquals(summary.generator(), last.generator());
+        assertEquals(summary.parser(), last.parser());
+        assertEquals(summary.corpus().totalEntries(), last.corpusEntries());
+        assertEquals(summary.corpus().inputEntries(), last.remainingInputs());
+
+        long generated = -1;
+        long corpusEntries = -1;
+        long parsed = -1;
+        for (var progress : observed) {
+            assertTrue(progress.generator().added() >= generated);
+            assertTrue(progress.corpusEntries() >= corpusEntries);
+            assertTrue(progress.parser().processed() >= parsed);
+            assertTrue(progress.remainingInputs() >= 0);
+            generated = progress.generator().added();
+            corpusEntries = progress.corpusEntries();
+            parsed = progress.parser().processed();
+        }
+    }
+
     @Test
     void runsGenerationAndParsingToQuiescenceWithInputBackpressure(
             @TempDir Path directory) throws Exception {

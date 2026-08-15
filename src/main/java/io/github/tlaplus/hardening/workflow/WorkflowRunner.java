@@ -9,11 +9,15 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import java.util.function.Consumer;
 
 /** Runs input generation and parsing concurrently under one shared CPU budget. */
 public final class WorkflowRunner {
+    private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
+
     private final FuzzTlaConfig config;
     private final Generator<TlaEx> generator;
 
@@ -28,6 +32,33 @@ public final class WorkflowRunner {
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
+            throws IOException, CorpusException, WorkflowException {
+        return runInternal(corpus, seed, maximumCpus, null);
+    }
+
+    /**
+     * Runs the workflow while reporting progress immediately, once per second, and after workers
+     * stop. Listener calls never overlap; a listener exception disables further reporting without
+     * stopping the workflow.
+     */
+    public WorkflowRunSummary run(
+            CorpusDirectory corpus,
+            long seed,
+            int maximumCpus,
+            Consumer<WorkflowProgress> progressListener)
+            throws IOException, CorpusException, WorkflowException {
+        return runInternal(
+                corpus,
+                seed,
+                maximumCpus,
+                Objects.requireNonNull(progressListener, "progressListener"));
+    }
+
+    private WorkflowRunSummary runInternal(
+            CorpusDirectory corpus,
+            long seed,
+            int maximumCpus,
+            Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
         Objects.requireNonNull(corpus, "corpus");
         if (seed < 0) {
@@ -86,35 +117,54 @@ public final class WorkflowRunner {
                 control.capacityReached();
             }
 
-            try {
-                parser.start();
-                pbt.start();
-                pbt.await();
-                parser.await();
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                control.fail(exception);
-            } finally {
-                pbt.close();
-                parser.close();
-            }
-
-            if (control.hasFailed()) {
-                var failure = control.failure();
-                if (failure instanceof WorkflowException workflowException) {
-                    throw workflowException;
+            try (var progress = progressListener == null
+                    ? null
+                    : WorkflowProgressMonitor.start(
+                            PROGRESS_UPDATE_INTERVAL,
+                            () -> progressSnapshot(initial, pbt, parser),
+                            progressListener)) {
+                try {
+                    parser.start();
+                    pbt.start();
+                    pbt.await();
+                    parser.await();
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    control.fail(exception);
+                } finally {
+                    pbt.close();
+                    parser.close();
                 }
-                throw new WorkflowException(
-                        "workflow stage failed: " + diagnostic(failure), failure);
-            }
 
-            var result = corpus.inventory(generator);
-            var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
-                    ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
-                    : WorkflowRunSummary.StopReason.COMPLETED;
-            return new WorkflowRunSummary(
-                    stopReason, pbt.summary(), parser.summary(), result);
+                if (control.hasFailed()) {
+                    var failure = control.failure();
+                    if (failure instanceof WorkflowException workflowException) {
+                        throw workflowException;
+                    }
+                    throw new WorkflowException(
+                            "workflow stage failed: " + diagnostic(failure), failure);
+                }
+
+                var result = corpus.inventory(generator);
+                var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
+                        ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
+                        : WorkflowRunSummary.StopReason.COMPLETED;
+                return new WorkflowRunSummary(
+                        stopReason, pbt.summary(), parser.summary(), result);
+            }
         }
+    }
+
+    private static WorkflowProgress progressSnapshot(
+            CorpusInventory initial, PbtStage generator, ParserStage parser) {
+        var parserSummary = parser.summary();
+        var generatorSummary = generator.summary();
+        var corpusEntries = generatorSummary.existing() + generatorSummary.added();
+        var observedInputs =
+                initial.inputEntries() + generatorSummary.added() - parserSummary.processed();
+        var remainingInputs = Math.max(0L, Math.min(corpusEntries, observedInputs));
+        return new WorkflowProgress(
+                generatorSummary, parserSummary, corpusEntries, remainingInputs);
     }
 
     private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
