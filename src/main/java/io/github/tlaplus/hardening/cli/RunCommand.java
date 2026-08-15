@@ -45,7 +45,8 @@ final class RunCommand implements Callable<Integer> {
             names = "--seed",
             converter = SeedConverter.class,
             paramLabel = "SEED",
-            description = "Nonnegative 64-bit seed for reproducible input generation.")
+            description =
+                    "Nonnegative 64-bit seed used as the base for deterministic generator-worker streams.")
     private Long seed;
 
     @Option(

@@ -48,12 +48,13 @@ For each target corpus entry, the input stage selects a cohort uniformly from
 threshold `richness_threshold_base^(c - 1)`. The default thresholds yield the
 effective integer cutoffs `0, 1, 2, 3, 4, 6, 8, 12, 18, 26`.
 
-The selected cohort remains fixed across generator rejections, richness
-rejections, and duplicate inputs until a unique input is admitted. Cohort and
-candidate generation use separate deterministic random streams derived from the
-run seed. A target that cannot be admitted within 10,000 candidate attempts
-stops the workflow and reports its cohort, threshold, attempt count, and best
-observed score.
+Generator workers dynamically claim target entries. The run seed
+deterministically produces one seed per worker, and each worker derives separate
+cohort and candidate streams from its seed. The selected cohort remains fixed
+across generator rejections, richness rejections, and duplicate inputs until a
+unique input is admitted. A target that cannot be admitted within 10,000
+candidate attempts stops the workflow and reports its worker, worker seed,
+cohort, threshold, attempt count, and best observed score.
 
 Each admitted PBT envelope stores the admission result as
 `"gen": {"cohort": C, "richness": R}`. Later stages preserve this field. The raw

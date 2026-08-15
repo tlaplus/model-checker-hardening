@@ -113,11 +113,11 @@ Populate the corpus with property-based inputs by running:
 ./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42 --max-cpus=4
 ```
 
-The command runs input generation and parsing concurrently. Input generation uses
-one worker; the parser uses persistent isolated JVM workers. `--max-cpus` bounds
-active work across both stages and defaults to all available processors. Before
-starting, FuzzTLA validates every corpus entry and recovers interrupted parser
-moves.
+The command runs input generation and parsing concurrently. Both stages maintain
+up to `--max-cpus` workers; parser workers use persistent isolated JVMs. A shared
+fair CPU budget bounds active work across both stages and defaults to all
+available processors. Before starting, FuzzTLA validates every corpus entry and
+recovers interrupted parser moves.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
@@ -146,9 +146,12 @@ rejections, richness rejections, and duplicates separately. It also reports the
 minimum, maximum, and average richness of inputs admitted during the current run.
 
 The effective nonnegative seed is printed and flushed before corpus access or
-worker startup, and repeated in the final summary on success. Supplying that seed
-with the same configuration and starting corpus reproduces the pseudorandom
-candidate stream. Entries begin in
+worker startup, and repeated in the final summary on success. The input stage
+derives a stable seed for each generator worker, which owns independent cohort
+and candidate streams. Reusing the main seed, configuration, starting corpus, and
+`--max-cpus` reproduces those worker-local streams. Dynamic target claiming,
+duplicate races, and parser-capacity timing may still change the aggregate
+corpus. Every stored raw input remains exactly replayable. Entries begin in
 `00-inputs/<sha256>.cbor`; its compact `gen` field records the selected cohort and
 admission-time richness score. The parser preserves this metadata, records tagged
 UTC timestamps and a verdict, and moves the entry to its parser result directory.

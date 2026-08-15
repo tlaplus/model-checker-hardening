@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,7 +31,7 @@ public final class ParserStage implements WorkflowStage {
     private final LongAdder passed = new LongAdder();
     private final LongAdder failed = new LongAdder();
     private final LongAdder crashed = new LongAdder();
-    private final List<Thread> workers = new ArrayList<>();
+    private final WorkerGroup workers = new WorkerGroup("fuzztla-parser-");
 
     ParserStage(
             ParserConfig config,
@@ -68,29 +66,13 @@ public final class ParserStage implements WorkflowStage {
     }
 
     @Override
-    public synchronized void start() {
-        if (!workers.isEmpty()) {
-            throw new IllegalStateException("parser stage has already started");
-        }
-        for (var index = 0; index < workerCount; index++) {
-            workers.add(Thread.ofPlatform()
-                    .name("fuzztla-parser-" + index)
-                    .start(this::runWorker));
-        }
+    public void start() {
+        workers.start(workerCount, _ -> this::runWorker);
     }
 
     @Override
     public void await() throws InterruptedException {
-        List<Thread> snapshot;
-        synchronized (this) {
-            if (workers.isEmpty()) {
-                throw new IllegalStateException("parser stage has not started");
-            }
-            snapshot = List.copyOf(workers);
-        }
-        for (var worker : snapshot) {
-            worker.join();
-        }
+        workers.await();
     }
 
     public ParserStageSummary summary() {
@@ -100,29 +82,7 @@ public final class ParserStage implements WorkflowStage {
     @Override
     public void close() {
         input.close();
-        final List<Thread> snapshot;
-        synchronized (this) {
-            snapshot = List.copyOf(workers);
-        }
-        for (var worker : snapshot) {
-            if (worker.isAlive()) {
-                worker.interrupt();
-            }
-        }
-        var interrupted = false;
-        for (var worker : snapshot) {
-            while (worker.isAlive()) {
-                try {
-                    worker.join();
-                } catch (InterruptedException exception) {
-                    interrupted = true;
-                    worker.interrupt();
-                }
-            }
-        }
-        if (interrupted) {
-            Thread.currentThread().interrupt();
-        }
+        workers.close();
     }
 
     private void runWorker() {

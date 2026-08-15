@@ -9,10 +9,13 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SplittableRandom;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -103,6 +106,7 @@ class PbtStageTest {
                 corpus,
                 acceptOnce,
                 99,
+                1,
                 queue,
                 new Semaphore(2),
                 new CpuBudget(1),
@@ -137,6 +141,7 @@ class PbtStageTest {
                 corpus,
                 overflow,
                 42,
+                1,
                 queue,
                 new Semaphore(1),
                 new CpuBudget(1),
@@ -197,7 +202,7 @@ class PbtStageTest {
         runStage(corpus, new PbtConfig(32, 10, 2.0, 1.5), ACCEPT, target, seed);
 
         var expected = new HashMap<Integer, Integer>();
-        var root = new SplittableRandom(seed);
+        var root = new SplittableRandom(PbtStage.workerSeeds(seed, 1)[0]);
         var cohortRandom = root.split();
         for (var index = 0; index < target; index++) {
             expected.merge(cohortRandom.nextInt(10), 1, Integer::sum);
@@ -211,6 +216,122 @@ class PbtStageTest {
             actual.merge(cohort, 1, Integer::sum);
         }
         assertEquals(expected, actual);
+    }
+
+    @Test
+    void runsMultipleWorkersWithinTheSharedCpuBudget(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var active = new AtomicInteger();
+        var maximumActive = new AtomicInteger();
+        var firstTwoWorkers = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        Generator<TlaEx> observed = _ -> {
+            var current = active.incrementAndGet();
+            maximumActive.accumulateAndGet(current, Math::max);
+            firstTwoWorkers.countDown();
+            try {
+                if (!release.await(2, TimeUnit.SECONDS)) {
+                    throw new AssertionError("generator workers did not overlap");
+                }
+                return RICH;
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(exception);
+            } finally {
+                active.decrementAndGet();
+            }
+        };
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var target = 12;
+        var stage = new PbtStage(
+                config(32),
+                target,
+                0,
+                corpus,
+                observed,
+                42,
+                4,
+                queue,
+                new Semaphore(target),
+                new CpuBudget(2),
+                control);
+
+        stage.start();
+        try {
+            assertTrue(firstTwoWorkers.await(1, TimeUnit.SECONDS));
+        } finally {
+            release.countDown();
+        }
+        stage.await();
+
+        assertFalse(control.hasFailed());
+        assertEquals(2, maximumActive.get());
+        assertEquals(target, stage.summary().added());
+        assertEquals(target, corpus.inventory(observed).inputEntries());
+        var queued = 0;
+        while (queue.take() != null) {
+            queued++;
+        }
+        assertEquals(target, queued);
+    }
+
+    @Test
+    void stopsPeerWorkersWhenOneWorkerCrashes(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var allWorkersEntered = new CountDownLatch(4);
+        Generator<TlaEx> oneWorkerCrashes = _ -> {
+            allWorkersEntered.countDown();
+            try {
+                if (!allWorkersEntered.await(2, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("generator workers did not start");
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(exception);
+            }
+            if (Thread.currentThread().getName().equals("fuzztla-pbt-0")) {
+                throw new StackOverflowError("worker-local failure");
+            }
+            return RICH;
+        };
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var stage = new PbtStage(
+                config(32),
+                20,
+                0,
+                corpus,
+                oneWorkerCrashes,
+                42,
+                4,
+                queue,
+                new Semaphore(20),
+                new CpuBudget(4),
+                control);
+
+        stage.start();
+        stage.await();
+
+        assertTrue(control.hasFailed());
+        assertInstanceOf(WorkflowException.class, control.failure());
+        assertTrue(control.failure().getMessage().contains("input generator worker 0"));
+        assertTrue(control.failure().getMessage().contains("worker-local failure"));
+        while (queue.take() != null) {
+            // Drain entries admitted before the failure and observe the closed queue.
+        }
+    }
+
+    @Test
+    void derivesStableDistinctWorkerSeeds() {
+        var first = PbtStage.workerSeeds(1234, 8);
+        var second = PbtStage.workerSeeds(1234, 8);
+
+        assertArrayEquals(first, second);
+        assertEquals(first.length, Arrays.stream(first).distinct().count());
+        assertThrows(IllegalArgumentException.class, () -> PbtStage.workerSeeds(-1, 1));
+        assertThrows(IllegalArgumentException.class, () -> PbtStage.workerSeeds(1, -1));
     }
 
     private PbtStageSummary runStage(
@@ -229,6 +350,7 @@ class PbtStageTest {
                 corpus,
                 generator,
                 seed,
+                1,
                 queue,
                 new Semaphore(target),
                 new CpuBudget(1),
@@ -252,7 +374,8 @@ class PbtStageTest {
     }
 
     private static int firstCohort(long seed, int cohorts) {
-        return new SplittableRandom(seed).split().nextInt(cohorts);
+        var workerSeed = PbtStage.workerSeeds(seed, 1)[0];
+        return new SplittableRandom(workerSeed).split().nextInt(cohorts);
     }
 
     private static TlaEx expression(int sequenceSize) {

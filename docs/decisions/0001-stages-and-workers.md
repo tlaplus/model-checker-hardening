@@ -9,17 +9,18 @@
 ## Context
 
 The fuzzing pipeline must process independently owned corpus directories while
-allowing expensive stages to run concurrently. Input generation is cheap, but
-SANY is not thread-safe within one JVM. Workflow runs must also terminate
-predictably and recover from interruption without relying on volatile state.
+allowing expensive stages to run concurrently. Individual input generation is
+fast, but richness rejection can make the input stage CPU-bound. SANY is not
+thread-safe within one JVM. Workflow runs must also terminate predictably and
+recover from interruption without relying on volatile state.
 
 ## Decision
 
 A workflow invocation runs both implemented stages concurrently:
 
-- The input stage owns `00-inputs` and has one property-based generation worker.
-  Generation remains sequential, making the candidate stream independent of
-  parser concurrency.
+- The input stage owns `00-inputs` and runs up to `run --max-cpus` property-based
+  generation workers. It starts no more workers than missing corpus entries.
+  Workers dynamically claim target ordinals from a shared atomic counter.
 - The parser stage owns `01parser-pass`, `01parser-fail`, and
   `01parser-crash`. It uses persistent child JVMs because SANY has process-global
   state and is not thread-safe. Each JVM handles one request at a time and is
@@ -32,12 +33,19 @@ and retains bounded child stderr, removes a worker directory after the process
 exits, and removes the complete run directory before releasing the corpus lock.
 Startup removes scratch data left by an interrupted invocation.
 
+The main seed deterministically produces one seed per generator worker in worker
+ID order. Each worker derives separate cohort and candidate streams from its
+seed. Worker-local streams are reproducible, but dynamic target claiming,
+duplicate races, and parser-capacity timing may change the aggregate corpus even
+with the same worker count. Persisted raw inputs remain exactly replayable.
+
 Files move between stage-owned directories; they are not copied as independent
-jobs. The directories are the durable source of truth. A close-aware in-memory
-queue accelerates handoff from the input stage to parser workers. A fair logical
-CPU budget, configured with `run --max-cpus`, bounds simultaneously active jobs;
-users do not configure worker counts per stage. Stage capacity limits bound
-current directory occupancy, while a global limit bounds unique corpus entries.
+jobs. The directories are the durable source of truth. A close-aware
+multi-producer, multi-consumer queue accelerates handoff from generator workers
+to parser workers. A fair logical CPU budget, configured with `run --max-cpus`,
+bounds simultaneously active jobs across both worker pools; users do not
+configure worker counts per stage. Stage capacity limits bound current directory
+occupancy, while a global limit bounds unique corpus entries.
 The runner may sample the stages' in-memory counters once per second for a
 best-effort progress listener. These snapshots are observational and do not
 replace the corpus directories as the durable source of truth. Progress is
@@ -86,17 +94,20 @@ retained under `.work/generator-crash`; these files are diagnostic artifacts,
 not stage entries. When an existing corpus entry triggers the failure, the
 diagnostic names both its stage path and the retained copy.
 
-Generation stops at the global entry limit. The parser then drains the closed
-queue, and the run finishes when no input is queued or in flight. If parser
-result capacity is exhausted, the workflow succeeds with a capacity-limited
-result and leaves unclaimed inputs in `00-inputs`. An infrastructure failure
-stops all stages and returns a failure.
+Generation stops at the global entry limit. The last generator worker closes the
+handoff queue; the parser then drains it, and the run finishes when no input is
+queued or in flight. Closing the input stage interrupts and joins every generator
+worker. If parser result capacity is exhausted, the workflow succeeds with a
+capacity-limited result and leaves unclaimed inputs in `00-inputs`. An
+infrastructure failure stops all stages and returns a failure.
 
 ## Consequences
 
-Parser concurrency costs one JVM per active parser worker but avoids SANY's
-shared-state races and repeated JVM startup. Disk transitions make runs
-resumable, while the shared queue and CPU budget remain process-local execution
-optimizations rather than persisted workflow state. Corpus-owned scratch storage
-uses the corpus filesystem's capacity and bounds temporary-directory growth by
-the number of active workers rather than the number of parsed inputs.
+Parallel generation amortizes high rejection rates but no longer provides an
+exact whole-corpus replay guarantee. Parser concurrency costs one JVM per active
+parser worker but avoids SANY's shared-state races and repeated JVM startup. Disk
+transitions make runs resumable, while the shared queue and CPU budget remain
+process-local execution optimizations rather than persisted workflow state.
+Corpus-owned scratch storage uses the corpus filesystem's capacity and bounds
+temporary-directory growth by the number of active workers rather than the
+number of parsed inputs.

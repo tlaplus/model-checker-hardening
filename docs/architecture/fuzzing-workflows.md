@@ -22,9 +22,10 @@ is general enough to encompass many fuzzing frameworks.
 The implemented input stage uses stratified rejection sampling to prevent empty
 collection literals from dominating the corpus. For each target entry, it selects
 one collection-richness cohort uniformly and retains that cohort until it admits a
-unique input. Candidate generation and cohort selection use independent random
-streams derived from the run seed. This policy belongs to the workflow; the IR
-decoder remains a deterministic mapping from bytes to an expression.
+unique input. Each generator worker has deterministic, independent candidate and
+cohort streams derived from the run seed. Workers claim target entries
+dynamically. This policy belongs to the workflow; the IR decoder remains a
+deterministic mapping from bytes to an expression.
 
 In the figure below, the outer boxes are the stages of the pipeline, while the inner boxes are directories in the
 corpus. The names of the directories reflect the status of each input within the stage.
