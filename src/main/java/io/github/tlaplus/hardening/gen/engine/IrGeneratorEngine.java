@@ -10,7 +10,7 @@ import java.util.Objects;
  * Reusable coordinator for type-directed IR-expression generation.
  *
  * <p>The engine stores only immutable configuration. Every {@link #generate(Draw)} invocation
- * creates an independent checked builder, scope, resource counters, and fresh-name supply, so one
+ * creates an independent type-safe builder, scope, resource counters, and fresh-name supply, so one
  * engine may be reused and invoked concurrently with distinct cursors.
  */
 public final class IrGeneratorEngine {
@@ -27,14 +27,14 @@ public final class IrGeneratorEngine {
     }
 
     /**
-     * Generates and checks one expression from the current position of {@code draw}.
+     * Generates one type-correct expression from the current position of {@code draw}.
      *
      * @param draw cursor supplying every generation choice
      * @return generated Apalache IR expression
      * @throws NullPointerException if {@code draw} is {@code null}
      * @throws InputRejectedException if the decoded choices reach an expected semantic dead
      *     end
-     * @throws RuntimeException if the checked builder rejects an internally constructed expression
+     * @throws RuntimeException if the builder rejects an internally constructed expression
      */
     public TlaEx generate(Draw draw) {
         Objects.requireNonNull(draw, "draw");
@@ -42,8 +42,7 @@ public final class IrGeneratorEngine {
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
         var resultType = draw.draw(typeFactory.anyType());
-        var expression = draw.draw(
-                expressionFactory.mkGen(resultType, config.maximumExpressionDepth()));
-        return context.builder().build(expression);
+        return draw.draw(expressionFactory.mkGen(
+                resultType, config.maximumExpressionDepth()));
     }
 }

@@ -1,13 +1,18 @@
 package io.github.tlaplus.hardening.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.workflow.ParserStageSummary;
 import io.github.tlaplus.hardening.workflow.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
+import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TerminalProgressDisplayTest {
@@ -79,6 +84,19 @@ class TerminalProgressDisplayTest {
                 emptyTable.lines()
                         .filter(line -> line.contains("n/a") && line.contains("richness"))
                         .count());
+    }
+
+    @Test
+    void omitsTheSeedFromLiveAndFinalTables() {
+        var snapshot = progress(WorkflowProgress.Phase.RUNNING, 3, 1);
+        var summary = new WorkflowRunSummary(
+                WorkflowRunSummary.StopReason.COMPLETED,
+                snapshot.generator(),
+                snapshot.parser(),
+                new CorpusInventory(List.of(), 1, 1, 0));
+
+        assertFalse(RunTable.progress(snapshot).contains("random seed"));
+        assertFalse(RunTable.finished(Path.of("corpus"), summary).contains("random seed"));
     }
 
     private WorkflowProgress progress(

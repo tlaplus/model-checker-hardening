@@ -20,8 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
-import org.apalache_mc.tla.jir.TlaCheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -379,15 +378,15 @@ class PbtStageTest {
     }
 
     private static TlaEx expression(int sequenceSize) {
-        var builder = new TlaCheckedBuilder();
+        var builder = new TlaTypedScopeUncheckedBuilder();
         if (sequenceSize == 0) {
-            return builder.build(builder.bool(false));
+            return builder.bool(false);
         }
-        var elements = new TlaBuilderExpr[sequenceSize];
+        var elements = new TlaEx[sequenceSize];
         for (var index = 0; index < sequenceSize; index++) {
             elements[index] = builder.integer(index);
         }
-        return builder.build(builder.seq(elements));
+        return builder.seq(elements);
     }
 
     private Map<String, byte[]> readEntries(CorpusDirectory corpus) throws Exception {

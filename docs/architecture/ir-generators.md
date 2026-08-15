@@ -22,8 +22,8 @@ The design has five primary requirements:
 1. The same configuration and bytes produce the same IR.
 2. Exhausted input produces small defaults instead of failing.
 3. Local byte mutations should not unnecessarily perturb later decoding.
-4. Successful generation returns an expression accepted by Apalache's
-   `TlaCheckedBuilder`.
+4. Successful generation returns an expression accepted by Apalache's type-safe,
+   scope-unchecked builder.
 5. Explicit limits bound recursive construction and variable-size payloads.
 
 ## 2. Package structure
@@ -46,8 +46,8 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 
 | Component | Responsibility |
 | --- | --- |
-| `IrGeneratorEngine` | Creates per-run state, draws the result type and expression, and finalizes the checked builder computation. |
-| `GenerationContext` | Owns the checked builder, lexical scope, fresh-name supplies, and immutable configuration for one run. |
+| `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
+| `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate the internal type model used to direct construction. |
 | `ExpressionKind` and `ExpressionKinds` | Define the static catalog and byte-decoder order of expression forms. |
 | `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory. |
@@ -69,7 +69,7 @@ sequenceDiagram
     participant Engine as IrGeneratorEngine
     participant Types as IrTypeGenFactory
     participant Exprs as IrExprGenFactory
-    participant Builder as TlaCheckedBuilder
+    participant Builder as TlaTypedScopeUncheckedBuilder
 
     Caller->>Engine: generate(Draw)
     Engine->>Engine: create GenerationContext
@@ -81,10 +81,11 @@ sequenceDiagram
     loop typed operands
         Exprs->>Exprs: recurse with required type and reduced depth
         Exprs->>Draw: decode operand choices
+        Exprs->>Builder: construct typed operand or expression
+        Builder-->>Exprs: TlaEx
     end
-    Exprs-->>Engine: TlaBuilderExpr
-    Engine->>Builder: build(expression)
-    Builder-->>Caller: TlaEx
+    Exprs-->>Engine: TlaEx
+    Engine-->>Caller: TlaEx
 ```
 
 The engine first generates an `IrType`, then requests an expression of exactly
@@ -94,11 +95,12 @@ of that type. A set filter generates its source element type, introduces a
 binding of that type, and generates a Boolean predicate in the extended scope.
 
 Factory methods such as `mkGen`, `expression`, `listOf`, and `oneOf` return
-deferred computations. Creating a generator must not consume bytes, increment
-the node counter, or allocate fresh names. These effects occur only when a
-caller invokes the returned generator with a `Draw`. This invariant permits
-ordinary `Generator.map` and `Generator.flatMap` composition without hidden
-cursors or random sources.
+deferred `Generator<TlaEx>` computations. Creating a generator must not consume
+bytes, increment the node counter, allocate fresh names, or invoke the builder.
+These effects occur only when a caller invokes the returned generator with a
+`Draw`. Builder calls then return eager `TlaEx` values; there is no final build
+step. This invariant permits ordinary `Generator.map` and `Generator.flatMap`
+composition without hidden cursors or random sources.
 
 ## 4. Byte decoding
 
@@ -207,6 +209,8 @@ The default limits are:
 The expression entry point starts with an empty scope. It never invents a free
 name reference. Quantifiers, set comprehensions, function definitions, lambdas,
 and local operators extend the scope only while generating their lexical bodies.
+`NameScope`, rather than Apalache's builder, is the authority for lexical
+visibility.
 
 `NameScope` stores bindings in a persistent Vavr list. Extending a scope shares
 the previous tail, and `try`/`finally` restores the prior head after normal or
@@ -227,10 +231,12 @@ raise `InputRejectedException`. Future module generation can populate this role.
 
 ## 8. Correctness and failure semantics
 
-Factories construct `TlaBuilderExpr` computations exclusively through one
-`TlaCheckedBuilder`. `IrGeneratorEngine` calls `build` only after the complete
-expression has been assembled. A successful build establishes compatibility
-with the checked builder's type rules for the linked Apalache version.
+Factories construct eager `TlaEx` values exclusively through one
+`TlaTypedScopeUncheckedBuilder` in its strict default mode. The builder enforces
+operator requirements and type correctness but deliberately skips lexical-scope
+checking. `NameScope` enforces lexical visibility before a name or operator can
+be selected. This avoids the scoped builder's recursively composed instruction
+chain while retaining Apalache's type checks for the linked version.
 
 This guarantee is deliberately narrow. It does not establish semantic
 definedness, temporal-level correctness in a surrounding module, or usefulness
@@ -240,7 +246,7 @@ variant access may still receive values for which evaluation is partial.
 `InputRejectedException` denotes an expected dead end for the current bytes,
 such as selecting a state-variable-dependent form without a state variable. A
 fuzzing driver may discard that input. Exhaustion and budget fallback are not
-rejections. Other runtime exceptions, checked-builder failures, and violated
+rejections. Other runtime exceptions, builder failures, and violated
 invariants indicate defects or dependency incompatibilities and must propagate.
 
 `IrGeneratorEngine` is reusable and safe for concurrent calls with distinct

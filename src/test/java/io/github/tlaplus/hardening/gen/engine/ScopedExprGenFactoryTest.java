@@ -184,7 +184,7 @@ class ScopedExprGenFactoryTest {
         var expression = new Draw(new byte[0]).draw(stateContext.withBinding(
                 state, stateFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1)));
 
-        var printed = print(stateContext.builder().build(expression));
+        var printed = print(expression);
         assertTrue(printed.contains("state'"), printed);
     }
 
@@ -193,7 +193,7 @@ class ScopedExprGenFactoryTest {
         var context = new GenerationContext(IrGenerationConfig.defaults());
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
-        return print(context.builder().build(draw.draw(expressionFactory.mkGen(type, 8))));
+        return print(draw.draw(expressionFactory.mkGen(type, 8)));
     }
 
     private int occurrences(String text, String value) {

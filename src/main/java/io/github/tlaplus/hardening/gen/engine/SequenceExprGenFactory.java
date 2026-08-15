@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
 
 /** Constructs sequence-valued expression generators. */
 final class SequenceExprGenFactory extends AbstractExprGenFactory {
@@ -14,7 +14,7 @@ final class SequenceExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator for the selected sequence form. */
-    Generator<TlaBuilderExpr> mkGen(
+    Generator<TlaEx> mkGen(
             SequenceExpressionKind kind,
             SequenceType type,
             int remainingDepth) {

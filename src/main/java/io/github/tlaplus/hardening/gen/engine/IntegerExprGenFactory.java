@@ -1,9 +1,9 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.BasicGenerators;
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.math.BigInteger;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
 
 /** Constructs integer-valued expression generators. */
 final class IntegerExprGenFactory extends AbstractExprGenFactory {
@@ -15,7 +15,7 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator for the selected integer form. */
-    Generator<TlaBuilderExpr> mkGen(IntegerExpressionKind kind, int remainingDepth) {
+    Generator<TlaEx> mkGen(IntegerExpressionKind kind, int remainingDepth) {
         return draw -> {
             var nextDepth = remainingDepth - 1;
             return switch (kind) {
@@ -42,7 +42,7 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator of the selected binary integer operation. */
-    private Generator<TlaBuilderExpr> integerBinary(
+    private Generator<TlaEx> integerBinary(
             int remainingDepth, Arithmetic operation) {
         return draw -> {
             var left = draw.draw(expression(PrimitiveType.INT, remainingDepth - 1));

@@ -1,11 +1,11 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.NamedExpression;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
 
 /** Constructs set-valued expression generators. */
 final class SetExprGenFactory extends AbstractExprGenFactory {
@@ -17,7 +17,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator for the selected set form. */
-    Generator<TlaBuilderExpr> mkGen(
+    Generator<TlaEx> mkGen(
             SetExpressionKind kind, SetType type, int remainingDepth) {
         return draw -> {
             var nextDepth = remainingDepth - 1;
@@ -79,7 +79,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a set-filter generator whose predicate sees its bound name. */
-    private Generator<TlaBuilderExpr> filter(SetType resultType, int remainingDepth) {
+    private Generator<TlaEx> filter(SetType resultType, int remainingDepth) {
         return draw -> {
             var elementType = resultType.element();
             var binding = context.freshBinding("filtered", elementType);
@@ -92,7 +92,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a set-map generator from a generated source type. */
-    private Generator<TlaBuilderExpr> map(
+    private Generator<TlaEx> map(
             IrType resultElementType, int remainingDepth) {
         return draw -> {
             var sourceType = draw.draw(typeFactory.valueType());
@@ -110,10 +110,10 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     /**
      * Returns a generator of a set containing a generated row-record value.
      *
-     * <p>The checked builder's native record-set form currently produces the legacy record type,
+     * <p>The builder's native record-set form currently produces the legacy record type,
      * which is incompatible with the row-record type produced by its record-value form.
      */
-    private Generator<TlaBuilderExpr> recordSet(RecordType type, int remainingDepth) {
+    private Generator<TlaEx> recordSet(RecordType type, int remainingDepth) {
         return draw -> {
             var fields = type.fields().stream()
                     .map(field -> new NamedExpression<>(
@@ -125,7 +125,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a Cartesian-product generator for the tuple component types. */
-    private Generator<TlaBuilderExpr> cartesianProduct(
+    private Generator<TlaEx> cartesianProduct(
             TupleType type, int remainingDepth) {
         return draw -> builder().times(BuilderArrays.expressions(type.elements().stream()
                 .map(element -> draw.draw(expression(
@@ -134,7 +134,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a variant-filter generator that extracts the requested payload type. */
-    private Generator<TlaBuilderExpr> variantFilter(
+    private Generator<TlaEx> variantFilter(
             IrType resultElement, int remainingDepth) {
         return draw -> {
             var variantType = typeFactory.singleVariant(resultElement);
