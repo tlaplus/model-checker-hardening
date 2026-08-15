@@ -80,6 +80,12 @@ A SANY return value, including its generic `ERROR` result, is a parser failure.
 The crash verdict is reserved for an exception that escapes SANY, a timeout, an
 abrupt worker exit, or a worker that dies while accepting an input.
 
+An unexpected host-process failure while generating an expression or preparing
+its parser specification stops the workflow. The input and stack trace are
+retained under `.work/generator-crash`; these files are diagnostic artifacts,
+not stage entries. When an existing corpus entry triggers the failure, the
+diagnostic names both its stage path and the retained copy.
+
 Generation stops at the global entry limit. The parser then drains the closed
 queue, and the run finishes when no input is queued or in flight. If parser
 result capacity is exhausted, the workflow succeeds with a capacity-limited

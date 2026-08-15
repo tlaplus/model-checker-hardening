@@ -5,7 +5,9 @@ import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.ParserConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.gen.Generator;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -142,10 +144,7 @@ public final class ParserStage implements WorkflowStage {
                 try {
                     var startTime = Instant.now();
                     var payload = corpus.readExpressionInput(path);
-                    var expression = generator.generate(payload);
-                    var module = FuzzInputModule.create(expression);
-                    var source = PrettyWriter.writeAsString(
-                            module, TlaWriter$.MODULE$.STANDARD_MODULES());
+                    var source = prepareSpecification(path, payload);
                     if (process == null) {
                         process = ParserProcess.start(scratchDirectory, timeout());
                     }
@@ -181,6 +180,35 @@ public final class ParserStage implements WorkflowStage {
                 process.close();
             }
         }
+    }
+
+    private String prepareSpecification(Path path, byte[] input) throws WorkflowException {
+        try {
+            var expression = generator.generate(input);
+            var module = FuzzInputModule.create(expression);
+            return PrettyWriter.writeAsString(
+                    module, TlaWriter$.MODULE$.STANDARD_MODULES());
+        } catch (RuntimeException | StackOverflowError failure) {
+            var message = "cannot prepare parser specification from corpus entry '"
+                    + path
+                    + "': "
+                    + diagnostic(failure);
+            try {
+                var candidate = corpus.recordGeneratorCrash(input, failure);
+                message += "; crash saved to '" + candidate + "'";
+            } catch (IOException | CorpusException | RuntimeException recordingFailure) {
+                failure.addSuppressed(recordingFailure);
+                message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+            }
+            throw new WorkflowException(message, failure);
+        }
+    }
+
+    private static String diagnostic(Throwable failure) {
+        var message = failure.getMessage();
+        return message == null || message.isBlank()
+                ? failure.getClass().getSimpleName()
+                : message;
     }
 
     private boolean reserveDestination() {

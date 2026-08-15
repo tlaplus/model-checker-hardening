@@ -192,6 +192,12 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    exception, or a diagnostic for non-exceptional crashes such as a timeout.
    Sidecars are not corpus entries and do not count towards capacity limits.
 
+ - An unexpected failure while generating or preparing an input produces
+   `.work/generator-crash/<sha256>.cbor` and a matching `.stacktrace`. This
+   diagnostic copy preserves the exact generator bytes without admitting the
+   failing input to a stage directory. It persists across workflow invocations
+   and does not count towards capacity limits.
+
 ### 2.4. Stage
 
 When an input passes through a stage, this stage stores its metadata under `stages.<stage name>`.

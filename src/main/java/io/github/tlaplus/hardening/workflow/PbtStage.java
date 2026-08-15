@@ -2,9 +2,11 @@ package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.pbt.InputLengthSampler;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.SplittableRandom;
@@ -141,6 +143,8 @@ public final class PbtStage implements WorkflowStage {
                     } catch (InputRejectedException exception) {
                         rejected++;
                         continue;
+                    } catch (RuntimeException | StackOverflowError exception) {
+                        throw generatorCrash(input, attempts, exception);
                     }
                 } finally {
                     cpuBudget.release();
@@ -164,6 +168,26 @@ public final class PbtStage implements WorkflowStage {
                         seed, initialEntries, added, attempts, rejected, duplicates);
             }
         }
+    }
+
+    private WorkflowException generatorCrash(byte[] input, long attempt, Throwable failure) {
+        var message =
+                "input generator crashed at attempt " + attempt + ": " + diagnostic(failure);
+        try {
+            var candidate = corpus.recordGeneratorCrash(input, failure);
+            message += "; candidate saved to '" + candidate + "'";
+        } catch (IOException | CorpusException | RuntimeException recordingFailure) {
+            failure.addSuppressed(recordingFailure);
+            message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+        }
+        return new WorkflowException(message, failure);
+    }
+
+    private static String diagnostic(Throwable failure) {
+        var message = failure.getMessage();
+        return message == null || message.isBlank()
+                ? failure.getClass().getSimpleName()
+                : message;
     }
 
     private boolean acquireInputCapacity() throws InterruptedException {

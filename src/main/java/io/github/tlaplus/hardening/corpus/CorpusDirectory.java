@@ -6,6 +6,8 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
@@ -35,8 +37,10 @@ public final class CorpusDirectory {
     public static final String PARSER_FAIL_DIRECTORY_NAME = "01parser-fail";
     public static final String PARSER_CRASH_DIRECTORY_NAME = "01parser-crash";
     public static final String PARSER_CRASH_REPORT_EXTENSION = ".stacktrace";
+    public static final String GENERATOR_CRASH_REPORT_EXTENSION = ".stacktrace";
 
     private static final String WORK_DIRECTORY_NAME = ".work";
+    private static final String GENERATOR_CRASH_DIRECTORY_NAME = "generator-crash";
     private static final String PARSER_SCRATCH_DIRECTORY_NAME = "parser-tmp";
     private static final String LOCK_FILE_NAME = ".workflow.lock";
     private static final String PARSER_STAGE_NAME = "parser";
@@ -52,6 +56,7 @@ public final class CorpusDirectory {
     private final Path parserFailDirectory;
     private final Path parserCrashDirectory;
     private final Path workDirectory;
+    private final Path generatorCrashDirectory;
     private final Path parserScratchDirectory;
     private final Path lockFile;
     private final List<Path> stageDirectories;
@@ -65,6 +70,7 @@ public final class CorpusDirectory {
         this.parserFailDirectory = this.root.resolve(PARSER_FAIL_DIRECTORY_NAME);
         this.parserCrashDirectory = this.root.resolve(PARSER_CRASH_DIRECTORY_NAME);
         this.workDirectory = this.root.resolve(WORK_DIRECTORY_NAME);
+        this.generatorCrashDirectory = this.workDirectory.resolve(GENERATOR_CRASH_DIRECTORY_NAME);
         this.parserScratchDirectory =
                 this.workDirectory.resolve(PARSER_SCRATCH_DIRECTORY_NAME);
         this.lockFile = this.root.resolve(LOCK_FILE_NAME);
@@ -278,6 +284,35 @@ public final class CorpusDirectory {
         }
     }
 
+    /**
+     * Preserves an input that caused an unexpected generator failure and its stack trace.
+     *
+     * <p>The diagnostic copy is not a workflow entry and is excluded from inventory and capacity
+     * accounting. Repeated failures for the same input replace the previous diagnostic.
+     */
+    public synchronized Path recordGeneratorCrash(byte[] input, Throwable failure)
+            throws IOException, CorpusException {
+        var payload = Objects.requireNonNull(input, "input").clone();
+        Objects.requireNonNull(failure, "failure");
+        ensureGeneratorCrashDirectory();
+
+        var digest = hash(payload);
+        var candidate = generatorCrashDirectory.resolve(digest + ".cbor");
+        var report = generatorCrashDirectory.resolve(digest + GENERATOR_CRASH_REPORT_EXTENSION);
+        replaceAtomically(candidate, CorpusInputCodec.encode(CorpusInput.expression(payload)));
+        try {
+            replaceAtomically(
+                    report, stackTrace(failure).getBytes(StandardCharsets.UTF_8));
+        } catch (IOException exception) {
+            throw new CorpusException(
+                    "generator crash candidate was saved to '"
+                            + candidate
+                            + "', but its stack trace could not be saved",
+                    exception);
+        }
+        return candidate;
+    }
+
     /** Returns the canonical input-stage path for the supplied payload. */
     public Path inputPath(byte[] input) {
         return inputDirectory.resolve(hash(Objects.requireNonNull(input, "input")) + ".cbor");
@@ -398,6 +433,10 @@ public final class CorpusDirectory {
         return parserCrashDirectory;
     }
 
+    public Path generatorCrashDirectory() {
+        return generatorCrashDirectory;
+    }
+
     private List<Path> allRequiredDirectories() {
         var result = new ArrayList<>(stageDirectories);
         result.add(workDirectory);
@@ -509,8 +548,58 @@ public final class CorpusDirectory {
         } catch (InputRejectedException exception) {
             throw new CorpusException(
                     "corpus entry is rejected: " + path + ": " + diagnostic(exception), exception);
+        } catch (RuntimeException | StackOverflowError exception) {
+            throw generatorCrash(path, input, exception);
         }
         return new Entry(encoded);
+    }
+
+    private CorpusException generatorCrash(Path source, byte[] input, Throwable failure) {
+        var message = "cannot generate expression from corpus entry '"
+                + source
+                + "': "
+                + diagnostic(failure);
+        try {
+            var candidate = recordGeneratorCrash(input, failure);
+            message += "; crash saved to '" + candidate + "'";
+        } catch (IOException | CorpusException | RuntimeException recordingFailure) {
+            failure.addSuppressed(recordingFailure);
+            message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+        }
+        return new CorpusException(message, failure);
+    }
+
+    private void ensureGeneratorCrashDirectory() throws IOException, CorpusException {
+        if (Files.exists(generatorCrashDirectory, NO_FOLLOW_LINKS)
+                && !Files.isDirectory(generatorCrashDirectory, NO_FOLLOW_LINKS)) {
+            throw new CorpusException(
+                    "generator crash path is not a directory: " + generatorCrashDirectory);
+        }
+        Files.createDirectories(generatorCrashDirectory);
+    }
+
+    private static void replaceAtomically(Path destination, byte[] contents) throws IOException {
+        var temporary = Files.createTempFile(destination.getParent(), "crash-", ".tmp");
+        try {
+            Files.write(
+                    temporary,
+                    contents,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+            Files.move(
+                    temporary,
+                    destination,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    private static String stackTrace(Throwable failure) {
+        var output = new StringWriter();
+        failure.printStackTrace(new PrintWriter(output));
+        return output.toString();
     }
 
     private java.util.Optional<String> stageVerdict(Path path, byte[] encoded)
