@@ -142,14 +142,29 @@ Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 ```sh
 ./bin/fuzztla print input.cbor
 ./bin/fuzztla print --corpus=corpus corpus/00-inputs/example.cbor
+./bin/fuzztla print --envelope --corpus=corpus corpus/01parser-pass/example.cbor
 ./bin/fuzztla print --spec --corpus=corpus corpus/01parser-crash/example.cbor
 ```
 
 `print` always expects the CBOR envelope described above. By default, it prints
 the generated expression. `--spec` prints the complete specification passed to
-the parser. Without `--corpus`, the command uses the built-in generator defaults.
-With `--corpus`, it uses the generator settings in that corpus's `config.toml`,
-which is necessary to replay inputs created with changed limits.
+the parser. `--envelope` prints the supported envelope fields as a nested,
+human-readable listing. Stage timestamps use UTC ISO-8601, and each `endTime`
+includes the elapsed time since its `startTime`. The `input` field appears last,
+rendered as TLA+. Without `--corpus`, the command uses the built-in generator
+defaults. With `--corpus`, it uses the generator settings in that corpus's
+`config.toml`, which is necessary to replay inputs created with changed limits.
+
+```text
+kind: expr
+stages:
+  parser:
+    verdict: pass
+    startTime: 2026-08-13T14:26:07Z
+    endTime: 2026-08-13T14:27:30Z (duration: 1m 23s)
+input:
+  FALSE
+```
 
 The embedded `input` byte string is interpreted directly by FuzzTLA's generator framework. Variable-length values use per-element continuation markers—an odd byte continues and an even byte terminates—instead of a length prefix. The encoding is implementation-local and may change between versions; a suffix may remain unused when the selected expression is complete.
 

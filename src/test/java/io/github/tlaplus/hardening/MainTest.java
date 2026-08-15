@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
+import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.io.ByteArrayOutputStream;
@@ -22,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -336,6 +339,7 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla print"));
         assertTrue(result.out().contains("--corpus=DIR"));
+        assertTrue(result.out().contains("--envelope"));
         assertTrue(result.out().contains("--spec"));
         assertTrue(result.out().contains("CBOR corpus input"));
         assertEquals("", result.err());
@@ -355,9 +359,81 @@ class MainTest {
         Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", input.toString());
+        var envelope = execute("print", "--envelope", input.toString());
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("FALSE" + System.lineSeparator(), result.out());
+        assertEquals("", result.err());
+        assertEquals(CommandLine.ExitCode.OK, envelope.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(), "kind: expr", "input:", "  FALSE", ""),
+                envelope.out());
+        assertEquals("", envelope.err());
+    }
+
+    @Test
+    void printsEnvelopeStageMetadataWithElapsedDuration(@TempDir Path directory)
+            throws Exception {
+        var input = directory.resolve("metadata.cbor");
+        var startTime = Instant.parse("2026-08-13T14:26:07Z");
+        var endTime = startTime.plusSeconds(93_784);
+        var encoded = CorpusInputCodec.withStageMetadata(
+                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                new StageMetadata("parser", "pass", startTime, endTime));
+        Files.write(input, encoded);
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(),
+                        "kind: expr",
+                        "stages:",
+                        "  parser:",
+                        "    verdict: pass",
+                        "    startTime: 2026-08-13T14:26:07Z",
+                        "    endTime: 2026-08-14T16:29:11Z (duration: 1d 2h 3m 4s)",
+                        "input:",
+                        "  FALSE",
+                        ""),
+                result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void printsZeroEnvelopeDuration(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("metadata.cbor");
+        var timestamp = Instant.parse("2026-08-13T14:26:07Z");
+        var encoded = CorpusInputCodec.withStageMetadata(
+                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                new StageMetadata("parser", "fail", timestamp, timestamp));
+        Files.write(input, encoded);
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains(
+                "endTime: 2026-08-13T14:26:07Z (duration: 0s)"));
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void indentsEveryLineOfMultilineEnvelopeInput(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("multiline.cbor");
+        var generatorInput = Base64.getDecoder()
+                .decode("LNehJNvsP7MYvY+AwsbJ/oNuCdm3JRQxvq0=");
+        Files.write(
+                input, CorpusInputCodec.encode(CorpusInput.expression(generatorInput)));
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        var marker = "input:" + System.lineSeparator();
+        var renderedInput = result.out().substring(result.out().indexOf(marker) + marker.length());
+        assertTrue(renderedInput.lines().count() > 1);
+        assertTrue(renderedInput.lines().allMatch(line -> line.startsWith("  ")));
         assertEquals("", result.err());
     }
 
@@ -391,11 +467,17 @@ class MainTest {
 
         var rawResult = execute("print", raw.toString());
         var moduleResult = execute("print", module.toString());
+        var rawEnvelopeResult = execute("print", "--envelope", raw.toString());
+        var moduleEnvelopeResult = execute("print", "--envelope", module.toString());
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, rawResult.exitCode());
         assertTrue(rawResult.err().contains("cannot decode"));
         assertEquals(CommandLine.ExitCode.SOFTWARE, moduleResult.exitCode());
         assertTrue(moduleResult.err().contains("unsupported input kind 'module'"));
+        assertEquals(CommandLine.ExitCode.SOFTWARE, rawEnvelopeResult.exitCode());
+        assertTrue(rawEnvelopeResult.err().contains("cannot decode"));
+        assertEquals(CommandLine.ExitCode.SOFTWARE, moduleEnvelopeResult.exitCode());
+        assertTrue(moduleEnvelopeResult.err().contains("unsupported input kind 'module'"));
     }
 
     @Test
@@ -405,10 +487,29 @@ class MainTest {
         Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", "--corpus=" + corpus, input.toString());
+        var envelope = execute(
+                "print", "--envelope", "--corpus=" + corpus, input.toString());
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("FALSE" + System.lineSeparator(), result.out());
         assertEquals("", result.err());
+        assertEquals(CommandLine.ExitCode.OK, envelope.exitCode());
+        assertTrue(envelope.out().endsWith(
+                "input:" + System.lineSeparator() + "  FALSE" + System.lineSeparator()));
+        assertEquals("", envelope.err());
+    }
+
+    @Test
+    void rejectsCombiningSpecificationAndEnvelopeOutput(@TempDir Path directory)
+            throws Exception {
+        var input = directory.resolve("input.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+
+        var result = execute("print", "--spec", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
+        assertEquals("", result.out());
+        assertTrue(result.err().contains("mutually exclusive"));
     }
 
     @Test
