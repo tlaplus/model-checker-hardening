@@ -10,7 +10,7 @@ import java.nio.file.Path;
 final class RunTable {
     private RunTable() {}
 
-    static String running(WorkflowProgress progress) {
+    static String progress(WorkflowProgress progress) {
         var output = new StringWriter();
         try (var writer = new PrintWriter(output)) {
             writer.printf("Workflow run in progress%n%n");
@@ -21,7 +21,7 @@ final class RunTable {
             printCounter(writer, progress.parser().passed(), "parser passed");
             printCounter(writer, progress.parser().failed(), "parser failed");
             printCounter(writer, progress.parser().crashed(), "parser crashed");
-            writer.printf("[%20s %-18s]%n", "RUNNING", "run state");
+            writer.printf("[%20s %-18s]%n", progress.phase(), "run state");
         }
         return output.toString();
     }

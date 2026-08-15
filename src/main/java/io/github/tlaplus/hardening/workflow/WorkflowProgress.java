@@ -2,13 +2,15 @@ package io.github.tlaplus.hardening.workflow;
 
 import java.util.Objects;
 
-/** Best-effort in-memory snapshot of a running workflow. */
+/** Best-effort in-memory snapshot of an active workflow invocation. */
 public record WorkflowProgress(
+        Phase phase,
         PbtStageSummary generator,
         ParserStageSummary parser,
         long corpusEntries,
         long remainingInputs) {
     public WorkflowProgress {
+        Objects.requireNonNull(phase, "phase");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(parser, "parser");
         if (corpusEntries < 0 || remainingInputs < 0) {
@@ -18,5 +20,11 @@ public record WorkflowProgress(
             throw new IllegalArgumentException(
                     "remaining inputs must not exceed corpus entries");
         }
+    }
+
+    /** The externally visible phase of a workflow invocation. */
+    public enum Phase {
+        RUNNING,
+        FINALIZING
     }
 }

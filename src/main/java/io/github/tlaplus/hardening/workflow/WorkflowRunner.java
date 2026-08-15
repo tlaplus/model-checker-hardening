@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /** Runs input generation and parsing concurrently under one shared CPU budget. */
@@ -107,6 +108,8 @@ public final class WorkflowRunner {
                     inputCapacity,
                     cpuBudget,
                     control);
+            var progressPhase =
+                    new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
 
             if ((initial.parserEntries() >= config.workflow().parser().maximumEntries()
                             && (initial.inputEntries() > 0
@@ -121,7 +124,8 @@ public final class WorkflowRunner {
                     ? null
                     : WorkflowProgressMonitor.start(
                             PROGRESS_UPDATE_INTERVAL,
-                            () -> progressSnapshot(initial, pbt, parser),
+                            () -> progressSnapshot(
+                                    progressPhase.get(), initial, pbt, parser),
                             progressListener)) {
                 try {
                     parser.start();
@@ -145,6 +149,12 @@ public final class WorkflowRunner {
                             "workflow stage failed: " + diagnostic(failure), failure);
                 }
 
+                progressPhase.set(WorkflowProgress.Phase.FINALIZING);
+                if (progress != null) {
+                    // Publish the phase transition immediately and leave it visible while the
+                    // final integrity inventory scans the complete corpus.
+                    progress.close();
+                }
                 var result = corpus.inventory(generator);
                 var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
                         ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
@@ -156,7 +166,10 @@ public final class WorkflowRunner {
     }
 
     private static WorkflowProgress progressSnapshot(
-            CorpusInventory initial, PbtStage generator, ParserStage parser) {
+            WorkflowProgress.Phase phase,
+            CorpusInventory initial,
+            PbtStage generator,
+            ParserStage parser) {
         var parserSummary = parser.summary();
         var generatorSummary = generator.summary();
         var corpusEntries = generatorSummary.existing() + generatorSummary.added();
@@ -164,6 +177,7 @@ public final class WorkflowRunner {
                 initial.inputEntries() + generatorSummary.added() - parserSummary.processed();
         var remainingInputs = Math.max(0L, Math.min(corpusEntries, observedInputs));
         return new WorkflowProgress(
+                phase,
                 generatorSummary, parserSummary, corpusEntries, remainingInputs);
     }
 

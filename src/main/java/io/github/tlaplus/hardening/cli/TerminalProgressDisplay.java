@@ -19,7 +19,7 @@ final class TerminalProgressDisplay implements AutoCloseable {
 
     synchronized void update(WorkflowProgress progress) {
         if (!finished && !closed) {
-            replace(RunTable.running(progress));
+            replace(RunTable.progress(progress));
         }
     }
 

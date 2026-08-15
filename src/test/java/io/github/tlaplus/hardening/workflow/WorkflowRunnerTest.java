@@ -32,11 +32,13 @@ class WorkflowRunnerTest {
 
         assertTrue(observed.size() >= 2);
         var initial = observed.getFirst();
+        assertEquals(WorkflowProgress.Phase.RUNNING, initial.phase());
         assertEquals(42, initial.generator().seed());
         assertEquals(0, initial.corpusEntries());
         assertEquals(0, initial.remainingInputs());
 
         var last = observed.getLast();
+        assertEquals(WorkflowProgress.Phase.FINALIZING, last.phase());
         assertEquals(summary.generator(), last.generator());
         assertEquals(summary.parser(), last.parser());
         assertEquals(summary.corpus().totalEntries(), last.corpusEntries());
@@ -45,7 +47,13 @@ class WorkflowRunnerTest {
         long generated = -1;
         long corpusEntries = -1;
         long parsed = -1;
+        var finalizing = false;
         for (var progress : observed) {
+            if (progress.phase() == WorkflowProgress.Phase.FINALIZING) {
+                finalizing = true;
+            } else {
+                assertFalse(finalizing, "workflow phase must not return to RUNNING");
+            }
             assertTrue(progress.generator().added() >= generated);
             assertTrue(progress.corpusEntries() >= corpusEntries);
             assertTrue(progress.parser().processed() >= parsed);
