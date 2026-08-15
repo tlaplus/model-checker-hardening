@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ScopedExprGenFactoryTest {
@@ -121,7 +122,7 @@ class ScopedExprGenFactoryTest {
 
     @Test
     void nameDependentFormsAreAvailableOnlyWithCompatibleBindings() {
-        var context = new GenerationContext(IrGenerationConfig.defaults());
+        var context = new GenerationContext(allExpressionsConfig());
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
 
@@ -155,7 +156,7 @@ class ScopedExprGenFactoryTest {
 
     @Test
     void primeEqualRejectsOrdinaryBindingsButUsesStateVariables() {
-        var missingContext = new GenerationContext(IrGenerationConfig.defaults());
+        var missingContext = new GenerationContext(allExpressionsConfig());
         var missingTypes = new IrTypeGenFactory(missingContext);
         var missingExpressions = new IrExprGenFactory(missingContext, missingTypes);
         var missingFactory = new BooleanExprGenFactory(
@@ -175,7 +176,7 @@ class ScopedExprGenFactoryTest {
                         ordinary,
                         missingFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1))));
 
-        var stateContext = new GenerationContext(IrGenerationConfig.defaults());
+        var stateContext = new GenerationContext(allExpressionsConfig());
         var stateTypes = new IrTypeGenFactory(stateContext);
         var stateExpressions = new IrExprGenFactory(stateContext, stateTypes);
         var stateFactory = new BooleanExprGenFactory(
@@ -190,7 +191,7 @@ class ScopedExprGenFactoryTest {
 
     private String generateAndPrint(IrType type, byte[] input) {
         var draw = new Draw(input);
-        var context = new GenerationContext(IrGenerationConfig.defaults());
+        var context = new GenerationContext(allExpressionsConfig());
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
         return print(draw.draw(expressionFactory.mkGen(type, 8)));
@@ -209,7 +210,7 @@ class ScopedExprGenFactoryTest {
 
     private int applicableIndex(
             IrType type, ExpressionKind selectedKind, ScopedName... bindings) {
-        var context = new GenerationContext(IrGenerationConfig.defaults());
+        var context = new GenerationContext(allExpressionsConfig());
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
         return new Draw(new byte[0]).draw(context.withBindings(
@@ -236,6 +237,18 @@ class ScopedExprGenFactoryTest {
             result[index] = (byte) values[index];
         }
         return result;
+    }
+
+    private IrGenerationConfig allExpressionsConfig() {
+        var defaults = IrGenerationConfig.defaults();
+        return new IrGenerationConfig(
+                defaults.maximumTypeDepth(),
+                defaults.maximumExpressionDepth(),
+                defaults.maximumNodes(),
+                defaults.maximumCollectionSize(),
+                defaults.maximumStringBytes(),
+                defaults.maximumIntegerBytes(),
+                Set.of());
     }
 
     private String print(TlaEx expression) {

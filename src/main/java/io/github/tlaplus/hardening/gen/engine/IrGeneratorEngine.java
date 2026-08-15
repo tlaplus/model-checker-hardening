@@ -17,9 +17,9 @@ public final class IrGeneratorEngine {
     private final IrGenerationConfig config;
 
     /**
-     * Creates a reusable engine with the supplied limits.
+     * Creates a reusable engine with the supplied generation settings.
      *
-     * @param config limits for types, expressions, collections, and literal payloads
+     * @param config category exclusions and resource limits
      * @throws NullPointerException if {@code config} is {@code null}
      */
     public IrGeneratorEngine(IrGenerationConfig config) {

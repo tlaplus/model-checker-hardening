@@ -25,7 +25,7 @@ final class GenerationContext {
         this.config = config;
     }
 
-    /** Returns the limits for this generation run. */
+    /** Returns the settings for this generation run. */
     IrGenerationConfig config() {
         return config;
     }

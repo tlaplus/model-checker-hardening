@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,10 +21,37 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("maximum_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_seconds = 30"));
         assertTrue(Files.readString(path).contains("maximum_nodes = 32"));
+        assertTrue(Files.readString(path)
+                .contains("ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]"));
         assertTrue(Files.readString(path).contains("maximum_input_bytes = 10240"));
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
+    }
+
+    @Test
+    void readsEmptyAndPartialIgnoreLists(@TempDir Path directory) throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+
+        var empty = readConfig(
+                directory,
+                rendered.replace(
+                        "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                        "ignore = []"));
+        var partial = readConfig(
+                directory,
+                rendered.replace(
+                        "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                        "ignore = [\"quantifier\", \"bool_logic\", \"finite_set\", \"label\"]"));
+
+        assertEquals(Set.of(), empty.generator().ignoredCategories());
+        assertEquals(
+                Set.of(
+                        ExpressionCategory.QUANTIFIER,
+                        ExpressionCategory.BOOL_LOGIC,
+                        ExpressionCategory.FINITE_SET,
+                        ExpressionCategory.LABEL),
+                partial.generator().ignoredCategories());
     }
 
     @Test
@@ -39,6 +68,14 @@ class TomlConfigTest {
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace("maximum_nodes = 32\n", ""));
         assertTrue(missing.getMessage().contains("missing generator keys: maximum_nodes"));
+
+        var missingIgnore = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]\n",
+                                ""));
+        assertTrue(missingIgnore.getMessage().contains("missing generator keys: ignore"));
 
         var missingRichness = assertInvalid(
                 directory,
@@ -100,6 +137,30 @@ class TomlConfigTest {
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace("richness_nesting_base = 2.0", "richness_nesting_base = \"two\""));
         assertTrue(wrongRichnessType.getMessage().contains("pbt.richness_nesting_base"));
+
+        var wrongIgnoreShape = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = \"action\""));
+        assertTrue(wrongIgnoreShape.getMessage().contains("generator.ignore"));
+
+        var wrongIgnoreElement = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"action\", 1]"));
+        assertTrue(wrongIgnoreElement.getMessage().contains("generator.ignore[1]"));
+
+        var unknownCategory = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"state\"]"));
+        assertTrue(unknownCategory.getMessage().contains("unknown expression category 'state'"));
     }
 
     @Test
@@ -122,11 +183,25 @@ class TomlConfigTest {
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace("richness_cohorts = 10", "richness_cohorts = 0"));
         assertTrue(invalidCohorts.getMessage().contains("richnessCohorts must be positive"));
+
+        var ignoredCore = assertInvalid(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"core\"]"));
+        assertTrue(ignoredCore.getMessage().contains("core expression category cannot be ignored"));
     }
 
     private ConfigException assertInvalid(Path directory, String contents) throws Exception {
         var path = directory.resolve("config-" + System.nanoTime() + ".toml");
         Files.writeString(path, contents);
         return assertThrows(ConfigException.class, () -> TomlConfig.read(path));
+    }
+
+    private FuzzTlaConfig readConfig(Path directory, String contents) throws Exception {
+        var path = directory.resolve("config-" + System.nanoTime() + ".toml");
+        Files.writeString(path, contents);
+        return TomlConfig.read(path);
     }
 }

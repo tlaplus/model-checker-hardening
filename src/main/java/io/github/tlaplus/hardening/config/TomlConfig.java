@@ -1,11 +1,15 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.tomlj.Toml;
@@ -20,7 +24,12 @@ public final class TomlConfig {
             "maximum_nodes",
             "maximum_collection_size",
             "maximum_string_bytes",
-            "maximum_integer_bytes");
+            "maximum_integer_bytes",
+            "ignore");
+    private static final Map<String, ExpressionCategory> GENERATOR_IGNORE_VALUES =
+            Arrays.stream(ExpressionCategory.values())
+                    .collect(Collectors.toUnmodifiableMap(
+                            ExpressionCategory::configName, category -> category));
     private static final Set<String> WORKFLOW_KEYS =
             Set.of("maximum_entries", "inputs", "parser");
     private static final Set<String> INPUT_STAGE_KEYS = Set.of("maximum_entries");
@@ -75,7 +84,8 @@ public final class TomlConfig {
                     requireInt(
                             generator,
                             "generator.maximum_integer_bytes",
-                            "maximum_integer_bytes"));
+                            "maximum_integer_bytes"),
+                    requireExpressionCategories(generator, "generator.ignore", "ignore"));
             var workflowConfig = new WorkflowConfig(
                     requireInt(workflow, "workflow.maximum_entries", "maximum_entries"),
                     new StageConfig(requireInt(
@@ -123,6 +133,10 @@ public final class TomlConfig {
         var generator = config.generator();
         var workflow = config.workflow();
         var pbt = config.pbt();
+        var ignoredCategories = Arrays.stream(ExpressionCategory.values())
+                .filter(generator.ignoredCategories()::contains)
+                .map(category -> '"' + category.configName() + '"')
+                .collect(Collectors.joining(", ", "[", "]"));
         return """
                 [generator]
                 maximum_type_depth = %d
@@ -131,6 +145,7 @@ public final class TomlConfig {
                 maximum_collection_size = %d
                 maximum_string_bytes = %d
                 maximum_integer_bytes = %d
+                ignore = %s
 
                 [workflow]
                 # Maximum number of unique entries across every workflow directory.
@@ -163,6 +178,7 @@ public final class TomlConfig {
                         generator.maximumCollectionSize(),
                         generator.maximumStringBytes(),
                         generator.maximumIntegerBytes(),
+                        ignoredCategories,
                         workflow.maximumEntries(),
                         workflow.inputs().maximumEntries(),
                         workflow.parser().maximumEntries(),
@@ -224,5 +240,28 @@ public final class TomlConfig {
             return table.getLong(key);
         }
         throw new ConfigException("expected '" + path + "' to be a number");
+    }
+
+    private static Set<ExpressionCategory> requireExpressionCategories(
+            TomlTable table, String path, String key) throws ConfigException {
+        if (!table.isArray(key)) {
+            throw new ConfigException("expected '" + path + "' to be an array");
+        }
+
+        var array = table.getArray(key);
+        var categories = EnumSet.noneOf(ExpressionCategory.class);
+        for (var index = 0; index < array.size(); index++) {
+            if (!(array.get(index) instanceof String name)) {
+                throw new ConfigException(
+                        "expected '" + path + "[" + index + "]' to be a string");
+            }
+            var category = GENERATOR_IGNORE_VALUES.get(name);
+            if (category == null) {
+                throw new ConfigException(
+                        "unknown expression category '" + name + "' in '" + path + "'");
+            }
+            categories.add(category);
+        }
+        return Set.copyOf(categories);
     }
 }

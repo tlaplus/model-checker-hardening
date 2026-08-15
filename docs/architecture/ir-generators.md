@@ -17,14 +17,15 @@ modules, run a random search, maintain a corpus, or shrink failing inputs. The
 [fuzzing workflow](fuzzing-workflows.md) supplies byte arrays and decides how to
 store or mutate them.
 
-The design has five primary requirements:
+The design has six primary requirements:
 
 1. The same configuration and bytes produce the same IR.
 2. Exhausted input produces small defaults instead of failing.
 3. Local byte mutations should not unnecessarily perturb later decoding.
 4. Successful generation returns an expression accepted by Apalache's type-safe,
    scope-unchecked builder.
-5. Explicit limits bound recursive construction and variable-size payloads.
+5. Configuration can exclude expression categories before byte-level selection.
+6. Explicit limits bound recursive construction and variable-size payloads.
 
 ## 2. Package structure
 
@@ -37,7 +38,8 @@ IR-generator facade.
 | `Draw` | Forward-only cursor over the input bytes and the primitive decoding protocol. |
 | `BasicGenerators` | Combinators for constants, choices, bounded numbers, lists, and byte arrays. |
 | `InputRejectedException` | Expected rejection of one semantically unsuitable input. |
-| `IrGenerationConfig` | Resource limits for type and expression generation. |
+| `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
+| `IrGenerationConfig` | Category exclusions and resource limits for type and expression generation. |
 | `IrGenerators` | Public factory for reusable `Generator<TlaEx>` instances. |
 
 The package `io.github.tlaplus.hardening.gen.engine` implements type-directed IR
@@ -48,7 +50,7 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | --- | --- |
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, and immutable configuration for one run. |
-| `IrType` and `IrTypeGenFactory` | Represent and generate the internal type model used to direct construction. |
+| `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` and `ExpressionKinds` | Define the static catalog and byte-decoder order of expression forms. |
 | `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory. |
 | `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
@@ -148,8 +150,15 @@ The method `IrTypeGenFactory.anyType()` permits a value type as well as an
 operator type at the root, whereas the method
 `valueType()` excludes operator types and is used for operands and collection
 elements. Nested type generation carries a remaining-depth budget. At zero, it
-selects only primitive or model-value types. Tuples, records, and variants use
-terminated nonempty component lists; operator argument lists may be empty.
+selects only enabled primitive or model-value types. Tuples, records, and
+variants use terminated nonempty component lists; operator argument lists may be
+empty.
+
+Structural categories filter the type catalog at every recursive type request.
+For example, ignoring `record` removes every record type, including records
+nested in sets or tuples. Function types require both `function` and `set`
+because every closed function value needs a set-valued domain. Boolean, integer,
+and string types remain available through the reserved `core` category.
 
 Expression kinds are grouped by construction responsibility:
 
@@ -168,12 +177,54 @@ Expression kinds are grouped by construction responsibility:
 The grouping is an implementation decomposition, not a TLA<sup>+</sup> language
 taxonomy.
 
+Every expression kind has one primary `ExpressionCategory`:
+
+| Category | Expression forms |
+| --- | --- |
+| `action` | Prime, prime-equality, and `UNCHANGED` |
+| `temporal` | Stuttering and non-stuttering actions, `ENABLED`, temporal connectives, and weak and strong fairness |
+| `unbound` | Unbounded `CHOOSE`, universal quantification, and existential quantification |
+| `exotic` | Temporal quantification and action composition (`\cdot`) |
+| `core` | Terminal construction, scoped names, and Boolean, integer, and string literals |
+| `control` | `IF` and `CASE` |
+| `label` | Expression labels |
+| `operator` | Operator application, `LET`, and lambdas |
+| `quantifier` | Bounded `CHOOSE`, universal quantification, and existential quantification |
+| `bool_logic` | Equality, inequality, and Boolean connectives |
+| `arithmetic` | Integer arithmetic and comparisons |
+| `set` | Membership, subset tests, set literals, ordinary set operations, comprehensions, powerset, and intervals |
+| `finite_set` | `Cardinality` and `IsFiniteSet` |
+| `universe` | The predefined `BOOLEAN`, `STRING`, `Int`, and `Nat` sets |
+| `sequence` | Sequence literals, operations, length, head, and sequence sets |
+| `function` | Function application, construction, updates, function sets, and domains |
+| `fold` | Set and sequence folds |
+| `tuple` | Tuple literals and Cartesian products |
+| `record` | Record literals and record sets |
+| `variant` | Variant literals, tags, accessors, and filtering |
+| `model` | Model values and parsed model values |
+
+Primary categories are exclusive. A form may additionally require other syntax
+capabilities without belonging to those categories. Bounded quantifiers require
+`set`; `finite_set` and `universe` operations require `set`; set and sequence
+folds require `operator`; and specialized set forms require both `set` and their
+primary category. Ignoring a capability disables such dependent forms
+transitively. `core` cannot be ignored because it supplies atomic leaves and the
+total terminal fallback.
+
+Category exclusion applies to the complete generated expression. The type
+filter prevents terminal construction from reintroducing ignored structural
+syntax. It does not change the workflow module that embeds the expression; that
+module retains its fixed `Next == UNCHANGED exprValue` definition.
+
 For each nonterminal request, `IrExprGenFactory` scans the static catalog twice.
-The first scan counts forms whose result type and scope requirements match. One
-bounded index then selects an applicable form; the second scan dispatches only
-that form. The engine does not allocate and populate a temporary form list for
-each node. The complete catalog must fit in 256 entries, so current form
-selection uses one byte and distributes its 256 values as evenly as possible.
+The first scan excludes forms with ignored requirements and counts the remaining
+forms whose result type and scope requirements match. One bounded index then
+selects an applicable form; the second scan dispatches only that form. The same
+filtering applies at every recursive expression request. Unavailable forms
+consume neither a selection slot nor operand bytes. The engine does not allocate
+and populate a temporary form list for each node. The complete catalog must fit
+in 256 entries, so current form selection uses one byte and distributes its 256
+values as evenly as possible.
 
 ## 6. Termination and resource limits
 
@@ -193,7 +244,14 @@ The node limit counts recursive expression-generation requests, not final IR
 nodes or builder operations. Terminal construction can itself contain several IR
 nodes when the requested type is composite.
 
-The default limits are:
+The default configuration ignores these four categories:
+
+```toml
+ignore = ["action", "temporal", "unbound", "exotic"]
+```
+
+An empty list enables every excludable category. The reserved `core` category is
+always enabled. The default limits are:
 
 | Limit | Default | Meaning |
 | --- | ---: | --- |
@@ -224,10 +282,11 @@ Operator application selects a visible `OperatorType` with the requested result
 type, then generates arguments from its declared signature.
 
 Applicability is partly dynamic. `NAME` and operator application are excluded
-from selection when no compatible binding exists. `PRIME_EQUAL` remains a
-selectable Boolean form but rejects if no state variable is in scope. The current
-single-expression entry point declares no state variables, so such an input may
-raise `InputRejectedException`. Future module generation can populate this role.
+from selection when no compatible binding exists. When the `action` category is
+enabled, `PRIME_EQUAL` is selectable but rejects if no state variable is in
+scope. The current single-expression entry point declares no state variables,
+so such an input may raise `InputRejectedException`. Future module generation
+can populate this role.
 
 ## 8. Correctness and failure semantics
 
@@ -259,7 +318,9 @@ caller must not mutate that array during generation.
 Changes to this subsystem should preserve the following rules:
 
 1. Add a new expression form to the appropriate `ExpressionKind` enum and family
-   factory. Its enum position becomes part of the current byte encoding.
+   factory, assigning exactly one primary `ExpressionCategory` and every syntax
+   capability it requires. Its enum position becomes part of the current byte
+   encoding.
 2. State result-type constraints in `isTypeApplicable`; state dynamic scope
    constraints in `IrExprGenFactory.isApplicable`.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
@@ -272,7 +333,8 @@ Changes to this subsystem should preserve the following rules:
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
 
-Tests should cover byte consumption, exhaustion behavior, deferred execution,
-catalog completeness, type applicability, lexical visibility, scope restoration,
+Tests should cover category completeness and dependencies, filtered type
+generation, byte consumption, exhaustion behavior, deferred execution, catalog
+completeness, type applicability, lexical visibility, scope restoration,
 terminal construction, determinism, and adversarial inputs. A catalog change
 must retain the one-byte upper bound or explicitly revise the decoding protocol.

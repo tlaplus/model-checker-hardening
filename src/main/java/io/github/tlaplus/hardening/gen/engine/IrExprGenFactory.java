@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 /** Factory for deferred, type-directed expression generators within one generation run. */
 final class IrExprGenFactory {
     private final GenerationContext context;
+    private final IrTypeGenFactory typeFactory;
     private final GeneralExprGenFactory generalFactory;
     private final BooleanExprGenFactory booleanFactory;
     private final IntegerExprGenFactory integerFactory;
@@ -17,6 +18,7 @@ final class IrExprGenFactory {
 
     IrExprGenFactory(GenerationContext context, IrTypeGenFactory typeFactory) {
         this.context = context;
+        this.typeFactory = typeFactory;
         otherFactory = new OtherExprGenFactory(context, typeFactory, this);
         generalFactory = new GeneralExprGenFactory(context, typeFactory, this, otherFactory);
         booleanFactory = new BooleanExprGenFactory(context, typeFactory, this);
@@ -31,15 +33,20 @@ final class IrExprGenFactory {
      * <p>Calling this factory consumes no bytes and does not increment the node counter. Those
      * effects occur only when the returned generator is invoked.
      *
-     * <p>Type and current lexical-scope applicability are counted before the index is drawn, and
-     * only the selected form is built. The catalog contains at most 256 entries, so every
-     * nonterminal selection consumes exactly one byte. Modulo reduction maps the 256 byte values
-     * round-robin over the applicable forms, assigning each form either the floor or ceiling of
-     * {@code 256 / formCount} values. Rejection sampling is intentionally avoided because its
-     * variable consumption would make mutation-fuzzer inputs sensitive to preceding choices.
+     * <p>Configured category exclusions, type applicability, and current lexical-scope
+     * applicability are evaluated before the index is drawn, and only the selected form is built.
+     * The catalog contains at most 256 entries, so every nonterminal selection consumes exactly one
+     * byte. Modulo reduction maps the 256 byte values round-robin over the applicable forms,
+     * assigning each form either the floor or ceiling of {@code 256 / formCount} values. Rejection
+     * sampling is intentionally avoided because its variable consumption would make
+     * mutation-fuzzer inputs sensitive to preceding choices.
      */
     Generator<TlaEx> mkGen(IrType type, int remainingDepth) {
         return draw -> {
+            if (!typeFactory.isEnabled(type)) {
+                throw new IllegalStateException(
+                        "expression type uses an ignored category: " + type);
+            }
             if (remainingDepth <= 0
                     || nodeCount++ >= context.config().maximumNodes()
                     || draw.isEmpty()) {
@@ -67,8 +74,12 @@ final class IrExprGenFactory {
         };
     }
 
-    /** Reports whether a form's type and lexical-scope requirements are currently satisfied. */
+    /** Reports whether a form is enabled and its type and scope requirements are satisfied. */
     boolean isApplicable(ExpressionKind kind, IrType type) {
+        if (!typeFactory.isEnabled(type)
+                || kind.isUnavailableWith(context.config().ignoredCategories())) {
+            return false;
+        }
         if (!kind.isTypeApplicable(type)) {
             return false;
         }
