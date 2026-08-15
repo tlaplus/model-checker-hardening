@@ -38,6 +38,9 @@ queue accelerates handoff from the input stage to parser workers. A fair logical
 CPU budget, configured with `run --max-cpus`, bounds simultaneously active jobs;
 users do not configure worker counts per stage. Stage capacity limits bound
 current directory occupancy, while a global limit bounds unique corpus entries.
+The runner may sample the stages' in-memory counters once per second for a
+best-effort progress listener. These snapshots are observational and do not
+replace the corpus directories as the durable source of truth.
 
 For an expression `E`, the parser stage constructs this typed `TlaModule`,
 renders it with Apalache's pretty writer, and checks the result with SANY's

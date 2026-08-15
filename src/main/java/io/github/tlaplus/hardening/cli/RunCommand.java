@@ -4,10 +4,8 @@ import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -68,15 +66,28 @@ final class RunCommand implements Callable<Integer> {
 
     /** Runs property-based generation and parsing as one concurrent workflow. */
     private int runPbt() {
+        TerminalProgressDisplay progress = null;
         try {
             var directory = CorpusDirectory.open(corpus);
             var config = directory.readConfig();
             var effectiveSeed = seed == null ? randomSeed() : seed;
-            var summary = new WorkflowRunner(config)
-                    .run(directory, effectiveSeed, maximumCpus);
-            printSummary(directory, summary);
+            if (supportsTerminalUpdates()) {
+                progress = new TerminalProgressDisplay(spec.commandLine().getOut());
+            }
+            var runner = new WorkflowRunner(config);
+            var summary = progress == null
+                    ? runner.run(directory, effectiveSeed, maximumCpus)
+                    : runner.run(directory, effectiveSeed, maximumCpus, progress::update);
+            var finalOutput = RunTable.finished(directory.root(), summary);
+            if (progress == null) {
+                spec.commandLine().getOut().print(finalOutput);
+                spec.commandLine().getOut().flush();
+            } else {
+                progress.finish(finalOutput);
+            }
             return CommandLine.ExitCode.OK;
         } catch (IOException | ConfigException | CorpusException | WorkflowException exception) {
+            closeProgress(progress);
             spec.commandLine()
                     .getErr()
                     .printf(
@@ -84,32 +95,29 @@ final class RunCommand implements Callable<Integer> {
                             corpus, CliDiagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         } catch (RuntimeException | StackOverflowError exception) {
+            closeProgress(progress);
             spec.commandLine()
                     .getErr()
                     .printf(
                             "fuzztla: workflow failed in '%s': %s%n",
                             corpus, CliDiagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
+        } finally {
+            closeProgress(progress);
         }
     }
 
-    /** Prints replay information and stage counters. */
-    private void printSummary(CorpusDirectory directory, WorkflowRunSummary summary) {
-        var out = spec.commandLine().getOut();
-        out.printf("Workflow run finished for '%s'%n%n", directory.root());
-        printCounter(out, summary.generator().seed(), "random seed");
-        printCounter(out, summary.corpus().totalEntries(), "corpus entries");
-        printCounter(out, summary.corpus().inputEntries(), "remaining inputs");
-        printCounter(out, summary.generator().added(), "generated inputs");
-        printCounter(out, summary.parser().passed(), "parser passed");
-        printCounter(out, summary.parser().failed(), "parser failed");
-        printCounter(out, summary.parser().crashed(), "parser crashed");
-        out.printf("[%20s %-18s]%n", summary.stopReason(), "stop reason");
+    private boolean supportsTerminalUpdates() {
+        var console = System.console();
+        return console != null
+                && console.isTerminal()
+                && !"dumb".equalsIgnoreCase(System.getenv("TERM"));
     }
 
-    /** Prints one aligned row in the summary block. */
-    private static void printCounter(PrintWriter writer, long value, String label) {
-        writer.printf("[%20d %-18s]%n", value, label);
+    private static void closeProgress(TerminalProgressDisplay progress) {
+        if (progress != null) {
+            progress.close();
+        }
     }
 
     /** Draws an unpredictable seed while clearing the sign bit. */

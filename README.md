@@ -110,6 +110,10 @@ active work across both stages and defaults to all available processors. Before
 starting, FuzzTLA validates every corpus entry and recovers interrupted parser
 moves.
 
+When standard output is an interactive ANSI terminal, `run` refreshes its
+progress table in place once per second. Redirected output omits intermediate
+updates and contains only the final summary.
+
 The workflow tries random byte arrays until `workflow.maximum_entries` unique
 accepted inputs exist across all directories. Lengths are selected from uniformly
 chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through

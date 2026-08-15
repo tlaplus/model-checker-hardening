@@ -190,6 +190,8 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("", result.err());
+        assertFalse(result.out().contains("Workflow run in progress"));
+        assertFalse(result.out().contains("\u001b["));
         assertTrue(result.out().contains("Workflow run finished for '"));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.matches("\\[\\s+42 random seed\\s+]")));

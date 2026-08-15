@@ -149,6 +149,8 @@ public final class PbtStage implements WorkflowStage {
                 switch (corpus.store(input)) {
                     case ADDED -> {
                         added++;
+                        summary = new PbtStageSummary(
+                                seed, initialEntries, added, attempts, rejected, duplicates);
                         keepInputSlot = true;
                         output.submit(corpus.inputPath(input));
                     }
