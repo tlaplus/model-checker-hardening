@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 
 class PbtConfigTest {
     @Test
-    void exposesConservativeDefaults() {
-        assertEquals(new PbtConfig(1_024, 10, 2.0, 1.5), PbtConfig.defaults());
+    void exposesDocumentedDefaults() {
+        assertEquals(new PbtConfig(10_240, 10, 2.0, 1.5), PbtConfig.defaults());
     }
 
     @Test

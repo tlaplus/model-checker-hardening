@@ -40,7 +40,7 @@ public record PbtConfig(
     /** Returns the limits written by {@code fuzztla init}. */
     public static PbtConfig defaults() {
         return new PbtConfig(
-                1_024,
+                10_240,
                 DEFAULT_RICHNESS_COHORTS,
                 DEFAULT_RICHNESS_NESTING_BASE,
                 DEFAULT_RICHNESS_THRESHOLD_BASE);

@@ -199,7 +199,7 @@ The default limits are:
 | --- | ---: | --- |
 | `maximumTypeDepth` | 3 | Maximum nesting depth of generated types. |
 | `maximumExpressionDepth` | 32 | Maximum recursive expression depth. |
-| `maximumNodes` | 16 | Maximum nonterminal expression requests. |
+| `maximumNodes` | 32 | Maximum nonterminal expression requests. |
 | `maximumCollectionSize` | 8 | Maximum generated elements in a variable-size collection. |
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
 | `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |

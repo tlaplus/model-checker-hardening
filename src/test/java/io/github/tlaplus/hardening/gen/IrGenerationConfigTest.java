@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 class IrGenerationConfigTest {
     @Test
     void exposesDocumentedDefaults() {
-        assertEquals(new IrGenerationConfig(3, 32, 16, 8, 32, 16), IrGenerationConfig.defaults());
+        assertEquals(new IrGenerationConfig(3, 32, 32, 8, 32, 16), IrGenerationConfig.defaults());
     }
 
     @Test

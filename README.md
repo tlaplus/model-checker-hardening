@@ -76,7 +76,7 @@ The default configuration is:
 [generator]
 maximum_type_depth = 3
 maximum_expression_depth = 32
-maximum_nodes = 16
+maximum_nodes = 32
 maximum_collection_size = 8
 maximum_string_bytes = 32
 maximum_integer_bytes = 16
@@ -97,7 +97,7 @@ timeout_seconds = 30
 
 [pbt]
 # Inclusive upper bound on a randomly generated input's length.
-maximum_input_bytes = 1024
+maximum_input_bytes = 10240
 # Number of uniformly selected collection-richness cohorts.
 richness_cohorts = 10
 # Weight multiplier for each level of collection-literal nesting.
