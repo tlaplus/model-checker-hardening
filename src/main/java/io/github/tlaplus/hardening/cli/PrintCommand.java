@@ -14,7 +14,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
-import io.github.tlaplus.hardening.workflow.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;

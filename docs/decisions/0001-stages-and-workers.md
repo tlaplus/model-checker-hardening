@@ -32,6 +32,13 @@ A workflow invocation runs three implemented stages concurrently:
   The stage calls `TLC.handleParameters` and `TLC.process`; it does not call
   `TLC.main`.
 
+The implementation mirrors these responsibilities in `workflow.input`,
+`workflow.parser`, and `workflow.tlc`. Shared scheduling and lifecycle machinery
+lives in `workflow.execution`; child-JVM supervision and protocol code lives in
+`workflow.worker`; generated-specification construction lives in `workflow.spec`.
+The `workflow` package retains the runner, progress and result records, and the
+workflow exception exposed to the CLI.
+
 Parser and TLC scratch storage is transient corpus state under
 `.work/{parser,tlc}-tmp/<run>/<worker>`. Each child uses its worker directory as
 `java.io.tmpdir`. A parser process creates one reusable SANY module resolver; a

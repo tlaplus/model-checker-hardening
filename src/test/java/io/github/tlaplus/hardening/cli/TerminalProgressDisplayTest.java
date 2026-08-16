@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
-import io.github.tlaplus.hardening.workflow.ParserStageSummary;
-import io.github.tlaplus.hardening.workflow.PbtStageSummary;
-import io.github.tlaplus.hardening.workflow.TlcStageSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
+import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
+import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
+import io.github.tlaplus.hardening.workflow.tlc.TlcStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;

@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.workflow.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
+import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
