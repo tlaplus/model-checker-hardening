@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.ConstT1;
+import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -9,7 +10,6 @@ import java.util.List;
 import org.apalache_mc.tla.jir.ExceptUpdate;
 import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.NamedExpression;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
 
 /** Constructs expression generators not covered by the dedicated form families. */
 final class OtherExprGenFactory extends AbstractExprGenFactory {
@@ -24,7 +24,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator for the selected other form. */
-    Generator<TlaBuilderExpr> mkGen(
+    Generator<TlaEx> mkGen(
             OtherExpressionKind kind, IrType type, int remainingDepth) {
         return draw -> {
             var nextDepth = remainingDepth - 1;
@@ -89,7 +89,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a lambda generator whose body sees every typed parameter. */
-    Generator<TlaBuilderExpr> lambda(OperatorType type, int remainingDepth) {
+    Generator<TlaEx> lambda(OperatorType type, int remainingDepth) {
         return draw -> {
             var parameters = new ArrayList<org.apalache_mc.tla.jir.TypedParameter>();
             var bindings = new ArrayList<ScopedName>();
@@ -110,7 +110,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a function-definition generator whose body sees its bounded argument. */
-    private Generator<TlaBuilderExpr> functionDefinition(
+    private Generator<TlaEx> functionDefinition(
             FunctionType type, int remainingDepth) {
         return draw -> {
             var binding = context.freshBinding("arg", type.argument());
@@ -125,7 +125,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a function-update generator containing a terminated update collection. */
-    private Generator<TlaBuilderExpr> exceptMany(
+    private Generator<TlaEx> exceptMany(
             FunctionType type, int remainingDepth) {
         return draw -> {
             var updates = draw.draw(BasicGenerators.listOf(

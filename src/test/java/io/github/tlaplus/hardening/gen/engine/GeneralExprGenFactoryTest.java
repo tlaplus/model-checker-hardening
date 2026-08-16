@@ -36,7 +36,7 @@ class GeneralExprGenFactoryTest {
             var expression = draw.draw(fixture.factory().terminal(type));
 
             assertEquals(1, draw.remaining(), () -> "terminal consumed bytes for " + type);
-            assertFalse(print(fixture.context().builder().build(expression)).isEmpty());
+            assertFalse(print(expression).isEmpty());
         }
     }
 
@@ -48,7 +48,7 @@ class GeneralExprGenFactoryTest {
 
         assertEquals(
                 "\"default_OF_MODEL\"",
-                print(fixture.context().builder().build(expression)));
+                print(expression));
     }
 
     private Fixture fixture() {

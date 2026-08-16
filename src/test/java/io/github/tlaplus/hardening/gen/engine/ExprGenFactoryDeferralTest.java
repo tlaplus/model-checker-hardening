@@ -20,7 +20,7 @@ class ExprGenFactoryDeferralTest {
         var generator = factory.lambda(operatorType, 1);
 
         assertEquals("probe0", context.fresh("probe"));
-        context.builder().build(new Draw(new byte[0]).draw(generator));
+        new Draw(new byte[0]).draw(generator);
         assertEquals("probe3", context.fresh("probe"));
     }
 }

@@ -198,8 +198,7 @@ class MainTest {
         assertFalse(result.out().contains("Workflow run in progress"));
         assertFalse(result.out().contains("\u001b["));
         assertTrue(result.out().contains("Workflow run finished for '"));
-        assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+42 random seed\\s+]")));
+        assertFalse(result.out().contains("random seed"));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.matches("\\[\\s+8 corpus entries\\s+]")));
         assertTrue(result.out().lines()
@@ -337,8 +336,7 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().lines().findFirst().orElseThrow().matches("Random seed: \\d+"));
-        assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+\\d+ random seed\\s+]")));
+        assertFalse(result.out().contains("random seed"));
     }
 
     @Test
@@ -613,7 +611,6 @@ class MainTest {
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
-                [%20d %-18s]
                 [%20s %-18s]
                 [%20s %-18s]
                 [%20s %-18s]
@@ -629,8 +626,6 @@ class MainTest {
                 .formatted(
                         seed,
                         corpus.toAbsolutePath().normalize(),
-                        seed,
-                        "random seed",
                         total,
                         "corpus entries",
                         0,

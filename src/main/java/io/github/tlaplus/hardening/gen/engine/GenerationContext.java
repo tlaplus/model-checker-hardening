@@ -5,7 +5,7 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.List;
 import java.util.function.Supplier;
-import org.apalache_mc.tla.jir.TlaCheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
 /**
  * Mutable semantic state shared by every component of one generation run.
@@ -15,7 +15,8 @@ import org.apalache_mc.tla.jir.TlaCheckedBuilder;
  */
 final class GenerationContext {
     private final IrGenerationConfig config;
-    private final TlaCheckedBuilder builder = new TlaCheckedBuilder();
+    private final TlaTypedScopeUncheckedBuilder builder =
+            new TlaTypedScopeUncheckedBuilder();
     private final NameScope scope = new NameScope();
     private int nameCount;
     private int fieldCount;
@@ -29,8 +30,8 @@ final class GenerationContext {
         return config;
     }
 
-    /** Returns the checked builder shared by all expression generator factories. */
-    TlaCheckedBuilder builder() {
+    /** Returns the type-safe builder shared by all expression generator factories. */
+    TlaTypedScopeUncheckedBuilder builder() {
         return builder;
     }
 

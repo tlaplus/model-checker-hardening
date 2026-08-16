@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
 
 /** Factory for deferred, type-directed expression generators within one generation run. */
 final class IrExprGenFactory {
@@ -38,7 +38,7 @@ final class IrExprGenFactory {
      * {@code 256 / formCount} values. Rejection sampling is intentionally avoided because its
      * variable consumption would make mutation-fuzzer inputs sensitive to preceding choices.
      */
-    Generator<TlaBuilderExpr> mkGen(IrType type, int remainingDepth) {
+    Generator<TlaEx> mkGen(IrType type, int remainingDepth) {
         return draw -> {
             if (remainingDepth <= 0
                     || nodeCount++ >= context.config().maximumNodes()
@@ -82,7 +82,7 @@ final class IrExprGenFactory {
     }
 
     /** Returns the generator supplied by a selected kind's typed family. */
-    private Generator<TlaBuilderExpr> mkGen(
+    private Generator<TlaEx> mkGen(
             ExpressionKind kind, IrType type, int remainingDepth) {
         return switch (kind) {
             case GeneralExpressionKind general ->

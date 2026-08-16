@@ -16,7 +16,6 @@ final class RunTable {
         var output = new StringWriter();
         try (var writer = new PrintWriter(output)) {
             writer.printf("Workflow run in progress%n%n");
-            printCounter(writer, progress.generator().seed(), "random seed");
             printCounter(writer, progress.corpusEntries(), "corpus entries");
             printCounter(writer, progress.remainingInputs(), "remaining inputs");
             printCounter(writer, progress.generator().added(), "generated inputs");
@@ -33,7 +32,6 @@ final class RunTable {
         var output = new StringWriter();
         try (var writer = new PrintWriter(output)) {
             writer.printf("Workflow run finished for '%s'%n%n", corpus);
-            printCounter(writer, summary.generator().seed(), "random seed");
             printCounter(writer, summary.corpus().totalEntries(), "corpus entries");
             printCounter(writer, summary.corpus().inputEntries(), "remaining inputs");
             printCounter(writer, summary.generator().added(), "generated inputs");

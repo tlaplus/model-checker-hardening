@@ -28,7 +28,7 @@ import java.util.function.Function;
  *
  * <p>An implementation that reaches an expected semantic dead end may throw
  * {@link InputRejectedException}. That exception rejects only the current input. Programming
- * errors, violated invariants, and failures from checked builders should be allowed to propagate as
+ * errors, violated invariants, and failures from builders should be allowed to propagate as
  * their original exceptions so fuzzing can expose them as defects.
  *
  * @param <T> type of value produced

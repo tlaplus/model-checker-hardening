@@ -5,7 +5,7 @@ package io.github.tlaplus.hardening.gen;
  *
  * <p>This exception represents an expected rejection of one input, not a defect in a generator.
  * Callers such as fuzz harnesses may catch it and continue with the next input. Other runtime
- * exceptions, especially checked-builder and invariant failures, should remain visible as bugs.
+ * exceptions, especially builder and invariant failures, should remain visible as bugs.
  */
 public final class InputRejectedException extends RuntimeException {
     /**

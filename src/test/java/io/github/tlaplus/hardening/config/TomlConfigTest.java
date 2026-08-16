@@ -18,7 +18,8 @@ class TomlConfigTest {
         assertEquals(FuzzTlaConfig.defaults(), TomlConfig.read(path));
         assertTrue(Files.readString(path).contains("maximum_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_seconds = 30"));
-        assertTrue(Files.readString(path).contains("maximum_input_bytes = 1024"));
+        assertTrue(Files.readString(path).contains("maximum_nodes = 32"));
+        assertTrue(Files.readString(path).contains("maximum_input_bytes = 10240"));
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
@@ -36,7 +37,7 @@ class TomlConfigTest {
         var missing = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_nodes = 16\n", ""));
+                        .replace("maximum_nodes = 32\n", ""));
         assertTrue(missing.getMessage().contains("missing generator keys: maximum_nodes"));
 
         var missingRichness = assertInvalid(
@@ -91,7 +92,7 @@ class TomlConfigTest {
         var tooLarge = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_input_bytes = 1024", "maximum_input_bytes = 2147483648"));
+                        .replace("maximum_input_bytes = 10240", "maximum_input_bytes = 2147483648"));
         assertTrue(tooLarge.getMessage().contains("outside the supported integer range"));
 
         var wrongRichnessType = assertInvalid(
@@ -107,13 +108,13 @@ class TomlConfigTest {
         var invalidGenerator = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_nodes = 16", "maximum_nodes = 0"));
+                        .replace("maximum_nodes = 32", "maximum_nodes = 0"));
         assertTrue(invalidGenerator.getMessage().contains("maximumNodes must be positive"));
 
         var impossibleCorpus = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_input_bytes = 1024", "maximum_input_bytes = 0"));
+                        .replace("maximum_input_bytes = 10240", "maximum_input_bytes = 0"));
         assertTrue(impossibleCorpus.getMessage().contains("distinct bounded inputs"));
 
         var invalidCohorts = assertInvalid(

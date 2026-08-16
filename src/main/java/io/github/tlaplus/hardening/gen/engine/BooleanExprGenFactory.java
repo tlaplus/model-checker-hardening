@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
 
 /** Constructs Boolean-valued expression generators. */
 final class BooleanExprGenFactory extends AbstractExprGenFactory {
@@ -14,7 +14,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator for the selected Boolean form. */
-    Generator<TlaBuilderExpr> mkGen(BooleanExpressionKind kind, int remainingDepth) {
+    Generator<TlaEx> mkGen(BooleanExpressionKind kind, int remainingDepth) {
         return draw -> {
             var nextDepth = remainingDepth - 1;
             return switch (kind) {
@@ -113,7 +113,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator of equality or inequality over a generated value type. */
-    private Generator<TlaBuilderExpr> equal(int remainingDepth, boolean negate) {
+    private Generator<TlaEx> equal(int remainingDepth, boolean negate) {
         return draw -> {
             var type = draw.draw(typeFactory.valueType());
             var left = draw.draw(expression(type, remainingDepth - 1));
@@ -123,7 +123,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a quantifier generator with an arbitrary scoped predicate. */
-    private Generator<TlaBuilderExpr> quantifier(
+    private Generator<TlaEx> quantifier(
             boolean universal, boolean bounded, int remainingDepth) {
         return draw -> {
             var type = draw.draw(typeFactory.valueType());
@@ -146,7 +146,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator of the selected integer comparison. */
-    private Generator<TlaBuilderExpr> integerComparison(
+    private Generator<TlaEx> integerComparison(
             int remainingDepth, Comparison comparison) {
         return draw -> {
             var left = draw.draw(expression(PrimitiveType.INT, remainingDepth - 1));
@@ -161,7 +161,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a generator of membership or non-membership. */
-    private Generator<TlaBuilderExpr> membership(int remainingDepth, boolean negate) {
+    private Generator<TlaEx> membership(int remainingDepth, boolean negate) {
         return draw -> {
             var type = draw.draw(typeFactory.valueType());
             var element = draw.draw(expression(type, remainingDepth - 1));
@@ -171,7 +171,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     }
 
     /** Returns a temporal quantifier generator with an arbitrary scoped predicate. */
-    private Generator<TlaBuilderExpr> temporalQuantifier(
+    private Generator<TlaEx> temporalQuantifier(
             boolean existential, int remainingDepth) {
         return draw -> {
             var type = draw.draw(typeFactory.valueType());

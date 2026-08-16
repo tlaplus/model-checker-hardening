@@ -30,6 +30,6 @@ public record IrGenerationConfig(
     }
 
     public static IrGenerationConfig defaults() {
-        return new IrGenerationConfig(3, 32, 16, 8, 32, 16);
+        return new IrGenerationConfig(3, 32, 32, 8, 32, 16);
     }
 }

@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import at.forsyte.apalache.tla.lir.IntT1$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import org.apalache_mc.tla.jir.NamedExpression;
-import org.apalache_mc.tla.jir.TlaBuilderExpr;
-import org.apalache_mc.tla.jir.TlaCheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 
 class CollectionRichnessTest {
-    private final TlaCheckedBuilder builder = new TlaCheckedBuilder();
+    private final TlaTypedScopeUncheckedBuilder builder =
+            new TlaTypedScopeUncheckedBuilder();
 
     @Test
     void scoresEmptyAndFlatCollectionLiterals() {
@@ -49,8 +49,7 @@ class CollectionRichnessTest {
         assertEquals(Double.MAX_VALUE, score(nested, Double.MAX_VALUE));
     }
 
-    private double score(TlaBuilderExpr expression, double nestingBase) {
-        TlaEx built = builder.build(expression);
-        return CollectionRichness.score(built, nestingBase);
+    private double score(TlaEx expression, double nestingBase) {
+        return CollectionRichness.score(expression, nestingBase);
     }
 }
