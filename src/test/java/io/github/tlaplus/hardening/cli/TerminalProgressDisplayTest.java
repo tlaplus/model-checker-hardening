@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.workflow.ParserStageSummary;
 import io.github.tlaplus.hardening.workflow.PbtStageSummary;
@@ -14,12 +15,12 @@ class TerminalProgressDisplayTest {
     void replacesLiveTablesAndLeavesOnlyTheFinalTableVisible() {
         var output = new StringWriter();
         var display = new TerminalProgressDisplay(new PrintWriter(output));
-        var first = RunTable.running(progress(1, 0));
-        var second = RunTable.running(progress(3, 2));
+        var first = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 1, 0));
+        var second = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 3, 2));
         var finished = "finished" + System.lineSeparator();
 
-        display.update(progress(1, 0));
-        display.update(progress(3, 2));
+        display.update(progress(WorkflowProgress.Phase.RUNNING, 1, 0));
+        display.update(progress(WorkflowProgress.Phase.RUNNING, 3, 2));
         display.finish(finished);
         display.close();
 
@@ -36,17 +37,28 @@ class TerminalProgressDisplayTest {
     void clearsAnUnfinishedTableBeforeAnErrorIsPrinted() {
         var output = new StringWriter();
         var display = new TerminalProgressDisplay(new PrintWriter(output));
-        var table = RunTable.running(progress(2, 1));
+        var table = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 2, 1));
 
-        display.update(progress(2, 1));
+        display.update(progress(WorkflowProgress.Phase.RUNNING, 2, 1));
         display.close();
         display.close();
 
         assertEquals(table + erase(table), output.toString());
     }
 
-    private WorkflowProgress progress(long generated, long parsed) {
+    @Test
+    void rendersTheFinalizingPhase() {
+        var table = RunTable.progress(
+                progress(WorkflowProgress.Phase.FINALIZING, 3, 3));
+
+        assertTrue(table.lines().anyMatch(line -> line.contains("FINALIZING")
+                && line.contains("run state")));
+    }
+
+    private WorkflowProgress progress(
+            WorkflowProgress.Phase phase, long generated, long parsed) {
         return new WorkflowProgress(
+                phase,
                 new PbtStageSummary(42, 0, generated, generated, 0, 0),
                 new ParserStageSummary(parsed, 0, 0),
                 generated,

@@ -42,7 +42,10 @@ Once packaged, the launcher can be used directly and from any working directory:
 /path/to/model-checker-hardening/bin/fuzztla --version
 ```
 
-With no arguments, FuzzTLA prints its help. The executable JAR can also be run without the launcher:
+The launcher runs from a temporary snapshot of the packaged JAR, so a concurrent
+build cannot replace classes underneath a long-running workflow. With no
+arguments, FuzzTLA prints its help. The executable JAR can also be run without
+the launcher when it will not be rebuilt during the invocation:
 
 ```sh
 java -jar target/fuzztla.jar --help
@@ -112,7 +115,9 @@ moves.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
-updates and contains only the final summary.
+updates and contains only the final summary. After all stage workers stop, the
+table changes to `FINALIZING` while FuzzTLA validates the complete corpus for the
+final summary.
 
 The workflow tries random byte arrays until `workflow.maximum_entries` unique
 accepted inputs exist across all directories. Lengths are selected from uniformly

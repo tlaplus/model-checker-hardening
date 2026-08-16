@@ -18,4 +18,17 @@ if [ ! -f "$jar" ]; then
     exit 1
 fi
 
-exec java -jar "$jar" "$@"
+runtime_base=${TMPDIR:-/tmp}
+runtime_dir=$(mktemp -d "$runtime_base/fuzztla.XXXXXXXXXX")
+runtime_jar="$runtime_dir/fuzztla.jar"
+
+cleanup() {
+    rm -f "$runtime_jar"
+    rmdir "$runtime_dir"
+}
+trap cleanup EXIT
+
+# Java loads application classes lazily. Run from a private immutable snapshot so
+# rebuilding target/fuzztla.jar cannot corrupt the class path of this invocation.
+cp "$jar" "$runtime_jar"
+java -jar "$runtime_jar" "$@"

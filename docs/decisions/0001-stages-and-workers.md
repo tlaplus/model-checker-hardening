@@ -40,7 +40,9 @@ users do not configure worker counts per stage. Stage capacity limits bound
 current directory occupancy, while a global limit bounds unique corpus entries.
 The runner may sample the stages' in-memory counters once per second for a
 best-effort progress listener. These snapshots are observational and do not
-replace the corpus directories as the durable source of truth.
+replace the corpus directories as the durable source of truth. Progress is
+`RUNNING` while stage workers are active and changes to `FINALIZING` before the
+runner validates the complete corpus for its final summary.
 
 For an expression `E`, the parser stage constructs this typed `TlaModule`,
 renders it with Apalache's pretty writer, and checks the result with SANY's
