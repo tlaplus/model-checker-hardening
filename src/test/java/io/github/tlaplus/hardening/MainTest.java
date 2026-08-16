@@ -190,6 +190,7 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("", result.err());
+        assertTrue(result.out().startsWith("Random seed: 42" + System.lineSeparator()));
         assertFalse(result.out().contains("Workflow run in progress"));
         assertFalse(result.out().contains("\u001b["));
         assertTrue(result.out().contains("Workflow run finished for '"));
@@ -254,6 +255,7 @@ class MainTest {
         var result = execute("run", "--how=pbt", "--corpus=" + missing, "--seed=1");
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
+        assertEquals("Random seed: 1" + System.lineSeparator(), result.out());
         assertTrue(result.err().contains("corpus directory does not exist"));
     }
 
@@ -322,6 +324,7 @@ class MainTest {
                 "run", "--how=pbt", "--corpus=" + corpus, "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().lines().findFirst().orElseThrow().matches("Random seed: \\d+"));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.matches("\\[\\s+\\d+ random seed\\s+]")));
     }
@@ -468,6 +471,7 @@ class MainTest {
 
     private String summaryOutput(Path corpus, long seed, long total) {
         return """
+                Random seed: %d
                 Workflow run finished for '%s'
 
                 [%20d %-18s]
@@ -480,6 +484,7 @@ class MainTest {
                 [%20s %-18s]
                 """
                 .formatted(
+                        seed,
                         corpus.toAbsolutePath().normalize(),
                         seed,
                         "random seed",

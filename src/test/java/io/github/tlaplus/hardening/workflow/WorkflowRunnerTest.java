@@ -2,14 +2,17 @@ package io.github.tlaplus.hardening.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.StageConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
@@ -122,6 +125,38 @@ class WorkflowRunnerTest {
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, second.stopReason());
         assertEquals(first.corpus().totalEntries(), second.corpus().totalEntries());
         assertEquals(first.corpus().inputEntries(), second.corpus().inputEntries());
+    }
+
+    @Test
+    void identifiesAndPreservesAnInputThatCrashesParserPreparation(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = config(1, 1, 1, 0);
+        var input = new byte[0];
+        corpus.store(input);
+        var source = corpus.inputPath(input);
+        var delegate = IrGenerators.expressions(config.generator());
+        Generator<TlaEx> overflowInParser = payload -> {
+            if (Thread.currentThread().getName().startsWith("fuzztla-parser-")) {
+                throw new StackOverflowError("parser preparation overflow");
+            }
+            return delegate.generate(payload);
+        };
+
+        var failure = assertThrows(
+                WorkflowException.class,
+                () -> new WorkflowRunner(config, overflowInParser).run(corpus, 42, 1));
+
+        var candidate = corpus.generatorCrashDirectory().resolve(source.getFileName());
+        var reportName = source.getFileName()
+                .toString()
+                .replace(".cbor", CorpusDirectory.GENERATOR_CRASH_REPORT_EXTENSION);
+        var report = corpus.generatorCrashDirectory().resolve(reportName);
+        assertTrue(failure.getMessage().contains(source.toString()));
+        assertTrue(failure.getMessage().contains(candidate.toString()));
+        assertTrue(Files.readString(report)
+                .contains("StackOverflowError: parser preparation overflow"));
+        assertEquals(1, corpus.inventory(delegate).totalEntries());
     }
 
     private FuzzTlaConfig config(

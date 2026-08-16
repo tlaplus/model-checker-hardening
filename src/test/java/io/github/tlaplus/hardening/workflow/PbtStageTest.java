@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
@@ -106,6 +108,52 @@ class PbtStageTest {
         assertEquals(1, stage.summary().added());
         assertEquals(9_999, stage.summary().rejected());
         assertEquals(1, corpus.inventory(ACCEPT).inputEntries());
+    }
+
+    @Test
+    void preservesTheCandidateAndStackTraceWhenTheGeneratorCrashes(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        Generator<Void> overflow = _ -> {
+            throw new StackOverflowError("deliberate overflow");
+        };
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var stage = new PbtStage(
+                new PbtConfig(8),
+                1,
+                0,
+                corpus,
+                overflow,
+                42,
+                queue,
+                new Semaphore(1),
+                new CpuBudget(1),
+                control);
+
+        stage.start();
+        stage.await();
+
+        assertTrue(control.hasFailed());
+        assertTrue(control.failure() instanceof WorkflowException);
+        assertEquals(1, stage.summary().attempts());
+        try (var paths = Files.list(corpus.generatorCrashDirectory())) {
+            var files = paths.toList();
+            var candidate = files.stream()
+                    .filter(path -> path.getFileName().toString().endsWith(".cbor"))
+                    .findFirst()
+                    .orElseThrow();
+            var report = files.stream()
+                    .filter(path -> path.getFileName().toString().endsWith(".stacktrace"))
+                    .findFirst()
+                    .orElseThrow();
+            var saved = CorpusInputCodec.decode(Files.readAllBytes(candidate));
+            assertEquals(CorpusInput.Kind.EXPRESSION, saved.kind());
+            assertTrue(control.failure().getMessage().contains(candidate.toString()));
+            assertTrue(Files.readString(report)
+                    .contains("StackOverflowError: deliberate overflow"));
+        }
+        assertEquals(0, corpus.inventory(ACCEPT).totalEntries());
     }
 
     private PbtStageSummary runStage(

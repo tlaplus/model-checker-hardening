@@ -68,9 +68,11 @@ final class RunCommand implements Callable<Integer> {
     private int runPbt() {
         TerminalProgressDisplay progress = null;
         try {
+            var effectiveSeed = seed == null ? randomSeed() : seed;
+            spec.commandLine().getOut().printf("Random seed: %d%n", effectiveSeed);
+            spec.commandLine().getOut().flush();
             var directory = CorpusDirectory.open(corpus);
             var config = directory.readConfig();
-            var effectiveSeed = seed == null ? randomSeed() : seed;
             if (supportsTerminalUpdates()) {
                 progress = new TerminalProgressDisplay(spec.commandLine().getOut());
             }

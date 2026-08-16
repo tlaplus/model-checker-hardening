@@ -122,14 +122,45 @@ class CorpusDirectoryTest {
     @Test
     void propagatesUnexpectedGeneratorFailures(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
-        corpus.store(new byte[] {1});
+        var input = new byte[] {1};
+        corpus.store(input);
         Generator<Void> broken = draw -> {
             throw new IllegalStateException("generator defect");
         };
 
-        var failure = assertThrows(IllegalStateException.class, () -> corpus.verify(broken));
+        var failure = assertThrows(CorpusException.class, () -> corpus.verify(broken));
 
-        assertEquals("generator defect", failure.getMessage());
+        var source = corpus.inputPath(input);
+        var candidate = corpus.generatorCrashDirectory().resolve(hash(input) + ".cbor");
+        var report = corpus.generatorCrashDirectory()
+                .resolve(hash(input) + CorpusDirectory.GENERATOR_CRASH_REPORT_EXTENSION);
+        assertTrue(failure.getMessage().contains(source.toString()));
+        assertTrue(failure.getMessage().contains(candidate.toString()));
+        assertTrue(failure.getCause() instanceof IllegalStateException);
+        assertEquals(
+                CorpusInput.expression(input),
+                CorpusInputCodec.decode(Files.readAllBytes(candidate)));
+        assertTrue(Files.readString(report).contains("IllegalStateException: generator defect"));
+        assertEquals(1, corpus.verify(ACCEPT));
+    }
+
+    @Test
+    void storesGeneratorCrashDiagnosticsOutsideTheCorpusInventory(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {3, 1, 4};
+
+        var candidate =
+                corpus.recordGeneratorCrash(input, new StackOverflowError("deliberate overflow"));
+
+        var report = candidate.resolveSibling(
+                hash(input) + CorpusDirectory.GENERATOR_CRASH_REPORT_EXTENSION);
+        assertEquals(corpus.generatorCrashDirectory().resolve(hash(input) + ".cbor"), candidate);
+        assertEquals(
+                CorpusInput.expression(input),
+                CorpusInputCodec.decode(Files.readAllBytes(candidate)));
+        assertTrue(Files.readString(report).contains("StackOverflowError: deliberate overflow"));
+        assertEquals(0, corpus.verify(ACCEPT));
     }
 
     @Test

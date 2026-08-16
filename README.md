@@ -115,22 +115,25 @@ moves.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
-updates and contains only the final summary. After all stage workers stop, the
-table changes to `FINALIZING` while FuzzTLA validates the complete corpus for the
-final summary.
+updates. After all stage workers stop, the table changes to `FINALIZING` while
+FuzzTLA validates the complete corpus for the final summary.
 
 The workflow tries random byte arrays until `workflow.maximum_entries` unique
 accepted inputs exist across all directories. Lengths are selected from uniformly
 chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through
 `maximum_input_bytes`—and uniformly within the selected bucket.
 
-The effective nonnegative seed and stage counters are printed on success.
-Supplying that seed with the same configuration and starting corpus reproduces
-the pseudorandom candidate stream. Entries begin in
+The effective nonnegative seed is printed and flushed before corpus access or
+worker startup, and repeated in the final summary on success. Supplying that seed
+with the same configuration and starting corpus reproduces the pseudorandom
+candidate stream. Entries begin in
 `00-inputs/<sha256>.cbor`; the parser records tagged UTC timestamps and a verdict
 before moving each entry to its parser result directory. Only
 `InputRejectedException` skips a candidate; other generator failures stop the
-workflow. A crashed parser also writes
+workflow. An unexpected generator or parser-preparation failure preserves the
+exact input and stack trace under
+`.work/generator-crash/<sha256>.{cbor,stacktrace}` and reports the artifact path.
+These diagnostic files do not count as corpus entries. A crashed parser writes
 `01parser-crash/<sha256>.stacktrace` with the exception stack trace or other
 crash diagnostic.
 
