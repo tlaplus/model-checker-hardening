@@ -26,7 +26,11 @@ public final class TomlConfig {
     private static final Set<String> INPUT_STAGE_KEYS = Set.of("maximum_entries");
     private static final Set<String> PARSER_STAGE_KEYS =
             Set.of("maximum_entries", "timeout_seconds");
-    private static final Set<String> PBT_KEYS = Set.of("maximum_input_bytes");
+    private static final Set<String> PBT_KEYS = Set.of(
+            "maximum_input_bytes",
+            "richness_cohorts",
+            "richness_nesting_base",
+            "richness_threshold_base");
 
     private TomlConfig() {}
 
@@ -88,7 +92,16 @@ public final class TomlConfig {
                                     "workflow.parser.timeout_seconds",
                                     "timeout_seconds")));
             var pbtConfig = new PbtConfig(
-                    requireInt(pbt, "pbt.maximum_input_bytes", "maximum_input_bytes"));
+                    requireInt(pbt, "pbt.maximum_input_bytes", "maximum_input_bytes"),
+                    requireInt(pbt, "pbt.richness_cohorts", "richness_cohorts"),
+                    requireDouble(
+                            pbt,
+                            "pbt.richness_nesting_base",
+                            "richness_nesting_base"),
+                    requireDouble(
+                            pbt,
+                            "pbt.richness_threshold_base",
+                            "richness_threshold_base"));
             return new FuzzTlaConfig(generationConfig, workflowConfig, pbtConfig);
         } catch (IllegalArgumentException exception) {
             throw new ConfigException(exception.getMessage(), exception);
@@ -136,6 +149,12 @@ public final class TomlConfig {
                 [pbt]
                 # Inclusive upper bound on a randomly generated input's length.
                 maximum_input_bytes = %d
+                # Number of uniformly selected collection-richness cohorts.
+                richness_cohorts = %d
+                # Weight multiplier for each level of collection nesting.
+                richness_nesting_base = %s
+                # Growth factor for successive cohort admission thresholds.
+                richness_threshold_base = %s
                 """
                 .formatted(
                         generator.maximumTypeDepth(),
@@ -148,7 +167,10 @@ public final class TomlConfig {
                         workflow.inputs().maximumEntries(),
                         workflow.parser().maximumEntries(),
                         workflow.parser().timeoutSeconds(),
-                        pbt.maximumInputBytes());
+                        pbt.maximumInputBytes(),
+                        pbt.richnessCohorts(),
+                        Double.toString(pbt.richnessNestingBase()),
+                        Double.toString(pbt.richnessThresholdBase()));
     }
 
     /** Returns a required table or reports that its value has the wrong shape. */
@@ -191,5 +213,16 @@ public final class TomlConfig {
             throw new ConfigException(
                     "'" + path + "' is outside the supported integer range", exception);
         }
+    }
+
+    private static double requireDouble(TomlTable table, String path, String key)
+            throws ConfigException {
+        if (table.isDouble(key)) {
+            return table.getDouble(key);
+        }
+        if (table.isLong(key)) {
+            return table.getLong(key);
+        }
+        throw new ConfigException("expected '" + path + "' to be a number");
     }
 }

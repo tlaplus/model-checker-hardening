@@ -104,6 +104,7 @@ public final class WorkflowRunner {
                     corpus,
                     generator,
                     seed,
+                    maximumCpus,
                     queue,
                     inputCapacity,
                     cpuBudget,

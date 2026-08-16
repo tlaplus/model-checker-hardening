@@ -18,8 +18,6 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -82,20 +80,6 @@ class WorkflowRunnerTest {
         assertEquals(12, summary.corpus().totalEntries());
         assertEquals(0, summary.corpus().inputEntries());
         assertFalse(Files.exists(corpus.root().resolve(".work").resolve("parser-tmp")));
-    }
-
-    @Test
-    void oneGeneratorStreamIsReproducibleAcrossCpuBudgets(@TempDir Path directory)
-            throws Exception {
-        var first = CorpusDirectory.initialize(directory.resolve("first"));
-        var second = CorpusDirectory.initialize(directory.resolve("second"));
-        var config = config(10, 10, 10, 24);
-
-        new WorkflowRunner(config).run(first, 1234, 1);
-        new WorkflowRunner(config)
-                .run(second, 1234, Math.min(2, Runtime.getRuntime().availableProcessors()));
-
-        assertEquals(entryLocations(first), entryLocations(second));
     }
 
     @Test
@@ -165,24 +149,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         total, new StageConfig(inputs), new ParserConfig(parser, 10)),
-                new PbtConfig(maximumInputBytes));
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
     }
 
-    private Map<String, String> entryLocations(CorpusDirectory corpus) throws Exception {
-        var result = new HashMap<String, String>();
-        for (var directory : java.util.List.of(
-                corpus.inputDirectory(),
-                corpus.parserPassDirectory(),
-                corpus.parserFailDirectory(),
-                corpus.parserCrashDirectory())) {
-            try (var paths = Files.list(directory)) {
-                for (var path : paths.toList()) {
-                    result.put(
-                            path.getFileName().toString(),
-                            directory.getFileName().toString());
-                }
-            }
-        }
-        return result;
-    }
 }

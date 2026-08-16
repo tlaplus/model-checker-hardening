@@ -162,6 +162,11 @@ final class PrintCommand implements Callable<Integer> {
         output.append("kind: ")
                 .append(envelope.corpusInput().kind().encodedName())
                 .append(newline);
+        envelope.generation().ifPresent(generation -> {
+            output.append("gen:").append(newline);
+            output.append("  cohort: ").append(generation.cohort()).append(newline);
+            output.append("  richness: ").append(generation.richness()).append(newline);
+        });
         if (!envelope.stages().isEmpty()) {
             output.append("stages:").append(newline);
             for (var stage : envelope.stages()) {

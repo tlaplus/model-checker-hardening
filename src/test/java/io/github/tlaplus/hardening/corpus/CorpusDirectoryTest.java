@@ -36,14 +36,18 @@ class CorpusDirectoryTest {
     void storesCborUnderThePayloadsLowercaseDigest(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var input = new byte[] {0, 1, (byte) 0xff};
+        var generation = new GenerationMetadata(3, 5.0);
 
         assertEquals("00-inputs", corpus.inputDirectory().getFileName().toString());
-        assertEquals(StoreResult.ADDED, corpus.store(input));
-        assertEquals(StoreResult.DUPLICATE, corpus.store(input));
+        assertEquals(StoreResult.ADDED, corpus.store(input, generation));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(input, generation));
 
         var path = corpus.inputDirectory().resolve(hash(input) + ".cbor");
         var encoded = Files.readAllBytes(path);
         assertEquals(CorpusInput.expression(input), CorpusInputCodec.decode(encoded));
+        assertEquals(
+                generation,
+                CorpusInputCodec.decodeEnvelope(encoded).generation().orElseThrow());
         assertEquals(1, corpus.verify(ACCEPT));
     }
 
@@ -168,7 +172,8 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var input = new byte[] {3, 1, 4};
-        corpus.store(input);
+        var generation = new GenerationMetadata(2, 3.0);
+        corpus.store(input, generation);
         var source = corpus.inputPath(input);
         var start = Instant.ofEpochSecond(10);
         var end = Instant.ofEpochSecond(12);
@@ -180,6 +185,11 @@ class CorpusDirectoryTest {
         assertEquals(
                 "pass",
                 CorpusInputCodec.stageVerdict(Files.readAllBytes(destination), "parser")
+                        .orElseThrow());
+        assertEquals(
+                generation,
+                CorpusInputCodec.decodeEnvelope(Files.readAllBytes(destination))
+                        .generation()
                         .orElseThrow());
         var inventory = corpus.inventory(ACCEPT);
         assertEquals(0, inventory.inputEntries());

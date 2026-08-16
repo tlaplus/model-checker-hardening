@@ -33,6 +33,58 @@ class CorpusInputCodecTest {
     }
 
     @Test
+    void encodesAndDecodesCompactGenerationMetadata() throws Exception {
+        var corpusInput = CorpusInput.expression(new byte[] {1, 2, 3});
+        var generation = new GenerationMetadata(7, 18.5);
+
+        var encoded = CorpusInputCodec.encode(corpusInput, generation);
+        var envelope = CorpusInputCodec.decodeEnvelope(encoded);
+        var tree = new ObjectMapper(FACTORY).readTree(encoded);
+
+        assertEquals(corpusInput, envelope.corpusInput());
+        assertEquals(generation, envelope.generation().orElseThrow());
+        assertTrue(tree.has("gen"));
+        assertTrue(!tree.has("generation"));
+        assertEquals(7, tree.path("gen").path("cohort").intValue());
+        assertEquals(18.5, tree.path("gen").path("richness").doubleValue());
+    }
+
+    @Test
+    void rejectsMalformedGenerationMetadata() throws Exception {
+        var missingRichness = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("cohort", 1);
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+        var negativeCohort = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("cohort", -1);
+            generator.writeNumberField("richness", 2.0);
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertEquals(
+                "missing field: gen.richness",
+                assertThrows(
+                                CorpusInputFormatException.class,
+                                () -> CorpusInputCodec.decode(missingRichness))
+                        .getMessage());
+        assertTrue(assertThrows(
+                        CorpusInputFormatException.class,
+                        () -> CorpusInputCodec.decode(negativeCohort))
+                .getMessage()
+                .contains("cohort must be nonnegative"));
+    }
+
+    @Test
     void decodesRequiredFieldsInAnyOrderAndIgnoresStageMetadata() throws Exception {
         var encoded = cbor(generator -> {
             generator.writeStartObject(null, 3);
@@ -190,6 +242,25 @@ class CorpusInputCodecTest {
             }
         }
         assertEquals(2, taggedTimes);
+    }
+
+    @Test
+    void preservesGenerationMetadataWhenAddingStageMetadata() throws Exception {
+        var generation = new GenerationMetadata(4, 8.0);
+        var encoded = CorpusInputCodec.encode(
+                CorpusInput.expression(new byte[] {4, 2}), generation);
+
+        var updated = CorpusInputCodec.withStageMetadata(
+                encoded,
+                new StageMetadata(
+                        "parser",
+                        "pass",
+                        Instant.ofEpochSecond(10),
+                        Instant.ofEpochSecond(12)));
+
+        var envelope = CorpusInputCodec.decodeEnvelope(updated);
+        assertEquals(generation, envelope.generation().orElseThrow());
+        assertEquals("pass", envelope.stages().getFirst().verdict());
     }
 
     @Test

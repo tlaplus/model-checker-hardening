@@ -55,11 +55,38 @@ class TerminalProgressDisplayTest {
                 && line.contains("run state")));
     }
 
+    @Test
+    void rendersAdmittedInputRichnessStatistics() {
+        var snapshot = new WorkflowProgress(
+                WorkflowProgress.Phase.RUNNING,
+                new PbtStageSummary(42, 0, 3, 5, 0, 1, 1, 1.25, 9.0, 4.5),
+                new ParserStageSummary(2, 0, 0),
+                3,
+                1);
+
+        var table = RunTable.progress(snapshot);
+
+        assertTrue(table.lines()
+                .anyMatch(line -> line.contains("1.25") && line.contains("min richness")));
+        assertTrue(table.lines()
+                .anyMatch(line -> line.contains("9") && line.contains("max richness")));
+        assertTrue(table.lines()
+                .anyMatch(line -> line.contains("4.5") && line.contains("avg richness")));
+
+        var emptyTable = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 0, 0));
+        assertEquals(
+                3,
+                emptyTable.lines()
+                        .filter(line -> line.contains("n/a") && line.contains("richness"))
+                        .count());
+    }
+
     private WorkflowProgress progress(
             WorkflowProgress.Phase phase, long generated, long parsed) {
         return new WorkflowProgress(
                 phase,
-                new PbtStageSummary(42, 0, generated, generated, 0, 0),
+                new PbtStageSummary(
+                        42, 0, generated, generated, 0, 0, 0, 0.0, 0.0, 0.0),
                 new ParserStageSummary(parsed, 0, 0),
                 generated,
                 generated - parsed);

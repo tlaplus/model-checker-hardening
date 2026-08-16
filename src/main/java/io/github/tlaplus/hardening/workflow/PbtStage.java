@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.workflow;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.pbt.InputLengthSampler;
@@ -12,45 +14,66 @@ import java.util.Objects;
 import java.util.SplittableRandom;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
-/** The single-worker property-based input generation stage. */
+/** Concurrent property-based input generation stage. */
 public final class PbtStage implements WorkflowStage {
+    private static final long MAXIMUM_ATTEMPTS_PER_ENTRY = 10_000;
+
     private final PbtConfig config;
-    private final long maximumEntries;
     private final long initialEntries;
     private final CorpusDirectory corpus;
-    private final Generator<?> generator;
+    private final Generator<TlaEx> generator;
     private final long seed;
+    private final int workerLimit;
     private final WorkQueue<Path> output;
     private final Semaphore inputCapacity;
     private final CpuBudget cpuBudget;
     private final WorkflowControl control;
+    private final long missingEntries;
+    private final AtomicLong nextTarget = new AtomicLong();
+    private final LongAdder attempts = new LongAdder();
+    private final LongAdder rejected = new LongAdder();
+    private final LongAdder richnessRejected = new LongAdder();
+    private final LongAdder duplicates = new LongAdder();
+    private final Object admissionLock = new Object();
+    private final WorkerGroup workers = new WorkerGroup("fuzztla-pbt-");
 
-    private volatile PbtStageSummary summary;
-    private Thread worker;
+    private long added;
+    private double minimumRichness;
+    private double maximumRichness;
+    private double averageRichness;
 
     PbtStage(
             PbtConfig config,
             long maximumEntries,
             long initialEntries,
             CorpusDirectory corpus,
-            Generator<?> generator,
+            Generator<TlaEx> generator,
             long seed,
+            int workerLimit,
             WorkQueue<Path> output,
             Semaphore inputCapacity,
             CpuBudget cpuBudget,
             WorkflowControl control) {
         this.config = Objects.requireNonNull(config, "config");
-        this.maximumEntries = maximumEntries;
         this.initialEntries = initialEntries;
         this.corpus = Objects.requireNonNull(corpus, "corpus");
         this.generator = Objects.requireNonNull(generator, "generator");
+        if (seed < 0) {
+            throw new IllegalArgumentException("seed must be nonnegative");
+        }
         this.seed = seed;
+        if (workerLimit <= 0) {
+            throw new IllegalArgumentException("workerLimit must be positive");
+        }
+        this.workerLimit = workerLimit;
         this.output = Objects.requireNonNull(output, "output");
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.control = Objects.requireNonNull(control, "control");
-        this.summary = new PbtStageSummary(seed, initialEntries, 0, 0, 0, 0);
+        this.missingEntries = Math.max(0L, maximumEntries - initialEntries);
     }
 
     @Override
@@ -59,120 +82,171 @@ public final class PbtStage implements WorkflowStage {
     }
 
     @Override
-    public synchronized void start() {
-        if (worker != null) {
-            throw new IllegalStateException("PBT stage has already started");
-        }
-        worker = Thread.ofPlatform().name("fuzztla-pbt").start(this::runWorker);
+    public void start() {
+        var workerCount = Math.toIntExact(Math.min(workerLimit, missingEntries));
+        var workerSeeds = workerSeeds(seed, workerCount);
+        workers.start(
+                workerCount,
+                workerId -> () -> runWorker(workerId, workerSeeds[workerId]),
+                output::close);
     }
 
     @Override
     public void await() throws InterruptedException {
-        var current = worker;
-        if (current == null) {
-            throw new IllegalStateException("PBT stage has not started");
-        }
-        current.join();
+        workers.await();
     }
 
     public PbtStageSummary summary() {
-        return summary;
+        synchronized (admissionLock) {
+            return new PbtStageSummary(
+                    seed,
+                    initialEntries,
+                    added,
+                    attempts.sum(),
+                    rejected.sum(),
+                    richnessRejected.sum(),
+                    duplicates.sum(),
+                    minimumRichness,
+                    maximumRichness,
+                    averageRichness);
+        }
     }
 
     @Override
     public void close() {
-        var current = worker;
-        if (current != null && current.isAlive()) {
-            current.interrupt();
-        }
         output.close();
+        workers.close();
     }
 
-    private void runWorker() {
+    private void runWorker(int workerId, long workerSeed) {
         try {
-            generateInputs();
+            generateInputs(workerId, workerSeed);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             if (!control.shouldStopProducing()) {
-                control.fail(new WorkflowException("input generation was interrupted", exception));
+                control.fail(new WorkflowException(
+                        "input generator worker " + workerId + " was interrupted", exception));
             }
         } catch (Exception | StackOverflowError exception) {
             control.fail(exception);
-        } finally {
-            output.close();
         }
     }
 
-    private void generateInputs() throws Exception {
-        var missing = Math.max(0L, maximumEntries - initialEntries);
-        var maximumAttempts = Math.max(10_000L, 100L * missing);
-        var random = new SplittableRandom(seed);
-        long added = 0;
-        long attempts = 0;
-        long rejected = 0;
-        long duplicates = 0;
+    private void generateInputs(int workerId, long workerSeed) throws Exception {
+        var random = new SplittableRandom(workerSeed);
+        var cohortRandom = random.split();
+        var inputRandom = random.split();
 
-        while (added < missing && !control.shouldStopProducing()) {
-            if (attempts >= maximumAttempts) {
-                summary = new PbtStageSummary(
-                        seed, initialEntries, added, attempts, rejected, duplicates);
-                throw new WorkflowException(
-                        "could not reach "
-                                + maximumEntries
-                                + " corpus entries within "
-                                + maximumAttempts
-                                + " attempts");
+        while (!control.shouldStopProducing()) {
+            var target = nextTarget.getAndIncrement();
+            if (target >= missingEntries) {
+                return;
             }
-            if (!acquireInputCapacity()) {
-                break;
-            }
+            var cohort = cohortRandom.nextInt(config.richnessCohorts());
+            var threshold = config.richnessThreshold(cohort);
+            long entryAttempts = 0;
+            var bestRichness = 0.0;
 
-            var keepInputSlot = false;
-            try {
-                if (!cpuBudget.acquire(control::shouldStopProducing)) {
-                    break;
+            while (!control.shouldStopProducing()) {
+                if (entryAttempts >= MAXIMUM_ATTEMPTS_PER_ENTRY) {
+                    throw new WorkflowException(
+                            "input generator worker "
+                                    + workerId
+                                    + " (seed "
+                                    + workerSeed
+                                    + ") could not generate corpus entry "
+                                    + (initialEntries + target + 1)
+                                    + " for richness cohort "
+                                    + cohort
+                                    + " (threshold "
+                                    + threshold
+                                    + ") within "
+                                    + MAXIMUM_ATTEMPTS_PER_ENTRY
+                                    + " attempts; best richness was "
+                                    + bestRichness);
                 }
-                final byte[] input;
+                if (!acquireInputCapacity()) {
+                    return;
+                }
+
+                var keepInputSlot = false;
                 try {
-                    attempts++;
-                    var length = InputLengthSampler.sample(random, config.maximumInputBytes());
-                    input = new byte[length];
-                    random.nextBytes(input);
+                    if (!cpuBudget.acquire(control::shouldStopProducing)) {
+                        return;
+                    }
+                    final byte[] input;
+                    final double richness;
                     try {
-                        generator.generate(input);
-                    } catch (InputRejectedException exception) {
-                        rejected++;
+                        attempts.increment();
+                        entryAttempts++;
+                        var length =
+                                InputLengthSampler.sample(inputRandom, config.maximumInputBytes());
+                        input = new byte[length];
+                        inputRandom.nextBytes(input);
+                        try {
+                            var expression = generator.generate(input);
+                            richness = CollectionRichness.score(
+                                    expression, config.richnessNestingBase());
+                        } catch (InputRejectedException exception) {
+                            rejected.increment();
+                            continue;
+                        } catch (RuntimeException | StackOverflowError exception) {
+                            throw generatorCrash(
+                                    input,
+                                    workerId,
+                                    workerSeed,
+                                    target,
+                                    entryAttempts,
+                                    exception);
+                        }
+                    } finally {
+                        cpuBudget.release();
+                    }
+
+                    bestRichness = Math.max(bestRichness, richness);
+                    if (richness < threshold) {
+                        richnessRejected.increment();
                         continue;
-                    } catch (RuntimeException | StackOverflowError exception) {
-                        throw generatorCrash(input, attempts, exception);
+                    }
+
+                    switch (corpus.store(input, new GenerationMetadata(cohort, richness))) {
+                        case ADDED -> {
+                            recordAdmission(richness);
+                            keepInputSlot = true;
+                            output.submit(corpus.inputPath(input));
+                            break;
+                        }
+                        case DUPLICATE -> duplicates.increment();
                     }
                 } finally {
-                    cpuBudget.release();
-                }
-
-                switch (corpus.store(input)) {
-                    case ADDED -> {
-                        added++;
-                        summary = new PbtStageSummary(
-                                seed, initialEntries, added, attempts, rejected, duplicates);
-                        keepInputSlot = true;
-                        output.submit(corpus.inputPath(input));
+                    if (!keepInputSlot) {
+                        inputCapacity.release();
                     }
-                    case DUPLICATE -> duplicates++;
                 }
-            } finally {
-                if (!keepInputSlot) {
-                    inputCapacity.release();
+                if (keepInputSlot) {
+                    break;
                 }
-                summary = new PbtStageSummary(
-                        seed, initialEntries, added, attempts, rejected, duplicates);
             }
         }
     }
 
-    private WorkflowException generatorCrash(byte[] input, long attempt, Throwable failure) {
-        var message =
-                "input generator crashed at attempt " + attempt + ": " + diagnostic(failure);
+    private WorkflowException generatorCrash(
+            byte[] input,
+            int workerId,
+            long workerSeed,
+            long target,
+            long targetAttempt,
+            Throwable failure) {
+        var message = "input generator worker "
+                + workerId
+                + " (seed "
+                + workerSeed
+                + ") crashed while generating corpus entry "
+                + (initialEntries + target + 1)
+                + " at target attempt "
+                + targetAttempt
+                + ": "
+                + diagnostic(failure);
         try {
             var candidate = corpus.recordGeneratorCrash(input, failure);
             message += "; candidate saved to '" + candidate + "'";
@@ -181,6 +255,39 @@ public final class PbtStage implements WorkflowStage {
             message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
         }
         return new WorkflowException(message, failure);
+    }
+
+    private void recordAdmission(double richness) {
+        synchronized (admissionLock) {
+            var nextAdded = added + 1;
+            if (added == 0) {
+                minimumRichness = richness;
+                maximumRichness = richness;
+                averageRichness = richness;
+            } else {
+                minimumRichness = Math.min(minimumRichness, richness);
+                maximumRichness = Math.max(maximumRichness, richness);
+                averageRichness += (richness - averageRichness) / nextAdded;
+                averageRichness = Math.max(
+                        minimumRichness, Math.min(maximumRichness, averageRichness));
+            }
+            added = nextAdded;
+        }
+    }
+
+    static long[] workerSeeds(long seed, int workerCount) {
+        if (seed < 0) {
+            throw new IllegalArgumentException("seed must be nonnegative");
+        }
+        if (workerCount < 0) {
+            throw new IllegalArgumentException("workerCount must be nonnegative");
+        }
+        var seeds = new long[workerCount];
+        var source = new SplittableRandom(seed);
+        for (var workerId = 0; workerId < workerCount; workerId++) {
+            seeds[workerId] = source.nextLong();
+        }
+        return seeds;
     }
 
     private static String diagnostic(Throwable failure) {

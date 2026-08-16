@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
+import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
@@ -211,8 +212,16 @@ class MainTest {
             try (var paths = Files.list(corpus.resolve(resultDirectory))) {
                 for (var entry : paths.toList()) {
                     entryCount++;
-                    var corpusInput = CorpusInputCodec.decode(Files.readAllBytes(entry));
+                    var encoded = Files.readAllBytes(entry);
+                    var corpusInput = CorpusInputCodec.decode(encoded);
+                    var generation = CorpusInputCodec.decodeEnvelope(encoded)
+                            .generation()
+                            .orElseThrow();
                     assertEquals(CorpusInput.Kind.EXPRESSION, corpusInput.kind());
+                    assertTrue(generation.cohort() >= 0 && generation.cohort() < 10);
+                    assertTrue(generation.richness()
+                            >= new PbtConfig(32, 10, 2.0, 1.5)
+                                    .richnessThreshold(generation.cohort()));
                     assertEquals(
                             hash(corpusInput.input()) + ".cbor",
                             entry.getFileName().toString());
@@ -403,6 +412,32 @@ class MainTest {
     }
 
     @Test
+    void printsCompactGenerationMetadataInTheEnvelope(@TempDir Path directory)
+            throws Exception {
+        var input = directory.resolve("metadata.cbor");
+        Files.write(
+                input,
+                CorpusInputCodec.encode(
+                        CorpusInput.expression(new byte[0]),
+                        new GenerationMetadata(6, 12.5)));
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(),
+                        "kind: expr",
+                        "gen:",
+                        "  cohort: 6",
+                        "  richness: 12.5",
+                        "input:",
+                        "  FALSE",
+                        ""),
+                result.out());
+    }
+
+    @Test
     void printsZeroEnvelopeDuration(@TempDir Path directory) throws Exception {
         var input = directory.resolve("metadata.cbor");
         var timestamp = Instant.parse("2026-08-13T14:26:07Z");
@@ -558,7 +593,7 @@ class MainTest {
                         entries,
                         new StageConfig(entries),
                         new ParserConfig(entries, 10)),
-                new PbtConfig(maximumInputBytes));
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
         Files.writeString(
                 corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME),
                 TomlConfig.render(config),
@@ -579,6 +614,13 @@ class MainTest {
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
+                [%20s %-18s]
+                [%20s %-18s]
+                [%20s %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
@@ -595,6 +637,20 @@ class MainTest {
                         "remaining inputs",
                         0,
                         "generated inputs",
+                        "n/a",
+                        "min richness",
+                        "n/a",
+                        "max richness",
+                        "n/a",
+                        "avg richness",
+                        0,
+                        "candidate attempts",
+                        0,
+                        "generator rejected",
+                        0,
+                        "richness rejected",
+                        0,
+                        "duplicate inputs",
                         0,
                         "parser passed",
                         0,

@@ -21,6 +21,7 @@ import java.util.Optional;
 public final class CorpusInputCodec {
     private static final String KIND_FIELD = "kind";
     private static final String INPUT_FIELD = "input";
+    private static final String GENERATION_FIELD = "gen";
     private static final String STAGES_FIELD = "stages";
     private static final CBORFactory FACTORY = new CBORFactory();
     private static final ObjectMapper MAPPER = new ObjectMapper(FACTORY);
@@ -29,13 +30,32 @@ public final class CorpusInputCodec {
 
     /** Encodes the required fields of one corpus input as a definite-length CBOR map. */
     public static byte[] encode(CorpusInput corpusInput) throws IOException {
+        return encode(corpusInput, Optional.empty());
+    }
+
+    /** Encodes the required fields and admission-time PBT metadata. */
+    public static byte[] encode(CorpusInput corpusInput, GenerationMetadata generationMetadata)
+            throws IOException {
+        return encode(
+                corpusInput,
+                Optional.of(Objects.requireNonNull(generationMetadata, "generationMetadata")));
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static byte[] encode(
+            CorpusInput corpusInput, Optional<GenerationMetadata> generationMetadata)
+            throws IOException {
         Objects.requireNonNull(corpusInput, "corpusInput");
+        Objects.requireNonNull(generationMetadata, "generationMetadata");
         var output = new ByteArrayOutputStream();
         try (var generator = FACTORY.createGenerator(output)) {
-            generator.writeStartObject(null, 2);
+            generator.writeStartObject(null, generationMetadata.isPresent() ? 3 : 2);
             generator.writeStringField(KIND_FIELD, corpusInput.kind().encodedName());
             generator.writeFieldName(INPUT_FIELD);
             generator.writeBinary(corpusInput.input());
+            if (generationMetadata.isPresent()) {
+                writeGenerationMetadata(generator, generationMetadata.orElseThrow());
+            }
             generator.writeEndObject();
         }
         return output.toByteArray();
@@ -83,6 +103,12 @@ public final class CorpusInputCodec {
                         }
                         input = parser.getBinaryValue();
                     }
+                    case GENERATION_FIELD -> {
+                        if (valueToken != JsonToken.START_OBJECT) {
+                            throw format("field 'gen' must be a map");
+                        }
+                        readGenerationMetadata(parser);
+                    }
                     default -> parser.skipChildren();
                 }
             }
@@ -109,13 +135,16 @@ public final class CorpusInputCodec {
     public static CorpusEnvelope decodeEnvelope(byte[] encoded)
             throws CorpusInputFormatException {
         var corpusInput = decode(encoded);
+        GenerationMetadata generation = null;
         var stages = new ArrayList<StageMetadata>();
         try (var parser = FACTORY.createParser(encoded)) {
             parser.nextToken();
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 var field = parser.currentName();
                 var value = parser.nextToken();
-                if (STAGES_FIELD.equals(field)) {
+                if (GENERATION_FIELD.equals(field)) {
+                    generation = readGenerationMetadata(parser);
+                } else if (STAGES_FIELD.equals(field)) {
                     if (value != JsonToken.START_OBJECT) {
                         throw format("field 'stages' must be a map");
                     }
@@ -124,7 +153,7 @@ public final class CorpusInputCodec {
                     parser.skipChildren();
                 }
             }
-            return new CorpusEnvelope(corpusInput, stages);
+            return new CorpusEnvelope(corpusInput, Optional.ofNullable(generation), stages);
         } catch (CorpusInputFormatException exception) {
             throw exception;
         } catch (IOException exception) {
@@ -175,9 +204,7 @@ public final class CorpusInputCodec {
         try (var generator = FACTORY.createGenerator(output)) {
             generator.setCodec(MAPPER);
             generator.writeStartObject(null, root.size() + (stages == null ? 1 : 0));
-            var rootFields = root.properties().iterator();
-            while (rootFields.hasNext()) {
-                var field = rootFields.next();
+            for (java.util.Map.Entry<String, JsonNode> field : root.properties()) {
                 if (!STAGES_FIELD.equals(field.getKey())) {
                     generator.writeFieldName(field.getKey());
                     generator.writeTree(field.getValue());
@@ -189,9 +216,7 @@ public final class CorpusInputCodec {
             var replacing = stages != null && stages.has(metadata.stage());
             generator.writeStartObject(null, stageCount + (replacing ? 0 : 1));
             if (stages != null) {
-                var stageFields = stages.properties().iterator();
-                while (stageFields.hasNext()) {
-                    var field = stageFields.next();
+                for (java.util.Map.Entry<String, JsonNode> field : stages.properties()) {
                     if (!metadata.stage().equals(field.getKey())) {
                         generator.writeFieldName(field.getKey());
                         generator.writeTree(field.getValue());
@@ -214,6 +239,54 @@ public final class CorpusInputCodec {
         } catch (IOException exception) {
             throw new CorpusInputFormatException(
                     "invalid CBOR: " + diagnostic(exception), exception);
+        }
+    }
+
+    private static GenerationMetadata readGenerationMetadata(CBORParser parser)
+            throws IOException {
+        Integer cohort = null;
+        Double richness = null;
+        var fields = new HashSet<String>();
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            if (!parser.hasToken(JsonToken.FIELD_NAME)) {
+                throw format("field 'gen' keys must be text strings");
+            }
+            var field = parser.currentName();
+            if (!fields.add(field)) {
+                throw format("duplicate field: gen." + field);
+            }
+            var value = parser.nextToken();
+            switch (field) {
+                case "cohort" -> {
+                    if (value != JsonToken.VALUE_NUMBER_INT) {
+                        throw format("field 'gen.cohort' must be an integer");
+                    }
+                    try {
+                        cohort = Math.toIntExact(parser.getLongValue());
+                    } catch (ArithmeticException exception) {
+                        throw format("field 'gen.cohort' is outside the supported integer range");
+                    }
+                }
+                case "richness" -> {
+                    if (value != JsonToken.VALUE_NUMBER_INT
+                            && value != JsonToken.VALUE_NUMBER_FLOAT) {
+                        throw format("field 'gen.richness' must be a number");
+                    }
+                    richness = parser.getDoubleValue();
+                }
+                default -> parser.skipChildren();
+            }
+        }
+        if (cohort == null) {
+            throw format("missing field: gen.cohort");
+        }
+        if (richness == null) {
+            throw format("missing field: gen.richness");
+        }
+        try {
+            return new GenerationMetadata(cohort, richness);
+        } catch (IllegalArgumentException exception) {
+            throw format("invalid gen metadata: " + diagnostic(exception));
         }
     }
 
@@ -345,6 +418,15 @@ public final class CorpusInputCodec {
         generator.writeFieldName("endTime");
         generator.writeTag(1);
         generator.writeNumber(metadata.endTime().getEpochSecond());
+        generator.writeEndObject();
+    }
+
+    private static void writeGenerationMetadata(
+            CBORGenerator generator, GenerationMetadata metadata) throws IOException {
+        generator.writeFieldName(GENERATION_FIELD);
+        generator.writeStartObject(null, 2);
+        generator.writeNumberField("cohort", metadata.cohort());
+        generator.writeNumberField("richness", metadata.richness());
         generator.writeEndObject();
     }
 
