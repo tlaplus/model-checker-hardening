@@ -8,7 +8,12 @@ import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.RoundingMode;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -92,6 +97,34 @@ public final class CorpusInputCodec {
                 throw format("trailing data after top-level map");
             }
             return new CorpusInput(kind, input);
+        } catch (CorpusInputFormatException exception) {
+            throw exception;
+        } catch (IOException exception) {
+            throw new CorpusInputFormatException(
+                    "invalid CBOR: " + diagnostic(exception), exception);
+        }
+    }
+
+    /** Decodes the required input and every supported stage metadata field. */
+    public static CorpusEnvelope decodeEnvelope(byte[] encoded)
+            throws CorpusInputFormatException {
+        var corpusInput = decode(encoded);
+        var stages = new ArrayList<StageMetadata>();
+        try (var parser = FACTORY.createParser(encoded)) {
+            parser.nextToken();
+            while (parser.nextToken() != JsonToken.END_OBJECT) {
+                var field = parser.currentName();
+                var value = parser.nextToken();
+                if (STAGES_FIELD.equals(field)) {
+                    if (value != JsonToken.START_OBJECT) {
+                        throw format("field 'stages' must be a map");
+                    }
+                    readStages(parser, stages);
+                } else {
+                    parser.skipChildren();
+                }
+            }
+            return new CorpusEnvelope(corpusInput, stages);
         } catch (CorpusInputFormatException exception) {
             throw exception;
         } catch (IOException exception) {
@@ -203,16 +236,43 @@ public final class CorpusInputCodec {
             if (value != JsonToken.START_OBJECT) {
                 throw format("field 'stages." + stage + "' must be a map");
             }
-            return Optional.of(readVerdictMetadata(parser, stage));
+            return Optional.of(readStageFields(parser, stage).verdict());
         }
         return Optional.empty();
     }
 
-    private static String readVerdictMetadata(CBORParser parser, String stage)
+    private static void readStages(CBORParser parser, List<StageMetadata> metadata)
+            throws IOException {
+        var stageNames = new HashSet<String>();
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            if (!parser.hasToken(JsonToken.FIELD_NAME)) {
+                throw format("field 'stages' keys must be text strings");
+            }
+            var stage = parser.currentName();
+            if (!stageNames.add(stage)) {
+                throw format("duplicate stage field: " + stage);
+            }
+            if (parser.nextToken() != JsonToken.START_OBJECT) {
+                throw format("field 'stages." + stage + "' must be a map");
+            }
+            var fields = readStageFields(parser, stage);
+            try {
+                metadata.add(new StageMetadata(
+                        stage, fields.verdict(), fields.startTime(), fields.endTime()));
+            } catch (IllegalArgumentException exception) {
+                throw format("invalid metadata for stage '"
+                        + stage
+                        + "': "
+                        + diagnostic(exception));
+            }
+        }
+    }
+
+    private static StageFields readStageFields(CBORParser parser, String stage)
             throws IOException {
         String verdict = null;
-        var startTime = false;
-        var endTime = false;
+        Instant startTime = null;
+        Instant endTime = null;
         var fields = new HashSet<String>();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             if (!parser.hasToken(JsonToken.FIELD_NAME)) {
@@ -232,12 +292,10 @@ public final class CorpusInputCodec {
                     verdict = parser.getText();
                 }
                 case "startTime" -> {
-                    requireTaggedEpoch(parser, value, stage, field);
-                    startTime = true;
+                    startTime = readTaggedEpoch(parser, value, stage, field);
                 }
                 case "endTime" -> {
-                    requireTaggedEpoch(parser, value, stage, field);
-                    endTime = true;
+                    endTime = readTaggedEpoch(parser, value, stage, field);
                 }
                 default -> parser.skipChildren();
             }
@@ -245,28 +303,36 @@ public final class CorpusInputCodec {
         if (verdict == null) {
             throw format("missing field: stages." + stage + ".verdict");
         }
-        if (!startTime) {
+        if (startTime == null) {
             throw format("missing field: stages." + stage + ".startTime");
         }
-        if (!endTime) {
+        if (endTime == null) {
             throw format("missing field: stages." + stage + ".endTime");
         }
-        return verdict;
+        return new StageFields(verdict, startTime, endTime);
     }
 
-    private static void requireTaggedEpoch(
+    private static Instant readTaggedEpoch(
             CBORParser parser, JsonToken token, String stage, String field)
-            throws CorpusInputFormatException {
+            throws IOException {
+        var path = "stages." + stage + "." + field;
         if ((token != JsonToken.VALUE_NUMBER_INT && token != JsonToken.VALUE_NUMBER_FLOAT)
                 || !parser.getCurrentTags().contains(1)) {
-            throw format(
-                    "field 'stages."
-                            + stage
-                            + "."
-                            + field
-                            + "' must be a tag-1 epoch number");
+            throw format("field '" + path + "' must be a tag-1 epoch number");
+        }
+        try {
+            var epoch = parser.getDecimalValue();
+            var seconds = epoch.setScale(0, RoundingMode.FLOOR).longValueExact();
+            var nanos = epoch.subtract(java.math.BigDecimal.valueOf(seconds))
+                    .movePointRight(9)
+                    .intValueExact();
+            return Instant.ofEpochSecond(seconds, nanos);
+        } catch (ArithmeticException | DateTimeException | NumberFormatException exception) {
+            throw format("field '" + path + "' is outside the supported timestamp range");
         }
     }
+
+    private record StageFields(String verdict, Instant startTime, Instant endTime) {}
 
     private static void writeStageMetadata(CBORGenerator generator, StageMetadata metadata)
             throws IOException {

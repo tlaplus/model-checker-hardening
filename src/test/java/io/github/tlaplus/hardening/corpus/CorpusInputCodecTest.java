@@ -5,15 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
+import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CorpusInputCodecTest {
@@ -191,6 +192,90 @@ class CorpusInputCodecTest {
         assertEquals(2, taggedTimes);
     }
 
+    @Test
+    void decodesSupportedEnvelopeFieldsInStageOrderAndIgnoresExtensions() throws Exception {
+        var encoded = cbor(generator -> {
+            generator.writeStartObject(null, 4);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[] {4, 2});
+            generator.writeStringField("future", "ignored");
+            generator.writeObjectFieldStart("stages");
+            writeStage(
+                    generator,
+                    "generator",
+                    "pass",
+                    Instant.ofEpochSecond(10),
+                    Instant.ofEpochSecond(10));
+            generator.writeObjectFieldStart("parser");
+            generator.writeStringField("verdict", "fail");
+            generator.writeStringField("future", "ignored");
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(20));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(23));
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        var envelope = CorpusInputCodec.decodeEnvelope(encoded);
+
+        assertEquals(CorpusInput.expression(new byte[] {4, 2}), envelope.corpusInput());
+        assertEquals(
+                List.of(
+                        new StageMetadata(
+                                "generator",
+                                "pass",
+                                Instant.ofEpochSecond(10),
+                                Instant.ofEpochSecond(10)),
+                        new StageMetadata(
+                                "parser",
+                                "fail",
+                                Instant.ofEpochSecond(20),
+                                Instant.ofEpochSecond(23))),
+                envelope.stages());
+    }
+
+    @Test
+    void rejectsInvalidSupportedMetadataWhenDecodingEnvelope() throws Exception {
+        var untaggedTime = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("parser");
+            generator.writeStringField("verdict", "pass");
+            generator.writeNumberField("startTime", 10);
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+        var reversedTimes = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            writeStage(
+                    generator,
+                    "parser",
+                    "pass",
+                    Instant.ofEpochSecond(12),
+                    Instant.ofEpochSecond(10));
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertTrue(assertThrows(
+                        CorpusInputFormatException.class,
+                        () -> CorpusInputCodec.decodeEnvelope(untaggedTime))
+                .getMessage()
+                .contains("must be a tag-1 epoch number"));
+        assertTrue(assertThrows(
+                        CorpusInputFormatException.class,
+                        () -> CorpusInputCodec.decodeEnvelope(reversedTimes))
+                .getMessage()
+                .contains("endTime must not precede startTime"));
+    }
+
     private byte[] cbor(CborWriter writer) throws Exception {
         var output = new ByteArrayOutputStream();
         try (var generator = FACTORY.createGenerator(output)) {
@@ -199,8 +284,29 @@ class CorpusInputCodecTest {
         return output.toByteArray();
     }
 
+    private void writeStage(
+            CBORGenerator generator,
+            String stage,
+            String verdict,
+            Instant startTime,
+            Instant endTime)
+            throws IOException {
+        generator.writeObjectFieldStart(stage);
+        generator.writeStringField("verdict", verdict);
+        writeTaggedEpoch(generator, "startTime", startTime);
+        writeTaggedEpoch(generator, "endTime", endTime);
+        generator.writeEndObject();
+    }
+
+    private void writeTaggedEpoch(CBORGenerator generator, String field, Instant instant)
+            throws IOException {
+        generator.writeFieldName(field);
+        generator.writeTag(1);
+        generator.writeNumber(instant.getEpochSecond());
+    }
+
     @FunctionalInterface
     private interface CborWriter {
-        void write(JsonGenerator generator) throws IOException;
+        void write(CBORGenerator generator) throws IOException;
     }
 }
