@@ -54,6 +54,27 @@ class TlcProcessTest {
                 TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.ERROR_SYSTEM));
     }
 
+    @Test
+    void classifiesAnIntegerOutsideTlcsSupportedRangeAsAFailure(@TempDir Path directory)
+            throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+
+        var result = TlcProcess.check(
+                scratch, expressionSource("161520805147"), CONFIG, TIMEOUT);
+
+        assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
+        assertTrue(
+                result.diagnostic().toLowerCase().contains("number this big"),
+                result.diagnostic());
+    }
+
+    @Test
+    void classifiesTheIntegerTooBigErrorCodeAsAFailure() {
+        assertEquals(
+                StageOutcome.FAIL,
+                TlcOutcomeClassifier.classifyErrorCode(EC.TLC_INTEGER_TOO_BIG));
+    }
+
     private static String source(String invariant) {
         return """
                 ---- MODULE FuzzInput ----
@@ -64,6 +85,18 @@ class TlcProcessTest {
                 Inv == %s
                 ====
                 """.formatted(invariant);
+    }
+
+    private static String expressionSource(String expression) {
+        return """
+                ---- MODULE FuzzInput ----
+                EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants
+                VARIABLE exprValue
+                Init == exprValue = %1$s
+                Next == UNCHANGED exprValue
+                Inv == exprValue = %1$s
+                ====
+                """.formatted(expression);
     }
 
 }

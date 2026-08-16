@@ -119,11 +119,13 @@ TLC receives a fixed configuration containing `INIT Init`, `NEXT Next`, and
 `INVARIANT Inv`; deadlock checking and trace-exploration specification generation
 are disabled. Since `Inv` repeats the expression used by `Init`, a reachable
 invariant violation is a TLC failure. TLC's error constant is first mapped with
-`EC.ExitStatus.errorConstantToExitStatus`. `SUCCESS` is a pass, other non-crash
-statuses are failures, and statuses selected by `exitStatusToCrash` are crashes.
-An exception, timeout, abrupt child exit, stack overflow, or out-of-memory exit
-is also a crash. Worker startup, protocol, corpus, and orchestration errors are
-workflow infrastructure failures.
+`EC.ExitStatus.errorConstantToExitStatus`, except `TLC_INTEGER_TOO_BIG`, which is
+explicitly a failure because it reports an unsupported input value rather than a
+tool crash. `SUCCESS` is a pass, other non-crash statuses are failures, and
+statuses selected by `exitStatusToCrash` are crashes. An exception, timeout,
+abrupt child exit, stack overflow, or out-of-memory exit is also a crash. Worker
+startup, protocol, corpus, and orchestration errors are workflow infrastructure
+failures.
 
 An unexpected host-process failure while generating an expression or preparing
 a specification stops the workflow. The input and stack trace are retained
