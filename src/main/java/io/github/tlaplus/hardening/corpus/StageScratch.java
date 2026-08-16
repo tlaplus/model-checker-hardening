@@ -6,25 +6,25 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Comparator;
 
-/** Corpus-owned transient storage for one workflow invocation. */
-public final class ParserScratch implements AutoCloseable {
+/** Corpus-owned transient storage for one stage during one workflow invocation. */
+public final class StageScratch implements AutoCloseable {
     private static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
 
     private final Path parentDirectory;
     private final Path runDirectory;
     private boolean closed;
 
-    private ParserScratch(Path parentDirectory, Path runDirectory) {
+    private StageScratch(Path parentDirectory, Path runDirectory) {
         this.parentDirectory = parentDirectory;
         this.runDirectory = runDirectory;
     }
 
-    static ParserScratch create(Path parentDirectory) throws IOException {
+    static StageScratch create(Path parentDirectory) throws IOException {
         deleteRecursively(parentDirectory);
         Files.createDirectory(parentDirectory);
         try {
             var runDirectory = Files.createTempDirectory(parentDirectory, "run-");
-            return new ParserScratch(parentDirectory, runDirectory);
+            return new StageScratch(parentDirectory, runDirectory);
         } catch (IOException exception) {
             try {
                 deleteRecursively(parentDirectory);
@@ -37,7 +37,7 @@ public final class ParserScratch implements AutoCloseable {
 
     public synchronized Path directory() {
         if (closed) {
-            throw new IllegalStateException("parser scratch directory is closed");
+            throw new IllegalStateException("stage scratch directory is closed");
         }
         return runDirectory;
     }

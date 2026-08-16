@@ -25,9 +25,24 @@ jobs:
       - name: Initialize a 100-entry corpus
         run: |
           ./bin/fuzztla init
-          sed -i 's/^maximum_entries = .*/maximum_entries = 100/' corpus/config.toml
+          sed -i 's/^max_entries = .*/max_entries = 100/' corpus/config.toml
       - name: Run the PBT workflow
         run: |
           ./bin/fuzztla run --how=pbt
-          test "$(find corpus -type f -name '*.cbor' | wc -l)" -eq 100
+          logical_entries=$(find \
+            corpus/00-inputs \
+            corpus/01parser-fail \
+            corpus/01parser-crash \
+            corpus/02apa-inputs \
+            -type f -name '*.cbor' | wc -l)
+          tlc_results=$(find \
+            corpus/02tlc-pass \
+            corpus/02tlc-fail \
+            corpus/02tlc-crash \
+            -type f -name '*.cbor' | wc -l)
+          apalache_inputs=$(find corpus/02apa-inputs -type f -name '*.cbor' | wc -l)
+          test "$logical_entries" -eq 100
           test "$(find corpus/00-inputs -type f -name '*.cbor' | wc -l)" -eq 0
+          test "$(find corpus/01parser-pass -type f -name '*.cbor' | wc -l)" -eq 0
+          test "$(find corpus/02tlc-inputs -type f -name '*.cbor' | wc -l)" -eq 0
+          test "$tlc_results" -eq "$apalache_inputs"

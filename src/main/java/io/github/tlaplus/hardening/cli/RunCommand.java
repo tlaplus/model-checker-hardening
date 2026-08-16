@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.cli;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
@@ -65,14 +66,14 @@ final class RunCommand implements Callable<Integer> {
         };
     }
 
-    /** Runs property-based generation and parsing as one concurrent workflow. */
+    /** Runs property-based generation, parsing, and TLC as one concurrent workflow. */
     private int runPbt() {
         TerminalProgressDisplay progress = null;
         try {
             var effectiveSeed = seed == null ? randomSeed() : seed;
             spec.commandLine().getOut().printf("Random seed: %d%n", effectiveSeed);
             spec.commandLine().getOut().flush();
-            var directory = CorpusDirectory.open(corpus);
+            var directory = CorpusDirectory.openExisting(corpus);
             var config = directory.readConfig();
             if (supportsTerminalUpdates()) {
                 progress = new TerminalProgressDisplay(spec.commandLine().getOut());
@@ -81,7 +82,7 @@ final class RunCommand implements Callable<Integer> {
             var summary = progress == null
                     ? runner.run(directory, effectiveSeed, maximumCpus)
                     : runner.run(directory, effectiveSeed, maximumCpus, progress::update);
-            var finalOutput = RunTable.finished(directory.root(), summary);
+            var finalOutput = RunTable.finished(directory.resolve(CorpusPath.ROOT), summary);
             if (progress == null) {
                 spec.commandLine().getOut().print(finalOutput);
                 spec.commandLine().getOut().flush();

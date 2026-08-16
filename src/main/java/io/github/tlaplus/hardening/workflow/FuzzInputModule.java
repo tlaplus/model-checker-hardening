@@ -12,7 +12,7 @@ import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import scala.jdk.javaapi.CollectionConverters;
 
-/** Constructs the module checked by the parser stage from a generated expression. */
+/** Constructs the module checked by the parser and model-checker stages. */
 public final class FuzzInputModule {
     private static final String MODULE_NAME = "FuzzInput";
     private static final String VARIABLE_NAME = "exprValue";

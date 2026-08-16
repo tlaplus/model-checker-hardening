@@ -7,18 +7,27 @@ public record WorkflowProgress(
         Phase phase,
         PbtStageSummary generator,
         ParserStageSummary parser,
+        TlcStageSummary tlc,
         long corpusEntries,
-        long remainingInputs) {
+        long awaitingParser,
+        long awaitingTlc,
+        long pendingApalache) {
     public WorkflowProgress {
         Objects.requireNonNull(phase, "phase");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(parser, "parser");
-        if (corpusEntries < 0 || remainingInputs < 0) {
+        Objects.requireNonNull(tlc, "tlc");
+        if (corpusEntries < 0
+                || awaitingParser < 0
+                || awaitingTlc < 0
+                || pendingApalache < 0) {
             throw new IllegalArgumentException("workflow progress counters must be nonnegative");
         }
-        if (remainingInputs > corpusEntries) {
+        if (awaitingParser > corpusEntries
+                || awaitingTlc > corpusEntries
+                || pendingApalache > corpusEntries) {
             throw new IllegalArgumentException(
-                    "remaining inputs must not exceed corpus entries");
+                    "pending stage counts must not exceed corpus entries");
         }
     }
 

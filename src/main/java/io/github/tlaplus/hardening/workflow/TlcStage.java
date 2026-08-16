@@ -1,45 +1,40 @@
 package io.github.tlaplus.hardening.workflow;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.config.ParserStageConfig;
+import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
-/** Concurrent parser stage backed by persistent isolated SANY JVMs. */
-public final class ParserStage implements WorkflowStage {
-    private final ParserStageConfig config;
+/** Concurrent TLC stage backed by a fresh isolated JVM for every input. */
+public final class TlcStage implements WorkflowStage {
+    private final TlcStageConfig config;
     private final int workerCount;
     private final CorpusDirectory corpus;
     private final Path scratchDirectory;
     private final Generator<TlaEx> generator;
     private final WorkQueue<Path> input;
-    private final WorkQueue<Path> output;
-    private final Semaphore inputCapacity;
     private final CpuBudget cpuBudget;
     private final WorkflowControl control;
     private final AtomicInteger occupancy;
     private final LongAdder passed = new LongAdder();
     private final LongAdder failed = new LongAdder();
     private final LongAdder crashed = new LongAdder();
-    private final WorkerGroup workers = new WorkerGroup("fuzztla-parser-");
+    private final WorkerGroup workers = new WorkerGroup("fuzztla-tlc-");
 
-    ParserStage(
-            ParserStageConfig config,
+    TlcStage(
+            TlcStageConfig config,
             int workerCount,
             int initialOccupancy,
             CorpusDirectory corpus,
             Path scratchDirectory,
             Generator<TlaEx> generator,
             WorkQueue<Path> input,
-            WorkQueue<Path> output,
-            Semaphore inputCapacity,
             CpuBudget cpuBudget,
             WorkflowControl control) {
         this.config = Objects.requireNonNull(config, "config");
@@ -48,25 +43,22 @@ public final class ParserStage implements WorkflowStage {
         }
         this.workerCount = workerCount;
         this.corpus = Objects.requireNonNull(corpus, "corpus");
-        this.scratchDirectory =
-                Objects.requireNonNull(scratchDirectory, "scratchDirectory");
+        this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         this.generator = Objects.requireNonNull(generator, "generator");
         this.input = Objects.requireNonNull(input, "input");
-        this.output = Objects.requireNonNull(output, "output");
-        this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.control = Objects.requireNonNull(control, "control");
-        this.occupancy = new AtomicInteger(initialOccupancy);
+        occupancy = new AtomicInteger(initialOccupancy);
     }
 
     @Override
     public String name() {
-        return "parser";
+        return "tlc";
     }
 
     @Override
     public void start() {
-        workers.start(workerCount, _ -> this::runWorker, output::close);
+        workers.start(workerCount, _ -> this::runWorker);
     }
 
     @Override
@@ -74,76 +66,59 @@ public final class ParserStage implements WorkflowStage {
         workers.await();
     }
 
-    public ParserStageSummary summary() {
-        return new ParserStageSummary(passed.sum(), failed.sum(), crashed.sum());
+    public TlcStageSummary summary() {
+        return new TlcStageSummary(passed.sum(), failed.sum(), crashed.sum());
     }
 
     @Override
     public void close() {
         input.close();
-        output.close();
         workers.close();
     }
 
     private void runWorker() {
-        ParserProcess process = null;
         try {
-            while (!control.shouldAbortParsing()) {
+            while (!control.shouldStopChecking()) {
                 var path = input.take();
                 if (path == null) {
                     return;
                 }
-
-                if (!cpuBudget.acquire(1, control::shouldAbortParsing)) {
+                if (!cpuBudget.acquire(config.workers(), control::shouldStopChecking)) {
                     return;
                 }
                 try {
-                    var startTime = Instant.now();
-                    var payload = corpus.readExpressionInput(path);
-                    var source = ExprInputToSpec.render(
-                            "parser", path, payload, corpus, generator);
-                    if (process == null) {
-                        process = ParserProcess.start(scratchDirectory, timeout());
-                    }
-                    var result = process.parse(source, timeout());
-                    if (result.outcome() == StageOutcome.CRASH) {
-                        process = null;
-                    }
-                    if (result.outcome() != StageOutcome.PASS && !reserveDestination()) {
+                    if (!reserveDestination()) {
                         control.capacityReached();
                         return;
                     }
+                    var startTime = Instant.now();
+                    var payload = corpus.readTlcExpressionInput(path);
+                    var source = ExprInputToSpec.render(
+                            "TLC", path, payload, corpus, generator);
+                    var result = TlcProcess.check(
+                            scratchDirectory, source, config, timeout());
                     var endTime = Instant.now();
                     if (endTime.isBefore(startTime)) {
                         endTime = startTime;
                     }
-                    var destination = corpus.completeParser(
+                    corpus.completeTlc(
                             path,
                             result.outcome().corpusVerdict(),
                             startTime,
                             endTime,
                             result.diagnostic());
-                    inputCapacity.release();
                     increment(result.outcome());
-                    if (result.outcome() == StageOutcome.PASS) {
-                        var tlcInput = corpus.fanOutParserPass(destination);
-                        output.submit(tlcInput);
-                    }
                 } finally {
-                    cpuBudget.release(1);
+                    cpuBudget.release(config.workers());
                 }
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            if (!control.shouldAbortParsing()) {
-                control.fail(new WorkflowException("parser worker was interrupted", exception));
+            if (!control.shouldStopChecking()) {
+                control.fail(new WorkflowException("TLC worker was interrupted", exception));
             }
         } catch (Exception | StackOverflowError exception) {
             control.fail(exception);
-        } finally {
-            if (process != null) {
-                process.close();
-            }
         }
     }
 

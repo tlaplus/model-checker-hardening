@@ -8,11 +8,13 @@ public record WorkflowRunSummary(
         StopReason stopReason,
         PbtStageSummary generator,
         ParserStageSummary parser,
+        TlcStageSummary tlc,
         CorpusInventory corpus) {
     public WorkflowRunSummary {
         Objects.requireNonNull(stopReason, "stopReason");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(parser, "parser");
+        Objects.requireNonNull(tlc, "tlc");
         Objects.requireNonNull(corpus, "corpus");
     }
 

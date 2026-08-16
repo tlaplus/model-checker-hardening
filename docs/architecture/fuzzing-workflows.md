@@ -9,9 +9,10 @@ cargofuzz).
 
 ## 1. Processing pipeline
 
-The input-generation and parser stages described below are implemented. Later
-stages remain architectural proposals. [ADR 0001][] records the stage and worker
-execution model. [ADR 0002][] records the property-based input admission policy.
+The input-generation, parser, and TLC stages described below are implemented.
+The Apalache branch is materialized but not yet processed; later stages remain
+architectural proposals. [ADR 0001][] records the stage and worker execution
+model. [ADR 0002][] records the property-based input admission policy.
 
 ### 1.1. General architecture
 
@@ -46,6 +47,7 @@ flowchart LR
 
     subgraph apalache["Apalache"]
         direction TB
+        apalache_inputs["02apa-inputs"]
         apalache_pass["02apa-pass"]
         apalache_fail["02apa-fail"]
         apalache_crash["02apa-crash"]
@@ -53,6 +55,7 @@ flowchart LR
 
     subgraph tlc["TLC"]
         direction TB
+        tlc_inputs["02tlc-inputs"]
         tlc_pass["02tlc-pass"]
         tlc_fail["02tlc-fail"]
         tlc_crash["02tlc-crash"]
@@ -83,8 +86,14 @@ flowchart LR
     end
 
     inp --> parse
-    parse_pass --> tlc
-    parse_pass --> apalache
+    parse_pass --> tlc_inputs
+    parse_pass --> apalache_inputs
+    tlc_inputs --> tlc_pass
+    tlc_inputs --> tlc_fail
+    tlc_inputs --> tlc_crash
+    apalache_inputs --> apalache_pass
+    apalache_inputs --> apalache_fail
+    apalache_inputs --> apalache_crash
     tlc_pass --> conformance
     apalache_pass --> conformance
     tlc_fail --> conformance
@@ -193,12 +202,22 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    without changing the input's identity or filename.
 
  - `<stage-status>` is a directory like `00-inputs` and `02tlc-pass`.
+   Every directory belonging to an implemented stage is required; workflow runs
+   do not migrate incomplete corpus layouts.
 
- - A parser crash also produces
-   `01parser-crash/<sha256>.stacktrace` beside the corresponding CBOR entry.
-   The UTF-8 sidecar contains the Java stack trace when the parser threw an
+ - A parser or TLC crash also produces
+   `01parser-crash/<sha256>.stacktrace` or
+   `02tlc-crash/<sha256>.stacktrace` beside the corresponding CBOR entry.
+   The UTF-8 sidecar contains the Java stack trace when the tool threw an
    exception, or a diagnostic for non-exceptional crashes such as a timeout.
    Sidecars are not corpus entries and do not count towards capacity limits.
+
+ - A parser pass is the durable fan-out point. The same parser output is copied
+   to `02tlc-inputs` and `02apa-inputs`, then removed from `01parser-pass`.
+   These two physical files have one logical identity and count once towards
+   the global corpus limit. Inventory recovery completes a partial fan-out and
+   requires both branches to agree on the input, generation metadata, and
+   parser metadata.
 
  - An unexpected failure while generating or preparing an input produces
    `.work/generator-crash/<sha256>.cbor` and a matching `.stacktrace`. This

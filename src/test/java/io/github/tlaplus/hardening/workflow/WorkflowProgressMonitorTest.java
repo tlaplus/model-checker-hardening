@@ -64,7 +64,10 @@ class WorkflowProgressMonitorTest {
                 WorkflowProgress.Phase.RUNNING,
                 new PbtStageSummary(1, 0, value, value, 0, 0, 0, 0.0, 0.0, 0.0),
                 new ParserStageSummary(0, 0, 0),
+                new TlcStageSummary(0, 0, 0),
                 value,
+                value,
+                0,
                 value);
     }
 }

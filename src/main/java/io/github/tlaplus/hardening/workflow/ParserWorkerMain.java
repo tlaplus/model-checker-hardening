@@ -8,9 +8,7 @@ import java.io.DataOutputStream;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.PrintStream;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,9 +38,8 @@ public final class ParserWorkerMain {
         var protocolOutput = new DataOutputStream(new BufferedOutputStream(
                 new FileOutputStream(FileDescriptor.out)));
         System.setOut(System.err);
-        requireStandardModule("Integers.tla");
-        requireStandardModule("Apalache.tla");
-        requireStandardModule("Variants.tla");
+        StandardModuleResources.require(
+                ParserWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
 
         var temporaryDirectory = Files.createTempDirectory("fuzztla-sany-");
         var specification = temporaryDirectory.resolve("FuzzInput.tla");
@@ -50,32 +47,23 @@ public final class ParserWorkerMain {
         var resolver = new SimpleFilenameToStream(temporaryDirectory.toString());
         var protocolInput = new DataInputStream(new BufferedInputStream(System.in));
 
-        protocolOutput.writeInt(ParserWorkerProtocol.MAGIC);
-        protocolOutput.writeInt(ParserWorkerProtocol.VERSION);
-        protocolOutput.flush();
+        ToolWorkerProtocol.writeHandshake(protocolOutput);
         try {
             while (true) {
-                var length = protocolInput.readInt();
-                if (length == ParserWorkerProtocol.STOP) {
+                var source = ToolWorkerProtocol.readRequest(protocolInput);
+                if (source == null) {
                     return;
-                }
-                if (length < 0 || length > ParserWorkerProtocol.MAXIMUM_MESSAGE_BYTES) {
-                    throw new IOException("invalid parser request length: " + length);
-                }
-                var bytes = protocolInput.readNBytes(length);
-                if (bytes.length != length) {
-                    throw new IOException("truncated parser request");
                 }
                 Files.writeString(
                         specification,
-                        new String(bytes, StandardCharsets.UTF_8),
+                        source,
                         StandardCharsets.UTF_8,
                         StandardOpenOption.CREATE,
                         StandardOpenOption.TRUNCATE_EXISTING,
                         StandardOpenOption.WRITE);
                 var result = parse(specification, resolver);
-                writeResult(protocolOutput, result);
-                if (result.outcome() == ParserResult.Outcome.CRASH) {
+                ToolWorkerProtocol.writeResult(protocolOutput, result);
+                if (result.outcome() == StageOutcome.CRASH) {
                     return;
                 }
             }
@@ -85,7 +73,7 @@ public final class ParserWorkerMain {
         }
     }
 
-    private static ParserResult parse(
+    private static ToolResult parse(
             Path specification, SimpleFilenameToStream resolver) {
         var diagnostics = new ByteArrayOutputStream();
         try (var stream = new PrintStream(diagnostics, true, StandardCharsets.UTF_8)) {
@@ -98,54 +86,23 @@ public final class ParserWorkerMain {
                     SanySettings.defaultSettings());
             var diagnostic = diagnostics.toString(StandardCharsets.UTF_8);
             return switch (exitCode) {
-                case OK -> new ParserResult(ParserResult.Outcome.PASS, diagnostic);
+                case OK -> new ToolResult(StageOutcome.PASS, diagnostic);
                 case SYNTAX_PARSING_FAILURE,
                                 SEMANTIC_ANALYSIS_OR_LEVEL_CHECKING_FAILURE,
                                 ERROR ->
-                        new ParserResult(ParserResult.Outcome.FAIL, diagnostic);
+                        new ToolResult(StageOutcome.FAIL, diagnostic);
             };
         } catch (Exception | StackOverflowError exception) {
-            return new ParserResult(
-                    ParserResult.Outcome.CRASH,
-                    appendDiagnostic(
+            return new ToolResult(
+                    StageOutcome.CRASH,
+                    WorkerDiagnostics.append(
                             diagnostics.toString(StandardCharsets.UTF_8),
-                            stackTrace(exception)));
+                            WorkerDiagnostics.stackTrace(exception)));
         }
     }
 
     static String stackTrace(Throwable exception) {
-        var output = new StringWriter();
-        exception.printStackTrace(new PrintWriter(output));
-        return output.toString();
+        return WorkerDiagnostics.stackTrace(exception);
     }
 
-    private static String appendDiagnostic(String diagnostic, String stackTrace) {
-        if (diagnostic.isBlank()) {
-            return stackTrace;
-        }
-        if (diagnostic.endsWith("\n")) {
-            return diagnostic + stackTrace;
-        }
-        return diagnostic + System.lineSeparator() + stackTrace;
-    }
-
-    private static void writeResult(DataOutputStream output, ParserResult result)
-            throws IOException {
-        var diagnostic = result.diagnostic().getBytes(StandardCharsets.UTF_8);
-        if (diagnostic.length > ParserWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES) {
-            diagnostic = java.util.Arrays.copyOf(
-                    diagnostic, ParserWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES);
-        }
-        output.writeInt(result.outcome().protocolCode());
-        output.writeInt(diagnostic.length);
-        output.write(diagnostic);
-        output.flush();
-    }
-
-    private static void requireStandardModule(String name) throws IOException {
-        var resource = "tla2sany/StandardModules/" + name;
-        if (ParserWorkerMain.class.getClassLoader().getResource(resource) == null) {
-            throw new IOException("missing parser standard module: " + resource);
-        }
-    }
 }

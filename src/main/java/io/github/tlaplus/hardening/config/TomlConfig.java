@@ -19,24 +19,26 @@ import org.tomlj.TomlTable;
 public final class TomlConfig {
     private static final Set<String> ROOT_KEYS = Set.of("generator", "workflow", "pbt");
     private static final Set<String> GENERATOR_KEYS = Set.of(
-            "maximum_type_depth",
-            "maximum_expression_depth",
-            "maximum_nodes",
-            "maximum_collection_size",
-            "maximum_string_bytes",
-            "maximum_integer_bytes",
+            "max_type_depth",
+            "max_expression_depth",
+            "max_nodes",
+            "max_collection_size",
+            "max_string_bytes",
+            "max_integer_bytes",
             "ignore");
     private static final Map<String, ExpressionCategory> GENERATOR_IGNORE_VALUES =
             Arrays.stream(ExpressionCategory.values())
                     .collect(Collectors.toUnmodifiableMap(
                             ExpressionCategory::configName, category -> category));
     private static final Set<String> WORKFLOW_KEYS =
-            Set.of("maximum_entries", "inputs", "parser");
-    private static final Set<String> INPUT_STAGE_KEYS = Set.of("maximum_entries");
+            Set.of("max_entries", "inputs", "parser", "tlc");
+    private static final Set<String> INPUT_STAGE_KEYS = Set.of("max_entries");
     private static final Set<String> PARSER_STAGE_KEYS =
-            Set.of("maximum_entries", "timeout_seconds");
+            Set.of("max_entries", "timeout_sec");
+    private static final Set<String> TLC_STAGE_KEYS = Set.of(
+            "max_entries", "timeout_sec", "max_heap_mb", "workers");
     private static final Set<String> PBT_KEYS = Set.of(
-            "maximum_input_bytes",
+            "max_input_bytes",
             "richness_cohorts",
             "richness_nesting_base",
             "richness_threshold_base");
@@ -58,51 +60,69 @@ public final class TomlConfig {
         var workflow = requireTable(result, "workflow");
         var inputs = requireTable(workflow, "inputs");
         var parser = requireTable(workflow, "parser");
+        var tlc = requireTable(workflow, "tlc");
         var pbt = requireTable(result, "pbt");
         requireKeys(generator, GENERATOR_KEYS, "generator");
         requireKeys(workflow, WORKFLOW_KEYS, "workflow");
         requireKeys(inputs, INPUT_STAGE_KEYS, "workflow.inputs");
         requireKeys(parser, PARSER_STAGE_KEYS, "workflow.parser");
+        requireKeys(tlc, TLC_STAGE_KEYS, "workflow.tlc");
         requireKeys(pbt, PBT_KEYS, "pbt");
 
         try {
             var generationConfig = new IrGenerationConfig(
-                    requireInt(generator, "generator.maximum_type_depth", "maximum_type_depth"),
+                    requireInt(generator, "generator.max_type_depth", "max_type_depth"),
                     requireInt(
                             generator,
-                            "generator.maximum_expression_depth",
-                            "maximum_expression_depth"),
-                    requireInt(generator, "generator.maximum_nodes", "maximum_nodes"),
+                            "generator.max_expression_depth",
+                            "max_expression_depth"),
+                    requireInt(generator, "generator.max_nodes", "max_nodes"),
                     requireInt(
                             generator,
-                            "generator.maximum_collection_size",
-                            "maximum_collection_size"),
+                            "generator.max_collection_size",
+                            "max_collection_size"),
                     requireInt(
                             generator,
-                            "generator.maximum_string_bytes",
-                            "maximum_string_bytes"),
+                            "generator.max_string_bytes",
+                            "max_string_bytes"),
                     requireInt(
                             generator,
-                            "generator.maximum_integer_bytes",
-                            "maximum_integer_bytes"),
+                            "generator.max_integer_bytes",
+                            "max_integer_bytes"),
                     requireExpressionCategories(generator, "generator.ignore", "ignore"));
+            var maximumEntries =
+                    requireInt(workflow, "workflow.max_entries", "max_entries");
             var workflowConfig = new WorkflowConfig(
-                    requireInt(workflow, "workflow.maximum_entries", "maximum_entries"),
+                    maximumEntries,
                     new StageConfig(requireInt(
                             inputs,
-                            "workflow.inputs.maximum_entries",
-                            "maximum_entries")),
-                    new ParserConfig(
+                            "workflow.inputs.max_entries",
+                            "max_entries")),
+                    new ParserStageConfig(
                             requireInt(
                                     parser,
-                                    "workflow.parser.maximum_entries",
-                                    "maximum_entries"),
+                                    "workflow.parser.max_entries",
+                                    "max_entries"),
                             requireInt(
                                     parser,
-                                    "workflow.parser.timeout_seconds",
-                                    "timeout_seconds")));
+                                    "workflow.parser.timeout_sec",
+                                    "timeout_sec")),
+                    new TlcStageConfig(
+                            requireInt(
+                                    tlc,
+                                    "workflow.tlc.max_entries",
+                                    "max_entries"),
+                            requireInt(
+                                    tlc,
+                                    "workflow.tlc.timeout_sec",
+                                    "timeout_sec"),
+                            requireInt(
+                                    tlc,
+                                    "workflow.tlc.max_heap_mb",
+                                    "max_heap_mb"),
+                            requireInt(tlc, "workflow.tlc.workers", "workers")));
             var pbtConfig = new PbtConfig(
-                    requireInt(pbt, "pbt.maximum_input_bytes", "maximum_input_bytes"),
+                    requireInt(pbt, "pbt.max_input_bytes", "max_input_bytes"),
                     requireInt(pbt, "pbt.richness_cohorts", "richness_cohorts"),
                     requireDouble(
                             pbt,
@@ -139,31 +159,41 @@ public final class TomlConfig {
                 .collect(Collectors.joining(", ", "[", "]"));
         return """
                 [generator]
-                maximum_type_depth = %d
-                maximum_expression_depth = %d
-                maximum_nodes = %d
-                maximum_collection_size = %d
-                maximum_string_bytes = %d
-                maximum_integer_bytes = %d
+                max_type_depth = %d
+                max_expression_depth = %d
+                max_nodes = %d
+                max_collection_size = %d
+                max_string_bytes = %d
+                max_integer_bytes = %d
                 ignore = %s
 
                 [workflow]
                 # Maximum number of unique entries across every workflow directory.
-                maximum_entries = %d
+                max_entries = %d
 
                 [workflow.inputs]
                 # Maximum current occupancy of 00-inputs.
-                maximum_entries = %d
+                max_entries = %d
 
                 [workflow.parser]
                 # Maximum combined occupancy of the parser result directories.
-                maximum_entries = %d
+                max_entries = %d
                 # Wall-clock limit for parsing one generated specification.
-                timeout_seconds = %d
+                timeout_sec = %d
+
+                [workflow.tlc]
+                # Maximum combined occupancy of the TLC result directories.
+                max_entries = %d
+                # Wall-clock limit for checking one generated specification.
+                timeout_sec = %d
+                # Maximum heap allocated to each isolated TLC JVM.
+                max_heap_mb = %d
+                # Number of TLC model-checking workers in each isolated JVM.
+                workers = %d
 
                 [pbt]
                 # Inclusive upper bound on a randomly generated input's length.
-                maximum_input_bytes = %d
+                max_input_bytes = %d
                 # Number of uniformly selected collection-richness cohorts.
                 richness_cohorts = %d
                 # Weight multiplier for each level of collection nesting.
@@ -183,6 +213,10 @@ public final class TomlConfig {
                         workflow.inputs().maximumEntries(),
                         workflow.parser().maximumEntries(),
                         workflow.parser().timeoutSeconds(),
+                        workflow.tlc().maximumEntries(),
+                        workflow.tlc().timeoutSeconds(),
+                        workflow.tlc().maximumHeapMegabytes(),
+                        workflow.tlc().workers(),
                         pbt.maximumInputBytes(),
                         pbt.richnessCohorts(),
                         Double.toString(pbt.richnessNestingBase()),

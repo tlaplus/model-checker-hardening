@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -34,7 +35,9 @@ final class InitCommand implements Callable<Integer> {
             var initialized = CorpusDirectory.initialize(corpus);
             spec.commandLine()
                     .getOut()
-                    .printf("fuzztla: initialized corpus at '%s'%n", initialized.root());
+                    .printf(
+                            "fuzztla: initialized corpus at '%s'%n",
+                            initialized.resolve(CorpusPath.ROOT));
             return CommandLine.ExitCode.OK;
         } catch (IOException | CorpusException exception) {
             spec.commandLine()

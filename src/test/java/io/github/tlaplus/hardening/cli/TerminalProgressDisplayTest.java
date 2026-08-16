@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.workflow.ParserStageSummary;
 import io.github.tlaplus.hardening.workflow.PbtStageSummary;
+import io.github.tlaplus.hardening.workflow.TlcStageSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import java.io.PrintWriter;
@@ -66,8 +67,11 @@ class TerminalProgressDisplayTest {
                 WorkflowProgress.Phase.RUNNING,
                 new PbtStageSummary(42, 0, 3, 5, 0, 1, 1, 1.25, 9.0, 4.5),
                 new ParserStageSummary(2, 0, 0),
+                new TlcStageSummary(1, 0, 0),
                 3,
-                1);
+                1,
+                1,
+                2);
 
         var table = RunTable.progress(snapshot);
 
@@ -93,7 +97,9 @@ class TerminalProgressDisplayTest {
                 WorkflowRunSummary.StopReason.COMPLETED,
                 snapshot.generator(),
                 snapshot.parser(),
-                new CorpusInventory(List.of(), 1, 1, 0));
+                snapshot.tlc(),
+                new CorpusInventory(
+                        List.of(), List.of(), 1, 1, 0, 1, 0, 0, 1));
 
         assertFalse(RunTable.progress(snapshot).contains("random seed"));
         assertFalse(RunTable.finished(Path.of("corpus"), summary).contains("random seed"));
@@ -106,8 +112,11 @@ class TerminalProgressDisplayTest {
                 new PbtStageSummary(
                         42, 0, generated, generated, 0, 0, 0, 0.0, 0.0, 0.0),
                 new ParserStageSummary(parsed, 0, 0),
+                new TlcStageSummary(parsed, 0, 0),
                 generated,
-                generated - parsed);
+                generated - parsed,
+                0,
+                parsed);
     }
 
     private String erase(String table) {

@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
@@ -48,7 +49,7 @@ class PbtStageTest {
         assertEquals(32.0, summary.minimumRichness());
         assertEquals(32.0, summary.maximumRichness());
         assertEquals(32.0, summary.averageRichness());
-        assertEquals(20, corpus.inventory(observed).inputEntries());
+        assertEquals(20, corpus.recoverAndValidate(observed).inputEntries());
     }
 
     @Test
@@ -121,7 +122,7 @@ class PbtStageTest {
         assertTrue(control.failure().getMessage().contains("richness cohort 0"));
         assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
         assertTrue(control.failure().getMessage().contains("best richness was 0.0"));
-        assertEquals(1, corpus.inventory(ACCEPT).inputEntries());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).inputEntries());
     }
 
     @Test
@@ -152,7 +153,7 @@ class PbtStageTest {
         assertTrue(control.hasFailed());
         assertInstanceOf(WorkflowException.class, control.failure());
         assertEquals(1, stage.summary().attempts());
-        try (var paths = Files.list(corpus.generatorCrashDirectory())) {
+        try (var paths = Files.list(corpus.resolve(CorpusPath.GENERATOR_CRASH))) {
             var files = paths.toList();
             var candidate = files.stream()
                     .filter(path -> path.getFileName().toString().endsWith(".cbor"))
@@ -168,7 +169,7 @@ class PbtStageTest {
             assertTrue(Files.readString(report)
                     .contains("StackOverflowError: deliberate overflow"));
         }
-        assertEquals(0, corpus.inventory(ACCEPT).totalEntries());
+        assertEquals(0, corpus.recoverAndValidate(ACCEPT).totalEntries());
     }
 
     @Test
@@ -268,7 +269,7 @@ class PbtStageTest {
         assertFalse(control.hasFailed());
         assertEquals(2, maximumActive.get());
         assertEquals(target, stage.summary().added());
-        assertEquals(target, corpus.inventory(observed).inputEntries());
+        assertEquals(target, corpus.recoverAndValidate(observed).inputEntries());
         var queued = 0;
         while (queue.take() != null) {
             queued++;
@@ -390,7 +391,7 @@ class PbtStageTest {
     }
 
     private Map<String, byte[]> readEntries(CorpusDirectory corpus) throws Exception {
-        try (var paths = Files.list(corpus.inputDirectory())) {
+        try (var paths = Files.list(corpus.resolve(CorpusPath.INPUT))) {
             return paths.collect(Collectors.toMap(
                     path -> path.getFileName().toString(),
                     path -> {

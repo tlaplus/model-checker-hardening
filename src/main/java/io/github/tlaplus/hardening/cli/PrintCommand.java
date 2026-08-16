@@ -33,7 +33,7 @@ import picocli.CommandLine.Spec;
 @Command(
         name = "print",
         description =
-                "Print a TLA+ expression, parser specification, or decoded corpus envelope.")
+                "Print a TLA+ expression, tool specification, or decoded corpus envelope.")
 final class PrintCommand implements Callable<Integer> {
     @Option(
             names = {"-h", "--help"},
@@ -62,7 +62,7 @@ final class PrintCommand implements Callable<Integer> {
             generator = IrGenerators.expressions();
         } else {
             try {
-                var config = CorpusDirectory.open(corpus).readConfig();
+                var config = CorpusDirectory.openExisting(corpus).readConfig();
                 generator = IrGenerators.expressions(config.generator());
             } catch (IOException | ConfigException | CorpusException exception) {
                 spec.commandLine()
@@ -218,7 +218,7 @@ final class PrintCommand implements Callable<Integer> {
     private static final class OutputMode {
         @Option(
                 names = "--spec",
-                description = "Print the complete specification passed to the parser.")
+                description = "Print the complete specification passed to the parser and the model checkers.")
         private boolean specification;
 
         @Option(

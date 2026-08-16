@@ -171,7 +171,7 @@ public final class PbtStage implements WorkflowStage {
 
                 var keepInputSlot = false;
                 try {
-                    if (!cpuBudget.acquire(control::shouldStopProducing)) {
+                    if (!cpuBudget.acquire(1, control::shouldStopProducing)) {
                         return;
                     }
                     final byte[] input;
@@ -200,7 +200,7 @@ public final class PbtStage implements WorkflowStage {
                                     exception);
                         }
                     } finally {
-                        cpuBudget.release();
+                        cpuBudget.release(1);
                     }
 
                     bestRichness = Math.max(bestRichness, richness);

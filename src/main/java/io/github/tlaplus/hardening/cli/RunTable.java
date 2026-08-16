@@ -17,12 +17,17 @@ final class RunTable {
         try (var writer = new PrintWriter(output)) {
             writer.printf("Workflow run in progress%n%n");
             printCounter(writer, progress.corpusEntries(), "corpus entries");
-            printCounter(writer, progress.remainingInputs(), "remaining inputs");
+            printCounter(writer, progress.awaitingParser(), "awaiting parser");
+            printCounter(writer, progress.awaitingTlc(), "awaiting TLC");
+            printCounter(writer, progress.pendingApalache(), "pending Apalache");
             printCounter(writer, progress.generator().added(), "generated inputs");
             printGenerationCounters(writer, progress.generator());
             printCounter(writer, progress.parser().passed(), "parser passed");
             printCounter(writer, progress.parser().failed(), "parser failed");
             printCounter(writer, progress.parser().crashed(), "parser crashed");
+            printCounter(writer, progress.tlc().passed(), "TLC passed");
+            printCounter(writer, progress.tlc().failed(), "TLC failed");
+            printCounter(writer, progress.tlc().crashed(), "TLC crashed");
             writer.printf("[%20s %-18s]%n", progress.phase(), "run state");
         }
         return output.toString();
@@ -33,12 +38,17 @@ final class RunTable {
         try (var writer = new PrintWriter(output)) {
             writer.printf("Workflow run finished for '%s'%n%n", corpus);
             printCounter(writer, summary.corpus().totalEntries(), "corpus entries");
-            printCounter(writer, summary.corpus().inputEntries(), "remaining inputs");
+            printCounter(writer, summary.corpus().inputEntries(), "awaiting parser");
+            printCounter(writer, summary.corpus().tlcInputEntries(), "awaiting TLC");
+            printCounter(writer, summary.corpus().apalacheInputEntries(), "pending Apalache");
             printCounter(writer, summary.generator().added(), "generated inputs");
             printGenerationCounters(writer, summary.generator());
             printCounter(writer, summary.parser().passed(), "parser passed");
             printCounter(writer, summary.parser().failed(), "parser failed");
             printCounter(writer, summary.parser().crashed(), "parser crashed");
+            printCounter(writer, summary.tlc().passed(), "TLC passed");
+            printCounter(writer, summary.tlc().failed(), "TLC failed");
+            printCounter(writer, summary.tlc().crashed(), "TLC crashed");
             writer.printf("[%20s %-18s]%n", summary.stopReason(), "stop reason");
         }
         return output.toString();
