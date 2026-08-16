@@ -102,7 +102,8 @@ public final class ParserStage implements WorkflowStage {
                     return;
                 }
 
-                if (!cpuBudget.acquire(1, control::shouldAbortParsing)) {
+                if (!cpuBudget.acquire(
+                        CpuBudget.Priority.PARSER, 1, control::shouldAbortParsing)) {
                     return;
                 }
                 try {

@@ -91,7 +91,10 @@ public final class TlcStage implements WorkflowStage {
                 if (path == null) {
                     return;
                 }
-                if (!cpuBudget.acquire(config.workers(), control::shouldStopChecking)) {
+                if (!cpuBudget.acquire(
+                        CpuBudget.Priority.CHECKER,
+                        config.workers(),
+                        control::shouldStopChecking)) {
                     return;
                 }
                 try {

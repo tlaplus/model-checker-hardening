@@ -176,7 +176,10 @@ public final class PbtStage implements WorkflowStage {
 
                 var keepInputSlot = false;
                 try {
-                    if (!cpuBudget.acquire(1, control::shouldStopProducing)) {
+                    if (!cpuBudget.acquire(
+                            CpuBudget.Priority.GENERATOR,
+                            1,
+                            control::shouldStopProducing)) {
                         return;
                     }
                     final byte[] input;

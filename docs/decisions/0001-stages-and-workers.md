@@ -64,9 +64,15 @@ A corpus is valid only when the complete current directory layout and every
 configuration table are present. Runs do not migrate older layouts or formats.
 
 Close-aware multi-producer, multi-consumer queues accelerate the input-to-parser
-and parser-to-TLC handoffs. A fair logical CPU budget, configured with
-`run --max-cpus`, bounds simultaneously active work across all stages. Generator
-and parser work reserve one permit. Each TLC invocation reserves
+and parser-to-TLC handoffs. A downstream-priority logical CPU budget, configured
+with `run --max-cpus`, bounds simultaneously active work across all stages. TLC
+has priority over parsing, which has priority over generation. Requests are FIFO
+within one priority. A waiting higher-priority request reserves partially
+available permits until it can start, so smaller upstream requests cannot starve
+a multi-permit checker request. Already-running work is not preempted; strict
+reservation may therefore leave some CPUs briefly idle while permits accumulate.
+
+Generator and parser work reserve one permit. Each TLC invocation reserves
 `workflow.tlc.workers` permits, matching its internal TLC worker count; that
 value defaults to one and must not exceed `--max-cpus`. The number of concurrent
 TLC child processes is `floor(max-cpus / workflow.tlc.workers)`. Stage capacity
@@ -140,4 +146,7 @@ worker but avoids SANY's shared-state races and repeated startup. TLC pays one
 JVM startup per checked input in exchange for isolation and bounded heap use.
 Fan-out doubles storage for parser passes until aggregation is implemented. Disk
 transitions make runs resumable, while queues and the CPU budget remain
-process-local execution optimizations.
+process-local execution optimizations. Downstream priority drains checker
+backlogs before spending more CPU on raw inputs. Generation or parsing may wait
+indefinitely while downstream work remains continuously queued; this starvation
+is intentional.

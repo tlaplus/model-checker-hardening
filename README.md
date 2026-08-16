@@ -153,10 +153,12 @@ The command runs input generation, parsing, and TLC concurrently. Generation and
 parsing maintain up to `--max-cpus` workers; parser workers use persistent
 isolated JVMs. Each TLC input runs in a fresh JVM. A TLC process uses
 `workflow.tlc.workers` internal workers and reserves that many permits from the
-shared fair CPU budget, so at most
+shared downstream-priority CPU budget, so at most
 `floor(max-cpus / workflow.tlc.workers)` TLC processes run concurrently. The TLC
-worker count must not exceed `--max-cpus`. Before starting, FuzzTLA validates the
-corpus, recovers interrupted moves, and completes partial parser fan-outs.
+worker count must not exceed `--max-cpus`. TLC work has priority over parsing,
+which has priority over generation; waiting TLC requests reserve partial CPU
+capacity so upstream work cannot starve them. Before starting, FuzzTLA validates
+the corpus, recovers interrupted moves, and completes partial parser fan-outs.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
