@@ -7,6 +7,13 @@ import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
+import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
+import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
+import io.github.tlaplus.hardening.workflow.input.PbtStage;
+import io.github.tlaplus.hardening.workflow.parser.ParserStage;
+import io.github.tlaplus.hardening.workflow.tlc.TlcStage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -15,7 +22,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-/** Runs input generation and parsing concurrently under one shared CPU budget. */
+/** Runs input generation, parsing, and TLC concurrently under one shared CPU budget. */
 public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 
@@ -70,130 +77,191 @@ public final class WorkflowRunner {
             throw new IllegalArgumentException(
                     "maximumCpus must be in the range 1.." + availableCpus);
         }
+        if (config.workflow().tlc().workers() > maximumCpus) {
+            throw new WorkflowException(
+                    "workflow.tlc.workers must not exceed run --max-cpus");
+        }
 
-        try (var ignored = corpus.acquireLock();
-                var parserScratch = corpus.createParserScratch()) {
-            var initial = corpus.inventory(generator);
-            validateOccupancy(initial);
-
-            var queue = new WorkQueue<Path>();
-            for (var path : initial.inputs()) {
-                queue.submit(path);
-            }
-            var control = new WorkflowControl(queue);
-            var inputCapacity = new Semaphore(
-                    config.workflow().inputs().maximumEntries()
-                            - Math.toIntExact(initial.inputEntries()),
-                    true);
-            var cpuBudget = new CpuBudget(maximumCpus);
-            var parser = new ParserStage(
-                    config.workflow().parser(),
-                    maximumCpus,
-                    Math.toIntExact(initial.parserEntries()),
-                    corpus,
-                    parserScratch.directory(),
-                    generator,
-                    queue,
-                    inputCapacity,
-                    cpuBudget,
-                    control);
-            var pbt = new PbtStage(
-                    config.pbt(),
-                    config.workflow().maximumEntries(),
-                    initial.totalEntries(),
-                    corpus,
-                    generator,
-                    seed,
-                    maximumCpus,
-                    queue,
-                    inputCapacity,
-                    cpuBudget,
-                    control);
-            var progressPhase =
-                    new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
-
-            if ((initial.parserEntries() >= config.workflow().parser().maximumEntries()
-                            && (initial.inputEntries() > 0
-                                    || initial.totalEntries()
-                                            < config.workflow().maximumEntries()))
-                    || (config.workflow().inputs().maximumEntries() == 0
-                            && initial.totalEntries() < config.workflow().maximumEntries())) {
-                control.capacityReached();
-            }
-
-            try (var progress = progressListener == null
-                    ? null
-                    : WorkflowProgressMonitor.start(
-                            PROGRESS_UPDATE_INTERVAL,
-                            () -> progressSnapshot(
-                                    progressPhase.get(), initial, pbt, parser),
-                            progressListener)) {
-                try {
-                    parser.start();
-                    pbt.start();
-                    pbt.await();
-                    parser.await();
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
-                    control.fail(exception);
-                } finally {
-                    pbt.close();
-                    parser.close();
-                }
-
-                if (control.hasFailed()) {
-                    var failure = control.failure();
-                    if (failure instanceof WorkflowException workflowException) {
-                        throw workflowException;
-                    }
-                    throw new WorkflowException(
-                            "workflow stage failed: " + diagnostic(failure), failure);
-                }
-
-                progressPhase.set(WorkflowProgress.Phase.FINALIZING);
-                if (progress != null) {
-                    // Publish the phase transition immediately and leave it visible while the
-                    // final integrity inventory scans the complete corpus.
-                    progress.close();
-                }
-                var result = corpus.inventory(generator);
-                var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
-                        ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
-                        : WorkflowRunSummary.StopReason.COMPLETED;
-                return new WorkflowRunSummary(
-                        stopReason, pbt.summary(), parser.summary(), result);
+        try (var corpusLock = corpus.acquireExclusiveLock()) {
+            try (var parserScratch = corpus.createParserScratch();
+                    var tlcScratch = corpus.createTlcScratch()) {
+                return runStages(
+                        corpus,
+                        seed,
+                        maximumCpus,
+                        parserScratch.directory(),
+                        tlcScratch.directory(),
+                        progressListener);
             }
         }
+    }
+
+    private WorkflowRunSummary runStages(
+            CorpusDirectory corpus,
+            long seed,
+            int maximumCpus,
+            Path parserScratch,
+            Path tlcScratch,
+            Consumer<WorkflowProgress> progressListener)
+            throws IOException, CorpusException, WorkflowException {
+        var initial = corpus.recoverAndValidate(generator);
+        validateOccupancy(initial);
+
+        var parserQueue = new WorkQueue<Path>();
+        initial.inputs().forEach(parserQueue::submit);
+        var tlcQueue = new WorkQueue<Path>();
+        initial.tlcInputs().forEach(tlcQueue::submit);
+        var control = new WorkflowControl(parserQueue, tlcQueue);
+        var inputCapacity = new Semaphore(
+                config.workflow().inputs().maximumEntries()
+                        - Math.toIntExact(initial.inputEntries()),
+                true);
+        var cpuBudget = new CpuBudget(maximumCpus);
+        var parser = new ParserStage(
+                config.workflow().parser(),
+                maximumCpus,
+                Math.toIntExact(initial.parserResultEntries()),
+                corpus,
+                parserScratch,
+                generator,
+                parserQueue,
+                tlcQueue,
+                inputCapacity,
+                cpuBudget,
+                control);
+        var tlc = new TlcStage(
+                config.workflow().tlc(),
+                maximumCpus / config.workflow().tlc().workers(),
+                Math.toIntExact(initial.tlcEntries()),
+                corpus,
+                tlcScratch,
+                generator,
+                tlcQueue,
+                cpuBudget,
+                control);
+        var pbt = new PbtStage(
+                config.pbt(),
+                config.workflow().maximumEntries(),
+                initial.totalEntries(),
+                corpus,
+                generator,
+                seed,
+                maximumCpus,
+                parserQueue,
+                inputCapacity,
+                cpuBudget,
+                control);
+        var progressPhase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
+
+        if (capacityIsAlreadyExhausted(initial)) {
+            control.capacityReached();
+        }
+
+        try (var progress = progressListener == null
+                ? null
+                : WorkflowProgressMonitor.start(
+                        PROGRESS_UPDATE_INTERVAL,
+                        () -> progressSnapshot(
+                                progressPhase.get(), initial, pbt, parser, tlc),
+                        progressListener)) {
+            try {
+                tlc.start();
+                parser.start();
+                pbt.start();
+                pbt.await();
+                parser.await();
+                tlc.await();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                control.fail(exception);
+            } finally {
+                pbt.close();
+                parser.close();
+                tlc.close();
+            }
+
+            throwIfFailed(control);
+            progressPhase.set(WorkflowProgress.Phase.FINALIZING);
+            if (progress != null) {
+                // Keep the phase visible while the final integrity inventory is scanned.
+                progress.close();
+            }
+            var result = corpus.recoverAndValidate(generator);
+            var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
+                    ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
+                    : WorkflowRunSummary.StopReason.COMPLETED;
+            return new WorkflowRunSummary(
+                    stopReason, pbt.summary(), parser.summary(), tlc.summary(), result);
+        }
+    }
+
+    private boolean capacityIsAlreadyExhausted(CorpusInventory initial) {
+        return (initial.tlcEntries() >= config.workflow().tlc().maximumEntries()
+                        && initial.tlcInputEntries() > 0)
+                || (config.workflow().inputs().maximumEntries() == 0
+                        && initial.totalEntries() < config.workflow().maximumEntries());
+    }
+
+    private static void throwIfFailed(WorkflowControl control) throws WorkflowException {
+        if (!control.hasFailed()) {
+            return;
+        }
+        var failure = control.failure();
+        if (failure instanceof WorkflowException workflowException) {
+            throw workflowException;
+        }
+        throw new WorkflowException("workflow stage failed: " + diagnostic(failure), failure);
     }
 
     private static WorkflowProgress progressSnapshot(
             WorkflowProgress.Phase phase,
             CorpusInventory initial,
             PbtStage generator,
-            ParserStage parser) {
+            ParserStage parser,
+            TlcStage tlc) {
         var parserSummary = parser.summary();
+        var tlcSummary = tlc.summary();
         var generatorSummary = generator.summary();
         var corpusEntries = generatorSummary.existing() + generatorSummary.added();
         var observedInputs =
                 initial.inputEntries() + generatorSummary.added() - parserSummary.processed();
-        var remainingInputs = Math.max(0L, Math.min(corpusEntries, observedInputs));
+        var awaitingParser = Math.max(0L, Math.min(corpusEntries, observedInputs));
+        var observedTlcInputs =
+                initial.tlcInputEntries() + parserSummary.passed() - tlcSummary.processed();
+        var awaitingTlc = Math.max(0L, Math.min(corpusEntries, observedTlcInputs));
+        var pendingApalache = Math.max(
+                0L,
+                Math.min(
+                        corpusEntries,
+                        initial.apalacheInputEntries() + parserSummary.passed()));
         return new WorkflowProgress(
                 phase,
-                generatorSummary, parserSummary, corpusEntries, remainingInputs);
+                generatorSummary,
+                parserSummary,
+                tlcSummary,
+                corpusEntries,
+                awaitingParser,
+                awaitingTlc,
+                pendingApalache);
     }
 
     private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
         if (inventory.totalEntries() > config.workflow().maximumEntries()) {
             throw new WorkflowException(
-                    "corpus contains more entries than workflow.maximum_entries");
+                    "corpus contains more entries than workflow.max_entries");
         }
         if (inventory.inputEntries() > config.workflow().inputs().maximumEntries()) {
             throw new WorkflowException(
-                    "00-inputs exceeds workflow.inputs.maximum_entries");
+                    "00-inputs exceeds workflow.inputs.max_entries");
         }
-        if (inventory.parserEntries() > config.workflow().parser().maximumEntries()) {
+        if (inventory.parserResultEntries()
+                > config.workflow().parser().maximumEntries()) {
             throw new WorkflowException(
-                    "parser result directories exceed workflow.parser.maximum_entries");
+                    "parser result directories exceed workflow.parser.max_entries");
+        }
+        if (inventory.tlcEntries() > config.workflow().tlc().maximumEntries()) {
+            throw new WorkflowException(
+                    "TLC result directories exceed workflow.tlc.max_entries");
         }
     }
 

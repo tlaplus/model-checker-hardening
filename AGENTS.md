@@ -1,5 +1,8 @@
 # Repository instructions
 
+This project is under active development. All input and output formats may change
+without notice, backward compatibility, and legacy support.
+
 ## Architecture
 
 Read the relevant documents in [`docs/architecture`](docs/architecture/) before

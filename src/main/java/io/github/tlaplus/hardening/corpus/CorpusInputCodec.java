@@ -6,12 +6,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
+import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -215,15 +218,36 @@ public final class CorpusInputCodec {
             var stageCount = stages == null ? 0 : stages.size();
             var replacing = stages != null && stages.has(metadata.stage());
             generator.writeStartObject(null, stageCount + (replacing ? 0 : 1));
+            var existingMetadata = new HashMap<String, StageMetadata>();
             if (stages != null) {
                 for (java.util.Map.Entry<String, JsonNode> field : stages.properties()) {
-                    if (!metadata.stage().equals(field.getKey())) {
-                        generator.writeFieldName(field.getKey());
-                        generator.writeTree(field.getValue());
+                    var value = field.getValue();
+                    if (value.isObject()
+                            && value.has("verdict")
+                            && value.has("startTime")
+                            && value.has("endTime")) {
+                        readStageMetadata(encoded, field.getKey())
+                                .ifPresent(stage -> existingMetadata.put(stage.stage(), stage));
                     }
                 }
             }
-            writeStageMetadata(generator, metadata);
+            if (stages != null) {
+                for (java.util.Map.Entry<String, JsonNode> field : stages.properties()) {
+                    if (!metadata.stage().equals(field.getKey())) {
+                        var existing = existingMetadata.get(field.getKey());
+                        if (existing == null) {
+                            generator.writeFieldName(field.getKey());
+                            generator.writeTree(field.getValue());
+                        } else {
+                            writeStageMetadata(generator, existing, field.getValue());
+                        }
+                    }
+                }
+            }
+            writeStageMetadata(
+                    generator,
+                    metadata,
+                    stages == null ? null : stages.get(metadata.stage()));
             generator.writeEndObject();
             generator.writeEndObject();
         } catch (IOException exception) {
@@ -314,6 +338,42 @@ public final class CorpusInputCodec {
         return Optional.empty();
     }
 
+    private static Optional<StageMetadata> readStageMetadata(
+            byte[] encoded, String requestedStage) throws CorpusInputFormatException {
+        try (var parser = FACTORY.createParser(encoded)) {
+            parser.nextToken();
+            while (parser.nextToken() != JsonToken.END_OBJECT) {
+                var field = parser.currentName();
+                var value = parser.nextToken();
+                if (!STAGES_FIELD.equals(field)) {
+                    parser.skipChildren();
+                    continue;
+                }
+                if (value != JsonToken.START_OBJECT) {
+                    throw format("field 'stages' must be a map");
+                }
+                while (parser.nextToken() != JsonToken.END_OBJECT) {
+                    var stage = parser.currentName();
+                    var stageValue = parser.nextToken();
+                    if (!requestedStage.equals(stage)) {
+                        parser.skipChildren();
+                        continue;
+                    }
+                    if (stageValue != JsonToken.START_OBJECT) {
+                        throw format("field 'stages." + stage + "' must be a map");
+                    }
+                    return Optional.of(readStageFields(parser, stage));
+                }
+            }
+            return Optional.empty();
+        } catch (CorpusInputFormatException exception) {
+            throw exception;
+        } catch (IOException | IllegalArgumentException exception) {
+            throw new CorpusInputFormatException(
+                    "invalid stage metadata: " + diagnostic(exception), exception);
+        }
+    }
+
     private static void readStages(CBORParser parser, List<StageMetadata> metadata)
             throws IOException {
         var stageNames = new HashSet<String>();
@@ -328,24 +388,17 @@ public final class CorpusInputCodec {
             if (parser.nextToken() != JsonToken.START_OBJECT) {
                 throw format("field 'stages." + stage + "' must be a map");
             }
-            var fields = readStageFields(parser, stage);
-            try {
-                metadata.add(new StageMetadata(
-                        stage, fields.verdict(), fields.startTime(), fields.endTime()));
-            } catch (IllegalArgumentException exception) {
-                throw format("invalid metadata for stage '"
-                        + stage
-                        + "': "
-                        + diagnostic(exception));
-            }
+            metadata.add(readStageFields(parser, stage));
         }
     }
 
-    private static StageFields readStageFields(CBORParser parser, String stage)
+    private static StageMetadata readStageFields(CBORParser parser, String stage)
             throws IOException {
         String verdict = null;
         Instant startTime = null;
         Instant endTime = null;
+        Integer failureCode = null;
+        String failureDetail = null;
         var fields = new HashSet<String>();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             if (!parser.hasToken(JsonToken.FIELD_NAME)) {
@@ -370,6 +423,26 @@ public final class CorpusInputCodec {
                 case "endTime" -> {
                     endTime = readTaggedEpoch(parser, value, stage, field);
                 }
+                case "code" -> {
+                    if (value != JsonToken.VALUE_NUMBER_INT) {
+                        throw format(
+                                "field 'stages." + stage + ".code' must be an integer");
+                    }
+                    try {
+                        failureCode = Math.toIntExact(parser.getLongValue());
+                    } catch (ArithmeticException exception) {
+                        throw format("field 'stages."
+                                + stage
+                                + ".code' is outside the supported integer range");
+                    }
+                }
+                case "detail" -> {
+                    if (value != JsonToken.VALUE_STRING) {
+                        throw format(
+                                "field 'stages." + stage + ".detail' must be a text string");
+                    }
+                    failureDetail = parser.getText();
+                }
                 default -> parser.skipChildren();
             }
         }
@@ -382,7 +455,22 @@ public final class CorpusInputCodec {
         if (endTime == null) {
             throw format("missing field: stages." + stage + ".endTime");
         }
-        return new StageFields(verdict, startTime, endTime);
+        if (failureDetail != null && failureCode == null) {
+            throw format("field 'stages." + stage + ".detail' requires field 'code'");
+        }
+        try {
+            var failure = failureCode == null
+                    ? Optional.<CheckerFailure>empty()
+                    : Optional.of(new CheckerFailure(
+                            CheckerFailureCode.fromEncodedCode(failureCode),
+                            Optional.ofNullable(failureDetail)));
+            return new StageMetadata(stage, verdict, startTime, endTime, failure);
+        } catch (IllegalArgumentException exception) {
+            throw format("invalid metadata for stage '"
+                    + stage
+                    + "': "
+                    + diagnostic(exception));
+        }
     }
 
     private static Instant readTaggedEpoch(
@@ -405,20 +493,58 @@ public final class CorpusInputCodec {
         }
     }
 
-    private record StageFields(String verdict, Instant startTime, Instant endTime) {}
-
     private static void writeStageMetadata(CBORGenerator generator, StageMetadata metadata)
             throws IOException {
+        writeStageMetadata(generator, metadata, null);
+    }
+
+    private static void writeStageMetadata(
+            CBORGenerator generator, StageMetadata metadata, JsonNode previous)
+            throws IOException {
         generator.writeFieldName(metadata.stage());
-        generator.writeStartObject(null, 3);
+        var extraFields = previous == null
+                ? 0
+                : (int) previous.properties().stream()
+                        .filter(field -> !isStageMetadataField(field.getKey()))
+                        .count();
+        var failureFields = metadata.failure()
+                .map(failure -> failure.detail().isPresent() ? 2 : 1)
+                .orElse(0);
+        generator.writeStartObject(null, 3 + failureFields + extraFields);
         generator.writeStringField("verdict", metadata.verdict());
+        if (metadata.failure().isPresent()) {
+            var failure = metadata.failure().orElseThrow();
+            generator.writeNumberField("code", failure.code().encodedCode());
+            if (failure.detail().isPresent()) {
+                generator.writeStringField("detail", failure.detail().orElseThrow());
+            }
+        }
         generator.writeFieldName("startTime");
-        generator.writeTag(1);
-        generator.writeNumber(metadata.startTime().getEpochSecond());
+        writeEpoch(generator, metadata.startTime());
         generator.writeFieldName("endTime");
-        generator.writeTag(1);
-        generator.writeNumber(metadata.endTime().getEpochSecond());
+        writeEpoch(generator, metadata.endTime());
+        if (previous != null) {
+            for (java.util.Map.Entry<String, JsonNode> field : previous.properties()) {
+                if (!isStageMetadataField(field.getKey())) {
+                    generator.writeFieldName(field.getKey());
+                    generator.writeTree(field.getValue());
+                }
+            }
+        }
         generator.writeEndObject();
+    }
+
+    private static boolean isStageMetadataField(String field) {
+        return "verdict".equals(field)
+                || "code".equals(field)
+                || "detail".equals(field)
+                || "startTime".equals(field)
+                || "endTime".equals(field);
+    }
+
+    private static void writeEpoch(CBORGenerator generator, Instant instant) throws IOException {
+        generator.writeTag(1);
+        generator.writeNumber(instant.getEpochSecond());
     }
 
     private static void writeGenerationMetadata(

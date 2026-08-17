@@ -4,16 +4,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
-import io.github.tlaplus.hardening.config.ParserConfig;
+import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.StageConfig;
+import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -27,6 +31,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -36,7 +41,7 @@ class MainTest {
     void printsHelpWhenNoArgumentsAreGiven() {
         var result = execute();
 
-        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertTrue(result.out().contains("Usage: fuzztla"));
         assertTrue(result.out().contains("init"));
         assertTrue(result.out().contains("print"));
@@ -96,21 +101,23 @@ class MainTest {
         assertEquals("", result.err());
         assertEquals(
                 FuzzTlaConfig.defaults(),
-                TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME)));
-        assertTrue(Files.isDirectory(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME)));
-        assertTrue(Files.isDirectory(
-                corpus.resolve(CorpusDirectory.PARSER_PASS_DIRECTORY_NAME)));
-        assertTrue(Files.isDirectory(
-                corpus.resolve(CorpusDirectory.PARSER_FAIL_DIRECTORY_NAME)));
-        assertTrue(Files.isDirectory(
-                corpus.resolve(CorpusDirectory.PARSER_CRASH_DIRECTORY_NAME)));
+                TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.INPUT.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_PASS.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_FAIL.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_CRASH.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.TLC_INPUT.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.TLC_PASS.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.TLC_FAIL.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.TLC_CRASH.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_INPUT.relativePath())));
     }
 
     @Test
     void initializesInsideAnExistingDirectoryWithoutRemovingContents(@TempDir Path directory)
             throws Exception {
         var corpus = directory.resolve("corpus");
-        Files.createDirectories(corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME));
+        Files.createDirectories(corpus.resolve(CorpusPath.INPUT.relativePath()));
         var marker = corpus.resolve("keep-me");
         Files.writeString(marker, "preserved");
 
@@ -118,7 +125,7 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("preserved", Files.readString(marker));
-        assertTrue(Files.isRegularFile(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME)));
+        assertTrue(Files.isRegularFile(corpus.resolve(CorpusPath.CONFIG.relativePath())));
     }
 
     @Test
@@ -192,7 +199,7 @@ class MainTest {
                 "--seed=42",
                 "--max-cpus=1");
 
-        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertEquals("", result.err());
         assertTrue(result.out().startsWith("Random seed: 42" + System.lineSeparator()));
         assertFalse(result.out().contains("Workflow run in progress"));
@@ -205,11 +212,13 @@ class MainTest {
                 .anyMatch(line -> line.matches("\\[\\s+8 generated inputs\\s+]")));
         var entryCount = 0;
         for (var resultDirectory : java.util.List.of(
-                CorpusDirectory.PARSER_PASS_DIRECTORY_NAME,
-                CorpusDirectory.PARSER_FAIL_DIRECTORY_NAME,
-                CorpusDirectory.PARSER_CRASH_DIRECTORY_NAME)) {
-            try (var paths = Files.list(corpus.resolve(resultDirectory))) {
-                for (var entry : paths.toList()) {
+                CorpusPath.APALACHE_INPUT,
+                CorpusPath.PARSER_FAIL,
+                CorpusPath.PARSER_CRASH)) {
+            try (var paths = Files.list(corpus.resolve(resultDirectory.relativePath()))) {
+                for (var entry : paths
+                        .filter(path -> path.getFileName().toString().endsWith(".cbor"))
+                        .toList()) {
                     entryCount++;
                     var encoded = Files.readAllBytes(entry);
                     var corpusInput = CorpusInputCodec.decode(encoded);
@@ -228,10 +237,12 @@ class MainTest {
             }
         }
         assertEquals(8, entryCount);
-        var config = TomlConfig.read(corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME));
+        var config = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath()));
         assertEquals(
                 8,
-                CorpusDirectory.open(corpus).verify(IrGenerators.expressions(config.generator())));
+                CorpusDirectory.openExisting(corpus)
+                        .recoverAndValidate(IrGenerators.expressions(config.generator()))
+                        .totalEntries());
     }
 
     @Test
@@ -273,7 +284,7 @@ class MainTest {
     @Test
     void verifiesExistingEntriesBeforeGenerating(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 3, 16);
-        var inputDirectory = corpus.resolve(CorpusDirectory.INPUT_DIRECTORY_NAME);
+        var inputDirectory = corpus.resolve(CorpusPath.INPUT.relativePath());
         Files.write(inputDirectory.resolve("not-a-hash.cbor"), new byte[] {1});
 
         var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=1");
@@ -406,6 +417,31 @@ class MainTest {
                         "  FALSE",
                         ""),
                 result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void printsCheckerFailureCodeAndDetail(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("metadata.cbor");
+        var startTime = Instant.parse("2026-08-13T14:26:07Z");
+        var encoded = CorpusInputCodec.withStageMetadata(
+                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                new StageMetadata(
+                        "tlc",
+                        "fail",
+                        startTime,
+                        startTime.plusSeconds(2),
+                        Optional.of(new CheckerFailure(
+                                CheckerFailureCode.SPEC_EVAL,
+                                Optional.of("Attempted to apply Head to the empty sequence.")))));
+        Files.write(input, encoded);
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains("    code: 75 (spec_eval)"));
+        assertTrue(result.out().contains(
+                "    detail: Attempted to apply Head to the empty sequence."));
         assertEquals("", result.err());
     }
 
@@ -590,10 +626,11 @@ class MainTest {
                 new WorkflowConfig(
                         entries,
                         new StageConfig(entries),
-                        new ParserConfig(entries, 10)),
+                        new ParserStageConfig(entries, 10),
+                        new TlcStageConfig(entries, 10, 512, 1)),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
         Files.writeString(
-                corpus.resolve(CorpusDirectory.CONFIG_FILE_NAME),
+                corpus.resolve(CorpusPath.CONFIG.relativePath()),
                 TomlConfig.render(config),
                 StandardCharsets.UTF_8);
         return corpus;
@@ -611,9 +648,14 @@ class MainTest {
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
                 [%20s %-18s]
                 [%20s %-18s]
                 [%20s %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
@@ -629,7 +671,11 @@ class MainTest {
                         total,
                         "corpus entries",
                         0,
-                        "remaining inputs",
+                        "awaiting parser",
+                        0,
+                        "awaiting TLC",
+                        total,
+                        "pending Apalache",
                         0,
                         "generated inputs",
                         "n/a",
@@ -652,6 +698,12 @@ class MainTest {
                         "parser failed",
                         0,
                         "parser crashed",
+                        0,
+                        "TLC passed",
+                        0,
+                        "TLC failed",
+                        0,
+                        "TLC crashed",
                         "COMPLETED",
                         "stop reason");
     }

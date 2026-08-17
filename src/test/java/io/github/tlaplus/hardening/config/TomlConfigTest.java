@@ -18,12 +18,14 @@ class TomlConfigTest {
         TomlConfig.writeNew(path, FuzzTlaConfig.defaults());
 
         assertEquals(FuzzTlaConfig.defaults(), TomlConfig.read(path));
-        assertTrue(Files.readString(path).contains("maximum_entries = 1000"));
-        assertTrue(Files.readString(path).contains("timeout_seconds = 30"));
-        assertTrue(Files.readString(path).contains("maximum_nodes = 32"));
+        assertTrue(Files.readString(path).contains("max_entries = 1000"));
+        assertTrue(Files.readString(path).contains("timeout_sec = 30"));
+        assertTrue(Files.readString(path).contains("max_nodes = 32"));
         assertTrue(Files.readString(path)
                 .contains("ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]"));
-        assertTrue(Files.readString(path).contains("maximum_input_bytes = 10240"));
+        assertTrue(Files.readString(path).contains("max_input_bytes = 10240"));
+        assertTrue(Files.readString(path).contains("max_heap_mb = 512"));
+        assertTrue(Files.readString(path).contains("workers = 1"));
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
@@ -66,8 +68,8 @@ class TomlConfigTest {
         var missing = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_nodes = 32\n", ""));
-        assertTrue(missing.getMessage().contains("missing generator keys: maximum_nodes"));
+                        .replace("max_nodes = 32\n", ""));
+        assertTrue(missing.getMessage().contains("missing generator keys: max_nodes"));
 
         var missingIgnore = assertInvalid(
                 directory,
@@ -98,22 +100,18 @@ class TomlConfigTest {
                         .replace("[pbt]", "[not_pbt]"));
         assertTrue(missing.getMessage().contains("missing root keys: pbt"));
 
+        var current = TomlConfig.render(FuzzTlaConfig.defaults());
+        var tlcStart = current.indexOf("[workflow.tlc]");
+        var pbtStart = current.indexOf("[pbt]");
+        var missingTlc = assertInvalid(
+                directory,
+                current.substring(0, tlcStart) + current.substring(pbtStart));
+        assertTrue(missingTlc.getMessage().contains("expected 'tlc' to be a table"));
+
         var unexpected = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults()) + "\n[extra]\nvalue = 1\n");
         assertTrue(unexpected.getMessage().contains("unknown root keys: extra"));
-    }
-
-    @Test
-    void rejectsTheLegacyPbtCorpusTarget(@TempDir Path directory) throws Exception {
-        var legacy = assertInvalid(
-                directory,
-                TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace(
-                                "[pbt]",
-                                "[pbt]\ncorpus_entries = 1000"));
-
-        assertTrue(legacy.getMessage().contains("unknown pbt keys: corpus_entries"));
     }
 
     @Test
@@ -122,14 +120,14 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "# Maximum number of unique entries across every workflow directory.\nmaximum_entries = 1000",
-                                "# Maximum number of unique entries across every workflow directory.\nmaximum_entries = \"many\""));
-        assertTrue(wrongType.getMessage().contains("workflow.maximum_entries"));
+                                "# Maximum number of unique entries across every workflow directory.\nmax_entries = 1000",
+                                "# Maximum number of unique entries across every workflow directory.\nmax_entries = \"many\""));
+        assertTrue(wrongType.getMessage().contains("workflow.max_entries"));
 
         var tooLarge = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_input_bytes = 10240", "maximum_input_bytes = 2147483648"));
+                        .replace("max_input_bytes = 10240", "max_input_bytes = 2147483648"));
         assertTrue(tooLarge.getMessage().contains("outside the supported integer range"));
 
         var wrongRichnessType = assertInvalid(
@@ -169,13 +167,13 @@ class TomlConfigTest {
         var invalidGenerator = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_nodes = 32", "maximum_nodes = 0"));
+                        .replace("max_nodes = 32", "max_nodes = 0"));
         assertTrue(invalidGenerator.getMessage().contains("maximumNodes must be positive"));
 
         var impossibleCorpus = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("maximum_input_bytes = 10240", "maximum_input_bytes = 0"));
+                        .replace("max_input_bytes = 10240", "max_input_bytes = 0"));
         assertTrue(impossibleCorpus.getMessage().contains("distinct bounded inputs"));
 
         var invalidCohorts = assertInvalid(

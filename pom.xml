@@ -29,6 +29,7 @@
 
   <properties>
     <apalache.version>0.61.1-SNAPSHOT</apalache.version>
+    <gson.version>2.14.0</gson.version>
     <jackson.version>2.20.2</jackson.version>
     <junit.version>6.1.3</junit.version>
     <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
@@ -57,6 +58,12 @@
   </repositories>
 
   <dependencies>
+    <!-- The tla2tools snapshot uses its vendored Gson version but omits it from its POM. -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>${gson.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-cbor</artifactId>

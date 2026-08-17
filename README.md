@@ -1,10 +1,14 @@
 # FuzzTLA
 
 [![CI](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml)
+[![Integration](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tlaplus/model-checker-hardening/actions/workflows/integration.yml)
 
 FuzzTLA is work-in-progress on the grant "Hardened Testing of TLA+ Model Checkers" supported by the TLA<sup>+</sup> Foundation.
 
 The project uses Apalache's Java façade for its TLA+ intermediate representation to synthesize TLA+ specifications.
+
+> [!TIP]
+> This project is under active development. Expect plenty of changes and no backwards compatibility in 2026.
 
 ## Requirements
 
@@ -67,38 +71,53 @@ corpus/
 ├── 00-inputs/
 ├── 01parser-pass/
 ├── 01parser-fail/
-└── 01parser-crash/
+├── 01parser-crash/
+├── 02tlc-inputs/
+├── 02tlc-pass/
+├── 02tlc-fail/
+├── 02tlc-crash/
+└── 02apa-inputs/
 ```
 
 The default configuration is:
 
 ```toml
 [generator]
-maximum_type_depth = 3
-maximum_expression_depth = 32
-maximum_nodes = 32
-maximum_collection_size = 8
-maximum_string_bytes = 32
-maximum_integer_bytes = 16
+max_type_depth = 3
+max_expression_depth = 32
+max_nodes = 32
+max_collection_size = 8
+max_string_bytes = 32
+max_integer_bytes = 16
 ignore = ["action", "temporal", "unbound", "exotic"]
 
 [workflow]
 # Maximum number of unique entries across every workflow directory.
-maximum_entries = 1000
+max_entries = 1000
 
 [workflow.inputs]
 # Maximum current occupancy of 00-inputs.
-maximum_entries = 1000
+max_entries = 1000
 
 [workflow.parser]
 # Maximum combined occupancy of the parser result directories.
-maximum_entries = 1000
+max_entries = 1000
 # Wall-clock limit for parsing one generated specification.
-timeout_seconds = 30
+timeout_sec = 30
+
+[workflow.tlc]
+# Maximum combined occupancy of the TLC result directories.
+max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Maximum heap allocated to each isolated TLC JVM.
+max_heap_mb = 512
+# Number of TLC model-checking workers in each isolated JVM.
+workers = 1
 
 [pbt]
 # Inclusive upper bound on a randomly generated input's length.
-maximum_input_bytes = 10240
+max_input_bytes = 10240
 # Number of uniformly selected collection-richness cohorts.
 richness_cohorts = 10
 # Weight multiplier for each level of collection-literal nesting.
@@ -120,8 +139,8 @@ Dependencies are disabled transitively. For example, ignoring `set` also
 removes bounded quantifiers and function values because they require set-valued
 domains. Set `ignore = []` to enable every excludable category. The fixed
 workflow module still uses `Next == UNCHANGED exprValue`; filtering applies to
-the expression copied into `Init` and `Inv`. Every configuration field is
-required.
+the expression copied into `Init` and `Inv`. The current format requires every
+listed field and workflow directory.
 
 Populate the corpus with property-based inputs by running:
 
@@ -130,21 +149,26 @@ Populate the corpus with property-based inputs by running:
 ./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42 --max-cpus=4
 ```
 
-The command runs input generation and parsing concurrently. Both stages maintain
-up to `--max-cpus` workers; parser workers use persistent isolated JVMs. A shared
-fair CPU budget bounds active work across both stages and defaults to all
-available processors. Before starting, FuzzTLA validates every corpus entry and
-recovers interrupted parser moves.
+The command runs input generation, parsing, and TLC concurrently. Generation and
+parsing maintain up to `--max-cpus` workers; parser workers use persistent
+isolated JVMs. Each TLC input runs in a fresh JVM. A TLC process uses
+`workflow.tlc.workers` internal workers and reserves that many permits from the
+shared downstream-priority CPU budget, so at most
+`floor(max-cpus / workflow.tlc.workers)` TLC processes run concurrently. The TLC
+worker count must not exceed `--max-cpus`. TLC work has priority over parsing,
+which has priority over generation; waiting TLC requests reserve partial CPU
+capacity so upstream work cannot starve them. Before starting, FuzzTLA validates
+the corpus, recovers interrupted moves, and completes partial parser fan-outs.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
 updates. After all stage workers stop, the table changes to `FINALIZING` while
 FuzzTLA validates the complete corpus for the final summary.
 
-The workflow tries random byte arrays until `workflow.maximum_entries` unique
+The workflow tries random byte arrays until `workflow.max_entries` unique
 accepted inputs exist across all directories. Lengths are selected from uniformly
 chosen logarithmic buckets—`0..3`, `4..7`, `8..15`, and so on through
-`maximum_input_bytes`—and uniformly within the selected bucket.
+`max_input_bytes`—and uniformly within the selected bucket.
 
 For each missing corpus entry, the input stage uniformly selects one richness
 cohort. Cohort 0 accepts every generated expression. Cohort `c > 0` requires a
@@ -161,9 +185,11 @@ expressions, and duplicate inputs are retried. A failure to fill one cohort afte
 in the diagnostic. The progress table reports candidate attempts, generator
 rejections, richness rejections, and duplicates separately. It also reports the
 minimum, maximum, and average richness of inputs admitted during the current run.
+Stage progress distinguishes inputs awaiting the parser, inputs awaiting TLC,
+and inputs retained for the not-yet-implemented Apalache stage.
 
 The effective nonnegative seed is printed and flushed before corpus access or
-worker startup, and repeated in the final summary on success. The input stage
+worker startup. The input stage
 derives a stable seed for each generator worker, which owns independent cohort
 and candidate streams. Reusing the main seed, configuration, starting corpus, and
 `--max-cpus` reproduces those worker-local streams. Dynamic target claiming,
@@ -172,6 +198,13 @@ corpus. Every stored raw input remains exactly replayable. Entries begin in
 `00-inputs/<sha256>.cbor`; its compact `gen` field records the selected cohort and
 admission-time richness score. The parser preserves this metadata, records tagged
 UTC timestamps and a verdict, and moves the entry to its parser result directory.
+Parser passes are copied to `02tlc-inputs` and `02apa-inputs`; the two files count
+as one logical corpus entry. TLC records `stages.tlc` and moves its copy to the
+matching TLC result directory. TLC runs the fixed `Init`, `Next`, and `Inv`
+configuration with deadlock checking disabled. A violated invariant or another
+non-crash TLC error is a failure. TLC's own exit-status taxonomy distinguishes
+failures from crashes.
+
 Among generator exceptions, only `InputRejectedException` rejects a candidate;
 other failures stop the workflow. An unexpected generator or parser-preparation
 failure preserves the exact input and stack trace under
@@ -180,18 +213,22 @@ These diagnostic files do not count as corpus entries. A crashed parser writes
 `01parser-crash/<sha256>.stacktrace` with the exception stack trace or other
 crash diagnostic.
 
+A crashed TLC invocation similarly writes
+`02tlc-crash/<sha256>.stacktrace`. Parser and TLC temporary files live under
+`<corpus>/.work/{parser,tlc}-tmp` and are removed after the run.
+
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
 ```sh
 ./bin/fuzztla print input.cbor
 ./bin/fuzztla print --corpus=corpus corpus/00-inputs/example.cbor
-./bin/fuzztla print --envelope --corpus=corpus corpus/01parser-pass/example.cbor
+./bin/fuzztla print --envelope --corpus=corpus corpus/02apa-inputs/example.cbor
 ./bin/fuzztla print --spec --corpus=corpus corpus/01parser-crash/example.cbor
 ```
 
 `print` always expects the CBOR envelope described above. By default, it prints
 the generated expression. `--spec` prints the complete specification passed to
-the parser. `--envelope` prints the supported envelope fields as a nested,
+the parser and TLC. `--envelope` prints the supported envelope fields as a nested,
 human-readable listing. Stage timestamps use UTC ISO-8601, and each `endTime`
 includes the elapsed time since its `startTime`. The `input` field appears last,
 rendered as TLA+. Without `--corpus`, the command uses the built-in generator

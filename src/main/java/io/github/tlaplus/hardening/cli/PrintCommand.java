@@ -14,7 +14,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
-import io.github.tlaplus.hardening.workflow.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -33,7 +33,7 @@ import picocli.CommandLine.Spec;
 @Command(
         name = "print",
         description =
-                "Print a TLA+ expression, parser specification, or decoded corpus envelope.")
+                "Print a TLA+ expression, tool specification, or decoded corpus envelope.")
 final class PrintCommand implements Callable<Integer> {
     @Option(
             names = {"-h", "--help"},
@@ -62,7 +62,7 @@ final class PrintCommand implements Callable<Integer> {
             generator = IrGenerators.expressions();
         } else {
             try {
-                var config = CorpusDirectory.open(corpus).readConfig();
+                var config = CorpusDirectory.openExisting(corpus).readConfig();
                 generator = IrGenerators.expressions(config.generator());
             } catch (IOException | ConfigException | CorpusException exception) {
                 spec.commandLine()
@@ -172,6 +172,17 @@ final class PrintCommand implements Callable<Integer> {
             for (var stage : envelope.stages()) {
                 output.append("  ").append(stage.stage()).append(":").append(newline);
                 output.append("    verdict: ").append(stage.verdict()).append(newline);
+                stage.failure().ifPresent(failure -> {
+                    output.append("    code: ")
+                            .append(failure.code().encodedCode())
+                            .append(" (")
+                            .append(failure.code().symbol())
+                            .append(")")
+                            .append(newline);
+                    failure.detail().ifPresent(detail -> output.append("    detail: ")
+                            .append(detail)
+                            .append(newline));
+                });
                 output.append("    startTime: ").append(stage.startTime()).append(newline);
                 output.append("    endTime: ")
                         .append(stage.endTime())
@@ -218,7 +229,7 @@ final class PrintCommand implements Callable<Integer> {
     private static final class OutputMode {
         @Option(
                 names = "--spec",
-                description = "Print the complete specification passed to the parser.")
+                description = "Print the complete specification passed to the parser and the model checkers.")
         private boolean specification;
 
         @Option(

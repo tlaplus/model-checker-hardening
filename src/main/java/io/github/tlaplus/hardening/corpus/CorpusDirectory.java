@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -22,107 +23,109 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
-/** Owns the on-disk layout and integrity checks for one FuzzTLA corpus. */
+/**
+ * Owns the on-disk layout and integrity checks for one FuzzTLA corpus.
+ *
+ * <p>A {@code CorpusDirectory} is a path handle, not an open operating-system resource. Use it in
+ * one of these flows:
+ *
+ * <p><strong>Initialization</strong>
+ *
+ * <ol>
+ *   <li>Call {@link #initialize(Path)} once to create the required layout and default
+ *       configuration.
+ * </ol>
+ *
+ * <p><strong>Read-only access</strong>
+ *
+ * <ol>
+ *   <li>Call {@link #openExisting(Path)} to check the fixed corpus layout.
+ *   <li>Call {@link #readConfig()} and perform the required read-only operation.
+ * </ol>
+ *
+ * <p><strong>Workflow run</strong>
+ *
+ * <ol>
+ *   <li>Call {@link #openExisting(Path)}, then {@link #readConfig()} and construct the
+ *       corresponding generator.
+ *   <li>Acquire {@link #acquireExclusiveLock()} and hold the returned {@link CorpusLock} for the
+ *       remainder of the run.
+ *   <li>Create the stage scratch directories while holding the lock.
+ *   <li>Call {@link #recoverAndValidate(Generator)} to finish interrupted transitions, validate
+ *       every entry, and obtain the initial {@link CorpusInventory}.
+ *   <li>Run the stages and keep the lock held for all corpus mutations.
+ *   <li>Close the scratch handles, then the corpus lock.
+ * </ol>
+ *
+ * <p>{@code openExisting} performs only the bounded layout check. It neither scans entries nor
+ * changes the corpus. Recovery requires a generator derived from the corpus configuration, scans
+ * the complete corpus, and may move entries; it therefore belongs inside the locked workflow
+ * run.
+ */
 public final class CorpusDirectory {
-    public static final String CONFIG_FILE_NAME = "config.toml";
-    public static final String INPUT_DIRECTORY_NAME = "00-inputs";
-    public static final String PARSER_PASS_DIRECTORY_NAME = "01parser-pass";
-    public static final String PARSER_FAIL_DIRECTORY_NAME = "01parser-fail";
-    public static final String PARSER_CRASH_DIRECTORY_NAME = "01parser-crash";
-    public static final String PARSER_CRASH_REPORT_EXTENSION = ".stacktrace";
-    public static final String GENERATOR_CRASH_REPORT_EXTENSION = ".stacktrace";
+    public static final String CRASH_REPORT_EXTENSION = ".stacktrace";
 
-    private static final String WORK_DIRECTORY_NAME = ".work";
-    private static final String GENERATOR_CRASH_DIRECTORY_NAME = "generator-crash";
-    private static final String PARSER_SCRATCH_DIRECTORY_NAME = "parser-tmp";
-    private static final String LOCK_FILE_NAME = ".workflow.lock";
-    private static final String PARSER_STAGE_NAME = "parser";
     private static final Pattern INPUT_FILE_NAME = Pattern.compile("([0-9a-f]{64})\\.cbor");
-    private static final Pattern PARSER_CRASH_REPORT_FILE_NAME =
+    private static final Pattern CRASH_REPORT_FILE_NAME =
             Pattern.compile("([0-9a-f]{64})\\.stacktrace");
     private static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
 
-    private final Path root;
-    private final Path configFile;
-    private final Path inputDirectory;
-    private final Path parserPassDirectory;
-    private final Path parserFailDirectory;
-    private final Path parserCrashDirectory;
-    private final Path workDirectory;
-    private final Path generatorCrashDirectory;
-    private final Path parserScratchDirectory;
-    private final Path lockFile;
-    private final List<Path> stageDirectories;
-    private final Map<String, Path> parserDestinations;
+    private final EnumMap<CorpusPath, Path> paths;
 
     private CorpusDirectory(Path root) {
-        this.root = root.toAbsolutePath().normalize();
-        this.configFile = this.root.resolve(CONFIG_FILE_NAME);
-        this.inputDirectory = this.root.resolve(INPUT_DIRECTORY_NAME);
-        this.parserPassDirectory = this.root.resolve(PARSER_PASS_DIRECTORY_NAME);
-        this.parserFailDirectory = this.root.resolve(PARSER_FAIL_DIRECTORY_NAME);
-        this.parserCrashDirectory = this.root.resolve(PARSER_CRASH_DIRECTORY_NAME);
-        this.workDirectory = this.root.resolve(WORK_DIRECTORY_NAME);
-        this.generatorCrashDirectory = this.workDirectory.resolve(GENERATOR_CRASH_DIRECTORY_NAME);
-        this.parserScratchDirectory =
-                this.workDirectory.resolve(PARSER_SCRATCH_DIRECTORY_NAME);
-        this.lockFile = this.root.resolve(LOCK_FILE_NAME);
-        this.stageDirectories = List.of(
-                inputDirectory,
-                parserPassDirectory,
-                parserFailDirectory,
-                parserCrashDirectory);
-        this.parserDestinations = Map.of(
-                "pass", parserPassDirectory,
-                "fail", parserFailDirectory,
-                "crashed", parserCrashDirectory);
+        var normalizedRoot = root.toAbsolutePath().normalize();
+        paths = new EnumMap<>(CorpusPath.class);
+        for (var corpusPath : CorpusPath.values()) {
+            paths.put(corpusPath, normalizedRoot.resolve(corpusPath.relativePath()).normalize());
+        }
     }
 
     /** Initializes the complete workflow layout without overwriting an existing config. */
     public static CorpusDirectory initialize(Path root) throws IOException, CorpusException {
         Objects.requireNonNull(root, "root");
         var corpus = new CorpusDirectory(root);
-        if (Files.exists(corpus.root, NO_FOLLOW_LINKS)
-                && !Files.isDirectory(corpus.root, NO_FOLLOW_LINKS)) {
+        var corpusRoot = corpus.resolve(CorpusPath.ROOT);
+        var config = corpus.resolve(CorpusPath.CONFIG);
+        if (Files.exists(corpusRoot, NO_FOLLOW_LINKS)
+                && !Files.isDirectory(corpusRoot, NO_FOLLOW_LINKS)) {
             throw new CorpusException("corpus path is not a directory: " + root);
         }
-        if (Files.exists(corpus.configFile, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("configuration already exists: " + corpus.configFile);
+        if (Files.exists(config, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("configuration already exists: " + config);
         }
+        corpus.validateExistingDirectoryPaths(corpus.requiredDirectories());
 
-        for (var directory : corpus.allRequiredDirectories()) {
-            if (Files.exists(directory, NO_FOLLOW_LINKS)
-                    && !Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
-                throw new CorpusException("workflow path is not a directory: " + directory);
-            }
-        }
-
-        Files.createDirectories(corpus.root);
-        for (var directory : corpus.allRequiredDirectories()) {
+        for (var directory : corpus.requiredDirectories()) {
             Files.createDirectories(directory);
         }
-        TomlConfig.writeNew(corpus.configFile, FuzzTlaConfig.defaults());
+        TomlConfig.writeNew(config, FuzzTlaConfig.defaults());
         return corpus;
     }
 
     /** Opens an initialized corpus and checks every required workflow path. */
-    public static CorpusDirectory open(Path root) throws CorpusException {
+    public static CorpusDirectory openExisting(Path root) throws CorpusException {
         Objects.requireNonNull(root, "root");
         var corpus = new CorpusDirectory(root);
-        if (!Files.isDirectory(corpus.root, NO_FOLLOW_LINKS)) {
+        var corpusRoot = corpus.resolve(CorpusPath.ROOT);
+        var config = corpus.resolve(CorpusPath.CONFIG);
+        if (!Files.isDirectory(corpusRoot, NO_FOLLOW_LINKS)) {
             throw new CorpusException("corpus directory does not exist: " + root);
         }
-        if (!Files.isRegularFile(corpus.configFile, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("configuration file does not exist: " + corpus.configFile);
+        if (!Files.isRegularFile(config, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("configuration file does not exist: " + config);
         }
-        for (var directory : corpus.allRequiredDirectories()) {
+        for (var directory : corpus.requiredDirectories()) {
             if (!Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
                 throw new CorpusException("workflow directory does not exist: " + directory);
             }
@@ -132,127 +135,153 @@ public final class CorpusDirectory {
 
     /** Reads the strict TOML configuration belonging to this corpus. */
     public FuzzTlaConfig readConfig() throws IOException, ConfigException {
-        return TomlConfig.read(configFile);
+        return TomlConfig.read(resolve(CorpusPath.CONFIG));
     }
 
     /** Acquires the process-wide exclusive lock for this corpus. */
-    public CorpusLock acquireLock() throws IOException, CorpusException {
+    public CorpusLock acquireExclusiveLock() throws IOException, CorpusException {
         var channel = FileChannel.open(
-                lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                resolve(CorpusPath.LOCK), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         try {
             var lock = channel.tryLock();
             if (lock == null) {
                 channel.close();
-                throw new CorpusException("corpus is already in use: " + root);
+                throw new CorpusException(
+                        "corpus is already in use: " + resolve(CorpusPath.ROOT));
             }
             return new CorpusLock(channel, lock);
         } catch (OverlappingFileLockException exception) {
             channel.close();
-            throw new CorpusException("corpus is already in use: " + root, exception);
+            throw new CorpusException(
+                    "corpus is already in use: " + resolve(CorpusPath.ROOT), exception);
         } catch (IOException | RuntimeException exception) {
             channel.close();
             throw exception;
         }
     }
 
-    /**
-     * Creates the transient parser scratch area for one workflow invocation.
-     *
-     * <p>The caller must hold the corpus lock for the lifetime of the returned handle. Any stale
-     * parser scratch data from an interrupted invocation is removed before the new run directory
-     * is created.
-     */
-    public synchronized ParserScratch createParserScratch()
+    /** Creates transient parser storage for one locked workflow invocation. */
+    public synchronized StageScratch createParserScratch()
             throws IOException, CorpusException {
-        if (Files.exists(parserScratchDirectory, NO_FOLLOW_LINKS)
-                && !Files.isDirectory(parserScratchDirectory, NO_FOLLOW_LINKS)) {
-            throw new CorpusException(
-                    "parser scratch path is not a directory: " + parserScratchDirectory);
-        }
-
-        return ParserScratch.create(parserScratchDirectory);
+        return createScratch(CorpusStageLayout.PARSER);
     }
 
-    /**
-     * Recovers completed parser transitions, then validates and counts every corpus entry.
-     */
-    public synchronized CorpusInventory inventory(Generator<?> generator)
+    /** Creates transient TLC storage for one locked workflow invocation. */
+    public synchronized StageScratch createTlcScratch()
+            throws IOException, CorpusException {
+        return createScratch(CorpusStageLayout.TLC);
+    }
+
+    /** Recovers durable transitions and returns a validated snapshot of the corpus. */
+    public synchronized CorpusInventory recoverAndValidate(Generator<?> generator)
             throws IOException, CorpusException {
         Objects.requireNonNull(generator, "generator");
-        recoverParserTransitions(generator);
 
-        var names = new HashSet<String>();
-        var parserCrashEntries = new HashSet<String>();
-        var parserCrashReports = new HashSet<String>();
+        // Finish durable transitions before inspecting the steady-state directories.
+        recoverTransitions(CorpusStageLayout.PARSER, generator);
+        recoverTransitions(CorpusStageLayout.TLC, generator);
+        fanOutParserPasses();
+
+        var logicalNames = new HashSet<String>();
         var inputs = new ArrayList<Path>();
-        long parserPass = 0;
-        long parserFail = 0;
-        long parserCrash = 0;
+        var tlcInputs = new ArrayList<Path>();
+        var parserResultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+        var tlcResultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
 
-        for (var directory : stageDirectories) {
-            try (var paths = Files.list(directory)) {
-                for (var path : paths.sorted().toList()) {
-                    var name = path.getFileName().toString();
-                    if (directory.equals(parserCrashDirectory)) {
-                        var reportMatcher = PARSER_CRASH_REPORT_FILE_NAME.matcher(name);
-                        if (reportMatcher.matches()) {
-                            if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
-                                throw new CorpusException(
-                                        "parser crash report is not a regular file: " + path);
-                            }
-                            parserCrashReports.add(reportMatcher.group(1));
-                            continue;
-                        }
-                    }
+        // Validate inputs that are still waiting for the parser.
+        for (var path : entryPaths(resolve(CorpusPath.INPUT))) {
+            var entry = verifyPath(path, generator);
+            requireMissingStage(
+                    entry.path(), entry.encoded(), CorpusStageLayout.PARSER);
+            requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
+            addLogicalName(logicalNames, path);
+            inputs.add(path);
+        }
 
-                    var entry = verifyPath(path, generator);
-                    if (!names.add(name)) {
-                        throw new CorpusException(
-                                "corpus entry appears in multiple workflow directories: " + name);
-                    }
+        // Parser passes must be fanned out; only failures and crashes remain here.
+        if (!entryPaths(resolve(CorpusPath.PARSER_PASS)).isEmpty()) {
+            throw new CorpusException(
+                    "parser pass directory was not drained during checker fan-out");
+        }
 
-                    var parserVerdict = stageVerdict(path, entry.encoded());
-                    if (directory.equals(inputDirectory)) {
-                        if (parserVerdict.isPresent()) {
-                            throw new CorpusException(
-                                    "completed parser entry remains in input directory: " + path);
-                        }
-                        inputs.add(path);
-                    } else {
-                        var expected = expectedVerdict(directory);
-                        if (parserVerdict.isEmpty()
-                                || !expected.equals(parserVerdict.orElseThrow())) {
-                            throw new CorpusException(
-                                    "parser verdict does not match workflow directory: " + path);
-                        }
-                        if (directory.equals(parserPassDirectory)) {
-                            parserPass++;
-                        } else if (directory.equals(parserFailDirectory)) {
-                            parserFail++;
-                        } else {
-                            parserCrash++;
-                            parserCrashEntries.add(name);
-                        }
-                    }
-                }
+        for (var verdict : CorpusVerdict.values()) {
+            if (verdict == CorpusVerdict.PASS) {
+                continue;
+            }
+            var count = visitResultEntries(
+                    CorpusStageLayout.PARSER,
+                    verdict,
+                    generator,
+                    entry -> {
+                        requireMissingStage(
+                                entry.path(), entry.encoded(), CorpusStageLayout.TLC);
+                        addLogicalName(logicalNames, entry.path());
+                    });
+            parserResultCounts.put(verdict, count);
+        }
+
+        // Validate the TLC branch and distinguish pending inputs from completed results.
+        var tlcBranch = new HashMap<String, Entry>();
+        for (var path : entryPaths(resolve(CorpusPath.TLC_INPUT))) {
+            var entry = verifyPath(path, generator);
+            requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+            requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
+            addTlcBranch(tlcBranch, logicalNames, entry);
+            tlcInputs.add(path);
+        }
+        for (var verdict : CorpusVerdict.values()) {
+            var count = visitResultEntries(
+                    CorpusStageLayout.TLC,
+                    verdict,
+                    generator,
+                    entry -> {
+                        requireStageVerdict(
+                                entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+                        addTlcBranch(tlcBranch, logicalNames, entry);
+                    });
+            tlcResultCounts.put(verdict, count);
+        }
+
+        // Collect the corresponding parser outputs waiting for Apalache.
+        var apalacheBranch = new HashMap<String, Entry>();
+        for (var path : entryPaths(resolve(CorpusPath.APALACHE_INPUT))) {
+            var entry = verifyPath(path, generator);
+            requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+            requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
+            var previous = apalacheBranch.put(path.getFileName().toString(), entry);
+            if (previous != null) {
+                throw new CorpusException("duplicate Apalache input: " + path.getFileName());
             }
         }
 
-        for (var digest : parserCrashReports) {
-            if (!parserCrashEntries.contains(digest + ".cbor")) {
-                throw new CorpusException(
-                        "parser crash report has no matching corpus entry: "
-                                + parserCrashDirectory.resolve(
-                                        digest + PARSER_CRASH_REPORT_EXTENSION));
-            }
+        // Require both checker branches to contain identical parser outputs.
+        if (!tlcBranch.keySet().equals(apalacheBranch.keySet())) {
+            var onlyTlc = new HashSet<>(tlcBranch.keySet());
+            onlyTlc.removeAll(apalacheBranch.keySet());
+            var onlyApalache = new HashSet<>(apalacheBranch.keySet());
+            onlyApalache.removeAll(tlcBranch.keySet());
+            throw new CorpusException(
+                    "checker branches are inconsistent; only TLC="
+                            + onlyTlc
+                            + ", only Apalache="
+                            + onlyApalache);
+        }
+        for (var name : tlcBranch.keySet()) {
+            requireSameParserOutput(name, tlcBranch.get(name), apalacheBranch.get(name));
         }
 
-        return new CorpusInventory(inputs, parserPass, parserFail, parserCrash);
-    }
-
-    /** Verifies the complete corpus and returns its total unique-entry count. */
-    public long verify(Generator<?> generator) throws IOException, CorpusException {
-        return inventory(generator).totalEntries();
+        // Publish counts only after the entire corpus has passed validation.
+        var parserPass = tlcBranch.size();
+        return new CorpusInventory(
+                inputs,
+                tlcInputs,
+                parserPass,
+                parserResultCounts.get(CorpusVerdict.FAIL),
+                parserResultCounts.get(CorpusVerdict.CRASH),
+                tlcResultCounts.get(CorpusVerdict.PASS),
+                tlcResultCounts.get(CorpusVerdict.FAIL),
+                tlcResultCounts.get(CorpusVerdict.CRASH),
+                apalacheBranch.size());
     }
 
     /** Stores an expression input under its payload digest in {@code 00-inputs}. */
@@ -270,7 +299,11 @@ public final class CorpusDirectory {
             throws IOException, CorpusException {
         var payload = Objects.requireNonNull(input, "input").clone();
         var fileName = hash(payload) + ".cbor";
-        for (var directory : stageDirectories) {
+        for (var corpusPath : CorpusPath.values()) {
+            if (!corpusPath.storesEntries()) {
+                continue;
+            }
+            var directory = resolve(corpusPath);
             var existingPath = directory.resolve(fileName);
             if (Files.exists(existingPath, NO_FOLLOW_LINKS)) {
                 if (Files.isRegularFile(existingPath, NO_FOLLOW_LINKS)) {
@@ -280,12 +313,11 @@ public final class CorpusDirectory {
                         return StoreResult.DUPLICATE;
                     }
                 }
-                throw new CorpusException(
-                        "SHA-256 collision at corpus entry: " + existingPath);
+                throw new CorpusException("SHA-256 collision at corpus entry: " + existingPath);
             }
         }
 
-        var path = inputDirectory.resolve(fileName);
+        var path = resolve(CorpusPath.INPUT).resolve(fileName);
         var encoded = generation == null
                 ? CorpusInputCodec.encode(CorpusInput.expression(payload))
                 : CorpusInputCodec.encode(CorpusInput.expression(payload), generation);
@@ -297,12 +329,7 @@ public final class CorpusDirectory {
         }
     }
 
-    /**
-     * Preserves an input that caused an unexpected generator failure and its stack trace.
-     *
-     * <p>The diagnostic copy is not a workflow entry and is excluded from inventory and capacity
-     * accounting. Repeated failures for the same input replace the previous diagnostic.
-     */
+    /** Preserves an input and stack trace for an unexpected generator failure. */
     public synchronized Path recordGeneratorCrash(byte[] input, Throwable failure)
             throws IOException, CorpusException {
         var payload = Objects.requireNonNull(input, "input").clone();
@@ -310,12 +337,12 @@ public final class CorpusDirectory {
         ensureGeneratorCrashDirectory();
 
         var digest = hash(payload);
-        var candidate = generatorCrashDirectory.resolve(digest + ".cbor");
-        var report = generatorCrashDirectory.resolve(digest + GENERATOR_CRASH_REPORT_EXTENSION);
+        var crashDirectory = resolve(CorpusPath.GENERATOR_CRASH);
+        var candidate = crashDirectory.resolve(digest + ".cbor");
+        var report = crashDirectory.resolve(digest + CRASH_REPORT_EXTENSION);
         replaceAtomically(candidate, CorpusInputCodec.encode(CorpusInput.expression(payload)));
         try {
-            replaceAtomically(
-                    report, stackTrace(failure).getBytes(StandardCharsets.UTF_8));
+            replaceAtomically(report, stackTrace(failure).getBytes(StandardCharsets.UTF_8));
         } catch (IOException exception) {
             throw new CorpusException(
                     "generator crash candidate was saved to '"
@@ -328,28 +355,28 @@ public final class CorpusDirectory {
 
     /** Returns the canonical input-stage path for the supplied payload. */
     public Path inputPath(byte[] input) {
-        return inputDirectory.resolve(hash(Objects.requireNonNull(input, "input")) + ".cbor");
+        return resolve(CorpusPath.INPUT)
+                .resolve(hash(Objects.requireNonNull(input, "input")) + ".cbor");
     }
 
-    /** Reads and validates the required expression payload from one claimed input entry. */
+    /** Reads an entry owned by the parser's input directory. */
     public synchronized byte[] readExpressionInput(Path path) throws IOException, CorpusException {
-        requireInputPath(path);
-        return decodeExpressionInput(path, Files.readAllBytes(path));
+        return readOwnedExpressionInput(path, CorpusStageLayout.PARSER);
     }
 
-    /** Records a parser result and moves the input to its result directory. */
+    /** Reads an entry owned by the TLC input directory. */
+    public synchronized byte[] readTlcExpressionInput(Path path)
+            throws IOException, CorpusException {
+        return readOwnedExpressionInput(path, CorpusStageLayout.TLC);
+    }
+
     public synchronized Path completeParser(
             Path source, String verdict, Instant startTime, Instant endTime)
             throws IOException, CorpusException {
         return completeParser(source, verdict, startTime, endTime, "");
     }
 
-    /**
-     * Records a parser result, preserving a crash diagnostic beside crashed inputs.
-     *
-     * <p>The diagnostic is ignored for non-crash verdicts. Crash reports are staged before the
-     * CBOR metadata commit so an interrupted transition can be completed during inventory.
-     */
+    /** Records a parser result and atomically moves it to its result directory. */
     public synchronized Path completeParser(
             Path source,
             String verdict,
@@ -357,47 +384,136 @@ public final class CorpusDirectory {
             Instant endTime,
             String diagnostic)
             throws IOException, CorpusException {
-        requireInputPath(source);
+        return completeStage(
+                source,
+                CorpusStageLayout.PARSER,
+                verdict,
+                startTime,
+                endTime,
+                Optional.empty(),
+                diagnostic);
+    }
+
+    /** Copies one parser pass into both checker branches, then removes the fan-out source. */
+    public synchronized Path fanOutParserPass(Path source) throws IOException, CorpusException {
+        requireOwnedPath(source, CorpusPath.PARSER_PASS, "parser pass");
+        var encoded = Files.readAllBytes(source);
+        var entry = decodeEntry(source, encoded);
+        requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+        requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
+
+        var tlcDestination = resolve(CorpusPath.TLC_INPUT).resolve(source.getFileName());
+        var apalacheDestination = resolve(CorpusPath.APALACHE_INPUT).resolve(source.getFileName());
+        installBranchCopy(source, encoded, tlcDestination);
+        installBranchCopy(source, encoded, apalacheDestination);
+        Files.delete(source);
+        return tlcDestination;
+    }
+
+    /** Records a TLC result and atomically moves it to its result directory. */
+    public synchronized Path completeTlc(
+            Path source,
+            String verdict,
+            Instant startTime,
+            Instant endTime,
+            Optional<CheckerFailure> failure,
+            String diagnostic)
+            throws IOException, CorpusException {
+        return completeStage(
+                source,
+                CorpusStageLayout.TLC,
+                verdict,
+                startTime,
+                endTime,
+                failure,
+                diagnostic);
+    }
+
+    /** Resolves a fixed corpus location. */
+    public Path resolve(CorpusPath corpusPath) {
+        return paths.get(Objects.requireNonNull(corpusPath, "corpusPath"));
+    }
+
+    private StageScratch createScratch(CorpusStageLayout stage)
+            throws IOException, CorpusException {
+        var directory = resolve(stage.scratch());
+        if (Files.exists(directory, NO_FOLLOW_LINKS)
+                && !Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
+            throw new CorpusException(
+                    stage.displayName() + " scratch path is not a directory: " + directory);
+        }
+        return StageScratch.create(directory);
+    }
+
+    private Path completeStage(
+            Path source,
+            CorpusStageLayout stage,
+            String verdict,
+            Instant startTime,
+            Instant endTime,
+            Optional<CheckerFailure> failure,
+            String diagnostic)
+            throws IOException, CorpusException {
+        // Validate the requested transition and resolve its result path before changing the corpus.
+        requireOwnedPath(source, stage.input(), stage.displayName() + " input");
+        Objects.requireNonNull(failure, "failure");
         Objects.requireNonNull(diagnostic, "diagnostic");
-        var destinationDirectory = parserDestinations.get(verdict);
-        if (destinationDirectory == null) {
-            throw new IllegalArgumentException("unsupported parser verdict: " + verdict);
+        final CorpusVerdict corpusVerdict;
+        try {
+            corpusVerdict = CorpusVerdict.fromEncodedName(verdict);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(
+                    "unsupported " + stage.displayName() + " verdict: " + verdict, exception);
         }
         var encoded = Files.readAllBytes(source);
-        decodeExpressionInput(source, encoded);
+        var entry = decodeEntry(source, encoded);
+        requireMissingStage(entry.path(), entry.encoded(), stage);
+        var destinationDirectory = resolve(stage.result(corpusVerdict));
         var destination = destinationDirectory.resolve(source.getFileName());
         if (Files.exists(destination, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("parser destination already exists: " + destination);
+            throw new CorpusException(
+                    stage.displayName() + " destination already exists: " + destination);
         }
 
+        // A crash transition also owns a sidecar that must move with the corpus entry.
         Path stagedCrashReport = null;
         Path crashReportDestination = null;
-        if ("crashed".equals(verdict)) {
+        if (corpusVerdict == CorpusVerdict.CRASH) {
             var reportName = crashReportName(source);
-            stagedCrashReport = workDirectory.resolve(reportName);
-            crashReportDestination = parserCrashDirectory.resolve(reportName);
+            stagedCrashReport = stagedCrashReport(stage, reportName);
+            crashReportDestination = resolve(stage.result(CorpusVerdict.CRASH)).resolve(reportName);
             if (Files.exists(crashReportDestination, NO_FOLLOW_LINKS)) {
                 throw new CorpusException(
-                        "parser crash report already exists: " + crashReportDestination);
+                        stage.displayName()
+                                + " crash report already exists: "
+                                + crashReportDestination);
             }
         }
 
+        // Prepare the updated envelope before committing either artifact.
         final byte[] updated;
         try {
             updated = CorpusInputCodec.withStageMetadata(
                     encoded,
-                    new StageMetadata(PARSER_STAGE_NAME, verdict, startTime, endTime));
+                    new StageMetadata(
+                            stage.metadataName(),
+                            corpusVerdict.encodedName(),
+                            startTime,
+                            endTime,
+                            failure));
         } catch (CorpusInputFormatException exception) {
             throw new CorpusException(
                     "invalid CBOR corpus entry: " + source + ": " + diagnostic(exception),
                     exception);
         }
 
-        var temporary = Files.createTempFile(workDirectory, "parser-", ".cbor");
+        // Commit metadata first; recovery can then finish the sidecar and directory moves.
+        var temporary = Files.createTempFile(
+                resolve(CorpusPath.WORK), stage.metadataName() + "-", ".cbor");
         var metadataCommitted = false;
         try {
             if (stagedCrashReport != null) {
-                stageCrashReport(stagedCrashReport, diagnostic);
+                stageCrashReport(stagedCrashReport, diagnostic, stage.displayName());
             }
             Files.write(
                     temporary,
@@ -419,6 +535,7 @@ public final class CorpusDirectory {
             Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
             return destination;
         } finally {
+            // Preserve a staged sidecar only when committed metadata makes it recoverable.
             Files.deleteIfExists(temporary);
             if (!metadataCommitted && stagedCrashReport != null) {
                 Files.deleteIfExists(stagedCrashReport);
@@ -426,72 +543,310 @@ public final class CorpusDirectory {
         }
     }
 
-    public Path root() {
-        return root;
-    }
-
-    public Path inputDirectory() {
-        return inputDirectory;
-    }
-
-    public Path parserPassDirectory() {
-        return parserPassDirectory;
-    }
-
-    public Path parserFailDirectory() {
-        return parserFailDirectory;
-    }
-
-    public Path parserCrashDirectory() {
-        return parserCrashDirectory;
-    }
-
-    public Path generatorCrashDirectory() {
-        return generatorCrashDirectory;
-    }
-
-    private List<Path> allRequiredDirectories() {
-        var result = new ArrayList<>(stageDirectories);
-        result.add(workDirectory);
-        return result;
-    }
-
-    /** Finishes the second half of an interrupted metadata-then-move transaction. */
-    private void recoverParserTransitions(Generator<?> generator)
+    private void recoverTransitions(CorpusStageLayout stage, Generator<?> generator)
             throws IOException, CorpusException {
-        try (var paths = Files.list(inputDirectory)) {
-            for (var path : paths.sorted().toList()) {
-                var entry = verifyPath(path, generator);
-                var verdict = stageVerdict(path, entry.encoded());
-                if (verdict.isPresent()) {
-                    var destinationDirectory = parserDestinations.get(verdict.orElseThrow());
-                    if (destinationDirectory == null) {
-                        throw new CorpusException(
-                                "unknown parser verdict in corpus entry: " + path);
-                    }
-                    var destination = destinationDirectory.resolve(path.getFileName());
-                    if (Files.exists(destination, NO_FOLLOW_LINKS)) {
-                        throw new CorpusException(
-                                "cannot recover duplicate parser entry: " + destination);
-                    }
-                    if ("crashed".equals(verdict.orElseThrow())) {
-                        recoverCrashReport(path);
-                    }
-                    Files.move(path, destination, StandardCopyOption.ATOMIC_MOVE);
-                }
+        for (var path : entryPaths(resolve(stage.input()))) {
+            var entry = verifyPath(path, generator);
+            var encodedVerdict = stageVerdict(entry.path(), entry.encoded(), stage);
+            if (encodedVerdict.isEmpty()) {
+                continue;
             }
+            final CorpusVerdict verdict;
+            try {
+                verdict = CorpusVerdict.fromEncodedName(encodedVerdict.orElseThrow());
+            } catch (IllegalArgumentException exception) {
+                throw new CorpusException(
+                        "unknown "
+                                + stage.metadataName()
+                                + " verdict in corpus entry: "
+                                + entry.path(),
+                        exception);
+            }
+            var destination = resolve(stage.result(verdict)).resolve(entry.path().getFileName());
+            if (Files.exists(destination, NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        "cannot recover duplicate "
+                                + stage.metadataName()
+                                + " entry: "
+                                + destination);
+            }
+            if (verdict == CorpusVerdict.CRASH) {
+                recoverCrashReport(entry.path(), stage);
+            }
+            Files.move(entry.path(), destination, StandardCopyOption.ATOMIC_MOVE);
         }
     }
 
-    private void stageCrashReport(Path stagedReport, String diagnostic) throws IOException {
+    private void fanOutParserPasses() throws IOException, CorpusException {
+        for (var path : entryPaths(resolve(CorpusPath.PARSER_PASS))) {
+            fanOutParserPass(path);
+        }
+    }
+
+    private long visitResultEntries(
+            CorpusStageLayout stage,
+            CorpusVerdict verdict,
+            Generator<?> generator,
+            EntryConsumer consumer)
+            throws IOException, CorpusException {
+        var directory = resolve(stage.result(verdict));
+        List<Path> paths;
+        var entriesWithReports = new HashSet<String>();
+        if (verdict == CorpusVerdict.CRASH) {
+            paths = entryPathsAndReports(directory, entriesWithReports, stage.displayName());
+        } else {
+            paths = entryPaths(directory);
+        }
+
+        long count = 0;
+        for (var path : paths) {
+            var entry = verifyPath(path, generator);
+            requireStageVerdict(entry, stage, verdict);
+            consumer.accept(entry);
+            count++;
+        }
+        if (verdict == CorpusVerdict.CRASH) {
+            validateCrashReports(directory, entriesWithReports, stage.displayName());
+        }
+        return count;
+    }
+
+    private void addTlcBranch(
+            Map<String, Entry> branch, Set<String> logicalNames, Entry entry)
+            throws CorpusException {
+        var name = entry.path().getFileName().toString();
+        if (branch.put(name, entry) != null) {
+            throw new CorpusException(
+                    "TLC entry appears in multiple workflow directories: " + name);
+        }
+        addLogicalName(logicalNames, entry.path());
+    }
+
+    private static void requireSameParserOutput(String name, Entry tlc, Entry apalache)
+            throws CorpusException {
+        if (!tlc.envelope().corpusInput().equals(apalache.envelope().corpusInput())
+                || !tlc.envelope().generation().equals(apalache.envelope().generation())
+                || !stageMetadata(tlc.envelope(), CorpusStageLayout.PARSER)
+                        .equals(stageMetadata(apalache.envelope(), CorpusStageLayout.PARSER))) {
+            throw new CorpusException("checker branch copies disagree for corpus entry: " + name);
+        }
+    }
+
+    private static Optional<StageMetadata> stageMetadata(
+            CorpusEnvelope envelope, CorpusStageLayout stage) {
+        return envelope.stages().stream()
+                .filter(metadata -> stage.metadataName().equals(metadata.stage()))
+                .findFirst();
+    }
+
+    private void installBranchCopy(Path source, byte[] encoded, Path destination)
+            throws IOException, CorpusException {
+        if (Files.exists(destination, NO_FOLLOW_LINKS)) {
+            if (!Files.isRegularFile(destination, NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        "checker branch destination is not a file: " + destination);
+            }
+            var existing = decodeEntry(destination, Files.readAllBytes(destination));
+            var candidate = decodeEntry(source, encoded);
+            requireSameParserOutput(source.getFileName().toString(), existing, candidate);
+            return;
+        }
+        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), "fanout-", ".cbor");
+        try {
+            Files.write(
+                    temporary,
+                    encoded,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+            Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    private List<Path> entryPaths(Path directory) throws IOException, CorpusException {
+        var entries = new ArrayList<Path>();
+        try (var paths = Files.list(directory)) {
+            for (var path : paths.sorted().toList()) {
+                if (!INPUT_FILE_NAME.matcher(path.getFileName().toString()).matches()) {
+                    throw new CorpusException("invalid corpus entry name: " + path);
+                }
+                entries.add(path);
+            }
+        }
+        return entries;
+    }
+
+    private List<Path> entryPathsAndReports(
+            Path directory, Set<String> crashEntries, String displayName)
+            throws IOException, CorpusException {
+        var entries = new ArrayList<Path>();
+        try (var paths = Files.list(directory)) {
+            for (var path : paths.sorted().toList()) {
+                var name = path.getFileName().toString();
+                var reportMatcher = CRASH_REPORT_FILE_NAME.matcher(name);
+                if (reportMatcher.matches()) {
+                    if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+                        throw new CorpusException(
+                                displayName + " crash report is not a regular file: " + path);
+                    }
+                    crashEntries.add(reportMatcher.group(1) + ".cbor");
+                } else if (INPUT_FILE_NAME.matcher(name).matches()) {
+                    entries.add(path);
+                } else {
+                    throw new CorpusException("invalid corpus entry name: " + path);
+                }
+            }
+        }
+        return entries;
+    }
+
+    private static void validateCrashReports(
+            Path directory, Set<String> entriesWithReports, String displayName)
+            throws CorpusException {
+        for (var name : entriesWithReports) {
+            if (!Files.isRegularFile(directory.resolve(name), NO_FOLLOW_LINKS)) {
+                throw new CorpusException(
+                        displayName
+                                + " crash report has no matching corpus entry: "
+                                + directory.resolve(name.replace(".cbor", ".stacktrace")));
+            }
+        }
+        try (var entries = Files.list(directory)) {
+            for (var path : entries.toList()) {
+                var matcher = INPUT_FILE_NAME.matcher(path.getFileName().toString());
+                if (matcher.matches()
+                        && !entriesWithReports.contains(path.getFileName().toString())) {
+                    throw new CorpusException(
+                            displayName + " crash entry has no stack trace: " + path);
+                }
+            }
+        } catch (IOException exception) {
+            throw new CorpusException(
+                    "cannot inspect " + displayName + " crash reports", exception);
+        }
+    }
+
+    private Entry verifyPath(Path path, Generator<?> generator)
+            throws IOException, CorpusException {
+        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("corpus entry is not a regular file: " + path);
+        }
+        var matcher = INPUT_FILE_NAME.matcher(path.getFileName().toString());
+        if (!matcher.matches()) {
+            throw new CorpusException("invalid corpus entry name: " + path);
+        }
+        var encoded = Files.readAllBytes(path);
+        var entry = decodeEntry(path, encoded);
+        var input = entry.envelope().corpusInput().input();
+        if (!matcher.group(1).equals(hash(input))) {
+            throw new CorpusException("corpus entry hash does not match its input: " + path);
+        }
+        try {
+            generator.generate(input);
+        } catch (InputRejectedException exception) {
+            throw new CorpusException(
+                    "corpus entry is rejected: " + path + ": " + diagnostic(exception), exception);
+        } catch (RuntimeException | StackOverflowError exception) {
+            throw generatorCrash(path, input, exception);
+        }
+        return entry;
+    }
+
+    private static Entry decodeEntry(Path path, byte[] encoded) throws CorpusException {
+        final CorpusEnvelope envelope;
+        try {
+            envelope = CorpusInputCodec.decodeEnvelope(encoded);
+        } catch (CorpusInputFormatException exception) {
+            throw new CorpusException(
+                    "invalid CBOR corpus entry: " + path + ": " + diagnostic(exception),
+                    exception);
+        }
+        if (envelope.corpusInput().kind() != CorpusInput.Kind.EXPRESSION) {
+            throw new CorpusException(
+                    "unsupported corpus input kind '"
+                            + envelope.corpusInput().kind().encodedName()
+                            + "': "
+                            + path);
+        }
+        return new Entry(path, encoded, envelope);
+    }
+
+    private byte[] readOwnedExpressionInput(Path path, CorpusStageLayout stage)
+            throws IOException, CorpusException {
+        requireOwnedPath(path, stage.input(), stage.displayName() + " input");
+        return decodeExpressionInput(path, Files.readAllBytes(path));
+    }
+
+    private void requireOwnedPath(Path path, CorpusPath owner, String description)
+            throws CorpusException {
+        Objects.requireNonNull(path, "path");
+        var normalized = path.toAbsolutePath().normalize();
+        if (!resolve(owner).equals(normalized.getParent())) {
+            throw new CorpusException(
+                    "entry is not owned by the " + description + " stage: " + path);
+        }
+        if (!Files.isRegularFile(normalized, NO_FOLLOW_LINKS)) {
+            throw new CorpusException(description + " entry does not exist: " + path);
+        }
+    }
+
+    private void requireStageVerdict(
+            Entry entry, CorpusStageLayout stage, CorpusVerdict expected)
+            throws CorpusException {
+        var actual = stageVerdict(entry.path(), entry.encoded(), stage);
+        if (actual.isEmpty() || !expected.encodedName().equals(actual.orElseThrow())) {
+            throw new CorpusException(
+                    stage.metadataName()
+                            + " verdict does not match workflow directory: "
+                            + entry.path());
+        }
+    }
+
+    private void requireMissingStage(Path path, byte[] encoded, CorpusStageLayout stage)
+            throws CorpusException {
+        if (stageVerdict(path, encoded, stage).isPresent()) {
+            throw new CorpusException(
+                    "completed "
+                            + stage.metadataName()
+                            + " entry remains in an input directory: "
+                            + path);
+        }
+    }
+
+    private Optional<String> stageVerdict(
+            Path path, byte[] encoded, CorpusStageLayout stage)
+            throws CorpusException {
+        try {
+            return CorpusInputCodec.stageVerdict(encoded, stage.metadataName());
+        } catch (CorpusInputFormatException exception) {
+            throw new CorpusException(
+                    "invalid "
+                            + stage.metadataName()
+                            + " metadata: "
+                            + path
+                            + ": "
+                            + diagnostic(exception),
+                    exception);
+        }
+    }
+
+    private void addLogicalName(Set<String> names, Path path) throws CorpusException {
+        var name = path.getFileName().toString();
+        if (!names.add(name)) {
+            throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
+        }
+    }
+
+    private void stageCrashReport(Path stagedReport, String diagnostic, String displayName)
+            throws IOException {
         var report = diagnostic.isBlank()
-                ? "Parser crashed without a diagnostic."
+                ? displayName + " crashed without a diagnostic."
                 : diagnostic;
         if (!report.endsWith("\n")) {
             report += System.lineSeparator();
         }
-
-        var temporary = Files.createTempFile(workDirectory, "parser-crash-", ".tmp");
+        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), "crash-", ".tmp");
         try {
             Files.writeString(
                     temporary,
@@ -509,18 +864,20 @@ public final class CorpusDirectory {
         }
     }
 
-    private void recoverCrashReport(Path source) throws IOException, CorpusException {
+    private void recoverCrashReport(Path source, CorpusStageLayout stage)
+            throws IOException, CorpusException {
         var reportName = crashReportName(source);
-        var stagedReport = workDirectory.resolve(reportName);
-        var destination = parserCrashDirectory.resolve(reportName);
+        var stagedReport = stagedCrashReport(stage, reportName);
+        var destination = resolve(stage.result(CorpusVerdict.CRASH)).resolve(reportName);
         if (Files.exists(destination, NO_FOLLOW_LINKS)) {
             if (!Files.isRegularFile(destination, NO_FOLLOW_LINKS)) {
                 throw new CorpusException(
-                        "parser crash report is not a regular file: " + destination);
+                        stage.metadataName() + " crash report is not a regular file: " + destination);
             }
             if (Files.exists(stagedReport, NO_FOLLOW_LINKS)) {
                 throw new CorpusException(
-                        "parser crash report exists in both work and result directories: "
+                        stage.metadataName()
+                                + " crash report exists in both work and result directories: "
                                 + reportName);
             }
             return;
@@ -528,10 +885,17 @@ public final class CorpusDirectory {
         if (Files.exists(stagedReport, NO_FOLLOW_LINKS)) {
             if (!Files.isRegularFile(stagedReport, NO_FOLLOW_LINKS)) {
                 throw new CorpusException(
-                        "staged parser crash report is not a regular file: " + stagedReport);
+                        "staged "
+                                + stage.metadataName()
+                                + " crash report is not a regular file: "
+                                + stagedReport);
             }
             Files.move(stagedReport, destination, StandardCopyOption.ATOMIC_MOVE);
         }
+    }
+
+    private Path stagedCrashReport(CorpusStageLayout stage, String reportName) {
+        return resolve(CorpusPath.WORK).resolve(stage.metadataName() + "-" + reportName);
     }
 
     private static String crashReportName(Path entry) throws CorpusException {
@@ -539,32 +903,7 @@ public final class CorpusDirectory {
         if (!matcher.matches()) {
             throw new CorpusException("invalid corpus entry name: " + entry);
         }
-        return matcher.group(1) + PARSER_CRASH_REPORT_EXTENSION;
-    }
-
-    private Entry verifyPath(Path path, Generator<?> generator)
-            throws IOException, CorpusException {
-        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("corpus entry is not a regular file: " + path);
-        }
-        var matcher = INPUT_FILE_NAME.matcher(path.getFileName().toString());
-        if (!matcher.matches()) {
-            throw new CorpusException("invalid corpus entry name: " + path);
-        }
-        var encoded = Files.readAllBytes(path);
-        var input = decodeExpressionInput(path, encoded);
-        if (!matcher.group(1).equals(hash(input))) {
-            throw new CorpusException("corpus entry hash does not match its input: " + path);
-        }
-        try {
-            generator.generate(input);
-        } catch (InputRejectedException exception) {
-            throw new CorpusException(
-                    "corpus entry is rejected: " + path + ": " + diagnostic(exception), exception);
-        } catch (RuntimeException | StackOverflowError exception) {
-            throw generatorCrash(path, input, exception);
-        }
-        return new Entry(encoded);
+        return matcher.group(1) + ".stacktrace";
     }
 
     private CorpusException generatorCrash(Path source, byte[] input, Throwable failure) {
@@ -583,12 +922,32 @@ public final class CorpusDirectory {
     }
 
     private void ensureGeneratorCrashDirectory() throws IOException, CorpusException {
-        if (Files.exists(generatorCrashDirectory, NO_FOLLOW_LINKS)
-                && !Files.isDirectory(generatorCrashDirectory, NO_FOLLOW_LINKS)) {
+        var directory = resolve(CorpusPath.GENERATOR_CRASH);
+        if (Files.exists(directory, NO_FOLLOW_LINKS)
+                && !Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
             throw new CorpusException(
-                    "generator crash path is not a directory: " + generatorCrashDirectory);
+                    "generator crash path is not a directory: " + directory);
         }
-        Files.createDirectories(generatorCrashDirectory);
+        Files.createDirectories(directory);
+    }
+
+    private void validateExistingDirectoryPaths(List<Path> directories) throws CorpusException {
+        for (var directory : directories) {
+            if (Files.exists(directory, NO_FOLLOW_LINKS)
+                    && !Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
+                throw new CorpusException("workflow path is not a directory: " + directory);
+            }
+        }
+    }
+
+    private List<Path> requiredDirectories() {
+        var result = new ArrayList<Path>();
+        for (var corpusPath : CorpusPath.values()) {
+            if (corpusPath.isRequired() && corpusPath.isDirectory()) {
+                result.add(resolve(corpusPath));
+            }
+        }
+        return result;
     }
 
     private static void replaceAtomically(Path destination, byte[] contents) throws IOException {
@@ -609,63 +968,8 @@ public final class CorpusDirectory {
         }
     }
 
-    private static String stackTrace(Throwable failure) {
-        var output = new StringWriter();
-        failure.printStackTrace(new PrintWriter(output));
-        return output.toString();
-    }
-
-    private java.util.Optional<String> stageVerdict(Path path, byte[] encoded)
-            throws CorpusException {
-        try {
-            return CorpusInputCodec.stageVerdict(encoded, PARSER_STAGE_NAME);
-        } catch (CorpusInputFormatException exception) {
-            throw new CorpusException(
-                    "invalid parser metadata: " + path + ": " + diagnostic(exception), exception);
-        }
-    }
-
-    private String expectedVerdict(Path directory) {
-        if (directory.equals(parserPassDirectory)) {
-            return "pass";
-        }
-        if (directory.equals(parserFailDirectory)) {
-            return "fail";
-        }
-        if (directory.equals(parserCrashDirectory)) {
-            return "crashed";
-        }
-        throw new IllegalArgumentException("not a parser destination: " + directory);
-    }
-
-    private void requireInputPath(Path path) throws CorpusException {
-        Objects.requireNonNull(path, "path");
-        var normalized = path.toAbsolutePath().normalize();
-        if (!inputDirectory.equals(normalized.getParent())) {
-            throw new CorpusException("entry is not owned by the input stage: " + path);
-        }
-        if (!Files.isRegularFile(normalized, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("input entry does not exist: " + path);
-        }
-    }
-
     private static byte[] decodeExpressionInput(Path path, byte[] encoded) throws CorpusException {
-        final CorpusInput corpusInput;
-        try {
-            corpusInput = CorpusInputCodec.decode(encoded);
-        } catch (CorpusInputFormatException exception) {
-            throw new CorpusException(
-                    "invalid CBOR corpus entry: " + path + ": " + diagnostic(exception),
-                    exception);
-        }
-        if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
-            throw new CorpusException(
-                    "unsupported corpus input kind '"
-                            + corpusInput.kind().encodedName()
-                            + "': "
-                            + path);
-        }
-        return corpusInput.input();
+        return decodeEntry(path, encoded).envelope().corpusInput().input();
     }
 
     private static String hash(byte[] input) {
@@ -676,6 +980,12 @@ public final class CorpusDirectory {
         }
     }
 
+    private static String stackTrace(Throwable failure) {
+        var output = new StringWriter();
+        failure.printStackTrace(new PrintWriter(output));
+        return output.toString();
+    }
+
     private static String diagnostic(Throwable exception) {
         var message = exception.getMessage();
         return message == null || message.isBlank()
@@ -683,5 +993,10 @@ public final class CorpusDirectory {
                 : message;
     }
 
-    private record Entry(byte[] encoded) {}
+    @FunctionalInterface
+    private interface EntryConsumer {
+        void accept(Entry entry) throws CorpusException;
+    }
+
+    private record Entry(Path path, byte[] encoded, CorpusEnvelope envelope) {}
 }
