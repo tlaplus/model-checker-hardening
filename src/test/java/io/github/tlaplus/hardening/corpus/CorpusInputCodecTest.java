@@ -9,12 +9,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
+import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class CorpusInputCodecTest {
@@ -264,6 +267,64 @@ class CorpusInputCodecTest {
     }
 
     @Test
+    void encodesAndDecodesNumericCheckerFailureMetadata() throws Exception {
+        var failure = new CheckerFailure(
+                CheckerFailureCode.SPEC_EVAL,
+                Optional.of("Attempted to apply Head to the empty sequence."));
+        var encoded = CorpusInputCodec.withStageMetadata(
+                CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 2})),
+                new StageMetadata(
+                        "tlc",
+                        "fail",
+                        Instant.ofEpochSecond(10),
+                        Instant.ofEpochSecond(12),
+                        Optional.of(failure)));
+
+        var envelope = CorpusInputCodec.decodeEnvelope(encoded);
+        var tree = new ObjectMapper(FACTORY).readTree(encoded);
+
+        assertEquals(Optional.of(failure), envelope.stages().getFirst().failure());
+        assertEquals(75, tree.path("stages").path("tlc").path("code").intValue());
+        assertEquals(
+                failure.detail().orElseThrow(),
+                tree.path("stages").path("tlc").path("detail").textValue());
+    }
+
+    @Test
+    void rejectsInvalidCheckerFailureMetadata() throws Exception {
+        var missingCode = checkerEnvelope("fail", null, null);
+        var unknownCode = checkerEnvelope("fail", 76, null);
+        var detailWithoutCode = checkerEnvelope("fail", null, "undefined expression");
+        var codeOnPass = checkerEnvelope("pass", 75, null);
+        var codeOnParser = stageEnvelope("parser", "fail", 150, null);
+        var excessiveDetail = checkerEnvelope("fail", 75, "x".repeat(81));
+        var multilineDetail = checkerEnvelope("fail", 75, "first\nsecond");
+        var textCode = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("tlc");
+            generator.writeStringField("verdict", "fail");
+            generator.writeStringField("code", "75");
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertInvalidEnvelope(missingCode, "requires a failure code");
+        assertInvalidEnvelope(unknownCode, "unsupported checker failure code: 76");
+        assertInvalidEnvelope(detailWithoutCode, "requires field 'code'");
+        assertInvalidEnvelope(codeOnPass, "requires the fail verdict");
+        assertInvalidEnvelope(codeOnParser, "parser metadata must not contain");
+        assertInvalidEnvelope(excessiveDetail, "must not exceed 80 characters");
+        assertInvalidEnvelope(multilineDetail, "must be a single line");
+        assertInvalidEnvelope(textCode, "must be an integer");
+    }
+
+    @Test
     void decodesSupportedEnvelopeFieldsInStageOrderAndIgnoresExtensions() throws Exception {
         var encoded = cbor(generator -> {
             generator.writeStartObject(null, 4);
@@ -353,6 +414,42 @@ class CorpusInputCodecTest {
             writer.write(generator);
         }
         return output.toByteArray();
+    }
+
+    private byte[] checkerEnvelope(String verdict, Integer code, String detail)
+            throws Exception {
+        return stageEnvelope("tlc", verdict, code, detail);
+    }
+
+    private byte[] stageEnvelope(
+            String stage, String verdict, Integer code, String detail) throws Exception {
+        return cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart(stage);
+            generator.writeStringField("verdict", verdict);
+            if (code != null) {
+                generator.writeNumberField("code", code);
+            }
+            if (detail != null) {
+                generator.writeStringField("detail", detail);
+            }
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+    }
+
+    private void assertInvalidEnvelope(byte[] encoded, String message) {
+        assertTrue(assertThrows(
+                        CorpusInputFormatException.class,
+                        () -> CorpusInputCodec.decodeEnvelope(encoded))
+                .getMessage()
+                .contains(message));
     }
 
     private void writeStage(

@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -389,6 +390,7 @@ public final class CorpusDirectory {
                 verdict,
                 startTime,
                 endTime,
+                Optional.empty(),
                 diagnostic);
     }
 
@@ -414,6 +416,7 @@ public final class CorpusDirectory {
             String verdict,
             Instant startTime,
             Instant endTime,
+            Optional<CheckerFailure> failure,
             String diagnostic)
             throws IOException, CorpusException {
         return completeStage(
@@ -422,6 +425,7 @@ public final class CorpusDirectory {
                 verdict,
                 startTime,
                 endTime,
+                failure,
                 diagnostic);
     }
 
@@ -447,10 +451,12 @@ public final class CorpusDirectory {
             String verdict,
             Instant startTime,
             Instant endTime,
+            Optional<CheckerFailure> failure,
             String diagnostic)
             throws IOException, CorpusException {
         // Validate the requested transition and resolve its result path before changing the corpus.
         requireOwnedPath(source, stage.input(), stage.displayName() + " input");
+        Objects.requireNonNull(failure, "failure");
         Objects.requireNonNull(diagnostic, "diagnostic");
         final CorpusVerdict corpusVerdict;
         try {
@@ -493,7 +499,8 @@ public final class CorpusDirectory {
                             stage.metadataName(),
                             corpusVerdict.encodedName(),
                             startTime,
-                            endTime));
+                            endTime,
+                            failure));
         } catch (CorpusInputFormatException exception) {
             throw new CorpusException(
                     "invalid CBOR corpus entry: " + source + ": " + diagnostic(exception),

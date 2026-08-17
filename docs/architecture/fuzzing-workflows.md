@@ -120,7 +120,8 @@ inputs:
 
 This workflow specializes the general workflow as follows:
 
-- **Aggregator.** At this stage, the input is moved to `pass`, when both TLC and Apalache pass, or both fail.
+- **Aggregator.** At this stage, the input is moved to `pass`, when both TLC and Apalache pass, or both fail. Failure
+  codes are diagnostic metadata and do not affect this verdict-level comparison.
 - **Mutator.** The mutator is no-operation. It does not generate new inputs.
 - **Quality gate.** Good quality gates are to be found.
 
@@ -259,6 +260,12 @@ The metadata depends on the stage. The minimal set of fields is:
    when a stage worker stopped to process the input. This timestamp must be in UTC.
    If there is no meaningful difference between the start and end times, then
    `"startTime"` and `"endTime"` must be equal.
+ - A failed model-checker stage also contains the integer field `"code"`. The
+   code uses the shared TLC/Apalache registry defined by [ADR 0003][]. The TLC
+   stage requires this field for `"fail"` and forbids it for other verdicts.
+ - A model-checker failure may contain a single-line `"detail"` of at most 80
+   Unicode characters. This text is for triage only and must not participate in
+   automated comparison or grouping. It is valid only when `"code"` is present.
 
 ```cbor
 {
@@ -269,6 +276,13 @@ The metadata depends on the stage. The minimal set of fields is:
         "verdict": "pass",
         "startTime": 1(1786635967),
         "endTime": 1(1786635990)
+      },
+      "tlc": {
+        "verdict": "fail",
+        "code": 75,
+        "detail": "Attempted to apply Head to the empty sequence.",
+        "startTime": 1(1786635990),
+        "endTime": 1(1786635991)
       }
     }
 }
@@ -279,3 +293,4 @@ The metadata depends on the stage. The minimal set of fields is:
 [epoch-based date/time]: https://www.rfc-editor.org/rfc/rfc8949.html#name-epoch-based-date-time
 [ADR 0001]: ../decisions/0001-stages-and-workers.md
 [ADR 0002]: ../decisions/0002-pbt-richness-score.md
+[ADR 0003]: ../decisions/0003-checker-failure-codes.md

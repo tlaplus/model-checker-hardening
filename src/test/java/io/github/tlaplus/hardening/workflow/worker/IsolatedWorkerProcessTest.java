@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -59,6 +60,47 @@ class IsolatedWorkerProcessTest {
         assertScratchIsEmpty(scratch);
     }
 
+    @Test
+    void roundTripsAWorkerFailureCode(@TempDir Path directory) throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+
+        ToolResult result;
+        try (var worker = IsolatedWorkerProcess.start(
+                scratch,
+                TIMEOUT,
+                ClassifiedFailureWorker.class,
+                List.of(),
+                DESCRIPTION)) {
+            result = worker.request("request", TIMEOUT);
+        }
+
+        assertEquals(StageOutcome.FAIL, result.outcome());
+        assertEquals(
+                CheckerFailureCode.SPEC_EVAL,
+                result.failureCode().orElseThrow());
+        assertEquals("Error: undefined expression", result.diagnostic());
+        assertScratchIsEmpty(scratch);
+    }
+
+    @Test
+    void rejectsAnUnknownWorkerFailureCode(@TempDir Path directory) throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+
+        try (var worker = IsolatedWorkerProcess.start(
+                scratch,
+                TIMEOUT,
+                UnknownFailureCodeWorker.class,
+                List.of(),
+                DESCRIPTION)) {
+            var failure = assertThrows(
+                    WorkflowException.class,
+                    () -> worker.request("request", TIMEOUT));
+            assertTrue(failure.getMessage().contains("protocol failed"));
+            assertTrue(failure.getCause().getMessage().contains("unknown failure code: 999"));
+        }
+        assertScratchIsEmpty(scratch);
+    }
+
     private static void assertScratchIsEmpty(Path scratch) throws Exception {
         try (var paths = Files.list(scratch)) {
             assertTrue(paths.findAny().isEmpty());
@@ -86,6 +128,37 @@ class IsolatedWorkerProcessTest {
             var length = input.readInt();
             input.readNBytes(length);
             System.err.println("deliberate processing failure");
+        }
+    }
+
+    public static final class ClassifiedFailureWorker {
+        private ClassifiedFailureWorker() {}
+
+        public static void main(String[] ignoredArguments) throws Exception {
+            var output = new DataOutputStream(new BufferedOutputStream(System.out));
+            ToolWorkerProtocol.writeHandshake(output);
+            var input = new DataInputStream(System.in);
+            ToolWorkerProtocol.readRequest(input);
+            ToolWorkerProtocol.writeResult(
+                    output,
+                    ToolResult.failure(
+                            CheckerFailureCode.SPEC_EVAL,
+                            "Error: undefined expression"));
+        }
+    }
+
+    public static final class UnknownFailureCodeWorker {
+        private UnknownFailureCodeWorker() {}
+
+        public static void main(String[] ignoredArguments) throws Exception {
+            var output = new DataOutputStream(new BufferedOutputStream(System.out));
+            ToolWorkerProtocol.writeHandshake(output);
+            var input = new DataInputStream(System.in);
+            ToolWorkerProtocol.readRequest(input);
+            output.writeInt(StageOutcome.FAIL.protocolCode());
+            output.writeInt(999);
+            output.writeInt(0);
+            output.flush();
         }
     }
 }

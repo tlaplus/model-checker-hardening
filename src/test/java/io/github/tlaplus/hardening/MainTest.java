@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
@@ -29,6 +31,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -414,6 +417,31 @@ class MainTest {
                         "  FALSE",
                         ""),
                 result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
+    void printsCheckerFailureCodeAndDetail(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("metadata.cbor");
+        var startTime = Instant.parse("2026-08-13T14:26:07Z");
+        var encoded = CorpusInputCodec.withStageMetadata(
+                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                new StageMetadata(
+                        "tlc",
+                        "fail",
+                        startTime,
+                        startTime.plusSeconds(2),
+                        Optional.of(new CheckerFailure(
+                                CheckerFailureCode.SPEC_EVAL,
+                                Optional.of("Attempted to apply Head to the empty sequence.")))));
+        Files.write(input, encoded);
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains("    code: 75 (spec_eval)"));
+        assertTrue(result.out().contains(
+                "    detail: Attempted to apply Head to the empty sequence."));
         assertEquals("", result.err());
     }
 

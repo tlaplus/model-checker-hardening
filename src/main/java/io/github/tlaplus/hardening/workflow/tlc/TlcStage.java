@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -112,11 +113,18 @@ public final class TlcStage implements WorkflowStage {
                     if (endTime.isBefore(startTime)) {
                         endTime = startTime;
                     }
+                    var failure = result.failureCode().map(code -> new CheckerFailure(
+                            code, TlcFailureDetail.extract(result.diagnostic())));
+                    if (result.outcome() == StageOutcome.FAIL && failure.isEmpty()) {
+                        throw new WorkflowException(
+                                "TLC worker returned a failure without a classification");
+                    }
                     corpus.completeTlc(
                             path,
                             result.outcome().corpusVerdict(),
                             startTime,
                             endTime,
+                            failure,
                             result.diagnostic());
                     increment(result.outcome());
                 } finally {

@@ -9,8 +9,9 @@ import java.util.Arrays;
 /** Binary framing shared by isolated parser and model-checker workers. */
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 1;
+    static final int VERSION = 2;
     static final int STOP = -1;
+    static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 16 * 1024 * 1024;
     static final int MAXIMUM_DIAGNOSTIC_BYTES = 1024 * 1024;
 
@@ -44,6 +45,9 @@ public final class ToolWorkerProtocol {
             diagnostic = Arrays.copyOf(diagnostic, MAXIMUM_DIAGNOSTIC_BYTES);
         }
         output.writeInt(result.outcome().protocolCode());
+        output.writeInt(result.failureCode()
+                .map(code -> code.encodedCode())
+                .orElse(NO_FAILURE_CODE));
         output.writeInt(diagnostic.length);
         output.write(diagnostic);
         output.flush();

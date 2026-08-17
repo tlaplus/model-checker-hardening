@@ -3,11 +3,13 @@ package io.github.tlaplus.hardening.workflow.tlc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tlc2.output.EC;
@@ -25,7 +27,11 @@ class TlcProcessTest {
         var fail = TlcProcess.check(scratch, source("exprValue # FALSE"), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
+        assertTrue(pass.failureCode().isEmpty());
         assertEquals(StageOutcome.FAIL, fail.outcome());
+        assertEquals(
+                CheckerFailureCode.COUNTEREXAMPLE,
+                fail.failureCode().orElseThrow());
         assertTrue(fail.diagnostic().toLowerCase().contains("violat"), fail.diagnostic());
         try (var paths = Files.list(scratch)) {
             assertTrue(paths.findAny().isEmpty());
@@ -34,24 +40,48 @@ class TlcProcessTest {
 
     @Test
     void classifiesTlcExitStatusesUsingTlcsOwnCrashTaxonomy() {
-        assertEquals(
-                StageOutcome.PASS,
-                TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.SUCCESS));
-        assertEquals(
+        assertClassification(EC.ExitStatus.SUCCESS, StageOutcome.PASS, null);
+        assertClassification(
+                EC.ExitStatus.VIOLATION_ASSUMPTION,
                 StageOutcome.FAIL,
-                TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.VIOLATION_SAFETY));
-        assertEquals(
+                CheckerFailureCode.COUNTEREXAMPLE);
+        assertClassification(
+                EC.ExitStatus.VIOLATION_DEADLOCK,
                 StageOutcome.FAIL,
-                TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.FAILURE_SPEC_EVAL));
-        assertEquals(
+                CheckerFailureCode.COUNTEREXAMPLE);
+        assertClassification(
+                EC.ExitStatus.VIOLATION_SAFETY,
                 StageOutcome.FAIL,
-                TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.ERROR_SPEC_PARSE));
-        assertEquals(
+                CheckerFailureCode.COUNTEREXAMPLE);
+        assertClassification(
+                EC.ExitStatus.VIOLATION_LIVENESS,
                 StageOutcome.FAIL,
-                TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.ERROR_CONFIG_PARSE));
-        assertEquals(
-                StageOutcome.CRASH,
-                TlcOutcomeClassifier.classifyExitStatus(EC.ExitStatus.ERROR_SYSTEM));
+                CheckerFailureCode.COUNTEREXAMPLE);
+        assertClassification(
+                EC.ExitStatus.VIOLATION_ASSERT,
+                StageOutcome.FAIL,
+                CheckerFailureCode.COUNTEREXAMPLE);
+        assertClassification(
+                EC.ExitStatus.FAILURE_SPEC_EVAL,
+                StageOutcome.FAIL,
+                CheckerFailureCode.SPEC_EVAL);
+        assertClassification(
+                EC.ExitStatus.FAILURE_SAFETY_EVAL,
+                StageOutcome.FAIL,
+                CheckerFailureCode.SPEC_EVAL);
+        assertClassification(
+                EC.ExitStatus.FAILURE_LIVENESS_EVAL,
+                StageOutcome.FAIL,
+                CheckerFailureCode.SPEC_EVAL);
+        assertClassification(
+                EC.ExitStatus.ERROR_SPEC_PARSE,
+                StageOutcome.FAIL,
+                CheckerFailureCode.PARSE);
+        assertClassification(
+                EC.ExitStatus.ERROR_CONFIG_PARSE,
+                StageOutcome.FAIL,
+                CheckerFailureCode.PARSE);
+        assertClassification(EC.ExitStatus.ERROR_SYSTEM, StageOutcome.CRASH, null);
     }
 
     @Test
@@ -63,6 +93,9 @@ class TlcProcessTest {
                 scratch, expressionSource("161520805147"), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
+        assertEquals(
+                CheckerFailureCode.SPEC_EVAL,
+                result.failureCode().orElseThrow());
         assertTrue(
                 result.diagnostic().toLowerCase().contains("number this big"),
                 result.diagnostic());
@@ -70,9 +103,39 @@ class TlcProcessTest {
 
     @Test
     void classifiesTheIntegerTooBigErrorCodeAsAFailure() {
+        var result = TlcOutcomeClassifier.classifyErrorCode(EC.TLC_INTEGER_TOO_BIG, "detail");
+
+        assertEquals(StageOutcome.FAIL, result.outcome());
         assertEquals(
-                StageOutcome.FAIL,
-                TlcOutcomeClassifier.classifyErrorCode(EC.TLC_INTEGER_TOO_BIG));
+                CheckerFailureCode.SPEC_EVAL,
+                result.failureCode().orElseThrow());
+        assertEquals("detail", result.diagnostic());
+    }
+
+    @Test
+    void classifiesAnUndefinedHeadAsSpecificationEvaluationFailure(
+            @TempDir Path directory) throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+
+        var result = TlcProcess.check(
+                scratch, expressionSource("Head(<<>>)"), CONFIG, TIMEOUT);
+
+        assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
+        assertEquals(
+                CheckerFailureCode.SPEC_EVAL,
+                result.failureCode().orElseThrow());
+        assertTrue(TlcFailureDetail.extract(result.diagnostic())
+                .orElseThrow()
+                .contains("empty sequence"));
+    }
+
+    private static void assertClassification(
+            int exitStatus, StageOutcome expectedOutcome, CheckerFailureCode expectedCode) {
+        var result = TlcOutcomeClassifier.classifyExitStatus(exitStatus, "diagnostic");
+
+        assertEquals(expectedOutcome, result.outcome());
+        assertEquals(Optional.ofNullable(expectedCode), result.failureCode());
+        assertEquals("diagnostic", result.diagnostic());
     }
 
     private static String source(String invariant) {

@@ -172,6 +172,17 @@ final class PrintCommand implements Callable<Integer> {
             for (var stage : envelope.stages()) {
                 output.append("  ").append(stage.stage()).append(":").append(newline);
                 output.append("    verdict: ").append(stage.verdict()).append(newline);
+                stage.failure().ifPresent(failure -> {
+                    output.append("    code: ")
+                            .append(failure.code().encodedCode())
+                            .append(" (")
+                            .append(failure.code().symbol())
+                            .append(")")
+                            .append(newline);
+                    failure.detail().ifPresent(detail -> output.append("    detail: ")
+                            .append(detail)
+                            .append(newline));
+                });
                 output.append("    startTime: ").append(stage.startTime()).append(newline);
                 output.append("    endTime: ")
                         .append(stage.endTime())

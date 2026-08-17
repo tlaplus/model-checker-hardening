@@ -121,11 +121,13 @@ are disabled. Since `Inv` repeats the expression used by `Init`, a reachable
 invariant violation is a TLC failure. TLC's error constant is first mapped with
 `EC.ExitStatus.errorConstantToExitStatus`, except `TLC_INTEGER_TOO_BIG`, which is
 explicitly a failure because it reports an unsupported input value rather than a
-tool crash. `SUCCESS` is a pass, other non-crash statuses are failures, and
-statuses selected by `exitStatusToCrash` are crashes. An exception, timeout,
-abrupt child exit, stack overflow, or out-of-memory exit is also a crash. Worker
-startup, protocol, corpus, and orchestration errors are workflow infrastructure
-failures.
+tool crash. Property violations map to shared failure code 12, evaluation
+failures and `TLC_INTEGER_TOO_BIG` to 75, and specification or configuration
+parse failures to 150. Other statuses are crashes. An exception, timeout, abrupt
+child exit, stack overflow, or out-of-memory exit is also a crash. Worker startup,
+protocol, corpus, and orchestration errors are workflow infrastructure failures.
+[ADR 0003](0003-checker-failure-codes.md) defines the shared checker taxonomy and
+bounded diagnostic detail.
 
 An unexpected host-process failure while generating an expression or preparing
 a specification stops the workflow. The input and stack trace are retained

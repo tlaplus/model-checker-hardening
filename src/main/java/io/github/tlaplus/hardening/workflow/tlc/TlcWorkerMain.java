@@ -106,8 +106,8 @@ public final class TlcWorkerMain {
                         + errorCode
                         + " mapped to exit status "
                         + exitStatus;
-                result = new ToolResult(
-                        TlcOutcomeClassifier.classifyErrorCode(errorCode),
+                result = TlcOutcomeClassifier.classifyErrorCode(
+                        errorCode,
                         WorkerDiagnostics.append(
                                 summary, diagnostics.toString(StandardCharsets.UTF_8)));
             } catch (Exception | StackOverflowError exception) {

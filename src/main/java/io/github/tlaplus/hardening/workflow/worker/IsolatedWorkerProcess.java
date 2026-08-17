@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -167,6 +169,10 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
 
     private ToolResult readResult() throws IOException, WorkflowException {
         var outcome = StageOutcome.fromProtocolCode(input.readInt());
+        var encodedFailureCode = input.readInt();
+        var failureCode = encodedFailureCode == ToolWorkerProtocol.NO_FAILURE_CODE
+                ? Optional.<CheckerFailureCode>empty()
+                : decodeFailureCode(encodedFailureCode);
         var diagnosticLength = input.readInt();
         if (diagnosticLength < 0
                 || diagnosticLength > ToolWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES) {
@@ -177,7 +183,25 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         if (diagnosticBytes.length != diagnosticLength) {
             throw new EOFException("truncated worker diagnostic");
         }
-        return new ToolResult(outcome, new String(diagnosticBytes, StandardCharsets.UTF_8));
+        try {
+            return new ToolResult(
+                    outcome,
+                    failureCode,
+                    new String(diagnosticBytes, StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException exception) {
+            throw new WorkflowException(
+                    "worker returned an invalid failure classification", exception);
+        }
+    }
+
+    private static Optional<CheckerFailureCode> decodeFailureCode(int encodedCode)
+            throws WorkflowException {
+        try {
+            return Optional.of(CheckerFailureCode.fromEncodedCode(encodedCode));
+        } catch (IllegalArgumentException exception) {
+            throw new WorkflowException(
+                    "worker returned an unknown failure code: " + encodedCode, exception);
+        }
     }
 
     private <T> T await(Callable<T> operation, Duration timeout)

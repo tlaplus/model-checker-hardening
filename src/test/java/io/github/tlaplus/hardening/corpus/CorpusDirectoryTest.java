@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
@@ -13,6 +15,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -271,6 +274,7 @@ class CorpusDirectoryTest {
                 "pass",
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
+                Optional.empty(),
                 "TLC output");
 
         assertEquals(corpus.resolve(CorpusPath.TLC_PASS).resolve(tlcInput.getFileName()), result);
@@ -287,6 +291,49 @@ class CorpusDirectoryTest {
         assertEquals(1, inventory.tlcPassEntries());
         assertEquals(1, inventory.apalacheInputEntries());
         assertEquals(1, inventory.totalEntries());
+    }
+
+    @Test
+    void recordsTlcFailureClassification(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {7, 5};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                "pass",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        var tlcInput = corpus.fanOutParserPass(parserPass);
+        var failure = new CheckerFailure(
+                CheckerFailureCode.SPEC_EVAL,
+                Optional.of("Attempted to apply Head to the empty sequence."));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> corpus.completeTlc(
+                        tlcInput,
+                        "fail",
+                        Instant.ofEpochSecond(3),
+                        Instant.ofEpochSecond(4),
+                        Optional.empty(),
+                        "full TLC output"));
+        assertTrue(Files.exists(tlcInput));
+
+        var result = corpus.completeTlc(
+                tlcInput,
+                "fail",
+                Instant.ofEpochSecond(3),
+                Instant.ofEpochSecond(4),
+                Optional.of(failure),
+                "full TLC output");
+
+        var envelope = CorpusInputCodec.decodeEnvelope(Files.readAllBytes(result));
+        var metadata = envelope.stages().stream()
+                .filter(stage -> "tlc".equals(stage.stage()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(Optional.of(failure), metadata.failure());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).tlcFailEntries());
     }
 
     @Test
@@ -359,6 +406,7 @@ class CorpusDirectoryTest {
                 "crashed",
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
+                Optional.empty(),
                 "java.lang.OutOfMemoryError: heap");
 
         var report = corpus.resolve(CorpusPath.TLC_CRASH)
