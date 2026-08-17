@@ -12,6 +12,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Base64;
 import java.util.Random;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class IrGeneratorsTest {
@@ -75,7 +76,14 @@ class IrGeneratorsTest {
 
         var full = new byte[8192];
         java.util.Arrays.fill(full, (byte) 0xff);
-        var bounded = new IrGenerationConfig(3, 12, 256, 8, 32, 16);
+        var bounded = new IrGenerationConfig(
+                3,
+                12,
+                256,
+                8,
+                32,
+                16,
+                IrGenerationConfig.defaults().ignoredCategories());
         assertBuildsOrRejects(bounded, full);
 
         var longStructuredInput = Base64.getMimeDecoder()
@@ -95,6 +103,22 @@ class IrGeneratorsTest {
         assertBuildsOrRejects(longStructuredInput);
     }
 
+    @Test
+    void everyCategoryFilterBuildsAdversarialInputsCleanly() {
+        var random = new Random(0xca7e60L);
+        for (var category : ExpressionCategory.values()) {
+            if (!category.isIgnorable()) {
+                continue;
+            }
+            var config = configIgnoring(Set.of(category));
+            for (var sample = 0; sample < 128; sample++) {
+                var input = new byte[random.nextInt(65)];
+                random.nextBytes(input);
+                assertBuildsOrRejects(config, input);
+            }
+        }
+    }
+
     private void assertBuildsOrRejects(byte[] input) {
         assertBuildsOrRejects(IrGenerationConfig.defaults(), input);
     }
@@ -109,6 +133,18 @@ class IrGeneratorsTest {
                     "generation failed for input " + Base64.getEncoder().encodeToString(input),
                     failure);
         }
+    }
+
+    private IrGenerationConfig configIgnoring(Set<ExpressionCategory> ignoredCategories) {
+        var defaults = IrGenerationConfig.defaults();
+        return new IrGenerationConfig(
+                defaults.maximumTypeDepth(),
+                defaults.maximumExpressionDepth(),
+                defaults.maximumNodes(),
+                defaults.maximumCollectionSize(),
+                defaults.maximumStringBytes(),
+                defaults.maximumIntegerBytes(),
+                ignoredCategories);
     }
 
     private String print(TlaEx expression) {

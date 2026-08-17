@@ -1,8 +1,12 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.BasicGenerators;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.Generator;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Factory for deferred generators of internal types within the configured remaining-depth budget.
@@ -11,9 +15,9 @@ import java.util.List;
  * until they are invoked with a draw.
  */
 final class IrTypeGenFactory {
-    private static final List<TypeKind> PRIMITIVE_TYPE_KINDS = List.of(
+    private static final List<TypeKind> PRIMITIVE_TYPE_CANDIDATES = List.of(
             TypeKind.BOOL, TypeKind.INT, TypeKind.STRING, TypeKind.CONSTANT);
-    private static final List<TypeKind> VALUE_TYPE_KINDS = List.of(
+    private static final List<TypeKind> VALUE_TYPE_CANDIDATES = List.of(
             TypeKind.BOOL,
             TypeKind.INT,
             TypeKind.STRING,
@@ -24,20 +28,26 @@ final class IrTypeGenFactory {
             TypeKind.TUPLE,
             TypeKind.RECORD,
             TypeKind.VARIANT);
-    private static final List<TypeKind> ALL_TYPE_KINDS = List.of(TypeKind.values());
+    private static final List<TypeKind> ALL_TYPE_CANDIDATES = List.of(TypeKind.values());
 
     private final GenerationContext context;
+    private final List<TypeKind> primitiveTypeKinds;
+    private final List<TypeKind> valueTypeKinds;
+    private final List<TypeKind> allTypeKinds;
 
     IrTypeGenFactory(GenerationContext context) {
         this.context = context;
+        primitiveTypeKinds = enabledKinds(PRIMITIVE_TYPE_CANDIDATES);
+        valueTypeKinds = enabledKinds(VALUE_TYPE_CANDIDATES);
+        allTypeKinds = enabledKinds(ALL_TYPE_CANDIDATES);
     }
 
-    /** Returns a generator that permits every type kind, including operator types. */
+    /** Returns a generator of enabled type kinds, including enabled operator types. */
     Generator<IrType> anyType() {
         return mkGen(context.config().maximumTypeDepth(), true);
     }
 
-    /** Returns a generator of non-operator types for use as expression values. */
+    /** Returns a generator of enabled non-operator types for use as expression values. */
     Generator<IrType> valueType() {
         return mkGen(context.config().maximumTypeDepth(), false);
     }
@@ -47,13 +57,43 @@ final class IrTypeGenFactory {
         return new VariantType(List.of(new Field(context.freshTag(), payloadType)));
     }
 
+    /** Reports whether the type and every nested component use enabled syntax categories. */
+    boolean isEnabled(IrType type) {
+        return switch (type) {
+            case PrimitiveType ignored -> true;
+            case ConstantType ignored -> isEnabledCategory(ExpressionCategory.MODEL);
+            case SetType(IrType element) ->
+                isEnabledCategory(ExpressionCategory.SET) && isEnabled(element);
+            case SequenceType(IrType element) ->
+                isEnabledCategory(ExpressionCategory.SEQUENCE) && isEnabled(element);
+            case FunctionType(IrType argument, IrType result) ->
+                isEnabledCategory(ExpressionCategory.FUNCTION)
+                        && isEnabledCategory(ExpressionCategory.SET)
+                        && isEnabled(argument)
+                        && isEnabled(result);
+            case TupleType(List<IrType> elements) ->
+                isEnabledCategory(ExpressionCategory.TUPLE)
+                        && elements.stream().allMatch(this::isEnabled);
+            case RecordType(List<Field> fields) ->
+                isEnabledCategory(ExpressionCategory.RECORD)
+                        && fields.stream().allMatch(field -> isEnabled(field.type()));
+            case VariantType(List<Field> fields) ->
+                isEnabledCategory(ExpressionCategory.VARIANT)
+                        && fields.stream().allMatch(field -> isEnabled(field.type()));
+            case OperatorType(List<IrType> arguments, IrType result) ->
+                isEnabledCategory(ExpressionCategory.OPERATOR)
+                        && arguments.stream().allMatch(this::isEnabled)
+                        && isEnabled(result);
+        };
+    }
+
     /** Returns a recursive type recipe within the remaining nesting budget. */
     private Generator<IrType> mkGen(int remainingDepth, boolean allowOperator) {
         return draw -> {
             var primitiveOnly = remainingDepth == 0;
             var kinds = primitiveOnly
-                    ? PRIMITIVE_TYPE_KINDS
-                    : (allowOperator ? ALL_TYPE_KINDS : VALUE_TYPE_KINDS);
+                    ? primitiveTypeKinds
+                    : (allowOperator ? allTypeKinds : valueTypeKinds);
             return switch (draw.choose(kinds)) {
                 case BOOL -> PrimitiveType.BOOL;
                 case INT -> PrimitiveType.INT;
@@ -115,18 +155,45 @@ final class IrTypeGenFactory {
         };
     }
 
+    private List<TypeKind> enabledKinds(List<TypeKind> candidates) {
+        return candidates.stream()
+                .filter(kind -> kind.isAvailableWith(context.config().ignoredCategories()))
+                .toList();
+    }
+
+    private boolean isEnabledCategory(ExpressionCategory category) {
+        return !context.config().ignoredCategories().contains(category);
+    }
+
     /** Type choices in decoder order. */
     private enum TypeKind {
-        BOOL,
-        INT,
-        STRING,
-        CONSTANT,
-        SET,
-        SEQUENCE,
-        FUNCTION,
-        TUPLE,
-        RECORD,
-        VARIANT,
-        OPERATOR
+        BOOL(ExpressionCategory.CORE),
+        INT(ExpressionCategory.CORE),
+        STRING(ExpressionCategory.CORE),
+        CONSTANT(ExpressionCategory.MODEL),
+        SET(ExpressionCategory.SET),
+        SEQUENCE(ExpressionCategory.SEQUENCE),
+        FUNCTION(ExpressionCategory.FUNCTION, ExpressionCategory.SET),
+        TUPLE(ExpressionCategory.TUPLE),
+        RECORD(ExpressionCategory.RECORD),
+        VARIANT(ExpressionCategory.VARIANT),
+        OPERATOR(ExpressionCategory.OPERATOR);
+
+        private final Set<ExpressionCategory> requiredCategories;
+
+        TypeKind(ExpressionCategory category, ExpressionCategory... dependencies) {
+            var requirements = EnumSet.of(category);
+            Collections.addAll(requirements, dependencies);
+            requiredCategories = Set.copyOf(requirements);
+        }
+
+        boolean isAvailableWith(Set<ExpressionCategory> ignoredCategories) {
+            for (var category : requiredCategories) {
+                if (ignoredCategories.contains(category)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }

@@ -62,8 +62,8 @@ public final class IrGenerators {
      *
      * <p>The returned generator is stateless: each call creates an independent type-safe builder and
      * name supply. It may therefore be reused, including concurrently when each invocation receives
-     * a different {@link Draw}. The default limits are deliberately conservative for use with
-     * arbitrary binary files.
+     * a different {@link Draw}. The defaults exclude expression categories unsuitable for the
+     * single-expression workflow and use conservative limits for arbitrary binary files.
      *
      * @return reusable generator of checked TLA+ IR expressions
      */
@@ -72,13 +72,18 @@ public final class IrGenerators {
     }
 
     /**
-     * Returns an expression generator using the supplied resource limits.
+     * Returns an expression generator using the supplied settings.
      *
      * <p>The configuration is captured when this method is called. Every invocation of the returned
-     * generator starts fresh counters but applies the same maximum type depth, expression depth,
-     * expression-request count, collection size, string payload size, and integer payload size.
-     * Increasing these limits permits larger and more deeply nested expressions, while also
-     * increasing construction work and the size of the resulting IR.
+     * generator starts fresh counters, excludes the same configured expression categories, and
+     * applies the same maximum type depth, expression depth, expression-request count, collection
+     * size, string payload size, and integer payload size. Increasing these limits permits larger
+     * and more deeply nested expressions, while also increasing construction work and the size of
+     * the resulting IR.
+     *
+     * <p>Category exclusions apply recursively to expression forms and structural type choices.
+     * Forms that require an ignored syntax capability are unavailable even when it is not their
+     * primary category. The reserved {@link ExpressionCategory#CORE} category cannot be ignored.
      *
      * <p>Builder validation failures are propagated as runtime exceptions. Such a failure indicates
      * either a defect in an expression form implemented here or an incompatibility with the linked
@@ -87,7 +92,7 @@ public final class IrGenerators {
      * semantic constraint instead throws {@link InputRejectedException}; callers may skip that
      * input without suppressing other runtime failures.
      *
-     * @param config immutable limits applied to every generation
+     * @param config immutable settings applied to every generation
      * @return reusable generator of checked TLA+ IR expressions
      * @throws NullPointerException if {@code config} is {@code null}
      */

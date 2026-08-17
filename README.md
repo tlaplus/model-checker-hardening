@@ -80,6 +80,7 @@ maximum_nodes = 32
 maximum_collection_size = 8
 maximum_string_bytes = 32
 maximum_integer_bytes = 16
+ignore = ["action", "temporal", "unbound", "exotic"]
 
 [workflow]
 # Maximum number of unique entries across every workflow directory.
@@ -105,6 +106,22 @@ richness_nesting_base = 2.0
 # Base of the geometric minimum-richness schedule.
 richness_threshold_base = 1.5
 ```
+
+Every generated expression form has one category. `generator.ignore` excludes
+the selected categories, the structural types that require them, and forms that
+depend on their syntax. The available excludable categories are `action`,
+`temporal`, `unbound`, `exotic`, `control`, `label`, `operator`, `quantifier`,
+`bool_logic`, `arithmetic`, `set`, `finite_set`, `universe`, `sequence`,
+`function`, `fold`, `tuple`, `record`, `variant`, and `model`. The reserved
+`core` category supplies atomic leaves and terminal fallback and cannot be
+ignored.
+
+Dependencies are disabled transitively. For example, ignoring `set` also
+removes bounded quantifiers and function values because they require set-valued
+domains. Set `ignore = []` to enable every excludable category. The fixed
+workflow module still uses `Next == UNCHANGED exprValue`; filtering applies to
+the expression copied into `Init` and `Inv`. Every configuration field is
+required.
 
 Populate the corpus with property-based inputs by running:
 
@@ -179,7 +196,8 @@ human-readable listing. Stage timestamps use UTC ISO-8601, and each `endTime`
 includes the elapsed time since its `startTime`. The `input` field appears last,
 rendered as TLA+. Without `--corpus`, the command uses the built-in generator
 defaults. With `--corpus`, it uses the generator settings in that corpus's
-`config.toml`, which is necessary to replay inputs created with changed limits.
+`config.toml`, which is necessary to replay inputs under changed generator
+settings.
 
 ```text
 kind: expr
@@ -202,6 +220,4 @@ The embedded `input` byte string is interpreted directly by FuzzTLA's generator 
 Licensed under either of
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE)), or
-- MIT License ([LICENSE-MIT](LICENSE-MIT))
-
-at your option.
+- MIT License ([LICENSE-MIT](LICENSE-MIT)).

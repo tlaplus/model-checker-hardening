@@ -1,7 +1,11 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /** A selectable expression form grouped by the component that constructs it. */
 sealed interface ExpressionKind
@@ -13,26 +17,65 @@ sealed interface ExpressionKind
                 OtherExpressionKind {
     /** Reports whether this form can produce the requested type, independent of lexical scope. */
     boolean isTypeApplicable(IrType type);
+
+    /** Returns this form's single primary user-facing category. */
+    ExpressionCategory category();
+
+    /** Returns the syntax capabilities required to construct this form. */
+    Set<ExpressionCategory> requiredCategories();
+
+    /** Reports whether this form requires one of the supplied exclusion categories. */
+    default boolean isUnavailableWith(Set<ExpressionCategory> ignoredCategories) {
+        for (var category : requiredCategories()) {
+            if (ignoredCategories.contains(category)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Builds an immutable requirement set containing the primary category. */
+    static Set<ExpressionCategory> requirements(
+            ExpressionCategory category, ExpressionCategory... dependencies) {
+        var result = EnumSet.of(category);
+        Collections.addAll(result, dependencies);
+        return Set.copyOf(result);
+    }
 }
 
 /** Type-polymorphic and terminal expression forms. */
 enum GeneralExpressionKind implements ExpressionKind {
-    TERMINAL,
-    NAME,
-    IF_THEN_ELSE,
-    LABEL,
-    BOUNDED_CHOOSE,
-    UNBOUNDED_CHOOSE,
-    CASE,
-    OPERATOR_APPLICATION,
-    LET,
-    PRIME,
-    FUNCTION_APPLICATION,
-    FOLD_SET,
-    FOLD_SEQUENCE,
-    HEAD,
-    VARIANT_GET_OR_ELSE,
-    VARIANT_GET_UNSAFE;
+    TERMINAL(ExpressionCategory.CORE),
+    NAME(ExpressionCategory.CORE),
+    IF_THEN_ELSE(ExpressionCategory.CONTROL),
+    LABEL(ExpressionCategory.LABEL),
+    BOUNDED_CHOOSE(ExpressionCategory.QUANTIFIER, ExpressionCategory.SET),
+    UNBOUNDED_CHOOSE(ExpressionCategory.UNBOUND),
+    CASE(ExpressionCategory.CONTROL),
+    OPERATOR_APPLICATION(ExpressionCategory.OPERATOR),
+    LET(ExpressionCategory.OPERATOR),
+    PRIME(ExpressionCategory.ACTION),
+    FUNCTION_APPLICATION(ExpressionCategory.FUNCTION, ExpressionCategory.SET),
+    FOLD_SET(
+            ExpressionCategory.FOLD,
+            ExpressionCategory.SET,
+            ExpressionCategory.OPERATOR),
+    FOLD_SEQUENCE(
+            ExpressionCategory.FOLD,
+            ExpressionCategory.SEQUENCE,
+            ExpressionCategory.OPERATOR),
+    HEAD(ExpressionCategory.SEQUENCE),
+    VARIANT_GET_OR_ELSE(ExpressionCategory.VARIANT),
+    VARIANT_GET_UNSAFE(ExpressionCategory.VARIANT);
+
+    private final ExpressionCategory category;
+    private final Set<ExpressionCategory> requiredCategories;
+
+    GeneralExpressionKind(
+            ExpressionCategory category, ExpressionCategory... dependencies) {
+        this.category = category;
+        requiredCategories = ExpressionKind.requirements(category, dependencies);
+    }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
@@ -41,92 +84,148 @@ enum GeneralExpressionKind implements ExpressionKind {
             default -> !(type instanceof OperatorType);
         };
     }
+
+    @Override
+    public ExpressionCategory category() {
+        return category;
+    }
+
+    @Override
+    public Set<ExpressionCategory> requiredCategories() {
+        return requiredCategories;
+    }
 }
 
 /** Boolean-valued expression forms. */
 enum BooleanExpressionKind implements ExpressionKind {
-    BOOLEAN_LITERAL,
-    EQUAL,
-    NOT_EQUAL,
-    NOT,
-    AND,
-    OR,
-    IMPLIES,
-    EQUIVALENT,
-    FORALL_BOUNDED,
-    EXISTS_BOUNDED,
-    FORALL_UNBOUNDED,
-    EXISTS_UNBOUNDED,
-    LESS_THAN,
-    GREATER_THAN,
-    LESS_EQUAL,
-    GREATER_EQUAL,
-    IN,
-    NOT_IN,
-    SUBSET_EQUAL,
-    IS_FINITE_SET,
-    PRIME_EQUAL,
-    STUTTER,
-    NO_STUTTER,
-    ENABLED,
-    UNCHANGED,
-    ACTION_THEN,
-    ALWAYS,
-    EVENTUALLY,
-    LEADS_TO,
-    GUARANTEES,
-    WEAK_FAIR,
-    STRONG_FAIR,
-    TEMPORAL_EXISTS,
-    TEMPORAL_FORALL;
+    BOOLEAN_LITERAL(ExpressionCategory.CORE),
+    EQUAL(ExpressionCategory.BOOL_LOGIC),
+    NOT_EQUAL(ExpressionCategory.BOOL_LOGIC),
+    NOT(ExpressionCategory.BOOL_LOGIC),
+    AND(ExpressionCategory.BOOL_LOGIC),
+    OR(ExpressionCategory.BOOL_LOGIC),
+    IMPLIES(ExpressionCategory.BOOL_LOGIC),
+    EQUIVALENT(ExpressionCategory.BOOL_LOGIC),
+    FORALL_BOUNDED(ExpressionCategory.QUANTIFIER, ExpressionCategory.SET),
+    EXISTS_BOUNDED(ExpressionCategory.QUANTIFIER, ExpressionCategory.SET),
+    FORALL_UNBOUNDED(ExpressionCategory.UNBOUND),
+    EXISTS_UNBOUNDED(ExpressionCategory.UNBOUND),
+    LESS_THAN(ExpressionCategory.ARITHMETIC),
+    GREATER_THAN(ExpressionCategory.ARITHMETIC),
+    LESS_EQUAL(ExpressionCategory.ARITHMETIC),
+    GREATER_EQUAL(ExpressionCategory.ARITHMETIC),
+    IN(ExpressionCategory.SET),
+    NOT_IN(ExpressionCategory.SET),
+    SUBSET_EQUAL(ExpressionCategory.SET),
+    IS_FINITE_SET(ExpressionCategory.FINITE_SET, ExpressionCategory.SET),
+    PRIME_EQUAL(ExpressionCategory.ACTION),
+    STUTTER(ExpressionCategory.TEMPORAL),
+    NO_STUTTER(ExpressionCategory.TEMPORAL),
+    ENABLED(ExpressionCategory.TEMPORAL),
+    UNCHANGED(ExpressionCategory.ACTION),
+    ACTION_THEN(ExpressionCategory.EXOTIC),
+    ALWAYS(ExpressionCategory.TEMPORAL),
+    EVENTUALLY(ExpressionCategory.TEMPORAL),
+    LEADS_TO(ExpressionCategory.TEMPORAL),
+    GUARANTEES(ExpressionCategory.TEMPORAL),
+    WEAK_FAIR(ExpressionCategory.TEMPORAL),
+    STRONG_FAIR(ExpressionCategory.TEMPORAL),
+    TEMPORAL_EXISTS(ExpressionCategory.EXOTIC),
+    TEMPORAL_FORALL(ExpressionCategory.EXOTIC);
+
+    private final ExpressionCategory category;
+    private final Set<ExpressionCategory> requiredCategories;
+
+    BooleanExpressionKind(
+            ExpressionCategory category, ExpressionCategory... dependencies) {
+        this.category = category;
+        requiredCategories = ExpressionKind.requirements(category, dependencies);
+    }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
         return type == PrimitiveType.BOOL;
     }
+
+    @Override
+    public ExpressionCategory category() {
+        return category;
+    }
+
+    @Override
+    public Set<ExpressionCategory> requiredCategories() {
+        return requiredCategories;
+    }
 }
 
 /** Integer-valued expression forms. */
 enum IntegerExpressionKind implements ExpressionKind {
-    INTEGER_LITERAL,
-    PLUS,
-    MINUS,
-    UNARY_MINUS,
-    MULTIPLY,
-    DIVIDE,
-    MODULO,
-    EXPONENT,
-    CARDINALITY,
-    LENGTH;
+    INTEGER_LITERAL(ExpressionCategory.CORE),
+    PLUS(ExpressionCategory.ARITHMETIC),
+    MINUS(ExpressionCategory.ARITHMETIC),
+    UNARY_MINUS(ExpressionCategory.ARITHMETIC),
+    MULTIPLY(ExpressionCategory.ARITHMETIC),
+    DIVIDE(ExpressionCategory.ARITHMETIC),
+    MODULO(ExpressionCategory.ARITHMETIC),
+    EXPONENT(ExpressionCategory.ARITHMETIC),
+    CARDINALITY(ExpressionCategory.FINITE_SET, ExpressionCategory.SET),
+    LENGTH(ExpressionCategory.SEQUENCE);
+
+    private final ExpressionCategory category;
+    private final Set<ExpressionCategory> requiredCategories;
+
+    IntegerExpressionKind(
+            ExpressionCategory category, ExpressionCategory... dependencies) {
+        this.category = category;
+        requiredCategories = ExpressionKind.requirements(category, dependencies);
+    }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
         return type == PrimitiveType.INT;
     }
+
+    @Override
+    public ExpressionCategory category() {
+        return category;
+    }
+
+    @Override
+    public Set<ExpressionCategory> requiredCategories() {
+        return requiredCategories;
+    }
 }
 
 /** Set-valued expression forms. */
 enum SetExpressionKind implements ExpressionKind {
-    EMPTY_SET,
-    ENUM_SET,
-    SET_INTERSECTION,
-    SET_UNION,
-    SET_DIFFERENCE,
-    UNION_ALL,
-    SET_FILTER,
-    SET_MAP,
-    FUNCTION_SET,
-    RECORD_SET,
-    SEQUENCE_SET,
-    CARTESIAN_PRODUCT,
-    POWER_SET,
-    INTERVAL,
-    BOOLEAN_SET,
-    STRING_SET,
-    INTEGER_SET,
-    NATURAL_SET,
-    VARIANT_FILTER,
-    DOMAIN;
+    EMPTY_SET(ExpressionCategory.SET),
+    ENUM_SET(ExpressionCategory.SET),
+    SET_INTERSECTION(ExpressionCategory.SET),
+    SET_UNION(ExpressionCategory.SET),
+    SET_DIFFERENCE(ExpressionCategory.SET),
+    UNION_ALL(ExpressionCategory.SET),
+    SET_FILTER(ExpressionCategory.SET),
+    SET_MAP(ExpressionCategory.SET),
+    FUNCTION_SET(ExpressionCategory.FUNCTION, ExpressionCategory.SET),
+    RECORD_SET(ExpressionCategory.RECORD, ExpressionCategory.SET),
+    SEQUENCE_SET(ExpressionCategory.SEQUENCE, ExpressionCategory.SET),
+    CARTESIAN_PRODUCT(ExpressionCategory.TUPLE, ExpressionCategory.SET),
+    POWER_SET(ExpressionCategory.SET),
+    INTERVAL(ExpressionCategory.SET),
+    BOOLEAN_SET(ExpressionCategory.UNIVERSE, ExpressionCategory.SET),
+    STRING_SET(ExpressionCategory.UNIVERSE, ExpressionCategory.SET),
+    INTEGER_SET(ExpressionCategory.UNIVERSE, ExpressionCategory.SET),
+    NATURAL_SET(ExpressionCategory.UNIVERSE, ExpressionCategory.SET),
+    VARIANT_FILTER(ExpressionCategory.VARIANT, ExpressionCategory.SET),
+    DOMAIN(ExpressionCategory.FUNCTION, ExpressionCategory.SET);
+
+    private final ExpressionCategory category;
+    private final Set<ExpressionCategory> requiredCategories;
+
+    SetExpressionKind(ExpressionCategory category, ExpressionCategory... dependencies) {
+        this.category = category;
+        requiredCategories = ExpressionKind.requirements(category, dependencies);
+    }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
@@ -147,36 +246,73 @@ enum SetExpressionKind implements ExpressionKind {
             default -> true;
         };
     }
+
+    @Override
+    public ExpressionCategory category() {
+        return category;
+    }
+
+    @Override
+    public Set<ExpressionCategory> requiredCategories() {
+        return requiredCategories;
+    }
 }
 
 /** Sequence-valued expression forms. */
 enum SequenceExpressionKind implements ExpressionKind {
-    EMPTY_SEQUENCE,
-    SEQUENCE_LITERAL,
-    APPEND,
-    CONCATENATE,
-    TAIL,
-    SUBSEQUENCE;
+    EMPTY_SEQUENCE(ExpressionCategory.SEQUENCE),
+    SEQUENCE_LITERAL(ExpressionCategory.SEQUENCE),
+    APPEND(ExpressionCategory.SEQUENCE),
+    CONCATENATE(ExpressionCategory.SEQUENCE),
+    TAIL(ExpressionCategory.SEQUENCE),
+    SUBSEQUENCE(ExpressionCategory.SEQUENCE);
+
+    private final ExpressionCategory category;
+    private final Set<ExpressionCategory> requiredCategories;
+
+    SequenceExpressionKind(ExpressionCategory category) {
+        this.category = category;
+        requiredCategories = ExpressionKind.requirements(category);
+    }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
         return type instanceof SequenceType;
     }
+
+    @Override
+    public ExpressionCategory category() {
+        return category;
+    }
+
+    @Override
+    public Set<ExpressionCategory> requiredCategories() {
+        return requiredCategories;
+    }
 }
 
 /** Expression forms not covered by the dedicated type and general families. */
 enum OtherExpressionKind implements ExpressionKind {
-    STRING_LITERAL,
-    VARIANT_TAG,
-    MODEL_VALUE,
-    PARSED_MODEL_VALUE,
-    FUNCTION_DEFINITION,
-    EXCEPT,
-    EXCEPT_MANY,
-    TUPLE_LITERAL,
-    RECORD_LITERAL,
-    VARIANT_LITERAL,
-    LAMBDA;
+    STRING_LITERAL(ExpressionCategory.CORE),
+    VARIANT_TAG(ExpressionCategory.VARIANT),
+    MODEL_VALUE(ExpressionCategory.MODEL),
+    PARSED_MODEL_VALUE(ExpressionCategory.MODEL),
+    FUNCTION_DEFINITION(ExpressionCategory.FUNCTION, ExpressionCategory.SET),
+    EXCEPT(ExpressionCategory.FUNCTION, ExpressionCategory.SET),
+    EXCEPT_MANY(ExpressionCategory.FUNCTION, ExpressionCategory.SET),
+    TUPLE_LITERAL(ExpressionCategory.TUPLE),
+    RECORD_LITERAL(ExpressionCategory.RECORD),
+    VARIANT_LITERAL(ExpressionCategory.VARIANT),
+    LAMBDA(ExpressionCategory.OPERATOR);
+
+    private final ExpressionCategory category;
+    private final Set<ExpressionCategory> requiredCategories;
+
+    OtherExpressionKind(
+            ExpressionCategory category, ExpressionCategory... dependencies) {
+        this.category = category;
+        requiredCategories = ExpressionKind.requirements(category, dependencies);
+    }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
@@ -190,6 +326,16 @@ enum OtherExpressionKind implements ExpressionKind {
             case VARIANT_LITERAL -> type instanceof VariantType;
             case LAMBDA -> type instanceof OperatorType;
         };
+    }
+
+    @Override
+    public ExpressionCategory category() {
+        return category;
+    }
+
+    @Override
+    public Set<ExpressionCategory> requiredCategories() {
+        return requiredCategories;
     }
 }
 
