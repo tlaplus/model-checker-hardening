@@ -216,7 +216,9 @@ class MainTest {
                 .anyMatch(line -> line.matches("\\[\\s+8 generated inputs\\s+]")));
         var entryCount = 0;
         for (var resultDirectory : java.util.List.of(
-                CorpusPath.APALACHE_INPUT,
+                CorpusPath.APALACHE_PASS,
+                CorpusPath.APALACHE_FAIL,
+                CorpusPath.APALACHE_CRASH,
                 CorpusPath.PARSER_FAIL,
                 CorpusPath.PARSER_CRASH)) {
             try (var paths = Files.list(corpus.resolve(resultDirectory.relativePath()))) {
@@ -670,6 +672,9 @@ class MainTest {
                 [%20d %-18s]
                 [%20d %-18s]
                 [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
+                [%20d %-18s]
                 [%20s %-18s]
                 """
                 .formatted(
@@ -681,8 +686,8 @@ class MainTest {
                         "awaiting parser",
                         0,
                         "awaiting TLC",
-                        total,
-                        "pending Apalache",
+                        0,
+                        "awaiting Apalache",
                         0,
                         "generated inputs",
                         "n/a",
@@ -711,6 +716,12 @@ class MainTest {
                         "TLC failed",
                         0,
                         "TLC crashed",
+                        0,
+                        "Apalache passed",
+                        0,
+                        "Apalache failed",
+                        0,
+                        "Apalache crashed",
                         "COMPLETED",
                         "stop reason");
     }

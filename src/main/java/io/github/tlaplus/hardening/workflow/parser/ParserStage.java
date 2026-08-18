@@ -29,7 +29,8 @@ public final class ParserStage implements WorkflowStage {
     private final Path scratchDirectory;
     private final Generator<TlaEx> generator;
     private final WorkQueue<Path> input;
-    private final WorkQueue<Path> output;
+    private final WorkQueue<Path> tlcOutput;
+    private final WorkQueue<Path> apalacheOutput;
     private final Semaphore inputCapacity;
     private final CpuBudget cpuBudget;
     private final WorkflowControl control;
@@ -47,7 +48,8 @@ public final class ParserStage implements WorkflowStage {
             Path scratchDirectory,
             Generator<TlaEx> generator,
             WorkQueue<Path> input,
-            WorkQueue<Path> output,
+            WorkQueue<Path> tlcOutput,
+            WorkQueue<Path> apalacheOutput,
             Semaphore inputCapacity,
             CpuBudget cpuBudget,
             WorkflowControl control) {
@@ -61,7 +63,8 @@ public final class ParserStage implements WorkflowStage {
                 Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         this.generator = Objects.requireNonNull(generator, "generator");
         this.input = Objects.requireNonNull(input, "input");
-        this.output = Objects.requireNonNull(output, "output");
+        this.tlcOutput = Objects.requireNonNull(tlcOutput, "tlcOutput");
+        this.apalacheOutput = Objects.requireNonNull(apalacheOutput, "apalacheOutput");
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.control = Objects.requireNonNull(control, "control");
@@ -75,7 +78,10 @@ public final class ParserStage implements WorkflowStage {
 
     @Override
     public void start() {
-        workers.start(workerCount, _ -> this::runWorker, output::close);
+        workers.start(workerCount, _ -> this::runWorker, () -> {
+            tlcOutput.close();
+            apalacheOutput.close();
+        });
     }
 
     @Override
@@ -90,7 +96,8 @@ public final class ParserStage implements WorkflowStage {
     @Override
     public void close() {
         input.close();
-        output.close();
+        tlcOutput.close();
+        apalacheOutput.close();
         workers.close();
     }
 
@@ -136,10 +143,11 @@ public final class ParserStage implements WorkflowStage {
                     inputCapacity.release();
                     increment(result.outcome());
                     if (result.outcome() == StageOutcome.PASS) {
-                        var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT)
-                                .resolve(destination.getFileName());
+                        var inputName = destination.getFileName();
                         corpus.fanOutParserPass(destination);
-                        output.submit(tlcInput);
+                        tlcOutput.submit(corpus.resolve(CorpusPath.TLC_INPUT).resolve(inputName));
+                        apalacheOutput.submit(
+                                corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(inputName));
                     }
                 } finally {
                     cpuBudget.release(1);
