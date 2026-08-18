@@ -1,9 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
 import io.github.tlaplus.hardening.config.TlcStageConfig;
-import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
-import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
@@ -55,8 +54,8 @@ public final class TlcCheckerBackend implements CheckerBackend {
     }
 
     @Override
-    public ToolResult check(String source) throws WorkflowException, InterruptedException {
-        return TlcProcess.check(scratchDirectory, source, config, timeout());
+    public CheckerWorker startWorker() {
+        return source -> TlcProcess.check(scratchDirectory, source, config, timeout());
     }
 
     @Override

@@ -1,64 +1,34 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Objects;
 
 /** Continuously drains a process stream while retaining only a bounded prefix. */
 public final class BoundedOutputCapture implements AutoCloseable {
     private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(1);
 
     private final InputStream input;
-    private final int maximumBytes;
-    private final String truncationLabel;
-    private final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    private final BoundedTextOutputStream output;
     private final Thread reader;
-    private boolean truncated;
-
-    public BoundedOutputCapture(InputStream input, int maximumBytes) {
-        this(input, maximumBytes, "output");
-    }
 
     public BoundedOutputCapture(InputStream input, int maximumBytes, String truncationLabel) {
-        if (maximumBytes <= 0) {
-            throw new IllegalArgumentException("maximumBytes must be positive");
-        }
-        this.input = java.util.Objects.requireNonNull(input, "input");
-        this.maximumBytes = maximumBytes;
-        this.truncationLabel = java.util.Objects.requireNonNull(truncationLabel, "truncationLabel");
+        this.input = Objects.requireNonNull(input, "input");
+        output = new BoundedTextOutputStream(maximumBytes, truncationLabel);
         reader = Thread.startVirtualThread(this::read);
     }
 
     private void read() {
-        var buffer = new byte[8192];
         try (input) {
-            int length;
-            while ((length = input.read(buffer)) >= 0) {
-                append(buffer, length);
-            }
+            input.transferTo(output);
         } catch (IOException ignored) {
             // Closing or terminating the child process also closes its stream.
         }
     }
 
-    private synchronized void append(byte[] bytes, int length) {
-        var remaining = maximumBytes - captured.size();
-        if (remaining > 0) {
-            captured.write(bytes, 0, Math.min(remaining, length));
-        }
-        if (length > remaining) {
-            truncated = true;
-        }
-    }
-
-    public synchronized String text() {
-        var result = captured.toString(StandardCharsets.UTF_8);
-        if (truncated) {
-            result += System.lineSeparator() + "[" + truncationLabel + " truncated]";
-        }
-        return result;
+    public String text() {
+        return output.text();
     }
 
     @Override

@@ -26,6 +26,7 @@ final class TlcProcess {
                 scratchDirectory,
                 timeout,
                 TlcWorkerMain.class,
+                List.of(),
                 arguments,
                 "TLC worker")) {
             return worker.request(source, timeout);

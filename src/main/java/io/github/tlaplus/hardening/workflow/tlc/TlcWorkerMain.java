@@ -4,15 +4,10 @@ import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -24,7 +19,7 @@ import tlc2.output.EC;
 import util.SimpleFilenameToStream;
 import util.ToolIO;
 
-/** One-shot TLC child process. Its stdout is reserved exclusively for the protocol. */
+/** One-shot TLC child process. */
 public final class TlcWorkerMain {
     static final String WORKERS_PROPERTY = "fuzztla.tlc.workers";
 
@@ -40,8 +35,9 @@ public final class TlcWorkerMain {
     }
 
     private static void run() throws IOException {
-        var protocolOutput = new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(FileDescriptor.out)));
+        var connection = ToolWorkerConnection.connect();
+        var protocolOutput = connection.output();
+        var protocolInput = connection.input();
         System.setOut(System.err);
         StandardModuleResources.require(
                 TlcWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
@@ -59,8 +55,9 @@ public final class TlcWorkerMain {
                 StandardOpenOption.WRITE);
 
         var diagnostics = new ByteArrayOutputStream();
-        try (var diagnosticStream = new PrintStream(
-                diagnostics, true, StandardCharsets.UTF_8)) {
+        try (connection;
+                var diagnosticStream = new PrintStream(
+                        diagnostics, true, StandardCharsets.UTF_8)) {
             System.setOut(diagnosticStream);
             ToolIO.out = diagnosticStream;
             ToolIO.err = diagnosticStream;
@@ -84,7 +81,6 @@ public final class TlcWorkerMain {
                 throw new IOException("TLC rejected the fixed worker parameters");
             }
 
-            var protocolInput = new DataInputStream(new BufferedInputStream(System.in));
             ToolWorkerProtocol.writeHandshake(protocolOutput);
             var source = ToolWorkerProtocol.readRequest(protocolInput);
             if (source == null) {

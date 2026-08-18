@@ -217,7 +217,7 @@ public final class TomlConfig {
                 max_entries = %d
                 # Wall-clock limit for checking one generated specification.
                 timeout_sec = %d
-                # Maximum heap allocated to each isolated Apalache JVM.
+                # Maximum heap allocated to each persistent Apalache worker JVM.
                 max_heap_mb = %d
                 # Number of concurrent FuzzTLA Apalache workers.
                 # Initialized to half the available processors, rounded down (at least one).

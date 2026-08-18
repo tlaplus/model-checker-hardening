@@ -3,15 +3,10 @@ package io.github.tlaplus.hardening.workflow.parser;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -26,7 +21,7 @@ import tla2sany.output.SimpleSanyOutput;
 import util.SimpleFilenameToStream;
 import util.ToolIO;
 
-/** Child-process entry point. Its stdout is reserved exclusively for the binary protocol. */
+/** Child-process entry point for persistent isolated SANY requests. */
 public final class ParserWorkerMain {
     private ParserWorkerMain() {}
 
@@ -40,8 +35,9 @@ public final class ParserWorkerMain {
     }
 
     private static void run() throws IOException {
-        var protocolOutput = new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(FileDescriptor.out)));
+        var connection = ToolWorkerConnection.connect();
+        var protocolOutput = connection.output();
+        var protocolInput = connection.input();
         System.setOut(System.err);
         StandardModuleResources.require(
                 ParserWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
@@ -50,7 +46,6 @@ public final class ParserWorkerMain {
         var specification = temporaryDirectory.resolve("FuzzInput.tla");
         ToolIO.setUserDir(temporaryDirectory.toString());
         var resolver = new SimpleFilenameToStream(temporaryDirectory.toString());
-        var protocolInput = new DataInputStream(new BufferedInputStream(System.in));
 
         ToolWorkerProtocol.writeHandshake(protocolOutput);
         try {
@@ -75,6 +70,7 @@ public final class ParserWorkerMain {
         } finally {
             Files.deleteIfExists(specification);
             Files.deleteIfExists(temporaryDirectory);
+            connection.close();
         }
     }
 

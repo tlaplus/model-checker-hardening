@@ -22,6 +22,7 @@ final class ParserProcess implements AutoCloseable {
                 timeout,
                 ParserWorkerMain.class,
                 List.of(),
+                List.of(),
                 "parser worker"));
     }
 

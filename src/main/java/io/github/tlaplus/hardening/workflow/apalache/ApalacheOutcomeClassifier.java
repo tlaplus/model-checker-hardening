@@ -5,7 +5,7 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 
-/** Maps Apalache CLI exit statuses to shared workflow outcomes. */
+/** Maps Apalache tool exit statuses to shared workflow outcomes. */
 final class ApalacheOutcomeClassifier {
     private ApalacheOutcomeClassifier() {}
 
