@@ -3,7 +3,6 @@ package io.github.tlaplus.hardening.cli;
 import at.forsyte.apalache.io.lir.PrettyWriter;
 import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
-import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -14,7 +13,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
-import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -117,9 +116,7 @@ final class PrintCommand implements Callable<Integer> {
             var expression = generator.generate(corpusInput.input());
             final String output;
             if (printsSpecification()) {
-                var module = FuzzInputModule.create(expression);
-                output = PrettyWriter.writeAsString(
-                        module, TlaWriter$.MODULE$.STANDARD_MODULES());
+                output = ExprInputToSpec.render(expression);
             } else {
                 var renderedExpression = renderExpression(expression);
                 output = envelope == null
