@@ -293,6 +293,7 @@ class CorpusInputCodecTest {
     @Test
     void rejectsInvalidCheckerFailureMetadata() throws Exception {
         var missingCode = checkerEnvelope("fail", null, null);
+        var missingApalacheCode = stageEnvelope("apalache", "fail", null, null);
         var unknownCode = checkerEnvelope("fail", 76, null);
         var detailWithoutCode = checkerEnvelope("fail", null, "undefined expression");
         var codeOnPass = checkerEnvelope("pass", 75, null);
@@ -315,6 +316,7 @@ class CorpusInputCodecTest {
         });
 
         assertInvalidEnvelope(missingCode, "requires a failure code");
+        assertInvalidEnvelope(missingApalacheCode, "requires a failure code");
         assertInvalidEnvelope(unknownCode, "unsupported checker failure code: 76");
         assertInvalidEnvelope(detailWithoutCode, "requires field 'code'");
         assertInvalidEnvelope(codeOnPass, "requires the fail verdict");
@@ -322,6 +324,20 @@ class CorpusInputCodecTest {
         assertInvalidEnvelope(excessiveDetail, "must not exceed 80 characters");
         assertInvalidEnvelope(multilineDetail, "must be a single line");
         assertInvalidEnvelope(textCode, "must be an integer");
+    }
+
+    @Test
+    void appliesOnlyGenericFailureRulesToUnknownStages() throws Exception {
+        var encoded = stageEnvelope("future-checker", "fail", 75, "undefined expression");
+
+        var metadata = CorpusInputCodec.decodeEnvelope(encoded).stages().getFirst();
+
+        assertEquals("future-checker", metadata.stage());
+        assertEquals(
+                Optional.of(new CheckerFailure(
+                        CheckerFailureCode.SPEC_EVAL,
+                        Optional.of("undefined expression"))),
+                metadata.failure());
     }
 
     @Test

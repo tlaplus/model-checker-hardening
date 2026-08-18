@@ -111,6 +111,9 @@ class MainTest {
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.TLC_FAIL.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.TLC_CRASH.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_INPUT.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_PASS.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_FAIL.relativePath())));
+        assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_CRASH.relativePath())));
     }
 
     @Test

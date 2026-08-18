@@ -39,12 +39,16 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.TLC_FAIL, Path.of("02tlc-fail")),
                 Map.entry(CorpusPath.TLC_CRASH, Path.of("02tlc-crash")),
                 Map.entry(CorpusPath.APALACHE_INPUT, Path.of("02apa-inputs")),
+                Map.entry(CorpusPath.APALACHE_PASS, Path.of("02apa-pass")),
+                Map.entry(CorpusPath.APALACHE_FAIL, Path.of("02apa-fail")),
+                Map.entry(CorpusPath.APALACHE_CRASH, Path.of("02apa-crash")),
                 Map.entry(CorpusPath.WORK, Path.of(".work")),
                 Map.entry(
                         CorpusPath.GENERATOR_CRASH,
                         Path.of(".work", "generator-crash")),
                 Map.entry(CorpusPath.PARSER_SCRATCH, Path.of(".work", "parser-tmp")),
                 Map.entry(CorpusPath.TLC_SCRATCH, Path.of(".work", "tlc-tmp")),
+                Map.entry(CorpusPath.APALACHE_SCRATCH, Path.of(".work", "apalache-tmp")),
                 Map.entry(CorpusPath.LOCK, Path.of(".workflow.lock")));
 
         assertEquals(Set.of(CorpusPath.values()), relativePaths.keySet());
@@ -267,7 +271,8 @@ class CorpusDirectoryTest {
                 "pass",
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
-        var tlcInput = corpus.fanOutParserPass(parserPass);
+        var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
 
         var result = corpus.completeChecker(
                 tlcInput,
@@ -294,6 +299,54 @@ class CorpusDirectoryTest {
     }
 
     @Test
+    void recordsApalacheMetadataAfterParserFanOut(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {4, 3};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                "pass",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
+
+        var result = corpus.completeChecker(
+                apalacheInput,
+                "pass",
+                Instant.ofEpochSecond(3),
+                Instant.ofEpochSecond(4),
+                Optional.empty(),
+                "Apalache output");
+
+        assertEquals(
+                corpus.resolve(CorpusPath.APALACHE_PASS)
+                        .resolve(apalacheInput.getFileName()),
+                result);
+        assertEquals(
+                "pass",
+                CorpusInputCodec.stageVerdict(Files.readAllBytes(result), "apalache")
+                        .orElseThrow());
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+        assertEquals(1, inventory.apalachePassEntries());
+        assertEquals(1, inventory.tlcInputEntries());
+        assertEquals(1, inventory.totalEntries());
+    }
+
+    @Test
+    void rejectsAPathOutsideCheckerInputDirectories(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {4, 4};
+        corpus.store(input);
+
+        var failure = assertThrows(
+                CorpusException.class,
+                () -> corpus.readCheckerExpressionInput(corpus.inputPath(input)));
+
+        assertTrue(failure.getMessage().contains("not owned by a checker input stage"));
+    }
+
+    @Test
     void recordsTlcFailureClassification(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
         var input = new byte[] {7, 5};
@@ -303,7 +356,8 @@ class CorpusDirectoryTest {
                 "pass",
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
-        var tlcInput = corpus.fanOutParserPass(parserPass);
+        var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
         var failure = new CheckerFailure(
                 CheckerFailureCode.SPEC_EVAL,
                 Optional.of("Attempted to apply Head to the empty sequence."));
@@ -360,6 +414,82 @@ class CorpusDirectoryTest {
     }
 
     @Test
+    void rejectsAMissingCheckerBranchCopy(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {7, 4};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                "pass",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
+        Files.delete(apalacheInput);
+
+        var failure = assertThrows(
+                CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
+
+        assertTrue(failure.getMessage().contains(
+                "missing from Apalache=[" + parserPass.getFileName() + "]"));
+    }
+
+    @Test
+    void rejectsCheckerCopiesWithDifferentParserMetadata(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {7, 5};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                "pass",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
+        Files.write(
+                apalacheInput,
+                CorpusInputCodec.withStageMetadata(
+                        Files.readAllBytes(apalacheInput),
+                        new StageMetadata(
+                                "parser",
+                                "pass",
+                                Instant.ofEpochSecond(3),
+                                Instant.ofEpochSecond(4))));
+
+        var failure = assertThrows(
+                CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
+
+        assertTrue(failure.getMessage().contains(
+                "checker branch copies disagree for corpus entry: "
+                        + parserPass.getFileName()));
+    }
+
+    @Test
+    void rejectsACheckerIdentityThatAlsoAppearsUpstream(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {7, 6};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                "pass",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        corpus.fanOutParserPass(parserPass);
+        Files.write(
+                corpus.resolve(CorpusPath.INPUT).resolve(parserPass.getFileName()),
+                CorpusInputCodec.encode(CorpusInput.expression(input)));
+
+        var failure = assertThrows(
+                CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
+
+        assertTrue(failure.getMessage().contains(
+                "corpus entry appears in multiple workflow stages: "
+                        + parserPass.getFileName()));
+    }
+
+    @Test
     void recoversATlcMetadataUpdateInterruptedBeforeItsMove(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
@@ -370,7 +500,8 @@ class CorpusDirectoryTest {
                 "pass",
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
-        var tlcInput = corpus.fanOutParserPass(parserPass);
+        var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
         Files.write(
                 tlcInput,
                 CorpusInputCodec.withStageMetadata(
@@ -399,7 +530,8 @@ class CorpusDirectoryTest {
                 "pass",
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
-        var tlcInput = corpus.fanOutParserPass(parserPass);
+        var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
 
         var result = corpus.completeChecker(
                 tlcInput,
@@ -416,6 +548,38 @@ class CorpusDirectoryTest {
                 "java.lang.OutOfMemoryError: heap" + System.lineSeparator(),
                 Files.readString(report));
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).tlcCrashEntries());
+    }
+
+    @Test
+    void storesApalacheCrashDiagnosticsBesideTheResult(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var input = new byte[] {9, 8};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                "pass",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
+        corpus.fanOutParserPass(parserPass);
+
+        var result = corpus.completeChecker(
+                apalacheInput,
+                "crashed",
+                Instant.ofEpochSecond(3),
+                Instant.ofEpochSecond(4),
+                Optional.empty(),
+                "Apalache timed out");
+
+        var report = corpus.resolve(CorpusPath.APALACHE_CRASH)
+                .resolve(hash(input) + CorpusDirectory.CRASH_REPORT_EXTENSION);
+        assertEquals(
+                corpus.resolve(CorpusPath.APALACHE_CRASH)
+                        .resolve(apalacheInput.getFileName()),
+                result);
+        assertEquals("Apalache timed out" + System.lineSeparator(), Files.readString(report));
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).apalacheCrashEntries());
     }
 
     @Test
@@ -564,6 +728,11 @@ class CorpusDirectoryTest {
 
     private String hash(byte[] input) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
+    }
+
+    private static Path checkerInput(
+            CorpusDirectory corpus, CorpusPath branch, Path parserPass) {
+        return corpus.resolve(branch).resolve(parserPass.getFileName());
     }
 
     private byte[] encodeWithStageMetadata(byte[] input) throws Exception {

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
@@ -172,29 +173,34 @@ public final class CorpusDirectory {
         return createScratch(CorpusStageLayout.TLC);
     }
 
+    /** Creates transient Apalache storage for one locked workflow invocation. */
+    public synchronized StageScratch createApalacheScratch()
+            throws IOException, CorpusException {
+        return createScratch(CorpusStageLayout.APALACHE);
+    }
+
     /** Recovers durable transitions and returns a validated snapshot of the corpus. */
     public synchronized CorpusInventory recoverAndValidate(Generator<?> generator)
             throws IOException, CorpusException {
         Objects.requireNonNull(generator, "generator");
 
         // Finish durable transitions before inspecting the steady-state directories.
-        recoverTransitions(CorpusStageLayout.PARSER, generator);
-        recoverTransitions(CorpusStageLayout.TLC, generator);
+        for (var stage : CorpusStageLayout.values()) {
+            recoverTransitions(stage, generator);
+        }
         fanOutParserPasses();
 
         var logicalNames = new HashSet<String>();
         var inputs = new ArrayList<Path>();
-        var tlcInputs = new ArrayList<Path>();
         var parserResultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
-        var tlcResultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
 
         // Validate inputs that are still waiting for the parser.
         for (var path : entryPaths(resolve(CorpusPath.INPUT))) {
             var entry = verifyPath(path, generator);
-            requireMissingStage(
-                    entry.path(), entry.encoded(), CorpusStageLayout.PARSER);
-            requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
-            addLogicalName(logicalNames, path);
+            for (var stage : CorpusStageLayout.values()) {
+                requireMissingStage(entry.path(), entry.encoded(), stage);
+            }
+            addLogicalName(logicalNames, path.getFileName().toString());
             inputs.add(path);
         }
 
@@ -213,75 +219,41 @@ public final class CorpusDirectory {
                     verdict,
                     generator,
                     entry -> {
-                        requireMissingStage(
-                                entry.path(), entry.encoded(), CorpusStageLayout.TLC);
-                        addLogicalName(logicalNames, entry.path());
+                        for (var checker : CorpusStageLayout.checkerBranches()) {
+                            requireMissingStage(
+                                    entry.path(), entry.encoded(), checker);
+                        }
+                        addLogicalName(
+                                logicalNames,
+                                entry.path().getFileName().toString());
                     });
             parserResultCounts.put(verdict, count);
         }
 
-        // Validate the TLC branch and distinguish pending inputs from completed results.
-        var tlcBranch = new HashMap<String, Entry>();
-        for (var path : entryPaths(resolve(CorpusPath.TLC_INPUT))) {
-            var entry = verifyPath(path, generator);
-            requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
-            requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
-            addTlcBranch(tlcBranch, logicalNames, entry);
-            tlcInputs.add(path);
+        // Validate each checker branch and distinguish pending inputs from completed results.
+        var checkerBranches =
+                new EnumMap<CorpusStageLayout, CheckerBranch>(CorpusStageLayout.class);
+        for (var checker : CorpusStageLayout.checkerBranches()) {
+            checkerBranches.put(checker, visitCheckerBranch(checker, generator));
         }
-        for (var verdict : CorpusVerdict.values()) {
-            var count = visitResultEntries(
-                    CorpusStageLayout.TLC,
-                    verdict,
-                    generator,
-                    entry -> {
-                        requireStageVerdict(
-                                entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
-                        addTlcBranch(tlcBranch, logicalNames, entry);
-                    });
-            tlcResultCounts.put(verdict, count);
-        }
-
-        // Collect the corresponding parser outputs waiting for Apalache.
-        var apalacheBranch = new HashMap<String, Entry>();
-        for (var path : entryPaths(resolve(CorpusPath.APALACHE_INPUT))) {
-            var entry = verifyPath(path, generator);
-            requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
-            requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
-            var previous = apalacheBranch.put(path.getFileName().toString(), entry);
-            if (previous != null) {
-                throw new CorpusException("duplicate Apalache input: " + path.getFileName());
-            }
-        }
-
-        // Require both checker branches to contain identical parser outputs.
-        if (!tlcBranch.keySet().equals(apalacheBranch.keySet())) {
-            var onlyTlc = new HashSet<>(tlcBranch.keySet());
-            onlyTlc.removeAll(apalacheBranch.keySet());
-            var onlyApalache = new HashSet<>(apalacheBranch.keySet());
-            onlyApalache.removeAll(tlcBranch.keySet());
-            throw new CorpusException(
-                    "checker branches are inconsistent; only TLC="
-                            + onlyTlc
-                            + ", only Apalache="
-                            + onlyApalache);
-        }
-        for (var name : tlcBranch.keySet()) {
-            requireSameParserOutput(name, tlcBranch.get(name), apalacheBranch.get(name));
-        }
+        var parserPass = validateAndRegisterCheckerBranches(checkerBranches, logicalNames);
+        var tlcBranch = checkerBranches.get(CorpusStageLayout.TLC);
+        var apalacheBranch = checkerBranches.get(CorpusStageLayout.APALACHE);
 
         // Publish counts only after the entire corpus has passed validation.
-        var parserPass = tlcBranch.size();
         return new CorpusInventory(
                 inputs,
-                tlcInputs,
+                tlcBranch.inputs(),
+                apalacheBranch.inputs(),
                 parserPass,
                 parserResultCounts.get(CorpusVerdict.FAIL),
                 parserResultCounts.get(CorpusVerdict.CRASH),
-                tlcResultCounts.get(CorpusVerdict.PASS),
-                tlcResultCounts.get(CorpusVerdict.FAIL),
-                tlcResultCounts.get(CorpusVerdict.CRASH),
-                apalacheBranch.size());
+                tlcBranch.resultCount(CorpusVerdict.PASS),
+                tlcBranch.resultCount(CorpusVerdict.FAIL),
+                tlcBranch.resultCount(CorpusVerdict.CRASH),
+                apalacheBranch.resultCount(CorpusVerdict.PASS),
+                apalacheBranch.resultCount(CorpusVerdict.FAIL),
+                apalacheBranch.resultCount(CorpusVerdict.CRASH));
     }
 
     /** Stores an expression input under its payload digest in {@code 00-inputs}. */
@@ -395,19 +367,21 @@ public final class CorpusDirectory {
     }
 
     /** Copies one parser pass into both checker branches, then removes the fan-out source. */
-    public synchronized Path fanOutParserPass(Path source) throws IOException, CorpusException {
+    public synchronized void fanOutParserPass(Path source)
+            throws IOException, CorpusException {
         requireOwnedPath(source, CorpusPath.PARSER_PASS, "parser pass");
         var encoded = Files.readAllBytes(source);
         var entry = decodeEntry(source, encoded);
         requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
-        requireMissingStage(entry.path(), entry.encoded(), CorpusStageLayout.TLC);
+        for (var checker : CorpusStageLayout.checkerBranches()) {
+            requireMissingStage(entry.path(), entry.encoded(), checker);
+        }
 
-        var tlcDestination = resolve(CorpusPath.TLC_INPUT).resolve(source.getFileName());
-        var apalacheDestination = resolve(CorpusPath.APALACHE_INPUT).resolve(source.getFileName());
-        installBranchCopy(source, encoded, tlcDestination);
-        installBranchCopy(source, encoded, apalacheDestination);
+        for (var checker : CorpusStageLayout.checkerBranches()) {
+            var destination = resolve(checker.input()).resolve(source.getFileName());
+            installBranchCopy(source, encoded, destination);
+        }
         Files.delete(source);
-        return tlcDestination;
     }
 
     /** Records a checker result and atomically moves it to its result directory. */
@@ -611,23 +585,101 @@ public final class CorpusDirectory {
         return count;
     }
 
-    private void addTlcBranch(
-            Map<String, Entry> branch, Set<String> logicalNames, Entry entry)
+    private CheckerBranch visitCheckerBranch(
+            CorpusStageLayout checker, Generator<?> generator)
+            throws IOException, CorpusException {
+        var inputs = new ArrayList<Path>();
+        var entries = new HashMap<String, Entry>();
+        var resultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+
+        for (var path : entryPaths(resolve(checker.input()))) {
+            var entry = verifyPath(path, generator);
+            requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+            requireMissingStage(entry.path(), entry.encoded(), checker);
+            requireMissingOtherCheckerStages(checker, entry);
+            addCheckerBranchEntry(checker, entries, entry);
+            inputs.add(path);
+        }
+        for (var verdict : CorpusVerdict.values()) {
+            var count = visitResultEntries(
+                    checker,
+                    verdict,
+                    generator,
+                    entry -> {
+                        requireStageVerdict(
+                                entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+                        requireMissingOtherCheckerStages(checker, entry);
+                        addCheckerBranchEntry(checker, entries, entry);
+                    });
+            resultCounts.put(verdict, count);
+        }
+        return new CheckerBranch(inputs, entries, resultCounts);
+    }
+
+    private void addCheckerBranchEntry(
+            CorpusStageLayout checker, Map<String, Entry> branch, Entry entry)
             throws CorpusException {
         var name = entry.path().getFileName().toString();
         if (branch.put(name, entry) != null) {
             throw new CorpusException(
-                    "TLC entry appears in multiple workflow directories: " + name);
+                    checker.displayName()
+                            + " entry appears in multiple workflow directories: "
+                            + name);
         }
-        addLogicalName(logicalNames, entry.path());
     }
 
-    private static void requireSameParserOutput(String name, Entry tlc, Entry apalache)
+    private void requireMissingOtherCheckerStages(CorpusStageLayout checker, Entry entry)
             throws CorpusException {
-        if (!tlc.envelope().corpusInput().equals(apalache.envelope().corpusInput())
-                || !tlc.envelope().generation().equals(apalache.envelope().generation())
-                || !stageMetadata(tlc.envelope(), CorpusStageLayout.PARSER)
-                        .equals(stageMetadata(apalache.envelope(), CorpusStageLayout.PARSER))) {
+        for (var otherChecker : CorpusStageLayout.checkerBranches()) {
+            if (otherChecker != checker) {
+                requireMissingStage(entry.path(), entry.encoded(), otherChecker);
+            }
+        }
+    }
+
+    private long validateAndRegisterCheckerBranches(
+            Map<CorpusStageLayout, CheckerBranch> branches, Set<String> logicalNames)
+            throws CorpusException {
+        var logicalEntries = new TreeSet<String>();
+        for (var checker : CorpusStageLayout.checkerBranches()) {
+            logicalEntries.addAll(branches.get(checker).entries().keySet());
+        }
+
+        var missingDescriptions = new ArrayList<String>();
+        for (var checker : CorpusStageLayout.checkerBranches()) {
+            var missing = new TreeSet<>(logicalEntries);
+            missing.removeAll(branches.get(checker).entries().keySet());
+            if (!missing.isEmpty()) {
+                missingDescriptions.add("from " + checker.displayName() + "=" + missing);
+            }
+        }
+        if (!missingDescriptions.isEmpty()) {
+            throw new CorpusException(
+                    "checker branches are inconsistent; missing "
+                            + String.join(", ", missingDescriptions));
+        }
+
+        for (var name : logicalEntries) {
+            Entry reference = null;
+            for (var checker : CorpusStageLayout.checkerBranches()) {
+                var candidate = branches.get(checker).entries().get(name);
+                if (reference == null) {
+                    reference = candidate;
+                } else {
+                    requireSameParserOutput(name, reference, candidate);
+                }
+            }
+            addLogicalName(logicalNames, name);
+        }
+        return logicalEntries.size();
+    }
+
+    private static void requireSameParserOutput(String name, Entry reference, Entry candidate)
+            throws CorpusException {
+        if (!reference.envelope().corpusInput().equals(candidate.envelope().corpusInput())
+                || !reference.envelope().generation().equals(candidate.envelope().generation())
+                || !stageMetadata(reference.envelope(), CorpusStageLayout.PARSER)
+                        .equals(stageMetadata(candidate.envelope(), CorpusStageLayout.PARSER))) {
             throw new CorpusException("checker branch copies disagree for corpus entry: " + name);
         }
     }
@@ -842,8 +894,7 @@ public final class CorpusDirectory {
         }
     }
 
-    private void addLogicalName(Set<String> names, Path path) throws CorpusException {
-        var name = path.getFileName().toString();
+    private static void addLogicalName(Set<String> names, String name) throws CorpusException {
         if (!names.add(name)) {
             throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
         }
@@ -1007,6 +1058,21 @@ public final class CorpusDirectory {
     @FunctionalInterface
     private interface EntryConsumer {
         void accept(Entry entry) throws CorpusException;
+    }
+
+    private record CheckerBranch(
+            List<Path> inputs,
+            Map<String, Entry> entries,
+            EnumMap<CorpusVerdict, Long> resultCounts) {
+        private CheckerBranch {
+            inputs = List.copyOf(inputs);
+            entries = Map.copyOf(entries);
+            resultCounts = new EnumMap<>(resultCounts);
+        }
+
+        long resultCount(CorpusVerdict verdict) {
+            return resultCounts.get(verdict);
+        }
     }
 
     private record Entry(Path path, byte[] encoded, CorpusEnvelope envelope) {}
