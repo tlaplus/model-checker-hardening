@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.corpus;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashSet;
@@ -98,13 +99,13 @@ final class CorpusRunStatisticsCodec {
                         generator.maximumRichness(),
                         generator.averageRichness());
             } catch (IllegalArgumentException exception) {
-                throw format("invalid workflow statistics: " + diagnostic(exception));
+                throw format("invalid workflow statistics: " + Diagnostics.message(exception));
             }
         } catch (CorpusStatisticsFormatException exception) {
             throw exception;
         } catch (IOException | RuntimeException exception) {
             throw new CorpusStatisticsFormatException(
-                    "invalid CBOR: " + diagnostic(exception), exception);
+                    "invalid CBOR: " + Diagnostics.message(exception), exception);
         }
     }
 
@@ -223,13 +224,6 @@ final class CorpusRunStatisticsCodec {
 
     private static CorpusStatisticsFormatException format(String message) {
         return new CorpusStatisticsFormatException(message);
-    }
-
-    private static String diagnostic(Throwable exception) {
-        var message = exception.getMessage();
-        return message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : message;
     }
 
     private record Elapsed(long total, long generator, long parser, long tlc, long apalache) {}

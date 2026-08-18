@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -12,13 +13,13 @@ import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine.TypeConversionException;
+import picocli.CommandLine;
 
 @Command(name = "run", description = "Run specification fuzzing.")
 final class RunCommand implements Callable<Integer> {
@@ -100,7 +101,7 @@ final class RunCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: cannot run workflow in '%s': %s%n",
-                            corpus, CliDiagnostics.message(exception));
+                            corpus, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         } catch (RuntimeException | StackOverflowError exception) {
             closeProgress(progress);
@@ -108,7 +109,7 @@ final class RunCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: workflow failed in '%s': %s%n",
-                            corpus, CliDiagnostics.message(exception));
+                            corpus, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         } finally {
             closeProgress(progress);

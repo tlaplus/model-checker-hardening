@@ -1,6 +1,8 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -19,7 +21,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -292,7 +293,7 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
             throw new WorkflowException(
                     withProcessOutput(description
                             + " protocol failed: "
-                            + diagnostic(cause)),
+                            + Diagnostics.message(cause)),
                     cause);
         }
     }
@@ -337,13 +338,6 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
             throw new WorkflowException(
                     "worker returned an unknown failure code: " + encodedCode, exception);
         }
-    }
-
-    private static String diagnostic(Throwable failure) {
-        var message = failure.getMessage();
-        return message == null || message.isBlank()
-                ? failure.getClass().getSimpleName()
-                : message;
     }
 
     private static <T> T await(Callable<T> operation, Duration timeout)
@@ -433,7 +427,7 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         standardError.close();
         fatalErrorReports = readFatalErrorReports(description, temporaryDirectory);
         try {
-            deleteRecursively(temporaryDirectory);
+            FileTrees.deleteRecursively(temporaryDirectory);
         } catch (IOException ignored) {
             // The run-scoped corpus scratch owner retries after all workers stop.
         }
@@ -488,7 +482,7 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         standardError.close();
         var fatalErrorReports = readFatalErrorReports(description, temporaryDirectory);
         try {
-            deleteRecursively(temporaryDirectory);
+            FileTrees.deleteRecursively(temporaryDirectory);
         } catch (IOException ignored) {
             // The run-scoped corpus scratch owner retries after all workers stop.
         }
@@ -531,20 +525,9 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
 
     private static void deleteAfterFailure(Path directory, Throwable failure) {
         try {
-            deleteRecursively(directory);
+            FileTrees.deleteRecursively(directory);
         } catch (IOException cleanupException) {
             failure.addSuppressed(cleanupException);
-        }
-    }
-
-    private static void deleteRecursively(Path root) throws IOException {
-        if (Files.notExists(root, NO_FOLLOW_LINKS)) {
-            return;
-        }
-        try (var paths = Files.walk(root)) {
-            for (var path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.deleteIfExists(path);
-            }
         }
     }
 

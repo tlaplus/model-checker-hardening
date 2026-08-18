@@ -4,6 +4,7 @@ import at.forsyte.apalache.io.annotations.PrettyWriterWithAnnotations;
 import at.forsyte.apalache.io.annotations.store.package$;
 import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -48,22 +49,16 @@ public final class ExprInputToSpec {
                     + " specification from corpus entry '"
                     + path
                     + "': "
-                    + diagnostic(failure);
+                    + Diagnostics.message(failure);
             try {
                 var candidate = corpus.recordGeneratorCrash(input, failure);
                 message += "; crash saved to '" + candidate + "'";
             } catch (IOException | CorpusException | RuntimeException recordingFailure) {
                 failure.addSuppressed(recordingFailure);
-                message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+                message += "; crash artifact could not be saved: "
+                        + Diagnostics.message(recordingFailure);
             }
             throw new WorkflowException(message, failure);
         }
-    }
-
-    private static String diagnostic(Throwable failure) {
-        var message = failure.getMessage();
-        return message == null || message.isBlank()
-                ? failure.getClass().getSimpleName()
-                : message;
     }
 }

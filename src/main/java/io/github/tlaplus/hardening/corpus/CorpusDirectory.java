@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -155,7 +156,10 @@ public final class CorpusDirectory {
             return CorpusRunStatisticsCodec.decode(Files.readAllBytes(path));
         } catch (CorpusStatisticsFormatException exception) {
             throw new CorpusException(
-                    "invalid workflow statistics file '" + path + "': " + diagnostic(exception),
+                    "invalid workflow statistics file '"
+                            + path
+                            + "': "
+                            + Diagnostics.message(exception),
                     exception);
         }
     }
@@ -521,7 +525,7 @@ public final class CorpusDirectory {
                             failure));
         } catch (CorpusInputFormatException exception) {
             throw new CorpusException(
-                    "invalid CBOR corpus entry: " + source + ": " + diagnostic(exception),
+                    "invalid CBOR corpus entry: " + source + ": " + Diagnostics.message(exception),
                     exception);
         }
 
@@ -842,7 +846,8 @@ public final class CorpusDirectory {
             generator.generate(input);
         } catch (InputRejectedException exception) {
             throw new CorpusException(
-                    "corpus entry is rejected: " + path + ": " + diagnostic(exception), exception);
+                    "corpus entry is rejected: " + path + ": " + Diagnostics.message(exception),
+                    exception);
         } catch (RuntimeException | StackOverflowError exception) {
             throw generatorCrash(path, input, exception);
         }
@@ -855,7 +860,7 @@ public final class CorpusDirectory {
             envelope = CorpusInputCodec.decodeEnvelope(encoded);
         } catch (CorpusInputFormatException exception) {
             throw new CorpusException(
-                    "invalid CBOR corpus entry: " + path + ": " + diagnostic(exception),
+                    "invalid CBOR corpus entry: " + path + ": " + Diagnostics.message(exception),
                     exception);
         }
         if (envelope.corpusInput().kind() != CorpusInput.Kind.EXPRESSION) {
@@ -933,7 +938,7 @@ public final class CorpusDirectory {
                             + " metadata: "
                             + path
                             + ": "
-                            + diagnostic(exception),
+                            + Diagnostics.message(exception),
                     exception);
         }
     }
@@ -1016,13 +1021,14 @@ public final class CorpusDirectory {
         var message = "cannot generate expression from corpus entry '"
                 + source
                 + "': "
-                + diagnostic(failure);
+                + Diagnostics.message(failure);
         try {
             var candidate = recordGeneratorCrash(input, failure);
             message += "; crash saved to '" + candidate + "'";
         } catch (IOException | CorpusException | RuntimeException recordingFailure) {
             failure.addSuppressed(recordingFailure);
-            message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+            message += "; crash artifact could not be saved: "
+                    + Diagnostics.message(recordingFailure);
         }
         return new CorpusException(message, failure);
     }
@@ -1090,13 +1096,6 @@ public final class CorpusDirectory {
         var output = new StringWriter();
         failure.printStackTrace(new PrintWriter(output));
         return output.toString();
-    }
-
-    private static String diagnostic(Throwable exception) {
-        var message = exception.getMessage();
-        return message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : message;
     }
 
     @FunctionalInterface
