@@ -17,7 +17,9 @@ The project uses Apalache's Java façade for its TLA+ intermediate representatio
 
 ## Build and test
 
-The Apalache dependency is a snapshot served by the Central Portal snapshots repository. Compile and test the project with:
+The Apalache Java façade is a snapshot served by the Central Portal snapshots
+repository. The build also downloads the pinned Apalache 0.61.0 CLI archive from
+GitHub and verifies its SHA-256 digest. Compile and test the project with:
 
 ```sh
 make compile
@@ -47,9 +49,10 @@ Once packaged, the launcher can be used directly and from any working directory:
 ```
 
 The launcher runs from a temporary snapshot of the packaged JAR, so a concurrent
-build cannot replace classes underneath a long-running workflow. With no
-arguments, FuzzTLA prints its help. The executable JAR can also be run without
-the launcher when it will not be rebuilt during the invocation:
+build cannot replace classes underneath a long-running workflow. It snapshots
+the staged `apalache.jar` into the same directory. With no arguments, FuzzTLA
+prints its help. The executable JAR can also be run without the launcher when it
+and its sibling `target/apalache.jar` will not be rebuilt during the invocation:
 
 ```sh
 java -jar target/fuzztla.jar --help
@@ -76,10 +79,14 @@ corpus/
 ├── 02tlc-pass/
 ├── 02tlc-fail/
 ├── 02tlc-crash/
-└── 02apa-inputs/
+├── 02apa-inputs/
+├── 02apa-pass/
+├── 02apa-fail/
+└── 02apa-crash/
 ```
 
-The default configuration is:
+The initialized configuration below assumes eight available processors. The
+Apalache worker count is computed from the processors visible to the JVM.
 
 ```toml
 [generator]
@@ -115,6 +122,17 @@ max_heap_mb = 512
 # Number of TLC model-checking workers in each isolated JVM.
 workers = 1
 
+[workflow.apalache]
+# Maximum combined occupancy of the Apalache result directories.
+max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Maximum heap allocated to each isolated Apalache JVM.
+max_heap_mb = 512
+# Number of concurrent FuzzTLA Apalache workers.
+# Initialized to half the available processors, rounded down (at least one).
+workers = 4
+
 [pbt]
 # Inclusive upper bound on a randomly generated input's length.
 max_input_bytes = 10240
@@ -149,16 +167,21 @@ Populate the corpus with property-based inputs by running:
 ./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42 --max-cpus=4
 ```
 
-The command runs input generation, parsing, and TLC concurrently. Generation and
+The command runs input generation, parsing, TLC, and Apalache concurrently. Generation and
 parsing maintain up to `--max-cpus` workers; parser workers use persistent
 isolated JVMs. Each TLC input runs in a fresh JVM. A TLC process uses
 `workflow.tlc.workers` internal workers and reserves that many permits from the
 shared downstream-priority CPU budget, so at most
 `floor(max-cpus / workflow.tlc.workers)` TLC processes run concurrently. The TLC
-worker count must not exceed `--max-cpus`. TLC work has priority over parsing,
-which has priority over generation; waiting TLC requests reserve partial CPU
-capacity so upstream work cannot starve them. Before starting, FuzzTLA validates
-the corpus, recovers interrupted moves, and completes partial parser fan-outs.
+worker count must not exceed `--max-cpus`. Apalache starts up to
+`workflow.apalache.workers` fresh CLI processes and reserves one permit per
+process. Its initialized value is half the available processors, rounded down
+with a minimum of one; the stored setting also must not exceed `--max-cpus`.
+TLC and Apalache have
+equal checker priority over parsing, which has priority over generation. Waiting
+checker requests reserve partial CPU capacity so upstream work cannot starve
+them. Before starting, FuzzTLA validates the corpus, recovers interrupted moves,
+and completes partial parser fan-outs.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
@@ -185,8 +208,8 @@ expressions, and duplicate inputs are retried. A failure to fill one cohort afte
 in the diagnostic. The progress table reports candidate attempts, generator
 rejections, richness rejections, and duplicates separately. It also reports the
 minimum, maximum, and average richness of inputs admitted during the current run.
-Stage progress distinguishes inputs awaiting the parser, inputs awaiting TLC,
-and inputs retained for the not-yet-implemented Apalache stage.
+Stage progress distinguishes inputs awaiting the parser, TLC, and Apalache and
+reports verdict counters for both checkers.
 
 The effective nonnegative seed is printed and flushed before corpus access or
 worker startup. The input stage
@@ -200,10 +223,11 @@ admission-time richness score. The parser preserves this metadata, records tagge
 UTC timestamps and a verdict, and moves the entry to its parser result directory.
 Parser passes are copied to `02tlc-inputs` and `02apa-inputs`; the two files count
 as one logical corpus entry. TLC records `stages.tlc` and moves its copy to the
-matching TLC result directory. TLC runs the fixed `Init`, `Next`, and `Inv`
-configuration with deadlock checking disabled. A violated invariant or another
-non-crash TLC error is a failure. TLC's own exit-status taxonomy distinguishes
-failures from crashes.
+matching TLC result directory. Apalache does the same under `stages.apalache`
+and its result directories. Both checkers run the fixed `Init`, `Next`, and
+`Inv` configuration with deadlock checking disabled; Apalache checks length
+zero. A violated invariant or another classified non-crash checker error is a
+failure. Both stages use the shared failure-code taxonomy.
 
 Among generator exceptions, only `InputRejectedException` rejects a candidate;
 other failures stop the workflow. An unexpected generator or parser-preparation
@@ -213,9 +237,10 @@ These diagnostic files do not count as corpus entries. A crashed parser writes
 `01parser-crash/<sha256>.stacktrace` with the exception stack trace or other
 crash diagnostic.
 
-A crashed TLC invocation similarly writes
-`02tlc-crash/<sha256>.stacktrace`. Parser and TLC temporary files live under
-`<corpus>/.work/{parser,tlc}-tmp` and are removed after the run.
+A crashed checker invocation similarly writes
+`02tlc-crash/<sha256>.stacktrace` or
+`02apa-crash/<sha256>.stacktrace`. Parser and checker temporary files live under
+`<corpus>/.work/{parser,tlc,apalache}-tmp` and are removed after the run.
 
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
@@ -228,7 +253,7 @@ Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
 `print` always expects the CBOR envelope described above. By default, it prints
 the generated expression. `--spec` prints the complete specification passed to
-the parser and TLC. `--envelope` prints the supported envelope fields as a nested,
+the parser, TLC, and Apalache. `--envelope` prints the supported envelope fields as a nested,
 human-readable listing. Stage timestamps use UTC ISO-8601, and each `endTime`
 includes the elapsed time since its `startTime`. The `input` field appears last,
 rendered as TLA+. Without `--corpus`, the command uses the built-in generator

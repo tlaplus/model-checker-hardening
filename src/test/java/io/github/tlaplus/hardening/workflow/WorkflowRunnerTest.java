@@ -44,6 +44,7 @@ class WorkflowRunnerTest {
         assertEquals(0, initial.corpusEntries());
         assertEquals(0, initial.awaitingParser());
         assertEquals(0, initial.awaitingTlc());
+        assertEquals(0, initial.awaitingApalache());
 
         var last = observed.getLast();
         assertEquals(WorkflowProgress.Phase.FINALIZING, last.phase());
@@ -52,6 +53,7 @@ class WorkflowRunnerTest {
         assertEquals(summary.corpus().totalEntries(), last.corpusEntries());
         assertEquals(summary.corpus().inputEntries(), last.awaitingParser());
         assertEquals(summary.corpus().tlcInputEntries(), last.awaitingTlc());
+        assertEquals(summary.corpus().apalacheInputEntries(), last.awaitingApalache());
 
         long generated = -1;
         long corpusEntries = -1;
@@ -68,6 +70,7 @@ class WorkflowRunnerTest {
             assertTrue(progress.parser().processed() >= parsed);
             assertTrue(progress.awaitingParser() >= 0);
             assertTrue(progress.awaitingTlc() >= 0);
+            assertTrue(progress.awaitingApalache() >= 0);
             generated = progress.generator().added();
             corpusEntries = progress.corpusEntries();
             parsed = progress.parser().processed();
@@ -90,6 +93,7 @@ class WorkflowRunnerTest {
         assertEquals(0, summary.corpus().inputEntries());
         assertFalse(Files.exists(corpus.resolve(CorpusPath.PARSER_SCRATCH)));
         assertFalse(Files.exists(corpus.resolve(CorpusPath.TLC_SCRATCH)));
+        assertFalse(Files.exists(corpus.resolve(CorpusPath.APALACHE_SCRATCH)));
     }
 
     @Test
@@ -137,6 +141,7 @@ class WorkflowRunnerTest {
         assertEquals(4, summary.parser().passed());
         assertEquals(0, summary.corpus().parserResultEntries());
         assertEquals(4, summary.corpus().tlcPassEntries());
+        assertEquals(4, summary.corpus().apalachePassEntries());
     }
 
     @Test
@@ -221,6 +226,28 @@ class WorkflowRunnerTest {
     }
 
     @Test
+    void rejectsMoreApalacheWorkersThanTheSharedCpuBudget(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = new FuzzTlaConfig(
+                IrGenerationConfig.defaults(),
+                new WorkflowConfig(
+                        0,
+                        new StageConfig(0),
+                        new ParserStageConfig(0, 10),
+                        new TlcStageConfig(0, 10, 512, 1),
+                        new ApalacheStageConfig(0, 10, 512, 2)),
+                new PbtConfig(0, 10, 2.0, 1.5));
+
+        var failure = assertThrows(
+                WorkflowException.class,
+                () -> new WorkflowRunner(config).run(corpus, 42, 1));
+
+        assertTrue(failure.getMessage().contains("workflow.apalache.workers"));
+        assertTrue(failure.getMessage().contains("--max-cpus"));
+    }
+
+    @Test
     void tlcCapacityStopsGracefullyAndLeavesItsInput(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
@@ -255,6 +282,44 @@ class WorkflowRunnerTest {
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
         assertEquals(1, summary.corpus().tlcInputEntries());
         assertTrue(Files.exists(tlcInput));
+    }
+
+    @Test
+    void apalacheCapacityStopsGracefullyAndLeavesItsInput(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = new FuzzTlaConfig(
+                IrGenerationConfig.defaults(),
+                new WorkflowConfig(
+                        1,
+                        new StageConfig(1),
+                        new ParserStageConfig(1, 10),
+                        new TlcStageConfig(1, 10, 512, 1),
+                        new ApalacheStageConfig(0, 10, 512, 1)),
+                new PbtConfig(16, 10, 2.0, 1.5));
+        var generator = IrGenerators.expressions(config.generator());
+        Path source = null;
+        for (var candidate = 0; source == null; candidate++) {
+            var input = new byte[] {(byte) candidate};
+            try {
+                generator.generate(input);
+                corpus.store(input);
+                source = corpus.inputPath(input);
+            } catch (InputRejectedException ignored) {
+                // Find one accepted deterministic input.
+            }
+        }
+        var parserPass = corpus.completeParser(
+                source, "pass", Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
+        var apalacheInput =
+                corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName());
+        corpus.fanOutParserPass(parserPass);
+
+        var summary = new WorkflowRunner(config).run(corpus, 42, 1);
+
+        assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
+        assertEquals(1, summary.corpus().apalacheInputEntries());
+        assertTrue(Files.exists(apalacheInput));
     }
 
     @Test

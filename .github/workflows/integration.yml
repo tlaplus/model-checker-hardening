@@ -33,16 +33,23 @@ jobs:
             corpus/00-inputs \
             corpus/01parser-fail \
             corpus/01parser-crash \
-            corpus/02apa-inputs \
+            corpus/02apa-pass \
+            corpus/02apa-fail \
+            corpus/02apa-crash \
             -type f -name '*.cbor' | wc -l)
           tlc_results=$(find \
             corpus/02tlc-pass \
             corpus/02tlc-fail \
             corpus/02tlc-crash \
             -type f -name '*.cbor' | wc -l)
-          apalache_inputs=$(find corpus/02apa-inputs -type f -name '*.cbor' | wc -l)
+          apalache_results=$(find \
+            corpus/02apa-pass \
+            corpus/02apa-fail \
+            corpus/02apa-crash \
+            -type f -name '*.cbor' | wc -l)
           test "$logical_entries" -eq 100
           test "$(find corpus/00-inputs -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/01parser-pass -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/02tlc-inputs -type f -name '*.cbor' | wc -l)" -eq 0
-          test "$tlc_results" -eq "$apalache_inputs"
+          test "$(find corpus/02apa-inputs -type f -name '*.cbor' | wc -l)" -eq 0
+          test "$tlc_results" -eq "$apalache_results"

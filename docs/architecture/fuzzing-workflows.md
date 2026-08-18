@@ -9,10 +9,10 @@ cargofuzz).
 
 ## 1. Processing pipeline
 
-The input-generation, parser, and TLC stages described below are implemented.
-The Apalache branch is materialized but not yet processed; later stages remain
-architectural proposals. [ADR 0001][] records the stage and worker execution
-model. [ADR 0002][] records the property-based input admission policy.
+The input-generation, parser, TLC, and Apalache stages described below are
+implemented. Later stages remain architectural proposals. [ADR 0001][] records
+the stage and worker execution model. [ADR 0002][] records the property-based
+input admission policy.
 
 ### 1.1. General architecture
 
@@ -206,9 +206,10 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    Every directory belonging to an implemented stage is required; workflow runs
    do not migrate incomplete corpus layouts.
 
- - A parser or TLC crash also produces
-   `01parser-crash/<sha256>.stacktrace` or
-   `02tlc-crash/<sha256>.stacktrace` beside the corresponding CBOR entry.
+ - A parser or checker crash also produces a `.stacktrace` sidecar, for example
+   `01parser-crash/<sha256>.stacktrace`,
+   `02tlc-crash/<sha256>.stacktrace`, or
+   `02apa-crash/<sha256>.stacktrace`, beside the corresponding CBOR entry.
    The UTF-8 sidecar contains the Java stack trace when the tool threw an
    exception, or a diagnostic for non-exceptional crashes such as a timeout.
    Sidecars are not corpus entries and do not count towards capacity limits.
@@ -261,8 +262,8 @@ The metadata depends on the stage. The minimal set of fields is:
    If there is no meaningful difference between the start and end times, then
    `"startTime"` and `"endTime"` must be equal.
  - A failed model-checker stage also contains the integer field `"code"`. The
-   code uses the shared TLC/Apalache registry defined by [ADR 0003][]. The TLC
-   stage requires this field for `"fail"` and forbids it for other verdicts.
+   code uses the shared TLC/Apalache registry defined by [ADR 0003][]. Model-checker
+   stages require this field for `"fail"` and forbid it for other verdicts.
  - A model-checker failure may contain a single-line `"detail"` of at most 80
    Unicode characters. This text is for triage only and must not participate in
    automated comparison or grouping. It is valid only when `"code"` is present.

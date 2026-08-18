@@ -1,9 +1,9 @@
 package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
-import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
+import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import java.util.Objects;
 
 /** Final counters and stopping reason for one complete workflow invocation. */
@@ -12,12 +12,14 @@ public record WorkflowRunSummary(
         PbtStageSummary generator,
         ParserStageSummary parser,
         CheckerStageSummary tlc,
+        CheckerStageSummary apalache,
         CorpusInventory corpus) {
     public WorkflowRunSummary {
         Objects.requireNonNull(stopReason, "stopReason");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(parser, "parser");
         Objects.requireNonNull(tlc, "tlc");
+        Objects.requireNonNull(apalache, "apalache");
         Objects.requireNonNull(corpus, "corpus");
     }
 

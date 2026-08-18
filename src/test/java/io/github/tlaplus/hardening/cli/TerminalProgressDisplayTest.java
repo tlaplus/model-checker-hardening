@@ -68,6 +68,7 @@ class TerminalProgressDisplayTest {
                 new PbtStageSummary(42, 0, 3, 5, 0, 1, 1, 1.25, 9.0, 4.5),
                 new ParserStageSummary(2, 0, 0),
                 new CheckerStageSummary(1, 0, 0),
+                new CheckerStageSummary(0, 0, 0),
                 3,
                 1,
                 1,
@@ -98,6 +99,7 @@ class TerminalProgressDisplayTest {
                 snapshot.generator(),
                 snapshot.parser(),
                 snapshot.tlc(),
+                snapshot.apalache(),
                 new CorpusInventory(
                         List.of(),
                         List.of(),
@@ -124,10 +126,11 @@ class TerminalProgressDisplayTest {
                         42, 0, generated, generated, 0, 0, 0, 0.0, 0.0, 0.0),
                 new ParserStageSummary(parsed, 0, 0),
                 new CheckerStageSummary(parsed, 0, 0),
+                new CheckerStageSummary(parsed, 0, 0),
                 generated,
                 generated - parsed,
                 0,
-                parsed);
+                0);
     }
 
     private String erase(String table) {

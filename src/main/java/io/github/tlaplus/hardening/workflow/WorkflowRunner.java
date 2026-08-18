@@ -7,6 +7,8 @@ import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
@@ -23,7 +25,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-/** Runs input generation, parsing, and TLC concurrently under one shared CPU budget. */
+/** Runs input generation, parsing, TLC, and Apalache under one shared CPU budget. */
 public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 
@@ -82,16 +84,24 @@ public final class WorkflowRunner {
             throw new WorkflowException(
                     "workflow.tlc.workers must not exceed run --max-cpus");
         }
+        if (config.workflow().apalache().workers() > maximumCpus) {
+            throw new WorkflowException(
+                    "workflow.apalache.workers must not exceed run --max-cpus");
+        }
+        var apalacheJar = ApalacheDistribution.locate();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             try (var parserScratch = corpus.createParserScratch();
-                    var tlcScratch = corpus.createTlcScratch()) {
+                    var tlcScratch = corpus.createTlcScratch();
+                    var apalacheScratch = corpus.createApalacheScratch()) {
                 return runStages(
                         corpus,
                         seed,
                         maximumCpus,
                         parserScratch.directory(),
                         tlcScratch.directory(),
+                        apalacheScratch.directory(),
+                        apalacheJar,
                         progressListener);
             }
         }
@@ -103,6 +113,8 @@ public final class WorkflowRunner {
             int maximumCpus,
             Path parserScratch,
             Path tlcScratch,
+            Path apalacheScratch,
+            Path apalacheJar,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
         var initial = corpus.recoverAndValidate(generator);
@@ -112,7 +124,9 @@ public final class WorkflowRunner {
         initial.inputs().forEach(parserQueue::submit);
         var tlcQueue = new WorkQueue<Path>();
         initial.tlcInputs().forEach(tlcQueue::submit);
-        var control = new WorkflowControl(parserQueue, tlcQueue);
+        var apalacheQueue = new WorkQueue<Path>();
+        initial.apalacheInputs().forEach(apalacheQueue::submit);
+        var control = new WorkflowControl(parserQueue, tlcQueue, apalacheQueue);
         var inputCapacity = new Semaphore(
                 config.workflow().inputs().maximumEntries()
                         - Math.toIntExact(initial.inputEntries()),
@@ -127,6 +141,7 @@ public final class WorkflowRunner {
                 generator,
                 parserQueue,
                 tlcQueue,
+                apalacheQueue,
                 inputCapacity,
                 cpuBudget,
                 control);
@@ -139,6 +154,15 @@ public final class WorkflowRunner {
                 corpus,
                 generator,
                 tlcQueue,
+                cpuBudget,
+                control);
+        var apalache = new CheckerStage(
+                new ApalacheCheckerBackend(
+                        config.workflow().apalache(), apalacheJar, apalacheScratch),
+                Math.toIntExact(initial.apalacheEntries()),
+                corpus,
+                generator,
+                apalacheQueue,
                 cpuBudget,
                 control);
         var pbt = new PbtStage(
@@ -164,15 +188,17 @@ public final class WorkflowRunner {
                 : WorkflowProgressMonitor.start(
                         PROGRESS_UPDATE_INTERVAL,
                         () -> progressSnapshot(
-                                progressPhase.get(), initial, pbt, parser, tlc),
+                                progressPhase.get(), initial, pbt, parser, tlc, apalache),
                         progressListener)) {
             try {
                 tlc.start();
+                apalache.start();
                 parser.start();
                 pbt.start();
                 pbt.await();
                 parser.await();
                 tlc.await();
+                apalache.await();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 control.fail(exception);
@@ -180,6 +206,7 @@ public final class WorkflowRunner {
                 pbt.close();
                 parser.close();
                 tlc.close();
+                apalache.close();
             }
 
             throwIfFailed(control);
@@ -193,13 +220,21 @@ public final class WorkflowRunner {
                     ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
                     : WorkflowRunSummary.StopReason.COMPLETED;
             return new WorkflowRunSummary(
-                    stopReason, pbt.summary(), parser.summary(), tlc.summary(), result);
+                    stopReason,
+                    pbt.summary(),
+                    parser.summary(),
+                    tlc.summary(),
+                    apalache.summary(),
+                    result);
         }
     }
 
     private boolean capacityIsAlreadyExhausted(CorpusInventory initial) {
         return (initial.tlcEntries() >= config.workflow().tlc().maximumEntries()
                         && initial.tlcInputEntries() > 0)
+                || (initial.apalacheEntries()
+                                >= config.workflow().apalache().maximumEntries()
+                        && initial.apalacheInputEntries() > 0)
                 || (config.workflow().inputs().maximumEntries() == 0
                         && initial.totalEntries() < config.workflow().maximumEntries());
     }
@@ -220,9 +255,11 @@ public final class WorkflowRunner {
             CorpusInventory initial,
             PbtStage generator,
             ParserStage parser,
-            CheckerStage tlc) {
+            CheckerStage tlc,
+            CheckerStage apalache) {
         var parserSummary = parser.summary();
         var tlcSummary = tlc.summary();
+        var apalacheSummary = apalache.summary();
         var generatorSummary = generator.summary();
         var corpusEntries = generatorSummary.existing() + generatorSummary.added();
         var observedInputs =
@@ -231,20 +268,21 @@ public final class WorkflowRunner {
         var observedTlcInputs =
                 initial.tlcInputEntries() + parserSummary.passed() - tlcSummary.processed();
         var awaitingTlc = Math.max(0L, Math.min(corpusEntries, observedTlcInputs));
-        var pendingApalache = Math.max(
-                0L,
-                Math.min(
-                        corpusEntries,
-                        initial.apalacheInputEntries() + parserSummary.passed()));
+        var observedApalacheInputs = initial.apalacheInputEntries()
+                + parserSummary.passed()
+                - apalacheSummary.processed();
+        var awaitingApalache = Math.max(
+                0L, Math.min(corpusEntries, observedApalacheInputs));
         return new WorkflowProgress(
                 phase,
                 generatorSummary,
                 parserSummary,
                 tlcSummary,
+                apalacheSummary,
                 corpusEntries,
                 awaitingParser,
                 awaitingTlc,
-                pendingApalache);
+                awaitingApalache);
     }
 
     private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
@@ -264,6 +302,11 @@ public final class WorkflowRunner {
         if (inventory.tlcEntries() > config.workflow().tlc().maximumEntries()) {
             throw new WorkflowException(
                     "TLC result directories exceed workflow.tlc.max_entries");
+        }
+        if (inventory.apalacheEntries()
+                > config.workflow().apalache().maximumEntries()) {
+            throw new WorkflowException(
+                    "Apalache result directories exceed workflow.apalache.max_entries");
         }
     }
 

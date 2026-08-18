@@ -35,15 +35,17 @@ The registry belongs to neither checker. A checker worker returns a normalized
 code only for a failure. Successes and crashes have no failure code; unexpected
 or system-level TLC statuses remain crashes.
 
-The corpus stores the numeric value as `stages.<checker>.code`. A failed TLC
-entry requires a known code. Other TLC verdicts forbid it. There is no migration
-or compatibility path for failed entries written before this decision.
+The corpus stores the numeric value as `stages.<checker>.code`. A failed checker
+entry requires a known code; other checker verdicts forbid it. There is no
+migration or compatibility path for failed entries written before this decision.
 
 A failure may also store `stages.<checker>.detail`. TLC derives it from the first
 meaningful diagnostic line beginning with `Error:`, removes that prefix,
 normalizes whitespace, and limits the result to 80 Unicode code points. Longer
-text uses the first 79 code points followed by `…`. The detail is optional,
-human-readable, and non-semantic.
+text uses the first 79 code points followed by `…`. Apalache uses its first
+timestamped error line and removes the source location and log timestamp before
+applying the same normalization and limit. The detail is optional, human-readable,
+and non-semantic.
 
 The conformance aggregator compares checker verdicts. Any TLC failure and
 Apalache failure still agree regardless of their codes. Codes support reporting

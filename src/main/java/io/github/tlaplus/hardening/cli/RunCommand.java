@@ -66,7 +66,7 @@ final class RunCommand implements Callable<Integer> {
         };
     }
 
-    /** Runs property-based generation, parsing, and TLC as one concurrent workflow. */
+    /** Runs property-based generation, parsing, TLC, and Apalache as one concurrent workflow. */
     private int runPbt() {
         TerminalProgressDisplay progress = null;
         try {
