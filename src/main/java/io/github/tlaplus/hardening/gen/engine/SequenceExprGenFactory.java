@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 
 /** Constructs sequence-valued expression generators. */
@@ -22,11 +21,8 @@ final class SequenceExprGenFactory extends AbstractExprGenFactory {
             var nextDepth = remainingDepth - 1;
             return switch (kind) {
                 case EMPTY_SEQUENCE -> builder().emptySeq(type.element().toTlaType());
-                case SEQUENCE_LITERAL -> builder().seq(BuilderArrays.expressions(draw.draw(
-                        BasicGenerators.listOf(
-                                expression(type.element(), nextDepth),
-                                1,
-                                context.config().maximumCollectionSize()))));
+                case SEQUENCE_LITERAL -> builder().seq(
+                        draw.draw(operands(type.element(), nextDepth)));
                 case APPEND -> builder().append(
                         draw.draw(expression(type, nextDepth)),
                         draw.draw(expression(type.element(), nextDepth)));

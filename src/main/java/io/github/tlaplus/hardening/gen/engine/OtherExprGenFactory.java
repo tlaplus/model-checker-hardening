@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExceptUpdate;
 import org.apalache_mc.tla.jir.ExpressionPair;
-import org.apalache_mc.tla.jir.NamedExpression;
 
 /** Constructs expression generators not covered by the dedicated form families. */
 final class OtherExprGenFactory extends AbstractExprGenFactory {
@@ -57,24 +56,10 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
                 }
                 case EXCEPT_MANY ->
                     draw.draw(exceptMany((FunctionType) type, remainingDepth));
-                case TUPLE_LITERAL -> {
-                    var tupleType = (TupleType) type;
-                    yield builder().tuple(BuilderArrays.expressions(
-                            tupleType.elements().stream()
-                                    .map(element -> draw.draw(expression(
-                                            element, nextDepth)))
-                                    .toList()));
-                }
-                case RECORD_LITERAL -> {
-                    var recordType = (RecordType) type;
-                    yield builder().record(BuilderArrays.named(
-                            recordType.fields().stream()
-                                    .map(field -> new NamedExpression<>(
-                                            field.name(),
-                                            draw.draw(expression(
-                                                    field.type(), nextDepth))))
-                                    .toList()));
-                }
+                case TUPLE_LITERAL -> draw.draw(tuple(
+                        (TupleType) type, element -> expression(element, nextDepth)));
+                case RECORD_LITERAL -> draw.draw(record(
+                        (RecordType) type, field -> expression(field, nextDepth)));
                 case VARIANT_LITERAL -> {
                     var variantType = (VariantType) type;
                     var field = draw.choose(variantType.fields());
