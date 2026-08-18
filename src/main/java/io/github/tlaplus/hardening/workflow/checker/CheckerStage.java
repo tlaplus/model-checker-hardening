@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
@@ -27,6 +28,7 @@ public final class CheckerStage implements WorkflowStage {
     private final CpuBudget cpuBudget;
     private final WorkflowControl control;
     private final AtomicInteger occupancy;
+    private final ElapsedTimeAccumulator elapsed;
     private final LongAdder passed = new LongAdder();
     private final LongAdder failed = new LongAdder();
     private final LongAdder crashed = new LongAdder();
@@ -34,7 +36,8 @@ public final class CheckerStage implements WorkflowStage {
 
     public CheckerStage(
             CheckerBackend backend,
-            int initialOccupancy,
+            CheckerStageSummary initialStatistics,
+            ElapsedTimeAccumulator elapsed,
             CorpusDirectory corpus,
             Generator<TlaEx> generator,
             WorkQueue<Path> input,
@@ -52,7 +55,12 @@ public final class CheckerStage implements WorkflowStage {
         this.input = Objects.requireNonNull(input, "input");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.control = Objects.requireNonNull(control, "control");
-        occupancy = new AtomicInteger(initialOccupancy);
+        Objects.requireNonNull(initialStatistics, "initialStatistics");
+        occupancy = new AtomicInteger(Math.toIntExact(initialStatistics.processed()));
+        passed.add(initialStatistics.passed());
+        failed.add(initialStatistics.failed());
+        crashed.add(initialStatistics.crashed());
+        this.elapsed = Objects.requireNonNull(elapsed, "elapsed");
         workers = new WorkerGroup("fuzztla-" + backend.name() + "-");
     }
 
@@ -72,7 +80,7 @@ public final class CheckerStage implements WorkflowStage {
     }
 
     public CheckerStageSummary summary() {
-        return new CheckerStageSummary(passed.sum(), failed.sum(), crashed.sum());
+        return new CheckerStageSummary(passed.sum(), failed.sum(), crashed.sum(), elapsed.elapsed());
     }
 
     @Override
@@ -96,6 +104,7 @@ public final class CheckerStage implements WorkflowStage {
                         control::shouldStopChecking)) {
                     return;
                 }
+                elapsed.start();
                 try {
                     if (!reserveDestination()) {
                         control.capacityReached();
@@ -132,6 +141,7 @@ public final class CheckerStage implements WorkflowStage {
                             result.diagnostic());
                     increment(result.outcome());
                 } finally {
+                    elapsed.stop();
                     cpuBudget.release(backend.cpuPermits());
                 }
             }

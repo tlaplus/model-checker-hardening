@@ -49,7 +49,8 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.PARSER_SCRATCH, Path.of(".work", "parser-tmp")),
                 Map.entry(CorpusPath.TLC_SCRATCH, Path.of(".work", "tlc-tmp")),
                 Map.entry(CorpusPath.APALACHE_SCRATCH, Path.of(".work", "apalache-tmp")),
-                Map.entry(CorpusPath.LOCK, Path.of(".workflow.lock")));
+                Map.entry(CorpusPath.LOCK, Path.of(".workflow.lock")),
+                Map.entry(CorpusPath.WORKFLOW_STATISTICS, Path.of(".workflow-stats.cbor")));
 
         assertEquals(Set.of(CorpusPath.values()), relativePaths.keySet());
         assertEquals(

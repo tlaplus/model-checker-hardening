@@ -3,9 +3,10 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
+import java.time.Duration;
 import java.util.Objects;
 
-/** Best-effort in-memory snapshot of an active workflow invocation. */
+/** Best-effort snapshot of cumulative corpus statistics and current pending work. */
 public record WorkflowProgress(
         Phase phase,
         PbtStageSummary generator,
@@ -15,13 +16,15 @@ public record WorkflowProgress(
         long corpusEntries,
         long awaitingParser,
         long awaitingTlc,
-        long awaitingApalache) {
+        long awaitingApalache,
+        Duration totalElapsed) {
     public WorkflowProgress {
         Objects.requireNonNull(phase, "phase");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(parser, "parser");
         Objects.requireNonNull(tlc, "tlc");
         Objects.requireNonNull(apalache, "apalache");
+        Objects.requireNonNull(totalElapsed, "totalElapsed");
         if (corpusEntries < 0
                 || awaitingParser < 0
                 || awaitingTlc < 0
@@ -33,6 +36,9 @@ public record WorkflowProgress(
                 || awaitingApalache > corpusEntries) {
             throw new IllegalArgumentException(
                     "pending stage counts must not exceed corpus entries");
+        }
+        if (totalElapsed.isNegative()) {
+            throw new IllegalArgumentException("total elapsed time must be nonnegative");
         }
     }
 

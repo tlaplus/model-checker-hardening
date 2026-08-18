@@ -6,12 +6,14 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
+import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -48,7 +50,7 @@ class PbtStageTest {
 
         var summary = runStage(corpus, config(16), observed, 20, 42);
 
-        assertEquals(20, summary.added());
+        assertEquals(20, summary.generated());
         assertEquals(1, maximumActive.get());
         assertEquals(32.0, summary.minimumRichness());
         assertEquals(32.0, summary.maximumRichness());
@@ -86,7 +88,7 @@ class PbtStageTest {
         var summary = runStage(corpus, config(8), rejectFirstThree, 4, 7);
 
         assertEquals(3, summary.rejected());
-        assertEquals(4, summary.added());
+        assertEquals(4, summary.generated());
         assertEquals(7 + summary.duplicates(), summary.attempts());
     }
 
@@ -114,14 +116,15 @@ class PbtStageTest {
                 queue,
                 new Semaphore(2),
                 new CpuBudget(1),
-                control);
+                control,
+                metrics(0));
 
         stage.start();
         stage.await();
 
         assertTrue(control.hasFailed());
         assertEquals(10_001, stage.summary().attempts());
-        assertEquals(1, stage.summary().added());
+        assertEquals(1, stage.summary().generated());
         assertEquals(10_000, stage.summary().rejected());
         assertTrue(control.failure().getMessage().contains("richness cohort 0"));
         assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
@@ -149,7 +152,8 @@ class PbtStageTest {
                 queue,
                 new Semaphore(1),
                 new CpuBudget(1),
-                control);
+                control,
+                metrics(0));
 
         stage.start();
         stage.await();
@@ -260,7 +264,8 @@ class PbtStageTest {
                 queue,
                 new Semaphore(target),
                 new CpuBudget(2),
-                control);
+                control,
+                metrics(0));
 
         stage.start();
         try {
@@ -272,7 +277,7 @@ class PbtStageTest {
 
         assertFalse(control.hasFailed());
         assertEquals(2, maximumActive.get());
-        assertEquals(target, stage.summary().added());
+        assertEquals(target, stage.summary().generated());
         assertEquals(target, corpus.recoverAndValidate(observed).inputEntries());
         var queued = 0;
         while (queue.take() != null) {
@@ -313,7 +318,8 @@ class PbtStageTest {
                 queue,
                 new Semaphore(20),
                 new CpuBudget(4),
-                control);
+                control,
+                metrics(0));
 
         stage.start();
         stage.await();
@@ -358,7 +364,8 @@ class PbtStageTest {
                 queue,
                 new Semaphore(target),
                 new CpuBudget(1),
-                control);
+                control,
+                metrics(0));
         stage.start();
         stage.await();
         assertFalse(control.hasFailed());
@@ -367,6 +374,10 @@ class PbtStageTest {
 
     private static PbtConfig config(int maximumInputBytes) {
         return new PbtConfig(maximumInputBytes, 1, 2.0, 1.5);
+    }
+
+    private static WorkflowMetrics metrics(long initialEntries) {
+        return new WorkflowMetrics(CorpusRunStatistics.empty(), initialEntries);
     }
 
     private static long seedSelectingNonzeroCohort() {

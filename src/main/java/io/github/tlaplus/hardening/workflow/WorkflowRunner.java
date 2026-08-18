@@ -10,12 +10,17 @@ import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
+import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
+import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
+import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
+import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -71,6 +76,8 @@ public final class WorkflowRunner {
             int maximumCpus,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
+        var invocationElapsed = new ElapsedTimeAccumulator();
+        invocationElapsed.start();
         Objects.requireNonNull(corpus, "corpus");
         if (seed < 0) {
             throw new IllegalArgumentException("seed must be nonnegative");
@@ -91,23 +98,34 @@ public final class WorkflowRunner {
         var apalacheJar = ApalacheDistribution.locate();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
-            try (var parserScratch = corpus.createParserScratch();
-                    var tlcScratch = corpus.createTlcScratch();
-                    var apalacheScratch = corpus.createApalacheScratch()) {
-                return runStages(
-                        corpus,
-                        seed,
-                        maximumCpus,
-                        parserScratch.directory(),
-                        tlcScratch.directory(),
-                        apalacheScratch.directory(),
-                        apalacheJar,
-                        progressListener);
+            var initial = corpus.recoverAndValidate(generator);
+            validateOccupancy(initial);
+            var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
+            var statistics = new StatisticsOnExit(corpus, metrics, invocationElapsed);
+            StageRunResult result;
+            try (statistics) {
+                try (var parserScratch = corpus.createParserScratch();
+                        var tlcScratch = corpus.createTlcScratch();
+                        var apalacheScratch = corpus.createApalacheScratch()) {
+                    result = runStages(
+                            corpus,
+                            seed,
+                            maximumCpus,
+                            parserScratch.directory(),
+                            tlcScratch.directory(),
+                            apalacheScratch.directory(),
+                            apalacheJar,
+                            initial,
+                            metrics,
+                            invocationElapsed,
+                            progressListener);
+                }
             }
+            return result.summary(statistics.totalElapsed());
         }
     }
 
-    private WorkflowRunSummary runStages(
+    private StageRunResult runStages(
             CorpusDirectory corpus,
             long seed,
             int maximumCpus,
@@ -115,11 +133,11 @@ public final class WorkflowRunner {
             Path tlcScratch,
             Path apalacheScratch,
             Path apalacheJar,
+            CorpusInventory initial,
+            WorkflowMetrics metrics,
+            ElapsedTimeAccumulator invocationElapsed,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
-        var initial = corpus.recoverAndValidate(generator);
-        validateOccupancy(initial);
-
         var parserQueue = new WorkQueue<Path>();
         initial.inputs().forEach(parserQueue::submit);
         var tlcQueue = new WorkQueue<Path>();
@@ -132,10 +150,26 @@ public final class WorkflowRunner {
                         - Math.toIntExact(initial.inputEntries()),
                 true);
         var cpuBudget = new CpuBudget(maximumCpus);
+        var initialParser = new ParserStageSummary(
+                initial.parserPassEntries(),
+                initial.parserFailEntries(),
+                initial.parserCrashEntries(),
+                metrics.parserElapsed().elapsed());
+        var initialTlc = new CheckerStageSummary(
+                initial.tlcPassEntries(),
+                initial.tlcFailEntries(),
+                initial.tlcCrashEntries(),
+                metrics.tlcElapsed().elapsed());
+        var initialApalache = new CheckerStageSummary(
+                initial.apalachePassEntries(),
+                initial.apalacheFailEntries(),
+                initial.apalacheCrashEntries(),
+                metrics.apalacheElapsed().elapsed());
         var parser = new ParserStage(
                 config.workflow().parser(),
                 maximumCpus,
-                Math.toIntExact(initial.parserResultEntries()),
+                initialParser,
+                metrics.parserElapsed(),
                 corpus,
                 parserScratch,
                 generator,
@@ -150,7 +184,8 @@ public final class WorkflowRunner {
                         config.workflow().tlc(),
                         maximumCpus / config.workflow().tlc().workers(),
                         tlcScratch),
-                Math.toIntExact(initial.tlcEntries()),
+                initialTlc,
+                metrics.tlcElapsed(),
                 corpus,
                 generator,
                 tlcQueue,
@@ -159,7 +194,8 @@ public final class WorkflowRunner {
         var apalache = new CheckerStage(
                 new ApalacheCheckerBackend(
                         config.workflow().apalache(), apalacheJar, apalacheScratch),
-                Math.toIntExact(initial.apalacheEntries()),
+                initialApalache,
+                metrics.apalacheElapsed(),
                 corpus,
                 generator,
                 apalacheQueue,
@@ -176,7 +212,8 @@ public final class WorkflowRunner {
                 parserQueue,
                 inputCapacity,
                 cpuBudget,
-                control);
+                control,
+                metrics);
         var progressPhase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
 
         if (capacityIsAlreadyExhausted(initial)) {
@@ -188,7 +225,14 @@ public final class WorkflowRunner {
                 : WorkflowProgressMonitor.start(
                         PROGRESS_UPDATE_INTERVAL,
                         () -> progressSnapshot(
-                                progressPhase.get(), initial, pbt, parser, tlc, apalache),
+                                progressPhase.get(),
+                                initial,
+                                pbt,
+                                parser,
+                                tlc,
+                                apalache,
+                                metrics,
+                                invocationElapsed),
                         progressListener)) {
             try {
                 tlc.start();
@@ -211,20 +255,16 @@ public final class WorkflowRunner {
 
             throwIfFailed(control);
             progressPhase.set(WorkflowProgress.Phase.FINALIZING);
-            if (progress != null) {
-                // Keep the phase visible while the final integrity inventory is scanned.
-                progress.close();
-            }
             var result = corpus.recoverAndValidate(generator);
             var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
                     ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
                     : WorkflowRunSummary.StopReason.COMPLETED;
-            return new WorkflowRunSummary(
+            return new StageRunResult(
                     stopReason,
                     pbt.summary(),
-                    parser.summary(),
-                    tlc.summary(),
-                    apalache.summary(),
+                    parserSummary(result, parser.summary().elapsed()),
+                    tlcSummary(result, tlc.summary().elapsed()),
+                    apalacheSummary(result, apalache.summary().elapsed()),
                     result);
         }
     }
@@ -256,21 +296,26 @@ public final class WorkflowRunner {
             PbtStage generator,
             ParserStage parser,
             CheckerStage tlc,
-            CheckerStage apalache) {
+            CheckerStage apalache,
+            WorkflowMetrics metrics,
+            ElapsedTimeAccumulator invocationElapsed) {
         var parserSummary = parser.summary();
         var tlcSummary = tlc.summary();
         var apalacheSummary = apalache.summary();
         var generatorSummary = generator.summary();
-        var corpusEntries = generatorSummary.existing() + generatorSummary.added();
-        var observedInputs =
-                initial.inputEntries() + generatorSummary.added() - parserSummary.processed();
+        var corpusEntries = generatorSummary.generated();
+        var generatedThisRun = generatorSummary.generated() - initial.totalEntries();
+        var parsedThisRun = parserSummary.processed() - initial.parserEntries();
+        var observedInputs = initial.inputEntries() + generatedThisRun - parsedThisRun;
         var awaitingParser = Math.max(0L, Math.min(corpusEntries, observedInputs));
+        var parserPassesThisRun = parserSummary.passed() - initial.parserPassEntries();
+        var tlcProcessedThisRun = tlcSummary.processed() - initial.tlcEntries();
         var observedTlcInputs =
-                initial.tlcInputEntries() + parserSummary.passed() - tlcSummary.processed();
+                initial.tlcInputEntries() + parserPassesThisRun - tlcProcessedThisRun;
         var awaitingTlc = Math.max(0L, Math.min(corpusEntries, observedTlcInputs));
         var observedApalacheInputs = initial.apalacheInputEntries()
-                + parserSummary.passed()
-                - apalacheSummary.processed();
+                + parserPassesThisRun
+                - (apalacheSummary.processed() - initial.apalacheEntries());
         var awaitingApalache = Math.max(
                 0L, Math.min(corpusEntries, observedApalacheInputs));
         return new WorkflowProgress(
@@ -282,7 +327,35 @@ public final class WorkflowRunner {
                 corpusEntries,
                 awaitingParser,
                 awaitingTlc,
-                awaitingApalache);
+                awaitingApalache,
+                metrics.totalElapsed(invocationElapsed.elapsed()));
+    }
+
+    private static ParserStageSummary parserSummary(
+            CorpusInventory inventory, Duration elapsed) {
+        return new ParserStageSummary(
+                inventory.parserPassEntries(),
+                inventory.parserFailEntries(),
+                inventory.parserCrashEntries(),
+                elapsed);
+    }
+
+    private static CheckerStageSummary tlcSummary(
+            CorpusInventory inventory, Duration elapsed) {
+        return new CheckerStageSummary(
+                inventory.tlcPassEntries(),
+                inventory.tlcFailEntries(),
+                inventory.tlcCrashEntries(),
+                elapsed);
+    }
+
+    private static CheckerStageSummary apalacheSummary(
+            CorpusInventory inventory, Duration elapsed) {
+        return new CheckerStageSummary(
+                inventory.apalachePassEntries(),
+                inventory.apalacheFailEntries(),
+                inventory.apalacheCrashEntries(),
+                elapsed);
     }
 
     private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
@@ -307,6 +380,59 @@ public final class WorkflowRunner {
                 > config.workflow().apalache().maximumEntries()) {
             throw new WorkflowException(
                     "Apalache result directories exceed workflow.apalache.max_entries");
+        }
+    }
+
+    private record StageRunResult(
+            WorkflowRunSummary.StopReason stopReason,
+            PbtStageSummary generator,
+            ParserStageSummary parser,
+            CheckerStageSummary tlc,
+            CheckerStageSummary apalache,
+            CorpusInventory corpus) {
+        WorkflowRunSummary summary(Duration totalElapsed) {
+            return new WorkflowRunSummary(
+                    stopReason, generator, parser, tlc, apalache, corpus, totalElapsed);
+        }
+    }
+
+    /** Stops the invocation clock and saves its aggregate while the corpus lock is still held. */
+    private static final class StatisticsOnExit implements AutoCloseable {
+        private final CorpusDirectory corpus;
+        private final WorkflowMetrics metrics;
+        private final ElapsedTimeAccumulator invocationElapsed;
+
+        private Duration totalElapsed;
+
+        private StatisticsOnExit(
+                CorpusDirectory corpus,
+                WorkflowMetrics metrics,
+                ElapsedTimeAccumulator invocationElapsed) {
+            this.corpus = corpus;
+            this.metrics = metrics;
+            this.invocationElapsed = invocationElapsed;
+        }
+
+        @Override
+        public void close() throws IOException {
+            var interrupted = Thread.interrupted();
+            try {
+                invocationElapsed.stop();
+                var currentInvocation = invocationElapsed.elapsed();
+                totalElapsed = metrics.totalElapsed(currentInvocation);
+                corpus.writeRunStatistics(metrics.snapshot(currentInvocation));
+            } finally {
+                if (interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        private Duration totalElapsed() {
+            if (totalElapsed == null) {
+                throw new IllegalStateException("workflow statistics have not been saved");
+            }
+            return totalElapsed;
         }
     }
 

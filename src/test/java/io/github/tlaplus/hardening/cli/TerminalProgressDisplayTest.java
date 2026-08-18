@@ -13,6 +13,7 @@ import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -65,14 +66,16 @@ class TerminalProgressDisplayTest {
     void rendersAdmittedInputRichnessStatistics() {
         var snapshot = new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
-                new PbtStageSummary(42, 0, 3, 5, 0, 1, 1, 1.25, 9.0, 4.5),
-                new ParserStageSummary(2, 0, 0),
-                new CheckerStageSummary(1, 0, 0),
-                new CheckerStageSummary(0, 0, 0),
+                new PbtStageSummary(
+                        42, 3, 5, 0, 1, 1, 3, 1.25, 9.0, 4.5, Duration.ofSeconds(3)),
+                new ParserStageSummary(2, 0, 0, Duration.ofSeconds(2)),
+                new CheckerStageSummary(1, 0, 0, Duration.ofSeconds(1)),
+                new CheckerStageSummary(0, 0, 0, Duration.ZERO),
                 3,
                 1,
                 1,
-                2);
+                2,
+                Duration.ofSeconds(4));
 
         var table = RunTable.progress(snapshot);
 
@@ -89,6 +92,18 @@ class TerminalProgressDisplayTest {
                 emptyTable.lines()
                         .filter(line -> line.contains("n/a") && line.contains("richness"))
                         .count());
+    }
+
+    @Test
+    void rendersStageAndTotalElapsedTime() {
+        var table = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 65, 3));
+
+        assertTrue(table.lines()
+                .anyMatch(line -> line.contains("1m 5s") && line.contains("generator elapsed")));
+        assertTrue(table.lines()
+                .anyMatch(line -> line.contains("3s") && line.contains("parser elapsed")));
+        assertTrue(table.lines()
+                .anyMatch(line -> line.contains("1m 5s") && line.contains("total elapsed")));
     }
 
     @Test
@@ -112,7 +127,8 @@ class TerminalProgressDisplayTest {
                         0,
                         1,
                         0,
-                        0));
+                        0),
+                snapshot.totalElapsed());
 
         assertFalse(RunTable.progress(snapshot).contains("random seed"));
         assertFalse(RunTable.finished(Path.of("corpus"), summary).contains("random seed"));
@@ -123,14 +139,25 @@ class TerminalProgressDisplayTest {
         return new WorkflowProgress(
                 phase,
                 new PbtStageSummary(
-                        42, 0, generated, generated, 0, 0, 0, 0.0, 0.0, 0.0),
-                new ParserStageSummary(parsed, 0, 0),
-                new CheckerStageSummary(parsed, 0, 0),
-                new CheckerStageSummary(parsed, 0, 0),
+                        42,
+                        generated,
+                        generated,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        Duration.ofSeconds(generated)),
+                new ParserStageSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
+                new CheckerStageSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
+                new CheckerStageSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
                 generated,
                 generated - parsed,
                 0,
-                0);
+                0,
+                Duration.ofSeconds(generated));
     }
 
     private String erase(String table) {
