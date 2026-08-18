@@ -227,6 +227,42 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    failing input to a stage directory. It persists across workflow invocations
    and does not count towards capacity limits.
 
+ - `.workflow-stats.cbor` stores cumulative elapsed time and generator
+   aggregates that cannot be reconstructed cheaply or exactly from corpus
+   entries. The runner reads it after corpus validation and atomically replaces
+   it once on every controlled exit, while it still holds the corpus lock. A
+   missing file means that no historical statistics were recorded. The runner
+   does not scan per-entry timestamps to reconstruct elapsed time and does not
+   checkpoint statistics during a run. Consequently, `SIGKILL`, host-JVM
+   termination, or power loss discards statistics from the current invocation;
+   corpus stage state remains recoverable from the stage directories.
+
+The aggregate has this fixed shape. Elapsed values are monotonic-clock
+nanoseconds; richness statistics cover `richnessSamples` admissions recorded
+since the aggregate was first created.
+
+```cbor
+{
+  "elapsedNs": {
+    "total": 0,
+    "generator": 0,
+    "parser": 0,
+    "tlc": 0,
+    "apalache": 0
+  },
+  "generator": {
+    "attempts": 0,
+    "rejected": 0,
+    "richnessRejected": 0,
+    "duplicates": 0,
+    "richnessSamples": 0,
+    "minimumRichness": 0.0,
+    "maximumRichness": 0.0,
+    "averageRichness": 0.0
+  }
+}
+```
+
 ### 2.4. Property-based generation
 
 Every property-based input records its admission cohort and collection-richness

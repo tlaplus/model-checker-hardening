@@ -20,10 +20,15 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -58,6 +63,7 @@ class WorkflowRunnerTest {
         long generated = -1;
         long corpusEntries = -1;
         long parsed = -1;
+        var totalElapsed = Duration.ZERO;
         var finalizing = false;
         for (var progress : observed) {
             if (progress.phase() == WorkflowProgress.Phase.FINALIZING) {
@@ -65,16 +71,110 @@ class WorkflowRunnerTest {
             } else {
                 assertFalse(finalizing, "workflow phase must not return to RUNNING");
             }
-            assertTrue(progress.generator().added() >= generated);
+            assertTrue(progress.generator().generated() >= generated);
             assertTrue(progress.corpusEntries() >= corpusEntries);
             assertTrue(progress.parser().processed() >= parsed);
             assertTrue(progress.awaitingParser() >= 0);
             assertTrue(progress.awaitingTlc() >= 0);
             assertTrue(progress.awaitingApalache() >= 0);
-            generated = progress.generator().added();
+            assertTrue(progress.totalElapsed().compareTo(totalElapsed) >= 0);
+            generated = progress.generator().generated();
             corpusEntries = progress.corpusEntries();
             parsed = progress.parser().processed();
+            totalElapsed = progress.totalElapsed();
         }
+    }
+
+    @Test
+    void savesAndRecoversCumulativeStatisticsAcrossRuns(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = config(1, 1, 1, 0);
+        var expression = new TlaTypedScopeUncheckedBuilder()
+                .name("missing", BoolT1$.MODULE$);
+        Generator<TlaEx> generator = _ -> expression;
+        var input = new byte[] {1};
+        corpus.store(input);
+        corpus.completeParser(
+                corpus.inputPath(input),
+                "fail",
+                Instant.ofEpochSecond(1),
+                Instant.ofEpochSecond(2));
+        var runner = new WorkflowRunner(config, generator);
+
+        var first = runner.run(corpus, 42, 1);
+        var second = runner.run(corpus, 43, 1);
+        var saved = corpus.readRunStatistics();
+
+        assertEquals(1, first.generator().generated());
+        assertEquals(1, second.generator().generated());
+        assertEquals(1, first.parser().failed());
+        assertEquals(1, second.parser().failed());
+        assertEquals(Duration.ZERO, first.parser().elapsed());
+        assertEquals(Duration.ZERO, second.parser().elapsed());
+        assertTrue(second.totalElapsed().compareTo(first.totalElapsed()) >= 0);
+        assertEquals(second.totalElapsed().toNanos(), saved.totalElapsedNanos());
+        assertEquals(second.parser().elapsed().toNanos(), saved.parserElapsedNanos());
+        assertTrue(Files.isRegularFile(corpus.resolve(CorpusPath.WORKFLOW_STATISTICS)));
+    }
+
+    @Test
+    void savesStatisticsWhenTheRunnerIsInterrupted(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = config(1, 1, 1, 16);
+        var enteredGenerator = new CountDownLatch(1);
+        Generator<TlaEx> blocking = _ -> {
+            enteredGenerator.countDown();
+            try {
+                new CountDownLatch(1).await();
+                throw new AssertionError("unreachable");
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("generator interrupted", exception);
+            }
+        };
+        var failure = new AtomicReference<Throwable>();
+        var run = Thread.ofPlatform().start(() -> {
+            try {
+                new WorkflowRunner(config, blocking).run(corpus, 42, 1);
+            } catch (Throwable exception) {
+                failure.set(exception);
+            }
+        });
+        assertTrue(enteredGenerator.await(5, TimeUnit.SECONDS));
+
+        run.interrupt();
+        run.join(5_000);
+
+        assertFalse(run.isAlive());
+        assertTrue(failure.get() instanceof WorkflowException);
+        var saved = corpus.readRunStatistics();
+        assertEquals(1, saved.generatorAttempts());
+        assertTrue(saved.generatorElapsedNanos() > 0);
+        assertTrue(saved.totalElapsedNanos() > 0);
+    }
+
+    @Test
+    void failsTheWorkflowWhenExitStatisticsCannotBeSaved(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var config = config(0, 0, 0, 0);
+        var statisticsPath = corpus.resolve(CorpusPath.WORKFLOW_STATISTICS);
+
+        var failure = assertThrows(
+                IOException.class,
+                () -> new WorkflowRunner(config).run(corpus, 42, 1, _ -> {
+                    try {
+                        Files.createDirectory(statisticsPath);
+                    } catch (java.nio.file.FileAlreadyExistsException ignored) {
+                        // The initial progress callback already installed the obstruction.
+                    } catch (IOException exception) {
+                        throw new AssertionError(exception);
+                    }
+                }));
+
+        assertTrue(failure.getMessage().contains(".workflow-stats.cbor"));
+        assertTrue(Files.isDirectory(statisticsPath));
     }
 
     @Test
@@ -87,7 +187,7 @@ class WorkflowRunnerTest {
                 .run(corpus, 42, Math.min(2, Runtime.getRuntime().availableProcessors()));
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
-        assertEquals(12, summary.generator().added());
+        assertEquals(12, summary.generator().generated());
         assertEquals(12, summary.parser().processed());
         assertEquals(12, summary.corpus().totalEntries());
         assertEquals(0, summary.corpus().inputEntries());
@@ -201,6 +301,8 @@ class WorkflowRunnerTest {
         assertTrue(Files.readString(report)
                 .contains("StackOverflowError: parser preparation overflow"));
         assertEquals(1, corpus.recoverAndValidate(delegate).totalEntries());
+        assertTrue(corpus.readRunStatistics().parserElapsedNanos() > 0);
+        assertTrue(corpus.readRunStatistics().totalElapsedNanos() > 0);
     }
 
     @Test

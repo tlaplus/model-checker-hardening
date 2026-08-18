@@ -8,11 +8,13 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,7 +47,8 @@ class CheckerStageTest {
         var control = new WorkflowControl(input);
         var stage = new CheckerStage(
                 backend,
-                0,
+                new CheckerStageSummary(0, 0, 0, Duration.ZERO),
+                new ElapsedTimeAccumulator(),
                 corpus,
                 generator,
                 input,

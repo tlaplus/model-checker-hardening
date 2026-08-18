@@ -272,9 +272,13 @@ class MainTest {
                 "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertEquals(
-                summaryOutput(corpus, 7, 4),
-                result.out());
+        assertEquals("", result.err());
+        assertTrue(result.out().startsWith("Random seed: 7" + System.lineSeparator()));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+4 generated inputs\\s+]")));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.contains("total elapsed")));
+        assertTrue(result.out().contains("COMPLETED"));
     }
 
     @Test
@@ -339,9 +343,13 @@ class MainTest {
                 "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertEquals(
-                summaryOutput(corpus, Long.MAX_VALUE, 0),
-                result.out());
+        assertEquals("", result.err());
+        assertTrue(result.out().startsWith(
+                "Random seed: " + Long.MAX_VALUE + System.lineSeparator()));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.matches("\\[\\s+0 generated inputs\\s+]")));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.contains("total elapsed")));
     }
 
     @Test
@@ -647,83 +655,6 @@ class MainTest {
 
     private String hash(byte[] input) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
-    }
-
-    private String summaryOutput(Path corpus, long seed, long total) {
-        return """
-                Random seed: %d
-                Workflow run finished for '%s'
-
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20s %-18s]
-                [%20s %-18s]
-                [%20s %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20d %-18s]
-                [%20s %-18s]
-                """
-                .formatted(
-                        seed,
-                        corpus.toAbsolutePath().normalize(),
-                        total,
-                        "corpus entries",
-                        0,
-                        "awaiting parser",
-                        0,
-                        "awaiting TLC",
-                        0,
-                        "awaiting Apalache",
-                        0,
-                        "generated inputs",
-                        "n/a",
-                        "min richness",
-                        "n/a",
-                        "max richness",
-                        "n/a",
-                        "avg richness",
-                        0,
-                        "candidate attempts",
-                        0,
-                        "generator rejected",
-                        0,
-                        "richness rejected",
-                        0,
-                        "duplicate inputs",
-                        0,
-                        "parser passed",
-                        0,
-                        "parser failed",
-                        0,
-                        "parser crashed",
-                        0,
-                        "TLC passed",
-                        0,
-                        "TLC failed",
-                        0,
-                        "TLC crashed",
-                        0,
-                        "Apalache passed",
-                        0,
-                        "Apalache failed",
-                        0,
-                        "Apalache crashed",
-                        "COMPLETED",
-                        "stop reason");
     }
 
     private Result execute(String... args) {

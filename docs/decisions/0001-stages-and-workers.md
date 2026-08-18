@@ -94,10 +94,23 @@ TLC and Apalache requests have equal checker priority and FIFO ordering in the
 shared CPU budget. Stage capacity limits bound current result-directory
 occupancy, while a global limit bounds unique corpus entries.
 
-The runner may sample in-memory counters once per second for a best-effort
-progress listener. These snapshots are observational and do not replace corpus
-directories as the durable source of truth. Progress is `RUNNING` while stage
-workers are active and changes to `FINALIZING` before the final inventory.
+The runner may sample cumulative in-memory counters and elapsed time once per
+second for a best-effort progress listener. Progress is `RUNNING` while stage
+workers are active and changes to `FINALIZING` before the final inventory. A
+stage's elapsed time is the sum of its workers' active job intervals, excluding
+queue, capacity, and CPU-budget waits. Concurrent intervals overlap, so a stage
+duration may exceed total elapsed time. Total elapsed time is wall-clock time
+from entering the runner through validation, execution, final inventory, and
+scratch cleanup.
+
+Corpus directories remain the durable source of truth for stage ownership and
+verdicts. The runner additionally stores cumulative elapsed time, generator
+attempts and rejections, duplicates, and admitted-input richness aggregates in
+`.workflow-stats.cbor`. It atomically replaces this aggregate once on every
+controlled exit while holding the corpus lock; it does not derive elapsed time
+from per-entry timestamps. A CLI shutdown hook turns Ctrl-C into an interruption
+and waits for cleanup and the final write. Hard termination may lose the current
+invocation's aggregate statistics without compromising corpus recovery.
 
 For an expression `E`, the parser stage constructs this typed `TlaModule`,
 renders it with Apalache's annotation-aware pretty writer, and checks it with

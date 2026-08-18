@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
@@ -35,6 +36,7 @@ public final class ParserStage implements WorkflowStage {
     private final CpuBudget cpuBudget;
     private final WorkflowControl control;
     private final AtomicInteger occupancy;
+    private final ElapsedTimeAccumulator elapsed;
     private final LongAdder passed = new LongAdder();
     private final LongAdder failed = new LongAdder();
     private final LongAdder crashed = new LongAdder();
@@ -43,7 +45,8 @@ public final class ParserStage implements WorkflowStage {
     public ParserStage(
             ParserStageConfig config,
             int workerCount,
-            int initialOccupancy,
+            ParserStageSummary initialStatistics,
+            ElapsedTimeAccumulator elapsed,
             CorpusDirectory corpus,
             Path scratchDirectory,
             Generator<TlaEx> generator,
@@ -68,7 +71,13 @@ public final class ParserStage implements WorkflowStage {
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.control = Objects.requireNonNull(control, "control");
-        this.occupancy = new AtomicInteger(initialOccupancy);
+        Objects.requireNonNull(initialStatistics, "initialStatistics");
+        this.occupancy = new AtomicInteger(
+                Math.toIntExact(initialStatistics.failed() + initialStatistics.crashed()));
+        passed.add(initialStatistics.passed());
+        failed.add(initialStatistics.failed());
+        crashed.add(initialStatistics.crashed());
+        this.elapsed = Objects.requireNonNull(elapsed, "elapsed");
     }
 
     @Override
@@ -90,7 +99,7 @@ public final class ParserStage implements WorkflowStage {
     }
 
     public ParserStageSummary summary() {
-        return new ParserStageSummary(passed.sum(), failed.sum(), crashed.sum());
+        return new ParserStageSummary(passed.sum(), failed.sum(), crashed.sum(), elapsed.elapsed());
     }
 
     @Override
@@ -114,6 +123,7 @@ public final class ParserStage implements WorkflowStage {
                         CpuBudget.Priority.PARSER, 1, control::shouldAbortParsing)) {
                     return;
                 }
+                elapsed.start();
                 try {
                     var startTime = Instant.now();
                     var payload = corpus.readExpressionInput(path);
@@ -150,6 +160,7 @@ public final class ParserStage implements WorkflowStage {
                                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(inputName));
                     }
                 } finally {
+                    elapsed.stop();
                     cpuBudget.release(1);
                 }
             }

@@ -1,26 +1,34 @@
 package io.github.tlaplus.hardening.workflow.input;
 
-/** Generation counters, admitted-input richness statistics, and replay information. */
+import java.time.Duration;
+import java.util.Objects;
+
+/** Cumulative generation counters, richness statistics, elapsed time, and replay information. */
 public record PbtStageSummary(
         long seed,
-        long existing,
-        long added,
+        long generated,
         long attempts,
         long rejected,
         long richnessRejected,
         long duplicates,
+        long richnessSamples,
         double minimumRichness,
         double maximumRichness,
-        double averageRichness) {
+        double averageRichness,
+        Duration elapsed) {
     public PbtStageSummary {
         if (seed < 0
-                || existing < 0
-                || added < 0
+                || generated < 0
                 || attempts < 0
                 || rejected < 0
                 || richnessRejected < 0
-                || duplicates < 0) {
+                || duplicates < 0
+                || richnessSamples < 0) {
             throw new IllegalArgumentException("PBT counters must be nonnegative");
+        }
+        Objects.requireNonNull(elapsed, "elapsed");
+        if (elapsed.isNegative()) {
+            throw new IllegalArgumentException("PBT elapsed time must be nonnegative");
         }
         if (!Double.isFinite(minimumRichness)
                 || !Double.isFinite(maximumRichness)
@@ -31,10 +39,10 @@ public record PbtStageSummary(
             throw new IllegalArgumentException(
                     "PBT richness statistics must be finite and nonnegative");
         }
-        if (added == 0) {
+        if (richnessSamples == 0) {
             if (minimumRichness != 0.0 || maximumRichness != 0.0 || averageRichness != 0.0) {
                 throw new IllegalArgumentException(
-                        "PBT richness statistics must be zero when no inputs were added");
+                        "PBT richness statistics must be zero when there are no samples");
             }
         } else if (minimumRichness > averageRichness || averageRichness > maximumRichness) {
             throw new IllegalArgumentException(

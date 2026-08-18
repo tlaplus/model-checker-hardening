@@ -184,7 +184,7 @@ final class PrintCommand implements Callable<Integer> {
                 output.append("    endTime: ")
                         .append(stage.endTime())
                         .append(" (duration: ")
-                        .append(formatDuration(Duration.between(
+                        .append(HumanDuration.format(Duration.between(
                                 stage.startTime(), stage.endTime())))
                         .append(")")
                         .append(newline);
@@ -193,25 +193,6 @@ final class PrintCommand implements Callable<Integer> {
         output.append("input:").append(newline);
         renderedInput.lines().forEach(line -> output.append("  ").append(line).append(newline));
         return output.toString();
-    }
-
-    private static String formatDuration(Duration duration) {
-        var output = new StringBuilder();
-        appendDurationPart(output, duration.toDaysPart(), "d");
-        appendDurationPart(output, duration.toHoursPart(), "h");
-        appendDurationPart(output, duration.toMinutesPart(), "m");
-        appendDurationPart(output, duration.toSecondsPart(), "s");
-        return output.isEmpty() ? "0s" : output.toString();
-    }
-
-    private static void appendDurationPart(StringBuilder output, long value, String suffix) {
-        if (value == 0) {
-            return;
-        }
-        if (!output.isEmpty()) {
-            output.append(' ');
-        }
-        output.append(value).append(suffix);
     }
 
     private void print(String output) {

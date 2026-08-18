@@ -62,17 +62,19 @@ import java.util.regex.Pattern;
  *       corresponding generator.
  *   <li>Acquire {@link #acquireExclusiveLock()} and hold the returned {@link CorpusLock} for the
  *       remainder of the run.
- *   <li>Create the stage scratch directories while holding the lock.
  *   <li>Call {@link #recoverAndValidate(Generator)} to finish interrupted transitions, validate
  *       every entry, and obtain the initial {@link CorpusInventory}.
- *   <li>Run the stages and keep the lock held for all corpus mutations.
- *   <li>Close the scratch handles, then the corpus lock.
+ *   <li>Call {@link #readRunStatistics()}, create the stage scratch directories, and run the
+ *       stages while keeping the lock held for all corpus mutations.
+ *   <li>Close the scratch handles and atomically call {@link
+ *       #writeRunStatistics(CorpusRunStatistics)} before releasing the corpus lock.
  * </ol>
  *
  * <p>{@code openExisting} performs only the bounded layout check. It neither scans entries nor
  * changes the corpus. Recovery requires a generator derived from the corpus configuration, scans
- * the complete corpus, and may move entries; it therefore belongs inside the locked workflow
- * run.
+ * the complete corpus, and may move entries; it therefore belongs inside the locked workflow run.
+ * Workflow statistics are a separate aggregate and are never reconstructed from per-entry stage
+ * timestamps.
  */
 public final class CorpusDirectory {
     public static final String CRASH_REPORT_EXTENSION = ".stacktrace";
@@ -137,6 +139,48 @@ public final class CorpusDirectory {
     /** Reads the strict TOML configuration belonging to this corpus. */
     public FuzzTlaConfig readConfig() throws IOException, ConfigException {
         return TomlConfig.read(resolve(CorpusPath.CONFIG));
+    }
+
+    /** Reads cumulative workflow statistics, or returns zero statistics before the first save. */
+    public synchronized CorpusRunStatistics readRunStatistics()
+            throws IOException, CorpusException {
+        var path = resolve(CorpusPath.WORKFLOW_STATISTICS);
+        if (Files.notExists(path, NO_FOLLOW_LINKS)) {
+            return CorpusRunStatistics.empty();
+        }
+        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("workflow statistics path is not a regular file: " + path);
+        }
+        try {
+            return CorpusRunStatisticsCodec.decode(Files.readAllBytes(path));
+        } catch (CorpusStatisticsFormatException exception) {
+            throw new CorpusException(
+                    "invalid workflow statistics file '" + path + "': " + diagnostic(exception),
+                    exception);
+        }
+    }
+
+    /** Atomically replaces cumulative workflow statistics. The caller must hold the corpus lock. */
+    public synchronized void writeRunStatistics(CorpusRunStatistics statistics)
+            throws IOException {
+        var encoded = CorpusRunStatisticsCodec.encode(
+                Objects.requireNonNull(statistics, "statistics"));
+        var temporary = Files.createTempFile(
+                resolve(CorpusPath.WORK), "workflow-stats-", ".cbor");
+        try {
+            Files.write(
+                    temporary,
+                    encoded,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+            Files.move(
+                    temporary,
+                    resolve(CorpusPath.WORKFLOW_STATISTICS),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
     }
 
     /** Acquires the process-wide exclusive lock for this corpus. */

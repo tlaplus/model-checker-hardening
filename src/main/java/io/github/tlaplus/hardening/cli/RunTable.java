@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Locale;
 
 /** Formats live and final workflow counters with one stable table layout. */
@@ -20,17 +21,22 @@ final class RunTable {
             printCounter(writer, progress.awaitingParser(), "awaiting parser");
             printCounter(writer, progress.awaitingTlc(), "awaiting TLC");
             printCounter(writer, progress.awaitingApalache(), "awaiting Apalache");
-            printCounter(writer, progress.generator().added(), "generated inputs");
+            printCounter(writer, progress.generator().generated(), "generated inputs");
             printGenerationCounters(writer, progress.generator());
+            printElapsed(writer, progress.generator().elapsed(), "generator elapsed");
             printCounter(writer, progress.parser().passed(), "parser passed");
             printCounter(writer, progress.parser().failed(), "parser failed");
             printCounter(writer, progress.parser().crashed(), "parser crashed");
+            printElapsed(writer, progress.parser().elapsed(), "parser elapsed");
             printCounter(writer, progress.tlc().passed(), "TLC passed");
             printCounter(writer, progress.tlc().failed(), "TLC failed");
             printCounter(writer, progress.tlc().crashed(), "TLC crashed");
+            printElapsed(writer, progress.tlc().elapsed(), "TLC elapsed");
             printCounter(writer, progress.apalache().passed(), "Apalache passed");
             printCounter(writer, progress.apalache().failed(), "Apalache failed");
             printCounter(writer, progress.apalache().crashed(), "Apalache crashed");
+            printElapsed(writer, progress.apalache().elapsed(), "Apalache elapsed");
+            printElapsed(writer, progress.totalElapsed(), "total elapsed");
             writer.printf("[%20s %-18s]%n", progress.phase(), "run state");
         }
         return output.toString();
@@ -44,17 +50,22 @@ final class RunTable {
             printCounter(writer, summary.corpus().inputEntries(), "awaiting parser");
             printCounter(writer, summary.corpus().tlcInputEntries(), "awaiting TLC");
             printCounter(writer, summary.corpus().apalacheInputEntries(), "awaiting Apalache");
-            printCounter(writer, summary.generator().added(), "generated inputs");
+            printCounter(writer, summary.generator().generated(), "generated inputs");
             printGenerationCounters(writer, summary.generator());
+            printElapsed(writer, summary.generator().elapsed(), "generator elapsed");
             printCounter(writer, summary.parser().passed(), "parser passed");
             printCounter(writer, summary.parser().failed(), "parser failed");
             printCounter(writer, summary.parser().crashed(), "parser crashed");
+            printElapsed(writer, summary.parser().elapsed(), "parser elapsed");
             printCounter(writer, summary.tlc().passed(), "TLC passed");
             printCounter(writer, summary.tlc().failed(), "TLC failed");
             printCounter(writer, summary.tlc().crashed(), "TLC crashed");
+            printElapsed(writer, summary.tlc().elapsed(), "TLC elapsed");
             printCounter(writer, summary.apalache().passed(), "Apalache passed");
             printCounter(writer, summary.apalache().failed(), "Apalache failed");
             printCounter(writer, summary.apalache().crashed(), "Apalache crashed");
+            printElapsed(writer, summary.apalache().elapsed(), "Apalache elapsed");
+            printElapsed(writer, summary.totalElapsed(), "total elapsed");
             writer.printf("[%20s %-18s]%n", summary.stopReason(), "stop reason");
         }
         return output.toString();
@@ -65,7 +76,7 @@ final class RunTable {
     }
 
     private static void printGenerationCounters(PrintWriter writer, PbtStageSummary generator) {
-        if (generator.added() == 0) {
+        if (generator.richnessSamples() == 0) {
             printStatistic(writer, "n/a", "min richness");
             printStatistic(writer, "n/a", "max richness");
             printStatistic(writer, "n/a", "avg richness");
@@ -85,6 +96,10 @@ final class RunTable {
 
     private static void printStatistic(PrintWriter writer, String value, String label) {
         writer.printf("[%20s %-18s]%n", value, label);
+    }
+
+    private static void printElapsed(PrintWriter writer, Duration elapsed, String label) {
+        printStatistic(writer, HumanDuration.format(elapsed), label);
     }
 
     private static String formatRichness(double value) {

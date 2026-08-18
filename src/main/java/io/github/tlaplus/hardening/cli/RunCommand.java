@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -79,9 +80,12 @@ final class RunCommand implements Callable<Integer> {
                 progress = new TerminalProgressDisplay(spec.commandLine().getOut());
             }
             var runner = new WorkflowRunner(config);
-            var summary = progress == null
-                    ? runner.run(directory, effectiveSeed, maximumCpus)
-                    : runner.run(directory, effectiveSeed, maximumCpus, progress::update);
+            final WorkflowRunSummary summary;
+            try (var shutdown = RunShutdownHook.install()) {
+                summary = progress == null
+                        ? runner.run(directory, effectiveSeed, maximumCpus)
+                        : runner.run(directory, effectiveSeed, maximumCpus, progress::update);
+            }
             var finalOutput = RunTable.finished(directory.resolve(CorpusPath.ROOT), summary);
             if (progress == null) {
                 spec.commandLine().getOut().print(finalOutput);

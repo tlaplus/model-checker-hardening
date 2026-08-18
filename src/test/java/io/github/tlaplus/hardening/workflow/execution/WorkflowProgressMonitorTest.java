@@ -66,13 +66,25 @@ class WorkflowProgressMonitorTest {
     private WorkflowProgress progress(int value) {
         return new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
-                new PbtStageSummary(1, 0, value, value, 0, 0, 0, 0.0, 0.0, 0.0),
-                new ParserStageSummary(0, 0, 0),
-                new CheckerStageSummary(0, 0, 0),
-                new CheckerStageSummary(0, 0, 0),
+                new PbtStageSummary(
+                        1,
+                        value,
+                        value,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        Duration.ofSeconds(value)),
+                new ParserStageSummary(0, 0, 0, Duration.ZERO),
+                new CheckerStageSummary(0, 0, 0, Duration.ZERO),
+                new CheckerStageSummary(0, 0, 0, Duration.ZERO),
                 value,
                 value,
                 0,
-                value);
+                value,
+                Duration.ofSeconds(value));
     }
 }
