@@ -364,10 +364,10 @@ public final class CorpusDirectory {
         return readOwnedExpressionInput(path, CorpusStageLayout.PARSER);
     }
 
-    /** Reads an entry owned by the TLC input directory. */
-    public synchronized byte[] readTlcExpressionInput(Path path)
+    /** Reads an entry owned by one checker's input directory. */
+    public synchronized byte[] readCheckerExpressionInput(Path path)
             throws IOException, CorpusException {
-        return readOwnedExpressionInput(path, CorpusStageLayout.TLC);
+        return readOwnedExpressionInput(path, checkerStageFor(path));
     }
 
     public synchronized Path completeParser(
@@ -410,8 +410,8 @@ public final class CorpusDirectory {
         return tlcDestination;
     }
 
-    /** Records a TLC result and atomically moves it to its result directory. */
-    public synchronized Path completeTlc(
+    /** Records a checker result and atomically moves it to its result directory. */
+    public synchronized Path completeChecker(
             Path source,
             String verdict,
             Instant startTime,
@@ -421,7 +421,7 @@ public final class CorpusDirectory {
             throws IOException, CorpusException {
         return completeStage(
                 source,
-                CorpusStageLayout.TLC,
+                checkerStageFor(source),
                 verdict,
                 startTime,
                 endTime,
@@ -770,6 +770,17 @@ public final class CorpusDirectory {
                             + path);
         }
         return new Entry(path, encoded, envelope);
+    }
+
+    private CorpusStageLayout checkerStageFor(Path path) throws CorpusException {
+        Objects.requireNonNull(path, "path");
+        var parent = path.toAbsolutePath().normalize().getParent();
+        for (var checker : CorpusStageLayout.checkerBranches()) {
+            if (resolve(checker.input()).equals(parent)) {
+                return checker;
+            }
+        }
+        throw new CorpusException("entry is not owned by a checker input stage: " + path);
     }
 
     private byte[] readOwnedExpressionInput(Path path, CorpusStageLayout stage)

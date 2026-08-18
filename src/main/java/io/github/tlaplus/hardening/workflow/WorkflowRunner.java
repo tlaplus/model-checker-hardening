@@ -7,13 +7,14 @@ import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
-import io.github.tlaplus.hardening.workflow.tlc.TlcStage;
+import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -129,12 +130,13 @@ public final class WorkflowRunner {
                 inputCapacity,
                 cpuBudget,
                 control);
-        var tlc = new TlcStage(
-                config.workflow().tlc(),
-                maximumCpus / config.workflow().tlc().workers(),
+        var tlc = new CheckerStage(
+                new TlcCheckerBackend(
+                        config.workflow().tlc(),
+                        maximumCpus / config.workflow().tlc().workers(),
+                        tlcScratch),
                 Math.toIntExact(initial.tlcEntries()),
                 corpus,
-                tlcScratch,
                 generator,
                 tlcQueue,
                 cpuBudget,
@@ -218,7 +220,7 @@ public final class WorkflowRunner {
             CorpusInventory initial,
             PbtStage generator,
             ParserStage parser,
-            TlcStage tlc) {
+            CheckerStage tlc) {
         var parserSummary = parser.summary();
         var tlcSummary = tlc.summary();
         var generatorSummary = generator.summary();

@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
+import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
-import io.github.tlaplus.hardening.workflow.tlc.TlcStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
@@ -67,7 +67,7 @@ class TerminalProgressDisplayTest {
                 WorkflowProgress.Phase.RUNNING,
                 new PbtStageSummary(42, 0, 3, 5, 0, 1, 1, 1.25, 9.0, 4.5),
                 new ParserStageSummary(2, 0, 0),
-                new TlcStageSummary(1, 0, 0),
+                new CheckerStageSummary(1, 0, 0),
                 3,
                 1,
                 1,
@@ -112,7 +112,7 @@ class TerminalProgressDisplayTest {
                 new PbtStageSummary(
                         42, 0, generated, generated, 0, 0, 0, 0.0, 0.0, 0.0),
                 new ParserStageSummary(parsed, 0, 0),
-                new TlcStageSummary(parsed, 0, 0),
+                new CheckerStageSummary(parsed, 0, 0),
                 generated,
                 generated - parsed,
                 0,
