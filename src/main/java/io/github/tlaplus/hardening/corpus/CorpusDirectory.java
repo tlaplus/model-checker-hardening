@@ -74,8 +74,8 @@ public final class CorpusDirectory {
 
     /**
      * Initializes the complete workflow layout, writing {@code configuration} as the corpus
-     * configuration file. The corpus decides where that file lives and refuses to overwrite one that
-     * already exists; its caller decides what the file says.
+     * configuration file. The corpus decides where that file lives and refuses to overwrite one
+     * that already exists; its caller decides what the file says.
      */
     public static CorpusDirectory initialize(Path root, String configuration)
             throws IOException, CorpusException {

@@ -28,12 +28,7 @@ class IsolatedWorkerProcessTest {
         var failure = assertThrows(
                 WorkflowException.class,
                 () -> IsolatedWorkerProcess.start(
-                        scratch,
-                        TIMEOUT,
-                        StartupFailureWorker.class,
-                        List.of(),
-                        List.of(),
-                        DESCRIPTION));
+                new WorkerSpec(scratch, TIMEOUT, StartupFailureWorker.class, DESCRIPTION)));
 
         assertTrue(failure.getMessage().contains("test worker failed during startup"));
         assertTrue(failure.getMessage().contains("deliberate startup failure"));
@@ -47,12 +42,7 @@ class IsolatedWorkerProcessTest {
 
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                ProcessingFailureWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, ProcessingFailureWorker.class, DESCRIPTION))) {
             result = worker.request("request", TIMEOUT);
         }
 
@@ -69,12 +59,7 @@ class IsolatedWorkerProcessTest {
 
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                FatalErrorWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, FatalErrorWorker.class, DESCRIPTION))) {
             result = worker.request("request", TIMEOUT);
         }
 
@@ -90,23 +75,13 @@ class IsolatedWorkerProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
         try (var worker = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                HangingWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, HangingWorker.class, DESCRIPTION))) {
             assertEquals(
                     StageOutcome.CRASH,
                     worker.request("request", Duration.ZERO).outcome());
         }
         try (var replacement = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                ClassifiedFailureWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, ClassifiedFailureWorker.class, DESCRIPTION))) {
             assertEquals(
                     StageOutcome.FAIL,
                     replacement.request("request", TIMEOUT).outcome());
@@ -120,12 +95,7 @@ class IsolatedWorkerProcessTest {
 
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                ClassifiedFailureWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, ClassifiedFailureWorker.class, DESCRIPTION))) {
             result = worker.request("request", TIMEOUT);
         }
 
@@ -144,12 +114,7 @@ class IsolatedWorkerProcessTest {
 
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                NativeOutputWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, NativeOutputWorker.class, DESCRIPTION))) {
             result = worker.request("request", TIMEOUT);
         }
 
@@ -163,12 +128,7 @@ class IsolatedWorkerProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
         try (var worker = IsolatedWorkerProcess.start(
-                scratch,
-                TIMEOUT,
-                UnknownFailureCodeWorker.class,
-                List.of(),
-                List.of(),
-                DESCRIPTION)) {
+                new WorkerSpec(scratch, TIMEOUT, UnknownFailureCodeWorker.class, DESCRIPTION))) {
             var failure = assertThrows(
                     WorkflowException.class,
                     () -> worker.request("request", TIMEOUT));

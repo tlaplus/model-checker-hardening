@@ -4,10 +4,9 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
-import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
+import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,18 +25,11 @@ public final class ParserWorkerMain {
     private ParserWorkerMain() {}
 
     static void main(String[] ignoredArguments) {
-        try {
-            run();
-        } catch (Exception | StackOverflowError exception) {
-            exception.printStackTrace(System.err);
-            System.exit(1);
-        }
+        ToolWorkerRuntime.main(ParserWorkerMain::run, System.err);
     }
 
-    private static void run() throws IOException {
+    private static void run() throws Exception {
         var connection = ToolWorkerConnection.connect();
-        var protocolOutput = connection.output();
-        var protocolInput = connection.input();
         System.setOut(System.err);
         StandardModuleResources.require(
                 ParserWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
@@ -47,26 +39,20 @@ public final class ParserWorkerMain {
         ToolIO.setUserDir(temporaryDirectory.toString());
         var resolver = new SimpleFilenameToStream(temporaryDirectory.toString());
 
-        ToolWorkerProtocol.writeHandshake(protocolOutput);
         try {
-            while (true) {
-                var source = ToolWorkerProtocol.readRequest(protocolInput);
-                if (source == null) {
-                    return;
-                }
-                Files.writeString(
-                        specification,
-                        source,
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.TRUNCATE_EXISTING,
-                        StandardOpenOption.WRITE);
-                var result = parse(specification, resolver);
-                ToolWorkerProtocol.writeResult(protocolOutput, result);
-                if (result.outcome() == StageOutcome.CRASH) {
-                    return;
-                }
-            }
+            ToolWorkerRuntime.serve(
+                    connection,
+                    ToolWorkerRuntime.Lifetime.UNTIL_CRASH,
+                    source -> {
+                        Files.writeString(
+                                specification,
+                                source,
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.TRUNCATE_EXISTING,
+                                StandardOpenOption.WRITE);
+                        return parse(specification, resolver);
+                    });
         } finally {
             Files.deleteIfExists(specification);
             Files.deleteIfExists(temporaryDirectory);
