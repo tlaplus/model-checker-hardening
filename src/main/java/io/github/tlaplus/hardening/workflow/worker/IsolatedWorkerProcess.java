@@ -4,12 +4,10 @@ import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -30,14 +28,13 @@ import java.util.concurrent.TimeoutException;
 public final class IsolatedWorkerProcess implements AutoCloseable {
     private static final int MAXIMUM_STANDARD_ERROR_BYTES = 64 * 1024;
     private static final Duration PROCESS_TERMINATION_TIMEOUT = Duration.ofMillis(500);
-    private static final Duration STANDARD_ERROR_DRAIN_TIMEOUT = Duration.ofSeconds(1);
     private static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
 
     private final String description;
     private final Process process;
     private final DataInputStream input;
     private final DataOutputStream output;
-    private final BoundedErrorCapture standardError;
+    private final BoundedOutputCapture standardError;
     private final Path temporaryDirectory;
     private boolean closed;
 
@@ -47,7 +44,8 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         this.process = process;
         input = new DataInputStream(new BufferedInputStream(process.getInputStream()));
         output = new DataOutputStream(new BufferedOutputStream(process.getOutputStream()));
-        standardError = new BoundedErrorCapture(process.getErrorStream());
+        standardError = new BoundedOutputCapture(
+                process.getErrorStream(), MAXIMUM_STANDARD_ERROR_BYTES, "stderr");
         this.temporaryDirectory = temporaryDirectory;
     }
 
@@ -293,72 +291,4 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         }
     }
 
-    private static final class BoundedErrorCapture implements AutoCloseable {
-        private final InputStream input;
-        private final ByteArrayOutputStream captured = new ByteArrayOutputStream();
-        private final Thread reader;
-        private boolean truncated;
-
-        private BoundedErrorCapture(InputStream input) {
-            this.input = input;
-            reader = Thread.startVirtualThread(this::read);
-        }
-
-        private void read() {
-            var buffer = new byte[8192];
-            try (input) {
-                int length;
-                while ((length = input.read(buffer)) >= 0) {
-                    append(buffer, length);
-                }
-            } catch (IOException ignored) {
-                // Closing or terminating the child process also closes its stderr pipe.
-            }
-        }
-
-        private synchronized void append(byte[] bytes, int length) {
-            var remaining = MAXIMUM_STANDARD_ERROR_BYTES - captured.size();
-            if (remaining > 0) {
-                captured.write(bytes, 0, Math.min(remaining, length));
-            }
-            if (length > remaining) {
-                truncated = true;
-            }
-        }
-
-        private synchronized String text() {
-            var result = captured.toString(StandardCharsets.UTF_8);
-            if (truncated) {
-                result += System.lineSeparator() + "[stderr truncated]";
-            }
-            return result;
-        }
-
-        @Override
-        public void close() {
-            var interrupted = false;
-            try {
-                reader.join(STANDARD_ERROR_DRAIN_TIMEOUT.toMillis());
-                if (reader.isAlive()) {
-                    try {
-                        input.close();
-                    } catch (IOException ignored) {
-                        // The child process may already have closed the pipe.
-                    }
-                    reader.join(STANDARD_ERROR_DRAIN_TIMEOUT.toMillis());
-                }
-            } catch (InterruptedException exception) {
-                interrupted = true;
-                try {
-                    input.close();
-                } catch (IOException ignored) {
-                    // The child process may already have closed the pipe.
-                }
-            } finally {
-                if (interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-    }
 }
