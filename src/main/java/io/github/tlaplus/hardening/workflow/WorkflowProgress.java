@@ -1,8 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
-import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
-import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -10,9 +9,9 @@ import java.util.Objects;
 public record WorkflowProgress(
         Phase phase,
         PbtStageSummary generator,
-        ParserStageSummary parser,
-        CheckerStageSummary tlc,
-        CheckerStageSummary apalache,
+        StageVerdictSummary parser,
+        StageVerdictSummary tlc,
+        StageVerdictSummary apalache,
         long corpusEntries,
         long awaitingParser,
         long awaitingTlc,

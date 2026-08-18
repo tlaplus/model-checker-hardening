@@ -3,16 +3,15 @@ package io.github.tlaplus.hardening.workflow.input;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.PbtConfig;
-import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
-import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
+import io.github.tlaplus.hardening.workflow.execution.StageWorker;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
-import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import java.io.IOException;
@@ -29,14 +28,11 @@ public final class PbtStage implements WorkflowStage {
 
     private final PbtConfig config;
     private final long initialEntries;
-    private final CorpusDirectory corpus;
-    private final Generator<TlaEx> generator;
+    private final StageEnvironment environment;
     private final long seed;
     private final int workerLimit;
     private final WorkQueue<Path> output;
     private final Semaphore inputCapacity;
-    private final CpuBudget cpuBudget;
-    private final WorkflowControl control;
     private final long missingEntries;
     private final WorkflowMetrics metrics;
     private final AtomicLong nextTarget = new AtomicLong();
@@ -46,22 +42,18 @@ public final class PbtStage implements WorkflowStage {
             PbtConfig config,
             long maximumEntries,
             long initialEntries,
-            CorpusDirectory corpus,
-            Generator<TlaEx> generator,
+            StageEnvironment environment,
             long seed,
             int workerLimit,
             WorkQueue<Path> output,
             Semaphore inputCapacity,
-            CpuBudget cpuBudget,
-            WorkflowControl control,
             WorkflowMetrics metrics) {
         this.config = Objects.requireNonNull(config, "config");
         if (initialEntries < 0) {
             throw new IllegalArgumentException("initialEntries must be nonnegative");
         }
         this.initialEntries = initialEntries;
-        this.corpus = Objects.requireNonNull(corpus, "corpus");
-        this.generator = Objects.requireNonNull(generator, "generator");
+        this.environment = Objects.requireNonNull(environment, "environment");
         if (seed < 0) {
             throw new IllegalArgumentException("seed must be nonnegative");
         }
@@ -72,8 +64,6 @@ public final class PbtStage implements WorkflowStage {
         this.workerLimit = workerLimit;
         this.output = Objects.requireNonNull(output, "output");
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
-        this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
-        this.control = Objects.requireNonNull(control, "control");
         this.missingEntries = Math.max(0L, maximumEntries - initialEntries);
         this.metrics = Objects.requireNonNull(metrics, "metrics");
     }
@@ -109,17 +99,10 @@ public final class PbtStage implements WorkflowStage {
     }
 
     private void runWorker(int workerId, long workerSeed) {
-        try {
-            generateInputs(workerId, workerSeed);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            if (!control.shouldStopProducing()) {
-                control.fail(new WorkflowException(
-                        "input generator worker " + workerId + " was interrupted", exception));
-            }
-        } catch (Exception | StackOverflowError exception) {
-            control.fail(exception);
-        }
+        StageWorker.run(
+                environment.control(),
+                "input generator worker " + workerId,
+                () -> generateInputs(workerId, workerSeed));
     }
 
     private void generateInputs(int workerId, long workerSeed) throws Exception {
@@ -127,7 +110,7 @@ public final class PbtStage implements WorkflowStage {
         var cohortRandom = random.split();
         var inputRandom = random.split();
 
-        while (!control.shouldStopProducing()) {
+        while (!environment.control().shouldStop()) {
             var target = nextTarget.getAndIncrement();
             if (target >= missingEntries) {
                 return;
@@ -137,7 +120,7 @@ public final class PbtStage implements WorkflowStage {
             long entryAttempts = 0;
             var bestRichness = 0.0;
 
-            while (!control.shouldStopProducing()) {
+            while (!environment.control().shouldStop()) {
                 if (entryAttempts >= MAXIMUM_ATTEMPTS_PER_ENTRY) {
                     throw new WorkflowException(
                             "input generator worker "
@@ -161,10 +144,10 @@ public final class PbtStage implements WorkflowStage {
 
                 var keepInputSlot = false;
                 try {
-                    if (!cpuBudget.acquire(
+                    if (!environment.cpuBudget().acquire(
                             CpuBudget.Priority.GENERATOR,
                             1,
-                            control::shouldStopProducing)) {
+                            environment.control()::shouldStop)) {
                         return;
                     }
                     metrics.generatorElapsed().start();
@@ -179,7 +162,7 @@ public final class PbtStage implements WorkflowStage {
                             input = new byte[length];
                             inputRandom.nextBytes(input);
                             try {
-                                var expression = generator.generate(input);
+                                var expression = environment.generator().generate(input);
                                 richness = CollectionRichness.score(
                                         expression, config.richnessNestingBase());
                             } catch (InputRejectedException exception) {
@@ -195,7 +178,7 @@ public final class PbtStage implements WorkflowStage {
                                         exception);
                             }
                         } finally {
-                            cpuBudget.release(1);
+                            environment.cpuBudget().release(1);
                         }
 
                         bestRichness = Math.max(bestRichness, richness);
@@ -204,11 +187,13 @@ public final class PbtStage implements WorkflowStage {
                             continue;
                         }
 
-                        switch (corpus.store(input, new GenerationMetadata(cohort, richness))) {
+                        var stored = environment.corpus()
+                                .store(input, new GenerationMetadata(cohort, richness));
+                        switch (stored) {
                             case ADDED -> {
                                 metrics.recordAdmission(richness);
                                 keepInputSlot = true;
-                                output.submit(corpus.inputPath(input));
+                                output.submit(environment.corpus().inputPath(input));
                                 break;
                             }
                             case DUPLICATE -> metrics.recordDuplicate();
@@ -246,7 +231,7 @@ public final class PbtStage implements WorkflowStage {
                 + ": "
                 + Diagnostics.message(failure);
         try {
-            var candidate = corpus.recordGeneratorCrash(input, failure);
+            var candidate = environment.corpus().recordGeneratorCrash(input, failure);
             message += "; candidate saved to '" + candidate + "'";
         } catch (IOException | CorpusException | RuntimeException recordingFailure) {
             failure.addSuppressed(recordingFailure);
@@ -272,7 +257,7 @@ public final class PbtStage implements WorkflowStage {
     }
 
     private boolean acquireInputCapacity() throws InterruptedException {
-        while (!control.shouldStopProducing()) {
+        while (!environment.control().shouldStop()) {
             if (inputCapacity.tryAcquire(100, TimeUnit.MILLISECONDS)) {
                 return true;
             }

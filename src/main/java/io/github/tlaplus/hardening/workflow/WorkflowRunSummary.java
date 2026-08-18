@@ -1,9 +1,8 @@
 package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
-import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
-import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -11,9 +10,9 @@ import java.util.Objects;
 public record WorkflowRunSummary(
         StopReason stopReason,
         PbtStageSummary generator,
-        ParserStageSummary parser,
-        CheckerStageSummary tlc,
-        CheckerStageSummary apalache,
+        StageVerdictSummary parser,
+        StageVerdictSummary tlc,
+        StageVerdictSummary apalache,
         CorpusInventory corpus,
         Duration totalElapsed) {
     public WorkflowRunSummary {

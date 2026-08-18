@@ -6,10 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
-import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
-import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
@@ -68,9 +67,9 @@ class TerminalProgressDisplayTest {
                 WorkflowProgress.Phase.RUNNING,
                 new PbtStageSummary(
                         42, 3, 5, 0, 1, 1, 3, 1.25, 9.0, 4.5, Duration.ofSeconds(3)),
-                new ParserStageSummary(2, 0, 0, Duration.ofSeconds(2)),
-                new CheckerStageSummary(1, 0, 0, Duration.ofSeconds(1)),
-                new CheckerStageSummary(0, 0, 0, Duration.ZERO),
+                new StageVerdictSummary(2, 0, 0, Duration.ofSeconds(2)),
+                new StageVerdictSummary(1, 0, 0, Duration.ofSeconds(1)),
+                new StageVerdictSummary(0, 0, 0, Duration.ZERO),
                 3,
                 1,
                 1,
@@ -150,9 +149,9 @@ class TerminalProgressDisplayTest {
                         0.0,
                         0.0,
                         Duration.ofSeconds(generated)),
-                new ParserStageSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
-                new CheckerStageSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
-                new CheckerStageSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
+                new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
+                new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
+                new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
                 generated,
                 generated - parsed,
                 0,

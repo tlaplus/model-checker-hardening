@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -14,61 +15,78 @@ final class RunTable {
     private RunTable() {}
 
     static String progress(WorkflowProgress progress) {
+        return render(new View(
+                "Workflow run in progress",
+                progress.corpusEntries(),
+                progress.awaitingParser(),
+                progress.awaitingTlc(),
+                progress.awaitingApalache(),
+                progress.generator(),
+                progress.parser(),
+                progress.tlc(),
+                progress.apalache(),
+                progress.totalElapsed(),
+                progress.phase().toString(),
+                "run state"));
+    }
+
+    static String finished(Path corpus, WorkflowRunSummary summary) {
+        return render(new View(
+                "Workflow run finished for '" + corpus + "'",
+                summary.corpus().totalEntries(),
+                summary.corpus().inputEntries(),
+                summary.corpus().tlcInputEntries(),
+                summary.corpus().apalacheInputEntries(),
+                summary.generator(),
+                summary.parser(),
+                summary.tlc(),
+                summary.apalache(),
+                summary.totalElapsed(),
+                summary.stopReason().toString(),
+                "stop reason"));
+    }
+
+    /** Everything the table shows, gathered from either a live snapshot or a final summary. */
+    private record View(
+            String header,
+            long corpusEntries,
+            long awaitingParser,
+            long awaitingTlc,
+            long awaitingApalache,
+            PbtStageSummary generator,
+            StageVerdictSummary parser,
+            StageVerdictSummary tlc,
+            StageVerdictSummary apalache,
+            Duration totalElapsed,
+            String stateValue,
+            String stateLabel) {}
+
+    private static String render(View view) {
         var output = new StringWriter();
         try (var writer = new PrintWriter(output)) {
-            writer.printf("Workflow run in progress%n%n");
-            printCounter(writer, progress.corpusEntries(), "corpus entries");
-            printCounter(writer, progress.awaitingParser(), "awaiting parser");
-            printCounter(writer, progress.awaitingTlc(), "awaiting TLC");
-            printCounter(writer, progress.awaitingApalache(), "awaiting Apalache");
-            printCounter(writer, progress.generator().generated(), "generated inputs");
-            printGenerationCounters(writer, progress.generator());
-            printElapsed(writer, progress.generator().elapsed(), "generator elapsed");
-            printCounter(writer, progress.parser().passed(), "parser passed");
-            printCounter(writer, progress.parser().failed(), "parser failed");
-            printCounter(writer, progress.parser().crashed(), "parser crashed");
-            printElapsed(writer, progress.parser().elapsed(), "parser elapsed");
-            printCounter(writer, progress.tlc().passed(), "TLC passed");
-            printCounter(writer, progress.tlc().failed(), "TLC failed");
-            printCounter(writer, progress.tlc().crashed(), "TLC crashed");
-            printElapsed(writer, progress.tlc().elapsed(), "TLC elapsed");
-            printCounter(writer, progress.apalache().passed(), "Apalache passed");
-            printCounter(writer, progress.apalache().failed(), "Apalache failed");
-            printCounter(writer, progress.apalache().crashed(), "Apalache crashed");
-            printElapsed(writer, progress.apalache().elapsed(), "Apalache elapsed");
-            printElapsed(writer, progress.totalElapsed(), "total elapsed");
-            writer.printf("[%20s %-18s]%n", progress.phase(), "run state");
+            writer.printf("%s%n%n", view.header());
+            printCounter(writer, view.corpusEntries(), "corpus entries");
+            printCounter(writer, view.awaitingParser(), "awaiting parser");
+            printCounter(writer, view.awaitingTlc(), "awaiting TLC");
+            printCounter(writer, view.awaitingApalache(), "awaiting Apalache");
+            printCounter(writer, view.generator().generated(), "generated inputs");
+            printGenerationCounters(writer, view.generator());
+            printElapsed(writer, view.generator().elapsed(), "generator elapsed");
+            printVerdicts(writer, view.parser(), "parser");
+            printVerdicts(writer, view.tlc(), "TLC");
+            printVerdicts(writer, view.apalache(), "Apalache");
+            printElapsed(writer, view.totalElapsed(), "total elapsed");
+            writer.printf("[%20s %-18s]%n", view.stateValue(), view.stateLabel());
         }
         return output.toString();
     }
 
-    static String finished(Path corpus, WorkflowRunSummary summary) {
-        var output = new StringWriter();
-        try (var writer = new PrintWriter(output)) {
-            writer.printf("Workflow run finished for '%s'%n%n", corpus);
-            printCounter(writer, summary.corpus().totalEntries(), "corpus entries");
-            printCounter(writer, summary.corpus().inputEntries(), "awaiting parser");
-            printCounter(writer, summary.corpus().tlcInputEntries(), "awaiting TLC");
-            printCounter(writer, summary.corpus().apalacheInputEntries(), "awaiting Apalache");
-            printCounter(writer, summary.generator().generated(), "generated inputs");
-            printGenerationCounters(writer, summary.generator());
-            printElapsed(writer, summary.generator().elapsed(), "generator elapsed");
-            printCounter(writer, summary.parser().passed(), "parser passed");
-            printCounter(writer, summary.parser().failed(), "parser failed");
-            printCounter(writer, summary.parser().crashed(), "parser crashed");
-            printElapsed(writer, summary.parser().elapsed(), "parser elapsed");
-            printCounter(writer, summary.tlc().passed(), "TLC passed");
-            printCounter(writer, summary.tlc().failed(), "TLC failed");
-            printCounter(writer, summary.tlc().crashed(), "TLC crashed");
-            printElapsed(writer, summary.tlc().elapsed(), "TLC elapsed");
-            printCounter(writer, summary.apalache().passed(), "Apalache passed");
-            printCounter(writer, summary.apalache().failed(), "Apalache failed");
-            printCounter(writer, summary.apalache().crashed(), "Apalache crashed");
-            printElapsed(writer, summary.apalache().elapsed(), "Apalache elapsed");
-            printElapsed(writer, summary.totalElapsed(), "total elapsed");
-            writer.printf("[%20s %-18s]%n", summary.stopReason(), "stop reason");
-        }
-        return output.toString();
+    private static void printVerdicts(
+            PrintWriter writer, StageVerdictSummary stage, String label) {
+        printCounter(writer, stage.passed(), label + " passed");
+        printCounter(writer, stage.failed(), label + " failed");
+        printCounter(writer, stage.crashed(), label + " crashed");
+        printElapsed(writer, stage.elapsed(), label + " elapsed");
     }
 
     private static void printCounter(PrintWriter writer, long value, String label) {
