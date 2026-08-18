@@ -30,7 +30,7 @@ final class StageTransition {
     }
 
     /** Records a stage result on an entry and moves the entry to its result directory. */
-    Path complete(Path source, CorpusStageLayout stage, StageResult result)
+    Path complete(Path source, CorpusStage stage, StageResult result)
             throws IOException, CorpusException {
         // Validate the requested transition and resolve its result path before changing the corpus.
         entries.requireOwnedPath(source, stage.input(), stage.displayName() + " input");
@@ -110,12 +110,12 @@ final class StageTransition {
         entries.requireOwnedPath(source, CorpusPath.PARSER_PASS, "parser pass");
         var encoded = Files.readAllBytes(source);
         var entry = CorpusEntries.decode(source, encoded);
-        CorpusEntries.requireStageVerdict(entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
-        for (var checker : CorpusStageLayout.checkerBranches()) {
+        CorpusEntries.requireStageVerdict(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
+        for (var checker : CorpusStage.checkerBranches()) {
             CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), checker);
         }
 
-        for (var checker : CorpusStageLayout.checkerBranches()) {
+        for (var checker : CorpusStage.checkerBranches()) {
             var destination =
                     layout.resolve(checker.input()).resolve(source.getFileName());
             installBranchCopy(source, encoded, destination);
@@ -156,7 +156,7 @@ final class StageTransition {
      * Completes a crash transition whose metadata was committed before an interruption: moves a
      * staged sidecar into the result directory, and rejects a corpus that holds both copies.
      */
-    void recoverCrashReport(Path source, CorpusStageLayout stage)
+    void recoverCrashReport(Path source, CorpusStage stage)
             throws IOException, CorpusException {
         var reportName = CorpusLayout.crashReportName(source);
         var stagedReport = layout.stagedCrashReport(stage, reportName);

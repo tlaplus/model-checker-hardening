@@ -179,22 +179,9 @@ public final class CorpusDirectory {
         }
     }
 
-    /** Creates transient parser storage for one locked workflow invocation. */
-    public synchronized StageScratch createParserScratch()
-            throws IOException, CorpusException {
-        return createScratch(CorpusStageLayout.PARSER);
-    }
-
-    /** Creates transient TLC storage for one locked workflow invocation. */
-    public synchronized StageScratch createTlcScratch()
-            throws IOException, CorpusException {
-        return createScratch(CorpusStageLayout.TLC);
-    }
-
-    /** Creates transient Apalache storage for one locked workflow invocation. */
-    public synchronized StageScratch createApalacheScratch()
-            throws IOException, CorpusException {
-        return createScratch(CorpusStageLayout.APALACHE);
+    /** Creates every stage's transient storage for one locked workflow invocation. */
+    public StageScratchSet createScratch() throws IOException, CorpusException {
+        return StageScratchSet.create(this);
     }
 
     /**
@@ -233,7 +220,7 @@ public final class CorpusDirectory {
     public synchronized byte[] readExpressionInput(Path path)
             throws IOException, CorpusException {
         return entries(CorpusEntryValidator.NONE)
-                .readOwnedExpressionInput(path, CorpusStageLayout.PARSER);
+                .readOwnedExpressionInput(path, CorpusStage.PARSER);
     }
 
     /** Reads an entry owned by one checker's input directory. */
@@ -246,7 +233,7 @@ public final class CorpusDirectory {
     /** Records a parser result and atomically moves it to its result directory. */
     public synchronized Path completeParser(Path source, StageResult result)
             throws IOException, CorpusException {
-        return transitions.complete(source, CorpusStageLayout.PARSER, result);
+        return transitions.complete(source, CorpusStage.PARSER, result);
     }
 
     /** Records a checker result and atomically moves it to its result directory. */
@@ -270,7 +257,7 @@ public final class CorpusDirectory {
         return new CorpusEntries(layout, validator, store);
     }
 
-    private StageScratch createScratch(CorpusStageLayout stage)
+    synchronized StageScratch createScratch(CorpusStage stage)
             throws IOException, CorpusException {
         var directory = resolve(stage.scratch());
         if (Files.exists(directory, NO_FOLLOW_LINKS)
@@ -281,10 +268,10 @@ public final class CorpusDirectory {
         return StageScratch.create(directory);
     }
 
-    private CorpusStageLayout checkerStageFor(Path path) throws CorpusException {
+    private CorpusStage checkerStageFor(Path path) throws CorpusException {
         Objects.requireNonNull(path, "path");
         var parent = path.toAbsolutePath().normalize().getParent();
-        for (var checker : CorpusStageLayout.checkerBranches()) {
+        for (var checker : CorpusStage.checkerBranches()) {
             if (resolve(checker.input()).equals(parent)) {
                 return checker;
             }

@@ -10,6 +10,7 @@ import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import java.nio.file.Files;
@@ -257,8 +258,8 @@ class CorpusDirectoryTest {
                         .generation()
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
-        assertEquals(0, inventory.inputEntries());
-        assertEquals(1, inventory.parserPassEntries());
+        assertEquals(0, inventory.pendingEntries(CorpusStage.PARSER));
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
         assertTrue(Files.notExists(destination));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.TLC_INPUT).resolve(source.getFileName())));
@@ -292,9 +293,9 @@ class CorpusDirectoryTest {
                 CorpusInputCodec.stageVerdict(Files.readAllBytes(result), "tlc")
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
-        assertEquals(1, inventory.parserPassEntries());
-        assertEquals(1, inventory.tlcPassEntries());
-        assertEquals(1, inventory.apalacheInputEntries());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
+        assertEquals(1, inventory.pendingEntries(CorpusStage.APALACHE));
         assertEquals(1, inventory.totalEntries());
     }
 
@@ -322,8 +323,8 @@ class CorpusDirectoryTest {
                 CorpusInputCodec.stageVerdict(Files.readAllBytes(result), "apalache")
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
-        assertEquals(1, inventory.apalachePassEntries());
-        assertEquals(1, inventory.tlcInputEntries());
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).passed());
+        assertEquals(1, inventory.pendingEntries(CorpusStage.TLC));
         assertEquals(1, inventory.totalEntries());
     }
 
@@ -372,7 +373,7 @@ class CorpusDirectoryTest {
                 .findFirst()
                 .orElseThrow();
         assertEquals(Optional.of(failure), metadata.failure());
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).tlcFailEntries());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.TLC).failed());
     }
 
     @Test
@@ -392,8 +393,8 @@ class CorpusDirectoryTest {
         assertTrue(Files.exists(tlcInput));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName())));
-        assertEquals(1, inventory.parserPassEntries());
-        assertEquals(1, inventory.tlcInputEntries());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
+        assertEquals(1, inventory.pendingEntries(CorpusStage.TLC));
     }
 
     @Test
@@ -489,8 +490,8 @@ class CorpusDirectoryTest {
 
         var inventory = corpus.recoverAndValidate(ACCEPT);
 
-        assertEquals(0, inventory.tlcInputEntries());
-        assertEquals(1, inventory.tlcPassEntries());
+        assertEquals(0, inventory.pendingEntries(CorpusStage.TLC));
+        assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.TLC_PASS).resolve(tlcInput.getFileName())));
     }
@@ -516,7 +517,7 @@ class CorpusDirectoryTest {
         assertEquals(
                 "java.lang.OutOfMemoryError: heap" + System.lineSeparator(),
                 Files.readString(report));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).tlcCrashEntries());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.TLC).crashed());
     }
 
     @Test
@@ -542,7 +543,7 @@ class CorpusDirectoryTest {
                         .resolve(apalacheInput.getFileName()),
                 result);
         assertEquals("Apalache timed out" + System.lineSeparator(), Files.readString(report));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).apalacheCrashEntries());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.APALACHE).crashed());
     }
 
     @Test
@@ -579,7 +580,7 @@ class CorpusDirectoryTest {
                 corpus.resolve(CorpusPath.PARSER_CRASH).resolve(source.getFileName()),
                 destination);
         assertEquals(diagnostic + System.lineSeparator(), Files.readString(report));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).parserCrashEntries());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.PARSER).crashed());
     }
 
     @Test
@@ -601,8 +602,8 @@ class CorpusDirectoryTest {
 
         var inventory = corpus.recoverAndValidate(ACCEPT);
 
-        assertEquals(0, inventory.inputEntries());
-        assertEquals(1, inventory.parserFailEntries());
+        assertEquals(0, inventory.pendingEntries(CorpusStage.PARSER));
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).failed());
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.PARSER_FAIL).resolve(source.getFileName())));
     }
@@ -630,7 +631,7 @@ class CorpusDirectoryTest {
 
         var inventory = corpus.recoverAndValidate(ACCEPT);
 
-        assertEquals(1, inventory.parserCrashEntries());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).crashed());
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.PARSER_CRASH).resolve(source.getFileName())));
         assertEquals(
@@ -662,8 +663,8 @@ class CorpusDirectoryTest {
 
         Path runDirectory;
         try (var ignored = corpus.acquireExclusiveLock();
-                var scratch = corpus.createParserScratch()) {
-            runDirectory = scratch.directory();
+                var scratch = corpus.createScratch()) {
+            runDirectory = scratch.directory(CorpusStage.PARSER);
             assertTrue(Files.isDirectory(runDirectory));
             assertTrue(runDirectory.startsWith(scratchParent));
             assertFalse(Files.exists(staleFile));
@@ -681,7 +682,7 @@ class CorpusDirectoryTest {
         Files.writeString(root.resolve(".work").resolve("parser-tmp"), "not a directory");
 
         try (var ignored = corpus.acquireExclusiveLock()) {
-            var failure = assertThrows(CorpusException.class, corpus::createParserScratch);
+            var failure = assertThrows(CorpusException.class, corpus::createScratch);
             assertTrue(failure.getMessage().contains("parser scratch path is not a directory"));
         }
     }

@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
-import io.github.tlaplus.hardening.config.TlcStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -66,7 +66,7 @@ public final class TlcWorkerMain {
             var tlc = new TLC();
             tlc.setResolver(new SimpleFilenameToStream(temporaryDirectory.toString()));
             var workers = Integer.getInteger(
-                    WORKERS_PROPERTY, TlcStageConfig.DEFAULT_WORKERS);
+                    WORKERS_PROPERTY, CheckerStageConfig.DEFAULT_TLC_WORKERS);
             var specBase = withoutExtension(specification);
             var configBase = withoutExtension(configuration);
             var arguments = new String[] {

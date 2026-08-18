@@ -40,6 +40,19 @@ public final class WorkQueue<T> {
         }
     }
 
+    /**
+     * Returns how many elements currently wait in the queue. This is a sampled value: an element
+     * may be claimed or submitted the moment it is read, so it reports progress, not control.
+     */
+    public int size() {
+        lock.lock();
+        try {
+            return elements.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public void close() {
         lock.lock();
         try {

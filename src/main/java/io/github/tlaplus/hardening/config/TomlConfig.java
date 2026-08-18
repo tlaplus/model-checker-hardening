@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.io.IOException;
@@ -8,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -30,20 +33,26 @@ public final class TomlConfig {
             Arrays.stream(ExpressionCategory.values())
                     .collect(Collectors.toUnmodifiableMap(
                             ExpressionCategory::configName, category -> category));
-    private static final Set<String> WORKFLOW_KEYS =
-            Set.of("max_entries", "inputs", "parser", "tlc", "apalache");
+    private static final Set<String> WORKFLOW_KEYS = workflowKeys();
     private static final Set<String> INPUT_STAGE_KEYS = Set.of("max_entries");
     private static final Set<String> PARSER_STAGE_KEYS =
             Set.of("max_entries", "timeout_sec");
-    private static final Set<String> TLC_STAGE_KEYS = Set.of(
-            "max_entries", "timeout_sec", "max_heap_mb", "workers");
-    private static final Set<String> APALACHE_STAGE_KEYS = Set.of(
+    private static final Set<String> CHECKER_STAGE_KEYS = Set.of(
             "max_entries", "timeout_sec", "max_heap_mb", "workers");
     private static final Set<String> PBT_KEYS = Set.of(
             "max_input_bytes",
             "richness_cohorts",
             "richness_nesting_base",
             "richness_threshold_base");
+
+    /** The workflow table holds the global limit, the input stage, and one table per stage. */
+    private static Set<String> workflowKeys() {
+        var keys = new HashSet<String>(Set.of("max_entries", "inputs"));
+        for (var stage : CorpusStage.values()) {
+            keys.add(stage.metadataName());
+        }
+        return Set.copyOf(keys);
+    }
 
     private TomlConfig() {}
 
@@ -62,16 +71,22 @@ public final class TomlConfig {
         var workflow = requireTable(result, "workflow");
         var inputs = requireTable(workflow, "inputs");
         var parser = requireTable(workflow, "parser");
-        var tlc = requireTable(workflow, "tlc");
-        var apalache = requireTable(workflow, "apalache");
         var pbt = requireTable(result, "pbt");
+        var checkerTables = new EnumMap<CorpusStage, TomlTable>(CorpusStage.class);
+        for (var checker : CorpusStage.checkerBranches()) {
+            checkerTables.put(checker, requireTable(workflow, checker.metadataName()));
+        }
         requireKeys(generator, GENERATOR_KEYS, "generator");
         requireKeys(workflow, WORKFLOW_KEYS, "workflow");
         requireKeys(inputs, INPUT_STAGE_KEYS, "workflow.inputs");
         requireKeys(parser, PARSER_STAGE_KEYS, "workflow.parser");
-        requireKeys(tlc, TLC_STAGE_KEYS, "workflow.tlc");
-        requireKeys(apalache, APALACHE_STAGE_KEYS, "workflow.apalache");
         requireKeys(pbt, PBT_KEYS, "pbt");
+        for (var entry : checkerTables.entrySet()) {
+            requireKeys(
+                    entry.getValue(),
+                    CHECKER_STAGE_KEYS,
+                    "workflow." + entry.getKey().metadataName());
+        }
 
         try {
             var generationConfig = new IrGenerationConfig(
@@ -96,6 +111,10 @@ public final class TomlConfig {
                     requireExpressionCategories(generator, "generator.ignore", "ignore"));
             var maximumEntries =
                     requireInt(workflow, "workflow.max_entries", "max_entries");
+            var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
+            for (var entry : checkerTables.entrySet()) {
+                checkers.put(entry.getKey(), readChecker(entry.getKey(), entry.getValue()));
+            }
             var workflowConfig = new WorkflowConfig(
                     maximumEntries,
                     new StageConfig(requireInt(
@@ -111,37 +130,7 @@ public final class TomlConfig {
                                     parser,
                                     "workflow.parser.timeout_sec",
                                     "timeout_sec")),
-                    new TlcStageConfig(
-                            requireInt(
-                                    tlc,
-                                    "workflow.tlc.max_entries",
-                                    "max_entries"),
-                            requireInt(
-                                    tlc,
-                                    "workflow.tlc.timeout_sec",
-                                    "timeout_sec"),
-                            requireInt(
-                                    tlc,
-                                    "workflow.tlc.max_heap_mb",
-                                    "max_heap_mb"),
-                            requireInt(tlc, "workflow.tlc.workers", "workers")),
-                    new ApalacheStageConfig(
-                            requireInt(
-                                    apalache,
-                                    "workflow.apalache.max_entries",
-                                    "max_entries"),
-                            requireInt(
-                                    apalache,
-                                    "workflow.apalache.timeout_sec",
-                                    "timeout_sec"),
-                            requireInt(
-                                    apalache,
-                                    "workflow.apalache.max_heap_mb",
-                                    "max_heap_mb"),
-                            requireInt(
-                                    apalache,
-                                    "workflow.apalache.workers",
-                                    "workers")));
+                    checkers);
             var pbtConfig = new PbtConfig(
                     requireInt(pbt, "pbt.max_input_bytes", "max_input_bytes"),
                     requireInt(pbt, "pbt.richness_cohorts", "richness_cohorts"),
@@ -157,6 +146,17 @@ public final class TomlConfig {
         } catch (IllegalArgumentException exception) {
             throw new ConfigException(exception.getMessage(), exception);
         }
+    }
+
+    /** Reads one checker table, naming the stage in every diagnostic. */
+    private static CheckerStageConfig readChecker(CorpusStage stage, TomlTable table)
+            throws ConfigException {
+        var path = "workflow." + stage.metadataName() + ".";
+        return new CheckerStageConfig(
+                requireInt(table, path + "max_entries", "max_entries"),
+                requireInt(table, path + "timeout_sec", "timeout_sec"),
+                requireInt(table, path + "max_heap_mb", "max_heap_mb"),
+                requireInt(table, path + "workers", "workers"));
     }
 
     /** Writes {@code config} as UTF-8 without replacing an existing file. */
@@ -245,14 +245,14 @@ public final class TomlConfig {
                         workflow.inputs().maximumEntries(),
                         workflow.parser().maximumEntries(),
                         workflow.parser().timeoutSeconds(),
-                        workflow.tlc().maximumEntries(),
-                        workflow.tlc().timeoutSeconds(),
-                        workflow.tlc().maximumHeapMegabytes(),
-                        workflow.tlc().workers(),
-                        workflow.apalache().maximumEntries(),
-                        workflow.apalache().timeoutSeconds(),
-                        workflow.apalache().maximumHeapMegabytes(),
-                        workflow.apalache().workers(),
+                        workflow.checker(CorpusStage.TLC).maximumEntries(),
+                        workflow.checker(CorpusStage.TLC).timeoutSeconds(),
+                        workflow.checker(CorpusStage.TLC).maximumHeapMegabytes(),
+                        workflow.checker(CorpusStage.TLC).workers(),
+                        workflow.checker(CorpusStage.APALACHE).maximumEntries(),
+                        workflow.checker(CorpusStage.APALACHE).timeoutSeconds(),
+                        workflow.checker(CorpusStage.APALACHE).maximumHeapMegabytes(),
+                        workflow.checker(CorpusStage.APALACHE).workers(),
                         pbt.maximumInputBytes(),
                         pbt.richnessCohorts(),
                         Double.toString(pbt.richnessNestingBase()),

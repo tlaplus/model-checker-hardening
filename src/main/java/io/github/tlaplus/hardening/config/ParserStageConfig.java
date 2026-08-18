@@ -3,12 +3,8 @@ package io.github.tlaplus.hardening.config;
 /** Capacity and timeout limits for the parser stage. */
 public record ParserStageConfig(int maximumEntries, int timeoutSeconds) {
     public ParserStageConfig {
-        if (maximumEntries < 0) {
-            throw new IllegalArgumentException("maximumEntries must be nonnegative");
-        }
-        if (timeoutSeconds <= 0) {
-            throw new IllegalArgumentException("timeoutSeconds must be positive");
-        }
+        ConfigValues.requireNonnegative(maximumEntries, "maximumEntries");
+        ConfigValues.requirePositive(timeoutSeconds, "timeoutSeconds");
     }
 
     public static ParserStageConfig defaults() {

@@ -7,12 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
-import io.github.tlaplus.hardening.config.ApalacheStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.StageConfig;
-import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -20,6 +19,7 @@ import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -33,6 +33,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -644,8 +645,11 @@ class MainTest {
                         entries,
                         new StageConfig(entries),
                         new ParserStageConfig(entries, 10),
-                        new TlcStageConfig(entries, 10, 512, 1),
-                        new ApalacheStageConfig(entries, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(entries, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(entries, 10, 512, 1))),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
         Files.writeString(
                 corpus.resolve(CorpusPath.CONFIG.relativePath()),

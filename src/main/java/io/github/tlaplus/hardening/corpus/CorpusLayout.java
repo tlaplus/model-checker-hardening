@@ -94,7 +94,7 @@ final class CorpusLayout {
     }
 
     /** Returns the work-directory path where a stage stages a crash report before committing it. */
-    Path stagedCrashReport(CorpusStageLayout stage, String reportName) {
+    Path stagedCrashReport(CorpusStage stage, String reportName) {
         return resolve(CorpusPath.WORK).resolve(stage.metadataName() + "-" + reportName);
     }
 

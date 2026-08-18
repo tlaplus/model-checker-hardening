@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
-import io.github.tlaplus.hardening.config.TlcStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import java.nio.file.Path;
@@ -10,12 +10,12 @@ import java.util.Optional;
 
 /** Adapts fresh isolated TLC invocations to the shared checker stage. */
 public final class TlcCheckerBackend implements CheckerBackend {
-    private final TlcStageConfig config;
+    private final CheckerStageConfig config;
     private final int workerCount;
     private final Path scratchDirectory;
 
     public TlcCheckerBackend(
-            TlcStageConfig config, int workerCount, Path scratchDirectory) {
+            CheckerStageConfig config, int workerCount, Path scratchDirectory) {
         this.config = Objects.requireNonNull(config, "config");
         if (workerCount <= 0) {
             throw new IllegalArgumentException("workerCount must be positive");

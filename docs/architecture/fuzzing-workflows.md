@@ -237,18 +237,22 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    termination, or power loss discards statistics from the current invocation;
    corpus stage state remains recoverable from the stage directories.
 
-The aggregate has this fixed shape. Elapsed values are monotonic-clock
-nanoseconds; richness statistics cover `richnessSamples` admissions recorded
-since the aggregate was first created.
+The aggregate has this shape. Elapsed values are monotonic-clock nanoseconds;
+richness statistics cover `richnessSamples` admissions recorded since the
+aggregate was first created. `elapsedNs.stages` is keyed by stage metadata name.
+A stage the reader does not know is ignored, and a stage the document omits
+contributes zero, so adding or removing a stage needs no migration.
 
 ```cbor
 {
   "elapsedNs": {
     "total": 0,
     "generator": 0,
-    "parser": 0,
-    "tlc": 0,
-    "apalache": 0
+    "stages": {
+      "parser": 0,
+      "tlc": 0,
+      "apalache": 0
+    }
   },
   "generator": {
     "attempts": 0,

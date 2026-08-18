@@ -3,10 +3,12 @@ package io.github.tlaplus.hardening.workflow.execution;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
-import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import java.time.Duration;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -62,10 +64,26 @@ class WorkflowProgressMonitorTest {
         assertEquals(1, calls.get());
     }
 
+    private static Map<CorpusStage, StageVerdictSummary> stageSummaries() {
+        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            stages.put(stage, new StageVerdictSummary(0, 0, 0, Duration.ZERO));
+        }
+        return stages;
+    }
+
+    private static Map<CorpusStage, Long> backlog() {
+        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            backlog.put(stage, 0L);
+        }
+        return backlog;
+    }
+
     private WorkflowProgress progress(int value) {
         return new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
-                new PbtStageSummary(
+                new GeneratorSummary(
                         1,
                         value,
                         value,
@@ -77,12 +95,8 @@ class WorkflowProgressMonitorTest {
                         0.0,
                         0.0,
                         Duration.ofSeconds(value)),
-                new StageVerdictSummary(0, 0, 0, Duration.ZERO),
-                new StageVerdictSummary(0, 0, 0, Duration.ZERO),
-                new StageVerdictSummary(0, 0, 0, Duration.ZERO),
-                value,
-                value,
-                0,
+                stageSummaries(),
+                backlog(),
                 value,
                 Duration.ofSeconds(value));
     }

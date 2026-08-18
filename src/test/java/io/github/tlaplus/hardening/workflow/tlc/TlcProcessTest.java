@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
-import io.github.tlaplus.hardening.config.TlcStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,7 +16,7 @@ import tlc2.output.EC;
 
 class TlcProcessTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
-    private static final TlcStageConfig CONFIG = new TlcStageConfig(10, 10, 256, 1);
+    private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 10, 256, 1);
 
     @Test
     void checksTheFixedInitNextAndInvariantConfiguration(@TempDir Path directory)

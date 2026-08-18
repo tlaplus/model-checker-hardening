@@ -7,17 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.BoolT1$;
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.config.ApalacheStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.StageConfig;
-import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -51,18 +52,18 @@ class WorkflowRunnerTest {
         assertEquals(WorkflowProgress.Phase.RUNNING, initial.phase());
         assertEquals(42, initial.generator().seed());
         assertEquals(0, initial.corpusEntries());
-        assertEquals(0, initial.awaitingParser());
-        assertEquals(0, initial.awaitingTlc());
-        assertEquals(0, initial.awaitingApalache());
+        assertEquals(0, initial.backlog(CorpusStage.PARSER));
+        assertEquals(0, initial.backlog(CorpusStage.TLC));
+        assertEquals(0, initial.backlog(CorpusStage.APALACHE));
 
         var last = observed.getLast();
         assertEquals(WorkflowProgress.Phase.FINALIZING, last.phase());
         assertEquals(summary.generator(), last.generator());
-        assertEquals(summary.parser(), last.parser());
+        assertEquals(summary.stage(CorpusStage.PARSER), last.stage(CorpusStage.PARSER));
         assertEquals(summary.corpus().totalEntries(), last.corpusEntries());
-        assertEquals(summary.corpus().inputEntries(), last.awaitingParser());
-        assertEquals(summary.corpus().tlcInputEntries(), last.awaitingTlc());
-        assertEquals(summary.corpus().apalacheInputEntries(), last.awaitingApalache());
+        assertEquals(summary.corpus().pendingEntries(CorpusStage.PARSER), last.backlog(CorpusStage.PARSER));
+        assertEquals(summary.corpus().pendingEntries(CorpusStage.TLC), last.backlog(CorpusStage.TLC));
+        assertEquals(summary.corpus().pendingEntries(CorpusStage.APALACHE), last.backlog(CorpusStage.APALACHE));
 
         long generated = -1;
         long corpusEntries = -1;
@@ -77,14 +78,14 @@ class WorkflowRunnerTest {
             }
             assertTrue(progress.generator().generated() >= generated);
             assertTrue(progress.corpusEntries() >= corpusEntries);
-            assertTrue(progress.parser().processed() >= parsed);
-            assertTrue(progress.awaitingParser() >= 0);
-            assertTrue(progress.awaitingTlc() >= 0);
-            assertTrue(progress.awaitingApalache() >= 0);
+            assertTrue(progress.stage(CorpusStage.PARSER).processed() >= parsed);
+            assertTrue(progress.backlog(CorpusStage.PARSER) >= 0);
+            assertTrue(progress.backlog(CorpusStage.TLC) >= 0);
+            assertTrue(progress.backlog(CorpusStage.APALACHE) >= 0);
             assertTrue(progress.totalElapsed().compareTo(totalElapsed) >= 0);
             generated = progress.generator().generated();
             corpusEntries = progress.corpusEntries();
-            parsed = progress.parser().processed();
+            parsed = progress.stage(CorpusStage.PARSER).processed();
             totalElapsed = progress.totalElapsed();
         }
     }
@@ -110,13 +111,13 @@ class WorkflowRunnerTest {
 
         assertEquals(1, first.generator().generated());
         assertEquals(1, second.generator().generated());
-        assertEquals(1, first.parser().failed());
-        assertEquals(1, second.parser().failed());
-        assertEquals(Duration.ZERO, first.parser().elapsed());
-        assertEquals(Duration.ZERO, second.parser().elapsed());
+        assertEquals(1, first.stage(CorpusStage.PARSER).failed());
+        assertEquals(1, second.stage(CorpusStage.PARSER).failed());
+        assertEquals(Duration.ZERO, first.stage(CorpusStage.PARSER).elapsed());
+        assertEquals(Duration.ZERO, second.stage(CorpusStage.PARSER).elapsed());
         assertTrue(second.totalElapsed().compareTo(first.totalElapsed()) >= 0);
         assertEquals(second.totalElapsed().toNanos(), saved.totalElapsedNanos());
-        assertEquals(second.parser().elapsed().toNanos(), saved.parserElapsedNanos());
+        assertEquals(second.stage(CorpusStage.PARSER).elapsed().toNanos(), saved.stageElapsedNanos(CorpusStage.PARSER));
         assertTrue(Files.isRegularFile(corpus.resolve(CorpusPath.WORKFLOW_STATISTICS)));
     }
 
@@ -190,9 +191,9 @@ class WorkflowRunnerTest {
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
         assertEquals(12, summary.generator().generated());
-        assertEquals(12, summary.parser().processed());
+        assertEquals(12, summary.stage(CorpusStage.PARSER).processed());
         assertEquals(12, summary.corpus().totalEntries());
-        assertEquals(0, summary.corpus().inputEntries());
+        assertEquals(0, summary.corpus().pendingEntries(CorpusStage.PARSER));
         assertFalse(Files.exists(corpus.resolve(CorpusPath.PARSER_SCRATCH)));
         assertFalse(Files.exists(corpus.resolve(CorpusPath.TLC_SCRATCH)));
         assertFalse(Files.exists(corpus.resolve(CorpusPath.APALACHE_SCRATCH)));
@@ -216,11 +217,11 @@ class WorkflowRunnerTest {
         var second = runner.run(corpus, 9, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, first.stopReason());
-        assertEquals(0, first.corpus().parserEntries());
-        assertTrue(first.corpus().inputEntries() > 0);
+        assertEquals(0, first.corpus().processedEntries(CorpusStage.PARSER));
+        assertTrue(first.corpus().pendingEntries(CorpusStage.PARSER) > 0);
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, second.stopReason());
         assertEquals(first.corpus().totalEntries(), second.corpus().totalEntries());
-        assertEquals(first.corpus().inputEntries(), second.corpus().inputEntries());
+        assertEquals(first.corpus().pendingEntries(CorpusStage.PARSER), second.corpus().pendingEntries(CorpusStage.PARSER));
     }
 
     @Test
@@ -240,10 +241,10 @@ class WorkflowRunnerTest {
                 Math.min(2, Runtime.getRuntime().availableProcessors()));
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
-        assertEquals(4, summary.parser().passed());
-        assertEquals(0, summary.corpus().parserResultEntries());
-        assertEquals(4, summary.corpus().tlcPassEntries());
-        assertEquals(4, summary.corpus().apalachePassEntries());
+        assertEquals(4, summary.stage(CorpusStage.PARSER).passed());
+        assertEquals(0, summary.corpus().resultEntries(CorpusStage.PARSER));
+        assertEquals(4, summary.corpus().counts(CorpusStage.TLC).passed());
+        assertEquals(4, summary.corpus().counts(CorpusStage.APALACHE).passed());
     }
 
     @Test
@@ -256,8 +257,11 @@ class WorkflowRunnerTest {
                         2,
                         new StageConfig(2),
                         new ParserStageConfig(2, 10),
-                        new TlcStageConfig(0, 10, 512, 1),
-                        new ApalacheStageConfig(2, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(0, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
@@ -268,9 +272,9 @@ class WorkflowRunnerTest {
         var summary = new WorkflowRunner(config, generator).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
-        assertEquals(2, summary.parser().failed());
-        assertEquals(0, summary.corpus().inputEntries());
-        assertEquals(0, summary.corpus().tlcEntries());
+        assertEquals(2, summary.stage(CorpusStage.PARSER).failed());
+        assertEquals(0, summary.corpus().pendingEntries(CorpusStage.PARSER));
+        assertEquals(0, summary.corpus().processedEntries(CorpusStage.TLC));
     }
 
     @Test
@@ -303,7 +307,7 @@ class WorkflowRunnerTest {
         assertTrue(Files.readString(report)
                 .contains("StackOverflowError: parser preparation overflow"));
         assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).totalEntries());
-        assertTrue(corpus.readRunStatistics().parserElapsedNanos() > 0);
+        assertTrue(corpus.readRunStatistics().stageElapsedNanos(CorpusStage.PARSER) > 0);
         assertTrue(corpus.readRunStatistics().totalElapsedNanos() > 0);
     }
 
@@ -317,8 +321,11 @@ class WorkflowRunnerTest {
                         0,
                         new StageConfig(0),
                         new ParserStageConfig(0, 10),
-                        new TlcStageConfig(0, 10, 512, 2),
-                        new ApalacheStageConfig(0, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(0, 10, 512, 2),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(0, 10, 512, 1))),
                 new PbtConfig(0, 10, 2.0, 1.5));
 
         var failure = assertThrows(
@@ -339,8 +346,11 @@ class WorkflowRunnerTest {
                         0,
                         new StageConfig(0),
                         new ParserStageConfig(0, 10),
-                        new TlcStageConfig(0, 10, 512, 1),
-                        new ApalacheStageConfig(0, 10, 512, 2)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(0, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(0, 10, 512, 2))),
                 new PbtConfig(0, 10, 2.0, 1.5));
 
         var failure = assertThrows(
@@ -361,8 +371,11 @@ class WorkflowRunnerTest {
                         1,
                         new StageConfig(1),
                         new ParserStageConfig(1, 10),
-                        new TlcStageConfig(0, 10, 512, 1),
-                        new ApalacheStageConfig(1, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(0, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(1, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
@@ -385,7 +398,7 @@ class WorkflowRunnerTest {
         var summary = new WorkflowRunner(config).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
-        assertEquals(1, summary.corpus().tlcInputEntries());
+        assertEquals(1, summary.corpus().pendingEntries(CorpusStage.TLC));
         assertTrue(Files.exists(tlcInput));
     }
 
@@ -399,8 +412,11 @@ class WorkflowRunnerTest {
                         1,
                         new StageConfig(1),
                         new ParserStageConfig(1, 10),
-                        new TlcStageConfig(1, 10, 512, 1),
-                        new ApalacheStageConfig(0, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(1, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(0, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
@@ -424,7 +440,7 @@ class WorkflowRunnerTest {
         var summary = new WorkflowRunner(config).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
-        assertEquals(1, summary.corpus().apalacheInputEntries());
+        assertEquals(1, summary.corpus().pendingEntries(CorpusStage.APALACHE));
         assertTrue(Files.exists(apalacheInput));
     }
 
@@ -438,8 +454,11 @@ class WorkflowRunnerTest {
                         2,
                         new StageConfig(2),
                         new ParserStageConfig(2, 10),
-                        new TlcStageConfig(1, 10, 512, 1),
-                        new ApalacheStageConfig(2, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(1, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> generator = _ -> expression;
@@ -458,8 +477,8 @@ class WorkflowRunnerTest {
                 Math.min(2, Runtime.getRuntime().availableProcessors()));
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
-        assertEquals(1, summary.corpus().tlcEntries());
-        assertEquals(1, summary.corpus().tlcInputEntries());
+        assertEquals(1, summary.corpus().processedEntries(CorpusStage.TLC));
+        assertEquals(1, summary.corpus().pendingEntries(CorpusStage.TLC));
     }
 
     private FuzzTlaConfig config(
@@ -470,8 +489,11 @@ class WorkflowRunnerTest {
                         total,
                         new StageConfig(inputs),
                         new ParserStageConfig(parser, 10),
-                        new TlcStageConfig(total, 10, 512, 1),
-                        new ApalacheStageConfig(total, 10, 512, 1)),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(total, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(total, 10, 512, 1))),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
     }
 

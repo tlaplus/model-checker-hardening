@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
-import io.github.tlaplus.hardening.config.ApalacheStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
@@ -23,7 +23,7 @@ final class ApalacheProcess implements CheckerWorker {
     static ApalacheProcess start(
             Path releaseJar,
             Path scratchDirectory,
-            ApalacheStageConfig config,
+            CheckerStageConfig config,
             Duration timeout)
             throws WorkflowException, InterruptedException {
         Objects.requireNonNull(releaseJar, "releaseJar");

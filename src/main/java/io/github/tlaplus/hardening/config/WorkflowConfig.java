@@ -1,37 +1,42 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.corpus.CorpusStage;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 
-/** Global and per-stage limits for the implemented fuzzing workflow. */
+/**
+ * Global and per-stage limits for the implemented fuzzing workflow.
+ *
+ * <p>Checker limits are keyed by {@link CorpusStage}, matching the {@code [workflow.<stage>]}
+ * tables of the configuration file, so a new checker is a new key rather than a new field.
+ */
 public record WorkflowConfig(
         int maximumEntries,
         StageConfig inputs,
         ParserStageConfig parser,
-        TlcStageConfig tlc,
-        ApalacheStageConfig apalache) {
+        Map<CorpusStage, CheckerStageConfig> checkers) {
     public WorkflowConfig {
-        if (maximumEntries < 0) {
-            throw new IllegalArgumentException("maximumEntries must be nonnegative");
-        }
+        ConfigValues.requireNonnegative(maximumEntries, "maximumEntries");
         Objects.requireNonNull(inputs, "inputs");
         Objects.requireNonNull(parser, "parser");
-        Objects.requireNonNull(tlc, "tlc");
-        Objects.requireNonNull(apalache, "apalache");
-        if (inputs.maximumEntries() > maximumEntries) {
-            throw new IllegalArgumentException(
-                    "workflow.inputs.maximumEntries must not exceed workflow.maximumEntries");
+        Objects.requireNonNull(checkers, "checkers");
+        var copy = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
+        copy.putAll(checkers);
+        for (var checker : CorpusStage.checkerBranches()) {
+            if (!copy.containsKey(checker)) {
+                throw new IllegalArgumentException("checkers is missing stage " + checker);
+            }
         }
-        if (parser.maximumEntries() > maximumEntries) {
-            throw new IllegalArgumentException(
-                    "workflow.parser.maximumEntries must not exceed workflow.maximumEntries");
-        }
-        if (tlc.maximumEntries() > maximumEntries) {
-            throw new IllegalArgumentException(
-                    "workflow.tlc.maximumEntries must not exceed workflow.maximumEntries");
-        }
-        if (apalache.maximumEntries() > maximumEntries) {
-            throw new IllegalArgumentException(
-                    "workflow.apalache.maximumEntries must not exceed workflow.maximumEntries");
+        checkers = Map.copyOf(copy);
+
+        requireWithinTotal(inputs.maximumEntries(), maximumEntries, "workflow.inputs");
+        requireWithinTotal(parser.maximumEntries(), maximumEntries, "workflow.parser");
+        for (var entry : checkers.entrySet()) {
+            requireWithinTotal(
+                    entry.getValue().maximumEntries(),
+                    maximumEntries,
+                    "workflow." + entry.getKey().metadataName());
         }
     }
 
@@ -40,7 +45,31 @@ public record WorkflowConfig(
                 1_000,
                 StageConfig.defaults(),
                 ParserStageConfig.defaults(),
-                TlcStageConfig.defaults(),
-                ApalacheStageConfig.defaults());
+                Map.of(
+                        CorpusStage.TLC, CheckerStageConfig.tlcDefaults(),
+                        CorpusStage.APALACHE, CheckerStageConfig.apalacheDefaults()));
+    }
+
+    /** Returns the limits of one checker stage. */
+    public CheckerStageConfig checker(CorpusStage stage) {
+        var checker = checkers.get(Objects.requireNonNull(stage, "stage"));
+        if (checker == null) {
+            throw new IllegalArgumentException(stage + " is not a checker stage");
+        }
+        return checker;
+    }
+
+    /** Returns the result-directory occupancy limit of one stage. */
+    public int maximumEntries(CorpusStage stage) {
+        return stage == CorpusStage.PARSER
+                ? parser.maximumEntries()
+                : checker(stage).maximumEntries();
+    }
+
+    private static void requireWithinTotal(int stageEntries, int maximumEntries, String table) {
+        if (stageEntries > maximumEntries) {
+            throw new IllegalArgumentException(
+                    table + ".maximumEntries must not exceed workflow.maximumEntries");
+        }
     }
 }

@@ -128,7 +128,7 @@ final class CorpusEntries {
     }
 
     /** Reads the payload of an entry owned by one stage's input directory. */
-    byte[] readOwnedExpressionInput(Path path, CorpusStageLayout stage)
+    byte[] readOwnedExpressionInput(Path path, CorpusStage stage)
             throws IOException, CorpusException {
         requireOwnedPath(path, stage.input(), stage.displayName() + " input");
         return decodeExpressionInput(path, Files.readAllBytes(path));
@@ -149,7 +149,7 @@ final class CorpusEntries {
     }
 
     /** Returns the encoded verdict a stage recorded for an entry, if it recorded one. */
-    static Optional<String> stageVerdict(Path path, byte[] encoded, CorpusStageLayout stage)
+    static Optional<String> stageVerdict(Path path, byte[] encoded, CorpusStage stage)
             throws CorpusException {
         try {
             return CorpusInputCodec.stageVerdict(encoded, stage.metadataName());
@@ -166,7 +166,7 @@ final class CorpusEntries {
     }
 
     /** Requires that a stage recorded exactly the verdict its directory implies. */
-    static void requireStageVerdict(Entry entry, CorpusStageLayout stage, CorpusVerdict expected)
+    static void requireStageVerdict(Entry entry, CorpusStage stage, CorpusVerdict expected)
             throws CorpusException {
         var actual = stageVerdict(entry.path(), entry.encoded(), stage);
         if (actual.isEmpty() || !expected.encodedName().equals(actual.orElseThrow())) {
@@ -178,7 +178,7 @@ final class CorpusEntries {
     }
 
     /** Requires that a stage has not yet recorded a verdict for an entry. */
-    static void requireMissingStage(Path path, byte[] encoded, CorpusStageLayout stage)
+    static void requireMissingStage(Path path, byte[] encoded, CorpusStage stage)
             throws CorpusException {
         if (stageVerdict(path, encoded, stage).isPresent()) {
             throw new CorpusException(
@@ -191,7 +191,7 @@ final class CorpusEntries {
 
     /** Returns the metadata one stage recorded in an envelope, if any. */
     static Optional<StageMetadata> stageMetadata(
-            CorpusEnvelope envelope, CorpusStageLayout stage) {
+            CorpusEnvelope envelope, CorpusStage stage) {
         return envelope.stages().stream()
                 .filter(metadata -> stage.metadataName().equals(metadata.stage()))
                 .findFirst();
@@ -205,8 +205,8 @@ final class CorpusEntries {
             throws CorpusException {
         if (!reference.envelope().corpusInput().equals(candidate.envelope().corpusInput())
                 || !reference.envelope().generation().equals(candidate.envelope().generation())
-                || !stageMetadata(reference.envelope(), CorpusStageLayout.PARSER)
-                        .equals(stageMetadata(candidate.envelope(), CorpusStageLayout.PARSER))) {
+                || !stageMetadata(reference.envelope(), CorpusStage.PARSER)
+                        .equals(stageMetadata(candidate.envelope(), CorpusStage.PARSER))) {
             throw new CorpusException("checker branch copies disagree for corpus entry: " + name);
         }
     }

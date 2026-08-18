@@ -33,7 +33,7 @@ public final class CheckerStage implements WorkflowStage {
 
     public CheckerStage(
             CheckerBackend backend,
-            StageVerdictSummary initialStatistics,
+            long initialOccupancy,
             StageCounters counters,
             StageEnvironment environment,
             WorkQueue<Path> input) {
@@ -47,9 +47,7 @@ public final class CheckerStage implements WorkflowStage {
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");
-        Objects.requireNonNull(initialStatistics, "initialStatistics");
-        resultCapacity = new OccupancyGate(
-                initialStatistics.processed(), backend.maximumEntries());
+        resultCapacity = new OccupancyGate(initialOccupancy, backend.maximumEntries());
         jobs = new StageJobLoop<>(
                 input,
                 environment.cpuBudget(),

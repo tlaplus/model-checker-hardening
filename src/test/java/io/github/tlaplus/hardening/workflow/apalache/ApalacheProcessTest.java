@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
-import io.github.tlaplus.hardening.config.ApalacheStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Files;
@@ -16,8 +16,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ApalacheProcessTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
-    private static final ApalacheStageConfig CONFIG =
-            new ApalacheStageConfig(10, 30, 512, 1);
+    private static final CheckerStageConfig CONFIG =
+            new CheckerStageConfig(10, 30, 512, 1);
 
     @Test
     void checksTheFixedInitNextAndInvariantConfiguration(@TempDir Path directory)
