@@ -1,17 +1,18 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 
 /** Common result of processing one input in a checking stage. */
 public enum StageOutcome {
-    PASS(0, "pass"),
-    FAIL(1, "fail"),
-    CRASH(2, "crashed");
+    PASS(0, CorpusVerdict.PASS),
+    FAIL(1, CorpusVerdict.FAIL),
+    CRASH(2, CorpusVerdict.CRASH);
 
     private final int protocolCode;
-    private final String corpusVerdict;
+    private final CorpusVerdict corpusVerdict;
 
-    StageOutcome(int protocolCode, String corpusVerdict) {
+    StageOutcome(int protocolCode, CorpusVerdict corpusVerdict) {
         this.protocolCode = protocolCode;
         this.corpusVerdict = corpusVerdict;
     }
@@ -20,7 +21,8 @@ public enum StageOutcome {
         return protocolCode;
     }
 
-    public String corpusVerdict() {
+    /** Returns the corpus verdict directory this outcome sends an input to. */
+    public CorpusVerdict corpusVerdict() {
         return corpusVerdict;
     }
 

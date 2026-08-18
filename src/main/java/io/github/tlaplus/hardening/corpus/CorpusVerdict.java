@@ -1,7 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 /** A verdict supported by the implemented corpus stages. */
-enum CorpusVerdict {
+public enum CorpusVerdict {
     PASS("pass"),
     FAIL("fail"),
     CRASH("crashed");
@@ -12,7 +12,7 @@ enum CorpusVerdict {
         this.encodedName = encodedName;
     }
 
-    String encodedName() {
+    public String encodedName() {
         return encodedName;
     }
 

@@ -383,7 +383,7 @@ public final class CorpusDirectory {
     }
 
     public synchronized Path completeParser(
-            Path source, String verdict, Instant startTime, Instant endTime)
+            Path source, CorpusVerdict verdict, Instant startTime, Instant endTime)
             throws IOException, CorpusException {
         return completeParser(source, verdict, startTime, endTime, "");
     }
@@ -391,7 +391,7 @@ public final class CorpusDirectory {
     /** Records a parser result and atomically moves it to its result directory. */
     public synchronized Path completeParser(
             Path source,
-            String verdict,
+            CorpusVerdict verdict,
             Instant startTime,
             Instant endTime,
             String diagnostic)
@@ -427,7 +427,7 @@ public final class CorpusDirectory {
     /** Records a checker result and atomically moves it to its result directory. */
     public synchronized Path completeChecker(
             Path source,
-            String verdict,
+            CorpusVerdict verdict,
             Instant startTime,
             Instant endTime,
             Optional<CheckerFailure> failure,
@@ -462,7 +462,7 @@ public final class CorpusDirectory {
     private Path completeStage(
             Path source,
             CorpusStageLayout stage,
-            String verdict,
+            CorpusVerdict verdict,
             Instant startTime,
             Instant endTime,
             Optional<CheckerFailure> failure,
@@ -470,19 +470,13 @@ public final class CorpusDirectory {
             throws IOException, CorpusException {
         // Validate the requested transition and resolve its result path before changing the corpus.
         requireOwnedPath(source, stage.input(), stage.displayName() + " input");
+        Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(failure, "failure");
         Objects.requireNonNull(diagnostic, "diagnostic");
-        final CorpusVerdict corpusVerdict;
-        try {
-            corpusVerdict = CorpusVerdict.fromEncodedName(verdict);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException(
-                    "unsupported " + stage.displayName() + " verdict: " + verdict, exception);
-        }
         var encoded = Files.readAllBytes(source);
         var entry = decodeEntry(source, encoded);
         requireMissingStage(entry.path(), entry.encoded(), stage);
-        var destinationDirectory = resolve(stage.result(corpusVerdict));
+        var destinationDirectory = resolve(stage.result(verdict));
         var destination = destinationDirectory.resolve(source.getFileName());
         if (Files.exists(destination, NO_FOLLOW_LINKS)) {
             throw new CorpusException(
@@ -492,7 +486,7 @@ public final class CorpusDirectory {
         // A crash transition also owns a sidecar that must move with the corpus entry.
         Path stagedCrashReport = null;
         Path crashReportDestination = null;
-        if (corpusVerdict == CorpusVerdict.CRASH) {
+        if (verdict == CorpusVerdict.CRASH) {
             var reportName = crashReportName(source);
             stagedCrashReport = stagedCrashReport(stage, reportName);
             crashReportDestination = resolve(stage.result(CorpusVerdict.CRASH)).resolve(reportName);
@@ -511,7 +505,7 @@ public final class CorpusDirectory {
                     encoded,
                     new StageMetadata(
                             stage.metadataName(),
-                            corpusVerdict.encodedName(),
+                            verdict.encodedName(),
                             startTime,
                             endTime,
                             failure));

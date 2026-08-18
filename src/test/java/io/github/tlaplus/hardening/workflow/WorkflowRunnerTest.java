@@ -16,17 +16,18 @@ import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.gen.Generator;
-import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -97,7 +98,7 @@ class WorkflowRunnerTest {
         corpus.store(input);
         corpus.completeParser(
                 corpus.inputPath(input),
-                "fail",
+                CorpusVerdict.FAIL,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var runner = new WorkflowRunner(config, generator);
@@ -375,7 +376,7 @@ class WorkflowRunnerTest {
             }
         }
         var parserPass = corpus.completeParser(
-                source, "pass", Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
+                source, CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
         var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
 
@@ -412,7 +413,7 @@ class WorkflowRunnerTest {
             }
         }
         var parserPass = corpus.completeParser(
-                source, "pass", Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
+                source, CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
         var apalacheInput =
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
@@ -444,7 +445,7 @@ class WorkflowRunnerTest {
             corpus.store(payload);
             var parserPass = corpus.completeParser(
                     corpus.inputPath(payload),
-                    "pass",
+                    CorpusVerdict.PASS,
                     Instant.ofEpochSecond(1),
                     Instant.ofEpochSecond(2));
             corpus.fanOutParserPass(parserPass);
