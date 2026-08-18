@@ -30,8 +30,11 @@ class FuzzTlaLauncherTest {
 
         var packagedJar = target.resolve("fuzztla.jar");
         Files.writeString(packagedJar, "original", StandardCharsets.UTF_8);
+        var packagedApalacheJar = target.resolve("apalache.jar");
+        Files.writeString(packagedApalacheJar, "apalache-original", StandardCharsets.UTF_8);
 
         var observedJar = directory.resolve("observed-jar");
+        var observedApalacheJar = directory.resolve("observed-apalache-jar");
         var ready = directory.resolve("ready");
         var proceed = directory.resolve("proceed");
         var fakeJava = fakeBin.resolve("java");
@@ -41,11 +44,15 @@ class FuzzTlaLauncherTest {
                 #!/bin/sh
                 set -eu
                 printf '%s\n' "$2" > "$OBSERVED_JAR"
+                runtime_dir=$(dirname "$2")
+                printf '%s\n' "$runtime_dir/apalache.jar" > "$OBSERVED_APALACHE_JAR"
                 : > "$READY_FILE"
                 while [ ! -f "$PROCEED_FILE" ]; do
                     sleep 0.01
                 done
                 cat "$2"
+                printf '|'
+                cat "$runtime_dir/apalache.jar"
                 exit 23
                 """,
                 StandardCharsets.UTF_8);
@@ -57,6 +64,7 @@ class FuzzTlaLauncherTest {
                 "PATH", fakeBin + System.getProperty("path.separator") + environment.get("PATH"));
         environment.put("TMPDIR", runtime.toString());
         environment.put("OBSERVED_JAR", observedJar.toString());
+        environment.put("OBSERVED_APALACHE_JAR", observedApalacheJar.toString());
         environment.put("READY_FILE", ready.toString());
         environment.put("PROCEED_FILE", proceed.toString());
 
@@ -64,6 +72,8 @@ class FuzzTlaLauncherTest {
         try {
             awaitFile(ready, process, Duration.ofSeconds(5));
             Files.writeString(packagedJar, "replacement", StandardCharsets.UTF_8);
+            Files.writeString(
+                    packagedApalacheJar, "apalache-replacement", StandardCharsets.UTF_8);
             Files.writeString(proceed, "", StandardCharsets.UTF_8);
             assertTrue(process.waitFor(5, TimeUnit.SECONDS));
         } finally {
@@ -75,13 +85,18 @@ class FuzzTlaLauncherTest {
 
         assertEquals(23, process.exitValue());
         assertEquals(
-                "original",
+                "original|apalache-original",
                 new String(
                         process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
         var snapshot = Path.of(Files.readString(observedJar, StandardCharsets.UTF_8).strip());
         assertTrue(snapshot.startsWith(runtime));
         assertFalse(snapshot.equals(packagedJar));
         assertFalse(Files.exists(snapshot));
+        var apalacheSnapshot =
+                Path.of(Files.readString(observedApalacheJar, StandardCharsets.UTF_8).strip());
+        assertTrue(apalacheSnapshot.startsWith(runtime));
+        assertFalse(apalacheSnapshot.equals(packagedApalacheJar));
+        assertFalse(Files.exists(apalacheSnapshot));
         try (var paths = Files.list(runtime)) {
             assertEquals(0, paths.count());
         }

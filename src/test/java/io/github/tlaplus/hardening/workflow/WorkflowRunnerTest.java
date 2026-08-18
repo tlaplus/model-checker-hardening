@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.BoolT1$;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.config.ApalacheStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
@@ -148,7 +149,8 @@ class WorkflowRunnerTest {
                         2,
                         new StageConfig(2),
                         new ParserStageConfig(2, 10),
-                        new TlcStageConfig(0, 10, 512, 1)),
+                        new TlcStageConfig(0, 10, 512, 1),
+                        new ApalacheStageConfig(2, 10, 512, 1)),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
@@ -206,7 +208,8 @@ class WorkflowRunnerTest {
                         0,
                         new StageConfig(0),
                         new ParserStageConfig(0, 10),
-                        new TlcStageConfig(0, 10, 512, 2)),
+                        new TlcStageConfig(0, 10, 512, 2),
+                        new ApalacheStageConfig(0, 10, 512, 1)),
                 new PbtConfig(0, 10, 2.0, 1.5));
 
         var failure = assertThrows(
@@ -227,7 +230,8 @@ class WorkflowRunnerTest {
                         1,
                         new StageConfig(1),
                         new ParserStageConfig(1, 10),
-                        new TlcStageConfig(0, 10, 512, 1)),
+                        new TlcStageConfig(0, 10, 512, 1),
+                        new ApalacheStageConfig(1, 10, 512, 1)),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
@@ -263,7 +267,8 @@ class WorkflowRunnerTest {
                         2,
                         new StageConfig(2),
                         new ParserStageConfig(2, 10),
-                        new TlcStageConfig(1, 10, 512, 1)),
+                        new TlcStageConfig(1, 10, 512, 1),
+                        new ApalacheStageConfig(2, 10, 512, 1)),
                 new PbtConfig(16, 10, 2.0, 1.5));
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> generator = _ -> expression;
@@ -296,7 +301,8 @@ class WorkflowRunnerTest {
                         total,
                         new StageConfig(inputs),
                         new ParserStageConfig(parser, 10),
-                        new TlcStageConfig(total, 10, 512, 1)),
+                        new TlcStageConfig(total, 10, 512, 1),
+                        new ApalacheStageConfig(total, 10, 512, 1)),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
     }
 
