@@ -3,13 +3,13 @@ package io.github.tlaplus.hardening.workflow.apalache;
 import io.github.tlaplus.hardening.config.ApalacheStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
-import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Adapts fresh Apalache CLI invocations to the shared checker stage. */
+/** Adapts persistent Apalache tool workers to the shared checker stage. */
 public final class ApalacheCheckerBackend implements CheckerBackend {
     private final ApalacheStageConfig config;
     private final Path releaseJar;
@@ -52,9 +52,8 @@ public final class ApalacheCheckerBackend implements CheckerBackend {
     }
 
     @Override
-    public ToolResult check(String source) throws WorkflowException, InterruptedException {
-        return ApalacheProcess.check(
-                releaseJar, scratchDirectory, source, config, timeout());
+    public CheckerWorker startWorker() throws WorkflowException, InterruptedException {
+        return ApalacheProcess.start(releaseJar, scratchDirectory, config, timeout());
     }
 
     @Override

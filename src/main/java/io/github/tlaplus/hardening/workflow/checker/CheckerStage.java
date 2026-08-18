@@ -83,6 +83,7 @@ public final class CheckerStage implements WorkflowStage {
 
     private void runWorker() {
         var displayName = backend.displayName();
+        CheckerWorker checker = null;
         try {
             while (!control.shouldStopChecking()) {
                 var path = input.take();
@@ -104,7 +105,14 @@ public final class CheckerStage implements WorkflowStage {
                     var payload = corpus.readCheckerExpressionInput(path);
                     var source = ExprInputToSpec.render(
                             displayName, path, payload, corpus, generator);
-                    var result = backend.check(source);
+                    if (checker == null) {
+                        checker = backend.startWorker();
+                    }
+                    var result = checker.check(source);
+                    if (result.outcome() == StageOutcome.CRASH) {
+                        checker.close();
+                        checker = null;
+                    }
                     var endTime = Instant.now();
                     if (endTime.isBefore(startTime)) {
                         endTime = startTime;
@@ -135,6 +143,10 @@ public final class CheckerStage implements WorkflowStage {
             }
         } catch (Exception | StackOverflowError exception) {
             control.fail(exception);
+        } finally {
+            if (checker != null) {
+                checker.close();
+            }
         }
     }
 

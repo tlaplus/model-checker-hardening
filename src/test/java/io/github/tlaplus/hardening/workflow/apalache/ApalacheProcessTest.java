@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.ApalacheStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
+import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -24,25 +25,36 @@ class ApalacheProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
         var releaseJar = ApalacheDistribution.locate();
 
-        var pass = ApalacheProcess.check(
-                releaseJar,
-                scratch,
-                source("exprValue = FALSE"),
-                CONFIG,
-                TIMEOUT);
-        var fail = ApalacheProcess.check(
-                releaseJar,
-                scratch,
-                source("exprValue # FALSE"),
-                CONFIG,
-                TIMEOUT);
+        ToolResult pass;
+        ToolResult fail;
+        ToolResult secondPass;
+        try (var worker = ApalacheProcess.start(releaseJar, scratch, CONFIG, TIMEOUT)) {
+            pass = worker.check(source("exprValue = FALSE"));
+            fail = worker.check(source("exprValue # FALSE"));
+            secondPass = worker.check(source("exprValue = FALSE"));
+
+            try (var paths = Files.walk(scratch)) {
+                assertEquals(
+                        1,
+                        paths.filter(Files::isDirectory)
+                                .filter(path -> path.getFileName()
+                                        .toString()
+                                        .startsWith("job-"))
+                                .count());
+            }
+        }
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
+        assertTrue(pass.diagnostic().contains("EXITCODE: OK"), pass.diagnostic());
         assertEquals(StageOutcome.FAIL, fail.outcome(), fail.diagnostic());
         assertEquals(
                 CheckerFailureCode.COUNTEREXAMPLE,
                 fail.failureCode().orElseThrow());
+        assertTrue(fail.diagnostic().contains("EXITCODE: ERROR (12)"), fail.diagnostic());
+        assertEquals(StageOutcome.PASS, secondPass.outcome(), secondPass.diagnostic());
+        assertTrue(secondPass.failureCode().isEmpty());
+        assertTrue(secondPass.diagnostic().contains("EXITCODE: OK"), secondPass.diagnostic());
         try (var paths = Files.list(scratch)) {
             assertTrue(paths.findAny().isEmpty());
         }

@@ -32,7 +32,7 @@ class TomlConfigTest {
                         + "max_entries = 1000\n"
                         + "# Wall-clock limit for checking one generated specification.\n"
                         + "timeout_sec = 30\n"
-                        + "# Maximum heap allocated to each isolated Apalache JVM.\n"
+                        + "# Maximum heap allocated to each persistent Apalache worker JVM.\n"
                         + "max_heap_mb = 512\n"
                         + "# Number of concurrent FuzzTLA Apalache workers.\n"
                         + "# Initialized to half the available processors, rounded down (at least one).\n"

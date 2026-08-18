@@ -32,9 +32,10 @@ A workflow invocation runs four implemented stages concurrently:
   The stage calls `TLC.handleParameters` and `TLC.process`; it does not call
   `TLC.main`.
 - The Apalache stage consumes `02apa-inputs` and owns `02apa-pass`,
-  `02apa-fail`, and `02apa-crash`. Every input runs through a fresh Apalache CLI
-  process. The release is pinned to version 0.61.0, downloaded from the official
-  GitHub release with a verified SHA-256 digest, and staged beside FuzzTLA's JAR.
+  `02apa-fail`, and `02apa-crash`. Each FuzzTLA worker lazily starts one isolated
+  Apalache JVM and invokes `Tool.run` sequentially for multiple inputs. The
+  release is pinned to version 0.62.0, downloaded from the official GitHub
+  release with a verified SHA-256 digest, and staged beside FuzzTLA's JAR.
 
 The implementation mirrors these responsibilities in `workflow.input`,
 `workflow.parser`, `workflow.tlc`, and `workflow.apalache`. The
@@ -47,10 +48,14 @@ workflow exception exposed to the CLI.
 
 Parser and checker scratch storage is transient corpus state under
 `.work/{parser,tlc,apalache}-tmp/<worker>`. Each child uses its worker directory
-as `java.io.tmpdir`. A parser process creates one reusable SANY module resolver;
-each TLC or Apalache process gets a fresh job directory. The parent drains
-bounded child output and removes all scratch trees before releasing the corpus
-lock. Startup removes scratch data left by an interrupted invocation.
+as `java.io.tmpdir`. A parser process creates one reusable SANY module resolver.
+Each TLC process gets a fresh job directory; a persistent Apalache process gets
+a fresh directory for every `Tool.run` invocation and retains at most the current
+one. An isolated worker carries its binary control protocol over a private,
+token-authenticated loopback connection. The parent drains stdout and stderr
+separately because native checker output can bypass JVM stream redirection. The
+parent removes all scratch trees before releasing the corpus lock. Startup
+removes scratch data left by an interrupted invocation.
 
 The main seed deterministically produces one seed per generator worker in worker
 ID order. Each worker derives separate cohort and candidate streams from its
@@ -146,9 +151,11 @@ Apalache receives the same `Init`, `Next`, and `Inv` names, checks length zero,
 and disables deadlock checking. Exit status 0 is a pass. Exit statuses 12, 75,
 120, and 150 are failures with the corresponding shared code. Any other exit
 status, timeout, abrupt exit, or fatal JVM error is a crash. A process-start
-failure is workflow infrastructure failure. One fresh CLI process per input
-isolates process-global state and lets a subsequent worker job proceed after a
-crash.
+failure is workflow infrastructure failure. Each FuzzTLA worker calls `Tool.run`
+one input at a time in its persistent child JVM. Different workers use separate
+JVMs because Logback remains process-global. A crash retires the child; the next
+input lazily starts a replacement. This preserves per-worker heap limits and
+isolates the FuzzTLA host from fatal errors.
 
 An unexpected host-process failure while generating an expression or preparing
 a specification stops the workflow. The input and stack trace are retained
@@ -168,8 +175,9 @@ Parallel generation amortizes high rejection rates but no longer provides an
 exact whole-corpus replay guarantee. Parser concurrency costs one JVM per active
 worker but avoids SANY's shared-state races and repeated startup. TLC pays one
 JVM startup per checked input in exchange for isolation and bounded heap use.
-Apalache likewise pays one CLI/JVM startup per input; its configured workers can
-overlap these invocations when CPU permits are available.
+Apalache amortizes JVM startup across healthy inputs while retaining one isolated
+JVM per configured worker. A timeout or crash pays the startup cost again for the
+replacement worker.
 Fan-out doubles storage for parser passes until aggregation is implemented. Disk
 transitions make runs resumable, while queues and the CPU budget remain
 process-local execution optimizations. Downstream priority drains checker

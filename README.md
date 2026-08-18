@@ -18,7 +18,7 @@ The project uses Apalache's Java façade for its TLA+ intermediate representatio
 ## Build and test
 
 The Apalache Java façade is a snapshot served by the Central Portal snapshots
-repository. The build also downloads the pinned Apalache 0.61.0 CLI archive from
+repository. The build also downloads the pinned Apalache 0.62.0 release archive from
 GitHub and verifies its SHA-256 digest. Compile and test the project with:
 
 ```sh
@@ -127,7 +127,7 @@ workers = 1
 max_entries = 1000
 # Wall-clock limit for checking one generated specification.
 timeout_sec = 30
-# Maximum heap allocated to each isolated Apalache JVM.
+# Maximum heap allocated to each persistent Apalache worker JVM.
 max_heap_mb = 512
 # Number of concurrent FuzzTLA Apalache workers.
 # Initialized to half the available processors, rounded down (at least one).
@@ -173,10 +173,12 @@ isolated JVMs. Each TLC input runs in a fresh JVM. A TLC process uses
 `workflow.tlc.workers` internal workers and reserves that many permits from the
 shared downstream-priority CPU budget, so at most
 `floor(max-cpus / workflow.tlc.workers)` TLC processes run concurrently. The TLC
-worker count must not exceed `--max-cpus`. Apalache starts up to
-`workflow.apalache.workers` fresh CLI processes and reserves one permit per
-process. Its initialized value is half the available processors, rounded down
-with a minimum of one; the stored setting also must not exceed `--max-cpus`.
+worker count must not exceed `--max-cpus`. Each FuzzTLA Apalache worker lazily
+starts one isolated JVM and calls `Tool.run` sequentially for multiple inputs.
+Workers run concurrently and reserve one permit per active call. A timeout or
+crash retires the child JVM, and the next input starts a replacement. The
+initialized worker count is half the available processors, rounded down with a
+minimum of one; the stored setting also must not exceed `--max-cpus`.
 TLC and Apalache have
 equal checker priority over parsing, which has priority over generation. Waiting
 checker requests reserve partial CPU capacity so upstream work cannot starve
