@@ -169,22 +169,8 @@ public final class CorpusDirectory {
             throws IOException {
         var encoded = CorpusRunStatisticsCodec.encode(
                 Objects.requireNonNull(statistics, "statistics"));
-        var temporary = Files.createTempFile(
-                resolve(CorpusPath.WORK), "workflow-stats-", ".cbor");
-        try {
-            Files.write(
-                    temporary,
-                    encoded,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    resolve(CorpusPath.WORKFLOW_STATISTICS),
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        replaceAtomically(
+                resolve(CorpusPath.WORKFLOW_STATISTICS), "workflow-stats-", encoded);
     }
 
     /** Acquires the process-wide exclusive lock for this corpus. */
@@ -360,9 +346,15 @@ public final class CorpusDirectory {
         var crashDirectory = resolve(CorpusPath.GENERATOR_CRASH);
         var candidate = crashDirectory.resolve(digest + ".cbor");
         var report = crashDirectory.resolve(digest + CRASH_REPORT_EXTENSION);
-        replaceAtomically(candidate, CorpusInputCodec.encode(CorpusInput.expression(payload)));
+        replaceAtomically(
+                candidate,
+                "generator-crash-",
+                CorpusInputCodec.encode(CorpusInput.expression(payload)));
         try {
-            replaceAtomically(report, stackTrace(failure).getBytes(StandardCharsets.UTF_8));
+            replaceAtomically(
+                    report,
+                    "generator-crash-",
+                    stackTrace(failure).getBytes(StandardCharsets.UTF_8));
         } catch (IOException exception) {
             throw new CorpusException(
                     "generator crash candidate was saved to '"
@@ -530,23 +522,12 @@ public final class CorpusDirectory {
         }
 
         // Commit metadata first; recovery can then finish the sidecar and directory moves.
-        var temporary = Files.createTempFile(
-                resolve(CorpusPath.WORK), stage.metadataName() + "-", ".cbor");
         var metadataCommitted = false;
         try {
             if (stagedCrashReport != null) {
                 stageCrashReport(stagedCrashReport, diagnostic, stage.displayName());
             }
-            Files.write(
-                    temporary,
-                    updated,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    source,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
+            replaceAtomically(source, stage.metadataName() + "-", updated);
             metadataCommitted = true;
             if (stagedCrashReport != null) {
                 Files.move(
@@ -558,7 +539,6 @@ public final class CorpusDirectory {
             return destination;
         } finally {
             // Preserve a staged sidecar only when committed metadata makes it recoverable.
-            Files.deleteIfExists(temporary);
             if (!metadataCommitted && stagedCrashReport != null) {
                 Files.deleteIfExists(stagedCrashReport);
             }
@@ -751,17 +731,7 @@ public final class CorpusDirectory {
             requireSameParserOutput(source.getFileName().toString(), existing, candidate);
             return;
         }
-        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), "fanout-", ".cbor");
-        try {
-            Files.write(
-                    temporary,
-                    encoded,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        createAtomically(destination, "fanout-", encoded);
     }
 
     private List<Path> entryPaths(Path directory) throws IOException, CorpusException {
@@ -957,22 +927,7 @@ public final class CorpusDirectory {
         if (!report.endsWith("\n")) {
             report += System.lineSeparator();
         }
-        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), "crash-", ".tmp");
-        try {
-            Files.writeString(
-                    temporary,
-                    report,
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    stagedReport,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        replaceAtomically(stagedReport, "crash-", report.getBytes(StandardCharsets.UTF_8));
     }
 
     private void recoverCrashReport(Path source, CorpusStageLayout stage)
@@ -1062,19 +1017,41 @@ public final class CorpusDirectory {
         return result;
     }
 
-    private static void replaceAtomically(Path destination, byte[] contents) throws IOException {
-        var temporary = Files.createTempFile(destination.getParent(), "crash-", ".tmp");
+    /**
+     * Writes contents to a temporary file under {@link CorpusPath#WORK}, then atomically moves it
+     * onto the destination, replacing any existing file. The temporary file never survives the
+     * call. Both paths lie inside the corpus, so the move stays within one file system.
+     */
+    private void replaceAtomically(Path destination, String temporaryPrefix, byte[] contents)
+            throws IOException {
+        moveAtomically(
+                destination,
+                temporaryPrefix,
+                contents,
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /** As {@link #replaceAtomically}, but fails when the destination already exists. */
+    private void createAtomically(Path destination, String temporaryPrefix, byte[] contents)
+            throws IOException {
+        moveAtomically(destination, temporaryPrefix, contents, StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    private void moveAtomically(
+            Path destination,
+            String temporaryPrefix,
+            byte[] contents,
+            StandardCopyOption... moveOptions)
+            throws IOException {
+        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), temporaryPrefix, ".tmp");
         try {
             Files.write(
                     temporary,
                     contents,
                     StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    destination,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
+            Files.move(temporary, destination, moveOptions);
         } finally {
             Files.deleteIfExists(temporary);
         }
