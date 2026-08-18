@@ -520,7 +520,9 @@ class MainTest {
         assertTrue(result.out().contains("MODULE FuzzInput"));
         assertTrue(result.out()
                 .contains("EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants"));
-        assertTrue(result.out().contains("VARIABLE exprValue"));
+        assertTrue(result.out().contains("@type: Bool;"), result.out());
+        assertTrue(result.out().contains("VARIABLE"));
+        assertTrue(result.out().contains("exprValue"));
         assertTrue(result.out().contains("Init == exprValue = FALSE"));
         assertTrue(result.out().contains("Next == UNCHANGED exprValue"));
         assertTrue(result.out().contains("Inv == exprValue = FALSE"));
