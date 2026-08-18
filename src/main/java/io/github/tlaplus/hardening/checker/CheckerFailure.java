@@ -2,11 +2,15 @@ package io.github.tlaplus.hardening.checker;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /** A stable checker failure code with optional bounded diagnostic context. */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record CheckerFailure(CheckerFailureCode code, Optional<String> detail) {
     public static final int MAXIMUM_DETAIL_CHARACTERS = 80;
+
+    private static final String ELLIPSIS = "…";
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     public CheckerFailure {
         Objects.requireNonNull(code, "code");
@@ -38,5 +42,19 @@ public record CheckerFailure(CheckerFailureCode code, Optional<String> detail) {
 
     public CheckerFailure(CheckerFailureCode code) {
         this(code, Optional.empty());
+    }
+
+    /** Normalizes human-readable context to the representation accepted by this record. */
+    public static Optional<String> normalizeDetail(String detail) {
+        var normalized = WHITESPACE.matcher(Objects.requireNonNull(detail, "detail").strip())
+                .replaceAll(" ");
+        if (normalized.isBlank()) {
+            return Optional.empty();
+        }
+        if (normalized.codePointCount(0, normalized.length()) <= MAXIMUM_DETAIL_CHARACTERS) {
+            return Optional.of(normalized);
+        }
+        var end = normalized.offsetByCodePoints(0, MAXIMUM_DETAIL_CHARACTERS - 1);
+        return Optional.of(normalized.substring(0, end) + ELLIPSIS);
     }
 }

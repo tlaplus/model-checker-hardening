@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.checker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -41,5 +42,23 @@ class CheckerFailureTest {
                 IllegalArgumentException.class,
                 () -> new CheckerFailure(
                         CheckerFailureCode.SPEC_EVAL, Optional.of("first\nsecond")));
+    }
+
+    @Test
+    void normalizesFailureDetails() {
+        assertTrue(CheckerFailure.normalizeDetail(" \t\n ").isEmpty());
+        assertEquals(
+                Optional.of("first second"),
+                CheckerFailure.normalizeDetail("  first \n\t second  "));
+
+        var normalized = CheckerFailure.normalizeDetail("x".repeat(78) + "😀yz")
+                .orElseThrow();
+        assertEquals("x".repeat(78) + "😀…", normalized);
+        assertEquals(80, normalized.codePointCount(0, normalized.length()));
+        assertEquals(
+                normalized,
+                new CheckerFailure(CheckerFailureCode.SPEC_EVAL, Optional.of(normalized))
+                        .detail()
+                        .orElseThrow());
     }
 }
