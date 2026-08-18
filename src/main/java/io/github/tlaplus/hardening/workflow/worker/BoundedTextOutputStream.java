@@ -1,21 +1,23 @@
-package io.github.tlaplus.hardening.workflow.apalache;
+package io.github.tlaplus.hardening.workflow.worker;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-/** Retains a bounded prefix while allowing tool output to continue without blocking. */
-final class BoundedDiagnosticOutputStream extends OutputStream {
+/** Retains a bounded UTF-8 byte prefix while discarding subsequent output. */
+public final class BoundedTextOutputStream extends OutputStream {
     private final ByteArrayOutputStream captured = new ByteArrayOutputStream();
     private final int maximumBytes;
+    private final String truncationLabel;
     private boolean truncated;
 
-    BoundedDiagnosticOutputStream(int maximumBytes) {
+    public BoundedTextOutputStream(int maximumBytes, String truncationLabel) {
         if (maximumBytes <= 0) {
             throw new IllegalArgumentException("maximumBytes must be positive");
         }
         this.maximumBytes = maximumBytes;
+        this.truncationLabel = Objects.requireNonNull(truncationLabel, "truncationLabel");
     }
 
     @Override
@@ -39,10 +41,10 @@ final class BoundedDiagnosticOutputStream extends OutputStream {
         }
     }
 
-    synchronized String text() {
+    public synchronized String text() {
         var result = captured.toString(StandardCharsets.UTF_8);
         if (truncated) {
-            result += System.lineSeparator() + "[Apalache output truncated]";
+            result += System.lineSeparator() + "[" + truncationLabel + " truncated]";
         }
         return result;
     }

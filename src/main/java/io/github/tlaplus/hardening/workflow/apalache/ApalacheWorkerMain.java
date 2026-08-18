@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
@@ -90,7 +91,8 @@ public final class ApalacheWorkerMain {
             Path jobDirectory,
             Path specification,
             PrintStream processError) {
-        var diagnostics = new BoundedDiagnosticOutputStream(MAXIMUM_OUTPUT_BYTES);
+        var diagnostics =
+                new BoundedTextOutputStream(MAXIMUM_OUTPUT_BYTES, "Apalache output");
         try (var diagnosticStream = new PrintStream(
                 diagnostics, true, StandardCharsets.UTF_8)) {
             System.setOut(diagnosticStream);
