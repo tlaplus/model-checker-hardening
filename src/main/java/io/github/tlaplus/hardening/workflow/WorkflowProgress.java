@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
-import io.github.tlaplus.hardening.workflow.tlc.TlcStageSummary;
 import java.util.Objects;
 
 /** Best-effort in-memory snapshot of an active workflow invocation. */
@@ -10,7 +10,7 @@ public record WorkflowProgress(
         Phase phase,
         PbtStageSummary generator,
         ParserStageSummary parser,
-        TlcStageSummary tlc,
+        CheckerStageSummary tlc,
         long corpusEntries,
         long awaitingParser,
         long awaitingTlc,

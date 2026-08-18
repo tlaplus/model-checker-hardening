@@ -1,8 +1,7 @@
-package io.github.tlaplus.hardening.workflow.tlc;
+package io.github.tlaplus.hardening.workflow.checker;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
-import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
@@ -14,18 +13,15 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
-/** Concurrent TLC stage backed by a fresh isolated JVM for every input. */
-public final class TlcStage implements WorkflowStage {
-    private final TlcStageConfig config;
-    private final int workerCount;
+/** Common queue, capacity, scheduling, and corpus logic for model-checker stages. */
+public final class CheckerStage implements WorkflowStage {
+    private final CheckerBackend backend;
     private final CorpusDirectory corpus;
-    private final Path scratchDirectory;
     private final Generator<TlaEx> generator;
     private final WorkQueue<Path> input;
     private final CpuBudget cpuBudget;
@@ -34,40 +30,40 @@ public final class TlcStage implements WorkflowStage {
     private final LongAdder passed = new LongAdder();
     private final LongAdder failed = new LongAdder();
     private final LongAdder crashed = new LongAdder();
-    private final WorkerGroup workers = new WorkerGroup("fuzztla-tlc-");
+    private final WorkerGroup workers;
 
-    public TlcStage(
-            TlcStageConfig config,
-            int workerCount,
+    public CheckerStage(
+            CheckerBackend backend,
             int initialOccupancy,
             CorpusDirectory corpus,
-            Path scratchDirectory,
             Generator<TlaEx> generator,
             WorkQueue<Path> input,
             CpuBudget cpuBudget,
             WorkflowControl control) {
-        this.config = Objects.requireNonNull(config, "config");
-        if (workerCount <= 0) {
+        this.backend = Objects.requireNonNull(backend, "backend");
+        if (backend.workerCount() <= 0) {
             throw new IllegalArgumentException("workerCount must be positive");
         }
-        this.workerCount = workerCount;
+        if (backend.cpuPermits() <= 0) {
+            throw new IllegalArgumentException("cpuPermits must be positive");
+        }
         this.corpus = Objects.requireNonNull(corpus, "corpus");
-        this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         this.generator = Objects.requireNonNull(generator, "generator");
         this.input = Objects.requireNonNull(input, "input");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.control = Objects.requireNonNull(control, "control");
         occupancy = new AtomicInteger(initialOccupancy);
+        workers = new WorkerGroup("fuzztla-" + backend.name() + "-");
     }
 
     @Override
     public String name() {
-        return "tlc";
+        return backend.name();
     }
 
     @Override
     public void start() {
-        workers.start(workerCount, _ -> this::runWorker);
+        workers.start(backend.workerCount(), _ -> this::runWorker);
     }
 
     @Override
@@ -75,8 +71,8 @@ public final class TlcStage implements WorkflowStage {
         workers.await();
     }
 
-    public TlcStageSummary summary() {
-        return new TlcStageSummary(passed.sum(), failed.sum(), crashed.sum());
+    public CheckerStageSummary summary() {
+        return new CheckerStageSummary(passed.sum(), failed.sum(), crashed.sum());
     }
 
     @Override
@@ -86,6 +82,7 @@ public final class TlcStage implements WorkflowStage {
     }
 
     private void runWorker() {
+        var displayName = backend.displayName();
         try {
             while (!control.shouldStopChecking()) {
                 var path = input.take();
@@ -94,7 +91,7 @@ public final class TlcStage implements WorkflowStage {
                 }
                 if (!cpuBudget.acquire(
                         CpuBudget.Priority.CHECKER,
-                        config.workers(),
+                        backend.cpuPermits(),
                         control::shouldStopChecking)) {
                     return;
                 }
@@ -104,22 +101,21 @@ public final class TlcStage implements WorkflowStage {
                         return;
                     }
                     var startTime = Instant.now();
-                    var payload = corpus.readTlcExpressionInput(path);
+                    var payload = corpus.readCheckerExpressionInput(path);
                     var source = ExprInputToSpec.render(
-                            "TLC", path, payload, corpus, generator);
-                    var result = TlcProcess.check(
-                            scratchDirectory, source, config, timeout());
+                            displayName, path, payload, corpus, generator);
+                    var result = backend.check(source);
                     var endTime = Instant.now();
                     if (endTime.isBefore(startTime)) {
                         endTime = startTime;
                     }
                     var failure = result.failureCode().map(code -> new CheckerFailure(
-                            code, TlcFailureDetail.extract(result.diagnostic())));
+                            code, backend.failureDetail(result.diagnostic())));
                     if (result.outcome() == StageOutcome.FAIL && failure.isEmpty()) {
-                        throw new WorkflowException(
-                                "TLC worker returned a failure without a classification");
+                        throw new WorkflowException(displayName
+                                + " worker returned a failure without a classification");
                     }
-                    corpus.completeTlc(
+                    corpus.completeChecker(
                             path,
                             result.outcome().corpusVerdict(),
                             startTime,
@@ -128,13 +124,14 @@ public final class TlcStage implements WorkflowStage {
                             result.diagnostic());
                     increment(result.outcome());
                 } finally {
-                    cpuBudget.release(config.workers());
+                    cpuBudget.release(backend.cpuPermits());
                 }
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             if (!control.shouldStopChecking()) {
-                control.fail(new WorkflowException("TLC worker was interrupted", exception));
+                control.fail(new WorkflowException(
+                        displayName + " worker was interrupted", exception));
             }
         } catch (Exception | StackOverflowError exception) {
             control.fail(exception);
@@ -144,17 +141,13 @@ public final class TlcStage implements WorkflowStage {
     private boolean reserveDestination() {
         while (true) {
             var current = occupancy.get();
-            if (current >= config.maximumEntries()) {
+            if (current >= backend.maximumEntries()) {
                 return false;
             }
             if (occupancy.compareAndSet(current, current + 1)) {
                 return true;
             }
         }
-    }
-
-    private Duration timeout() {
-        return Duration.ofSeconds(config.timeoutSeconds());
     }
 
     private void increment(StageOutcome outcome) {

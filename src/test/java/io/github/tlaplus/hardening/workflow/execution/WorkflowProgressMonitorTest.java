@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
+import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
-import io.github.tlaplus.hardening.workflow.tlc.TlcStageSummary;
 import java.time.Duration;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -68,7 +68,7 @@ class WorkflowProgressMonitorTest {
                 WorkflowProgress.Phase.RUNNING,
                 new PbtStageSummary(1, 0, value, value, 0, 0, 0, 0.0, 0.0, 0.0),
                 new ParserStageSummary(0, 0, 0),
-                new TlcStageSummary(0, 0, 0),
+                new CheckerStageSummary(0, 0, 0),
                 value,
                 value,
                 0,

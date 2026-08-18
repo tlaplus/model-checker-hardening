@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
+import java.util.List;
+
 /** Paths and metadata identifiers belonging to one implemented corpus stage. */
 enum CorpusStageLayout {
     PARSER(
@@ -18,6 +20,8 @@ enum CorpusStageLayout {
             CorpusPath.TLC_PASS,
             CorpusPath.TLC_FAIL,
             CorpusPath.TLC_CRASH);
+
+    private static final List<CorpusStageLayout> CHECKER_BRANCHES = List.of(TLC);
 
     private final String metadataName;
     private final String displayName;
@@ -42,6 +46,10 @@ enum CorpusStageLayout {
         this.pass = pass;
         this.fail = fail;
         this.crash = crash;
+    }
+
+    static List<CorpusStageLayout> checkerBranches() {
+        return CHECKER_BRANCHES;
     }
 
     String metadataName() {

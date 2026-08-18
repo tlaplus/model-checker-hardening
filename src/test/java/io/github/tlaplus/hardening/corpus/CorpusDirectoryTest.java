@@ -269,7 +269,7 @@ class CorpusDirectoryTest {
                 Instant.ofEpochSecond(2));
         var tlcInput = corpus.fanOutParserPass(parserPass);
 
-        var result = corpus.completeTlc(
+        var result = corpus.completeChecker(
                 tlcInput,
                 "pass",
                 Instant.ofEpochSecond(3),
@@ -310,7 +310,7 @@ class CorpusDirectoryTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> corpus.completeTlc(
+                () -> corpus.completeChecker(
                         tlcInput,
                         "fail",
                         Instant.ofEpochSecond(3),
@@ -319,7 +319,7 @@ class CorpusDirectoryTest {
                         "full TLC output"));
         assertTrue(Files.exists(tlcInput));
 
-        var result = corpus.completeTlc(
+        var result = corpus.completeChecker(
                 tlcInput,
                 "fail",
                 Instant.ofEpochSecond(3),
@@ -401,7 +401,7 @@ class CorpusDirectoryTest {
                 Instant.ofEpochSecond(2));
         var tlcInput = corpus.fanOutParserPass(parserPass);
 
-        var result = corpus.completeTlc(
+        var result = corpus.completeChecker(
                 tlcInput,
                 "crashed",
                 Instant.ofEpochSecond(3),
