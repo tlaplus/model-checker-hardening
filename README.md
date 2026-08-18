@@ -1,7 +1,7 @@
 # FuzzTLA
 
 [![CI](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml)
-[![Integration](https://github.com/tlaplus/model-checker-hardening/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tlaplus/model-checker-hardening/actions/workflows/integration.yml)
+[![Integration](https://github.com/tlaplus/model-checker-hardening/actions/workflows/integration.yml/badge.svg?branch=main)](https://github.com/tlaplus/model-checker-hardening/actions/workflows/integration.yml)
 
 FuzzTLA is work-in-progress on the grant "Hardened Testing of TLA+ Model Checkers" supported by the TLA<sup>+</sup> Foundation.
 
