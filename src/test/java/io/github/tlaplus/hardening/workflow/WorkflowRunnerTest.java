@@ -243,7 +243,8 @@ class WorkflowRunnerTest {
         }
         var parserPass = corpus.completeParser(
                 source, "pass", Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
-        var tlcInput = corpus.fanOutParserPass(parserPass);
+        var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT).resolve(parserPass.getFileName());
+        corpus.fanOutParserPass(parserPass);
 
         var summary = new WorkflowRunner(config).run(corpus, 42, 1);
 

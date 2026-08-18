@@ -1,6 +1,8 @@
 package io.github.tlaplus.hardening.corpus;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /** Paths and metadata identifiers belonging to one implemented corpus stage. */
 enum CorpusStageLayout {
@@ -19,9 +21,17 @@ enum CorpusStageLayout {
             CorpusPath.TLC_SCRATCH,
             CorpusPath.TLC_PASS,
             CorpusPath.TLC_FAIL,
-            CorpusPath.TLC_CRASH);
+            CorpusPath.TLC_CRASH),
+    APALACHE(
+            "apalache",
+            "Apalache",
+            CorpusPath.APALACHE_INPUT,
+            CorpusPath.APALACHE_SCRATCH,
+            CorpusPath.APALACHE_PASS,
+            CorpusPath.APALACHE_FAIL,
+            CorpusPath.APALACHE_CRASH);
 
-    private static final List<CorpusStageLayout> CHECKER_BRANCHES = List.of(TLC);
+    private static final List<CorpusStageLayout> CHECKER_BRANCHES = List.of(TLC, APALACHE);
 
     private final String metadataName;
     private final String displayName;
@@ -50,6 +60,12 @@ enum CorpusStageLayout {
 
     static List<CorpusStageLayout> checkerBranches() {
         return CHECKER_BRANCHES;
+    }
+
+    static Optional<CorpusStageLayout> fromMetadataName(String metadataName) {
+        return Arrays.stream(values())
+                .filter(layout -> layout.metadataName.equals(metadataName))
+                .findFirst();
     }
 
     String metadataName() {

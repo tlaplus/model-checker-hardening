@@ -30,18 +30,31 @@ public record StageMetadata(
             throw new IllegalArgumentException(
                     "checker failure metadata requires the fail verdict");
         }
-        if (CorpusStageLayout.PARSER.metadataName().equals(stage) && failure.isPresent()) {
-            throw new IllegalArgumentException(
-                    "parser metadata must not contain a checker failure code");
-        }
-        if (CorpusStageLayout.TLC.metadataName().equals(stage)
-                && CorpusVerdict.FAIL.encodedName().equals(verdict)
-                && failure.isEmpty()) {
-            throw new IllegalArgumentException("TLC failure metadata requires a failure code");
-        }
+        CorpusStageLayout.fromMetadataName(stage)
+                .ifPresent(layout -> validateFailureMetadata(
+                        layout, verdict, failure.isPresent()));
     }
 
     public StageMetadata(String stage, String verdict, Instant startTime, Instant endTime) {
         this(stage, verdict, startTime, endTime, Optional.empty());
+    }
+
+    private static void validateFailureMetadata(
+            CorpusStageLayout stageLayout, String verdict, boolean hasFailure) {
+        switch (stageLayout) {
+            case PARSER -> {
+                if (hasFailure) {
+                    throw new IllegalArgumentException(
+                            "parser metadata must not contain a failure code");
+                }
+            }
+            case TLC, APALACHE -> {
+                if (CorpusVerdict.FAIL.encodedName().equals(verdict) && !hasFailure) {
+                    throw new IllegalArgumentException(
+                            stageLayout.displayName()
+                                    + " failure metadata requires a failure code");
+                }
+            }
+        }
     }
 }

@@ -15,10 +15,14 @@ public enum CorpusPath {
     TLC_FAIL("02tlc-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_CRASH("02tlc-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_INPUT("02apa-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    APALACHE_PASS("02apa-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    APALACHE_FAIL("02apa-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    APALACHE_CRASH("02apa-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     WORK(".work", Kind.DIRECTORY, Presence.REQUIRED, Contents.NONE),
     GENERATOR_CRASH(".work/generator-crash", Kind.DIRECTORY, Presence.LAZY, Contents.NONE),
     PARSER_SCRATCH(".work/parser-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     TLC_SCRATCH(".work/tlc-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
+    APALACHE_SCRATCH(".work/apalache-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     LOCK(".workflow.lock", Kind.FILE, Presence.LAZY, Contents.NONE);
 
     private final Path relativePath;

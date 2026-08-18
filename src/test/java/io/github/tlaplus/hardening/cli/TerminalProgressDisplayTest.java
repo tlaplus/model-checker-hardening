@@ -99,7 +99,18 @@ class TerminalProgressDisplayTest {
                 snapshot.parser(),
                 snapshot.tlc(),
                 new CorpusInventory(
-                        List.of(), List.of(), 1, 1, 0, 1, 0, 0, 1));
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        1,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0));
 
         assertFalse(RunTable.progress(snapshot).contains("random seed"));
         assertFalse(RunTable.finished(Path.of("corpus"), summary).contains("random seed"));

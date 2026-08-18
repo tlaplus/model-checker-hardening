@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.parser;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
@@ -135,7 +136,9 @@ public final class ParserStage implements WorkflowStage {
                     inputCapacity.release();
                     increment(result.outcome());
                     if (result.outcome() == StageOutcome.PASS) {
-                        var tlcInput = corpus.fanOutParserPass(destination);
+                        var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT)
+                                .resolve(destination.getFileName());
+                        corpus.fanOutParserPass(destination);
                         output.submit(tlcInput);
                     }
                 } finally {
