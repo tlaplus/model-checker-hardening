@@ -9,17 +9,24 @@ import java.util.Arrays;
 /** Binary framing shared by isolated parser and model-checker workers. */
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 2;
+    static final int VERSION = 3;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 16 * 1024 * 1024;
     static final int MAXIMUM_DIAGNOSTIC_BYTES = 1024 * 1024;
+    static final String PORT_PROPERTY = "fuzztla.worker.protocol.port";
+    static final String TOKEN_PROPERTY = "fuzztla.worker.protocol.token";
 
     private ToolWorkerProtocol() {}
 
     public static void writeHandshake(DataOutputStream output) throws IOException {
+        var token = System.getProperty(TOKEN_PROPERTY);
+        if (token == null || token.isBlank()) {
+            throw new IOException("worker protocol token is not configured");
+        }
         output.writeInt(MAGIC);
         output.writeInt(VERSION);
+        output.writeUTF(token);
         output.flush();
     }
 
