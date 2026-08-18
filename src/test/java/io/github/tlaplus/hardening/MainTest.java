@@ -16,6 +16,7 @@ import io.github.tlaplus.hardening.config.TlcStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -247,7 +248,7 @@ class MainTest {
         assertEquals(
                 8,
                 CorpusDirectory.openExisting(corpus)
-                        .recoverAndValidate(IrGenerators.expressions(config.generator()))
+                        .recoverAndValidate(CorpusEntryValidator.NONE)
                         .totalEntries());
     }
 

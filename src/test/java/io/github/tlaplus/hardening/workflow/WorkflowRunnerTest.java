@@ -13,10 +13,13 @@ import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.StageConfig;
 import io.github.tlaplus.hardening.config.TlcStageConfig;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -37,7 +40,7 @@ import org.junit.jupiter.api.io.TempDir;
 class WorkflowRunnerTest {
     @Test
     void reportsInitialAndFinalProgressSnapshots(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(8, 3, 8, 16);
         var observed = new CopyOnWriteArrayList<WorkflowProgress>();
 
@@ -89,7 +92,7 @@ class WorkflowRunnerTest {
     @Test
     void savesAndRecoversCumulativeStatisticsAcrossRuns(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 0);
         var expression = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
@@ -98,9 +101,7 @@ class WorkflowRunnerTest {
         corpus.store(input);
         corpus.completeParser(
                 corpus.inputPath(input),
-                CorpusVerdict.FAIL,
-                Instant.ofEpochSecond(1),
-                Instant.ofEpochSecond(2));
+                new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
         var runner = new WorkflowRunner(config, generator);
 
         var first = runner.run(corpus, 42, 1);
@@ -121,7 +122,7 @@ class WorkflowRunnerTest {
 
     @Test
     void savesStatisticsWhenTheRunnerIsInterrupted(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 16);
         var enteredGenerator = new CountDownLatch(1);
         Generator<TlaEx> blocking = _ -> {
@@ -158,7 +159,7 @@ class WorkflowRunnerTest {
     @Test
     void failsTheWorkflowWhenExitStatisticsCannotBeSaved(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(0, 0, 0, 0);
         var statisticsPath = corpus.resolve(CorpusPath.WORKFLOW_STATISTICS);
 
@@ -181,7 +182,7 @@ class WorkflowRunnerTest {
     @Test
     void runsGenerationAndParsingToQuiescenceWithInputBackpressure(
             @TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(12, 3, 12, 16);
 
         var summary = new WorkflowRunner(config)
@@ -200,7 +201,7 @@ class WorkflowRunnerTest {
     @Test
     void parserCapacityStopsGracefullyAndLeavesUpstreamInputs(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(5, 5, 0, 16);
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
@@ -225,7 +226,7 @@ class WorkflowRunnerTest {
     @Test
     void parserPassesDoNotConsumeRetainedResultCapacity(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(4, 4, 1, 16);
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> constant = _ -> expression;
@@ -248,7 +249,7 @@ class WorkflowRunnerTest {
     @Test
     void fullTlcResultCapacityDoesNotBlockParserFailures(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
@@ -275,7 +276,7 @@ class WorkflowRunnerTest {
     @Test
     void identifiesAndPreservesAnInputThatCrashesParserPreparation(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 0);
         var input = new byte[0];
         corpus.store(input);
@@ -301,7 +302,7 @@ class WorkflowRunnerTest {
         assertTrue(failure.getMessage().contains(candidate.toString()));
         assertTrue(Files.readString(report)
                 .contains("StackOverflowError: parser preparation overflow"));
-        assertEquals(1, corpus.recoverAndValidate(delegate).totalEntries());
+        assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).totalEntries());
         assertTrue(corpus.readRunStatistics().parserElapsedNanos() > 0);
         assertTrue(corpus.readRunStatistics().totalElapsedNanos() > 0);
     }
@@ -309,7 +310,7 @@ class WorkflowRunnerTest {
     @Test
     void rejectsMoreTlcWorkersThanTheSharedCpuBudget(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
@@ -331,7 +332,7 @@ class WorkflowRunnerTest {
     @Test
     void rejectsMoreApalacheWorkersThanTheSharedCpuBudget(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
@@ -353,7 +354,7 @@ class WorkflowRunnerTest {
     @Test
     void tlcCapacityStopsGracefullyAndLeavesItsInput(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
@@ -376,7 +377,8 @@ class WorkflowRunnerTest {
             }
         }
         var parserPass = corpus.completeParser(
-                source, CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
+                source,
+                new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
         var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
 
@@ -390,7 +392,7 @@ class WorkflowRunnerTest {
     @Test
     void apalacheCapacityStopsGracefullyAndLeavesItsInput(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
@@ -413,7 +415,8 @@ class WorkflowRunnerTest {
             }
         }
         var parserPass = corpus.completeParser(
-                source, CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2));
+                source,
+                new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
         var apalacheInput =
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
@@ -428,7 +431,7 @@ class WorkflowRunnerTest {
     @Test
     void concurrentTlcWorkersFillTheLastAvailableResultSlot(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
@@ -444,10 +447,8 @@ class WorkflowRunnerTest {
             var payload = new byte[] {(byte) value};
             corpus.store(payload);
             var parserPass = corpus.completeParser(
-                    corpus.inputPath(payload),
-                    CorpusVerdict.PASS,
-                    Instant.ofEpochSecond(1),
-                    Instant.ofEpochSecond(2));
+                corpus.inputPath(payload),
+                new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
             corpus.fanOutParserPass(parserPass);
         }
 

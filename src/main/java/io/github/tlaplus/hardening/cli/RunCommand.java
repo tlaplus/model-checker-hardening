@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -76,7 +77,7 @@ final class RunCommand implements Callable<Integer> {
             spec.commandLine().getOut().printf("Random seed: %d%n", effectiveSeed);
             spec.commandLine().getOut().flush();
             var directory = CorpusDirectory.openExisting(corpus);
-            var config = directory.readConfig();
+            var config = TomlConfig.read(directory.resolve(CorpusPath.CONFIG));
             if (supportsTerminalUpdates()) {
                 progress = new TerminalProgressDisplay(spec.commandLine().getOut());
             }

@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.parser;
 
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
@@ -132,16 +133,13 @@ public final class ParserStage implements WorkflowStage {
                 environment.control().capacityReached();
                 return;
             }
-            var endTime = Instant.now();
-            if (endTime.isBefore(startTime)) {
-                endTime = startTime;
-            }
             var destination = corpus.completeParser(
                     path,
-                    result.outcome().corpusVerdict(),
-                    startTime,
-                    endTime,
-                    result.diagnostic());
+                    new StageResult(
+                            result.outcome().corpusVerdict(),
+                            startTime,
+                            StageResult.endedNow(startTime),
+                            result.diagnostic()));
             inputCapacity.release();
             counters.record(result.outcome().corpusVerdict());
             if (result.outcome() == StageOutcome.PASS) {

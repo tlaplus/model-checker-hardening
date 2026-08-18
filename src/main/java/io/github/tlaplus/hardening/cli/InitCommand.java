@@ -1,6 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -33,7 +35,8 @@ final class InitCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            var initialized = CorpusDirectory.initialize(corpus);
+            var initialized = CorpusDirectory.initialize(
+                    corpus, TomlConfig.render(FuzzTlaConfig.defaults()));
             spec.commandLine()
                     .getOut()
                     .printf(

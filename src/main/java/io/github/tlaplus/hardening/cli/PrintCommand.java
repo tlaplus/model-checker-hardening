@@ -6,12 +6,14 @@ import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
@@ -62,7 +64,8 @@ final class PrintCommand implements Callable<Integer> {
             generator = IrGenerators.expressions();
         } else {
             try {
-                var config = CorpusDirectory.openExisting(corpus).readConfig();
+                var corpusDirectory = CorpusDirectory.openExisting(corpus);
+                var config = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG));
                 generator = IrGenerators.expressions(config.generator());
             } catch (IOException | ConfigException | CorpusException exception) {
                 spec.commandLine()

@@ -4,9 +4,11 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
@@ -100,7 +102,7 @@ public final class WorkflowRunner {
         var apalacheJar = ApalacheDistribution.locate();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
-            var initial = corpus.recoverAndValidate(generator);
+            var initial = corpus.recoverAndValidate(entryValidator());
             validateOccupancy(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
             var statistics = new StatisticsOnExit(corpus, metrics, invocationElapsed);
@@ -246,7 +248,7 @@ public final class WorkflowRunner {
 
             throwIfFailed(control);
             progressPhase.set(WorkflowProgress.Phase.FINALIZING);
-            var result = corpus.recoverAndValidate(generator);
+            var result = corpus.recoverAndValidate(entryValidator());
             var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
                     ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
                     : WorkflowRunSummary.StopReason.COMPLETED;
@@ -258,6 +260,25 @@ public final class WorkflowRunner {
                     apalacheSummary(result, apalache.summary().elapsed()),
                     result);
         }
+    }
+
+    /**
+     * Returns the policy that decides whether a stored payload is still usable: it must decode to an
+     * expression under this run's generator configuration.
+     */
+    private CorpusEntryValidator entryValidator() {
+        return (entry, input) -> {
+            try {
+                generator.generate(input);
+            } catch (InputRejectedException exception) {
+                throw new CorpusException(
+                        "corpus entry is rejected: "
+                                + entry
+                                + ": "
+                                + Diagnostics.message(exception),
+                        exception);
+            }
+        };
     }
 
     private boolean capacityIsAlreadyExhausted(CorpusInventory initial) {
