@@ -14,8 +14,16 @@ class WorkflowConfigTest {
                         1_000,
                         new StageConfig(1_000),
                         new ParserStageConfig(1_000, 30),
-                        new TlcStageConfig(1_000, 30, 512, 1)),
+                        new TlcStageConfig(1_000, 30, 512, 1),
+                        new ApalacheStageConfig(
+                                1_000,
+                                30,
+                                512,
+                                ApalacheStageConfig.DEFAULT_WORKERS)),
                 WorkflowConfig.defaults());
+        assertEquals(
+                Math.max(1, Runtime.getRuntime().availableProcessors() / 2),
+                ApalacheStageConfig.DEFAULT_WORKERS);
     }
 
     @Test
@@ -25,27 +33,41 @@ class WorkflowConfigTest {
         assertThrows(IllegalArgumentException.class, () -> new TlcStageConfig(1, 0, 512, 1));
         assertThrows(IllegalArgumentException.class, () -> new TlcStageConfig(1, 30, 0, 1));
         assertThrows(IllegalArgumentException.class, () -> new TlcStageConfig(1, 30, 512, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ApalacheStageConfig(1, 0, 512, 1));
+        assertThrows(IllegalArgumentException.class, () -> new ApalacheStageConfig(1, 30, 0, 1));
+        assertThrows(IllegalArgumentException.class, () -> new ApalacheStageConfig(1, 30, 512, 0));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
                         new StageConfig(2),
                         new ParserStageConfig(1, 30),
-                        new TlcStageConfig(1, 30, 512, 1)));
+                        new TlcStageConfig(1, 30, 512, 1),
+                        new ApalacheStageConfig(1, 30, 512, 1)));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
                         new StageConfig(1),
                         new ParserStageConfig(2, 30),
-                        new TlcStageConfig(1, 30, 512, 1)));
+                        new TlcStageConfig(1, 30, 512, 1),
+                        new ApalacheStageConfig(1, 30, 512, 1)));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
                         new StageConfig(1),
                         new ParserStageConfig(1, 30),
-                        new TlcStageConfig(2, 30, 512, 1)));
+                        new TlcStageConfig(2, 30, 512, 1),
+                        new ApalacheStageConfig(1, 30, 512, 1)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new WorkflowConfig(
+                        1,
+                        new StageConfig(1),
+                        new ParserStageConfig(1, 30),
+                        new TlcStageConfig(1, 30, 512, 1),
+                        new ApalacheStageConfig(2, 30, 512, 1)));
     }
 
     @Test
@@ -58,7 +80,8 @@ class WorkflowConfigTest {
                                 2,
                                 new StageConfig(2),
                                 new ParserStageConfig(2, 30),
-                                new TlcStageConfig(2, 30, 512, 1)),
+                                new TlcStageConfig(2, 30, 512, 1),
+                                new ApalacheStageConfig(2, 30, 512, 1)),
                         new PbtConfig(0, 10, 2.0, 1.5)));
     }
 }

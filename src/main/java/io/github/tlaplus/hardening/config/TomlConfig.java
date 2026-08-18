@@ -31,11 +31,13 @@ public final class TomlConfig {
                     .collect(Collectors.toUnmodifiableMap(
                             ExpressionCategory::configName, category -> category));
     private static final Set<String> WORKFLOW_KEYS =
-            Set.of("max_entries", "inputs", "parser", "tlc");
+            Set.of("max_entries", "inputs", "parser", "tlc", "apalache");
     private static final Set<String> INPUT_STAGE_KEYS = Set.of("max_entries");
     private static final Set<String> PARSER_STAGE_KEYS =
             Set.of("max_entries", "timeout_sec");
     private static final Set<String> TLC_STAGE_KEYS = Set.of(
+            "max_entries", "timeout_sec", "max_heap_mb", "workers");
+    private static final Set<String> APALACHE_STAGE_KEYS = Set.of(
             "max_entries", "timeout_sec", "max_heap_mb", "workers");
     private static final Set<String> PBT_KEYS = Set.of(
             "max_input_bytes",
@@ -61,12 +63,14 @@ public final class TomlConfig {
         var inputs = requireTable(workflow, "inputs");
         var parser = requireTable(workflow, "parser");
         var tlc = requireTable(workflow, "tlc");
+        var apalache = requireTable(workflow, "apalache");
         var pbt = requireTable(result, "pbt");
         requireKeys(generator, GENERATOR_KEYS, "generator");
         requireKeys(workflow, WORKFLOW_KEYS, "workflow");
         requireKeys(inputs, INPUT_STAGE_KEYS, "workflow.inputs");
         requireKeys(parser, PARSER_STAGE_KEYS, "workflow.parser");
         requireKeys(tlc, TLC_STAGE_KEYS, "workflow.tlc");
+        requireKeys(apalache, APALACHE_STAGE_KEYS, "workflow.apalache");
         requireKeys(pbt, PBT_KEYS, "pbt");
 
         try {
@@ -120,7 +124,24 @@ public final class TomlConfig {
                                     tlc,
                                     "workflow.tlc.max_heap_mb",
                                     "max_heap_mb"),
-                            requireInt(tlc, "workflow.tlc.workers", "workers")));
+                            requireInt(tlc, "workflow.tlc.workers", "workers")),
+                    new ApalacheStageConfig(
+                            requireInt(
+                                    apalache,
+                                    "workflow.apalache.max_entries",
+                                    "max_entries"),
+                            requireInt(
+                                    apalache,
+                                    "workflow.apalache.timeout_sec",
+                                    "timeout_sec"),
+                            requireInt(
+                                    apalache,
+                                    "workflow.apalache.max_heap_mb",
+                                    "max_heap_mb"),
+                            requireInt(
+                                    apalache,
+                                    "workflow.apalache.workers",
+                                    "workers")));
             var pbtConfig = new PbtConfig(
                     requireInt(pbt, "pbt.max_input_bytes", "max_input_bytes"),
                     requireInt(pbt, "pbt.richness_cohorts", "richness_cohorts"),
@@ -191,6 +212,17 @@ public final class TomlConfig {
                 # Number of TLC model-checking workers in each isolated JVM.
                 workers = %d
 
+                [workflow.apalache]
+                # Maximum combined occupancy of the Apalache result directories.
+                max_entries = %d
+                # Wall-clock limit for checking one generated specification.
+                timeout_sec = %d
+                # Maximum heap allocated to each isolated Apalache JVM.
+                max_heap_mb = %d
+                # Number of concurrent FuzzTLA Apalache workers.
+                # Initialized to half the available processors, rounded down (at least one).
+                workers = %d
+
                 [pbt]
                 # Inclusive upper bound on a randomly generated input's length.
                 max_input_bytes = %d
@@ -217,6 +249,10 @@ public final class TomlConfig {
                         workflow.tlc().timeoutSeconds(),
                         workflow.tlc().maximumHeapMegabytes(),
                         workflow.tlc().workers(),
+                        workflow.apalache().maximumEntries(),
+                        workflow.apalache().timeoutSeconds(),
+                        workflow.apalache().maximumHeapMegabytes(),
+                        workflow.apalache().workers(),
                         pbt.maximumInputBytes(),
                         pbt.richnessCohorts(),
                         Double.toString(pbt.richnessNestingBase()),

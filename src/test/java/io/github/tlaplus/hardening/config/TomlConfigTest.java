@@ -26,6 +26,18 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("max_input_bytes = 10240"));
         assertTrue(Files.readString(path).contains("max_heap_mb = 512"));
         assertTrue(Files.readString(path).contains("workers = 1"));
+        assertTrue(Files.readString(path)
+                .contains("[workflow.apalache]\n"
+                        + "# Maximum combined occupancy of the Apalache result directories.\n"
+                        + "max_entries = 1000\n"
+                        + "# Wall-clock limit for checking one generated specification.\n"
+                        + "timeout_sec = 30\n"
+                        + "# Maximum heap allocated to each isolated Apalache JVM.\n"
+                        + "max_heap_mb = 512\n"
+                        + "# Number of concurrent FuzzTLA Apalache workers.\n"
+                        + "# Initialized to half the available processors, rounded down (at least one).\n"
+                        + "workers = "
+                        + ApalacheStageConfig.DEFAULT_WORKERS));
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));

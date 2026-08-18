@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
+import io.github.tlaplus.hardening.config.ApalacheStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
@@ -632,7 +633,8 @@ class MainTest {
                         entries,
                         new StageConfig(entries),
                         new ParserStageConfig(entries, 10),
-                        new TlcStageConfig(entries, 10, 512, 1)),
+                        new TlcStageConfig(entries, 10, 512, 1),
+                        new ApalacheStageConfig(entries, 10, 512, 1)),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
         Files.writeString(
                 corpus.resolve(CorpusPath.CONFIG.relativePath()),

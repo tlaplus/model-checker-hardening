@@ -28,7 +28,10 @@
   </licenses>
 
   <properties>
-    <apalache.version>0.61.1-SNAPSHOT</apalache.version>
+    <apalache.facade.version>0.61.1-SNAPSHOT</apalache.facade.version>
+    <apalache.release.archive.sha256>68fb56dd9d053cf21d692fd7ec3fbaaeba1395661ec7434fa2b4c47e6fc432b8</apalache.release.archive.sha256>
+    <apalache.release.version>0.61.0</apalache.release.version>
+    <download-maven-plugin.version>1.9.0</download-maven-plugin.version>
     <gson.version>2.14.0</gson.version>
     <jackson.version>2.20.2</jackson.version>
     <junit.version>6.1.3</junit.version>
@@ -77,12 +80,12 @@
     <dependency>
       <groupId>org.apalache-mc</groupId>
       <artifactId>tla-ir-java</artifactId>
-      <version>${apalache.version}</version>
+      <version>${apalache.facade.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apalache-mc</groupId>
       <artifactId>tla-io_2.13</artifactId>
-      <version>${apalache.version}</version>
+      <version>${apalache.facade.version}</version>
     </dependency>
     <dependency>
       <groupId>org.lamport</groupId>
@@ -116,6 +119,53 @@
   <build>
     <finalName>fuzztla</finalName>
     <plugins>
+      <plugin>
+        <groupId>com.googlecode.maven-download-plugin</groupId>
+        <artifactId>download-maven-plugin</artifactId>
+        <version>${download-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>download-apalache-release</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <url>https://github.com/apalache-mc/apalache/releases/download/v${apalache.release.version}/apalache-${apalache.release.version}.tgz</url>
+              <unpack>true</unpack>
+              <outputDirectory>${project.build.directory}/apalache-release</outputDirectory>
+              <sha256>${apalache.release.archive.sha256}</sha256>
+              <alwaysVerifyChecksum>true</alwaysVerifyChecksum>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
+          <execution>
+            <id>stage-apalache-release</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}/apalache-release/apalache-${apalache.release.version}/lib</directory>
+                  <includes>
+                    <include>apalache.jar</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
