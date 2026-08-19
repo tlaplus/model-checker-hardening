@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 
 /** Constructs Boolean-valued expression generators. */
@@ -23,16 +22,10 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                 case NOT_EQUAL -> draw.draw(equal(remainingDepth, true));
                 case NOT -> builder().not(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case AND -> builder().and(BuilderArrays.expressions(draw.draw(
-                        BasicGenerators.listOf(
-                                expression(PrimitiveType.BOOL, nextDepth),
-                                1,
-                                context.config().maximumCollectionSize()))));
-                case OR -> builder().or(BuilderArrays.expressions(draw.draw(
-                        BasicGenerators.listOf(
-                                expression(PrimitiveType.BOOL, nextDepth),
-                                1,
-                                context.config().maximumCollectionSize()))));
+                case AND -> builder().and(
+                        draw.draw(operands(PrimitiveType.BOOL, nextDepth)));
+                case OR -> builder().or(
+                        draw.draw(operands(PrimitiveType.BOOL, nextDepth)));
                 case IMPLIES -> builder().implies(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
@@ -127,21 +120,20 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
             boolean universal, boolean bounded, int remainingDepth) {
         return draw -> {
             var type = draw.draw(typeFactory.valueType());
-            var binding = context.freshBinding("q", type);
-            var variable = builder().name(binding.name(), type.toTlaType());
+            var binding = freshBinding("q", type);
             if (bounded) {
                 var set = draw.draw(expression(new SetType(type), remainingDepth - 1));
-                var predicate = draw.draw(context.withBinding(
-                        binding, expression(PrimitiveType.BOOL, remainingDepth - 1)));
+                var predicate = draw.draw(
+                        scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
                 return universal
-                        ? builder().forall(variable, set, predicate)
-                        : builder().exists(variable, set, predicate);
+                        ? builder().forall(binding.variable(), set, predicate)
+                        : builder().exists(binding.variable(), set, predicate);
             }
-            var predicate = draw.draw(context.withBinding(
-                    binding, expression(PrimitiveType.BOOL, remainingDepth - 1)));
+            var predicate = draw.draw(
+                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
             return universal
-                    ? builder().forall(variable, predicate)
-                    : builder().exists(variable, predicate);
+                    ? builder().forall(binding.variable(), predicate)
+                    : builder().exists(binding.variable(), predicate);
         };
     }
 
@@ -175,13 +167,12 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
             boolean existential, int remainingDepth) {
         return draw -> {
             var type = draw.draw(typeFactory.valueType());
-            var binding = context.freshBinding("temporal", type);
-            var variable = builder().name(binding.name(), type.toTlaType());
-            var predicate = draw.draw(context.withBinding(
-                    binding, expression(PrimitiveType.BOOL, remainingDepth - 1)));
+            var binding = freshBinding("temporal", type);
+            var predicate = draw.draw(
+                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
             return existential
-                    ? builder().temporalExists(variable, predicate)
-                    : builder().temporalForAll(variable, predicate);
+                    ? builder().temporalExists(binding.variable(), predicate)
+                    : builder().temporalForAll(binding.variable(), predicate);
         };
     }
 

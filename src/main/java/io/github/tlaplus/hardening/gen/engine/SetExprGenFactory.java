@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExpressionPair;
@@ -23,11 +22,8 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
             var nextDepth = remainingDepth - 1;
             return switch (kind) {
                 case EMPTY_SET -> builder().emptySet(type.element().toTlaType());
-                case ENUM_SET -> builder().enumSet(BuilderArrays.expressions(draw.draw(
-                        BasicGenerators.listOf(
-                                expression(type.element(), nextDepth),
-                                1,
-                                context.config().maximumCollectionSize()))));
+                case ENUM_SET -> builder().enumSet(
+                        draw.draw(operands(type.element(), nextDepth)));
                 case SET_INTERSECTION -> builder().intersect(
                         draw.draw(expression(type, nextDepth)),
                         draw.draw(expression(type, nextDepth)));
@@ -81,13 +77,11 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     /** Returns a set-filter generator whose predicate sees its bound name. */
     private Generator<TlaEx> filter(SetType resultType, int remainingDepth) {
         return draw -> {
-            var elementType = resultType.element();
-            var binding = context.freshBinding("filtered", elementType);
-            var variable = builder().name(binding.name(), elementType.toTlaType());
+            var binding = freshBinding("filtered", resultType.element());
             var source = draw.draw(expression(resultType, remainingDepth - 1));
-            var predicate = draw.draw(context.withBinding(
-                    binding, expression(PrimitiveType.BOOL, remainingDepth - 1)));
-            return builder().filter(variable, source, predicate);
+            var predicate = draw.draw(
+                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
+            return builder().filter(binding.variable(), source, predicate);
         };
     }
 
@@ -96,13 +90,12 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
             IrType resultElementType, int remainingDepth) {
         return draw -> {
             var sourceType = draw.draw(typeFactory.valueType());
-            var binding = context.freshBinding("mapped", sourceType);
-            var variable = builder().name(binding.name(), sourceType.toTlaType());
+            var binding = freshBinding("mapped", sourceType);
             var source = draw.draw(expression(
                     new SetType(sourceType), remainingDepth - 1));
-            var pair = new ExpressionPair<>(variable, source);
-            var body = draw.draw(context.withBinding(
-                    binding, expression(resultElementType, remainingDepth - 1)));
+            var pair = new ExpressionPair<>(binding.variable(), source);
+            var body = draw.draw(
+                    scopedBody(binding, resultElementType, remainingDepth - 1));
             return builder().map(body, BuilderArrays.pairs(List.of(pair)));
         };
     }

@@ -3,11 +3,15 @@ package io.github.tlaplus.hardening.gen.engine;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** Factory for deferred, type-directed expression generators within one generation run. */
 final class IrExprGenFactory {
     private final GenerationContext context;
     private final IrTypeGenFactory typeFactory;
+    private final Map<IrType, List<ExpressionKind>> typeApplicableForms = new HashMap<>();
     private final GeneralExprGenFactory generalFactory;
     private final BooleanExprGenFactory booleanFactory;
     private final IntegerExprGenFactory integerFactory;
@@ -53,9 +57,11 @@ final class IrExprGenFactory {
                 return draw.draw(generalFactory.terminal(type));
             }
 
+            // Only scope applicability can change between draws, so the rest is cached per type.
+            var candidates = typeApplicableForms(type);
             var formCount = 0;
-            for (var kind : ExpressionKinds.all()) {
-                if (isApplicable(kind, type)) {
+            for (var kind : candidates) {
+                if (kind.isScopeApplicable(context, type)) {
                     formCount++;
                 }
             }
@@ -65,8 +71,8 @@ final class IrExprGenFactory {
             }
 
             var selected = Math.toIntExact(draw.drawLong(0, formCount - 1L));
-            for (var kind : ExpressionKinds.all()) {
-                if (isApplicable(kind, type) && selected-- == 0) {
+            for (var kind : candidates) {
+                if (kind.isScopeApplicable(context, type) && selected-- == 0) {
                     return draw.draw(mkGen(kind, type, remainingDepth));
                 }
             }
@@ -76,20 +82,26 @@ final class IrExprGenFactory {
 
     /** Reports whether a form is enabled and its type and scope requirements are satisfied. */
     boolean isApplicable(ExpressionKind kind, IrType type) {
-        if (!typeFactory.isEnabled(type)
-                || kind.isUnavailableWith(context.config().ignoredCategories())) {
-            return false;
+        return typeApplicableForms(type).contains(kind)
+                && kind.isScopeApplicable(context, type);
+    }
+
+    /**
+     * Returns the forms this run may use for a type, in catalog order. Configured exclusions and
+     * type applicability depend only on the type, so the answer is computed once per type; lexical
+     * scope is checked on every draw.
+     */
+    private List<ExpressionKind> typeApplicableForms(IrType type) {
+        if (!typeFactory.isEnabled(type)) {
+            return List.of();
         }
-        if (!kind.isTypeApplicable(type)) {
-            return false;
-        }
-        if (kind == GeneralExpressionKind.NAME) {
-            return context.hasBinding(type);
-        }
-        if (kind == GeneralExpressionKind.OPERATOR_APPLICATION) {
-            return context.hasOperatorReturning(type);
-        }
-        return true;
+        return typeApplicableForms.computeIfAbsent(
+                type,
+                requested -> ExpressionKinds.all().stream()
+                        .filter(kind ->
+                                !kind.isUnavailableWith(context.config().ignoredCategories()))
+                        .filter(kind -> kind.isTypeApplicable(requested))
+                        .toList());
     }
 
     /** Returns the generator supplied by a selected kind's typed family. */

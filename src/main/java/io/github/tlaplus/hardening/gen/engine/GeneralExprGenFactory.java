@@ -8,7 +8,6 @@ import io.github.tlaplus.hardening.gen.Generator;
 import java.math.BigInteger;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExpressionPair;
-import org.apalache_mc.tla.jir.NamedExpression;
 
 /** Constructs terminal and type-polymorphic expression generators. */
 final class GeneralExprGenFactory extends AbstractExprGenFactory {
@@ -80,15 +79,8 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                         draw.draw(terminal(functionType.result())),
                         BuilderArrays.pairs(List.of(pair)));
             }
-            case TupleType tupleType -> builder().tuple(BuilderArrays.expressions(
-                    tupleType.elements().stream()
-                            .map(element -> draw.draw(terminal(element)))
-                            .toList()));
-            case RecordType recordType -> builder().record(BuilderArrays.named(
-                    recordType.fields().stream()
-                            .map(field -> new NamedExpression<>(
-                                    field.name(), draw.draw(terminal(field.type()))))
-                            .toList()));
+            case TupleType tupleType -> draw.draw(tuple(tupleType, this::terminal));
+            case RecordType recordType -> draw.draw(record(recordType, this::terminal));
             case VariantType variantType -> {
                 var field = variantType.fields().getFirst();
                 yield builder().variant(
@@ -103,23 +95,21 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
     /** Returns a generator of a bounded CHOOSE expression. */
     private Generator<TlaEx> boundedChoose(IrType type, int remainingDepth) {
         return draw -> {
-            var binding = context.freshBinding("bound", type);
-            var bound = builder().name(binding.name(), type.toTlaType());
+            var binding = freshBinding("bound", type);
             var set = draw.draw(expression(new SetType(type), remainingDepth - 1));
-            var predicate = draw.draw(context.withBinding(
-                    binding, expression(PrimitiveType.BOOL, remainingDepth - 1)));
-            return builder().choose(bound, set, predicate);
+            var predicate = draw.draw(
+                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
+            return builder().choose(binding.variable(), set, predicate);
         };
     }
 
     /** Returns a generator of an unbounded CHOOSE expression. */
     private Generator<TlaEx> unboundedChoose(IrType type, int remainingDepth) {
         return draw -> {
-            var binding = context.freshBinding("chosen", type);
-            var bound = builder().name(binding.name(), type.toTlaType());
-            var predicate = draw.draw(context.withBinding(
-                    binding, expression(PrimitiveType.BOOL, remainingDepth - 1)));
-            return builder().choose(bound, predicate);
+            var binding = freshBinding("chosen", type);
+            var predicate = draw.draw(
+                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
+            return builder().choose(binding.variable(), predicate);
         };
     }
 

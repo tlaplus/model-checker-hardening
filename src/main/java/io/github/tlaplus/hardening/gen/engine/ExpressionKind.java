@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -17,6 +16,15 @@ sealed interface ExpressionKind
                 OtherExpressionKind {
     /** Reports whether this form can produce the requested type, independent of lexical scope. */
     boolean isTypeApplicable(IrType type);
+
+    /**
+     * Reports whether the current lexical scope can supply what this form needs. Most forms build
+     * everything they use, so the default is true; a form that refers to an existing binding says
+     * so here rather than being special-cased by the selector.
+     */
+    default boolean isScopeApplicable(GenerationContext context, IrType type) {
+        return true;
+    }
 
     /** Returns this form's single primary user-facing category. */
     ExpressionCategory category();
@@ -82,6 +90,15 @@ enum GeneralExpressionKind implements ExpressionKind {
         return switch (this) {
             case TERMINAL, NAME -> true;
             default -> !(type instanceof OperatorType);
+        };
+    }
+
+    @Override
+    public boolean isScopeApplicable(GenerationContext context, IrType type) {
+        return switch (this) {
+            case NAME -> context.hasBinding(type);
+            case OPERATOR_APPLICATION -> context.hasOperatorReturning(type);
+            default -> true;
         };
     }
 
@@ -336,40 +353,5 @@ enum OtherExpressionKind implements ExpressionKind {
     @Override
     public Set<ExpressionCategory> requiredCategories() {
         return requiredCategories;
-    }
-}
-
-/** Static expression-kind catalog used by indexed selection. */
-final class ExpressionKinds {
-    private static final int SINGLE_BYTE_CHOICE_COUNT = 1 << Byte.SIZE;
-    private static final List<ExpressionKind> ALL = buildCatalog();
-
-    static {
-        if (ALL.size() > SINGLE_BYTE_CHOICE_COUNT) {
-            throw new ExceptionInInitializerError(
-                    "expression kinds must fit in a single-byte choice");
-        }
-    }
-
-    private ExpressionKinds() {}
-
-    /**
-     * Returns every form in decoder order. Family order and each enum's declaration order are the
-     * implementation-local byte encoding. The catalog is built once, not during expression draws.
-     */
-    static List<ExpressionKind> all() {
-        return ALL;
-    }
-
-    /** Concatenates the family enums once in their documented decoder order. */
-    private static List<ExpressionKind> buildCatalog() {
-        var result = new ArrayList<ExpressionKind>();
-        result.addAll(List.of(GeneralExpressionKind.values()));
-        result.addAll(List.of(BooleanExpressionKind.values()));
-        result.addAll(List.of(IntegerExpressionKind.values()));
-        result.addAll(List.of(SetExpressionKind.values()));
-        result.addAll(List.of(SequenceExpressionKind.values()));
-        result.addAll(List.of(OtherExpressionKind.values()));
-        return List.copyOf(result);
     }
 }

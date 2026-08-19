@@ -216,15 +216,16 @@ filter prevents terminal construction from reintroducing ignored structural
 syntax. It does not change the workflow module that embeds the expression; that
 module retains its fixed `Next == UNCHANGED exprValue` definition.
 
-For each nonterminal request, `IrExprGenFactory` scans the static catalog twice.
-The first scan excludes forms with ignored requirements and counts the remaining
-forms whose result type and scope requirements match. One bounded index then
-selects an applicable form; the second scan dispatches only that form. The same
-filtering applies at every recursive expression request. Unavailable forms
-consume neither a selection slot nor operand bytes. The engine does not allocate
-and populate a temporary form list for each node. The complete catalog must fit
-in 256 entries, so current form selection uses one byte and distributes its 256
-values as evenly as possible.
+For each nonterminal request, `IrExprGenFactory` works from the forms this run
+may use for the requested type: those whose requirements are not ignored by the
+configuration and whose result type matches. That set depends only on the type,
+so it is computed once per type and reused, in catalog order. The factory then
+scans it twice, checking only lexical scope, which is the one condition that
+changes between draws. The first scan counts the applicable forms, one bounded
+index selects among them, and the second scan dispatches only the selected form.
+Unavailable forms consume neither a selection slot nor operand bytes. The complete
+catalog must fit in 256 entries, so current form selection uses one byte and
+distributes its 256 values as evenly as possible.
 
 ## 6. Termination and resource limits
 
@@ -319,15 +320,23 @@ Changes to this subsystem should preserve the following rules:
 
 1. Add a new expression form to the appropriate `ExpressionKind` enum and family
    factory, assigning exactly one primary `ExpressionCategory` and every syntax
-   capability it requires. Its enum position becomes part of the current byte
-   encoding.
-2. State result-type constraints in `isTypeApplicable`; state dynamic scope
-   constraints in `IrExprGenFactory.isApplicable`.
+   capability it requires. Append the constant: its position in `ExpressionKinds`
+   is the byte encoding, and `ExpressionKindsTest` pins the whole order, so
+   inserting or reordering a constant reinterprets every stored corpus input and
+   fails that test.
+2. State result-type constraints in `isTypeApplicable` and dynamic scope
+   constraints in `isScopeApplicable`, both on the kind itself. `IrExprGenFactory`
+   asks the kind; it never names a form. Only `isScopeApplicable` may consult the
+   generation context, because only it is re-evaluated on every draw — the rest of
+   applicability is cached per type.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
-4. Introduce lexical bindings with `GenerationContext.withBinding` or
-   `withBindings`, and restrict the extended scope to the construct's body.
-5. Use `BasicGenerators.listOf` or `byteArray` for variable-size payloads; do not
-   introduce length-prefixed collections.
+4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
+   `scopedBody`, which restrict the extended scope to the construct's body. Create
+   the binding before any operand that must be drawn ahead of the body: creating
+   it consumes no bytes.
+5. Use `AbstractExprGenFactory.operands` for a collection of same-typed operands,
+   or `BasicGenerators.listOf` or `byteArray` for other variable-size payloads; do
+   not introduce length-prefixed collections.
 6. Obtain all choices from the supplied `Draw`. Do not add hidden randomness.
 7. Provide a closed, byte-free terminal when adding an `IrType` variant.
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
@@ -336,5 +345,6 @@ Changes to this subsystem should preserve the following rules:
 Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog
 completeness, type applicability, lexical visibility, scope restoration,
-terminal construction, determinism, and adversarial inputs. A catalog change
-must retain the one-byte upper bound or explicitly revise the decoding protocol.
+terminal construction, determinism, and adversarial inputs. A catalog change must
+retain the one-byte upper bound, update the pinned catalog order, and explicitly
+revise the decoding protocol.
