@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ThrowingConsumer;
 import java.util.Objects;
 
 /**
@@ -37,8 +38,12 @@ public final class StageJobLoop<T> {
 
     /**
      * Runs jobs until the queue closes and drains, or the workflow stops.
+     *
+     * @param job processing of one queued item. A job that has to stop its stage reports it to
+     *     {@link WorkflowControl}; this loop observes that shared state and stops claiming work.
      */
-    public void run(StageJob<T> job) throws Exception {
+    public <E extends Throwable> void run(ThrowingConsumer<T, E> job)
+            throws E, InterruptedException {
         Objects.requireNonNull(job, "job");
         while (!control.shouldStop()) {
             var item = queue.take();
@@ -50,7 +55,7 @@ public final class StageJobLoop<T> {
             }
             counters.elapsed().start();
             try {
-                job.process(item);
+                job.accept(item);
             } finally {
                 counters.elapsed().stop();
                 cpuBudget.release(permits);
