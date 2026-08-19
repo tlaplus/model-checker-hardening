@@ -5,7 +5,7 @@ import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
-import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
+import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -28,18 +28,11 @@ public final class ApalacheWorkerMain {
 
     public static void main(String[] ignoredArguments) {
         var processError = System.err;
-        try {
-            run(processError);
-        } catch (Exception | StackOverflowError exception) {
-            exception.printStackTrace(processError);
-            System.exit(1);
-        }
+        ToolWorkerRuntime.main(() -> run(processError), processError);
     }
 
     private static void run(PrintStream processError) throws Exception {
         try (var connection = ToolWorkerConnection.connect()) {
-            var protocolOutput = connection.output();
-            var protocolInput = connection.input();
             System.setOut(processError);
             var workerDirectory = Path.of(System.getProperty("java.io.tmpdir"))
                     .toAbsolutePath()
@@ -49,34 +42,30 @@ public final class ApalacheWorkerMain {
             var toolRun = resolveToolRun();
             var cleanupPending = new ArrayList<Path>();
 
-            ToolWorkerProtocol.writeHandshake(protocolOutput);
             try {
-                while (true) {
-                    var source = ToolWorkerProtocol.readRequest(protocolInput);
-                    if (source == null) {
-                        return;
-                    }
+                ToolWorkerRuntime.serve(
+                        connection,
+                        ToolWorkerRuntime.Lifetime.UNTIL_CRASH,
+                        source -> {
+                            var jobDirectory =
+                                    Files.createTempDirectory(workerDirectory, "job-");
+                            var specification = jobDirectory.resolve(SPECIFICATION_FILE);
+                            Files.writeString(
+                                    specification,
+                                    source,
+                                    StandardCharsets.UTF_8,
+                                    StandardOpenOption.CREATE_NEW,
+                                    StandardOpenOption.WRITE);
+                            var result =
+                                    check(toolRun, jobDirectory, specification, processError);
 
-                    var jobDirectory = Files.createTempDirectory(workerDirectory, "job-");
-                    var specification = jobDirectory.resolve(SPECIFICATION_FILE);
-                    Files.writeString(
-                            specification,
-                            source,
-                            StandardCharsets.UTF_8,
-                            StandardOpenOption.CREATE_NEW,
-                            StandardOpenOption.WRITE);
-                    var result = check(toolRun, jobDirectory, specification, processError);
-
-                    // Tool.run resets Logback at the beginning of every invocation. Once the
-                    // current invocation returns, files retained by the previous one are closed.
-                    deletePending(cleanupPending);
-                    cleanupPending.add(jobDirectory);
-
-                    ToolWorkerProtocol.writeResult(protocolOutput, result);
-                    if (result.outcome() == StageOutcome.CRASH) {
-                        return;
-                    }
-                }
+                            // Tool.run resets Logback at the beginning of every invocation.
+                            // Once the current invocation returns, files retained by the
+                            // previous one are closed.
+                            deletePending(cleanupPending);
+                            cleanupPending.add(jobDirectory);
+                            return result;
+                        });
             } finally {
                 System.setOut(processError);
                 System.setErr(processError);

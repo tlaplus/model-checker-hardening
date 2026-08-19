@@ -5,7 +5,7 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
-import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
+import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,18 +26,11 @@ public final class TlcWorkerMain {
     private TlcWorkerMain() {}
 
     public static void main(String[] ignoredArguments) {
-        try {
-            run();
-        } catch (Exception | StackOverflowError exception) {
-            exception.printStackTrace(System.err);
-            System.exit(1);
-        }
+        ToolWorkerRuntime.main(TlcWorkerMain::run, System.err);
     }
 
-    private static void run() throws IOException {
+    private static void run() throws Exception {
         var connection = ToolWorkerConnection.connect();
-        var protocolOutput = connection.output();
-        var protocolInput = connection.input();
         System.setOut(System.err);
         StandardModuleResources.require(
                 TlcWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
@@ -81,39 +74,39 @@ public final class TlcWorkerMain {
                 throw new IOException("TLC rejected the fixed worker parameters");
             }
 
-            ToolWorkerProtocol.writeHandshake(protocolOutput);
-            var source = ToolWorkerProtocol.readRequest(protocolInput);
-            if (source == null) {
-                return;
-            }
-            Files.writeString(
-                    specification,
-                    source,
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
+            ToolWorkerRuntime.serve(
+                    connection,
+                    ToolWorkerRuntime.Lifetime.ONE_INPUT,
+                    source -> {
+                        Files.writeString(
+                                specification,
+                                source,
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.TRUNCATE_EXISTING,
+                                StandardOpenOption.WRITE);
+                        return check(tlc, diagnostics);
+                    });
+        }
+    }
 
-            ToolResult result;
-            try {
-                var errorCode = tlc.process();
-                var exitStatus = EC.ExitStatus.errorConstantToExitStatus(errorCode);
-                var summary = "TLC error code "
-                        + errorCode
-                        + " mapped to exit status "
-                        + exitStatus;
-                result = TlcOutcomeClassifier.classifyErrorCode(
-                        errorCode,
-                        WorkerDiagnostics.append(
-                                summary, diagnostics.toString(StandardCharsets.UTF_8)));
-            } catch (Exception | StackOverflowError exception) {
-                result = new ToolResult(
-                        StageOutcome.CRASH,
-                        WorkerDiagnostics.append(
-                                diagnostics.toString(StandardCharsets.UTF_8),
-                                WorkerDiagnostics.stackTrace(exception)));
-            }
-            ToolWorkerProtocol.writeResult(protocolOutput, result);
+    /** Checks the written specification and classifies whatever TLC reports. */
+    private static ToolResult check(TLC tlc, ByteArrayOutputStream diagnostics) {
+        try {
+            var errorCode = tlc.process();
+            var exitStatus = EC.ExitStatus.errorConstantToExitStatus(errorCode);
+            var summary =
+                    "TLC error code " + errorCode + " mapped to exit status " + exitStatus;
+            return TlcOutcomeClassifier.classifyErrorCode(
+                    errorCode,
+                    WorkerDiagnostics.append(
+                            summary, diagnostics.toString(StandardCharsets.UTF_8)));
+        } catch (Exception | StackOverflowError exception) {
+            return new ToolResult(
+                    StageOutcome.CRASH,
+                    WorkerDiagnostics.append(
+                            diagnostics.toString(StandardCharsets.UTF_8),
+                            WorkerDiagnostics.stackTrace(exception)));
         }
     }
 

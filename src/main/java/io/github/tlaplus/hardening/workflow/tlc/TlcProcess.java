@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.tlc;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -22,13 +23,13 @@ final class TlcProcess {
                 "-Xmx" + config.maximumHeapMegabytes() + "m",
                 "-XX:+ExitOnOutOfMemoryError",
                 "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers());
-        try (var worker = IsolatedWorkerProcess.start(
+        try (var worker = IsolatedWorkerProcess.start(new WorkerSpec(
                 scratchDirectory,
                 timeout,
                 TlcWorkerMain.class,
                 List.of(),
                 arguments,
-                "TLC worker")) {
+                "TLC worker"))) {
             return worker.request(source, timeout);
         }
     }
