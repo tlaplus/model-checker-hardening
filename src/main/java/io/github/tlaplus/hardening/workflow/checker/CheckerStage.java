@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.checker;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
@@ -135,10 +136,6 @@ public final class CheckerStage implements WorkflowStage {
     private void record(
             CorpusDirectory corpus, Path path, Instant startTime, ToolResult result)
             throws Exception {
-        var endTime = Instant.now();
-        if (endTime.isBefore(startTime)) {
-            endTime = startTime;
-        }
         var failure = result.failureCode()
                 .map(code -> new CheckerFailure(code, backend.failureDetail(result.diagnostic())));
         if (result.outcome() == StageOutcome.FAIL && failure.isEmpty()) {
@@ -147,11 +144,12 @@ public final class CheckerStage implements WorkflowStage {
         }
         corpus.completeChecker(
                 path,
-                result.outcome().corpusVerdict(),
-                startTime,
-                endTime,
-                failure,
-                result.diagnostic());
+                new StageResult(
+                        result.outcome().corpusVerdict(),
+                        startTime,
+                        StageResult.endedNow(startTime),
+                        failure,
+                        result.diagnostic()));
         counters.record(result.outcome().corpusVerdict());
     }
 }

@@ -3,16 +3,20 @@ package io.github.tlaplus.hardening.workflow.checker;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
-import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -29,7 +33,7 @@ class CheckerStageTest {
     @Test
     void replacesAWorkerAfterACrashAndClosesTheReplacement(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var expression = IrGenerators.expressions().generate(new byte[0]);
         Generator<TlaEx> generator = _ -> expression;
         var input = new WorkQueue<Path>();
@@ -37,10 +41,8 @@ class CheckerStageTest {
             var payload = new byte[] {(byte) value};
             corpus.store(payload);
             var parserPass = corpus.completeParser(
-                    corpus.inputPath(payload),
-                    CorpusVerdict.PASS,
-                    Instant.ofEpochSecond(1),
-                    Instant.ofEpochSecond(2));
+                corpus.inputPath(payload),
+                new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
             corpus.fanOutParserPass(parserPass);
             input.submit(corpus.resolve(CorpusPath.TLC_INPUT)
                     .resolve(parserPass.getFileName()));
@@ -67,7 +69,7 @@ class CheckerStageTest {
         assertEquals(2, backend.closes.get());
         assertEquals(1, stage.summary().passed());
         assertEquals(1, stage.summary().crashed());
-        var inventory = corpus.recoverAndValidate(generator);
+        var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
         assertEquals(1, inventory.tlcPassEntries());
         assertEquals(1, inventory.tlcCrashEntries());
     }

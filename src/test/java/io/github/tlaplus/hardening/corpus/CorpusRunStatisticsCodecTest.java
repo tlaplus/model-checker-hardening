@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,7 @@ class CorpusRunStatisticsCodecTest {
     @Test
     void readsZeroBeforeTheFirstSaveAndAtomicallyReplacesStatistics(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
 
         assertEquals(CorpusRunStatistics.empty(), corpus.readRunStatistics());
 
@@ -54,7 +56,7 @@ class CorpusRunStatisticsCodecTest {
 
     @Test
     void rejectsMalformedStatistics(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         Files.write(corpus.resolve(CorpusPath.WORKFLOW_STATISTICS), new byte[] {1});
 
         var failure = assertThrows(CorpusException.class, corpus::readRunStatistics);

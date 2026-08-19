@@ -1,8 +1,13 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
+import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -26,11 +31,9 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class PbtStageTest {
     private static final TlaEx EMPTY = expression(0);
@@ -39,7 +42,7 @@ class PbtStageTest {
 
     @Test
     void fillsTheGlobalTargetWithOneWorker(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var active = new AtomicInteger();
         var maximumActive = new AtomicInteger();
         Generator<TlaEx> observed = draw -> {
@@ -56,13 +59,13 @@ class PbtStageTest {
         assertEquals(32.0, summary.minimumRichness());
         assertEquals(32.0, summary.maximumRichness());
         assertEquals(32.0, summary.averageRichness());
-        assertEquals(20, corpus.recoverAndValidate(observed).inputEntries());
+        assertEquals(20, corpus.recoverAndValidate(CorpusEntryValidator.NONE).inputEntries());
     }
 
     @Test
     void reproducesTheSameCorpusFromTheSameSeed(@TempDir Path directory) throws Exception {
-        var first = CorpusDirectory.initialize(directory.resolve("first"));
-        var second = CorpusDirectory.initialize(directory.resolve("second"));
+        var first = CorpusDirectory.initialize(directory.resolve("first"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var second = CorpusDirectory.initialize(directory.resolve("second"), TomlConfig.render(FuzzTlaConfig.defaults()));
 
         runStage(first, config(32), ACCEPT, 30, 123456789L);
         runStage(second, config(32), ACCEPT, 30, 123456789L);
@@ -77,7 +80,7 @@ class PbtStageTest {
 
     @Test
     void retriesExpectedInputRejections(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var calls = new AtomicInteger();
         Generator<TlaEx> rejectFirstThree = _ -> {
             if (calls.getAndIncrement() < 3) {
@@ -96,7 +99,7 @@ class PbtStageTest {
     @Test
     void stopsAtTheDerivedAttemptLimitAndPreservesProgress(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var calls = new AtomicInteger();
         Generator<TlaEx> acceptOnce = _ -> {
             if (calls.getAndIncrement() > 0) {
@@ -127,13 +130,13 @@ class PbtStageTest {
         assertTrue(control.failure().getMessage().contains("richness cohort 0"));
         assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
         assertTrue(control.failure().getMessage().contains("best richness was 0.0"));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).inputEntries());
+        assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).inputEntries());
     }
 
     @Test
     void preservesTheCandidateAndStackTraceWhenTheGeneratorCrashes(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         Generator<TlaEx> overflow = _ -> {
             throw new StackOverflowError("deliberate overflow");
         };
@@ -172,13 +175,13 @@ class PbtStageTest {
             assertTrue(Files.readString(report)
                     .contains("StackOverflowError: deliberate overflow"));
         }
-        assertEquals(0, corpus.recoverAndValidate(ACCEPT).totalEntries());
+        assertEquals(0, corpus.recoverAndValidate(CorpusEntryValidator.NONE).totalEntries());
     }
 
     @Test
     void keepsTheSelectedCohortAcrossRichnessRejectionsAndRecordsAdmissionMetadata(
             @TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var seed = seedSelectingNonzeroCohort();
         var expectedCohort = firstCohort(seed, 10);
         var calls = new AtomicInteger();
@@ -198,7 +201,7 @@ class PbtStageTest {
     @Test
     void selectsCohortsUniformlyFromTheSeededRandomStream(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var target = 100;
         var seed = 12345L;
 
@@ -224,7 +227,7 @@ class PbtStageTest {
     @Test
     void runsMultipleWorkersWithinTheSharedCpuBudget(@TempDir Path directory)
             throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var active = new AtomicInteger();
         var maximumActive = new AtomicInteger();
         var firstTwoWorkers = new CountDownLatch(2);
@@ -270,7 +273,7 @@ class PbtStageTest {
         assertFalse(control.hasFailed());
         assertEquals(2, maximumActive.get());
         assertEquals(target, stage.summary().generated());
-        assertEquals(target, corpus.recoverAndValidate(observed).inputEntries());
+        assertEquals(target, corpus.recoverAndValidate(CorpusEntryValidator.NONE).inputEntries());
         var queued = 0;
         while (queue.take() != null) {
             queued++;
@@ -280,7 +283,7 @@ class PbtStageTest {
 
     @Test
     void stopsPeerWorkersWhenOneWorkerCrashes(@TempDir Path directory) throws Exception {
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"));
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var allWorkersEntered = new CountDownLatch(4);
         Generator<TlaEx> oneWorkerCrashes = _ -> {
             allWorkersEntered.countDown();
