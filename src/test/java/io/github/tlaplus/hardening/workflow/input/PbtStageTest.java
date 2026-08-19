@@ -12,14 +12,16 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
-import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -59,7 +61,7 @@ class PbtStageTest {
         assertEquals(32.0, summary.minimumRichness());
         assertEquals(32.0, summary.maximumRichness());
         assertEquals(32.0, summary.averageRichness());
-        assertEquals(20, corpus.recoverAndValidate(CorpusEntryValidator.NONE).inputEntries());
+        assertEquals(20, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
     }
 
     @Test
@@ -130,7 +132,7 @@ class PbtStageTest {
         assertTrue(control.failure().getMessage().contains("richness cohort 0"));
         assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
         assertTrue(control.failure().getMessage().contains("best richness was 0.0"));
-        assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).inputEntries());
+        assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
     }
 
     @Test
@@ -273,7 +275,7 @@ class PbtStageTest {
         assertFalse(control.hasFailed());
         assertEquals(2, maximumActive.get());
         assertEquals(target, stage.summary().generated());
-        assertEquals(target, corpus.recoverAndValidate(CorpusEntryValidator.NONE).inputEntries());
+        assertEquals(target, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
         var queued = 0;
         while (queue.take() != null) {
             queued++;
@@ -336,7 +338,7 @@ class PbtStageTest {
         assertThrows(IllegalArgumentException.class, () -> PbtStage.workerSeeds(1, -1));
     }
 
-    private PbtStageSummary runStage(
+    private GeneratorSummary runStage(
             CorpusDirectory corpus,
             PbtConfig config,
             Generator<TlaEx> generator,
@@ -365,8 +367,8 @@ class PbtStageTest {
         return new PbtConfig(maximumInputBytes, 1, 2.0, 1.5);
     }
 
-    private static WorkflowMetrics metrics(long initialEntries) {
-        return new WorkflowMetrics(CorpusRunStatistics.empty(), initialEntries);
+    private static GeneratorStatistics metrics(long initialEntries) {
+        return new GeneratorStatistics(CorpusRunStatistics.empty(), initialEntries);
     }
 
     private static long seedSelectingNonzeroCohort() {

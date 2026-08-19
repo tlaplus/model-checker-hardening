@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
-import io.github.tlaplus.hardening.config.TlcStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -15,7 +15,7 @@ final class TlcProcess {
     static ToolResult check(
             Path scratchDirectory,
             String source,
-            TlcStageConfig config,
+            CheckerStageConfig config,
             Duration timeout)
             throws WorkflowException, InterruptedException {
         var arguments = List.of(

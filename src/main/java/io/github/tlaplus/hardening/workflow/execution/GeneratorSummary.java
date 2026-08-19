@@ -1,10 +1,10 @@
-package io.github.tlaplus.hardening.workflow.input;
+package io.github.tlaplus.hardening.workflow.execution;
 
 import java.time.Duration;
 import java.util.Objects;
 
 /** Cumulative generation counters, richness statistics, elapsed time, and replay information. */
-public record PbtStageSummary(
+public record GeneratorSummary(
         long seed,
         long generated,
         long attempts,
@@ -16,7 +16,7 @@ public record PbtStageSummary(
         double maximumRichness,
         double averageRichness,
         Duration elapsed) {
-    public PbtStageSummary {
+    public GeneratorSummary {
         if (seed < 0
                 || generated < 0
                 || attempts < 0
@@ -24,11 +24,11 @@ public record PbtStageSummary(
                 || richnessRejected < 0
                 || duplicates < 0
                 || richnessSamples < 0) {
-            throw new IllegalArgumentException("PBT counters must be nonnegative");
+            throw new IllegalArgumentException("generator counters must be nonnegative");
         }
         Objects.requireNonNull(elapsed, "elapsed");
         if (elapsed.isNegative()) {
-            throw new IllegalArgumentException("PBT elapsed time must be nonnegative");
+            throw new IllegalArgumentException("generator elapsed time must be nonnegative");
         }
         if (!Double.isFinite(minimumRichness)
                 || !Double.isFinite(maximumRichness)
@@ -37,16 +37,16 @@ public record PbtStageSummary(
                 || maximumRichness < 0.0
                 || averageRichness < 0.0) {
             throw new IllegalArgumentException(
-                    "PBT richness statistics must be finite and nonnegative");
+                    "generator richness statistics must be finite and nonnegative");
         }
         if (richnessSamples == 0) {
             if (minimumRichness != 0.0 || maximumRichness != 0.0 || averageRichness != 0.0) {
                 throw new IllegalArgumentException(
-                        "PBT richness statistics must be zero when there are no samples");
+                        "generator richness statistics must be zero when there are no samples");
             }
         } else if (minimumRichness > averageRichness || averageRichness > maximumRichness) {
             throw new IllegalArgumentException(
-                    "average PBT richness must be between the minimum and maximum");
+                    "average generator richness must be between the minimum and maximum");
         }
     }
 }

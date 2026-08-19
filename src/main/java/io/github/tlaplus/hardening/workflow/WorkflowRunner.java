@@ -7,11 +7,14 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
@@ -22,13 +25,17 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
+import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
-import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
@@ -91,13 +98,13 @@ public final class WorkflowRunner {
             throw new IllegalArgumentException(
                     "maximumCpus must be in the range 1.." + availableCpus);
         }
-        if (config.workflow().tlc().workers() > maximumCpus) {
-            throw new WorkflowException(
-                    "workflow.tlc.workers must not exceed run --max-cpus");
-        }
-        if (config.workflow().apalache().workers() > maximumCpus) {
-            throw new WorkflowException(
-                    "workflow.apalache.workers must not exceed run --max-cpus");
+        for (var checker : CorpusStage.checkerBranches()) {
+            if (config.workflow().checker(checker).workers() > maximumCpus) {
+                throw new WorkflowException(
+                        "workflow."
+                                + checker.metadataName()
+                                + ".workers must not exceed run --max-cpus");
+            }
         }
         var apalacheJar = ApalacheDistribution.locate();
 
@@ -108,16 +115,12 @@ public final class WorkflowRunner {
             var statistics = new StatisticsOnExit(corpus, metrics, invocationElapsed);
             StageRunResult result;
             try (statistics) {
-                try (var parserScratch = corpus.createParserScratch();
-                        var tlcScratch = corpus.createTlcScratch();
-                        var apalacheScratch = corpus.createApalacheScratch()) {
+                try (var scratch = corpus.createScratch()) {
                     result = runStages(
                             corpus,
                             seed,
                             maximumCpus,
-                            parserScratch.directory(),
-                            tlcScratch.directory(),
-                            apalacheScratch.directory(),
+                            scratch,
                             apalacheJar,
                             initial,
                             metrics,
@@ -133,70 +136,53 @@ public final class WorkflowRunner {
             CorpusDirectory corpus,
             long seed,
             int maximumCpus,
-            Path parserScratch,
-            Path tlcScratch,
-            Path apalacheScratch,
+            StageScratchSet scratch,
             Path apalacheJar,
             CorpusInventory initial,
             WorkflowMetrics metrics,
             ElapsedTimeAccumulator invocationElapsed,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
-        var parserQueue = new WorkQueue<Path>();
-        initial.inputs().forEach(parserQueue::submit);
-        var tlcQueue = new WorkQueue<Path>();
-        initial.tlcInputs().forEach(tlcQueue::submit);
-        var apalacheQueue = new WorkQueue<Path>();
-        initial.apalacheInputs().forEach(apalacheQueue::submit);
-        var control = new WorkflowControl(parserQueue, tlcQueue, apalacheQueue);
+        var queues = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
+        var counters = new EnumMap<CorpusStage, StageCounters>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            var queue = new WorkQueue<Path>();
+            initial.pending(stage).forEach(queue::submit);
+            queues.put(stage, queue);
+            counters.put(
+                    stage,
+                    new StageCounters(summary(initial, stage, metrics), metrics.clocks().of(stage)));
+        }
+        var control = new WorkflowControl(queues.values().toArray(WorkQueue<?>[]::new));
         var inputCapacity = new Semaphore(
                 config.workflow().inputs().maximumEntries()
-                        - Math.toIntExact(initial.inputEntries()),
+                        - Math.toIntExact(initial.pendingEntries(CorpusStage.PARSER)),
                 true);
         var cpuBudget = new CpuBudget(maximumCpus);
         var environment = new StageEnvironment(corpus, generator, cpuBudget, control);
-        var initialParser = new StageVerdictSummary(
-                initial.parserPassEntries(),
-                initial.parserFailEntries(),
-                initial.parserCrashEntries(),
-                metrics.parserElapsed().elapsed());
-        var initialTlc = new StageVerdictSummary(
-                initial.tlcPassEntries(),
-                initial.tlcFailEntries(),
-                initial.tlcCrashEntries(),
-                metrics.tlcElapsed().elapsed());
-        var initialApalache = new StageVerdictSummary(
-                initial.apalachePassEntries(),
-                initial.apalacheFailEntries(),
-                initial.apalacheCrashEntries(),
-                metrics.apalacheElapsed().elapsed());
+
         var parser = new ParserStage(
                 config.workflow().parser(),
                 maximumCpus,
-                initialParser,
-                new StageCounters(initialParser, metrics.parserElapsed()),
+                initial.resultEntries(CorpusStage.PARSER),
+                counters.get(CorpusStage.PARSER),
                 environment,
-                parserScratch,
-                parserQueue,
-                tlcQueue,
-                apalacheQueue,
+                scratch.directory(CorpusStage.PARSER),
+                queues.get(CorpusStage.PARSER),
+                queues.get(CorpusStage.TLC),
+                queues.get(CorpusStage.APALACHE),
                 inputCapacity);
-        var tlc = new CheckerStage(
-                new TlcCheckerBackend(
-                        config.workflow().tlc(),
-                        maximumCpus / config.workflow().tlc().workers(),
-                        tlcScratch),
-                initialTlc,
-                new StageCounters(initialTlc, metrics.tlcElapsed()),
-                environment,
-                tlcQueue);
-        var apalache = new CheckerStage(
-                new ApalacheCheckerBackend(
-                        config.workflow().apalache(), apalacheJar, apalacheScratch),
-                initialApalache,
-                new StageCounters(initialApalache, metrics.apalacheElapsed()),
-                environment,
-                apalacheQueue);
+        var checkers = new EnumMap<CorpusStage, CheckerStage>(CorpusStage.class);
+        for (var checker : CorpusStage.checkerBranches()) {
+            checkers.put(
+                    checker,
+                    new CheckerStage(
+                            checkerBackend(checker, maximumCpus, scratch, apalacheJar),
+                            initial.resultEntries(checker),
+                            counters.get(checker),
+                            environment,
+                            queues.get(checker)));
+        }
         var pbt = new PbtStage(
                 config.pbt(),
                 config.workflow().maximumEntries(),
@@ -204,9 +190,13 @@ public final class WorkflowRunner {
                 environment,
                 seed,
                 maximumCpus,
-                parserQueue,
+                queues.get(CorpusStage.PARSER),
                 inputCapacity,
-                metrics);
+                metrics.generator());
+        var stages = new ArrayList<WorkflowStage>();
+        stages.add(pbt);
+        stages.add(parser);
+        stages.addAll(checkers.values());
         var progressPhase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
 
         if (capacityIsAlreadyExhausted(initial)) {
@@ -219,31 +209,29 @@ public final class WorkflowRunner {
                         PROGRESS_UPDATE_INTERVAL,
                         () -> progressSnapshot(
                                 progressPhase.get(),
-                                initial,
-                                pbt,
-                                parser,
-                                tlc,
-                                apalache,
+                                queues,
+                                counters,
+                                seed,
                                 metrics,
                                 invocationElapsed),
                         progressListener)) {
             try {
-                tlc.start();
-                apalache.start();
+                // Downstream stages start first so they can drain a recovered backlog immediately.
+                for (var stage : checkers.values()) {
+                    stage.start();
+                }
                 parser.start();
                 pbt.start();
                 pbt.await();
                 parser.await();
-                tlc.await();
-                apalache.await();
+                for (var stage : checkers.values()) {
+                    stage.await();
+                }
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 control.fail(exception);
             } finally {
-                pbt.close();
-                parser.close();
-                tlc.close();
-                apalache.close();
+                stages.forEach(WorkflowStage::close);
             }
 
             throwIfFailed(control);
@@ -252,14 +240,66 @@ public final class WorkflowRunner {
             var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
                     ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
                     : WorkflowRunSummary.StopReason.COMPLETED;
+            var finalSummaries = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
+            for (var stage : CorpusStage.values()) {
+                finalSummaries.put(stage, summary(result, stage, metrics));
+            }
             return new StageRunResult(
-                    stopReason,
-                    pbt.summary(),
-                    parserSummary(result, parser.summary().elapsed()),
-                    tlcSummary(result, tlc.summary().elapsed()),
-                    apalacheSummary(result, apalache.summary().elapsed()),
-                    result);
+                    stopReason, metrics.generator().summary(seed), finalSummaries, result);
         }
+    }
+
+    /** Returns the checker backend of one stage, configured for this invocation. */
+    private CheckerBackend checkerBackend(
+            CorpusStage checker, int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
+        var checkerConfig = config.workflow().checker(checker);
+        return switch (checker) {
+            case TLC -> new TlcCheckerBackend(
+                    checkerConfig,
+                    maximumCpus / checkerConfig.workers(),
+                    scratch.directory(CorpusStage.TLC));
+            case APALACHE -> new ApalacheCheckerBackend(
+                    checkerConfig, apalacheJar, scratch.directory(CorpusStage.APALACHE));
+            case PARSER -> throw new IllegalArgumentException("parser is not a checker stage");
+        };
+    }
+
+    /** Returns what one stage has produced according to an inventory of the corpus. */
+    private static StageVerdictSummary summary(
+            CorpusInventory inventory, CorpusStage stage, WorkflowMetrics metrics) {
+        var counts = inventory.counts(stage);
+        return new StageVerdictSummary(
+                counts.passed(),
+                counts.failed(),
+                counts.crashed(),
+                metrics.clocks().of(stage).elapsed());
+    }
+
+    private static WorkflowProgress progressSnapshot(
+            WorkflowProgress.Phase phase,
+            Map<CorpusStage, WorkQueue<Path>> queues,
+            Map<CorpusStage, StageCounters> counters,
+            long seed,
+            WorkflowMetrics metrics,
+            ElapsedTimeAccumulator invocationElapsed) {
+        var generatorSummary = metrics.generator().summary(seed);
+        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
+        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            stages.put(stage, counters.get(stage).summary());
+            backlog.put(stage, (long) queues.get(stage).size());
+        }
+        var corpusEntries = generatorSummary.generated();
+        for (var stage : CorpusStage.values()) {
+            backlog.merge(stage, corpusEntries, Math::min);
+        }
+        return new WorkflowProgress(
+                phase,
+                generatorSummary,
+                stages,
+                backlog,
+                corpusEntries,
+                metrics.totalElapsed(invocationElapsed.elapsed()));
     }
 
     /**
@@ -281,14 +321,19 @@ public final class WorkflowRunner {
         };
     }
 
+    /**
+     * Reports whether the run can make no progress at all: a checker still has queued inputs it has
+     * no capacity for, or the corpus is below its target but no input slot is available.
+     */
     private boolean capacityIsAlreadyExhausted(CorpusInventory initial) {
-        return (initial.tlcEntries() >= config.workflow().tlc().maximumEntries()
-                        && initial.tlcInputEntries() > 0)
-                || (initial.apalacheEntries()
-                                >= config.workflow().apalache().maximumEntries()
-                        && initial.apalacheInputEntries() > 0)
-                || (config.workflow().inputs().maximumEntries() == 0
-                        && initial.totalEntries() < config.workflow().maximumEntries());
+        for (var checker : CorpusStage.checkerBranches()) {
+            if (initial.processedEntries(checker) >= config.workflow().maximumEntries(checker)
+                    && initial.pendingEntries(checker) > 0) {
+                return true;
+            }
+        }
+        return config.workflow().inputs().maximumEntries() == 0
+                && initial.totalEntries() < config.workflow().maximumEntries();
     }
 
     private static void throwIfFailed(WorkflowControl control) throws WorkflowException {
@@ -303,109 +348,34 @@ public final class WorkflowRunner {
                 "workflow stage failed: " + Diagnostics.message(failure), failure);
     }
 
-    private static WorkflowProgress progressSnapshot(
-            WorkflowProgress.Phase phase,
-            CorpusInventory initial,
-            PbtStage generator,
-            ParserStage parser,
-            CheckerStage tlc,
-            CheckerStage apalache,
-            WorkflowMetrics metrics,
-            ElapsedTimeAccumulator invocationElapsed) {
-        var parserSummary = parser.summary();
-        var tlcSummary = tlc.summary();
-        var apalacheSummary = apalache.summary();
-        var generatorSummary = generator.summary();
-        var corpusEntries = generatorSummary.generated();
-        var generatedThisRun = generatorSummary.generated() - initial.totalEntries();
-        var parsedThisRun = parserSummary.processed() - initial.parserEntries();
-        var observedInputs = initial.inputEntries() + generatedThisRun - parsedThisRun;
-        var awaitingParser = Math.max(0L, Math.min(corpusEntries, observedInputs));
-        var parserPassesThisRun = parserSummary.passed() - initial.parserPassEntries();
-        var tlcProcessedThisRun = tlcSummary.processed() - initial.tlcEntries();
-        var observedTlcInputs =
-                initial.tlcInputEntries() + parserPassesThisRun - tlcProcessedThisRun;
-        var awaitingTlc = Math.max(0L, Math.min(corpusEntries, observedTlcInputs));
-        var observedApalacheInputs = initial.apalacheInputEntries()
-                + parserPassesThisRun
-                - (apalacheSummary.processed() - initial.apalacheEntries());
-        var awaitingApalache = Math.max(
-                0L, Math.min(corpusEntries, observedApalacheInputs));
-        return new WorkflowProgress(
-                phase,
-                generatorSummary,
-                parserSummary,
-                tlcSummary,
-                apalacheSummary,
-                corpusEntries,
-                awaitingParser,
-                awaitingTlc,
-                awaitingApalache,
-                metrics.totalElapsed(invocationElapsed.elapsed()));
-    }
-
-    private static StageVerdictSummary parserSummary(
-            CorpusInventory inventory, Duration elapsed) {
-        return new StageVerdictSummary(
-                inventory.parserPassEntries(),
-                inventory.parserFailEntries(),
-                inventory.parserCrashEntries(),
-                elapsed);
-    }
-
-    private static StageVerdictSummary tlcSummary(
-            CorpusInventory inventory, Duration elapsed) {
-        return new StageVerdictSummary(
-                inventory.tlcPassEntries(),
-                inventory.tlcFailEntries(),
-                inventory.tlcCrashEntries(),
-                elapsed);
-    }
-
-    private static StageVerdictSummary apalacheSummary(
-            CorpusInventory inventory, Duration elapsed) {
-        return new StageVerdictSummary(
-                inventory.apalachePassEntries(),
-                inventory.apalacheFailEntries(),
-                inventory.apalacheCrashEntries(),
-                elapsed);
-    }
-
+    /** Rejects a corpus that already exceeds any configured limit. */
     private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
         if (inventory.totalEntries() > config.workflow().maximumEntries()) {
             throw new WorkflowException(
                     "corpus contains more entries than workflow.max_entries");
         }
-        if (inventory.inputEntries() > config.workflow().inputs().maximumEntries()) {
-            throw new WorkflowException(
-                    "00-inputs exceeds workflow.inputs.max_entries");
+        if (inventory.pendingEntries(CorpusStage.PARSER)
+                > config.workflow().inputs().maximumEntries()) {
+            throw new WorkflowException("00-inputs exceeds workflow.inputs.max_entries");
         }
-        if (inventory.parserResultEntries()
-                > config.workflow().parser().maximumEntries()) {
-            throw new WorkflowException(
-                    "parser result directories exceed workflow.parser.max_entries");
-        }
-        if (inventory.tlcEntries() > config.workflow().tlc().maximumEntries()) {
-            throw new WorkflowException(
-                    "TLC result directories exceed workflow.tlc.max_entries");
-        }
-        if (inventory.apalacheEntries()
-                > config.workflow().apalache().maximumEntries()) {
-            throw new WorkflowException(
-                    "Apalache result directories exceed workflow.apalache.max_entries");
+        for (var stage : CorpusStage.values()) {
+            if (inventory.resultEntries(stage) > config.workflow().maximumEntries(stage)) {
+                throw new WorkflowException(
+                        stage.displayName()
+                                + " result directories exceed workflow."
+                                + stage.metadataName()
+                                + ".max_entries");
+            }
         }
     }
 
     private record StageRunResult(
             WorkflowRunSummary.StopReason stopReason,
-            PbtStageSummary generator,
-            StageVerdictSummary parser,
-            StageVerdictSummary tlc,
-            StageVerdictSummary apalache,
+            GeneratorSummary generator,
+            Map<CorpusStage, StageVerdictSummary> stages,
             CorpusInventory corpus) {
         WorkflowRunSummary summary(Duration totalElapsed) {
-            return new WorkflowRunSummary(
-                    stopReason, generator, parser, tlc, apalache, corpus, totalElapsed);
+            return new WorkflowRunSummary(stopReason, generator, stages, corpus, totalElapsed);
         }
     }
 

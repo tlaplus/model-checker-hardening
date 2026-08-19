@@ -37,7 +37,7 @@ class TomlConfigTest {
                         + "# Number of concurrent FuzzTLA Apalache workers.\n"
                         + "# Initialized to half the available processors, rounded down (at least one).\n"
                         + "workers = "
-                        + ApalacheStageConfig.DEFAULT_WORKERS));
+                        + CheckerStageConfig.DEFAULT_APALACHE_WORKERS));
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));

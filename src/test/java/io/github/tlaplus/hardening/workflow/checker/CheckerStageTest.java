@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -54,7 +55,7 @@ class CheckerStageTest {
         var initial = StageVerdictSummary.empty();
         var stage = new CheckerStage(
                 backend,
-                initial,
+                0,
                 new StageCounters(initial, new ElapsedTimeAccumulator()),
                 new StageEnvironment(corpus, generator, new CpuBudget(1), control),
                 input);
@@ -70,8 +71,8 @@ class CheckerStageTest {
         assertEquals(1, stage.summary().passed());
         assertEquals(1, stage.summary().crashed());
         var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
-        assertEquals(1, inventory.tlcPassEntries());
-        assertEquals(1, inventory.tlcCrashEntries());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).crashed());
     }
 
     private static final class RestartingBackend implements CheckerBackend {

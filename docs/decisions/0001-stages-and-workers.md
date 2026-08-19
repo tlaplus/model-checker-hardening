@@ -40,11 +40,17 @@ A workflow invocation runs four implemented stages concurrently:
 The implementation mirrors these responsibilities in `workflow.input`,
 `workflow.parser`, `workflow.tlc`, and `workflow.apalache`. The
 `workflow.checker` package owns orchestration shared by TLC and Apalache. Shared
-scheduling and lifecycle machinery lives in `workflow.execution`; child-process
-supervision and protocol code lives in `workflow.worker`; generated-specification
-construction lives in `workflow.spec`.
+scheduling and lifecycle machinery lives in `workflow.execution`, which also owns
+the machinery every stage reuses: the queue and CPU-budget job loop, the
+per-verdict counters, the result-capacity gate, the worker failure guard, and the
+collaborators a stage is constructed with. Child-process supervision and protocol
+code lives in `workflow.worker`; generated-specification construction lives in
+`workflow.spec`.
 The `workflow` package retains the runner, progress and result records, and the
 workflow exception exposed to the CLI.
+The corpus stages parsing, TLC, and Apalache are identified by the `CorpusStage`
+enum, and every per-stage inventory, clock, counter, and configuration table is
+keyed by it. [ADR 0004](0004-stage-identity.md) records that decision.
 
 Parser and checker scratch storage is transient corpus state under
 `.work/{parser,tlc,apalache}-tmp/<worker>`. Each child uses its worker directory

@@ -1,46 +1,49 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
-import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 
 /** Formats live and final workflow counters with one stable table layout. */
 final class RunTable {
     private RunTable() {}
 
     static String progress(WorkflowProgress progress) {
+        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            backlog.put(stage, progress.backlog(stage));
+        }
         return render(new View(
                 "Workflow run in progress",
                 progress.corpusEntries(),
-                progress.awaitingParser(),
-                progress.awaitingTlc(),
-                progress.awaitingApalache(),
+                backlog,
                 progress.generator(),
-                progress.parser(),
-                progress.tlc(),
-                progress.apalache(),
+                progress.stages(),
                 progress.totalElapsed(),
                 progress.phase().toString(),
                 "run state"));
     }
 
     static String finished(Path corpus, WorkflowRunSummary summary) {
+        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            backlog.put(stage, summary.corpus().pendingEntries(stage));
+        }
         return render(new View(
                 "Workflow run finished for '" + corpus + "'",
                 summary.corpus().totalEntries(),
-                summary.corpus().inputEntries(),
-                summary.corpus().tlcInputEntries(),
-                summary.corpus().apalacheInputEntries(),
+                backlog,
                 summary.generator(),
-                summary.parser(),
-                summary.tlc(),
-                summary.apalache(),
+                summary.stages(),
                 summary.totalElapsed(),
                 summary.stopReason().toString(),
                 "stop reason"));
@@ -50,13 +53,9 @@ final class RunTable {
     private record View(
             String header,
             long corpusEntries,
-            long awaitingParser,
-            long awaitingTlc,
-            long awaitingApalache,
-            PbtStageSummary generator,
-            StageVerdictSummary parser,
-            StageVerdictSummary tlc,
-            StageVerdictSummary apalache,
+            Map<CorpusStage, Long> backlog,
+            GeneratorSummary generator,
+            Map<CorpusStage, StageVerdictSummary> stages,
             Duration totalElapsed,
             String stateValue,
             String stateLabel) {}
@@ -66,15 +65,18 @@ final class RunTable {
         try (var writer = new PrintWriter(output)) {
             writer.printf("%s%n%n", view.header());
             printCounter(writer, view.corpusEntries(), "corpus entries");
-            printCounter(writer, view.awaitingParser(), "awaiting parser");
-            printCounter(writer, view.awaitingTlc(), "awaiting TLC");
-            printCounter(writer, view.awaitingApalache(), "awaiting Apalache");
+            for (var stage : CorpusStage.values()) {
+                printCounter(
+                        writer,
+                        view.backlog().get(stage),
+                        "awaiting " + stage.displayName());
+            }
             printCounter(writer, view.generator().generated(), "generated inputs");
             printGenerationCounters(writer, view.generator());
             printElapsed(writer, view.generator().elapsed(), "generator elapsed");
-            printVerdicts(writer, view.parser(), "parser");
-            printVerdicts(writer, view.tlc(), "TLC");
-            printVerdicts(writer, view.apalache(), "Apalache");
+            for (var stage : CorpusStage.values()) {
+                printVerdicts(writer, view.stages().get(stage), stage.displayName());
+            }
             printElapsed(writer, view.totalElapsed(), "total elapsed");
             writer.printf("[%20s %-18s]%n", view.stateValue(), view.stateLabel());
         }
@@ -93,7 +95,7 @@ final class RunTable {
         writer.printf("[%20d %-18s]%n", value, label);
     }
 
-    private static void printGenerationCounters(PrintWriter writer, PbtStageSummary generator) {
+    private static void printGenerationCounters(PrintWriter writer, GeneratorSummary generator) {
         if (generator.richnessSamples() == 0) {
             printStatistic(writer, "n/a", "min richness");
             printStatistic(writer, "n/a", "max richness");

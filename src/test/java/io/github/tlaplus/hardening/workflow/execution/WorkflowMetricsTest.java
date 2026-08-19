@@ -3,7 +3,9 @@ package io.github.tlaplus.hardening.workflow.execution;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class WorkflowMetricsTest {
@@ -12,9 +14,10 @@ class WorkflowMetricsTest {
         var previous = new CorpusRunStatistics(
                 100,
                 20,
-                30,
-                40,
-                50,
+                Map.of(
+                        CorpusStage.PARSER, 30L,
+                        CorpusStage.TLC, 40L,
+                        CorpusStage.APALACHE, 50L),
                 10,
                 3,
                 2,
@@ -25,13 +28,14 @@ class WorkflowMetricsTest {
                 4.0);
         var metrics = new WorkflowMetrics(previous, 7);
 
-        metrics.recordGeneratorAttempt();
-        metrics.recordGeneratorRejection();
-        metrics.recordRichnessRejection();
-        metrics.recordDuplicate();
-        metrics.recordAdmission(8.0);
+        var generator = metrics.generator();
+        generator.recordAttempt();
+        generator.recordRejection();
+        generator.recordRichnessRejection();
+        generator.recordDuplicate();
+        generator.recordAdmission(8.0);
 
-        var summary = metrics.generatorSummary(42);
+        var summary = generator.summary(42);
         assertEquals(8, summary.generated());
         assertEquals(11, summary.attempts());
         assertEquals(4, summary.rejected());
@@ -45,6 +49,9 @@ class WorkflowMetricsTest {
 
         var saved = metrics.snapshot(Duration.ofNanos(25));
         assertEquals(125, saved.totalElapsedNanos());
+        assertEquals(30, saved.stageElapsedNanos(CorpusStage.PARSER));
+        assertEquals(40, saved.stageElapsedNanos(CorpusStage.TLC));
+        assertEquals(50, saved.stageElapsedNanos(CorpusStage.APALACHE));
         assertEquals(11, saved.generatorAttempts());
         assertEquals(3, saved.richnessSamples());
         assertEquals(16.0 / 3.0, saved.averageRichness(), 1e-12);

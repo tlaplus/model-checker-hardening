@@ -8,11 +8,12 @@ import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageWorker;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
-import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -34,7 +35,7 @@ public final class PbtStage implements WorkflowStage {
     private final WorkQueue<Path> output;
     private final Semaphore inputCapacity;
     private final long missingEntries;
-    private final WorkflowMetrics metrics;
+    private final GeneratorStatistics statistics;
     private final AtomicLong nextTarget = new AtomicLong();
     private final WorkerGroup workers = new WorkerGroup("fuzztla-pbt-");
 
@@ -47,7 +48,7 @@ public final class PbtStage implements WorkflowStage {
             int workerLimit,
             WorkQueue<Path> output,
             Semaphore inputCapacity,
-            WorkflowMetrics metrics) {
+            GeneratorStatistics statistics) {
         this.config = Objects.requireNonNull(config, "config");
         if (initialEntries < 0) {
             throw new IllegalArgumentException("initialEntries must be nonnegative");
@@ -65,7 +66,7 @@ public final class PbtStage implements WorkflowStage {
         this.output = Objects.requireNonNull(output, "output");
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
         this.missingEntries = Math.max(0L, maximumEntries - initialEntries);
-        this.metrics = Objects.requireNonNull(metrics, "metrics");
+        this.statistics = Objects.requireNonNull(statistics, "statistics");
     }
 
     @Override
@@ -88,8 +89,8 @@ public final class PbtStage implements WorkflowStage {
         workers.await();
     }
 
-    public PbtStageSummary summary() {
-        return metrics.generatorSummary(seed);
+    public GeneratorSummary summary() {
+        return statistics.summary(seed);
     }
 
     @Override
@@ -150,12 +151,12 @@ public final class PbtStage implements WorkflowStage {
                             environment.control()::shouldStop)) {
                         return;
                     }
-                    metrics.generatorElapsed().start();
+                    statistics.elapsed().start();
                     try {
                         final byte[] input;
                         final double richness;
                         try {
-                            metrics.recordGeneratorAttempt();
+                            statistics.recordAttempt();
                             entryAttempts++;
                             var length = InputLengthSampler.sample(
                                     inputRandom, config.maximumInputBytes());
@@ -166,7 +167,7 @@ public final class PbtStage implements WorkflowStage {
                                 richness = CollectionRichness.score(
                                         expression, config.richnessNestingBase());
                             } catch (InputRejectedException exception) {
-                                metrics.recordGeneratorRejection();
+                                statistics.recordRejection();
                                 continue;
                             } catch (RuntimeException | StackOverflowError exception) {
                                 throw generatorCrash(
@@ -183,7 +184,7 @@ public final class PbtStage implements WorkflowStage {
 
                         bestRichness = Math.max(bestRichness, richness);
                         if (richness < threshold) {
-                            metrics.recordRichnessRejection();
+                            statistics.recordRichnessRejection();
                             continue;
                         }
 
@@ -191,15 +192,15 @@ public final class PbtStage implements WorkflowStage {
                                 .store(input, new GenerationMetadata(cohort, richness));
                         switch (stored) {
                             case ADDED -> {
-                                metrics.recordAdmission(richness);
+                                statistics.recordAdmission(richness);
                                 keepInputSlot = true;
                                 output.submit(environment.corpus().inputPath(input));
                                 break;
                             }
-                            case DUPLICATE -> metrics.recordDuplicate();
+                            case DUPLICATE -> statistics.recordDuplicate();
                         }
                     } finally {
-                        metrics.generatorElapsed().stop();
+                        statistics.elapsed().stop();
                     }
                 } finally {
                     if (!keepInputSlot) {

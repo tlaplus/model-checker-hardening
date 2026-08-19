@@ -30,7 +30,7 @@ public record StageMetadata(
             throw new IllegalArgumentException(
                     "checker failure metadata requires the fail verdict");
         }
-        CorpusStageLayout.fromMetadataName(stage)
+        CorpusStage.fromMetadataName(stage)
                 .ifPresent(layout -> validateFailureMetadata(
                         layout, verdict, failure.isPresent()));
     }
@@ -40,7 +40,7 @@ public record StageMetadata(
     }
 
     private static void validateFailureMetadata(
-            CorpusStageLayout stageLayout, String verdict, boolean hasFailure) {
+            CorpusStage stageLayout, String verdict, boolean hasFailure) {
         switch (stageLayout) {
             case PARSER -> {
                 if (hasFailure) {

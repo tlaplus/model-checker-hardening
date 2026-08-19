@@ -39,7 +39,7 @@ public final class ParserStage implements WorkflowStage {
     public ParserStage(
             ParserStageConfig config,
             int workerCount,
-            StageVerdictSummary initialStatistics,
+            long initialOccupancy,
             StageCounters counters,
             StageEnvironment environment,
             Path scratchDirectory,
@@ -60,10 +60,8 @@ public final class ParserStage implements WorkflowStage {
                 Objects.requireNonNull(tlcOutput, "tlcOutput"),
                 Objects.requireNonNull(apalacheOutput, "apalacheOutput"));
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
-        Objects.requireNonNull(initialStatistics, "initialStatistics");
         // A parser pass leaves the parser's result directories, so only failures occupy them.
-        resultCapacity = new OccupancyGate(
-                initialStatistics.failed() + initialStatistics.crashed(), config.maximumEntries());
+        resultCapacity = new OccupancyGate(initialOccupancy, config.maximumEntries());
         jobs = new StageJobLoop<>(
                 input,
                 environment.cpuBudget(),

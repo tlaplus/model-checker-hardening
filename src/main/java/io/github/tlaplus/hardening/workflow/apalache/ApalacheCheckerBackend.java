@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
-import io.github.tlaplus.hardening.config.ApalacheStageConfig;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
@@ -11,12 +11,12 @@ import java.util.Optional;
 
 /** Adapts persistent Apalache tool workers to the shared checker stage. */
 public final class ApalacheCheckerBackend implements CheckerBackend {
-    private final ApalacheStageConfig config;
+    private final CheckerStageConfig config;
     private final Path releaseJar;
     private final Path scratchDirectory;
 
     public ApalacheCheckerBackend(
-            ApalacheStageConfig config, Path releaseJar, Path scratchDirectory) {
+            CheckerStageConfig config, Path releaseJar, Path scratchDirectory) {
         this.config = Objects.requireNonNull(config, "config");
         this.releaseJar = Objects.requireNonNull(releaseJar, "releaseJar");
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");

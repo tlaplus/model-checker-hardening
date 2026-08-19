@@ -6,13 +6,16 @@ import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 
 /** Encodes and decodes the aggregate workflow-statistics CBOR document. */
 final class CorpusRunStatisticsCodec {
     private static final String ELAPSED_FIELD = "elapsedNs";
     private static final String GENERATOR_FIELD = "generator";
+    private static final String STAGES_FIELD = "stages";
     private static final CBORFactory FACTORY = new CBORFactory();
 
     private CorpusRunStatisticsCodec() {}
@@ -23,12 +26,16 @@ final class CorpusRunStatisticsCodec {
         try (var generator = FACTORY.createGenerator(output)) {
             generator.writeStartObject(null, 2);
             generator.writeFieldName(ELAPSED_FIELD);
-            generator.writeStartObject(null, 5);
+            generator.writeStartObject(null, 3);
             generator.writeNumberField("total", statistics.totalElapsedNanos());
             generator.writeNumberField("generator", statistics.generatorElapsedNanos());
-            generator.writeNumberField("parser", statistics.parserElapsedNanos());
-            generator.writeNumberField("tlc", statistics.tlcElapsedNanos());
-            generator.writeNumberField("apalache", statistics.apalacheElapsedNanos());
+            generator.writeFieldName(STAGES_FIELD);
+            generator.writeStartObject(null, CorpusStage.values().length);
+            for (var stage : CorpusStage.values()) {
+                generator.writeNumberField(
+                        stage.metadataName(), statistics.stageElapsedNanos(stage));
+            }
+            generator.writeEndObject();
             generator.writeEndObject();
             generator.writeFieldName(GENERATOR_FIELD);
             generator.writeStartObject(null, 8);
@@ -87,9 +94,7 @@ final class CorpusRunStatisticsCodec {
                 return new CorpusRunStatistics(
                         elapsed.total(),
                         elapsed.generator(),
-                        elapsed.parser(),
-                        elapsed.tlc(),
-                        elapsed.apalache(),
+                        elapsed.stages(),
                         generator.attempts(),
                         generator.rejected(),
                         generator.richnessRejected(),
@@ -112,9 +117,7 @@ final class CorpusRunStatisticsCodec {
     private static Elapsed readElapsed(CBORParser parser) throws IOException {
         Long total = null;
         Long generator = null;
-        Long parserElapsed = null;
-        Long tlc = null;
-        Long apalache = null;
+        Map<CorpusStage, Long> stages = null;
         var fields = new HashSet<String>();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             var field = readFieldName(parser, fields, ELAPSED_FIELD + ".");
@@ -123,18 +126,39 @@ final class CorpusRunStatisticsCodec {
                 case "total" -> total = readLong(parser, value, "elapsedNs.total");
                 case "generator" ->
                     generator = readLong(parser, value, "elapsedNs.generator");
-                case "parser" -> parserElapsed = readLong(parser, value, "elapsedNs.parser");
-                case "tlc" -> tlc = readLong(parser, value, "elapsedNs.tlc");
-                case "apalache" -> apalache = readLong(parser, value, "elapsedNs.apalache");
+                case STAGES_FIELD -> {
+                    requireMap(value, "elapsedNs.stages");
+                    stages = readStageElapsed(parser);
+                }
                 default -> parser.skipChildren();
             }
         }
         return new Elapsed(
                 required(total, "elapsedNs.total"),
                 required(generator, "elapsedNs.generator"),
-                required(parserElapsed, "elapsedNs.parser"),
-                required(tlc, "elapsedNs.tlc"),
-                required(apalache, "elapsedNs.apalache"));
+                required(stages, "elapsedNs.stages"));
+    }
+
+    /**
+     * Reads per-stage elapsed time. A stage this build does not know is skipped, and a stage the
+     * document omits contributes nothing, so a stage may be added or removed without a migration.
+     */
+    private static Map<CorpusStage, Long> readStageElapsed(CBORParser parser) throws IOException {
+        var stages = new EnumMap<CorpusStage, Long>(CorpusStage.class);
+        var fields = new HashSet<String>();
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            var field = readFieldName(parser, fields, ELAPSED_FIELD + "." + STAGES_FIELD + ".");
+            var value = parser.nextToken();
+            var stage = CorpusStage.fromMetadataName(field);
+            if (stage.isPresent()) {
+                stages.put(
+                        stage.orElseThrow(),
+                        readLong(parser, value, "elapsedNs.stages." + field));
+            } else {
+                parser.skipChildren();
+            }
+        }
+        return stages;
     }
 
     private static Generator readGenerator(CBORParser parser) throws IOException {
@@ -226,7 +250,7 @@ final class CorpusRunStatisticsCodec {
         return new CorpusStatisticsFormatException(message);
     }
 
-    private record Elapsed(long total, long generator, long parser, long tlc, long apalache) {}
+    private record Elapsed(long total, long generator, Map<CorpusStage, Long> stages) {}
 
     private record Generator(
             long attempts,

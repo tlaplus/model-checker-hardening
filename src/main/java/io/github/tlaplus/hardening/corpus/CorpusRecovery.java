@@ -46,7 +46,7 @@ final class CorpusRecovery {
     /** Recovers durable transitions and returns a validated snapshot of the corpus. */
     CorpusInventory recover() throws IOException, CorpusException {
         // Finish durable transitions before inspecting the steady-state directories.
-        for (var stage : CorpusStageLayout.values()) {
+        for (var stage : CorpusStage.values()) {
             recoverTransitions(stage);
         }
         fanOutParserPasses();
@@ -58,7 +58,7 @@ final class CorpusRecovery {
         // Validate inputs that are still waiting for the parser.
         for (var path : entries.entryPaths(layout.resolve(CorpusPath.INPUT))) {
             var entry = entries.verify(path);
-            for (var stage : CorpusStageLayout.values()) {
+            for (var stage : CorpusStage.values()) {
                 CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), stage);
             }
             addLogicalName(logicalNames, path.getFileName().toString());
@@ -76,10 +76,10 @@ final class CorpusRecovery {
                 continue;
             }
             var count = visitResultEntries(
-                    CorpusStageLayout.PARSER,
+                    CorpusStage.PARSER,
                     verdict,
                     entry -> {
-                        for (var checker : CorpusStageLayout.checkerBranches()) {
+                        for (var checker : CorpusStage.checkerBranches()) {
                             CorpusEntries.requireMissingStage(
                                     entry.path(), entry.encoded(), checker);
                         }
@@ -90,35 +90,41 @@ final class CorpusRecovery {
 
         // Validate each checker branch and distinguish pending inputs from completed results.
         var checkerBranches =
-                new EnumMap<CorpusStageLayout, CheckerBranch>(CorpusStageLayout.class);
-        for (var checker : CorpusStageLayout.checkerBranches()) {
+                new EnumMap<CorpusStage, CheckerBranch>(CorpusStage.class);
+        for (var checker : CorpusStage.checkerBranches()) {
             checkerBranches.put(checker, visitCheckerBranch(checker));
         }
         var parserPass = validateAndRegisterCheckerBranches(checkerBranches, logicalNames);
-        var tlcBranch = checkerBranches.get(CorpusStageLayout.TLC);
-        var apalacheBranch = checkerBranches.get(CorpusStageLayout.APALACHE);
 
         // Publish counts only after the entire corpus has passed validation.
-        return new CorpusInventory(
-                inputs,
-                tlcBranch.inputs(),
-                apalacheBranch.inputs(),
-                parserPass,
-                parserResultCounts.get(CorpusVerdict.FAIL),
-                parserResultCounts.get(CorpusVerdict.CRASH),
-                tlcBranch.resultCount(CorpusVerdict.PASS),
-                tlcBranch.resultCount(CorpusVerdict.FAIL),
-                tlcBranch.resultCount(CorpusVerdict.CRASH),
-                apalacheBranch.resultCount(CorpusVerdict.PASS),
-                apalacheBranch.resultCount(CorpusVerdict.FAIL),
-                apalacheBranch.resultCount(CorpusVerdict.CRASH));
+        var stages = new EnumMap<CorpusStage, CorpusInventory.StageEntries>(CorpusStage.class);
+        stages.put(
+                CorpusStage.PARSER,
+                new CorpusInventory.StageEntries(
+                        inputs,
+                        new StageEntryCounts(
+                                parserPass,
+                                parserResultCounts.get(CorpusVerdict.FAIL),
+                                parserResultCounts.get(CorpusVerdict.CRASH))));
+        for (var checker : CorpusStage.checkerBranches()) {
+            var branch = checkerBranches.get(checker);
+            stages.put(
+                    checker,
+                    new CorpusInventory.StageEntries(
+                            branch.inputs(),
+                            new StageEntryCounts(
+                                    branch.resultCount(CorpusVerdict.PASS),
+                                    branch.resultCount(CorpusVerdict.FAIL),
+                                    branch.resultCount(CorpusVerdict.CRASH))));
+        }
+        return new CorpusInventory(stages);
     }
 
     /**
      * Moves entries whose stage metadata was committed before an interruption into the result
      * directory their verdict names, completing the crash sidecar on the way.
      */
-    private void recoverTransitions(CorpusStageLayout stage) throws IOException, CorpusException {
+    private void recoverTransitions(CorpusStage stage) throws IOException, CorpusException {
         for (var path : entries.entryPaths(layout.resolve(stage.input()))) {
             var entry = entries.verify(path);
             var encodedVerdict = CorpusEntries.stageVerdict(entry.path(), entry.encoded(), stage);
@@ -160,7 +166,7 @@ final class CorpusRecovery {
 
     /** Validates one result directory and reports how many entries it holds. */
     private long visitResultEntries(
-            CorpusStageLayout stage,
+            CorpusStage stage,
             CorpusVerdict verdict,
             ThrowingConsumer<Entry, CorpusException> consumer)
             throws IOException, CorpusException {
@@ -188,7 +194,7 @@ final class CorpusRecovery {
     }
 
     /** Validates one checker branch: its pending inputs and each of its result directories. */
-    private CheckerBranch visitCheckerBranch(CorpusStageLayout checker)
+    private CheckerBranch visitCheckerBranch(CorpusStage checker)
             throws IOException, CorpusException {
         var inputs = new ArrayList<Path>();
         var branchEntries = new HashMap<String, Entry>();
@@ -197,7 +203,7 @@ final class CorpusRecovery {
         for (var path : entries.entryPaths(layout.resolve(checker.input()))) {
             var entry = entries.verify(path);
             CorpusEntries.requireStageVerdict(
-                    entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+                    entry, CorpusStage.PARSER, CorpusVerdict.PASS);
             CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), checker);
             requireMissingOtherCheckerStages(checker, entry);
             addCheckerBranchEntry(checker, branchEntries, entry);
@@ -209,7 +215,7 @@ final class CorpusRecovery {
                     verdict,
                     entry -> {
                         CorpusEntries.requireStageVerdict(
-                                entry, CorpusStageLayout.PARSER, CorpusVerdict.PASS);
+                                entry, CorpusStage.PARSER, CorpusVerdict.PASS);
                         requireMissingOtherCheckerStages(checker, entry);
                         addCheckerBranchEntry(checker, branchEntries, entry);
                     });
@@ -219,7 +225,7 @@ final class CorpusRecovery {
     }
 
     private void addCheckerBranchEntry(
-            CorpusStageLayout checker, Map<String, Entry> branch, Entry entry)
+            CorpusStage checker, Map<String, Entry> branch, Entry entry)
             throws CorpusException {
         var name = entry.path().getFileName().toString();
         if (branch.put(name, entry) != null) {
@@ -230,9 +236,9 @@ final class CorpusRecovery {
         }
     }
 
-    private void requireMissingOtherCheckerStages(CorpusStageLayout checker, Entry entry)
+    private void requireMissingOtherCheckerStages(CorpusStage checker, Entry entry)
             throws CorpusException {
-        for (var otherChecker : CorpusStageLayout.checkerBranches()) {
+        for (var otherChecker : CorpusStage.checkerBranches()) {
             if (otherChecker != checker) {
                 CorpusEntries.requireMissingStage(
                         entry.path(), entry.encoded(), otherChecker);
@@ -245,15 +251,15 @@ final class CorpusRecovery {
      * output, and returns the number of logical entries the parser has passed.
      */
     private long validateAndRegisterCheckerBranches(
-            Map<CorpusStageLayout, CheckerBranch> branches, Set<String> logicalNames)
+            Map<CorpusStage, CheckerBranch> branches, Set<String> logicalNames)
             throws CorpusException {
         var logicalEntries = new TreeSet<String>();
-        for (var checker : CorpusStageLayout.checkerBranches()) {
+        for (var checker : CorpusStage.checkerBranches()) {
             logicalEntries.addAll(branches.get(checker).entries().keySet());
         }
 
         var missingDescriptions = new ArrayList<String>();
-        for (var checker : CorpusStageLayout.checkerBranches()) {
+        for (var checker : CorpusStage.checkerBranches()) {
             var missing = new TreeSet<>(logicalEntries);
             missing.removeAll(branches.get(checker).entries().keySet());
             if (!missing.isEmpty()) {
@@ -268,7 +274,7 @@ final class CorpusRecovery {
 
         for (var name : logicalEntries) {
             Entry reference = null;
-            for (var checker : CorpusStageLayout.checkerBranches()) {
+            for (var checker : CorpusStage.checkerBranches()) {
                 var candidate = branches.get(checker).entries().get(name);
                 if (reference == null) {
                     reference = candidate;

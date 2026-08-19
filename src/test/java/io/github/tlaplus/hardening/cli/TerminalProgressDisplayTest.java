@@ -5,15 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.StageEntryCounts;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
-import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
-import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class TerminalProgressDisplayTest {
@@ -65,15 +69,20 @@ class TerminalProgressDisplayTest {
     void rendersAdmittedInputRichnessStatistics() {
         var snapshot = new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
-                new PbtStageSummary(
+                new GeneratorSummary(
                         42, 3, 5, 0, 1, 1, 3, 1.25, 9.0, 4.5, Duration.ofSeconds(3)),
-                new StageVerdictSummary(2, 0, 0, Duration.ofSeconds(2)),
-                new StageVerdictSummary(1, 0, 0, Duration.ofSeconds(1)),
-                new StageVerdictSummary(0, 0, 0, Duration.ZERO),
+                Map.of(
+                        CorpusStage.PARSER,
+                        new StageVerdictSummary(2, 0, 0, Duration.ofSeconds(2)),
+                        CorpusStage.TLC,
+                        new StageVerdictSummary(1, 0, 0, Duration.ofSeconds(1)),
+                        CorpusStage.APALACHE,
+                        new StageVerdictSummary(0, 0, 0, Duration.ZERO)),
+                Map.of(
+                        CorpusStage.PARSER, 1L,
+                        CorpusStage.TLC, 1L,
+                        CorpusStage.APALACHE, 2L),
                 3,
-                1,
-                1,
-                2,
                 Duration.ofSeconds(4));
 
         var table = RunTable.progress(snapshot);
@@ -108,25 +117,20 @@ class TerminalProgressDisplayTest {
     @Test
     void omitsTheSeedFromLiveAndFinalTables() {
         var snapshot = progress(WorkflowProgress.Phase.RUNNING, 3, 1);
+        var stages = new EnumMap<CorpusStage, CorpusInventory.StageEntries>(CorpusStage.class);
+        stages.put(
+                CorpusStage.PARSER,
+                new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 1, 0)));
+        for (var checker : CorpusStage.checkerBranches()) {
+            stages.put(
+                    checker,
+                    new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 0, 0)));
+        }
         var summary = new WorkflowRunSummary(
                 WorkflowRunSummary.StopReason.COMPLETED,
                 snapshot.generator(),
-                snapshot.parser(),
-                snapshot.tlc(),
-                snapshot.apalache(),
-                new CorpusInventory(
-                        List.of(),
-                        List.of(),
-                        List.of(),
-                        1,
-                        1,
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0),
+                snapshot.stages(),
+                new CorpusInventory(stages),
                 snapshot.totalElapsed());
 
         assertFalse(RunTable.progress(snapshot).contains("random seed"));
@@ -137,7 +141,7 @@ class TerminalProgressDisplayTest {
             WorkflowProgress.Phase phase, long generated, long parsed) {
         return new WorkflowProgress(
                 phase,
-                new PbtStageSummary(
+                new GeneratorSummary(
                         42,
                         generated,
                         generated,
@@ -149,14 +153,21 @@ class TerminalProgressDisplayTest {
                         0.0,
                         0.0,
                         Duration.ofSeconds(generated)),
-                new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
-                new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
-                new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed)),
+                stageSummaries(new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed))),
+                Map.of(
+                        CorpusStage.PARSER, generated - parsed,
+                        CorpusStage.TLC, 0L,
+                        CorpusStage.APALACHE, 0L),
                 generated,
-                generated - parsed,
-                0,
-                0,
                 Duration.ofSeconds(generated));
+    }
+
+    private Map<CorpusStage, StageVerdictSummary> stageSummaries(StageVerdictSummary summary) {
+        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
+        for (var stage : CorpusStage.values()) {
+            stages.put(stage, summary);
+        }
+        return stages;
     }
 
     private String erase(String table) {
