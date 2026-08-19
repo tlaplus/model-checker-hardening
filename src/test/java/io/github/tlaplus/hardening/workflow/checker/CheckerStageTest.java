@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
@@ -34,7 +35,7 @@ class CheckerStageTest {
             corpus.store(payload);
             var parserPass = corpus.completeParser(
                     corpus.inputPath(payload),
-                    "pass",
+                    CorpusVerdict.PASS,
                     Instant.ofEpochSecond(1),
                     Instant.ofEpochSecond(2));
             corpus.fanOutParserPass(parserPass);

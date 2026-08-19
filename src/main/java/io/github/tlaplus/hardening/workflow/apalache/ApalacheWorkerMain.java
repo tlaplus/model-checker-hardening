@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -12,17 +13,14 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Comparator;
 import scala.Console$;
 
 /** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
 public final class ApalacheWorkerMain {
     private static final int MAXIMUM_OUTPUT_BYTES = 1024 * 1024 - 128;
-    private static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
     private static final String SPECIFICATION_FILE = "FuzzInput.tla";
     private static final String TOOL_CLASS = "at.forsyte.apalache.tla.Tool";
 
@@ -146,23 +144,12 @@ public final class ApalacheWorkerMain {
     private static void deletePending(ArrayList<Path> pending) {
         pending.removeIf(path -> {
             try {
-                deleteRecursively(path);
+                FileTrees.deleteRecursively(path);
                 return true;
             } catch (IOException ignored) {
                 // The parent removes the complete worker directory after the JVM exits.
                 return false;
             }
         });
-    }
-
-    private static void deleteRecursively(Path root) throws IOException {
-        if (Files.notExists(root, NO_FOLLOW_LINKS)) {
-            return;
-        }
-        try (var paths = Files.walk(root)) {
-            for (var path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.deleteIfExists(path);
-            }
-        }
     }
 }

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.input;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -243,13 +244,14 @@ public final class PbtStage implements WorkflowStage {
                 + " at target attempt "
                 + targetAttempt
                 + ": "
-                + diagnostic(failure);
+                + Diagnostics.message(failure);
         try {
             var candidate = corpus.recordGeneratorCrash(input, failure);
             message += "; candidate saved to '" + candidate + "'";
         } catch (IOException | CorpusException | RuntimeException recordingFailure) {
             failure.addSuppressed(recordingFailure);
-            message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+            message += "; crash artifact could not be saved: "
+                    + Diagnostics.message(recordingFailure);
         }
         return new WorkflowException(message, failure);
     }
@@ -267,13 +269,6 @@ public final class PbtStage implements WorkflowStage {
             seeds[workerId] = source.nextLong();
         }
         return seeds;
-    }
-
-    private static String diagnostic(Throwable failure) {
-        var message = failure.getMessage();
-        return message == null || message.isBlank()
-                ? failure.getClass().getSimpleName()
-                : message;
     }
 
     private boolean acquireInputCapacity() throws InterruptedException {

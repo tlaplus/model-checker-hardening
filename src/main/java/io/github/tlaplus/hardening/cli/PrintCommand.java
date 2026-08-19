@@ -4,6 +4,7 @@ import at.forsyte.apalache.io.lir.PrettyWriter;
 import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
@@ -21,13 +22,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.Callable;
-import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
+import picocli.CommandLine;
 
 @Command(
         name = "print",
@@ -68,7 +69,7 @@ final class PrintCommand implements Callable<Integer> {
                         .getErr()
                         .printf(
                                 "fuzztla: cannot read corpus '%s': %s%n",
-                                corpus, CliDiagnostics.message(exception));
+                                corpus, Diagnostics.message(exception));
                 return CommandLine.ExitCode.SOFTWARE;
             }
         }
@@ -81,7 +82,7 @@ final class PrintCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: cannot read '%s': %s%n",
-                            input, CliDiagnostics.message(exception));
+                            input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
 
@@ -100,7 +101,7 @@ final class PrintCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: cannot decode '%s': %s%n",
-                            input, CliDiagnostics.message(exception));
+                            input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
         if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
@@ -130,7 +131,7 @@ final class PrintCommand implements Callable<Integer> {
                     .getErr()
                     .printf(
                             "fuzztla: cannot generate expression from '%s': %s%n",
-                            input, CliDiagnostics.message(exception));
+                            input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
     }

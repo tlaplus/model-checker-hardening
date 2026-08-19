@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -155,7 +156,10 @@ public final class CorpusDirectory {
             return CorpusRunStatisticsCodec.decode(Files.readAllBytes(path));
         } catch (CorpusStatisticsFormatException exception) {
             throw new CorpusException(
-                    "invalid workflow statistics file '" + path + "': " + diagnostic(exception),
+                    "invalid workflow statistics file '"
+                            + path
+                            + "': "
+                            + Diagnostics.message(exception),
                     exception);
         }
     }
@@ -165,22 +169,8 @@ public final class CorpusDirectory {
             throws IOException {
         var encoded = CorpusRunStatisticsCodec.encode(
                 Objects.requireNonNull(statistics, "statistics"));
-        var temporary = Files.createTempFile(
-                resolve(CorpusPath.WORK), "workflow-stats-", ".cbor");
-        try {
-            Files.write(
-                    temporary,
-                    encoded,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    resolve(CorpusPath.WORKFLOW_STATISTICS),
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        replaceAtomically(
+                resolve(CorpusPath.WORKFLOW_STATISTICS), "workflow-stats-", encoded);
     }
 
     /** Acquires the process-wide exclusive lock for this corpus. */
@@ -356,9 +346,15 @@ public final class CorpusDirectory {
         var crashDirectory = resolve(CorpusPath.GENERATOR_CRASH);
         var candidate = crashDirectory.resolve(digest + ".cbor");
         var report = crashDirectory.resolve(digest + CRASH_REPORT_EXTENSION);
-        replaceAtomically(candidate, CorpusInputCodec.encode(CorpusInput.expression(payload)));
+        replaceAtomically(
+                candidate,
+                "generator-crash-",
+                CorpusInputCodec.encode(CorpusInput.expression(payload)));
         try {
-            replaceAtomically(report, stackTrace(failure).getBytes(StandardCharsets.UTF_8));
+            replaceAtomically(
+                    report,
+                    "generator-crash-",
+                    stackTrace(failure).getBytes(StandardCharsets.UTF_8));
         } catch (IOException exception) {
             throw new CorpusException(
                     "generator crash candidate was saved to '"
@@ -387,7 +383,7 @@ public final class CorpusDirectory {
     }
 
     public synchronized Path completeParser(
-            Path source, String verdict, Instant startTime, Instant endTime)
+            Path source, CorpusVerdict verdict, Instant startTime, Instant endTime)
             throws IOException, CorpusException {
         return completeParser(source, verdict, startTime, endTime, "");
     }
@@ -395,7 +391,7 @@ public final class CorpusDirectory {
     /** Records a parser result and atomically moves it to its result directory. */
     public synchronized Path completeParser(
             Path source,
-            String verdict,
+            CorpusVerdict verdict,
             Instant startTime,
             Instant endTime,
             String diagnostic)
@@ -431,7 +427,7 @@ public final class CorpusDirectory {
     /** Records a checker result and atomically moves it to its result directory. */
     public synchronized Path completeChecker(
             Path source,
-            String verdict,
+            CorpusVerdict verdict,
             Instant startTime,
             Instant endTime,
             Optional<CheckerFailure> failure,
@@ -466,7 +462,7 @@ public final class CorpusDirectory {
     private Path completeStage(
             Path source,
             CorpusStageLayout stage,
-            String verdict,
+            CorpusVerdict verdict,
             Instant startTime,
             Instant endTime,
             Optional<CheckerFailure> failure,
@@ -474,19 +470,13 @@ public final class CorpusDirectory {
             throws IOException, CorpusException {
         // Validate the requested transition and resolve its result path before changing the corpus.
         requireOwnedPath(source, stage.input(), stage.displayName() + " input");
+        Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(failure, "failure");
         Objects.requireNonNull(diagnostic, "diagnostic");
-        final CorpusVerdict corpusVerdict;
-        try {
-            corpusVerdict = CorpusVerdict.fromEncodedName(verdict);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException(
-                    "unsupported " + stage.displayName() + " verdict: " + verdict, exception);
-        }
         var encoded = Files.readAllBytes(source);
         var entry = decodeEntry(source, encoded);
         requireMissingStage(entry.path(), entry.encoded(), stage);
-        var destinationDirectory = resolve(stage.result(corpusVerdict));
+        var destinationDirectory = resolve(stage.result(verdict));
         var destination = destinationDirectory.resolve(source.getFileName());
         if (Files.exists(destination, NO_FOLLOW_LINKS)) {
             throw new CorpusException(
@@ -496,7 +486,7 @@ public final class CorpusDirectory {
         // A crash transition also owns a sidecar that must move with the corpus entry.
         Path stagedCrashReport = null;
         Path crashReportDestination = null;
-        if (corpusVerdict == CorpusVerdict.CRASH) {
+        if (verdict == CorpusVerdict.CRASH) {
             var reportName = crashReportName(source);
             stagedCrashReport = stagedCrashReport(stage, reportName);
             crashReportDestination = resolve(stage.result(CorpusVerdict.CRASH)).resolve(reportName);
@@ -515,34 +505,23 @@ public final class CorpusDirectory {
                     encoded,
                     new StageMetadata(
                             stage.metadataName(),
-                            corpusVerdict.encodedName(),
+                            verdict.encodedName(),
                             startTime,
                             endTime,
                             failure));
         } catch (CorpusInputFormatException exception) {
             throw new CorpusException(
-                    "invalid CBOR corpus entry: " + source + ": " + diagnostic(exception),
+                    "invalid CBOR corpus entry: " + source + ": " + Diagnostics.message(exception),
                     exception);
         }
 
         // Commit metadata first; recovery can then finish the sidecar and directory moves.
-        var temporary = Files.createTempFile(
-                resolve(CorpusPath.WORK), stage.metadataName() + "-", ".cbor");
         var metadataCommitted = false;
         try {
             if (stagedCrashReport != null) {
                 stageCrashReport(stagedCrashReport, diagnostic, stage.displayName());
             }
-            Files.write(
-                    temporary,
-                    updated,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    source,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
+            replaceAtomically(source, stage.metadataName() + "-", updated);
             metadataCommitted = true;
             if (stagedCrashReport != null) {
                 Files.move(
@@ -554,7 +533,6 @@ public final class CorpusDirectory {
             return destination;
         } finally {
             // Preserve a staged sidecar only when committed metadata makes it recoverable.
-            Files.deleteIfExists(temporary);
             if (!metadataCommitted && stagedCrashReport != null) {
                 Files.deleteIfExists(stagedCrashReport);
             }
@@ -747,17 +725,7 @@ public final class CorpusDirectory {
             requireSameParserOutput(source.getFileName().toString(), existing, candidate);
             return;
         }
-        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), "fanout-", ".cbor");
-        try {
-            Files.write(
-                    temporary,
-                    encoded,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        createAtomically(destination, "fanout-", encoded);
     }
 
     private List<Path> entryPaths(Path directory) throws IOException, CorpusException {
@@ -842,7 +810,8 @@ public final class CorpusDirectory {
             generator.generate(input);
         } catch (InputRejectedException exception) {
             throw new CorpusException(
-                    "corpus entry is rejected: " + path + ": " + diagnostic(exception), exception);
+                    "corpus entry is rejected: " + path + ": " + Diagnostics.message(exception),
+                    exception);
         } catch (RuntimeException | StackOverflowError exception) {
             throw generatorCrash(path, input, exception);
         }
@@ -855,7 +824,7 @@ public final class CorpusDirectory {
             envelope = CorpusInputCodec.decodeEnvelope(encoded);
         } catch (CorpusInputFormatException exception) {
             throw new CorpusException(
-                    "invalid CBOR corpus entry: " + path + ": " + diagnostic(exception),
+                    "invalid CBOR corpus entry: " + path + ": " + Diagnostics.message(exception),
                     exception);
         }
         if (envelope.corpusInput().kind() != CorpusInput.Kind.EXPRESSION) {
@@ -933,7 +902,7 @@ public final class CorpusDirectory {
                             + " metadata: "
                             + path
                             + ": "
-                            + diagnostic(exception),
+                            + Diagnostics.message(exception),
                     exception);
         }
     }
@@ -952,22 +921,7 @@ public final class CorpusDirectory {
         if (!report.endsWith("\n")) {
             report += System.lineSeparator();
         }
-        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), "crash-", ".tmp");
-        try {
-            Files.writeString(
-                    temporary,
-                    report,
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    stagedReport,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        replaceAtomically(stagedReport, "crash-", report.getBytes(StandardCharsets.UTF_8));
     }
 
     private void recoverCrashReport(Path source, CorpusStageLayout stage)
@@ -1016,13 +970,14 @@ public final class CorpusDirectory {
         var message = "cannot generate expression from corpus entry '"
                 + source
                 + "': "
-                + diagnostic(failure);
+                + Diagnostics.message(failure);
         try {
             var candidate = recordGeneratorCrash(input, failure);
             message += "; crash saved to '" + candidate + "'";
         } catch (IOException | CorpusException | RuntimeException recordingFailure) {
             failure.addSuppressed(recordingFailure);
-            message += "; crash artifact could not be saved: " + diagnostic(recordingFailure);
+            message += "; crash artifact could not be saved: "
+                    + Diagnostics.message(recordingFailure);
         }
         return new CorpusException(message, failure);
     }
@@ -1056,19 +1011,41 @@ public final class CorpusDirectory {
         return result;
     }
 
-    private static void replaceAtomically(Path destination, byte[] contents) throws IOException {
-        var temporary = Files.createTempFile(destination.getParent(), "crash-", ".tmp");
+    /**
+     * Writes contents to a temporary file under {@link CorpusPath#WORK}, then atomically moves it
+     * onto the destination, replacing any existing file. The temporary file never survives the
+     * call. Both paths lie inside the corpus, so the move stays within one file system.
+     */
+    private void replaceAtomically(Path destination, String temporaryPrefix, byte[] contents)
+            throws IOException {
+        moveAtomically(
+                destination,
+                temporaryPrefix,
+                contents,
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /** As {@link #replaceAtomically}, but fails when the destination already exists. */
+    private void createAtomically(Path destination, String temporaryPrefix, byte[] contents)
+            throws IOException {
+        moveAtomically(destination, temporaryPrefix, contents, StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    private void moveAtomically(
+            Path destination,
+            String temporaryPrefix,
+            byte[] contents,
+            StandardCopyOption... moveOptions)
+            throws IOException {
+        var temporary = Files.createTempFile(resolve(CorpusPath.WORK), temporaryPrefix, ".tmp");
         try {
             Files.write(
                     temporary,
                     contents,
                     StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
-            Files.move(
-                    temporary,
-                    destination,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
+            Files.move(temporary, destination, moveOptions);
         } finally {
             Files.deleteIfExists(temporary);
         }
@@ -1090,13 +1067,6 @@ public final class CorpusDirectory {
         var output = new StringWriter();
         failure.printStackTrace(new PrintWriter(output));
         return output.toString();
-    }
-
-    private static String diagnostic(Throwable exception) {
-        var message = exception.getMessage();
-        return message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : message;
     }
 
     @FunctionalInterface

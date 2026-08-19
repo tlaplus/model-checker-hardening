@@ -8,6 +8,7 @@ import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -130,7 +131,7 @@ public final class CorpusInputCodec {
             throw exception;
         } catch (IOException exception) {
             throw new CorpusInputFormatException(
-                    "invalid CBOR: " + diagnostic(exception), exception);
+                    "invalid CBOR: " + Diagnostics.message(exception), exception);
         }
     }
 
@@ -161,7 +162,7 @@ public final class CorpusInputCodec {
             throw exception;
         } catch (IOException exception) {
             throw new CorpusInputFormatException(
-                    "invalid CBOR: " + diagnostic(exception), exception);
+                    "invalid CBOR: " + Diagnostics.message(exception), exception);
         }
     }
 
@@ -188,7 +189,7 @@ public final class CorpusInputCodec {
             throw exception;
         } catch (IOException exception) {
             throw new CorpusInputFormatException(
-                    "invalid CBOR: " + diagnostic(exception), exception);
+                    "invalid CBOR: " + Diagnostics.message(exception), exception);
         }
     }
 
@@ -252,7 +253,7 @@ public final class CorpusInputCodec {
             generator.writeEndObject();
         } catch (IOException exception) {
             throw new CorpusInputFormatException(
-                    "cannot encode CBOR metadata: " + diagnostic(exception), exception);
+                    "cannot encode CBOR metadata: " + Diagnostics.message(exception), exception);
         }
         return output.toByteArray();
     }
@@ -262,7 +263,7 @@ public final class CorpusInputCodec {
             return MAPPER.readTree(encoded);
         } catch (IOException exception) {
             throw new CorpusInputFormatException(
-                    "invalid CBOR: " + diagnostic(exception), exception);
+                    "invalid CBOR: " + Diagnostics.message(exception), exception);
         }
     }
 
@@ -310,7 +311,7 @@ public final class CorpusInputCodec {
         try {
             return new GenerationMetadata(cohort, richness);
         } catch (IllegalArgumentException exception) {
-            throw format("invalid gen metadata: " + diagnostic(exception));
+            throw format("invalid gen metadata: " + Diagnostics.message(exception));
         }
     }
 
@@ -370,7 +371,7 @@ public final class CorpusInputCodec {
             throw exception;
         } catch (IOException | IllegalArgumentException exception) {
             throw new CorpusInputFormatException(
-                    "invalid stage metadata: " + diagnostic(exception), exception);
+                    "invalid stage metadata: " + Diagnostics.message(exception), exception);
         }
     }
 
@@ -469,7 +470,7 @@ public final class CorpusInputCodec {
             throw format("invalid metadata for stage '"
                     + stage
                     + "': "
-                    + diagnostic(exception));
+                    + Diagnostics.message(exception));
         }
     }
 
@@ -558,12 +559,5 @@ public final class CorpusInputCodec {
 
     private static CorpusInputFormatException format(String message) {
         return new CorpusInputFormatException(message);
-    }
-
-    private static String diagnostic(Throwable exception) {
-        var message = exception.getMessage();
-        return message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : message;
     }
 }

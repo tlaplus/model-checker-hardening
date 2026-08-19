@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.nio.file.Files;
@@ -238,7 +239,7 @@ class CorpusDirectoryTest {
         var start = Instant.ofEpochSecond(10);
         var end = Instant.ofEpochSecond(12);
 
-        var destination = corpus.completeParser(source, "pass", start, end);
+        var destination = corpus.completeParser(source, CorpusVerdict.PASS, start, end);
 
         assertEquals(corpus.resolve(CorpusPath.PARSER_PASS).resolve(source.getFileName()), destination);
         assertTrue(Files.notExists(source));
@@ -269,7 +270,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
@@ -277,7 +278,7 @@ class CorpusDirectoryTest {
 
         var result = corpus.completeChecker(
                 tlcInput,
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
                 Optional.empty(),
@@ -306,7 +307,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
@@ -314,7 +315,7 @@ class CorpusDirectoryTest {
 
         var result = corpus.completeChecker(
                 apalacheInput,
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
                 Optional.empty(),
@@ -354,7 +355,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
@@ -367,7 +368,7 @@ class CorpusDirectoryTest {
                 IllegalArgumentException.class,
                 () -> corpus.completeChecker(
                         tlcInput,
-                        "fail",
+                        CorpusVerdict.FAIL,
                         Instant.ofEpochSecond(3),
                         Instant.ofEpochSecond(4),
                         Optional.empty(),
@@ -376,7 +377,7 @@ class CorpusDirectoryTest {
 
         var result = corpus.completeChecker(
                 tlcInput,
-                "fail",
+                CorpusVerdict.FAIL,
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
                 Optional.of(failure),
@@ -398,7 +399,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT).resolve(parserPass.getFileName());
@@ -421,7 +422,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
@@ -443,7 +444,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
@@ -474,7 +475,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         corpus.fanOutParserPass(parserPass);
@@ -498,7 +499,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
@@ -528,7 +529,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var tlcInput = checkerInput(corpus, CorpusPath.TLC_INPUT, parserPass);
@@ -536,7 +537,7 @@ class CorpusDirectoryTest {
 
         var result = corpus.completeChecker(
                 tlcInput,
-                "crashed",
+                CorpusVerdict.CRASH,
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
                 Optional.empty(),
@@ -559,7 +560,7 @@ class CorpusDirectoryTest {
         corpus.store(input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
-                "pass",
+                CorpusVerdict.PASS,
                 Instant.ofEpochSecond(1),
                 Instant.ofEpochSecond(2));
         var apalacheInput = checkerInput(corpus, CorpusPath.APALACHE_INPUT, parserPass);
@@ -567,7 +568,7 @@ class CorpusDirectoryTest {
 
         var result = corpus.completeChecker(
                 apalacheInput,
-                "crashed",
+                CorpusVerdict.CRASH,
                 Instant.ofEpochSecond(3),
                 Instant.ofEpochSecond(4),
                 Optional.empty(),
@@ -609,7 +610,7 @@ class CorpusDirectoryTest {
 
         var destination = corpus.completeParser(
                 source,
-                "crashed",
+                CorpusVerdict.CRASH,
                 Instant.ofEpochSecond(10),
                 Instant.ofEpochSecond(11),
                 diagnostic);

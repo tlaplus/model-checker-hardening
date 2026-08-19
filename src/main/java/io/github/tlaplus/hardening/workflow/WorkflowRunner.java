@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -287,7 +288,8 @@ public final class WorkflowRunner {
         if (failure instanceof WorkflowException workflowException) {
             throw workflowException;
         }
-        throw new WorkflowException("workflow stage failed: " + diagnostic(failure), failure);
+        throw new WorkflowException(
+                "workflow stage failed: " + Diagnostics.message(failure), failure);
     }
 
     private static WorkflowProgress progressSnapshot(
@@ -434,15 +436,5 @@ public final class WorkflowRunner {
             }
             return totalElapsed;
         }
-    }
-
-    private static String diagnostic(Throwable exception) {
-        if (exception == null) {
-            return "unknown failure";
-        }
-        var message = exception.getMessage();
-        return message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : message;
     }
 }
