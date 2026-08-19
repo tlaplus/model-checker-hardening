@@ -11,9 +11,11 @@ import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
-import io.github.tlaplus.hardening.workflow.checker.CheckerStageSummary;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
+import io.github.tlaplus.hardening.workflow.execution.StageCounters;
+import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
+import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
@@ -21,7 +23,6 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.input.PbtStageSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
-import io.github.tlaplus.hardening.workflow.parser.ParserStageSummary;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -151,17 +152,18 @@ public final class WorkflowRunner {
                         - Math.toIntExact(initial.inputEntries()),
                 true);
         var cpuBudget = new CpuBudget(maximumCpus);
-        var initialParser = new ParserStageSummary(
+        var environment = new StageEnvironment(corpus, generator, cpuBudget, control);
+        var initialParser = new StageVerdictSummary(
                 initial.parserPassEntries(),
                 initial.parserFailEntries(),
                 initial.parserCrashEntries(),
                 metrics.parserElapsed().elapsed());
-        var initialTlc = new CheckerStageSummary(
+        var initialTlc = new StageVerdictSummary(
                 initial.tlcPassEntries(),
                 initial.tlcFailEntries(),
                 initial.tlcCrashEntries(),
                 metrics.tlcElapsed().elapsed());
-        var initialApalache = new CheckerStageSummary(
+        var initialApalache = new StageVerdictSummary(
                 initial.apalachePassEntries(),
                 initial.apalacheFailEntries(),
                 initial.apalacheCrashEntries(),
@@ -170,50 +172,38 @@ public final class WorkflowRunner {
                 config.workflow().parser(),
                 maximumCpus,
                 initialParser,
-                metrics.parserElapsed(),
-                corpus,
+                new StageCounters(initialParser, metrics.parserElapsed()),
+                environment,
                 parserScratch,
-                generator,
                 parserQueue,
                 tlcQueue,
                 apalacheQueue,
-                inputCapacity,
-                cpuBudget,
-                control);
+                inputCapacity);
         var tlc = new CheckerStage(
                 new TlcCheckerBackend(
                         config.workflow().tlc(),
                         maximumCpus / config.workflow().tlc().workers(),
                         tlcScratch),
                 initialTlc,
-                metrics.tlcElapsed(),
-                corpus,
-                generator,
-                tlcQueue,
-                cpuBudget,
-                control);
+                new StageCounters(initialTlc, metrics.tlcElapsed()),
+                environment,
+                tlcQueue);
         var apalache = new CheckerStage(
                 new ApalacheCheckerBackend(
                         config.workflow().apalache(), apalacheJar, apalacheScratch),
                 initialApalache,
-                metrics.apalacheElapsed(),
-                corpus,
-                generator,
-                apalacheQueue,
-                cpuBudget,
-                control);
+                new StageCounters(initialApalache, metrics.apalacheElapsed()),
+                environment,
+                apalacheQueue);
         var pbt = new PbtStage(
                 config.pbt(),
                 config.workflow().maximumEntries(),
                 initial.totalEntries(),
-                corpus,
-                generator,
+                environment,
                 seed,
                 maximumCpus,
                 parserQueue,
                 inputCapacity,
-                cpuBudget,
-                control,
                 metrics);
         var progressPhase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
 
@@ -333,27 +323,27 @@ public final class WorkflowRunner {
                 metrics.totalElapsed(invocationElapsed.elapsed()));
     }
 
-    private static ParserStageSummary parserSummary(
+    private static StageVerdictSummary parserSummary(
             CorpusInventory inventory, Duration elapsed) {
-        return new ParserStageSummary(
+        return new StageVerdictSummary(
                 inventory.parserPassEntries(),
                 inventory.parserFailEntries(),
                 inventory.parserCrashEntries(),
                 elapsed);
     }
 
-    private static CheckerStageSummary tlcSummary(
+    private static StageVerdictSummary tlcSummary(
             CorpusInventory inventory, Duration elapsed) {
-        return new CheckerStageSummary(
+        return new StageVerdictSummary(
                 inventory.tlcPassEntries(),
                 inventory.tlcFailEntries(),
                 inventory.tlcCrashEntries(),
                 elapsed);
     }
 
-    private static CheckerStageSummary apalacheSummary(
+    private static StageVerdictSummary apalacheSummary(
             CorpusInventory inventory, Duration elapsed) {
-        return new CheckerStageSummary(
+        return new StageVerdictSummary(
                 inventory.apalachePassEntries(),
                 inventory.apalacheFailEntries(),
                 inventory.apalacheCrashEntries(),
@@ -388,9 +378,9 @@ public final class WorkflowRunner {
     private record StageRunResult(
             WorkflowRunSummary.StopReason stopReason,
             PbtStageSummary generator,
-            ParserStageSummary parser,
-            CheckerStageSummary tlc,
-            CheckerStageSummary apalache,
+            StageVerdictSummary parser,
+            StageVerdictSummary tlc,
+            StageVerdictSummary apalache,
             CorpusInventory corpus) {
         WorkflowRunSummary summary(Duration totalElapsed) {
             return new WorkflowRunSummary(

@@ -11,6 +11,7 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
@@ -109,14 +110,11 @@ class PbtStageTest {
                 config(1),
                 2,
                 0,
-                corpus,
-                acceptOnce,
+                new StageEnvironment(corpus, acceptOnce, new CpuBudget(1), control),
                 99,
                 1,
                 queue,
                 new Semaphore(2),
-                new CpuBudget(1),
-                control,
                 metrics(0));
 
         stage.start();
@@ -145,14 +143,11 @@ class PbtStageTest {
                 config(8),
                 1,
                 0,
-                corpus,
-                overflow,
+                new StageEnvironment(corpus, overflow, new CpuBudget(1), control),
                 42,
                 1,
                 queue,
                 new Semaphore(1),
-                new CpuBudget(1),
-                control,
                 metrics(0));
 
         stage.start();
@@ -257,14 +252,11 @@ class PbtStageTest {
                 config(32),
                 target,
                 0,
-                corpus,
-                observed,
+                new StageEnvironment(corpus, observed, new CpuBudget(2), control),
                 42,
                 4,
                 queue,
                 new Semaphore(target),
-                new CpuBudget(2),
-                control,
                 metrics(0));
 
         stage.start();
@@ -311,14 +303,11 @@ class PbtStageTest {
                 config(32),
                 20,
                 0,
-                corpus,
-                oneWorkerCrashes,
+                new StageEnvironment(corpus, oneWorkerCrashes, new CpuBudget(4), control),
                 42,
                 4,
                 queue,
                 new Semaphore(20),
-                new CpuBudget(4),
-                control,
                 metrics(0));
 
         stage.start();
@@ -357,14 +346,11 @@ class PbtStageTest {
                 config,
                 target,
                 0,
-                corpus,
-                generator,
+                new StageEnvironment(corpus, generator, new CpuBudget(1), control),
                 seed,
                 1,
                 queue,
                 new Semaphore(target),
-                new CpuBudget(1),
-                control,
                 metrics(0));
         stage.start();
         stage.await();

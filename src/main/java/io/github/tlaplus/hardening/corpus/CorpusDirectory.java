@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.ThrowingConsumer;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -583,7 +584,7 @@ public final class CorpusDirectory {
             CorpusStageLayout stage,
             CorpusVerdict verdict,
             Generator<?> generator,
-            EntryConsumer consumer)
+            ThrowingConsumer<Entry, CorpusException> consumer)
             throws IOException, CorpusException {
         var directory = resolve(stage.result(verdict));
         List<Path> paths;
@@ -1067,11 +1068,6 @@ public final class CorpusDirectory {
         var output = new StringWriter();
         failure.printStackTrace(new PrintWriter(output));
         return output.toString();
-    }
-
-    @FunctionalInterface
-    private interface EntryConsumer {
-        void accept(Entry entry) throws CorpusException;
     }
 
     private record CheckerBranch(

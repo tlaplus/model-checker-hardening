@@ -36,15 +36,8 @@ public final class WorkflowControl {
         closeQueues();
     }
 
-    public boolean shouldStopProducing() {
-        return state.get() != State.RUNNING;
-    }
-
-    public boolean shouldAbortParsing() {
-        return state.get() != State.RUNNING;
-    }
-
-    public boolean shouldStopChecking() {
+    /** Reports whether every stage should stop claiming new work. */
+    public boolean shouldStop() {
         return state.get() != State.RUNNING;
     }
 
