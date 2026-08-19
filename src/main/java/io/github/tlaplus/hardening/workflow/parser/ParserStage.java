@@ -6,7 +6,6 @@ import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
-import io.github.tlaplus.hardening.workflow.execution.StageJob;
 import io.github.tlaplus.hardening.workflow.execution.StageJobLoop;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageWorker;
@@ -115,7 +114,7 @@ public final class ParserStage implements WorkflowStage {
     private final class Worker implements AutoCloseable {
         private ParserProcess process;
 
-        private StageJob.Outcome parse(Path path) throws Exception {
+        private void parse(Path path) throws Exception {
             var corpus = environment.corpus();
             var startTime = Instant.now();
             var payload = corpus.readExpressionInput(path);
@@ -131,7 +130,7 @@ public final class ParserStage implements WorkflowStage {
             }
             if (result.outcome() != StageOutcome.PASS && !resultCapacity.reserve()) {
                 environment.control().capacityReached();
-                return StageJob.Outcome.STOP;
+                return;
             }
             var endTime = Instant.now();
             if (endTime.isBefore(startTime)) {
@@ -148,7 +147,6 @@ public final class ParserStage implements WorkflowStage {
             if (result.outcome() == StageOutcome.PASS) {
                 fanOut(destination);
             }
-            return StageJob.Outcome.CONTINUE;
         }
 
         @Override

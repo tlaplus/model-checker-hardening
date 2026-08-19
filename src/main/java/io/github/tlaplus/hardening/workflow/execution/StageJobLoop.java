@@ -36,8 +36,7 @@ public final class StageJobLoop<T> {
     }
 
     /**
-     * Runs jobs until the queue closes and drains, the workflow stops, or a job asks this worker to
-     * stop.
+     * Runs jobs until the queue closes and drains, or the workflow stops.
      */
     public void run(StageJob<T> job) throws Exception {
         Objects.requireNonNull(job, "job");
@@ -51,9 +50,7 @@ public final class StageJobLoop<T> {
             }
             counters.elapsed().start();
             try {
-                if (job.process(item) == StageJob.Outcome.STOP) {
-                    return;
-                }
+                job.process(item);
             } finally {
                 counters.elapsed().stop();
                 cpuBudget.release(permits);

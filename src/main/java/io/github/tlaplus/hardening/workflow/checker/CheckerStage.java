@@ -7,7 +7,6 @@ import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
-import io.github.tlaplus.hardening.workflow.execution.StageJob;
 import io.github.tlaplus.hardening.workflow.execution.StageJobLoop;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageWorker;
@@ -104,10 +103,10 @@ public final class CheckerStage implements WorkflowStage {
     private final class Worker implements AutoCloseable {
         private CheckerWorker checker;
 
-        private StageJob.Outcome check(Path path) throws Exception {
+        private void check(Path path) throws Exception {
             if (!resultCapacity.reserve()) {
                 environment.control().capacityReached();
-                return StageJob.Outcome.STOP;
+                return;
             }
             var corpus = environment.corpus();
             var startTime = Instant.now();
@@ -123,7 +122,6 @@ public final class CheckerStage implements WorkflowStage {
                 checker = null;
             }
             record(corpus, path, startTime, result);
-            return StageJob.Outcome.CONTINUE;
         }
 
         @Override

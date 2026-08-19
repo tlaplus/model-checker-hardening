@@ -1,13 +1,12 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
-/** Processing of one queued item by one stage worker. */
+/**
+ * Processing of one queued item by one stage worker.
+ *
+ * <p>A job that has to stop its stage reports it to {@link WorkflowControl}; the loop around the
+ * job observes that shared state and stops claiming work.
+ */
 @FunctionalInterface
 public interface StageJob<T> {
-    /** Whether the worker that ran a job keeps claiming queued items. */
-    enum Outcome {
-        CONTINUE,
-        STOP
-    }
-
-    Outcome process(T item) throws Exception;
+    void process(T item) throws Exception;
 }
