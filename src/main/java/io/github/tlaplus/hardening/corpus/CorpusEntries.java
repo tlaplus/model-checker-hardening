@@ -148,28 +148,11 @@ final class CorpusEntries {
         }
     }
 
-    /** Returns the encoded verdict a stage recorded for an entry, if it recorded one. */
-    static Optional<String> stageVerdict(Path path, byte[] encoded, CorpusStage stage)
-            throws CorpusException {
-        try {
-            return CorpusEnvelopeCodec.stageVerdict(encoded, stage.metadataName());
-        } catch (CorpusFormatException exception) {
-            throw new CorpusException(
-                    "invalid "
-                            + stage.metadataName()
-                            + " metadata: "
-                            + path
-                            + ": "
-                            + Diagnostics.message(exception),
-                    exception);
-        }
-    }
-
     /** Requires that a stage recorded exactly the verdict its directory implies. */
     static void requireStageVerdict(Entry entry, CorpusStage stage, CorpusVerdict expected)
             throws CorpusException {
-        var actual = stageVerdict(entry.path(), entry.encoded(), stage);
-        if (actual.isEmpty() || !expected.encodedName().equals(actual.orElseThrow())) {
+        var actual = entry.envelope().stage(stage).map(StageMetadata::verdict);
+        if (actual.isEmpty() || actual.orElseThrow() != expected) {
             throw new CorpusException(
                     stage.metadataName()
                             + " verdict does not match workflow directory: "
@@ -178,23 +161,14 @@ final class CorpusEntries {
     }
 
     /** Requires that a stage has not yet recorded a verdict for an entry. */
-    static void requireMissingStage(Path path, byte[] encoded, CorpusStage stage)
-            throws CorpusException {
-        if (stageVerdict(path, encoded, stage).isPresent()) {
+    static void requireMissingStage(Entry entry, CorpusStage stage) throws CorpusException {
+        if (entry.envelope().stage(stage).isPresent()) {
             throw new CorpusException(
                     "completed "
                             + stage.metadataName()
                             + " entry remains in an input directory: "
-                            + path);
+                            + entry.path());
         }
-    }
-
-    /** Returns the metadata one stage recorded in an envelope, if any. */
-    static Optional<StageMetadata> stageMetadata(
-            CorpusEnvelope envelope, CorpusStage stage) {
-        return envelope.stages().stream()
-                .filter(metadata -> stage.metadataName().equals(metadata.stage()))
-                .findFirst();
     }
 
     /**
@@ -205,8 +179,8 @@ final class CorpusEntries {
             throws CorpusException {
         if (!reference.envelope().corpusInput().equals(candidate.envelope().corpusInput())
                 || !reference.envelope().generation().equals(candidate.envelope().generation())
-                || !stageMetadata(reference.envelope(), CorpusStage.PARSER)
-                        .equals(stageMetadata(candidate.envelope(), CorpusStage.PARSER))) {
+                || !reference.envelope().stage(CorpusStage.PARSER)
+                        .equals(candidate.envelope().stage(CorpusStage.PARSER))) {
             throw new CorpusException("checker branch copies disagree for corpus entry: " + name);
         }
     }

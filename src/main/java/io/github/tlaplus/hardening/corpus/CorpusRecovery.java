@@ -59,7 +59,7 @@ final class CorpusRecovery {
         for (var path : entries.entryPaths(layout.resolve(CorpusPath.INPUT))) {
             var entry = entries.verify(path);
             for (var stage : CorpusStage.values()) {
-                CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), stage);
+                CorpusEntries.requireMissingStage(entry, stage);
             }
             addLogicalName(logicalNames, path.getFileName().toString());
             inputs.add(path);
@@ -80,8 +80,7 @@ final class CorpusRecovery {
                     verdict,
                     entry -> {
                         for (var checker : CorpusStage.checkerBranches()) {
-                            CorpusEntries.requireMissingStage(
-                                    entry.path(), entry.encoded(), checker);
+                            CorpusEntries.requireMissingStage(entry, checker);
                         }
                         addLogicalName(logicalNames, entry.path().getFileName().toString());
                     });
@@ -127,21 +126,11 @@ final class CorpusRecovery {
     private void recoverTransitions(CorpusStage stage) throws IOException, CorpusException {
         for (var path : entries.entryPaths(layout.resolve(stage.input()))) {
             var entry = entries.verify(path);
-            var encodedVerdict = CorpusEntries.stageVerdict(entry.path(), entry.encoded(), stage);
-            if (encodedVerdict.isEmpty()) {
+            var recorded = entry.envelope().stage(stage);
+            if (recorded.isEmpty()) {
                 continue;
             }
-            final CorpusVerdict verdict;
-            try {
-                verdict = CorpusVerdict.fromEncodedName(encodedVerdict.orElseThrow());
-            } catch (IllegalArgumentException exception) {
-                throw new CorpusException(
-                        "unknown "
-                                + stage.metadataName()
-                                + " verdict in corpus entry: "
-                                + entry.path(),
-                        exception);
-            }
+            var verdict = recorded.orElseThrow().verdict();
             var destination =
                     layout.resolve(stage.result(verdict)).resolve(entry.path().getFileName());
             if (Files.exists(destination, NO_FOLLOW_LINKS)) {
@@ -204,7 +193,7 @@ final class CorpusRecovery {
             var entry = entries.verify(path);
             CorpusEntries.requireStageVerdict(
                     entry, CorpusStage.PARSER, CorpusVerdict.PASS);
-            CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), checker);
+            CorpusEntries.requireMissingStage(entry, checker);
             requireMissingOtherCheckerStages(checker, entry);
             addCheckerBranchEntry(checker, branchEntries, entry);
             inputs.add(path);
@@ -240,8 +229,7 @@ final class CorpusRecovery {
             throws CorpusException {
         for (var otherChecker : CorpusStage.checkerBranches()) {
             if (otherChecker != checker) {
-                CorpusEntries.requireMissingStage(
-                        entry.path(), entry.encoded(), otherChecker);
+                CorpusEntries.requireMissingStage(entry, otherChecker);
             }
         }
     }

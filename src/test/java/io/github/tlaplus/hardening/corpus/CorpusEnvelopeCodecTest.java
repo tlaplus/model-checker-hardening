@@ -38,15 +38,14 @@ class CorpusEnvelopeCodecTest {
                 encoded,
                 new StageMetadata(
                         "parser",
-                        "pass",
+                        CorpusVerdict.PASS,
                         Instant.ofEpochSecond(10),
                         Instant.ofEpochSecond(12)));
 
         var tree = new ObjectMapper(FACTORY).readTree(updated);
         assertEquals(42, tree.path("future").path("answer").intValue());
         assertEquals("kept", tree.path("stages").path("other").path("verdict").textValue());
-        assertEquals(
-                "pass", CorpusEnvelopeCodec.stageVerdict(updated, "parser").orElseThrow());
+        assertEquals("pass", tree.path("stages").path("parser").path("verdict").textValue());
 
         var taggedTimes = 0;
         try (var parser = FACTORY.createParser(updated)) {
@@ -72,17 +71,17 @@ class CorpusEnvelopeCodecTest {
         var withParser = CorpusEnvelopeCodec.withStageMetadata(
                 input,
                 new StageMetadata(
-                        "parser", "pass", Instant.ofEpochSecond(10), Instant.ofEpochSecond(12)));
+                        "parser", CorpusVerdict.PASS, Instant.ofEpochSecond(10), Instant.ofEpochSecond(12)));
 
         var withTlc = CorpusEnvelopeCodec.withStageMetadata(
                 withParser,
                 new StageMetadata(
-                        "tlc", "pass", Instant.ofEpochSecond(20), Instant.ofEpochSecond(21)));
+                        "tlc", CorpusVerdict.PASS, Instant.ofEpochSecond(20), Instant.ofEpochSecond(21)));
         var withApalache = CorpusEnvelopeCodec.withStageMetadata(
                 withTlc,
                 new StageMetadata(
                         "apalache",
-                        "pass",
+                        CorpusVerdict.PASS,
                         Instant.ofEpochSecond(30),
                         Instant.ofEpochSecond(31)));
 
@@ -107,13 +106,13 @@ class CorpusEnvelopeCodecTest {
                 encoded,
                 new StageMetadata(
                         "parser",
-                        "pass",
+                        CorpusVerdict.PASS,
                         Instant.ofEpochSecond(10),
                         Instant.ofEpochSecond(12)));
 
         var envelope = CorpusEnvelopeCodec.decodeEnvelope(updated);
         assertEquals(generation, envelope.generation().orElseThrow());
-        assertEquals("pass", envelope.stages().getFirst().verdict());
+        assertEquals(CorpusVerdict.PASS, envelope.stages().getFirst().verdict());
     }
 
     @Test
@@ -125,7 +124,7 @@ class CorpusEnvelopeCodecTest {
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 2})),
                 new StageMetadata(
                         "tlc",
-                        "fail",
+                        CorpusVerdict.FAIL,
                         Instant.ofEpochSecond(10),
                         Instant.ofEpochSecond(12),
                         Optional.of(failure)));
@@ -221,12 +220,12 @@ class CorpusEnvelopeCodecTest {
                 List.of(
                         new StageMetadata(
                                 "generator",
-                                "pass",
+                                CorpusVerdict.PASS,
                                 Instant.ofEpochSecond(10),
                                 Instant.ofEpochSecond(10)),
                         new StageMetadata(
                                 "parser",
-                                "fail",
+                                CorpusVerdict.FAIL,
                                 Instant.ofEpochSecond(20),
                                 Instant.ofEpochSecond(23))),
                 envelope.stages());
@@ -316,20 +315,34 @@ class CorpusEnvelopeCodecTest {
                         .getMessage());
     }
 
-    /** Reading one stage's verdict does not depend on any other stage being understood. */
+    /**
+     * The verdict is a closed set: a stage records one of the outcomes the corpus stores entries
+     * by. The stage name stays open, so a stage this build never heard of still reads.
+     */
     @Test
-    void readsAVerdictBesideAStageThisBuildCannotParse() throws Exception {
-        var encoded = cbor(generator -> {
+    void rejectsAnUnknownVerdictButNotAnUnknownStageName() throws Exception {
+        var unknownVerdict = cbor(generator -> {
             generator.writeStartObject(null, 3);
             generator.writeStringField("kind", "expr");
             generator.writeBinaryField("input", new byte[0]);
             generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart("future-stage");
-            generator.writeStringField("outcome", "who knows");
-            generator.writeEndObject();
             writeStage(
                     generator,
-                    "parser",
+                    "tlc",
+                    "inconclusive",
+                    Instant.ofEpochSecond(10),
+                    Instant.ofEpochSecond(12));
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+        var unknownStage = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            writeStage(
+                    generator,
+                    "future-stage",
                     "pass",
                     Instant.ofEpochSecond(10),
                     Instant.ofEpochSecond(12));
@@ -337,9 +350,11 @@ class CorpusEnvelopeCodecTest {
             generator.writeEndObject();
         });
 
-        assertEquals(
-                "pass", CorpusEnvelopeCodec.stageVerdict(encoded, "parser").orElseThrow());
-        assertEquals(Optional.empty(), CorpusEnvelopeCodec.stageVerdict(encoded, "tlc"));
+        assertInvalidEnvelope(unknownVerdict, "unsupported corpus verdict: inconclusive");
+
+        var stage = CorpusEnvelopeCodec.decodeEnvelope(unknownStage).stages().getFirst();
+        assertEquals("future-stage", stage.stage());
+        assertEquals(CorpusVerdict.PASS, stage.verdict());
     }
 
     private byte[] checkerEnvelope(String verdict, Integer code, String detail)

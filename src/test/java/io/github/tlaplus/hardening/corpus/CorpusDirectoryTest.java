@@ -249,9 +249,10 @@ class CorpusDirectoryTest {
         assertEquals(corpus.resolve(CorpusPath.PARSER_PASS).resolve(source.getFileName()), destination);
         assertTrue(Files.notExists(source));
         assertEquals(
-                "pass",
-                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(destination), "parser")
-                        .orElseThrow());
+                Optional.of(CorpusVerdict.PASS),
+                CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(destination))
+                        .stage(CorpusStage.PARSER)
+                        .map(StageMetadata::verdict));
         assertEquals(
                 generation,
                 CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(destination))
@@ -285,13 +286,15 @@ class CorpusDirectoryTest {
 
         assertEquals(corpus.resolve(CorpusPath.TLC_PASS).resolve(tlcInput.getFileName()), result);
         assertEquals(
-                "pass",
-                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(result), "parser")
-                        .orElseThrow());
+                Optional.of(CorpusVerdict.PASS),
+                CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(result))
+                        .stage(CorpusStage.PARSER)
+                        .map(StageMetadata::verdict));
         assertEquals(
-                "pass",
-                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(result), "tlc")
-                        .orElseThrow());
+                Optional.of(CorpusVerdict.PASS),
+                CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(result))
+                        .stage(CorpusStage.TLC)
+                        .map(StageMetadata::verdict));
         var inventory = corpus.recoverAndValidate(ACCEPT);
         assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
         assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
@@ -319,9 +322,10 @@ class CorpusDirectoryTest {
                         .resolve(apalacheInput.getFileName()),
                 result);
         assertEquals(
-                "pass",
-                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(result), "apalache")
-                        .orElseThrow());
+                Optional.of(CorpusVerdict.PASS),
+                CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(result))
+                        .stage(CorpusStage.APALACHE)
+                        .map(StageMetadata::verdict));
         var inventory = corpus.recoverAndValidate(ACCEPT);
         assertEquals(1, inventory.counts(CorpusStage.APALACHE).passed());
         assertEquals(1, inventory.pendingEntries(CorpusStage.TLC));
@@ -433,7 +437,7 @@ class CorpusDirectoryTest {
                         Files.readAllBytes(apalacheInput),
                         new StageMetadata(
                                 "parser",
-                                "pass",
+                                CorpusVerdict.PASS,
                                 Instant.ofEpochSecond(3),
                                 Instant.ofEpochSecond(4))));
 
@@ -484,7 +488,7 @@ class CorpusDirectoryTest {
                         Files.readAllBytes(tlcInput),
                         new StageMetadata(
                                 "tlc",
-                                "pass",
+                                CorpusVerdict.PASS,
                                 Instant.ofEpochSecond(3),
                                 Instant.ofEpochSecond(4))));
 
@@ -596,7 +600,7 @@ class CorpusDirectoryTest {
                         Files.readAllBytes(source),
                         new StageMetadata(
                                 "parser",
-                                "fail",
+                                CorpusVerdict.FAIL,
                                 Instant.ofEpochSecond(1),
                                 Instant.ofEpochSecond(2))));
 
@@ -621,7 +625,7 @@ class CorpusDirectoryTest {
                         Files.readAllBytes(source),
                         new StageMetadata(
                                 "parser",
-                                "crashed",
+                                CorpusVerdict.CRASH,
                                 Instant.ofEpochSecond(1),
                                 Instant.ofEpochSecond(2))));
         var reportName = hash(input) + CorpusDirectory.CRASH_REPORT_EXTENSION;
@@ -701,7 +705,7 @@ class CorpusDirectoryTest {
                 CorpusInputCodec.encode(CorpusInput.expression(input)),
                 new StageMetadata(
                         "parser",
-                        "pass",
+                        CorpusVerdict.PASS,
                         Instant.ofEpochSecond(1),
                         Instant.ofEpochSecond(2)));
     }

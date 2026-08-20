@@ -20,6 +20,7 @@ import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
@@ -415,7 +416,7 @@ class MainTest {
         var endTime = startTime.plusSeconds(93_784);
         var encoded = CorpusEnvelopeCodec.withStageMetadata(
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
-                new StageMetadata("parser", "pass", startTime, endTime));
+                new StageMetadata("parser", CorpusVerdict.PASS, startTime, endTime));
         Files.write(input, encoded);
 
         var result = execute("print", "--envelope", input.toString());
@@ -445,7 +446,7 @@ class MainTest {
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
                 new StageMetadata(
                         "tlc",
-                        "fail",
+                        CorpusVerdict.FAIL,
                         startTime,
                         startTime.plusSeconds(2),
                         Optional.of(new CheckerFailure(
@@ -494,7 +495,7 @@ class MainTest {
         var timestamp = Instant.parse("2026-08-13T14:26:07Z");
         var encoded = CorpusEnvelopeCodec.withStageMetadata(
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
-                new StageMetadata("parser", "fail", timestamp, timestamp));
+                new StageMetadata("parser", CorpusVerdict.FAIL, timestamp, timestamp));
         Files.write(input, encoded);
 
         var result = execute("print", "--envelope", input.toString());

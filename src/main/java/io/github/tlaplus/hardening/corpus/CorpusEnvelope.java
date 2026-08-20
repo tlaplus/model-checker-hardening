@@ -14,4 +14,12 @@ public record CorpusEnvelope(
         Objects.requireNonNull(generation, "generation");
         stages = List.copyOf(Objects.requireNonNull(stages, "stages"));
     }
+
+    /** Returns what one stage recorded on this entry, if it has processed it. */
+    public Optional<StageMetadata> stage(CorpusStage stage) {
+        Objects.requireNonNull(stage, "stage");
+        return stages.stream()
+                .filter(metadata -> stage.metadataName().equals(metadata.stage()))
+                .findFirst();
+    }
 }

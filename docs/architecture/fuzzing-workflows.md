@@ -293,8 +293,11 @@ participate in the input identity: the filename remains the digest of `"input"`.
 When an input passes through a stage, this stage stores its metadata under `stages.<stage name>`.
 The metadata depends on the stage. The minimal set of fields is:
 
- - The field `"verdict"` contains the status of passing through the stage. The
-   typical values are: `"pass"`, `"fail"`, `"crashed"`.
+ - The field `"verdict"` contains the status of passing through the stage. It is
+   one of `"pass"`, `"fail"`, `"crashed"`. These are the outcomes the corpus
+   stores entries by, so a reader rejects any other value rather than treating it
+   as an extension. The stage *name* stays open: an entry may record a stage the
+   reader does not know, and the reader preserves that metadata unchanged.
  - The field `"startTime"` contains an [epoch-based date/time][] of the moment
    when a stage worker started to process the input. This timestamp must be in UTC.
  - The field `"endTime"` contains an [epoch-based date/time][] of the moment     

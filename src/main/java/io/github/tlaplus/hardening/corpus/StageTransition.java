@@ -38,7 +38,7 @@ final class StageTransition {
         var verdict = result.verdict();
         var encoded = Files.readAllBytes(source);
         var entry = CorpusEntries.decode(source, encoded);
-        CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), stage);
+        CorpusEntries.requireMissingStage(entry, stage);
         var destination = layout.resolve(stage.result(verdict)).resolve(source.getFileName());
         if (Files.exists(destination, NO_FOLLOW_LINKS)) {
             throw new CorpusException(
@@ -68,7 +68,7 @@ final class StageTransition {
                     encoded,
                     new StageMetadata(
                             stage.metadataName(),
-                            verdict.encodedName(),
+                            verdict,
                             result.startTime(),
                             result.endTime(),
                             result.failure()));
@@ -112,7 +112,7 @@ final class StageTransition {
         var entry = CorpusEntries.decode(source, encoded);
         CorpusEntries.requireStageVerdict(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
         for (var checker : CorpusStage.checkerBranches()) {
-            CorpusEntries.requireMissingStage(entry.path(), entry.encoded(), checker);
+            CorpusEntries.requireMissingStage(entry, checker);
         }
 
         for (var checker : CorpusStage.checkerBranches()) {
