@@ -103,7 +103,7 @@ class CorpusDirectoryTest {
         assertEquals(CorpusInput.expression(input), CorpusInputCodec.decode(encoded));
         assertEquals(
                 generation,
-                CorpusInputCodec.decodeEnvelope(encoded).generation().orElseThrow());
+                CorpusEnvelopeCodec.decodeEnvelope(encoded).generation().orElseThrow());
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
     }
 
@@ -250,11 +250,11 @@ class CorpusDirectoryTest {
         assertTrue(Files.notExists(source));
         assertEquals(
                 "pass",
-                CorpusInputCodec.stageVerdict(Files.readAllBytes(destination), "parser")
+                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(destination), "parser")
                         .orElseThrow());
         assertEquals(
                 generation,
-                CorpusInputCodec.decodeEnvelope(Files.readAllBytes(destination))
+                CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(destination))
                         .generation()
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
@@ -286,11 +286,11 @@ class CorpusDirectoryTest {
         assertEquals(corpus.resolve(CorpusPath.TLC_PASS).resolve(tlcInput.getFileName()), result);
         assertEquals(
                 "pass",
-                CorpusInputCodec.stageVerdict(Files.readAllBytes(result), "parser")
+                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(result), "parser")
                         .orElseThrow());
         assertEquals(
                 "pass",
-                CorpusInputCodec.stageVerdict(Files.readAllBytes(result), "tlc")
+                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(result), "tlc")
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
         assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
@@ -320,7 +320,7 @@ class CorpusDirectoryTest {
                 result);
         assertEquals(
                 "pass",
-                CorpusInputCodec.stageVerdict(Files.readAllBytes(result), "apalache")
+                CorpusEnvelopeCodec.stageVerdict(Files.readAllBytes(result), "apalache")
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
         assertEquals(1, inventory.counts(CorpusStage.APALACHE).passed());
@@ -367,7 +367,7 @@ class CorpusDirectoryTest {
                 tlcInput,
                 new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(3), Instant.ofEpochSecond(4), Optional.of(failure), "full TLC output"));
 
-        var envelope = CorpusInputCodec.decodeEnvelope(Files.readAllBytes(result));
+        var envelope = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(result));
         var metadata = envelope.stages().stream()
                 .filter(stage -> "tlc".equals(stage.stage()))
                 .findFirst()
@@ -429,7 +429,7 @@ class CorpusDirectoryTest {
         corpus.fanOutParserPass(parserPass);
         Files.write(
                 apalacheInput,
-                CorpusInputCodec.withStageMetadata(
+                CorpusEnvelopeCodec.withStageMetadata(
                         Files.readAllBytes(apalacheInput),
                         new StageMetadata(
                                 "parser",
@@ -480,7 +480,7 @@ class CorpusDirectoryTest {
         corpus.fanOutParserPass(parserPass);
         Files.write(
                 tlcInput,
-                CorpusInputCodec.withStageMetadata(
+                CorpusEnvelopeCodec.withStageMetadata(
                         Files.readAllBytes(tlcInput),
                         new StageMetadata(
                                 "tlc",
@@ -592,7 +592,7 @@ class CorpusDirectoryTest {
         var source = corpus.inputPath(input);
         Files.write(
                 source,
-                CorpusInputCodec.withStageMetadata(
+                CorpusEnvelopeCodec.withStageMetadata(
                         Files.readAllBytes(source),
                         new StageMetadata(
                                 "parser",
@@ -617,7 +617,7 @@ class CorpusDirectoryTest {
         var source = corpus.inputPath(input);
         Files.write(
                 source,
-                CorpusInputCodec.withStageMetadata(
+                CorpusEnvelopeCodec.withStageMetadata(
                         Files.readAllBytes(source),
                         new StageMetadata(
                                 "parser",
@@ -697,7 +697,7 @@ class CorpusDirectoryTest {
     }
 
     private byte[] encodeWithStageMetadata(byte[] input) throws Exception {
-        return CorpusInputCodec.withStageMetadata(
+        return CorpusEnvelopeCodec.withStageMetadata(
                 CorpusInputCodec.encode(CorpusInput.expression(input)),
                 new StageMetadata(
                         "parser",

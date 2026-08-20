@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.corpus;
 
-import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,14 +22,12 @@ final class CorpusRunStatisticsCodec {
     private static final String MAXIMUM_RICHNESS_FIELD = "maximumRichness";
     private static final String AVERAGE_RICHNESS_FIELD = "averageRichness";
 
-    private static final CBORFactory FACTORY = new CBORFactory();
-
     private CorpusRunStatisticsCodec() {}
 
     static byte[] encode(CorpusRunStatistics statistics) throws IOException {
         Objects.requireNonNull(statistics, "statistics");
         var output = new ByteArrayOutputStream();
-        try (var generator = FACTORY.createGenerator(output)) {
+        try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
             generator.writeStartObject(null, 2);
             generator.writeFieldName(ELAPSED_FIELD);
             generator.writeStartObject(null, 3);

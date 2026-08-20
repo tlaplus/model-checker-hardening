@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -195,7 +196,7 @@ class PbtStageTest {
         assertEquals(1, summary.richnessRejected());
         assertEquals(2, summary.attempts());
         var entry = readEntries(corpus).values().iterator().next();
-        var generation = CorpusInputCodec.decodeEnvelope(entry).generation().orElseThrow();
+        var generation = CorpusEnvelopeCodec.decodeEnvelope(entry).generation().orElseThrow();
         assertEquals(expectedCohort, generation.cohort());
         assertEquals(CollectionRichness.score(RICH, 2.0), generation.richness());
     }
@@ -217,7 +218,7 @@ class PbtStageTest {
         }
         var actual = new HashMap<Integer, Integer>();
         for (var encoded : readEntries(corpus).values()) {
-            var cohort = CorpusInputCodec.decodeEnvelope(encoded)
+            var cohort = CorpusEnvelopeCodec.decodeEnvelope(encoded)
                     .generation()
                     .orElseThrow()
                     .cohort();

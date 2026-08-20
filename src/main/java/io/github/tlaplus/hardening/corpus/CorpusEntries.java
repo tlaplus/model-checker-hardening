@@ -106,7 +106,7 @@ final class CorpusEntries {
     static Entry decode(Path path, byte[] encoded) throws CorpusException {
         final CorpusEnvelope envelope;
         try {
-            envelope = CorpusInputCodec.decodeEnvelope(encoded);
+            envelope = CorpusEnvelopeCodec.decodeEnvelope(encoded);
         } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "invalid CBOR corpus entry: " + path + ": " + Diagnostics.message(exception),
@@ -152,7 +152,7 @@ final class CorpusEntries {
     static Optional<String> stageVerdict(Path path, byte[] encoded, CorpusStage stage)
             throws CorpusException {
         try {
-            return CorpusInputCodec.stageVerdict(encoded, stage.metadataName());
+            return CorpusEnvelopeCodec.stageVerdict(encoded, stage.metadataName());
         } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "invalid "
