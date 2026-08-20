@@ -5,6 +5,7 @@ import at.forsyte.apalache.io.lir.TextLayout;
 import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
+import io.github.tlaplus.hardening.corpus.StageMetadata;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
@@ -35,48 +36,44 @@ final class EnvelopeReport {
         return buffer.toString();
     }
 
-    /** Renders the supported envelope fields above the already-rendered input. */
+    /**
+     * Renders the supported envelope fields above the already-rendered input.
+     *
+     * <p>Every value is passed as a {@code printf} argument rather than concatenated into the
+     * format string: a stage name comes from the document and may contain a {@code %}.
+     */
     static String render(CorpusEnvelope envelope, String renderedInput) {
-        var newline = System.lineSeparator();
-        var output = new StringBuilder();
-        output.append("kind: ")
-                .append(envelope.corpusInput().kind().encodedName())
-                .append(newline);
-        envelope.generation().ifPresent(generation -> {
-            output.append("gen:").append(newline);
-            output.append("  cohort: ").append(generation.cohort()).append(newline);
-            output.append("  richness: ").append(generation.richness()).append(newline);
-        });
-        if (!envelope.stages().isEmpty()) {
-            output.append("stages:").append(newline);
-            for (var stage : envelope.stages()) {
-                output.append("  ").append(stage.stage()).append(":").append(newline);
-                output.append("    verdict: ")
-                    .append(stage.verdict().encodedName())
-                    .append(newline);
-                stage.failure().ifPresent(failure -> {
-                    output.append("    code: ")
-                            .append(failure.code().encodedCode())
-                            .append(" (")
-                            .append(failure.code().symbol())
-                            .append(")")
-                            .append(newline);
-                    failure.detail().ifPresent(detail -> output.append("    detail: ")
-                            .append(detail)
-                            .append(newline));
-                });
-                output.append("    startTime: ").append(stage.startTime()).append(newline);
-                output.append("    endTime: ")
-                        .append(stage.endTime())
-                        .append(" (duration: ")
-                        .append(HumanDuration.format(Duration.between(
-                                stage.startTime(), stage.endTime())))
-                        .append(")")
-                        .append(newline);
+        var output = new StringWriter();
+        try (var writer = new PrintWriter(output)) {
+            writer.printf("kind: %s%n", envelope.corpusInput().kind().encodedName());
+            envelope.generation().ifPresent(generation -> {
+                writer.printf("gen:%n");
+                writer.printf("  cohort: %d%n", generation.cohort());
+                writer.printf("  richness: %s%n", generation.richness());
+            });
+            if (!envelope.stages().isEmpty()) {
+                writer.printf("stages:%n");
+                envelope.stages().forEach(stage -> printStage(writer, stage));
             }
+            writer.printf("input:%n");
+            renderedInput.lines().forEach(line -> writer.printf("  %s%n", line));
         }
-        output.append("input:").append(newline);
-        renderedInput.lines().forEach(line -> output.append("  ").append(line).append(newline));
         return output.toString();
+    }
+
+    private static void printStage(PrintWriter writer, StageMetadata stage) {
+        writer.printf("  %s:%n", stage.stage());
+        writer.printf("    verdict: %s%n", stage.verdict().encodedName());
+        stage.failure().ifPresent(failure -> {
+            writer.printf(
+                    "    code: %d (%s)%n",
+                    failure.code().encodedCode(), failure.code().symbol());
+            failure.detail().ifPresent(detail -> writer.printf("    detail: %s%n", detail));
+        });
+        writer.printf("    startTime: %s%n", stage.startTime());
+        writer.printf(
+                "    endTime: %s (duration: %s)%n",
+                stage.endTime(),
+                HumanDuration.format(Duration.between(stage.startTime(), stage.endTime())));
     }
 }

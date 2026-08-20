@@ -79,6 +79,27 @@ class EnvelopeReportTest {
         assertTrue(report.endsWith("  IF TRUE" + newline() + "  THEN 1" + newline()), report);
     }
 
+    /**
+     * The corpus format keeps the stage name open so an entry naming a stage this build never
+     * heard of still reads. That name reaches the formatter, so it must never be spliced into a
+     * format string.
+     */
+    @Test
+    void rendersAStageWhoseNameContainsFormatSpecifiers() {
+        var report = EnvelopeReport.render(
+                envelope(
+                        Optional.empty(),
+                        List.of(new StageMetadata(
+                                "%s-%d%n",
+                                CorpusVerdict.PASS,
+                                Instant.ofEpochSecond(10),
+                                Instant.ofEpochSecond(13)))),
+                INPUT);
+
+        assertTrue(report.contains("  %s-%d%n:" + newline()), report);
+        assertTrue(report.contains("    verdict: pass"), report);
+    }
+
     private static StageMetadata failedStage(Optional<String> detail) {
         return new StageMetadata(
                 "tlc",
