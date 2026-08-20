@@ -12,6 +12,10 @@ import java.util.Optional;
  * build has never heard of, and reading an entry must not depend on knowing every stage that ever
  * wrote to it. The verdict is not open in the same way -- a stage records one of the outcomes the
  * corpus stores entries by, so an unknown verdict is a malformed entry rather than an extension.
+ *
+ * <p>Only invariants of the record itself are checked here, so that this build can read a document
+ * a later build wrote. Which failure metadata each stage of <em>this</em> pipeline must record is
+ * checked where such a document is written, by {@link StageTransition}.
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record StageMetadata(
@@ -35,31 +39,9 @@ public record StageMetadata(
             throw new IllegalArgumentException(
                     "checker failure metadata requires the fail verdict");
         }
-        CorpusStage.fromMetadataName(stage)
-                .ifPresent(layout -> validateFailureMetadata(
-                        layout, verdict, failure.isPresent()));
     }
 
     public StageMetadata(String stage, CorpusVerdict verdict, Instant startTime, Instant endTime) {
         this(stage, verdict, startTime, endTime, Optional.empty());
-    }
-
-    private static void validateFailureMetadata(
-            CorpusStage stageLayout, CorpusVerdict verdict, boolean hasFailure) {
-        switch (stageLayout) {
-            case PARSER -> {
-                if (hasFailure) {
-                    throw new IllegalArgumentException(
-                            "parser metadata must not contain a failure code");
-                }
-            }
-            case TLC, APALACHE -> {
-                if (verdict == CorpusVerdict.FAIL && !hasFailure) {
-                    throw new IllegalArgumentException(
-                            stageLayout.displayName()
-                                    + " failure metadata requires a failure code");
-                }
-            }
-        }
     }
 }
