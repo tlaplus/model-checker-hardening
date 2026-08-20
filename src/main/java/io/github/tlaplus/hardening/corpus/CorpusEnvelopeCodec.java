@@ -49,21 +49,6 @@ public final class CorpusEnvelopeCodec {
     }
 
     /**
-     * Returns a stage verdict when the document already contains one.
-     *
-     * <p>Only the requested stage is read. Another stage's metadata is passed over, so a stage
-     * this build does not understand cannot hide the verdict of one it does.
-     */
-    public static Optional<String> stageVerdict(byte[] encoded, String stage)
-            throws CorpusFormatException {
-        Objects.requireNonNull(stage, "stage");
-        var requested = new ArrayList<StageMetadata>();
-        CorpusInputCodec.read(
-                encoded, (reader, field) -> readStages(reader, field, stage::equals, requested));
-        return requested.stream().map(StageMetadata::verdict).findFirst();
-    }
-
-    /**
      * Replaces one stage's metadata while preserving all unrelated fields.
      *
      * <p>The document is read twice and written once. The first read is the strict one: it decides
@@ -225,7 +210,11 @@ public final class CorpusEnvelopeCodec {
                             CheckerFailureCode.fromEncodedCode(failureCode),
                             Optional.ofNullable(failureDetail)));
             return new StageMetadata(
-                    stage.name(), requiredVerdict, requiredStart, requiredEnd, failure);
+                    stage.name(),
+                    CorpusVerdict.fromEncodedName(requiredVerdict),
+                    requiredStart,
+                    requiredEnd,
+                    failure);
         } catch (IllegalArgumentException exception) {
             throw CborReader.malformed(
                     "invalid metadata for stage '"
@@ -253,7 +242,7 @@ public final class CorpusEnvelopeCodec {
                 .map(failure -> failure.detail().isPresent() ? 2 : 1)
                 .orElse(0);
         generator.writeStartObject(null, 3 + failureFields + extraFields);
-        generator.writeStringField(VERDICT_FIELD, metadata.verdict());
+        generator.writeStringField(VERDICT_FIELD, metadata.verdict().encodedName());
         if (metadata.failure().isPresent()) {
             var failure = metadata.failure().orElseThrow();
             generator.writeNumberField(CODE_FIELD, failure.code().encodedCode());

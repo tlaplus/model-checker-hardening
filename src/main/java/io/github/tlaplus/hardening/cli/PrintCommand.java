@@ -173,7 +173,9 @@ final class PrintCommand implements Callable<Integer> {
             output.append("stages:").append(newline);
             for (var stage : envelope.stages()) {
                 output.append("  ").append(stage.stage()).append(":").append(newline);
-                output.append("    verdict: ").append(stage.verdict()).append(newline);
+                output.append("    verdict: ")
+                    .append(stage.verdict().encodedName())
+                    .append(newline);
                 stage.failure().ifPresent(failure -> {
                     output.append("    code: ")
                             .append(failure.code().encodedCode())
