@@ -248,6 +248,20 @@ public final class CorpusDirectory {
         transitions.fanOutParserPass(source);
     }
 
+    /**
+     * Returns the input directory of one checker stage, which is where the parser's fan-out places
+     * a passed entry for that branch. This is the inverse of the ownership check that {@link
+     * #completeChecker} applies, so a caller queues work under the same directory the corpus reads
+     * it back from.
+     */
+    public Path checkerInputPath(CorpusStage stage) {
+        Objects.requireNonNull(stage, "stage");
+        if (!CorpusStage.checkerBranches().contains(stage)) {
+            throw new IllegalArgumentException(stage + " is not a checker stage");
+        }
+        return resolve(stage.input());
+    }
+
     /** Resolves a fixed corpus location. */
     public Path resolve(CorpusPath corpusPath) {
         return layout.resolve(Objects.requireNonNull(corpusPath, "corpusPath"));
