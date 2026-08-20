@@ -141,12 +141,9 @@ class CorpusEnvelopeCodecTest {
 
     @Test
     void rejectsInvalidCheckerFailureMetadata() throws Exception {
-        var missingCode = checkerEnvelope("fail", null, null);
-        var missingApalacheCode = stageEnvelope("apalache", "fail", null, null);
         var unknownCode = checkerEnvelope("fail", 76, null);
         var detailWithoutCode = checkerEnvelope("fail", null, "undefined expression");
         var codeOnPass = checkerEnvelope("pass", 75, null);
-        var codeOnParser = stageEnvelope("parser", "fail", 150, null);
         var excessiveDetail = checkerEnvelope("fail", 75, "x".repeat(81));
         var multilineDetail = checkerEnvelope("fail", 75, "first\nsecond");
         var textCode = cbor(generator -> {
@@ -164,12 +161,9 @@ class CorpusEnvelopeCodecTest {
             generator.writeEndObject();
         });
 
-        assertInvalidEnvelope(missingCode, "requires a failure code");
-        assertInvalidEnvelope(missingApalacheCode, "requires a failure code");
         assertInvalidEnvelope(unknownCode, "unsupported checker failure code: 76");
         assertInvalidEnvelope(detailWithoutCode, "requires field 'code'");
         assertInvalidEnvelope(codeOnPass, "requires the fail verdict");
-        assertInvalidEnvelope(codeOnParser, "parser metadata must not contain");
         assertInvalidEnvelope(excessiveDetail, "must not exceed 80 characters");
         assertInvalidEnvelope(multilineDetail, "must be a single line");
         assertInvalidEnvelope(textCode, "must be an integer");
@@ -403,6 +397,27 @@ class CorpusEnvelopeCodecTest {
         var tree = new ObjectMapper(FACTORY).readTree(updated).get("stages").get("tlc");
         assertEquals(5, tree.get("futureCount").intValue());
         assertEquals("kept", tree.get("futureNote").textValue());
+    }
+
+    /**
+     * The roster of stages that must classify a failure is this build's, so a document recording a
+     * combination this build would not write still reads. Otherwise a later build whose parser
+     * classifies failures would produce entries this one calls malformed.
+     */
+    @Test
+    void readsStageMetadataThisBuildWouldNotWrite() throws Exception {
+        var parserWithCode = stageEnvelope("parser", "fail", 150, null);
+        var checkerWithoutCode = checkerEnvelope("fail", null, null);
+
+        var parserStage = CorpusEnvelopeCodec.decodeEnvelope(parserWithCode).stages().getFirst();
+        assertEquals("parser", parserStage.stage());
+        assertEquals(
+                CheckerFailureCode.PARSE, parserStage.failure().orElseThrow().code());
+
+        var checkerStage =
+                CorpusEnvelopeCodec.decodeEnvelope(checkerWithoutCode).stages().getFirst();
+        assertEquals(CorpusVerdict.FAIL, checkerStage.verdict());
+        assertEquals(Optional.empty(), checkerStage.failure());
     }
 
     private byte[] checkerEnvelope(String verdict, Integer code, String detail)

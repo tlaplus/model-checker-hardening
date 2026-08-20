@@ -88,12 +88,13 @@ final class CorpusEntries {
         }
         var encoded = Files.readAllBytes(path);
         var entry = decode(path, encoded);
-        var input = entry.envelope().corpusInput().input();
+        var corpusInput = entry.envelope().corpusInput();
+        var input = corpusInput.input();
         if (!matcher.group(1).equals(CorpusLayout.digest(input))) {
             throw new CorpusException("corpus entry hash does not match its input: " + path);
         }
         try {
-            validator.validate(path, input);
+            validator.validate(path, corpusInput);
         } catch (RuntimeException | StackOverflowError exception) {
             // The payload broke the generator: keep it for inspection outside the stage
             // directories.
@@ -102,7 +103,11 @@ final class CorpusEntries {
         return entry;
     }
 
-    /** Decodes an envelope, rejecting anything but a supported expression input. */
+    /**
+     * Decodes an envelope. Which input kinds a run consumes is not decided here: an entry the
+     * format allows decodes, and the caller that interprets the payload says whether it can use
+     * it. See {@link CorpusEntryValidator}.
+     */
     static Entry decode(Path path, byte[] encoded) throws CorpusException {
         final CorpusEnvelope envelope;
         try {
@@ -112,19 +117,24 @@ final class CorpusEntries {
                     "invalid CBOR corpus entry: " + path + ": " + Diagnostics.message(exception),
                     exception);
         }
-        if (envelope.corpusInput().kind() != CorpusInput.Kind.EXPRESSION) {
-            throw new CorpusException(
-                    "unsupported corpus input kind '"
-                            + envelope.corpusInput().kind().encodedName()
-                            + "': "
-                            + path);
-        }
         return new Entry(path, encoded, envelope);
     }
 
-    /** Decodes only the generator payload of an entry. */
+    /**
+     * Decodes the generator payload of an entry that must hold an expression. Unlike {@link
+     * #decode}, this method is asked for an expression specifically, so a different kind is a
+     * failed precondition of the call rather than an unusable corpus.
+     */
     static byte[] decodeExpressionInput(Path path, byte[] encoded) throws CorpusException {
-        return decode(path, encoded).envelope().corpusInput().input();
+        var corpusInput = decode(path, encoded).envelope().corpusInput();
+        if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
+            throw new CorpusException(
+                    "corpus entry does not hold an expression input, but '"
+                            + corpusInput.kind().encodedName()
+                            + "': "
+                            + path);
+        }
+        return corpusInput.input();
     }
 
     /** Reads the payload of an entry owned by one stage's input directory. */

@@ -16,6 +16,9 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
@@ -27,7 +30,9 @@ import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -309,6 +314,46 @@ class WorkflowRunnerTest {
         assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).totalEntries());
         assertTrue(corpus.readRunStatistics().stageElapsedNanos(CorpusStage.PARSER) > 0);
         assertTrue(corpus.readRunStatistics().totalElapsedNanos() > 0);
+    }
+
+    /**
+     * The corpus format defines a module input kind, but this workflow runs expression inputs. The
+     * refusal is the workflow's, not the corpus's, so it names the kind the run consumes.
+     */
+    @Test
+    void rejectsAnEntryWhoseKindThisWorkflowDoesNotRun(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var moduleInput = new byte[] {7};
+        var encoded =
+                CorpusInputCodec.encode(new CorpusInput(CorpusInput.Kind.MODULE, moduleInput));
+        var entry = corpus.resolve(CorpusPath.INPUT)
+                .resolve(HexFormat.of()
+                                .formatHex(MessageDigest.getInstance("SHA-256")
+                                        .digest(moduleInput))
+                        + ".cbor");
+        Files.write(entry, encoded);
+
+        var config = new FuzzTlaConfig(
+                IrGenerationConfig.defaults(),
+                new WorkflowConfig(
+                        10,
+                        new StageConfig(10),
+                        new ParserStageConfig(10, 10),
+                        Map.of(
+                                CorpusStage.TLC,
+                                new CheckerStageConfig(10, 10, 512, 1),
+                                CorpusStage.APALACHE,
+                                new CheckerStageConfig(10, 10, 512, 1))),
+                new PbtConfig(4, 10, 2.0, 1.5));
+
+        var failure = assertThrows(
+                CorpusException.class,
+                () -> new WorkflowRunner(config).run(corpus, 42, 1));
+
+        assertTrue(failure.getMessage().contains("corpus entry is rejected"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("'expr'"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("'module'"), failure.getMessage());
     }
 
     @Test

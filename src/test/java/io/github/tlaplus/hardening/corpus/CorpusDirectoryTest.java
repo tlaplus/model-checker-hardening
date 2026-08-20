@@ -156,17 +156,73 @@ class CorpusDirectoryTest {
                 CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
         assertTrue(malformedFailure.getMessage().contains("invalid CBOR corpus entry"));
 
-        Files.delete(malformedPath);
-        var moduleInput = new byte[] {7};
-        var modulePath = corpus.resolve(CorpusPath.INPUT).resolve(hash(moduleInput) + ".cbor");
-        Files.write(
-                modulePath,
-                CorpusInputCodec.encode(
-                        new CorpusInput(CorpusInput.Kind.MODULE, moduleInput)));
+    }
 
-        var moduleFailure = assertThrows(
-                CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
-        assertTrue(moduleFailure.getMessage().contains("unsupported corpus input kind 'module'"));
+    /** The parser does not classify failures, so this build refuses to record one for it. */
+    @Test
+    void refusesToRecordAFailureCodeForTheParser(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var input = new byte[] {7, 5};
+        corpus.store(input);
+
+        var failure = assertThrows(
+                CorpusException.class,
+                () -> corpus.completeParser(
+                        corpus.inputPath(input),
+                        new StageResult(
+                                CorpusVerdict.FAIL,
+                                Instant.ofEpochSecond(1),
+                                Instant.ofEpochSecond(2),
+                                Optional.of(new CheckerFailure(
+                                        CheckerFailureCode.PARSE, Optional.empty())),
+                                "SANY output")));
+
+        assertTrue(
+                failure.getMessage().contains("must not contain a failure code"),
+                failure.getMessage());
+        assertTrue(Files.exists(corpus.inputPath(input)));
+    }
+
+    /**
+     * A kind the format defines is a kind the corpus stores. Whether a run consumes it is the
+     * caller's decision, taken by its {@link CorpusEntryValidator}, so recovery under a validator
+     * that accepts everything must not reject a module entry.
+     */
+    @Test
+    void storesAModuleEntryAndLeavesTheKindDecisionToTheValidator(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var moduleInput = new byte[] {7};
+        var encoded =
+                CorpusInputCodec.encode(new CorpusInput(CorpusInput.Kind.MODULE, moduleInput));
+        var modulePath = corpus.resolve(CorpusPath.INPUT).resolve(hash(moduleInput) + ".cbor");
+        Files.write(modulePath, encoded);
+
+        assertEquals(
+                CorpusInput.Kind.MODULE,
+                CorpusEntries.decode(modulePath, encoded).envelope().corpusInput().kind());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).pendingEntries(CorpusStage.PARSER));
+
+        // A stage that asks for an expression still refuses: that is the call's precondition.
+        var failure = assertThrows(
+                CorpusException.class, () -> corpus.readExpressionInput(modulePath));
+        assertTrue(
+                failure.getMessage().contains("does not hold an expression input, but 'module'"),
+                failure.getMessage());
+
+        // And a run that consumes expressions rejects it through its own validator.
+        CorpusEntryValidator expressionsOnly = (entry, input) -> {
+            if (input.kind() != CorpusInput.Kind.EXPRESSION) {
+                throw new CorpusException("corpus entry is rejected: " + entry);
+            }
+        };
+        assertTrue(assertThrows(
+                        CorpusException.class,
+                        () -> corpus.recoverAndValidate(expressionsOnly))
+                .getMessage()
+                .contains("corpus entry is rejected"));
     }
 
     @Test
@@ -403,12 +459,18 @@ class CorpusDirectoryTest {
                 CheckerFailureCode.SPEC_EVAL,
                 Optional.of("Attempted to apply Head to the empty sequence."));
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> corpus.completeChecker(
-                tlcInput,
-                new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(3), Instant.ofEpochSecond(4), Optional.empty(),
-                        "full TLC output")));
+        assertTrue(assertThrows(
+                        CorpusException.class,
+                        () -> corpus.completeChecker(
+                                tlcInput,
+                                new StageResult(
+                                        CorpusVerdict.FAIL,
+                                        Instant.ofEpochSecond(3),
+                                        Instant.ofEpochSecond(4),
+                                        Optional.empty(),
+                                        "full TLC output")))
+                .getMessage()
+                .contains("requires a failure code"));
         assertTrue(Files.exists(tlcInput));
 
         var result = corpus.completeChecker(
