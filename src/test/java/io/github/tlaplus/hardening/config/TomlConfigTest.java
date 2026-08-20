@@ -7,7 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,6 +44,47 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
+    }
+
+    /**
+     * Pins the three views of a key together: a key declared in the schema must be rendered, and
+     * dropping its rendered line must be rejected as a missing key. A key that drifts out of
+     * validation, out of reading, or out of rendering fails here.
+     */
+    @Test
+    void everyDeclaredKeyIsRenderedAndRequired(@TempDir Path directory) throws Exception {
+        var blocks = new ArrayList<>(
+                List.of(TomlConfig.render(FuzzTlaConfig.defaults()).split("\n\n")));
+        assertEquals(ConfigSchema.TABLES.size(), blocks.size());
+
+        for (var index = 0; index < ConfigSchema.TABLES.size(); index++) {
+            var table = ConfigSchema.TABLES.get(index);
+            var block = blocks.get(index);
+            assertTrue(
+                    block.startsWith("[" + table.path() + "]\n"),
+                    "block " + index + " is not table " + table.path());
+
+            for (var key : table.keys()) {
+                var assignment = block.lines()
+                        .filter(line -> line.startsWith(key.name() + " = "))
+                        .toList();
+                assertEquals(
+                        1, assignment.size(), key.path() + " is not rendered exactly once");
+
+                var withoutKey = new ArrayList<>(blocks);
+                withoutKey.set(
+                        index,
+                        block.lines()
+                                .filter(line -> !line.equals(assignment.get(0)))
+                                .collect(Collectors.joining("\n")));
+                var failure =
+                        assertInvalid(directory, String.join("\n\n", withoutKey));
+                assertTrue(
+                        failure.getMessage()
+                                .contains("missing " + table.path() + " keys: " + key.name()),
+                        "dropping " + key.path() + " reported: " + failure.getMessage());
+            }
+        }
     }
 
     @Test
