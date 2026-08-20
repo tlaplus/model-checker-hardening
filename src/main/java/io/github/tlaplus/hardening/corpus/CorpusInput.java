@@ -50,11 +50,11 @@ public record CorpusInput(Kind kind, byte[] input) {
             return encodedName;
         }
 
-        static Kind fromEncodedName(String encodedName) throws CorpusInputFormatException {
+        static Kind fromEncodedName(String encodedName) throws CorpusFormatException {
             return switch (encodedName) {
                 case "expr" -> EXPRESSION;
                 case "module" -> MODULE;
-                default -> throw new CorpusInputFormatException(
+                default -> throw new CorpusFormatException(
                         "unknown input kind: " + encodedName);
             };
         }

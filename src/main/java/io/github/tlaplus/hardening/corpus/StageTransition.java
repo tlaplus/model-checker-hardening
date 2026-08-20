@@ -72,7 +72,7 @@ final class StageTransition {
                             result.startTime(),
                             result.endTime(),
                             result.failure()));
-        } catch (CorpusInputFormatException exception) {
+        } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "invalid CBOR corpus entry: " + source + ": " + Diagnostics.message(exception),
                     exception);

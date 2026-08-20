@@ -77,11 +77,11 @@ class CorpusInputCodecTest {
         assertEquals(
                 "missing field: gen.richness",
                 assertThrows(
-                                CorpusInputFormatException.class,
+                                CorpusFormatException.class,
                                 () -> CorpusInputCodec.decode(missingRichness))
                         .getMessage());
         assertTrue(assertThrows(
-                        CorpusInputFormatException.class,
+                        CorpusFormatException.class,
                         () -> CorpusInputCodec.decode(negativeCohort))
                 .getMessage()
                 .contains("cohort must be nonnegative"));
@@ -128,10 +128,10 @@ class CorpusInputCodecTest {
     @Test
     void rejectsMalformedOrNonMapCbor() {
         var truncated = assertThrows(
-                CorpusInputFormatException.class,
+                CorpusFormatException.class,
                 () -> CorpusInputCodec.decode(new byte[] {(byte) 0xa1}));
         var array = assertThrows(
-                CorpusInputFormatException.class,
+                CorpusFormatException.class,
                 () -> CorpusInputCodec.decode(new byte[] {(byte) 0x80}));
 
         assertTrue(truncated.getMessage().contains("invalid CBOR"));
@@ -153,10 +153,10 @@ class CorpusInputCodecTest {
         });
 
         var missing = assertThrows(
-                CorpusInputFormatException.class,
+                CorpusFormatException.class,
                 () -> CorpusInputCodec.decode(missingInput));
         var wrongType = assertThrows(
-                CorpusInputFormatException.class,
+                CorpusFormatException.class,
                 () -> CorpusInputCodec.decode(textInput));
 
         assertEquals("missing field: input", missing.getMessage());
@@ -185,20 +185,79 @@ class CorpusInputCodecTest {
         assertEquals(
                 "duplicate field: kind",
                 assertThrows(
-                                CorpusInputFormatException.class,
+                                CorpusFormatException.class,
                                 () -> CorpusInputCodec.decode(duplicate))
                         .getMessage());
         assertEquals(
                 "unknown input kind: declaration",
                 assertThrows(
-                                CorpusInputFormatException.class,
+                                CorpusFormatException.class,
                                 () -> CorpusInputCodec.decode(unknownKind))
                         .getMessage());
         assertEquals(
                 "trailing data after top-level map",
                 assertThrows(
-                                CorpusInputFormatException.class,
+                                CorpusFormatException.class,
                                 () -> CorpusInputCodec.decode(trailing))
+                        .getMessage());
+    }
+
+    /** A field given twice is rejected at any depth, and named by its path in the document. */
+    @Test
+    void rejectsDuplicateFieldsInNestedMaps() throws Exception {
+        var duplicateGenerationField = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("cohort", 1);
+            generator.writeNumberField("cohort", 2);
+            generator.writeNumberField("richness", 2.0);
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+        var duplicateStage = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            var start = Instant.ofEpochSecond(1);
+            var end = Instant.ofEpochSecond(2);
+            writeStage(generator, "tlc", "pass", start, end);
+            writeStage(generator, "tlc", "pass", start, end);
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+        var duplicateVerdict = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("tlc");
+            generator.writeStringField("verdict", "pass");
+            generator.writeStringField("verdict", "pass");
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertEquals(
+                "duplicate field: gen.cohort",
+                assertThrows(
+                                CorpusFormatException.class,
+                                () -> CorpusInputCodec.decode(duplicateGenerationField))
+                        .getMessage());
+        assertEquals(
+                "duplicate field: stages.tlc",
+                assertThrows(
+                                CorpusFormatException.class,
+                                () -> CorpusInputCodec.decodeEnvelope(duplicateStage))
+                        .getMessage());
+        assertEquals(
+                "duplicate field: stages.tlc.verdict",
+                assertThrows(
+                                CorpusFormatException.class,
+                                () -> CorpusInputCodec.decodeEnvelope(duplicateVerdict))
                         .getMessage());
     }
 
@@ -413,12 +472,12 @@ class CorpusInputCodecTest {
         });
 
         assertTrue(assertThrows(
-                        CorpusInputFormatException.class,
+                        CorpusFormatException.class,
                         () -> CorpusInputCodec.decodeEnvelope(untaggedTime))
                 .getMessage()
                 .contains("must be a tag-1 epoch number"));
         assertTrue(assertThrows(
-                        CorpusInputFormatException.class,
+                        CorpusFormatException.class,
                         () -> CorpusInputCodec.decodeEnvelope(reversedTimes))
                 .getMessage()
                 .contains("endTime must not precede startTime"));
@@ -462,7 +521,7 @@ class CorpusInputCodecTest {
 
     private void assertInvalidEnvelope(byte[] encoded, String message) {
         assertTrue(assertThrows(
-                        CorpusInputFormatException.class,
+                        CorpusFormatException.class,
                         () -> CorpusInputCodec.decodeEnvelope(encoded))
                 .getMessage()
                 .contains(message));
