@@ -1,15 +1,12 @@
 package io.github.tlaplus.hardening.corpus;
 
+import static io.github.tlaplus.hardening.corpus.CborDocuments.cbor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
-import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -17,8 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class CorpusRunStatisticsCodecTest {
-    private static final CBORFactory FACTORY = new CBORFactory();
-
     private static final CorpusRunStatistics STATISTICS = new CorpusRunStatistics(
             1,
             2,
@@ -160,18 +155,5 @@ class CorpusRunStatisticsCodecTest {
                         0.0,
                         0.0,
                         0.0));
-    }
-
-    private byte[] cbor(CborWriter writer) throws Exception {
-        var output = new ByteArrayOutputStream();
-        try (var generator = FACTORY.createGenerator(output)) {
-            writer.write(generator);
-        }
-        return output.toByteArray();
-    }
-
-    @FunctionalInterface
-    private interface CborWriter {
-        void write(CBORGenerator generator) throws IOException;
     }
 }

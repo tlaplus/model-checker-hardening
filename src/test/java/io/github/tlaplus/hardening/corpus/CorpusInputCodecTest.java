@@ -1,27 +1,18 @@
 package io.github.tlaplus.hardening.corpus;
 
+import static io.github.tlaplus.hardening.corpus.CborDocuments.FACTORY;
+import static io.github.tlaplus.hardening.corpus.CborDocuments.cbor;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
-import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
-import io.github.tlaplus.hardening.checker.CheckerFailure;
-import io.github.tlaplus.hardening.checker.CheckerFailureCode;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class CorpusInputCodecTest {
-    private static final CBORFactory FACTORY = new CBORFactory();
 
     @Test
     void encodesTheDocumentedMinimalExpressionInput() throws Exception {
@@ -41,7 +32,7 @@ class CorpusInputCodecTest {
         var generation = new GenerationMetadata(7, 18.5);
 
         var encoded = CorpusInputCodec.encode(corpusInput, generation);
-        var envelope = CorpusInputCodec.decodeEnvelope(encoded);
+        var envelope = CorpusEnvelopeCodec.decodeEnvelope(encoded);
         var tree = new ObjectMapper(FACTORY).readTree(encoded);
 
         assertEquals(corpusInput, envelope.corpusInput());
@@ -202,10 +193,10 @@ class CorpusInputCodecTest {
                         .getMessage());
     }
 
-    /** A field given twice is rejected at any depth, and named by its path in the document. */
+    /** A field given twice inside the gen map is rejected, and named by its path. */
     @Test
-    void rejectsDuplicateFieldsInNestedMaps() throws Exception {
-        var duplicateGenerationField = cbor(generator -> {
+    void rejectsDuplicateGenerationFields() throws Exception {
+        var duplicateCohort = cbor(generator -> {
             generator.writeStartObject(null, 3);
             generator.writeStringField("kind", "expr");
             generator.writeBinaryField("input", new byte[0]);
@@ -216,340 +207,31 @@ class CorpusInputCodecTest {
             generator.writeEndObject();
             generator.writeEndObject();
         });
-        var duplicateStage = cbor(generator -> {
-            generator.writeStartObject(null, 3);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[0]);
-            generator.writeObjectFieldStart("stages");
-            var start = Instant.ofEpochSecond(1);
-            var end = Instant.ofEpochSecond(2);
-            writeStage(generator, "tlc", "pass", start, end);
-            writeStage(generator, "tlc", "pass", start, end);
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
-        var duplicateVerdict = cbor(generator -> {
-            generator.writeStartObject(null, 3);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[0]);
-            generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart("tlc");
-            generator.writeStringField("verdict", "pass");
-            generator.writeStringField("verdict", "pass");
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
 
         assertEquals(
                 "duplicate field: gen.cohort",
                 assertThrows(
                                 CorpusFormatException.class,
-                                () -> CorpusInputCodec.decode(duplicateGenerationField))
-                        .getMessage());
-        assertEquals(
-                "duplicate field: stages.tlc",
-                assertThrows(
-                                CorpusFormatException.class,
-                                () -> CorpusInputCodec.decodeEnvelope(duplicateStage))
-                        .getMessage());
-        assertEquals(
-                "duplicate field: stages.tlc.verdict",
-                assertThrows(
-                                CorpusFormatException.class,
-                                () -> CorpusInputCodec.decodeEnvelope(duplicateVerdict))
+                                () -> CorpusInputCodec.decode(duplicateCohort))
                         .getMessage());
     }
 
+    /** Stage metadata does not decide an input's identity, whatever shape it has. */
     @Test
-    void addsTaggedStageTimesWithoutDroppingUnknownMetadata() throws Exception {
+    void decodesAnInputBesideStageMetadataItDoesNotUnderstand() throws Exception {
         var encoded = cbor(generator -> {
-            generator.writeStartObject(null, 4);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[] {4, 2});
-            generator.writeObjectFieldStart("future");
-            generator.writeNumberField("answer", 42);
-            generator.writeEndObject();
-            generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart("other");
-            generator.writeStringField("verdict", "kept");
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
-
-        var updated = CorpusInputCodec.withStageMetadata(
-                encoded,
-                new StageMetadata(
-                        "parser",
-                        "pass",
-                        Instant.ofEpochSecond(10),
-                        Instant.ofEpochSecond(12)));
-
-        var tree = new ObjectMapper(FACTORY).readTree(updated);
-        assertEquals(42, tree.path("future").path("answer").intValue());
-        assertEquals("kept", tree.path("stages").path("other").path("verdict").textValue());
-        assertEquals(
-                "pass", CorpusInputCodec.stageVerdict(updated, "parser").orElseThrow());
-
-        var taggedTimes = 0;
-        try (var parser = FACTORY.createParser(updated)) {
-            while (parser.nextToken() != null) {
-                if (("startTime".equals(parser.currentName())
-                                || "endTime".equals(parser.currentName()))
-                        && parser.nextToken() != null) {
-                    assertEquals(1, parser.getCurrentTag());
-                    taggedTimes++;
-                }
-            }
-        }
-        assertEquals(2, taggedTimes);
-    }
-
-    @Test
-    void preservesGenerationMetadataWhenAddingStageMetadata() throws Exception {
-        var generation = new GenerationMetadata(4, 8.0);
-        var encoded = CorpusInputCodec.encode(
-                CorpusInput.expression(new byte[] {4, 2}), generation);
-
-        var updated = CorpusInputCodec.withStageMetadata(
-                encoded,
-                new StageMetadata(
-                        "parser",
-                        "pass",
-                        Instant.ofEpochSecond(10),
-                        Instant.ofEpochSecond(12)));
-
-        var envelope = CorpusInputCodec.decodeEnvelope(updated);
-        assertEquals(generation, envelope.generation().orElseThrow());
-        assertEquals("pass", envelope.stages().getFirst().verdict());
-    }
-
-    @Test
-    void encodesAndDecodesNumericCheckerFailureMetadata() throws Exception {
-        var failure = new CheckerFailure(
-                CheckerFailureCode.SPEC_EVAL,
-                Optional.of("Attempted to apply Head to the empty sequence."));
-        var encoded = CorpusInputCodec.withStageMetadata(
-                CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 2})),
-                new StageMetadata(
-                        "tlc",
-                        "fail",
-                        Instant.ofEpochSecond(10),
-                        Instant.ofEpochSecond(12),
-                        Optional.of(failure)));
-
-        var envelope = CorpusInputCodec.decodeEnvelope(encoded);
-        var tree = new ObjectMapper(FACTORY).readTree(encoded);
-
-        assertEquals(Optional.of(failure), envelope.stages().getFirst().failure());
-        assertEquals(75, tree.path("stages").path("tlc").path("code").intValue());
-        assertEquals(
-                failure.detail().orElseThrow(),
-                tree.path("stages").path("tlc").path("detail").textValue());
-    }
-
-    @Test
-    void rejectsInvalidCheckerFailureMetadata() throws Exception {
-        var missingCode = checkerEnvelope("fail", null, null);
-        var missingApalacheCode = stageEnvelope("apalache", "fail", null, null);
-        var unknownCode = checkerEnvelope("fail", 76, null);
-        var detailWithoutCode = checkerEnvelope("fail", null, "undefined expression");
-        var codeOnPass = checkerEnvelope("pass", 75, null);
-        var codeOnParser = stageEnvelope("parser", "fail", 150, null);
-        var excessiveDetail = checkerEnvelope("fail", 75, "x".repeat(81));
-        var multilineDetail = checkerEnvelope("fail", 75, "first\nsecond");
-        var textCode = cbor(generator -> {
             generator.writeStartObject(null, 3);
             generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[0]);
+            generator.writeBinaryField("input", new byte[] {7});
             generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart("tlc");
-            generator.writeStringField("verdict", "fail");
-            generator.writeStringField("code", "75");
-            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
-            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeObjectFieldStart("future-stage");
+            generator.writeStringField("outcome", "who knows");
             generator.writeEndObject();
             generator.writeEndObject();
             generator.writeEndObject();
         });
 
-        assertInvalidEnvelope(missingCode, "requires a failure code");
-        assertInvalidEnvelope(missingApalacheCode, "requires a failure code");
-        assertInvalidEnvelope(unknownCode, "unsupported checker failure code: 76");
-        assertInvalidEnvelope(detailWithoutCode, "requires field 'code'");
-        assertInvalidEnvelope(codeOnPass, "requires the fail verdict");
-        assertInvalidEnvelope(codeOnParser, "parser metadata must not contain");
-        assertInvalidEnvelope(excessiveDetail, "must not exceed 80 characters");
-        assertInvalidEnvelope(multilineDetail, "must be a single line");
-        assertInvalidEnvelope(textCode, "must be an integer");
-    }
-
-    @Test
-    void appliesOnlyGenericFailureRulesToUnknownStages() throws Exception {
-        var encoded = stageEnvelope("future-checker", "fail", 75, "undefined expression");
-
-        var metadata = CorpusInputCodec.decodeEnvelope(encoded).stages().getFirst();
-
-        assertEquals("future-checker", metadata.stage());
         assertEquals(
-                Optional.of(new CheckerFailure(
-                        CheckerFailureCode.SPEC_EVAL,
-                        Optional.of("undefined expression"))),
-                metadata.failure());
-    }
-
-    @Test
-    void decodesSupportedEnvelopeFieldsInStageOrderAndIgnoresExtensions() throws Exception {
-        var encoded = cbor(generator -> {
-            generator.writeStartObject(null, 4);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[] {4, 2});
-            generator.writeStringField("future", "ignored");
-            generator.writeObjectFieldStart("stages");
-            writeStage(
-                    generator,
-                    "generator",
-                    "pass",
-                    Instant.ofEpochSecond(10),
-                    Instant.ofEpochSecond(10));
-            generator.writeObjectFieldStart("parser");
-            generator.writeStringField("verdict", "fail");
-            generator.writeStringField("future", "ignored");
-            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(20));
-            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(23));
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
-
-        var envelope = CorpusInputCodec.decodeEnvelope(encoded);
-
-        assertEquals(CorpusInput.expression(new byte[] {4, 2}), envelope.corpusInput());
-        assertEquals(
-                List.of(
-                        new StageMetadata(
-                                "generator",
-                                "pass",
-                                Instant.ofEpochSecond(10),
-                                Instant.ofEpochSecond(10)),
-                        new StageMetadata(
-                                "parser",
-                                "fail",
-                                Instant.ofEpochSecond(20),
-                                Instant.ofEpochSecond(23))),
-                envelope.stages());
-    }
-
-    @Test
-    void rejectsInvalidSupportedMetadataWhenDecodingEnvelope() throws Exception {
-        var untaggedTime = cbor(generator -> {
-            generator.writeStartObject(null, 3);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[0]);
-            generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart("parser");
-            generator.writeStringField("verdict", "pass");
-            generator.writeNumberField("startTime", 10);
-            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
-        var reversedTimes = cbor(generator -> {
-            generator.writeStartObject(null, 3);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[0]);
-            generator.writeObjectFieldStart("stages");
-            writeStage(
-                    generator,
-                    "parser",
-                    "pass",
-                    Instant.ofEpochSecond(12),
-                    Instant.ofEpochSecond(10));
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
-
-        assertTrue(assertThrows(
-                        CorpusFormatException.class,
-                        () -> CorpusInputCodec.decodeEnvelope(untaggedTime))
-                .getMessage()
-                .contains("must be a tag-1 epoch number"));
-        assertTrue(assertThrows(
-                        CorpusFormatException.class,
-                        () -> CorpusInputCodec.decodeEnvelope(reversedTimes))
-                .getMessage()
-                .contains("endTime must not precede startTime"));
-    }
-
-    private byte[] cbor(CborWriter writer) throws Exception {
-        var output = new ByteArrayOutputStream();
-        try (var generator = FACTORY.createGenerator(output)) {
-            writer.write(generator);
-        }
-        return output.toByteArray();
-    }
-
-    private byte[] checkerEnvelope(String verdict, Integer code, String detail)
-            throws Exception {
-        return stageEnvelope("tlc", verdict, code, detail);
-    }
-
-    private byte[] stageEnvelope(
-            String stage, String verdict, Integer code, String detail) throws Exception {
-        return cbor(generator -> {
-            generator.writeStartObject(null, 3);
-            generator.writeStringField("kind", "expr");
-            generator.writeBinaryField("input", new byte[0]);
-            generator.writeObjectFieldStart("stages");
-            generator.writeObjectFieldStart(stage);
-            generator.writeStringField("verdict", verdict);
-            if (code != null) {
-                generator.writeNumberField("code", code);
-            }
-            if (detail != null) {
-                generator.writeStringField("detail", detail);
-            }
-            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
-            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeEndObject();
-        });
-    }
-
-    private void assertInvalidEnvelope(byte[] encoded, String message) {
-        assertTrue(assertThrows(
-                        CorpusFormatException.class,
-                        () -> CorpusInputCodec.decodeEnvelope(encoded))
-                .getMessage()
-                .contains(message));
-    }
-
-    private void writeStage(
-            CBORGenerator generator,
-            String stage,
-            String verdict,
-            Instant startTime,
-            Instant endTime)
-            throws IOException {
-        generator.writeObjectFieldStart(stage);
-        generator.writeStringField("verdict", verdict);
-        writeTaggedEpoch(generator, "startTime", startTime);
-        writeTaggedEpoch(generator, "endTime", endTime);
-        generator.writeEndObject();
-    }
-
-    private void writeTaggedEpoch(CBORGenerator generator, String field, Instant instant)
-            throws IOException {
-        generator.writeFieldName(field);
-        generator.writeTag(1);
-        generator.writeNumber(instant.getEpochSecond());
-    }
-
-    @FunctionalInterface
-    private interface CborWriter {
-        void write(CBORGenerator generator) throws IOException;
+                CorpusInput.expression(new byte[] {7}), CorpusInputCodec.decode(encoded));
     }
 }

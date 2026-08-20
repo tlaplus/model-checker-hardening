@@ -16,6 +16,7 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -230,7 +231,7 @@ class MainTest {
                     entryCount++;
                     var encoded = Files.readAllBytes(entry);
                     var corpusInput = CorpusInputCodec.decode(encoded);
-                    var generation = CorpusInputCodec.decodeEnvelope(encoded)
+                    var generation = CorpusEnvelopeCodec.decodeEnvelope(encoded)
                             .generation()
                             .orElseThrow();
                     assertEquals(CorpusInput.Kind.EXPRESSION, corpusInput.kind());
@@ -412,7 +413,7 @@ class MainTest {
         var input = directory.resolve("metadata.cbor");
         var startTime = Instant.parse("2026-08-13T14:26:07Z");
         var endTime = startTime.plusSeconds(93_784);
-        var encoded = CorpusInputCodec.withStageMetadata(
+        var encoded = CorpusEnvelopeCodec.withStageMetadata(
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
                 new StageMetadata("parser", "pass", startTime, endTime));
         Files.write(input, encoded);
@@ -440,7 +441,7 @@ class MainTest {
     void printsCheckerFailureCodeAndDetail(@TempDir Path directory) throws Exception {
         var input = directory.resolve("metadata.cbor");
         var startTime = Instant.parse("2026-08-13T14:26:07Z");
-        var encoded = CorpusInputCodec.withStageMetadata(
+        var encoded = CorpusEnvelopeCodec.withStageMetadata(
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
                 new StageMetadata(
                         "tlc",
@@ -491,7 +492,7 @@ class MainTest {
     void printsZeroEnvelopeDuration(@TempDir Path directory) throws Exception {
         var input = directory.resolve("metadata.cbor");
         var timestamp = Instant.parse("2026-08-13T14:26:07Z");
-        var encoded = CorpusInputCodec.withStageMetadata(
+        var encoded = CorpusEnvelopeCodec.withStageMetadata(
                 CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
                 new StageMetadata("parser", "fail", timestamp, timestamp));
         Files.write(input, encoded);

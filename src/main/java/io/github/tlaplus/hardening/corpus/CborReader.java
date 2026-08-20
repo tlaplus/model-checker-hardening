@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.IOException;
@@ -30,8 +29,6 @@ final class CborReader implements AutoCloseable {
     /** The path of the document's root map: a field of the root is named by itself alone. */
     static final String ROOT = "";
 
-    private static final CBORFactory FACTORY = new CBORFactory();
-
     /** The CBOR tag of an epoch-based date/time, RFC 8949 section 3.4.2. */
     private static final int EPOCH_TAG = 1;
 
@@ -51,7 +48,7 @@ final class CborReader implements AutoCloseable {
     static CborReader of(byte[] encoded) throws CorpusFormatException {
         Objects.requireNonNull(encoded, "encoded");
         try {
-            return new CborReader(FACTORY.createParser(encoded));
+            return new CborReader(CorpusCbor.FACTORY.createParser(encoded));
         } catch (IOException exception) {
             throw invalidCbor(exception);
         }

@@ -64,7 +64,7 @@ final class StageTransition {
         // Prepare the updated envelope before committing either artifact.
         final byte[] updated;
         try {
-            updated = CorpusInputCodec.withStageMetadata(
+            updated = CorpusEnvelopeCodec.withStageMetadata(
                     encoded,
                     new StageMetadata(
                             stage.metadataName(),

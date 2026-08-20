@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
@@ -93,7 +94,7 @@ final class PrintCommand implements Callable<Integer> {
         final CorpusEnvelope envelope;
         try {
             if (printsEnvelope()) {
-                envelope = CorpusInputCodec.decodeEnvelope(encoded);
+                envelope = CorpusEnvelopeCodec.decodeEnvelope(encoded);
                 corpusInput = envelope.corpusInput();
             } else {
                 envelope = null;
