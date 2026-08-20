@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.corpus;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.common.Diagnostics;
@@ -35,9 +34,6 @@ public final class CorpusEnvelopeCodec {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(CorpusCbor.FACTORY);
 
-    /** The CBOR tag of an epoch-based date/time, RFC 8949 section 3.4.2. */
-    private static final int EPOCH_TAG = 1;
-
     private CorpusEnvelopeCodec() {}
 
     /** Decodes the required input and every stage's metadata in one pass. */
@@ -66,42 +62,37 @@ public final class CorpusEnvelopeCodec {
         }
         var existing = readRecognizedStages(encoded, stages);
 
+        var stagesMap = new CborMapWriter();
+        if (stages != null) {
+            for (Map.Entry<String, JsonNode> field : stages.properties()) {
+                if (metadata.stage().equals(field.getKey())) {
+                    continue;
+                }
+                var parsed = existing.get(field.getKey());
+                if (parsed == null) {
+                    // Not stage metadata this build recognizes: keep exactly what is stored.
+                    stagesMap.tree(field.getKey(), field.getValue());
+                } else {
+                    stagesMap.map(field.getKey(), stageMetadata(parsed, field.getValue()));
+                }
+            }
+        }
+        stagesMap.map(
+                metadata.stage(),
+                stageMetadata(metadata, stages == null ? null : stages.get(metadata.stage())));
+
+        var document = new CborMapWriter();
+        for (Map.Entry<String, JsonNode> field : root.properties()) {
+            if (!STAGES_FIELD.equals(field.getKey())) {
+                document.tree(field.getKey(), field.getValue());
+            }
+        }
+        document.map(STAGES_FIELD, stagesMap);
+
         var output = new ByteArrayOutputStream();
         try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
             generator.setCodec(MAPPER);
-            generator.writeStartObject(null, root.size() + (stages == null ? 1 : 0));
-            for (Map.Entry<String, JsonNode> field : root.properties()) {
-                if (!STAGES_FIELD.equals(field.getKey())) {
-                    generator.writeFieldName(field.getKey());
-                    generator.writeTree(field.getValue());
-                }
-            }
-
-            generator.writeFieldName(STAGES_FIELD);
-            var stageCount = stages == null ? 0 : stages.size();
-            var replacing = stages != null && stages.has(metadata.stage());
-            generator.writeStartObject(null, stageCount + (replacing ? 0 : 1));
-            if (stages != null) {
-                for (Map.Entry<String, JsonNode> field : stages.properties()) {
-                    if (metadata.stage().equals(field.getKey())) {
-                        continue;
-                    }
-                    var parsed = existing.get(field.getKey());
-                    if (parsed == null) {
-                        // Not stage metadata this build recognizes: keep exactly what is stored.
-                        generator.writeFieldName(field.getKey());
-                        generator.writeTree(field.getValue());
-                    } else {
-                        writeStageMetadata(generator, parsed, field.getValue());
-                    }
-                }
-            }
-            writeStageMetadata(
-                    generator,
-                    metadata,
-                    stages == null ? null : stages.get(metadata.stage()));
-            generator.writeEndObject();
-            generator.writeEndObject();
+            document.writeTo(generator);
         } catch (IOException exception) {
             throw new CorpusFormatException(
                     "cannot encode CBOR metadata: " + Diagnostics.message(exception), exception);
@@ -229,40 +220,22 @@ public final class CorpusEnvelopeCodec {
      * model. Timestamps are written back tagged: a CBOR tag does not survive in a tree, so a stage
      * that is copied rather than written here would lose it.
      */
-    private static void writeStageMetadata(
-            CBORGenerator generator, StageMetadata metadata, JsonNode previous)
-            throws IOException {
-        generator.writeFieldName(metadata.stage());
-        var extraFields = previous == null
-                ? 0
-                : (int) previous.properties().stream()
-                        .filter(field -> !isStageMetadataField(field.getKey()))
-                        .count();
-        var failureFields = metadata.failure()
-                .map(failure -> failure.detail().isPresent() ? 2 : 1)
-                .orElse(0);
-        generator.writeStartObject(null, 3 + failureFields + extraFields);
-        generator.writeStringField(VERDICT_FIELD, metadata.verdict().encodedName());
-        if (metadata.failure().isPresent()) {
-            var failure = metadata.failure().orElseThrow();
-            generator.writeNumberField(CODE_FIELD, failure.code().encodedCode());
-            if (failure.detail().isPresent()) {
-                generator.writeStringField(DETAIL_FIELD, failure.detail().orElseThrow());
-            }
-        }
-        generator.writeFieldName(START_TIME_FIELD);
-        writeEpoch(generator, metadata.startTime());
-        generator.writeFieldName(END_TIME_FIELD);
-        writeEpoch(generator, metadata.endTime());
+    private static CborMapWriter stageMetadata(StageMetadata metadata, JsonNode previous) {
+        var map = new CborMapWriter().string(VERDICT_FIELD, metadata.verdict().encodedName());
+        metadata.failure().ifPresent(failure -> {
+            map.number(CODE_FIELD, failure.code().encodedCode());
+            failure.detail().ifPresent(detail -> map.string(DETAIL_FIELD, detail));
+        });
+        map.epoch(START_TIME_FIELD, metadata.startTime());
+        map.epoch(END_TIME_FIELD, metadata.endTime());
         if (previous != null) {
             for (Map.Entry<String, JsonNode> field : previous.properties()) {
                 if (!isStageMetadataField(field.getKey())) {
-                    generator.writeFieldName(field.getKey());
-                    generator.writeTree(field.getValue());
+                    map.tree(field.getKey(), field.getValue());
                 }
             }
         }
-        generator.writeEndObject();
+        return map;
     }
 
     private static boolean isStageMetadataField(String field) {
@@ -271,10 +244,5 @@ public final class CorpusEnvelopeCodec {
                 || DETAIL_FIELD.equals(field)
                 || START_TIME_FIELD.equals(field)
                 || END_TIME_FIELD.equals(field);
-    }
-
-    private static void writeEpoch(CBORGenerator generator, Instant instant) throws IOException {
-        generator.writeTag(EPOCH_TAG);
-        generator.writeNumber(instant.getEpochSecond());
     }
 }

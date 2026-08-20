@@ -26,34 +26,33 @@ final class CorpusRunStatisticsCodec {
 
     static byte[] encode(CorpusRunStatistics statistics) throws IOException {
         Objects.requireNonNull(statistics, "statistics");
+        var stages = new CborMapWriter();
+        for (var stage : CorpusStage.values()) {
+            stages.number(stage.metadataName(), statistics.stageElapsedNanos(stage));
+        }
+        var document = new CborMapWriter()
+                .map(
+                        ELAPSED_FIELD,
+                        new CborMapWriter()
+                                .number(TOTAL_FIELD, statistics.totalElapsedNanos())
+                                .number(GENERATOR_FIELD, statistics.generatorElapsedNanos())
+                                .map(STAGES_FIELD, stages))
+                .map(
+                        GENERATOR_FIELD,
+                        new CborMapWriter()
+                                .number(ATTEMPTS_FIELD, statistics.generatorAttempts())
+                                .number(REJECTED_FIELD, statistics.generatorRejected())
+                                .number(
+                                        RICHNESS_REJECTED_FIELD,
+                                        statistics.generatorRichnessRejected())
+                                .number(DUPLICATES_FIELD, statistics.generatorDuplicates())
+                                .number(RICHNESS_SAMPLES_FIELD, statistics.richnessSamples())
+                                .number(MINIMUM_RICHNESS_FIELD, statistics.minimumRichness())
+                                .number(MAXIMUM_RICHNESS_FIELD, statistics.maximumRichness())
+                                .number(AVERAGE_RICHNESS_FIELD, statistics.averageRichness()));
         var output = new ByteArrayOutputStream();
         try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
-            generator.writeStartObject(null, 2);
-            generator.writeFieldName(ELAPSED_FIELD);
-            generator.writeStartObject(null, 3);
-            generator.writeNumberField(TOTAL_FIELD, statistics.totalElapsedNanos());
-            generator.writeNumberField(GENERATOR_FIELD, statistics.generatorElapsedNanos());
-            generator.writeFieldName(STAGES_FIELD);
-            generator.writeStartObject(null, CorpusStage.values().length);
-            for (var stage : CorpusStage.values()) {
-                generator.writeNumberField(
-                        stage.metadataName(), statistics.stageElapsedNanos(stage));
-            }
-            generator.writeEndObject();
-            generator.writeEndObject();
-            generator.writeFieldName(GENERATOR_FIELD);
-            generator.writeStartObject(null, 8);
-            generator.writeNumberField(ATTEMPTS_FIELD, statistics.generatorAttempts());
-            generator.writeNumberField(REJECTED_FIELD, statistics.generatorRejected());
-            generator.writeNumberField(
-                    RICHNESS_REJECTED_FIELD, statistics.generatorRichnessRejected());
-            generator.writeNumberField(DUPLICATES_FIELD, statistics.generatorDuplicates());
-            generator.writeNumberField(RICHNESS_SAMPLES_FIELD, statistics.richnessSamples());
-            generator.writeNumberField(MINIMUM_RICHNESS_FIELD, statistics.minimumRichness());
-            generator.writeNumberField(MAXIMUM_RICHNESS_FIELD, statistics.maximumRichness());
-            generator.writeNumberField(AVERAGE_RICHNESS_FIELD, statistics.averageRichness());
-            generator.writeEndObject();
-            generator.writeEndObject();
+            document.writeTo(generator);
         }
         return output.toByteArray();
     }

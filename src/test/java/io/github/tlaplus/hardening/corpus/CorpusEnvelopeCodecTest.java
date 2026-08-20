@@ -357,6 +357,54 @@ class CorpusEnvelopeCodecTest {
         assertEquals(CorpusVerdict.PASS, stage.verdict());
     }
 
+    /**
+     * The stage map's definite length has to cover the verdict, both timestamps, an optional
+     * failure code, an optional detail, and every field this build does not model. Rewriting a
+     * stage that carries all of them at once is the case where a hand-counted size goes wrong.
+     */
+    @Test
+    void rewritesAStageCarryingAFailureDetailAndUnmodelledFields() throws Exception {
+        var encoded = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[] {7});
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("tlc");
+            generator.writeStringField("verdict", "fail");
+            generator.writeNumberField("code", 75);
+            generator.writeStringField("detail", "old detail");
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeNumberField("futureCount", 5);
+            generator.writeStringField("futureNote", "kept");
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        var updated = CorpusEnvelopeCodec.withStageMetadata(
+                encoded,
+                new StageMetadata(
+                        "tlc",
+                        CorpusVerdict.FAIL,
+                        Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(25),
+                        Optional.of(new CheckerFailure(
+                                CheckerFailureCode.COUNTEREXAMPLE, Optional.of("new detail")))));
+
+        var stage = CorpusEnvelopeCodec.decodeEnvelope(updated).stages().getFirst();
+        assertEquals(CorpusVerdict.FAIL, stage.verdict());
+        assertEquals(Instant.ofEpochSecond(20), stage.startTime());
+        assertEquals(Instant.ofEpochSecond(25), stage.endTime());
+        assertEquals(
+                CheckerFailureCode.COUNTEREXAMPLE, stage.failure().orElseThrow().code());
+        assertEquals("new detail", stage.failure().orElseThrow().detail().orElseThrow());
+
+        var tree = new ObjectMapper(FACTORY).readTree(updated).get("stages").get("tlc");
+        assertEquals(5, tree.get("futureCount").intValue());
+        assertEquals("kept", tree.get("futureNote").textValue());
+    }
+
     private byte[] checkerEnvelope(String verdict, Integer code, String detail)
             throws Exception {
         return stageEnvelope("tlc", verdict, code, detail);
