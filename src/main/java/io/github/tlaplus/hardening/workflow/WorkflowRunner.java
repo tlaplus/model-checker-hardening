@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
@@ -312,13 +313,24 @@ public final class WorkflowRunner {
     }
 
     /**
-     * Returns the policy that decides whether a stored payload is still usable: it must decode to an
-     * expression under this run's generator configuration.
+     * Returns the policy that decides whether a stored input is still usable: this workflow runs
+     * expression inputs, and the payload must decode to an expression under this run's generator
+     * configuration.
      */
     private CorpusEntryValidator entryValidator() {
         return (entry, input) -> {
+            if (input.kind() != CorpusInput.Kind.EXPRESSION) {
+                throw new CorpusException(
+                        "corpus entry is rejected: "
+                                + entry
+                                + ": this workflow runs '"
+                                + CorpusInput.Kind.EXPRESSION.encodedName()
+                                + "' inputs, but the entry holds '"
+                                + input.kind().encodedName()
+                                + "'");
+            }
             try {
-                generator.generate(input);
+                generator.generate(input.input());
             } catch (InputRejectedException exception) {
                 throw new CorpusException(
                         "corpus entry is rejected: "
