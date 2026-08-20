@@ -12,7 +12,7 @@ import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
-import io.github.tlaplus.hardening.corpus.CorpusInputFormatException;
+import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
@@ -99,7 +99,7 @@ final class PrintCommand implements Callable<Integer> {
                 envelope = null;
                 corpusInput = CorpusInputCodec.decode(encoded);
             }
-        } catch (CorpusInputFormatException exception) {
+        } catch (CorpusFormatException exception) {
             spec.commandLine()
                     .getErr()
                     .printf(

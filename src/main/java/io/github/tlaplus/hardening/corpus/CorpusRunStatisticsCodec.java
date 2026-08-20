@@ -1,13 +1,10 @@
 package io.github.tlaplus.hardening.corpus;
 
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.EnumMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 
@@ -16,6 +13,16 @@ final class CorpusRunStatisticsCodec {
     private static final String ELAPSED_FIELD = "elapsedNs";
     private static final String GENERATOR_FIELD = "generator";
     private static final String STAGES_FIELD = "stages";
+    private static final String TOTAL_FIELD = "total";
+    private static final String ATTEMPTS_FIELD = "attempts";
+    private static final String REJECTED_FIELD = "rejected";
+    private static final String RICHNESS_REJECTED_FIELD = "richnessRejected";
+    private static final String DUPLICATES_FIELD = "duplicates";
+    private static final String RICHNESS_SAMPLES_FIELD = "richnessSamples";
+    private static final String MINIMUM_RICHNESS_FIELD = "minimumRichness";
+    private static final String MAXIMUM_RICHNESS_FIELD = "maximumRichness";
+    private static final String AVERAGE_RICHNESS_FIELD = "averageRichness";
+
     private static final CBORFactory FACTORY = new CBORFactory();
 
     private CorpusRunStatisticsCodec() {}
@@ -27,8 +34,8 @@ final class CorpusRunStatisticsCodec {
             generator.writeStartObject(null, 2);
             generator.writeFieldName(ELAPSED_FIELD);
             generator.writeStartObject(null, 3);
-            generator.writeNumberField("total", statistics.totalElapsedNanos());
-            generator.writeNumberField("generator", statistics.generatorElapsedNanos());
+            generator.writeNumberField(TOTAL_FIELD, statistics.totalElapsedNanos());
+            generator.writeNumberField(GENERATOR_FIELD, statistics.generatorElapsedNanos());
             generator.writeFieldName(STAGES_FIELD);
             generator.writeStartObject(null, CorpusStage.values().length);
             for (var stage : CorpusStage.values()) {
@@ -39,129 +46,110 @@ final class CorpusRunStatisticsCodec {
             generator.writeEndObject();
             generator.writeFieldName(GENERATOR_FIELD);
             generator.writeStartObject(null, 8);
-            generator.writeNumberField("attempts", statistics.generatorAttempts());
-            generator.writeNumberField("rejected", statistics.generatorRejected());
+            generator.writeNumberField(ATTEMPTS_FIELD, statistics.generatorAttempts());
+            generator.writeNumberField(REJECTED_FIELD, statistics.generatorRejected());
             generator.writeNumberField(
-                    "richnessRejected", statistics.generatorRichnessRejected());
-            generator.writeNumberField("duplicates", statistics.generatorDuplicates());
-            generator.writeNumberField("richnessSamples", statistics.richnessSamples());
-            generator.writeNumberField("minimumRichness", statistics.minimumRichness());
-            generator.writeNumberField("maximumRichness", statistics.maximumRichness());
-            generator.writeNumberField("averageRichness", statistics.averageRichness());
+                    RICHNESS_REJECTED_FIELD, statistics.generatorRichnessRejected());
+            generator.writeNumberField(DUPLICATES_FIELD, statistics.generatorDuplicates());
+            generator.writeNumberField(RICHNESS_SAMPLES_FIELD, statistics.richnessSamples());
+            generator.writeNumberField(MINIMUM_RICHNESS_FIELD, statistics.minimumRichness());
+            generator.writeNumberField(MAXIMUM_RICHNESS_FIELD, statistics.maximumRichness());
+            generator.writeNumberField(AVERAGE_RICHNESS_FIELD, statistics.averageRichness());
             generator.writeEndObject();
             generator.writeEndObject();
         }
         return output.toByteArray();
     }
 
-    static CorpusRunStatistics decode(byte[] encoded) throws CorpusStatisticsFormatException {
+    static CorpusRunStatistics decode(byte[] encoded) throws CorpusFormatException {
         Objects.requireNonNull(encoded, "encoded");
-        try (var parser = FACTORY.createParser(encoded)) {
-            if (parser.nextToken() != JsonToken.START_OBJECT) {
-                throw format("top-level value must be a map");
-            }
+        try (var reader = CborReader.of(encoded)) {
+            reader.startDocument();
             Elapsed elapsed = null;
             Generator generator = null;
-            var fields = new HashSet<String>();
-            while (parser.nextToken() != JsonToken.END_OBJECT) {
-                var field = readFieldName(parser, fields, "");
-                var value = parser.nextToken();
-                if (value == null) {
-                    throw format("field has no value: " + field);
-                }
-                switch (field) {
+            CborReader.Field field;
+            while ((field = reader.nextField(CborReader.ROOT)) != null) {
+                switch (field.name()) {
                     case ELAPSED_FIELD -> {
-                        requireMap(value, ELAPSED_FIELD);
-                        elapsed = readElapsed(parser);
+                        reader.requireMap(field);
+                        elapsed = readElapsed(reader);
                     }
                     case GENERATOR_FIELD -> {
-                        requireMap(value, GENERATOR_FIELD);
-                        generator = readGenerator(parser);
+                        reader.requireMap(field);
+                        generator = readGenerator(reader);
                     }
-                    default -> parser.skipChildren();
+                    default -> reader.skipValue();
                 }
             }
-            if (elapsed == null) {
-                throw format("missing field: " + ELAPSED_FIELD);
-            }
-            if (generator == null) {
-                throw format("missing field: " + GENERATOR_FIELD);
-            }
-            if (parser.nextToken() != null) {
-                throw format("trailing data after top-level map");
-            }
+            var elapsedNanos = CborReader.required(elapsed, ELAPSED_FIELD);
+            var generatorStatistics = CborReader.required(generator, GENERATOR_FIELD);
+            reader.endDocument();
             try {
                 return new CorpusRunStatistics(
-                        elapsed.total(),
-                        elapsed.generator(),
-                        elapsed.stages(),
-                        generator.attempts(),
-                        generator.rejected(),
-                        generator.richnessRejected(),
-                        generator.duplicates(),
-                        generator.richnessSamples(),
-                        generator.minimumRichness(),
-                        generator.maximumRichness(),
-                        generator.averageRichness());
+                        elapsedNanos.total(),
+                        elapsedNanos.generator(),
+                        elapsedNanos.stages(),
+                        generatorStatistics.attempts(),
+                        generatorStatistics.rejected(),
+                        generatorStatistics.richnessRejected(),
+                        generatorStatistics.duplicates(),
+                        generatorStatistics.richnessSamples(),
+                        generatorStatistics.minimumRichness(),
+                        generatorStatistics.maximumRichness(),
+                        generatorStatistics.averageRichness());
             } catch (IllegalArgumentException exception) {
-                throw format("invalid workflow statistics: " + Diagnostics.message(exception));
+                throw CborReader.malformed(
+                        "invalid workflow statistics: " + Diagnostics.message(exception));
             }
-        } catch (CorpusStatisticsFormatException exception) {
+        } catch (CorpusFormatException exception) {
             throw exception;
         } catch (IOException | RuntimeException exception) {
-            throw new CorpusStatisticsFormatException(
-                    "invalid CBOR: " + Diagnostics.message(exception), exception);
+            throw CborReader.invalidCbor(exception);
         }
     }
 
-    private static Elapsed readElapsed(CBORParser parser) throws IOException {
+    private static Elapsed readElapsed(CborReader reader) throws IOException {
         Long total = null;
         Long generator = null;
         Map<CorpusStage, Long> stages = null;
-        var fields = new HashSet<String>();
-        while (parser.nextToken() != JsonToken.END_OBJECT) {
-            var field = readFieldName(parser, fields, ELAPSED_FIELD + ".");
-            var value = parser.nextToken();
-            switch (field) {
-                case "total" -> total = readLong(parser, value, "elapsedNs.total");
-                case "generator" ->
-                    generator = readLong(parser, value, "elapsedNs.generator");
+        CborReader.Field field;
+        while ((field = reader.nextField(ELAPSED_FIELD)) != null) {
+            switch (field.name()) {
+                case TOTAL_FIELD -> total = reader.longValue(field);
+                case GENERATOR_FIELD -> generator = reader.longValue(field);
                 case STAGES_FIELD -> {
-                    requireMap(value, "elapsedNs.stages");
-                    stages = readStageElapsed(parser);
+                    reader.requireMap(field);
+                    stages = readStageElapsed(reader, field.path());
                 }
-                default -> parser.skipChildren();
+                default -> reader.skipValue();
             }
         }
         return new Elapsed(
-                required(total, "elapsedNs.total"),
-                required(generator, "elapsedNs.generator"),
-                required(stages, "elapsedNs.stages"));
+                CborReader.required(total, path(ELAPSED_FIELD, TOTAL_FIELD)),
+                CborReader.required(generator, path(ELAPSED_FIELD, GENERATOR_FIELD)),
+                CborReader.required(stages, path(ELAPSED_FIELD, STAGES_FIELD)));
     }
 
     /**
      * Reads per-stage elapsed time. A stage this build does not know is skipped, and a stage the
      * document omits contributes nothing, so a stage may be added or removed without a migration.
      */
-    private static Map<CorpusStage, Long> readStageElapsed(CBORParser parser) throws IOException {
+    private static Map<CorpusStage, Long> readStageElapsed(CborReader reader, String path)
+            throws IOException {
         var stages = new EnumMap<CorpusStage, Long>(CorpusStage.class);
-        var fields = new HashSet<String>();
-        while (parser.nextToken() != JsonToken.END_OBJECT) {
-            var field = readFieldName(parser, fields, ELAPSED_FIELD + "." + STAGES_FIELD + ".");
-            var value = parser.nextToken();
-            var stage = CorpusStage.fromMetadataName(field);
+        CborReader.Field field;
+        while ((field = reader.nextField(path)) != null) {
+            var stage = CorpusStage.fromMetadataName(field.name());
             if (stage.isPresent()) {
-                stages.put(
-                        stage.orElseThrow(),
-                        readLong(parser, value, "elapsedNs.stages." + field));
+                stages.put(stage.orElseThrow(), reader.longValue(field));
             } else {
-                parser.skipChildren();
+                reader.skipValue();
             }
         }
         return stages;
     }
 
-    private static Generator readGenerator(CBORParser parser) throws IOException {
+    private static Generator readGenerator(CborReader reader) throws IOException {
         Long attempts = null;
         Long rejected = null;
         Long richnessRejected = null;
@@ -170,84 +158,38 @@ final class CorpusRunStatisticsCodec {
         Double minimumRichness = null;
         Double maximumRichness = null;
         Double averageRichness = null;
-        var fields = new HashSet<String>();
-        while (parser.nextToken() != JsonToken.END_OBJECT) {
-            var field = readFieldName(parser, fields, GENERATOR_FIELD + ".");
-            var value = parser.nextToken();
-            switch (field) {
-                case "attempts" -> attempts = readLong(parser, value, "generator.attempts");
-                case "rejected" -> rejected = readLong(parser, value, "generator.rejected");
-                case "richnessRejected" ->
-                    richnessRejected =
-                            readLong(parser, value, "generator.richnessRejected");
-                case "duplicates" -> duplicates = readLong(parser, value, "generator.duplicates");
-                case "richnessSamples" ->
-                    richnessSamples = readLong(parser, value, "generator.richnessSamples");
-                case "minimumRichness" ->
-                    minimumRichness = readDouble(parser, value, "generator.minimumRichness");
-                case "maximumRichness" ->
-                    maximumRichness = readDouble(parser, value, "generator.maximumRichness");
-                case "averageRichness" ->
-                    averageRichness = readDouble(parser, value, "generator.averageRichness");
-                default -> parser.skipChildren();
+        CborReader.Field field;
+        while ((field = reader.nextField(GENERATOR_FIELD)) != null) {
+            switch (field.name()) {
+                case ATTEMPTS_FIELD -> attempts = reader.longValue(field);
+                case REJECTED_FIELD -> rejected = reader.longValue(field);
+                case RICHNESS_REJECTED_FIELD -> richnessRejected = reader.longValue(field);
+                case DUPLICATES_FIELD -> duplicates = reader.longValue(field);
+                case RICHNESS_SAMPLES_FIELD -> richnessSamples = reader.longValue(field);
+                case MINIMUM_RICHNESS_FIELD -> minimumRichness = reader.doubleValue(field);
+                case MAXIMUM_RICHNESS_FIELD -> maximumRichness = reader.doubleValue(field);
+                case AVERAGE_RICHNESS_FIELD -> averageRichness = reader.doubleValue(field);
+                default -> reader.skipValue();
             }
         }
         return new Generator(
-                required(attempts, "generator.attempts"),
-                required(rejected, "generator.rejected"),
-                required(richnessRejected, "generator.richnessRejected"),
-                required(duplicates, "generator.duplicates"),
-                required(richnessSamples, "generator.richnessSamples"),
-                required(minimumRichness, "generator.minimumRichness"),
-                required(maximumRichness, "generator.maximumRichness"),
-                required(averageRichness, "generator.averageRichness"));
+                CborReader.required(attempts, path(GENERATOR_FIELD, ATTEMPTS_FIELD)),
+                CborReader.required(rejected, path(GENERATOR_FIELD, REJECTED_FIELD)),
+                CborReader.required(
+                        richnessRejected, path(GENERATOR_FIELD, RICHNESS_REJECTED_FIELD)),
+                CborReader.required(duplicates, path(GENERATOR_FIELD, DUPLICATES_FIELD)),
+                CborReader.required(
+                        richnessSamples, path(GENERATOR_FIELD, RICHNESS_SAMPLES_FIELD)),
+                CborReader.required(
+                        minimumRichness, path(GENERATOR_FIELD, MINIMUM_RICHNESS_FIELD)),
+                CborReader.required(
+                        maximumRichness, path(GENERATOR_FIELD, MAXIMUM_RICHNESS_FIELD)),
+                CborReader.required(
+                        averageRichness, path(GENERATOR_FIELD, AVERAGE_RICHNESS_FIELD)));
     }
 
-    private static String readFieldName(
-            CBORParser parser, HashSet<String> fields, String prefix)
-            throws CorpusStatisticsFormatException, IOException {
-        if (!parser.hasToken(JsonToken.FIELD_NAME)) {
-            throw format("map keys must be text strings");
-        }
-        var field = parser.currentName();
-        if (!fields.add(field)) {
-            throw format("duplicate field: " + prefix + field);
-        }
-        return field;
-    }
-
-    private static long readLong(CBORParser parser, JsonToken token, String path)
-            throws IOException {
-        if (token != JsonToken.VALUE_NUMBER_INT) {
-            throw format("field '" + path + "' must be an integer");
-        }
-        return parser.getLongValue();
-    }
-
-    private static double readDouble(CBORParser parser, JsonToken token, String path)
-            throws IOException {
-        if (token != JsonToken.VALUE_NUMBER_INT && token != JsonToken.VALUE_NUMBER_FLOAT) {
-            throw format("field '" + path + "' must be a number");
-        }
-        return parser.getDoubleValue();
-    }
-
-    private static <T> T required(T value, String path) throws CorpusStatisticsFormatException {
-        if (value == null) {
-            throw format("missing field: " + path);
-        }
-        return value;
-    }
-
-    private static void requireMap(JsonToken token, String path)
-            throws CorpusStatisticsFormatException {
-        if (token != JsonToken.START_OBJECT) {
-            throw format("field '" + path + "' must be a map");
-        }
-    }
-
-    private static CorpusStatisticsFormatException format(String message) {
-        return new CorpusStatisticsFormatException(message);
+    private static String path(String map, String field) {
+        return map + "." + field;
     }
 
     private record Elapsed(long total, long generator, Map<CorpusStage, Long> stages) {}

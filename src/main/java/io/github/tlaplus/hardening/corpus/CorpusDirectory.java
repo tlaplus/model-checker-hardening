@@ -137,7 +137,7 @@ public final class CorpusDirectory {
         }
         try {
             return CorpusRunStatisticsCodec.decode(Files.readAllBytes(path));
-        } catch (CorpusStatisticsFormatException exception) {
+        } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "invalid workflow statistics file '"
                             + path
