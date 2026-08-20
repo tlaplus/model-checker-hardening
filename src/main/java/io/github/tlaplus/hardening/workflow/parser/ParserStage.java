@@ -1,7 +1,7 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
 import io.github.tlaplus.hardening.config.ParserStageConfig;
-import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
@@ -18,7 +18,8 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
@@ -32,10 +33,14 @@ public final class ParserStage implements WorkflowStage {
     private final StageJobLoop<Path> jobs;
     private final Path scratchDirectory;
     private final WorkQueue<Path> input;
-    private final List<WorkQueue<Path>> checkerOutputs;
+    private final Map<CorpusStage, WorkQueue<Path>> checkerOutputs;
     private final Semaphore inputCapacity;
     private final WorkerGroup workers = new WorkerGroup("fuzztla-parser-");
 
+    /**
+     * @param checkerOutputs the queue each checker branch takes its work from, which must name
+     *     every stage of {@link CorpusStage#checkerBranches()}
+     */
     public ParserStage(
             ParserStageConfig config,
             int workerCount,
@@ -44,8 +49,7 @@ public final class ParserStage implements WorkflowStage {
             StageEnvironment environment,
             Path scratchDirectory,
             WorkQueue<Path> input,
-            WorkQueue<Path> tlcOutput,
-            WorkQueue<Path> apalacheOutput,
+            Map<CorpusStage, WorkQueue<Path>> checkerOutputs,
             Semaphore inputCapacity) {
         this.config = Objects.requireNonNull(config, "config");
         if (workerCount <= 0) {
@@ -56,9 +60,14 @@ public final class ParserStage implements WorkflowStage {
         this.counters = Objects.requireNonNull(counters, "counters");
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         this.input = Objects.requireNonNull(input, "input");
-        checkerOutputs = List.of(
-                Objects.requireNonNull(tlcOutput, "tlcOutput"),
-                Objects.requireNonNull(apalacheOutput, "apalacheOutput"));
+        var outputs = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
+        outputs.putAll(Objects.requireNonNull(checkerOutputs, "checkerOutputs"));
+        for (var checker : CorpusStage.checkerBranches()) {
+            if (!outputs.containsKey(checker)) {
+                throw new IllegalArgumentException("checkerOutputs is missing stage " + checker);
+            }
+        }
+        this.checkerOutputs = Map.copyOf(outputs);
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
         // A parser pass leaves the parser's result directories, so only failures occupy them.
         resultCapacity = new OccupancyGate(initialOccupancy, config.maximumEntries());
@@ -98,7 +107,7 @@ public final class ParserStage implements WorkflowStage {
     }
 
     private void closeCheckerOutputs() {
-        checkerOutputs.forEach(WorkQueue::close);
+        checkerOutputs.values().forEach(WorkQueue::close);
     }
 
     private void runWorker() {
@@ -153,13 +162,15 @@ public final class ParserStage implements WorkflowStage {
         }
     }
 
-    /** Copies one parser pass into both checker branches, then queues both copies. */
+    /** Copies one parser pass into every checker branch, then queues each copy. */
     private void fanOut(Path parserPass) throws Exception {
         var corpus = environment.corpus();
         var inputName = parserPass.getFileName();
         corpus.fanOutParserPass(parserPass);
-        checkerOutputs.get(0).submit(corpus.resolve(CorpusPath.TLC_INPUT).resolve(inputName));
-        checkerOutputs.get(1).submit(corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(inputName));
+        for (var checker : CorpusStage.checkerBranches()) {
+            checkerOutputs.get(checker).submit(
+                    corpus.checkerInputPath(checker).resolve(inputName));
+        }
     }
 
     private Duration timeout() {

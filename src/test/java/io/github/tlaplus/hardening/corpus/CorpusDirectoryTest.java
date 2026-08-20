@@ -269,6 +269,50 @@ class CorpusDirectoryTest {
         assertEquals(1, inventory.totalEntries());
     }
 
+    /**
+     * The fan-out queues one copy per checker branch, and each copy must land in the directory
+     * that branch is later read back from. Completing every branch through the path this method
+     * returns proves the corpus attributes each copy to the stage it was queued for, rather than
+     * to whichever branch happens to come first.
+     */
+    @Test
+    void resolvesEachCheckerBranchToTheDirectoryItOwns(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var input = new byte[] {4, 2};
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                new StageResult(
+                        CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
+        corpus.fanOutParserPass(parserPass);
+
+        var branchPaths = new java.util.HashSet<Path>();
+        for (var checker : CorpusStage.checkerBranches()) {
+            var branchInput =
+                    corpus.checkerInputPath(checker).resolve(parserPass.getFileName());
+            assertTrue(branchPaths.add(branchInput), checker + " shares a directory");
+            var completed = corpus.completeChecker(
+                    branchInput,
+                    new StageResult(
+                            CorpusVerdict.PASS,
+                            Instant.ofEpochSecond(3),
+                            Instant.ofEpochSecond(4),
+                            Optional.empty(),
+                            checker.displayName() + " output"));
+            assertEquals(
+                    Optional.of(CorpusVerdict.PASS),
+                    CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(completed))
+                            .stage(checker)
+                            .map(StageMetadata::verdict),
+                    checker + " metadata was recorded under another stage");
+        }
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> corpus.checkerInputPath(CorpusStage.PARSER));
+    }
+
     @Test
     void recordsTlcMetadataAfterParserFanOut(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));

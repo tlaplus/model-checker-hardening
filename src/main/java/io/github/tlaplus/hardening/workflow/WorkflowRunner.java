@@ -169,8 +169,7 @@ public final class WorkflowRunner {
                 environment,
                 scratch.directory(CorpusStage.PARSER),
                 queues.get(CorpusStage.PARSER),
-                queues.get(CorpusStage.TLC),
-                queues.get(CorpusStage.APALACHE),
+                checkerQueues(queues),
                 inputCapacity);
         var checkers = new EnumMap<CorpusStage, CheckerStage>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
@@ -247,6 +246,16 @@ public final class WorkflowRunner {
             return new StageRunResult(
                     stopReason, metrics.generator().summary(seed), finalSummaries, result);
         }
+    }
+
+    /** Returns the queue each checker branch takes its work from. */
+    private static Map<CorpusStage, WorkQueue<Path>> checkerQueues(
+            Map<CorpusStage, WorkQueue<Path>> queues) {
+        var result = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
+        for (var checker : CorpusStage.checkerBranches()) {
+            result.put(checker, queues.get(checker));
+        }
+        return result;
     }
 
     /** Returns the checker backend of one stage, configured for this invocation. */
