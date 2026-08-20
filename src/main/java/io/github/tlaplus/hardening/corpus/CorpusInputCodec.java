@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.corpus;
 
-import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -62,16 +61,14 @@ public final class CorpusInputCodec {
             throws IOException {
         Objects.requireNonNull(corpusInput, "corpusInput");
         Objects.requireNonNull(generationMetadata, "generationMetadata");
+        var document = new CborMapWriter()
+                .string(KIND_FIELD, corpusInput.kind().encodedName())
+                .binary(INPUT_FIELD, corpusInput.input());
+        generationMetadata.ifPresent(
+                metadata -> document.map(GENERATION_FIELD, generationMetadata(metadata)));
         var output = new ByteArrayOutputStream();
         try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
-            generator.writeStartObject(null, generationMetadata.isPresent() ? 3 : 2);
-            generator.writeStringField(KIND_FIELD, corpusInput.kind().encodedName());
-            generator.writeFieldName(INPUT_FIELD);
-            generator.writeBinary(corpusInput.input());
-            if (generationMetadata.isPresent()) {
-                writeGenerationMetadata(generator, generationMetadata.orElseThrow());
-            }
-            generator.writeEndObject();
+            document.writeTo(generator);
         }
         return output.toByteArray();
     }
@@ -149,12 +146,10 @@ public final class CorpusInputCodec {
         }
     }
 
-    private static void writeGenerationMetadata(
-            CBORGenerator generator, GenerationMetadata metadata) throws IOException {
-        generator.writeFieldName(GENERATION_FIELD);
-        generator.writeStartObject(null, 2);
-        generator.writeNumberField(COHORT_FIELD, metadata.cohort());
-        generator.writeNumberField(RICHNESS_FIELD, metadata.richness());
-        generator.writeEndObject();
+    /** Returns the admission-time PBT metadata as the {@code gen} submap. */
+    private static CborMapWriter generationMetadata(GenerationMetadata metadata) {
+        return new CborMapWriter()
+                .number(COHORT_FIELD, metadata.cohort())
+                .number(RICHNESS_FIELD, metadata.richness());
     }
 }

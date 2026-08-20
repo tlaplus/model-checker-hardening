@@ -30,7 +30,7 @@ final class CborReader implements AutoCloseable {
     static final String ROOT = "";
 
     /** The CBOR tag of an epoch-based date/time, RFC 8949 section 3.4.2. */
-    private static final int EPOCH_TAG = 1;
+    static final int EPOCH_TAG = 1;
 
     /** One field of the map currently being read. */
     record Field(String name, String path, JsonToken value) {}
