@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
@@ -45,6 +46,11 @@ public final class ApalacheCheckerBackend implements CheckerBackend {
     @Override
     public int cpuPermits() {
         return 1;
+    }
+
+    @Override
+    public String renderInput(TlaEx expression) {
+        return ApalacheIrJson.render(expression);
     }
 
     private Duration timeout() {

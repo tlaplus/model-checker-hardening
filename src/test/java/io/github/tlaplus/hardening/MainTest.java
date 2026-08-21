@@ -375,6 +375,7 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla print"));
         assertTrue(result.out().contains("--corpus=DIR"));
+        assertTrue(result.out().contains("--apalache-ir"));
         assertTrue(result.out().contains("--envelope"));
         assertTrue(result.out().contains("--spec"));
         assertTrue(result.out().contains("CBOR corpus input"));
@@ -545,6 +546,20 @@ class MainTest {
     }
 
     @Test
+    void printsTheTypedApalacheIr(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+
+        var result = execute("print", "--apalache-ir", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.out().contains("\"name\": \"ApalacheIR\""), result.out());
+        assertTrue(result.out().contains("\"name\": \"FuzzInput\""), result.out());
+        assertTrue(result.out().contains("\"type\": \"Bool\""), result.out());
+        assertEquals("", result.err());
+    }
+
+    @Test
     void rejectsRawAndUnsupportedPrintInputs(@TempDir Path directory) throws Exception {
         var raw = directory.resolve("raw.bin");
         Files.write(raw, new byte[] {0});
@@ -595,6 +610,19 @@ class MainTest {
         Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
 
         var result = execute("print", "--spec", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
+        assertEquals("", result.out());
+        assertTrue(result.err().contains("mutually exclusive"));
+    }
+
+    @Test
+    void rejectsCombiningApalacheIrWithAnotherOutputMode(@TempDir Path directory)
+            throws Exception {
+        var input = directory.resolve("input.cbor");
+        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+
+        var result = execute("print", "--apalache-ir", "--spec", input.toString());
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertEquals("", result.out());

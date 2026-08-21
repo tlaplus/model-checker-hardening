@@ -1,6 +1,8 @@
 package io.github.tlaplus.hardening.workflow.checker;
 
+import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
 import java.util.Optional;
 
 /**
@@ -30,6 +32,11 @@ public interface CheckerBackend {
     int workerCount();
 
     int cpuPermits();
+
+    /** Renders the generated typed expression in the representation consumed by this checker. */
+    default String renderInput(TlaEx expression) {
+        return ExprInputToSpec.render(expression);
+    }
 
     /** Returns a worker for the next input, per the lifecycle documented on this interface. */
     CheckerWorker startWorker() throws WorkflowException, InterruptedException;

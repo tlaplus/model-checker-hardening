@@ -21,7 +21,7 @@ import scala.Console$;
 /** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
 public final class ApalacheWorkerMain {
     private static final int MAXIMUM_OUTPUT_BYTES = 1024 * 1024 - 128;
-    private static final String SPECIFICATION_FILE = "FuzzInput.tla";
+    private static final String SPECIFICATION_FILE = "FuzzInput.json";
     private static final String TOOL_CLASS = "at.forsyte.apalache.tla.Tool";
 
     private ApalacheWorkerMain() {}

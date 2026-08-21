@@ -4,15 +4,8 @@ import at.forsyte.apalache.io.annotations.PrettyWriterWithAnnotations;
 import at.forsyte.apalache.io.annotations.store.package$;
 import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.common.Diagnostics;
-import io.github.tlaplus.hardening.corpus.CorpusDirectory;
-import io.github.tlaplus.hardening.corpus.CorpusException;
-import io.github.tlaplus.hardening.gen.Generator;
-import io.github.tlaplus.hardening.workflow.WorkflowException;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.file.Path;
 
 /** Shared construction and rendering of the generated module consumed by tool stages. */
 public final class ExprInputToSpec {
@@ -33,32 +26,4 @@ public final class ExprInputToSpec {
         return output.toString();
     }
 
-    public static String render(
-            String stage,
-            Path path,
-            byte[] input,
-            CorpusDirectory corpus,
-            Generator<TlaEx> generator)
-            throws WorkflowException {
-        try {
-            var expression = generator.generate(input);
-            return render(expression);
-        } catch (RuntimeException | StackOverflowError failure) {
-            var message = "cannot prepare "
-                    + stage
-                    + " specification from corpus entry '"
-                    + path
-                    + "': "
-                    + Diagnostics.message(failure);
-            try {
-                var candidate = corpus.recordGeneratorCrash(input, failure);
-                message += "; crash saved to '" + candidate + "'";
-            } catch (IOException | CorpusException | RuntimeException recordingFailure) {
-                failure.addSuppressed(recordingFailure);
-                message += "; crash artifact could not be saved: "
-                        + Diagnostics.message(recordingFailure);
-            }
-            throw new WorkflowException(message, failure);
-        }
-    }
 }

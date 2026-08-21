@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
+import io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -33,6 +34,7 @@ public final class ParserStage implements WorkflowStage {
     private final StageJobLoop<Path> jobs;
     private final Path scratchDirectory;
     private final WorkQueue<Path> input;
+    private final GeneratedInputPreparation inputPreparation;
     private final Map<CorpusStage, WorkQueue<Path>> checkerOutputs;
     private final Semaphore inputCapacity;
     private final WorkerGroup workers = new WorkerGroup("fuzztla-parser-");
@@ -60,6 +62,11 @@ public final class ParserStage implements WorkflowStage {
         this.counters = Objects.requireNonNull(counters, "counters");
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         this.input = Objects.requireNonNull(input, "input");
+        inputPreparation = new GeneratedInputPreparation(
+                "parser",
+                environment.corpus(),
+                environment.generator(),
+                ExprInputToSpec::render);
         var outputs = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
         outputs.putAll(Objects.requireNonNull(checkerOutputs, "checkerOutputs"));
         for (var checker : CorpusStage.checkerBranches()) {
@@ -126,8 +133,7 @@ public final class ParserStage implements WorkflowStage {
             var corpus = environment.corpus();
             var startTime = Instant.now();
             var payload = corpus.readExpressionInput(path);
-            var source = ExprInputToSpec.render(
-                    "parser", path, payload, corpus, environment.generator());
+            var source = inputPreparation.prepare(path, payload);
             if (process == null) {
                 process = ParserProcess.start(scratchDirectory, timeout());
             }
