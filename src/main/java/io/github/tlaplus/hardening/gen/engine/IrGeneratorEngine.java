@@ -27,13 +27,13 @@ public final class IrGeneratorEngine {
     }
 
     /**
-     * Generates one type-correct expression from the current position of {@code draw}.
+     * Generates one type-correct value expression from the current position of {@code draw}.
      *
      * @param draw cursor supplying every generation choice
      * @return generated Apalache IR expression
      * @throws NullPointerException if {@code draw} is {@code null}
-     * @throws InputRejectedException if the decoded choices reach an expected semantic dead
-     *     end
+     * @throws InputRejectedException if the decoded root is an operator type or the decoded
+     *     choices reach another expected semantic dead end
      * @throws RuntimeException if the builder rejects an internally constructed expression
      */
     public TlaEx generate(Draw draw) {
@@ -42,6 +42,10 @@ public final class IrGeneratorEngine {
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
         var resultType = draw.draw(typeFactory.anyType());
+        if (resultType instanceof OperatorType) {
+            throw new InputRejectedException(
+                    "root expression has operator type; TLA+ operators are not values");
+        }
         return draw.draw(expressionFactory.mkGen(
                 resultType, config.maximumExpressionDepth()));
     }

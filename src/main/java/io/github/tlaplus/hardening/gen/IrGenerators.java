@@ -13,7 +13,9 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
  * operators, and {@link TlaTypedScopeUncheckedBuilder} constructs the resulting IR eagerly while
  * checking its types. A successful run therefore returns an expression accepted by Apalache's
  * type-safe Java builder rather than assembling unchecked IR nodes directly. The generator's
- * internal scope remains the authority for lexical visibility.
+ * internal scope remains the authority for lexical visibility. A successful root expression
+ * always has a value type. Operator-typed roots are rejected because TLA+ operators are not
+ * values; lambdas remain available where an expression form requires an operator argument.
  *
  * <p>The result is one {@link TlaEx}, not a module or an operator declaration. Actual name
  * references are selected only from the active generation scope. The expression-only entry point
@@ -65,7 +67,7 @@ public final class IrGenerators {
      * a different {@link Draw}. The defaults exclude expression categories unsuitable for the
      * single-expression workflow and use conservative limits for arbitrary binary files.
      *
-     * @return reusable generator of checked TLA+ IR expressions
+     * @return reusable generator of checked, value-typed TLA+ IR expressions
      */
     public static Generator<TlaEx> expressions() {
         return expressions(IrGenerationConfig.defaults());
@@ -90,10 +92,11 @@ public final class IrGenerators {
      * Apalache version; malformed or exhausted input alone is handled by deterministic fallback
      * expressions and is not considered an error. A selected form that cannot satisfy a decoded
      * semantic constraint instead throws {@link InputRejectedException}; callers may skip that
-     * input without suppressing other runtime failures.
+     * input without suppressing other runtime failures. This includes inputs that decode an
+     * operator type at the expression root.
      *
      * @param config immutable settings applied to every generation
-     * @return reusable generator of checked TLA+ IR expressions
+     * @return reusable generator of checked, value-typed TLA+ IR expressions
      * @throws NullPointerException if {@code config} is {@code null}
      */
     public static Generator<TlaEx> expressions(IrGenerationConfig config) {
