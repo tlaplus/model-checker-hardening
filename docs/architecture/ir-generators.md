@@ -19,11 +19,11 @@ store or mutate them.
 
 The design has six primary requirements:
 
-1. The same configuration and bytes produce the same IR.
+1. The same configuration and bytes produce the same IR or rejection.
 2. Exhausted input produces small defaults instead of failing.
 3. Local byte mutations should not unnecessarily perturb later decoding.
-4. Successful generation returns an expression accepted by Apalache's type-safe,
-   scope-unchecked builder.
+4. Successful generation returns a value-typed expression accepted by Apalache's
+   type-safe, scope-unchecked builder.
 5. Configuration can exclude expression categories before byte-level selection.
 6. Explicit limits bound recursive construction and variable-size payloads.
 
@@ -78,23 +78,28 @@ sequenceDiagram
     Engine->>Types: anyType()
     Types->>Draw: decode type choices
     Types-->>Engine: IrType
-    Engine->>Exprs: mkGen(type, maximumExpressionDepth)
-    Exprs->>Draw: select applicable expression form
-    loop typed operands
-        Exprs->>Exprs: recurse with required type and reduced depth
-        Exprs->>Draw: decode operand choices
-        Exprs->>Builder: construct typed operand or expression
-        Builder-->>Exprs: TlaEx
+    alt OperatorType root
+        Engine-->>Caller: InputRejectedException
+    else value type
+        Engine->>Exprs: mkGen(type, maximumExpressionDepth)
+        Exprs->>Draw: select applicable expression form
+        loop typed operands
+            Exprs->>Exprs: recurse with required type and reduced depth
+            Exprs->>Draw: decode operand choices
+            Exprs->>Builder: construct typed operand or expression
+            Builder-->>Exprs: TlaEx
+        end
+        Exprs-->>Engine: TlaEx
+        Engine-->>Caller: TlaEx
     end
-    Exprs-->>Engine: TlaEx
-    Engine-->>Caller: TlaEx
 ```
 
-The engine first generates an `IrType`, then requests an expression of exactly
-that type. Each expression form determines the types of its operands. For
-example, equality first generates one value type and then generates two operands
-of that type. A set filter generates its source element type, introduces a
-binding of that type, and generates a Boolean predicate in the extended scope.
+The engine first generates an `IrType`. It rejects an operator type at the root;
+otherwise, it requests an expression of exactly that value type. Each expression
+form determines the types of its operands. For example, equality first generates
+one value type and then generates two operands of that type. A set filter
+generates its source element type, introduces a binding of that type, and
+generates a Boolean predicate in the extended scope.
 
 Factory methods such as `mkGen`, `expression`, `listOf`, and `oneOf` return
 deferred `Generator<TlaEx>` computations. Creating a generator must not consume
@@ -146,13 +151,17 @@ sequence, function, tuple, record, variant, and operator types. Each type conver
 to an Apalache `TlaType1`. Keeping this model separate from the builder types
 makes recursive matching and Java pattern matching explicit.
 
-The method `IrTypeGenFactory.anyType()` permits a value type as well as an
-operator type at the root, whereas the method
+The method `IrTypeGenFactory.anyType()` decodes both value and operator types.
+The engine deliberately retains this complete root catalog so rejecting an
+operator-typed root does not reinterpret byte strings that already select value
+types. A decoded `OperatorType` root raises `InputRejectedException` before
+expression construction because TLA+ operators are not values. The method
 `valueType()` excludes operator types and is used for operands and collection
-elements. Nested type generation carries a remaining-depth budget. At zero, it
-selects only enabled primitive or model-value types. Tuples, records, and
-variants use terminated nonempty component lists; operator argument lists may be
-empty.
+elements. Lambdas remain available where a construct explicitly requires an
+operator argument, such as a fold. Nested type generation carries a
+remaining-depth budget. At zero, it selects only enabled primitive or
+model-value types. Tuples, records, and variants use terminated nonempty
+component lists; operator argument lists may be empty.
 
 Structural categories filter the type catalog at every recursive type request.
 For example, ignoring `record` removes every record type, including records
@@ -304,10 +313,11 @@ to a model checker. Operations such as division, sequence head, and unsafe
 variant access may still receive values for which evaluation is partial.
 
 `InputRejectedException` denotes an expected dead end for the current bytes,
-such as selecting a state-variable-dependent form without a state variable. A
-fuzzing driver may discard that input. Exhaustion and budget fallback are not
-rejections. Other runtime exceptions, builder failures, and violated
-invariants indicate defects or dependency incompatibilities and must propagate.
+such as decoding an operator type at the expression root or selecting a
+state-variable-dependent form without a state variable. A fuzzing driver may
+discard that input. Exhaustion and budget fallback are not rejections. Other
+runtime exceptions, builder failures, and violated invariants indicate defects
+or dependency incompatibilities and must propagate.
 
 `IrGeneratorEngine` is reusable and safe for concurrent calls with distinct
 `Draw` instances because every call creates its own mutable context. `Draw`

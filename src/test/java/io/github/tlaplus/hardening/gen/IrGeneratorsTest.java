@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import at.forsyte.apalache.io.lir.PrettyWriter;
 import at.forsyte.apalache.io.lir.TextLayout;
@@ -51,6 +52,20 @@ class IrGeneratorsTest {
         var second = print(engine.generate(new Draw(input)));
 
         assertEquals(first, second);
+    }
+
+    @Test
+    void rejectsOperatorTypedRootAfterDecodingItFromTheExistingTypeCatalog() {
+        var draw = new Draw(new byte[] {10, 0, 0, 99});
+        var engine = new IrGeneratorEngine(IrGenerationConfig.defaults());
+
+        var rejection = assertThrows(
+                InputRejectedException.class, () -> engine.generate(draw));
+
+        assertEquals(
+                "root expression has operator type; TLA+ operators are not values",
+                rejection.getMessage());
+        assertEquals(1, draw.remaining());
     }
 
     @Test
