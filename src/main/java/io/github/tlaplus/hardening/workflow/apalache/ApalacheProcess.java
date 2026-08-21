@@ -45,8 +45,8 @@ final class ApalacheProcess implements CheckerWorker {
     }
 
     @Override
-    public ToolResult check(String source) throws WorkflowException, InterruptedException {
-        return worker.request(source, timeout);
+    public ToolResult check(String input) throws WorkflowException, InterruptedException {
+        return worker.request(input, timeout);
     }
 
     @Override

@@ -23,7 +23,7 @@ class WorkflowConfigTest {
                                 new CheckerStageConfig(
                                 1_000,
                                 30,
-                                512,
+                                1_024,
                                 CheckerStageConfig.DEFAULT_APALACHE_WORKERS))),
                 WorkflowConfig.defaults());
         assertEquals(

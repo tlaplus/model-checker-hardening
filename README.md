@@ -128,7 +128,7 @@ max_entries = 1000
 # Wall-clock limit for checking one generated specification.
 timeout_sec = 30
 # Maximum heap allocated to each persistent Apalache worker JVM.
-max_heap_mb = 512
+max_heap_mb = 1024
 # Number of concurrent FuzzTLA Apalache workers.
 # Initialized to half the available processors, rounded down (at least one).
 workers = 4
@@ -226,10 +226,13 @@ UTC timestamps and a verdict, and moves the entry to its parser result directory
 Parser passes are copied to `02tlc-inputs` and `02apa-inputs`; the two files count
 as one logical corpus entry. TLC records `stages.tlc` and moves its copy to the
 matching TLC result directory. Apalache does the same under `stages.apalache`
-and its result directories. Both checkers run the fixed `Init`, `Next`, and
-`Inv` configuration with deadlock checking disabled; Apalache checks length
-zero. A violated invariant or another classified non-crash checker error is a
-failure. Both stages use the shared failure-code taxonomy.
+and its result directories. The parser and TLC receive a TLA+ module; Apalache
+receives typed Apalache IR JSON generated from the same expression. The JSON
+path preserves closed expression types that TLA+ source cannot fully annotate.
+Both checkers run the fixed `Init`, `Next`, and `Inv` configuration with deadlock
+checking disabled; Apalache checks length zero. A violated invariant or another
+classified non-crash checker error is a failure. Both stages use the shared
+failure-code taxonomy.
 
 Among generator exceptions, only `InputRejectedException` rejects a candidate;
 other failures stop the workflow. An unexpected generator or parser-preparation
@@ -251,17 +254,19 @@ Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 ./bin/fuzztla print --corpus=corpus corpus/00-inputs/example.cbor
 ./bin/fuzztla print --envelope --corpus=corpus corpus/02apa-inputs/example.cbor
 ./bin/fuzztla print --spec --corpus=corpus corpus/01parser-crash/example.cbor
+./bin/fuzztla print --apalache-ir --corpus=corpus corpus/02apa-crash/example.cbor
 ```
 
 `print` always expects the CBOR envelope described above. By default, it prints
-the generated expression. `--spec` prints the complete specification passed to
-the parser, TLC, and Apalache. `--envelope` prints the supported envelope fields as a nested,
-human-readable listing. Stage timestamps use UTC ISO-8601, and each `endTime`
-includes the elapsed time since its `startTime`. The `input` field appears last,
-rendered as TLA+. Without `--corpus`, the command uses the built-in generator
-defaults. With `--corpus`, it uses the generator settings in that corpus's
-`config.toml`, which is necessary to replay inputs under changed generator
-settings.
+the generated expression. `--spec` prints the TLA+ specification passed to the
+parser and TLC. `--apalache-ir` prints the normalized typed JSON passed to
+Apalache. `--envelope` prints the supported envelope fields as a nested,
+human-readable listing. These output modes are mutually exclusive. Stage
+timestamps use UTC ISO-8601, and each `endTime` includes the elapsed time since
+its `startTime`. The `input` field appears last, rendered as TLA+. Without
+`--corpus`, the command uses the built-in generator defaults. With `--corpus`,
+it uses the generator settings in that corpus's `config.toml`, which is
+necessary to replay inputs under changed generator settings.
 
 ```text
 kind: expr

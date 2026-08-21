@@ -12,8 +12,9 @@ public record CheckerStageConfig(
         int maximumHeapMegabytes,
         int workers) {
     public static final int DEFAULT_TIMEOUT_SECONDS = 30;
-    public static final int DEFAULT_MAXIMUM_HEAP_MEGABYTES = 512;
     public static final int DEFAULT_MAXIMUM_ENTRIES = 1_000;
+    public static final int DEFAULT_TLC_MAXIMUM_HEAP_MEGABYTES = 512;
+    public static final int DEFAULT_APALACHE_MAXIMUM_HEAP_MEGABYTES = 1_024;
 
     /** TLC runs its own workers inside one JVM, so one FuzzTLA invocation is the default. */
     public static final int DEFAULT_TLC_WORKERS = 1;
@@ -30,18 +31,19 @@ public record CheckerStageConfig(
     }
 
     public static CheckerStageConfig tlcDefaults() {
-        return defaults(DEFAULT_TLC_WORKERS);
+        return defaults(DEFAULT_TLC_MAXIMUM_HEAP_MEGABYTES, DEFAULT_TLC_WORKERS);
     }
 
     public static CheckerStageConfig apalacheDefaults() {
-        return defaults(DEFAULT_APALACHE_WORKERS);
+        return defaults(
+                DEFAULT_APALACHE_MAXIMUM_HEAP_MEGABYTES, DEFAULT_APALACHE_WORKERS);
     }
 
-    private static CheckerStageConfig defaults(int workers) {
+    private static CheckerStageConfig defaults(int maximumHeapMegabytes, int workers) {
         return new CheckerStageConfig(
                 DEFAULT_MAXIMUM_ENTRIES,
                 DEFAULT_TIMEOUT_SECONDS,
-                DEFAULT_MAXIMUM_HEAP_MEGABYTES,
+                maximumHeapMegabytes,
                 workers);
     }
 }

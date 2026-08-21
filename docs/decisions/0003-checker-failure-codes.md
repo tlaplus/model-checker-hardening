@@ -27,13 +27,16 @@ Model-checker failures use these numeric codes:
 | Code | Symbol | TLC source | Apalache source |
 | ---: | --- | --- | --- |
 | 12 | `counterexample` | Exit statuses 10–14 | 12 |
-| 75 | `spec_eval` | Exit statuses 75–77 and `TLC_INTEGER_TOO_BIG` | 75 |
+| 75 | `spec_eval` | Exit statuses 75–77 and `TLC_INTEGER_TOO_BIG` | 75, or status 255 with a recognized undefined-arithmetic input error |
 | 120 | `typecheck` | None | 120 |
 | 150 | `parse` | Exit statuses 150–151 | 150 |
 
 The registry belongs to neither checker. A checker worker returns a normalized
 code only for a failure. Successes and crashes have no failure code; unexpected
-or system-level TLC statuses remain crashes.
+or system-level statuses remain crashes. Apalache 0.62 returns status 255 for
+division by zero, modulo by zero, and `0 ^ 0`. The Apalache classifier maps only
+those three exact `Input error (see the manual)` prefixes to `spec_eval`; other
+status-255 diagnostics remain crashes.
 
 The corpus stores the numeric value as `stages.<checker>.code`. A failed checker
 entry requires a known code; other checker verdicts forbid it. There is no

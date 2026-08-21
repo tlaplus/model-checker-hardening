@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
 import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -114,7 +115,9 @@ final class PrintCommand implements Callable<Integer> {
         try {
             var expression = generator.generate(corpusInput.input());
             final String output;
-            if (printsSpecification()) {
+            if (printsApalacheIr()) {
+                output = ApalacheIrJson.render(expression);
+            } else if (printsSpecification()) {
                 output = ExprInputToSpec.render(expression);
             } else {
                 var renderedExpression = EnvelopeReport.expression(expression);
@@ -138,6 +141,10 @@ final class PrintCommand implements Callable<Integer> {
         return outputMode != null && outputMode.specification;
     }
 
+    private boolean printsApalacheIr() {
+        return outputMode != null && outputMode.apalacheIr;
+    }
+
     private boolean printsEnvelope() {
         return outputMode != null && outputMode.envelope;
     }
@@ -153,8 +160,13 @@ final class PrintCommand implements Callable<Integer> {
 
     private static final class OutputMode {
         @Option(
+                names = "--apalache-ir",
+                description = "Print the typed JSON specification passed to Apalache.")
+        private boolean apalacheIr;
+
+        @Option(
                 names = "--spec",
-                description = "Print the complete specification passed to the parser and the model checkers.")
+                description = "Print the TLA+ specification passed to the parser and TLC.")
         private boolean specification;
 
         @Option(

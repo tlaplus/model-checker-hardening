@@ -28,6 +28,16 @@ cohort streams derived from the run seed. Workers claim target entries
 dynamically. This policy belongs to the workflow; the IR decoder remains a
 deterministic mapping from bytes to an expression.
 
+Every tool stage regenerates the same closed, typed IR expression from the
+stored bytes. The parser and TLC consume a TLA+ module rendered with
+`PrettyWriterWithAnnotations`. Apalache instead consumes its typed IR JSON
+format, which preserves the type tag on every expression and avoids inferring
+types again from lossy source syntax. The pinned Apalache JSON reader cannot
+decode `LABEL`; the Apalache renderer therefore replaces each label with its
+first operand before serialization. Labels are semantically transparent to the
+model checker, and the parser and TLC retain the original labeled expression.
+This normalization is temporary; [the JSON label finding][] tracks its removal.
+
 In the figure below, the outer boxes are the stages of the pipeline, while the inner boxes are directories in the
 corpus. The names of the directories reflect the status of each input within the stage.
 
@@ -338,3 +348,4 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0001]: ../decisions/0001-stages-and-workers.md
 [ADR 0002]: ../decisions/0002-pbt-richness-score.md
 [ADR 0003]: ../decisions/0003-checker-failure-codes.md
+[the JSON label finding]: ../../findings/apalache-json/issue-001.md

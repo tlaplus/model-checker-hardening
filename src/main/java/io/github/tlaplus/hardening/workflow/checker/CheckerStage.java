@@ -14,7 +14,7 @@ import io.github.tlaplus.hardening.workflow.execution.StageWorker;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
-import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
+import io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
@@ -29,6 +29,7 @@ public final class CheckerStage implements WorkflowStage {
     private final OccupancyGate resultCapacity;
     private final StageJobLoop<Path> jobs;
     private final WorkQueue<Path> input;
+    private final GeneratedInputPreparation inputPreparation;
     private final WorkerGroup workers;
 
     public CheckerStage(
@@ -47,6 +48,11 @@ public final class CheckerStage implements WorkflowStage {
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");
+        inputPreparation = new GeneratedInputPreparation(
+                backend.displayName(),
+                environment.corpus(),
+                environment.generator(),
+                backend::renderInput);
         resultCapacity = new OccupancyGate(initialOccupancy, backend.maximumEntries());
         jobs = new StageJobLoop<>(
                 input,
@@ -110,12 +116,11 @@ public final class CheckerStage implements WorkflowStage {
             var corpus = environment.corpus();
             var startTime = Instant.now();
             var payload = corpus.readCheckerExpressionInput(path);
-            var source = ExprInputToSpec.render(
-                    backend.displayName(), path, payload, corpus, environment.generator());
+            var checkerInput = inputPreparation.prepare(path, payload);
             if (checker == null) {
                 checker = backend.startWorker();
             }
-            var result = checker.check(source);
+            var result = checker.check(checkerInput);
             if (result.outcome() == StageOutcome.CRASH) {
                 checker.close();
                 checker = null;

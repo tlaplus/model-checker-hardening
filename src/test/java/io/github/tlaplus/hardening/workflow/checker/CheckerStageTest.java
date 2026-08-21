@@ -68,6 +68,7 @@ class CheckerStageTest {
 
         assertEquals(2, backend.starts.get());
         assertEquals(2, backend.closes.get());
+        assertEquals(2, backend.renders.get());
         assertEquals(1, stage.summary().passed());
         assertEquals(1, stage.summary().crashed());
         var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
@@ -78,6 +79,7 @@ class CheckerStageTest {
     private static final class RestartingBackend implements CheckerBackend {
         private final AtomicInteger starts = new AtomicInteger();
         private final AtomicInteger closes = new AtomicInteger();
+        private final AtomicInteger renders = new AtomicInteger();
 
         @Override
         public String name() {
@@ -105,11 +107,18 @@ class CheckerStageTest {
         }
 
         @Override
+        public String renderInput(TlaEx expression) {
+            renders.incrementAndGet();
+            return "backend-specific input";
+        }
+
+        @Override
         public CheckerWorker startWorker() {
             var ordinal = starts.getAndIncrement();
             return new CheckerWorker() {
                 @Override
-                public ToolResult check(String source) {
+                public ToolResult check(String input) {
+                    assertEquals("backend-specific input", input);
                     return ordinal == 0
                             ? new ToolResult(StageOutcome.CRASH, "deliberate crash")
                             : new ToolResult(StageOutcome.PASS, "pass");
