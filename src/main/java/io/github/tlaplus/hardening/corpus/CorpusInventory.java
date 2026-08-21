@@ -10,15 +10,19 @@ import java.util.Objects;
  * Immutable startup inventory used to seed stage queues and capacities.
  *
  * <p>Every count and pending queue is keyed by {@link CorpusStage}, so a new stage needs no new
- * field here. A stage's pending entries are the contents of its input directory; its counts are the
- * verdicts it has already recorded.
+ * field here. Pending entries are durable inputs for ordinary stages and reconstructed ready pairs
+ * for the input-directory-free aggregator. Counts are verdicts the stage has already recorded.
  */
 public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
     /** What one stage holds: the inputs still waiting for it, and the verdicts it has recorded. */
-    public record StageEntries(List<Path> pending, StageEntryCounts counts) {
+    public record StageEntries(
+            List<Path> pending, StageEntryCounts counts, long resultOccupancy) {
         public StageEntries {
             pending = List.copyOf(pending);
             Objects.requireNonNull(counts, "counts");
+            if (resultOccupancy < 0) {
+                throw new IllegalArgumentException("resultOccupancy must be nonnegative");
+            }
         }
     }
 
@@ -44,7 +48,7 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
         }
     }
 
-    /** Returns the entries still waiting in one stage's input directory. */
+    /** Returns the durable work still waiting for one stage. */
     public List<Path> pending(CorpusStage stage) {
         return stages.get(Objects.requireNonNull(stage, "stage")).pending();
     }
@@ -54,7 +58,7 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
         return stages.get(Objects.requireNonNull(stage, "stage")).counts();
     }
 
-    /** Returns how many entries wait in one stage's input directory. */
+    /** Returns how many durable work items wait for one stage. */
     public long pendingEntries(CorpusStage stage) {
         return pending(stage).size();
     }
@@ -69,8 +73,7 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
      * downstream keeps only its failures and crashes.
      */
     public long resultEntries(CorpusStage stage) {
-        var counts = counts(stage);
-        return stage.retainsPasses() ? counts.processed() : counts.failed() + counts.crashed();
+        return stages.get(Objects.requireNonNull(stage, "stage")).resultOccupancy();
     }
 
     /** Counts one logical input once despite the two physical checker-branch copies. */

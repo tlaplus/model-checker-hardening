@@ -36,20 +36,28 @@ final class CorpusRecovery {
     private final CorpusLayout layout;
     private final CorpusEntries entries;
     private final StageTransition transitions;
+    private final AggregationRecovery aggregationRecovery;
 
-    CorpusRecovery(CorpusLayout layout, CorpusEntries entries, StageTransition transitions) {
+    CorpusRecovery(
+            CorpusLayout layout,
+            CorpusEntries entries,
+            StageTransition transitions,
+            AggregationRecovery aggregationRecovery) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.entries = Objects.requireNonNull(entries, "entries");
         this.transitions = Objects.requireNonNull(transitions, "transitions");
+        this.aggregationRecovery =
+                Objects.requireNonNull(aggregationRecovery, "aggregationRecovery");
     }
 
     /** Recovers durable transitions and returns a validated snapshot of the corpus. */
     CorpusInventory recover() throws IOException, CorpusException {
         // Finish durable transitions before inspecting the steady-state directories.
-        for (var stage : CorpusStage.values()) {
+        for (var stage : CorpusStage.inputStages()) {
             recoverTransitions(stage);
         }
         fanOutParserPasses();
+        var aggregateResults = aggregationRecovery.recoverAndValidate();
 
         var logicalNames = new HashSet<String>();
         var inputs = new ArrayList<Path>();
@@ -87,13 +95,19 @@ final class CorpusRecovery {
             parserResultCounts.put(verdict, count);
         }
 
+        for (var name : aggregateResults.entries().keySet()) {
+            addLogicalName(logicalNames, name);
+        }
+
         // Validate each checker branch and distinguish pending inputs from completed results.
         var checkerBranches =
                 new EnumMap<CorpusStage, CheckerBranch>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
             checkerBranches.put(checker, visitCheckerBranch(checker));
         }
-        var parserPass = validateAndRegisterCheckerBranches(checkerBranches, logicalNames);
+        var checkerEntries = validateAndRegisterCheckerBranches(checkerBranches, logicalNames);
+        var parserPass = checkerEntries + aggregateResults.entries().size();
+        var aggregationCandidates = aggregationCandidates(checkerBranches);
 
         // Publish counts only after the entire corpus has passed validation.
         var stages = new EnumMap<CorpusStage, CorpusInventory.StageEntries>(CorpusStage.class);
@@ -104,18 +118,34 @@ final class CorpusRecovery {
                         new StageEntryCounts(
                                 parserPass,
                                 parserResultCounts.get(CorpusVerdict.FAIL),
-                                parserResultCounts.get(CorpusVerdict.CRASH))));
+                                parserResultCounts.get(CorpusVerdict.CRASH)),
+                        parserResultCounts.get(CorpusVerdict.FAIL)
+                                + parserResultCounts.get(CorpusVerdict.CRASH)));
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = checkerBranches.get(checker);
+            var downstream = aggregateResults.upstreamCounts().get(checker);
             stages.put(
                     checker,
                     new CorpusInventory.StageEntries(
                             branch.inputs(),
                             new StageEntryCounts(
-                                    branch.resultCount(CorpusVerdict.PASS),
-                                    branch.resultCount(CorpusVerdict.FAIL),
-                                    branch.resultCount(CorpusVerdict.CRASH))));
+                                    branch.resultCount(CorpusVerdict.PASS)
+                                            + downstream.get(CorpusVerdict.PASS),
+                                    branch.resultCount(CorpusVerdict.FAIL)
+                                            + downstream.get(CorpusVerdict.FAIL),
+                                    branch.resultCount(CorpusVerdict.CRASH)
+                                            + downstream.get(CorpusVerdict.CRASH)),
+                            branch.resultOccupancy()));
         }
+        stages.put(
+                CorpusStage.AGGREGATOR,
+                new CorpusInventory.StageEntries(
+                        aggregationCandidates,
+                        new StageEntryCounts(
+                                aggregateResults.resultCount(CorpusVerdict.PASS),
+                                aggregateResults.resultCount(CorpusVerdict.FAIL),
+                                0),
+                        aggregateResults.entries().size()));
         return new CorpusInventory(stages);
     }
 
@@ -187,6 +217,7 @@ final class CorpusRecovery {
             throws IOException, CorpusException {
         var inputs = new ArrayList<Path>();
         var branchEntries = new HashMap<String, Entry>();
+        var resultEntries = new HashMap<String, Entry>();
         var resultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
 
         for (var path : entries.entryPaths(layout.resolve(checker.input()))) {
@@ -207,10 +238,34 @@ final class CorpusRecovery {
                                 entry, CorpusStage.PARSER, CorpusVerdict.PASS);
                         requireMissingOtherCheckerStages(checker, entry);
                         addCheckerBranchEntry(checker, branchEntries, entry);
+                        resultEntries.put(entry.path().getFileName().toString(), entry);
                     });
             resultCounts.put(verdict, count);
         }
-        return new CheckerBranch(inputs, branchEntries, resultCounts);
+        return new CheckerBranch(inputs, branchEntries, resultEntries, resultCounts);
+    }
+
+    /** Returns one notification per checker pair that is already ready to aggregate. */
+    private List<Path> aggregationCandidates(Map<CorpusStage, CheckerBranch> branches) {
+        var candidates = new ArrayList<Path>();
+        var referenceStage = CorpusStage.checkerBranches().getFirst();
+        for (var entry : branches.get(referenceStage).results().entrySet()) {
+            var name = entry.getKey();
+            var ready = true;
+            for (var checker : CorpusStage.checkerBranches()) {
+                var candidate = branches.get(checker).results().get(name);
+                if (candidate == null
+                        || candidate.envelope().stage(checker).orElseThrow().verdict()
+                                == CorpusVerdict.CRASH) {
+                    ready = false;
+                    break;
+                }
+            }
+            if (ready) {
+                candidates.add(entry.getValue().path());
+            }
+        }
+        return List.copyOf(candidates);
     }
 
     private void addCheckerBranchEntry(
@@ -312,15 +367,22 @@ final class CorpusRecovery {
     private record CheckerBranch(
             List<Path> inputs,
             Map<String, Entry> entries,
+            Map<String, Entry> results,
             EnumMap<CorpusVerdict, Long> resultCounts) {
         private CheckerBranch {
             inputs = List.copyOf(inputs);
             entries = Map.copyOf(entries);
+            results = Map.copyOf(results);
             resultCounts = new EnumMap<>(resultCounts);
         }
 
         long resultCount(CorpusVerdict verdict) {
             return resultCounts.get(verdict);
         }
+
+        long resultOccupancy() {
+            return resultCounts.values().stream().mapToLong(Long::longValue).sum();
+        }
     }
+
 }

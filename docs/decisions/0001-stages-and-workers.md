@@ -16,7 +16,7 @@ from interruption without relying on volatile state.
 
 ## Decision
 
-A workflow invocation runs four implemented stages concurrently:
+A workflow invocation runs five implemented stages concurrently:
 
 - The input stage owns `00-inputs` and runs up to `run --max-cpus`
   property-based generation workers. It starts no more workers than missing
@@ -36,9 +36,16 @@ A workflow invocation runs four implemented stages concurrently:
   Apalache JVM and invokes `Tool.run` sequentially for multiple inputs. The
   release is pinned to version 0.62.0, downloaded from the official GitHub
   release with a verified SHA-256 digest, and staged beside FuzzTLA's JAR.
+- The conformance aggregator owns `03aggregator-pass` and
+  `03aggregator-fail`. One in-process worker joins a completed non-crash TLC
+  result with the corresponding Apalache result. Equal verdicts pass;
+  different verdicts fail. Checker failure codes remain diagnostic metadata and
+  do not affect the comparison. Pairs containing a crash remain in the checker
+  result directories.
 
 The implementation mirrors these responsibilities in `workflow.input`,
-`workflow.parser`, `workflow.tlc`, and `workflow.apalache`. The
+`workflow.parser`, `workflow.tlc`, `workflow.apalache`, and
+`workflow.aggregator`. The
 `workflow.checker` package owns orchestration shared by TLC and Apalache. Shared
 scheduling and lifecycle machinery lives in `workflow.execution`, which also owns
 the machinery every stage reuses: the queue and CPU-budget job loop, the
@@ -48,7 +55,7 @@ code lives in `workflow.worker`; generated-specification construction lives in
 `workflow.spec`.
 The `workflow` package retains the runner, progress and result records, and the
 workflow exception exposed to the CLI.
-The corpus stages parsing, TLC, and Apalache are identified by the `CorpusStage`
+The corpus stages parsing, TLC, Apalache, and aggregation are identified by the `CorpusStage`
 enum, and every per-stage inventory, clock, counter, and configuration table is
 keyed by it. [ADR 0004](0004-stage-identity.md) records that decision.
 
@@ -69,20 +76,29 @@ seed. Worker-local streams are reproducible, but dynamic target claiming,
 duplicate races, and stage-capacity timing may change the aggregate corpus.
 Persisted raw inputs remain exactly replayable.
 
-Files move between stage-owned directories, with one exception: a parser pass is
+Files move between stage-owned directories, with two multi-file transitions. A parser pass is
 copied to both `02tlc-inputs` and `02apa-inputs` before the
 source is removed. The two copies retain one logical identity and count once
 towards the global limit. Startup completes partial fan-out transactions and
 checks that both copies have identical input, generation metadata, and parser
 metadata. The directories are the durable source of truth.
 
+The aggregator has no durable input directory. Checker completions enqueue paths
+as process-local notifications, while startup reconstructs every ready pair from
+the checker result directories. Fan-in merges the two envelopes, atomically
+installs one aggregate destination, then deletes both checker sources. Startup
+finishes source deletion when an interruption occurs after destination
+installation. The merged entry retains parser metadata, both checker stage maps,
+and fields unknown to this build.
+
 A corpus is valid only when the complete current directory layout and every
 configuration table are present. Runs do not migrate older layouts or formats.
 
 Close-aware multi-producer, multi-consumer queues accelerate the input-to-parser
 and parser-to-checker handoffs. A downstream-priority logical CPU budget, configured
-with `run --max-cpus`, bounds simultaneously active work across all stages. TLC
-has priority over parsing, which has priority over generation. Requests are FIFO
+with `run --max-cpus`, bounds simultaneously active work across all stages. The
+aggregator has priority over checker work, which has priority over parsing, which
+has priority over generation. TLC and Apalache share checker priority. Requests are FIFO
 within one priority. A waiting higher-priority request reserves partially
 available permits until it can start, so smaller upstream requests cannot starve
 a multi-permit checker request. Already-running work is not preempted; strict
@@ -183,7 +199,7 @@ entries.
 
 Generation stops at the global entry limit. The last generator worker closes the
 parser queue; the last parser worker closes both checker queues. The run finishes
-when all four stages have no queued or in-flight jobs. If parser or checker result
+when all five stages have no queued or in-flight jobs. If parser or checker result
 capacity is exhausted, the workflow succeeds with a capacity-limited result and
 leaves unclaimed upstream inputs in their owning directories. An infrastructure
 failure stops all stages and returns a failure.
@@ -197,8 +213,9 @@ JVM startup per checked input in exchange for isolation and bounded heap use.
 Apalache amortizes JVM startup across healthy inputs while retaining one isolated
 JVM per configured worker. A timeout or crash pays the startup cost again for the
 replacement worker.
-Fan-out doubles storage for parser passes until aggregation is implemented. Disk
-transitions make runs resumable, while queues and the CPU budget remain
+Fan-out temporarily doubles storage for parser passes; fan-in returns a completed
+non-crash checker pair to one physical entry. Disk transitions make runs
+resumable, while queues and the CPU budget remain
 process-local execution optimizations. Downstream priority drains checker
 backlogs before spending more CPU on raw inputs. Generation or parsing may wait
 indefinitely while downstream work remains continuously queued; this starvation

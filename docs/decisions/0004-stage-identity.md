@@ -8,7 +8,7 @@
 
 ## Context
 
-[ADR 0001][] defines four concurrently running stages and gives each one its own
+[ADR 0001][] defines five concurrently running stages and gives each one its own
 corpus directories. The code named those stages by repeating them: the parser,
 TLC, and Apalache appeared as separate fields, accessors, or triplicated
 expressions in the corpus inventory, the durable statistics aggregate and its
@@ -22,9 +22,11 @@ types that had no reason to know how many stages exist.
 ## Decision
 
 `CorpusStage` is the identity of a pipeline stage. It is a public enum in the
-`corpus` package that owns each stage's metadata name, display name, and
-directories, and states whether a passed entry stays in the stage's result
-directory or fans out downstream.
+`corpus` package that owns each stage's metadata name, display name, optional
+input and scratch directories, result directories and supported verdicts. It
+also states whether a passed entry stays in the stage's result directory or fans
+out downstream, whether configuration bounds its result occupancy, and which
+failure metadata this build writes.
 
 Everything that holds per-stage data is keyed by it:
 
@@ -38,8 +40,10 @@ Everything that holds per-stage data is keyed by it:
 - `WorkflowProgress` and `WorkflowRunSummary` map each stage to what it produced
   and, for progress, to its current backlog. `RunTable` renders whatever the maps
   contain.
-- `WorkflowConfig` maps each checker stage to a `CheckerStageConfig`, matching the
-  `[workflow.<stage>]` tables of the configuration file.
+- `WorkflowConfig` maps each configured checker stage to a `CheckerStageConfig`,
+  matching the `[workflow.<stage>]` tables of the configuration file. The
+  fixed, single-worker aggregator uses the global corpus limit and has no
+  configuration table.
 
 The input stage has no `CorpusStage`. It produces corpus entries rather than
 recording verdicts on them, so its statistics live with the generator.
@@ -49,8 +53,9 @@ subtracting counters that were sampled at different moments.
 
 ## Consequences
 
-Adding a pipeline stage means adding an enum constant with its directories, a
-configuration table, and the stage implementation. The inventory, the statistics
+Adding a pipeline stage means adding an enum constant with its topology and the
+stage implementation, plus configuration only when the stage has configurable
+policy. The inventory, the statistics
 aggregate and its codec, the clocks, the progress snapshot, and the run table
 follow without modification.
 

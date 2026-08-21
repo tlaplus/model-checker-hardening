@@ -36,13 +36,17 @@ class CpuBudgetTest {
         parser.awaitQueued();
         var checker = autoReleasingRequest(budget, Priority.CHECKER, 1, "checker", order);
         checker.awaitQueued();
+        var aggregator =
+                autoReleasingRequest(budget, Priority.AGGREGATOR, 1, "aggregator", order);
+        aggregator.awaitQueued();
 
         budget.release(1);
 
         assertTrue(generator.await());
         assertTrue(parser.await());
         assertTrue(checker.await());
-        assertEquals(List.of("checker", "parser", "generator"), order);
+        assertTrue(aggregator.await());
+        assertEquals(List.of("aggregator", "checker", "parser", "generator"), order);
     }
 
     @Test

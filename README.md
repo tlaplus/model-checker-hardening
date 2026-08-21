@@ -82,7 +82,9 @@ corpus/
 ├── 02apa-inputs/
 ├── 02apa-pass/
 ├── 02apa-fail/
-└── 02apa-crash/
+├── 02apa-crash/
+├── 03aggregator-pass/
+└── 03aggregator-fail/
 ```
 
 The initialized configuration below assumes eight available processors. The
@@ -167,7 +169,8 @@ Populate the corpus with property-based inputs by running:
 ./bin/fuzztla run --how=pbt --corpus=another-corpus --seed=42 --max-cpus=4
 ```
 
-The command runs input generation, parsing, TLC, and Apalache concurrently. Generation and
+The command runs input generation, parsing, TLC, Apalache, and conformance
+aggregation concurrently. Generation and
 parsing maintain up to `--max-cpus` workers; parser workers use persistent
 isolated JVMs. Each TLC input runs in a fresh JVM. A TLC process uses
 `workflow.tlc.workers` internal workers and reserves that many permits from the
@@ -179,11 +182,12 @@ Workers run concurrently and reserve one permit per active call. A timeout or
 crash retires the child JVM, and the next input starts a replacement. The
 initialized worker count is half the available processors, rounded down with a
 minimum of one; the stored setting also must not exceed `--max-cpus`.
-TLC and Apalache have
-equal checker priority over parsing, which has priority over generation. Waiting
+The aggregator has priority over TLC and Apalache, which have equal checker
+priority over parsing, which has priority over generation. Waiting
 checker requests reserve partial CPU capacity so upstream work cannot starve
 them. Before starting, FuzzTLA validates the corpus, recovers interrupted moves,
-and completes partial parser fan-outs.
+completes partial parser fan-outs, reconstructs ready checker pairs, and finishes
+interrupted aggregate source deletion.
 
 When standard output is an interactive ANSI terminal, `run` refreshes its
 progress table in place once per second. Redirected output omits intermediate
@@ -210,8 +214,8 @@ expressions, and duplicate inputs are retried. A failure to fill one cohort afte
 in the diagnostic. The progress table reports candidate attempts, generator
 rejections, richness rejections, and duplicates separately. It also reports the
 minimum, maximum, and average richness of inputs admitted during the current run.
-Stage progress distinguishes inputs awaiting the parser, TLC, and Apalache and
-reports verdict counters for both checkers.
+Stage progress distinguishes inputs awaiting the parser, TLC, Apalache, and
+aggregation and reports verdict counters for every stage.
 
 The effective nonnegative seed is printed and flushed before corpus access or
 worker startup. The input stage
@@ -226,7 +230,12 @@ UTC timestamps and a verdict, and moves the entry to its parser result directory
 Parser passes are copied to `02tlc-inputs` and `02apa-inputs`; the two files count
 as one logical corpus entry. TLC records `stages.tlc` and moves its copy to the
 matching TLC result directory. Apalache does the same under `stages.apalache`
-and its result directories. The parser and TLC receive a TLA+ module; Apalache
+and its result directories. Once both non-crash results exist, the aggregator
+merges their metadata into one entry. Equal pass/pass or fail/fail verdicts move
+to `03aggregator-pass`; pass/fail disagreements move to
+`03aggregator-fail`. Failure codes do not affect this comparison. A pair with a
+checker crash remains in the checker result directories. The parser and TLC
+receive a TLA+ module; Apalache
 receives typed Apalache IR JSON generated from the same expression. The JSON
 path preserves closed expression types that TLA+ source cannot fully annotate.
 Both checkers run the fixed `Init`, `Next`, and `Inv` configuration with deadlock

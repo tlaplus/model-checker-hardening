@@ -220,6 +220,8 @@ class MainTest {
                 .anyMatch(line -> line.matches("\\[\\s+8 generated inputs\\s+]")));
         var entryCount = 0;
         for (var resultDirectory : java.util.List.of(
+                CorpusPath.AGGREGATOR_PASS,
+                CorpusPath.AGGREGATOR_FAIL,
                 CorpusPath.APALACHE_PASS,
                 CorpusPath.APALACHE_FAIL,
                 CorpusPath.APALACHE_CRASH,

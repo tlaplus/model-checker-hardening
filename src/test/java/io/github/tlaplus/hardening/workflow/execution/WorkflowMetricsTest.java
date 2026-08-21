@@ -17,7 +17,8 @@ class WorkflowMetricsTest {
                 Map.of(
                         CorpusStage.PARSER, 30L,
                         CorpusStage.TLC, 40L,
-                        CorpusStage.APALACHE, 50L),
+                        CorpusStage.APALACHE, 50L,
+                        CorpusStage.AGGREGATOR, 60L),
                 10,
                 3,
                 2,
@@ -52,6 +53,7 @@ class WorkflowMetricsTest {
         assertEquals(30, saved.stageElapsedNanos(CorpusStage.PARSER));
         assertEquals(40, saved.stageElapsedNanos(CorpusStage.TLC));
         assertEquals(50, saved.stageElapsedNanos(CorpusStage.APALACHE));
+        assertEquals(60, saved.stageElapsedNanos(CorpusStage.AGGREGATOR));
         assertEquals(11, saved.generatorAttempts());
         assertEquals(3, saved.richnessSamples());
         assertEquals(16.0 / 3.0, saved.averageRichness(), 1e-12);

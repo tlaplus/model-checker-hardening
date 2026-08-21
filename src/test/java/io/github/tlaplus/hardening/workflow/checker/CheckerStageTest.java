@@ -15,6 +15,7 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
+import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
@@ -51,14 +52,16 @@ class CheckerStageTest {
         input.close();
 
         var backend = new RestartingBackend();
-        var control = new WorkflowControl(input);
+        var output = new WorkQueue<Path>();
+        var control = new WorkflowControl(input, output);
         var initial = StageVerdictSummary.empty();
         var stage = new CheckerStage(
                 backend,
-                0,
+                new OccupancyGate(0, backend.maximumEntries()),
                 new StageCounters(initial, new ElapsedTimeAccumulator()),
                 new StageEnvironment(corpus, generator, new CpuBudget(1), control),
-                input);
+                input,
+                output);
         try {
             stage.start();
             stage.await();

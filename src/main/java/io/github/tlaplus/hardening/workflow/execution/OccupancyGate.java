@@ -33,4 +33,17 @@ public final class OccupancyGate {
             }
         }
     }
+
+    /** Releases one occupied slot after its durable entry moves downstream. */
+    public void release() {
+        while (true) {
+            var current = occupancy.get();
+            if (current == 0) {
+                throw new IllegalStateException("cannot release an unoccupied result slot");
+            }
+            if (occupancy.compareAndSet(current, current - 1)) {
+                return;
+            }
+        }
+    }
 }

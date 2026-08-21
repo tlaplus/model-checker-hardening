@@ -9,10 +9,10 @@ cargofuzz).
 
 ## 1. Processing pipeline
 
-The input-generation, parser, TLC, and Apalache stages described below are
-implemented. Later stages remain architectural proposals. [ADR 0001][] records
-the stage and worker execution model. [ADR 0002][] records the property-based
-input admission policy.
+The input-generation, parser, TLC, Apalache, and conformance-aggregator stages
+described below are implemented. The quality gate, mutator, and final test-suite
+stages remain proposals. [ADR 0001][] records the stage and worker execution
+model. [ADR 0002][] records the property-based input admission policy.
 
 ### 1.1. General architecture
 
@@ -131,7 +131,8 @@ inputs:
 This workflow specializes the general workflow as follows:
 
 - **Aggregator.** At this stage, the input is moved to `pass`, when both TLC and Apalache pass, or both fail. Failure
-  codes are diagnostic metadata and do not affect this verdict-level comparison.
+  codes are diagnostic metadata and do not affect this verdict-level comparison. A pass/fail disagreement moves to
+  `fail`. A crash in either checker is not aggregated and remains in the checker result directories.
 - **Mutator.** The mutator is no-operation. It does not generate new inputs.
 - **Quality gate.** Good quality gates are to be found.
 
@@ -231,6 +232,18 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    requires both branches to agree on the input, generation metadata, and
    parser metadata.
 
+ - The conformance aggregator is a durable fan-in point. It has no input
+   directory: completed checker result paths are queue notifications, and
+   startup reconstructs ready pairs from `02tlc-{pass,fail}` and
+   `02apa-{pass,fail}`. The aggregator merges both stage maps into one entry in
+   `03aggregator-pass` or `03aggregator-fail`, installs that destination before
+   deleting either checker source, and completes interrupted source deletion at
+   startup. The merged entry preserves both checker failure classifications and
+   unrecognized envelope fields. Aggregated checker results still contribute to
+   historical checker verdict counters but no longer occupy checker result
+   capacity. Pairs containing a checker crash are left in the checker result
+   directories.
+
  - An unexpected failure while generating or preparing an input produces
    `.work/generator-crash/<sha256>.cbor` and a matching `.stacktrace`. This
    diagnostic copy preserves the exact generator bytes without admitting the
@@ -261,7 +274,8 @@ contributes zero, so adding or removing a stage needs no migration.
     "stages": {
       "parser": 0,
       "tlc": 0,
-      "apalache": 0
+      "apalache": 0,
+      "aggregator": 0
     }
   },
   "generator": {
