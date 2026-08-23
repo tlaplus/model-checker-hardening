@@ -10,6 +10,14 @@ The project uses Apalache's Java façade for its TLA+ intermediate representatio
 > [!TIP]
 > This project is under active development. Expect plenty of changes and no backwards compatibility in 2026.
 
+## Results
+
+- [Conformance reports](./conformance/) document corpus-confirmed differences
+  between TLC and Apalache, with counts, classifications, and reduced TLA+
+  examples.
+- [Filed findings](./findings/) document confirmed defects in the checked tools,
+  grouped by subsystem and accompanied by reproductions.
+
 ## Requirements
 
 - JDK 25
