@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Owns the on-disk layout and integrity checks for one FuzzTLA corpus.
@@ -65,11 +66,13 @@ public final class CorpusDirectory {
     private final CorpusLayout layout;
     private final CorpusEntryStore store;
     private final StageTransition transitions;
+    private final AggregationTransition aggregations;
 
     private CorpusDirectory(Path root) {
         layout = new CorpusLayout(root);
         store = new CorpusEntryStore(layout);
         transitions = new StageTransition(layout, entries(CorpusEntryValidator.NONE));
+        aggregations = new AggregationTransition(layout, entries(CorpusEntryValidator.NONE));
     }
 
     /**
@@ -179,7 +182,7 @@ public final class CorpusDirectory {
         }
     }
 
-    /** Creates every stage's transient storage for one locked workflow invocation. */
+    /** Creates the stage-owned transient storage for one locked workflow invocation. */
     public StageScratchSet createScratch() throws IOException, CorpusException {
         return StageScratchSet.create(this);
     }
@@ -191,7 +194,11 @@ public final class CorpusDirectory {
     public synchronized CorpusInventory recoverAndValidate(CorpusEntryValidator validator)
             throws IOException, CorpusException {
         Objects.requireNonNull(validator, "validator");
-        return new CorpusRecovery(layout, entries(validator), transitions).recover();
+        var validatedEntries = entries(validator);
+        var aggregationRecovery =
+                new AggregationRecovery(layout, validatedEntries, aggregations);
+        return new CorpusRecovery(layout, validatedEntries, transitions, aggregationRecovery)
+                .recover();
     }
 
     /** Stores an expression input under its payload digest in {@code 00-inputs}. */
@@ -240,6 +247,18 @@ public final class CorpusDirectory {
     public synchronized Path completeChecker(Path source, StageResult result)
             throws IOException, CorpusException {
         return transitions.complete(source, checkerStageFor(source), result);
+    }
+
+    /** Finds the non-crash checker pair named by a completion notification, when both are ready. */
+    public synchronized Optional<AggregationInput> aggregationInput(Path candidate)
+            throws IOException, CorpusException {
+        return aggregations.find(candidate);
+    }
+
+    /** Merges a ready checker pair and records the aggregator's verdict. */
+    public synchronized Path completeAggregation(AggregationInput input, StageResult result)
+            throws IOException, CorpusException {
+        return aggregations.complete(input, result);
     }
 
     /** Copies one parser pass into both checker branches, then removes the fan-out source. */

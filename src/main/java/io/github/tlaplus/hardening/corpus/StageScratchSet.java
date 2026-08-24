@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * The transient scratch directories of every stage, created and removed together.
+ * The transient scratch directories of every stage that needs one, created and removed together.
  *
  * <p>Closing removes all of them, and reports the first failure with the rest attached, so one
  * failing stage cannot leave the others behind.
@@ -23,7 +23,7 @@ public final class StageScratchSet implements AutoCloseable {
         var scratches = new EnumMap<CorpusStage, StageScratch>(CorpusStage.class);
         var set = new StageScratchSet(scratches);
         try {
-            for (var stage : CorpusStage.values()) {
+            for (var stage : CorpusStage.scratchStages()) {
                 scratches.put(stage, corpus.createScratch(stage));
             }
             return set;
@@ -37,7 +37,7 @@ public final class StageScratchSet implements AutoCloseable {
         }
     }
 
-    /** Returns the directory this invocation may use for one stage's transient files. */
+    /** Returns the directory this invocation may use for one scratch-owning stage's files. */
     public Path directory(CorpusStage stage) {
         return scratches.get(Objects.requireNonNull(stage, "stage")).directory();
     }

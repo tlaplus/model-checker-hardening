@@ -116,6 +116,38 @@ class CorpusEnvelopeCodecTest {
     }
 
     @Test
+    void mergesDisjointCheckerStagesWithoutDroppingExtensions() throws Exception {
+        var tlc = checkerBranch("tlc", "pass", "tlc-extension", null);
+        var apalache = checkerBranch(
+                "apalache",
+                "fail",
+                "apalache-extension",
+                CheckerFailureCode.TYPECHECK.encodedCode());
+
+        var merged = CorpusEnvelopeCodec.mergeWithStageMetadata(
+                List.of(tlc, apalache),
+                new StageMetadata(
+                        "aggregator",
+                        CorpusVerdict.FAIL,
+                        Instant.ofEpochSecond(7),
+                        Instant.ofEpochSecond(8)));
+        var tree = new ObjectMapper(FACTORY).readTree(merged);
+
+        assertEquals(42, tree.path("future").path("answer").intValue());
+        assertEquals(
+                "tlc-extension",
+                tree.path("stages").path("tlc").path("extension").textValue());
+        assertEquals(
+                "apalache-extension",
+                tree.path("stages").path("apalache").path("extension").textValue());
+        assertEquals(
+                List.of("parser", "tlc", "apalache", "aggregator"),
+                CorpusEnvelopeCodec.decodeEnvelope(merged).stages().stream()
+                        .map(StageMetadata::stage)
+                        .toList());
+    }
+
+    @Test
     void encodesAndDecodesNumericCheckerFailureMetadata() throws Exception {
         var failure = new CheckerFailure(
                 CheckerFailureCode.SPEC_EVAL,
@@ -423,6 +455,37 @@ class CorpusEnvelopeCodecTest {
     private byte[] checkerEnvelope(String verdict, Integer code, String detail)
             throws Exception {
         return stageEnvelope("tlc", verdict, code, detail);
+    }
+
+    private byte[] checkerBranch(
+            String checker, String verdict, String extension, Integer code) throws Exception {
+        var checkerStart = "tlc".equals(checker) ? 3 : 5;
+        return cbor(generator -> {
+            generator.writeStartObject(null, 4);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[] {4, 2});
+            generator.writeObjectFieldStart("future");
+            generator.writeNumberField("answer", 42);
+            generator.writeEndObject();
+            generator.writeObjectFieldStart("stages");
+            writeStage(
+                    generator,
+                    "parser",
+                    "pass",
+                    Instant.ofEpochSecond(1),
+                    Instant.ofEpochSecond(2));
+            generator.writeObjectFieldStart(checker);
+            generator.writeStringField("verdict", verdict);
+            if (code != null) {
+                generator.writeNumberField("code", code);
+            }
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(checkerStart));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(checkerStart + 1));
+            generator.writeStringField("extension", extension);
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
     }
 
     private byte[] stageEnvelope(

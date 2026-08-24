@@ -35,7 +35,7 @@ final class StageTransition {
         // Validate the requested transition and resolve its result path before changing the corpus.
         entries.requireOwnedPath(source, stage.input(), stage.displayName() + " input");
         Objects.requireNonNull(result, "result");
-        requireFailureMetadata(stage, result);
+        stage.requireValidFailureMetadata(result);
         var verdict = result.verdict();
         var encoded = Files.readAllBytes(source);
         var entry = CorpusEntries.decode(source, encoded);
@@ -189,28 +189,4 @@ final class StageTransition {
         }
     }
 
-    /**
-     * Checks the failure metadata this build's stages must record. This is a rule about what this
-     * pipeline writes, not about what the format allows, so it belongs here rather than in {@link
-     * StageMetadata}: a document written by a build whose parser does classify failures must still
-     * be readable.
-     */
-    private static void requireFailureMetadata(CorpusStage stage, StageResult result)
-            throws CorpusException {
-        var hasFailure = result.failure().isPresent();
-        switch (stage) {
-            case PARSER -> {
-                if (hasFailure) {
-                    throw new CorpusException(
-                            "parser metadata must not contain a failure code");
-                }
-            }
-            case TLC, APALACHE -> {
-                if (result.verdict() == CorpusVerdict.FAIL && !hasFailure) {
-                    throw new CorpusException(
-                            stage.displayName() + " failure metadata requires a failure code");
-                }
-            }
-        }
-    }
 }

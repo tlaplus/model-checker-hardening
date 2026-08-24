@@ -15,10 +15,12 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
+import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
@@ -42,7 +44,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-/** Runs input generation, parsing, TLC, and Apalache under one shared CPU budget. */
+/** Runs generation, parsing, TLC, Apalache, and conformance aggregation under one CPU budget. */
 public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 
@@ -162,6 +164,22 @@ public final class WorkflowRunner {
         var cpuBudget = new CpuBudget(maximumCpus);
         var environment = new StageEnvironment(corpus, generator, cpuBudget, control);
 
+        var checkerCapacities = new EnumMap<CorpusStage, OccupancyGate>(CorpusStage.class);
+        for (var checker : CorpusStage.checkerBranches()) {
+            checkerCapacities.put(
+                    checker,
+                    new OccupancyGate(
+                            initial.resultEntries(checker),
+                            config.workflow().maximumEntries(checker)));
+        }
+
+        var aggregator = new AggregatorStage(
+                initial.pendingEntries(CorpusStage.AGGREGATOR),
+                counters.get(CorpusStage.AGGREGATOR),
+                environment,
+                queues.get(CorpusStage.AGGREGATOR),
+                checkerCapacities);
+
         var parser = new ParserStage(
                 config.workflow().parser(),
                 maximumCpus,
@@ -178,10 +196,11 @@ public final class WorkflowRunner {
                     checker,
                     new CheckerStage(
                             checkerBackend(checker, maximumCpus, scratch, apalacheJar),
-                            initial.resultEntries(checker),
+                            checkerCapacities.get(checker),
                             counters.get(checker),
                             environment,
-                            queues.get(checker)));
+                            queues.get(checker),
+                            queues.get(CorpusStage.AGGREGATOR)));
         }
         var pbt = new PbtStage(
                 config.pbt(),
@@ -197,6 +216,7 @@ public final class WorkflowRunner {
         stages.add(pbt);
         stages.add(parser);
         stages.addAll(checkers.values());
+        stages.add(aggregator);
         var progressPhase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
 
         if (capacityIsAlreadyExhausted(initial)) {
@@ -216,6 +236,10 @@ public final class WorkflowRunner {
                                 invocationElapsed),
                         progressListener)) {
             try {
+                // Drain recovered fan-in before checkers inspect their current result capacity.
+                aggregator.start();
+                aggregator.awaitRecovered();
+                throwIfFailed(control);
                 // Downstream stages start first so they can drain a recovered backlog immediately.
                 for (var stage : checkers.values()) {
                     stage.start();
@@ -227,6 +251,8 @@ public final class WorkflowRunner {
                 for (var stage : checkers.values()) {
                     stage.await();
                 }
+                queues.get(CorpusStage.AGGREGATOR).close();
+                aggregator.await();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 control.fail(exception);
@@ -261,16 +287,16 @@ public final class WorkflowRunner {
 
     /** Returns the checker backend of one stage, configured for this invocation. */
     private CheckerBackend checkerBackend(
-            CorpusStage checker, int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
-        var checkerConfig = config.workflow().checker(checker);
-        return switch (checker) {
+            CorpusStage stage, int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
+        var checkerConfig = config.workflow().checker(stage);
+        return switch (stage) {
             case TLC -> new TlcCheckerBackend(
                     checkerConfig,
                     maximumCpus / checkerConfig.workers(),
                     scratch.directory(CorpusStage.TLC));
             case APALACHE -> new ApalacheCheckerBackend(
                     checkerConfig, apalacheJar, scratch.directory(CorpusStage.APALACHE));
-            case PARSER -> throw new IllegalArgumentException("parser is not a checker stage");
+            default -> throw new AssertionError("unreachable stage: " + stage);
         };
     }
 
@@ -347,9 +373,11 @@ public final class WorkflowRunner {
      * no capacity for, or the corpus is below its target but no input slot is available.
      */
     private boolean capacityIsAlreadyExhausted(CorpusInventory initial) {
+        var aggregationCanReleaseCapacity = initial.pendingEntries(CorpusStage.AGGREGATOR) > 0;
         for (var checker : CorpusStage.checkerBranches()) {
-            if (initial.processedEntries(checker) >= config.workflow().maximumEntries(checker)
-                    && initial.pendingEntries(checker) > 0) {
+            if (initial.resultEntries(checker) >= config.workflow().maximumEntries(checker)
+                    && initial.pendingEntries(checker) > 0
+                    && !aggregationCanReleaseCapacity) {
                 return true;
             }
         }
@@ -379,7 +407,7 @@ public final class WorkflowRunner {
                 > config.workflow().inputs().maximumEntries()) {
             throw new WorkflowException("00-inputs exceeds workflow.inputs.max_entries");
         }
-        for (var stage : CorpusStage.values()) {
+        for (var stage : CorpusStage.capacityLimitedStages()) {
             if (inventory.resultEntries(stage) > config.workflow().maximumEntries(stage)) {
                 throw new WorkflowException(
                         stage.displayName()

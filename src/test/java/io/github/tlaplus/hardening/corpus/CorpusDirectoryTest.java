@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -46,6 +47,8 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.APALACHE_PASS, Path.of("02apa-pass")),
                 Map.entry(CorpusPath.APALACHE_FAIL, Path.of("02apa-fail")),
                 Map.entry(CorpusPath.APALACHE_CRASH, Path.of("02apa-crash")),
+                Map.entry(CorpusPath.AGGREGATOR_PASS, Path.of("03aggregator-pass")),
+                Map.entry(CorpusPath.AGGREGATOR_FAIL, Path.of("03aggregator-fail")),
                 Map.entry(CorpusPath.WORK, Path.of(".work")),
                 Map.entry(
                         CorpusPath.GENERATOR_CRASH,
@@ -657,6 +660,174 @@ class CorpusDirectoryTest {
     }
 
     @Test
+    void exposesCompletedNonCrashCheckerPairsToTheAggregator(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus, new byte[] {5, 1}, CorpusVerdict.PASS, CorpusVerdict.FAIL);
+
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+        var input = corpus.aggregationInput(pair.tlc()).orElseThrow();
+
+        assertEquals(
+                Map.of(
+                        CorpusStage.TLC,
+                        CorpusVerdict.PASS,
+                        CorpusStage.APALACHE,
+                        CorpusVerdict.FAIL),
+                input.checkerVerdicts());
+        assertEquals(1, inventory.pendingEntries(CorpusStage.AGGREGATOR));
+    }
+
+    @Test
+    void rejectsAnAggregatorVerdictThatDoesNotMatchTheCheckerPair(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus, new byte[] {5, 5}, CorpusVerdict.PASS, CorpusVerdict.FAIL);
+
+        var failure = assertThrows(
+                CorpusException.class,
+                () -> corpus.completeAggregation(
+                        corpus.aggregationInput(pair.tlc()).orElseThrow(),
+                        new StageResult(
+                                CorpusVerdict.PASS,
+                                Instant.ofEpochSecond(20),
+                                Instant.ofEpochSecond(21))));
+
+        assertTrue(failure.getMessage().contains("does not match checker verdicts"));
+        assertTrue(Files.exists(pair.tlc()));
+        assertTrue(Files.exists(pair.apalache()));
+    }
+
+    @Test
+    void mergesCheckerMetadataAndRemovesBothSources(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus, new byte[] {5, 2}, CorpusVerdict.FAIL, CorpusVerdict.FAIL);
+        var input = corpus.aggregationInput(pair.apalache()).orElseThrow();
+
+        var destination = corpus.completeAggregation(
+                input,
+                new StageResult(
+                        CorpusVerdict.PASS,
+                        Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(21)));
+
+        assertEquals(
+                corpus.resolve(CorpusPath.AGGREGATOR_PASS).resolve(pair.tlc().getFileName()),
+                destination);
+        assertTrue(Files.notExists(pair.tlc()));
+        assertTrue(Files.notExists(pair.apalache()));
+        var envelope = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(destination));
+        assertEquals(
+                List.of("parser", "tlc", "apalache", "aggregator"),
+                envelope.stages().stream().map(StageMetadata::stage).toList());
+        assertEquals(
+                Optional.of(CheckerFailureCode.SPEC_EVAL),
+                envelope.stage(CorpusStage.TLC)
+                        .flatMap(StageMetadata::failure)
+                        .map(CheckerFailure::code));
+        assertEquals(
+                Optional.of(CheckerFailureCode.TYPECHECK),
+                envelope.stage(CorpusStage.APALACHE)
+                        .flatMap(StageMetadata::failure)
+                        .map(CheckerFailure::code));
+
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).passed());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).failed());
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).failed());
+        assertEquals(0, inventory.resultEntries(CorpusStage.TLC));
+        assertEquals(0, inventory.resultEntries(CorpusStage.APALACHE));
+        assertEquals(1, inventory.totalEntries());
+    }
+
+    @Test
+    void recoversAggregationInterruptedBeforeSourceDeletion(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus, new byte[] {5, 3}, CorpusVerdict.PASS, CorpusVerdict.PASS);
+        var tlcBytes = Files.readAllBytes(pair.tlc());
+        var apalacheBytes = Files.readAllBytes(pair.apalache());
+        corpus.completeAggregation(
+                corpus.aggregationInput(pair.tlc()).orElseThrow(),
+                new StageResult(
+                        CorpusVerdict.PASS,
+                        Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(21)));
+        Files.write(pair.tlc(), tlcBytes);
+        Files.write(pair.apalache(), apalacheBytes);
+
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+
+        assertTrue(Files.notExists(pair.tlc()));
+        assertTrue(Files.notExists(pair.apalache()));
+        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).passed());
+        assertEquals(1, inventory.totalEntries());
+    }
+
+    @Test
+    void rejectsAnInvalidRecoveredAggregateBeforeDeletingItsSources(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus, new byte[] {5, 6}, CorpusVerdict.PASS, CorpusVerdict.PASS);
+        var tlcBytes = Files.readAllBytes(pair.tlc());
+        var apalacheBytes = Files.readAllBytes(pair.apalache());
+        var destination = corpus.completeAggregation(
+                corpus.aggregationInput(pair.tlc()).orElseThrow(),
+                new StageResult(
+                        CorpusVerdict.PASS,
+                        Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(21)));
+        Files.write(pair.tlc(), tlcBytes);
+        Files.write(pair.apalache(), apalacheBytes);
+        var invalid = CorpusEnvelopeCodec.withStageMetadata(
+                Files.readAllBytes(destination),
+                new StageMetadata(
+                        "aggregator",
+                        CorpusVerdict.FAIL,
+                        Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(21)));
+        Files.write(
+                corpus.resolve(CorpusPath.AGGREGATOR_FAIL).resolve(destination.getFileName()),
+                invalid);
+        Files.delete(destination);
+
+        var failure = assertThrows(
+                CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
+
+        assertTrue(failure.getMessage().contains("does not match checker verdicts"));
+        assertTrue(Files.exists(pair.tlc()));
+        assertTrue(Files.exists(pair.apalache()));
+    }
+
+    @Test
+    void leavesCrashContainingPairsInCheckerResults(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus, new byte[] {5, 4}, CorpusVerdict.CRASH, CorpusVerdict.PASS);
+
+        assertTrue(corpus.aggregationInput(pair.apalache()).isEmpty());
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+        assertEquals(0, inventory.pendingEntries(CorpusStage.AGGREGATOR));
+        assertEquals(1, inventory.counts(CorpusStage.TLC).crashed());
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).passed());
+        assertTrue(Files.exists(pair.tlc()));
+        assertTrue(Files.exists(pair.apalache()));
+    }
+
+    @Test
     void rejectsACorpusWithAMissingCheckerDirectory(@TempDir Path directory)
             throws Exception {
         var root = directory.resolve("corpus");
@@ -805,6 +976,44 @@ class CorpusDirectoryTest {
             CorpusDirectory corpus, CorpusPath branch, Path parserPass) {
         return corpus.resolve(branch).resolve(parserPass.getFileName());
     }
+
+    private static CheckerPair completeCheckerPair(
+            CorpusDirectory corpus,
+            byte[] input,
+            CorpusVerdict tlcVerdict,
+            CorpusVerdict apalacheVerdict)
+            throws Exception {
+        corpus.store(input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                new StageResult(
+                        CorpusVerdict.PASS,
+                        Instant.ofEpochSecond(1),
+                        Instant.ofEpochSecond(2)));
+        corpus.fanOutParserPass(parserPass);
+        var tlc = corpus.completeChecker(
+                corpus.checkerInputPath(CorpusStage.TLC).resolve(parserPass.getFileName()),
+                checkerResult(tlcVerdict, CheckerFailureCode.SPEC_EVAL, 3));
+        var apalache = corpus.completeChecker(
+                corpus.checkerInputPath(CorpusStage.APALACHE).resolve(parserPass.getFileName()),
+                checkerResult(apalacheVerdict, CheckerFailureCode.TYPECHECK, 5));
+        return new CheckerPair(tlc, apalache);
+    }
+
+    private static StageResult checkerResult(
+            CorpusVerdict verdict, CheckerFailureCode failureCode, long startSecond) {
+        var failure = verdict == CorpusVerdict.FAIL
+                ? Optional.of(new CheckerFailure(failureCode, Optional.empty()))
+                : Optional.<CheckerFailure>empty();
+        return new StageResult(
+                verdict,
+                Instant.ofEpochSecond(startSecond),
+                Instant.ofEpochSecond(startSecond + 1),
+                failure,
+                verdict == CorpusVerdict.CRASH ? "checker crashed" : "checker output");
+    }
+
+    private record CheckerPair(Path tlc, Path apalache) {}
 
     private byte[] encodeWithStageMetadata(byte[] input) throws Exception {
         return CorpusEnvelopeCodec.withStageMetadata(

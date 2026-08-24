@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 public final class CpuBudget {
     /** Workflow priorities, from the most downstream work to the most upstream work. */
     public enum Priority {
+        AGGREGATOR,
         CHECKER,
         PARSER,
         GENERATOR
@@ -110,13 +111,15 @@ public final class CpuBudget {
     }
 
     private boolean hasHigherPriorityRequest(Priority priority) {
-        return switch (priority) {
-            case CHECKER -> false;
-            case PARSER -> !requests.get(Priority.CHECKER).isEmpty();
-            case GENERATOR ->
-                !requests.get(Priority.CHECKER).isEmpty()
-                        || !requests.get(Priority.PARSER).isEmpty();
-        };
+        for (var candidate : Priority.values()) {
+            if (candidate == priority) {
+                return false;
+            }
+            if (!requests.get(candidate).isEmpty()) {
+                return true;
+            }
+        }
+        throw new IllegalStateException("unknown CPU priority " + priority);
     }
 
     private static final class Request {

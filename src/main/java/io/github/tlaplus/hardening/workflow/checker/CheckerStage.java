@@ -29,15 +29,17 @@ public final class CheckerStage implements WorkflowStage {
     private final OccupancyGate resultCapacity;
     private final StageJobLoop<Path> jobs;
     private final WorkQueue<Path> input;
+    private final WorkQueue<Path> output;
     private final GeneratedInputPreparation inputPreparation;
     private final WorkerGroup workers;
 
     public CheckerStage(
             CheckerBackend backend,
-            long initialOccupancy,
+            OccupancyGate resultCapacity,
             StageCounters counters,
             StageEnvironment environment,
-            WorkQueue<Path> input) {
+            WorkQueue<Path> input,
+            WorkQueue<Path> output) {
         this.backend = Objects.requireNonNull(backend, "backend");
         if (backend.workerCount() <= 0) {
             throw new IllegalArgumentException("workerCount must be positive");
@@ -48,12 +50,13 @@ public final class CheckerStage implements WorkflowStage {
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");
+        this.output = Objects.requireNonNull(output, "output");
         inputPreparation = new GeneratedInputPreparation(
                 backend.displayName(),
                 environment.corpus(),
                 environment.generator(),
                 backend::renderInput);
-        resultCapacity = new OccupancyGate(initialOccupancy, backend.maximumEntries());
+        this.resultCapacity = Objects.requireNonNull(resultCapacity, "resultCapacity");
         jobs = new StageJobLoop<>(
                 input,
                 environment.cpuBudget(),
@@ -145,7 +148,7 @@ public final class CheckerStage implements WorkflowStage {
             throw new WorkflowException(
                     backend.displayName() + " worker returned a failure without a classification");
         }
-        corpus.completeChecker(
+        var destination = corpus.completeChecker(
                 path,
                 new StageResult(
                         result.outcome().corpusVerdict(),
@@ -154,5 +157,6 @@ public final class CheckerStage implements WorkflowStage {
                         failure,
                         result.diagnostic()));
         counters.record(result.outcome().corpusVerdict());
+        output.submit(destination);
     }
 }

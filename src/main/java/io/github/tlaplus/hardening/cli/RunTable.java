@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -75,7 +76,7 @@ final class RunTable {
             printGenerationCounters(writer, view.generator());
             printElapsed(writer, view.generator().elapsed(), "generator elapsed");
             for (var stage : CorpusStage.values()) {
-                printVerdicts(writer, view.stages().get(stage), stage.displayName());
+                printVerdicts(writer, view.stages().get(stage), stage);
             }
             printElapsed(writer, view.totalElapsed(), "total elapsed");
             writer.printf("[%20s %-18s]%n", view.stateValue(), view.stateLabel());
@@ -84,11 +85,27 @@ final class RunTable {
     }
 
     private static void printVerdicts(
-            PrintWriter writer, StageVerdictSummary stage, String label) {
-        printCounter(writer, stage.passed(), label + " passed");
-        printCounter(writer, stage.failed(), label + " failed");
-        printCounter(writer, stage.crashed(), label + " crashed");
-        printElapsed(writer, stage.elapsed(), label + " elapsed");
+            PrintWriter writer, StageVerdictSummary summary, CorpusStage stage) {
+        for (var verdict : stage.resultVerdicts()) {
+            var count = switch (verdict) {
+                case PASS -> summary.passed();
+                case FAIL -> summary.failed();
+                case CRASH -> summary.crashed();
+            };
+            printCounter(
+                    writer,
+                    count,
+                    stage.displayName() + " " + verdictLabel(verdict));
+        }
+        printElapsed(writer, summary.elapsed(), stage.displayName() + " elapsed");
+    }
+
+    private static String verdictLabel(CorpusVerdict verdict) {
+        return switch (verdict) {
+            case PASS -> "passed";
+            case FAIL -> "failed";
+            case CRASH -> "crashed";
+        };
     }
 
     private static void printCounter(PrintWriter writer, long value, String label) {

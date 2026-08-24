@@ -1,15 +1,17 @@
-# `SetFilterRule` throws `NotImplementedError` for an infinite set
+# `SetFilterRule` throws `NotImplementedError` for symbolic sets
 
 ## Summary
 
 Apalache's bounded checker throws an unhandled `scala.NotImplementedError` when
-it evaluates a set filter whose domain is `Int`. The tool exits with status 255
-and asks the user to report a bug instead of returning a classified unsupported
-or input-evaluation result.
+it evaluates a set filter over several symbolic-set representations. The
+inspected corpus contains 20 instances: five over `InfSet`, twelve over
+`PowSet`, and three over `FinFunSet`. The tool exits with status 255 and asks the
+user to report a bug instead of returning a classified unsupported or
+input-evaluation result.
 
 Observed with Apalache 0.62.0.
 
-## Reproduction
+## Representative reproduction
 
 Save this module as `SetFilterInt.tla`:
 
@@ -47,6 +49,12 @@ scala.NotImplementedError: A set filter over InfSet[CellTFrom(Int)] is not imple
 `SetFilterRule` deliberately leaves this symbolic-set shape unimplemented but
 signals it with `NotImplementedError`. That exception escapes the rewriting
 pipeline and becomes an unhandled checker crash.
+
+The other corpus instances report the same exception from `SetFilterRule` with
+`PowSet` and `FinFunSet` domains. Small literal powersets and function sets may
+be materialized before this rule, so the `InfSet` module above is the stable
+standalone reproduction. The three arena signatures are missing branches of
+the same rule, not independent issues.
 
 Either implement filtering over the supported infinite-set representation or
 reject the expression through Apalache's ordinary unsupported-input mechanism.

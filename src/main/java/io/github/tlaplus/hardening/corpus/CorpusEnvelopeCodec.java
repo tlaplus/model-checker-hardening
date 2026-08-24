@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,31 +56,104 @@ public final class CorpusEnvelopeCodec {
     public static byte[] withStageMetadata(byte[] encoded, StageMetadata metadata)
             throws CorpusFormatException {
         Objects.requireNonNull(metadata, "metadata");
+        var document = readDocument(encoded);
+        return writeDocument(document.root(), document.stageNodes(), document.parsedStages(), metadata);
+    }
+
+    /**
+     * Merges the stage maps of equivalent corpus envelopes and records one additional stage.
+     * Non-stage fields and overlapping stage entries must agree. Disjoint stage entries retain
+     * their unknown fields, which makes this suitable for durable fan-in transitions.
+     */
+    static byte[] mergeWithStageMetadata(List<byte[]> encoded, StageMetadata metadata)
+            throws CorpusFormatException {
+        Objects.requireNonNull(encoded, "encoded");
+        Objects.requireNonNull(metadata, "metadata");
+        if (encoded.isEmpty()) {
+            throw new IllegalArgumentException("at least one envelope is required");
+        }
+
+        var reference = readDocument(encoded.getFirst());
+        var stages = new LinkedHashMap<>(reference.stageNodes());
+        var parsed = new HashMap<>(reference.parsedStages());
+        for (var index = 1; index < encoded.size(); index++) {
+            var candidate = readDocument(encoded.get(index));
+            requireSameDocumentFields(reference.root(), candidate.root());
+            for (var entry : candidate.stageNodes().entrySet()) {
+                var previous = stages.putIfAbsent(entry.getKey(), entry.getValue());
+                if (previous != null && !previous.equals(entry.getValue())) {
+                    throw CborReader.malformed(
+                            "conflicting metadata for stage '" + entry.getKey() + "'");
+                }
+            }
+            for (var entry : candidate.parsedStages().entrySet()) {
+                var previous = parsed.putIfAbsent(entry.getKey(), entry.getValue());
+                if (previous != null && !previous.equals(entry.getValue())) {
+                    throw CborReader.malformed(
+                            "conflicting metadata for stage '" + entry.getKey() + "'");
+                }
+            }
+        }
+        return writeDocument(reference.root(), stages, parsed, metadata);
+    }
+
+    private static Document readDocument(byte[] encoded) throws CorpusFormatException {
         var root = readTree(encoded);
         var stages = root.get(STAGES_FIELD);
         if (stages != null && !stages.isObject()) {
             throw CborReader.malformed("field '" + STAGES_FIELD + "' must be a map");
         }
-        var existing = readRecognizedStages(encoded, stages);
+        var nodes = new LinkedHashMap<String, JsonNode>();
+        if (stages != null) {
+            for (var field : stages.properties()) {
+                nodes.put(field.getKey(), field.getValue());
+            }
+        }
+        return new Document(root, nodes, readRecognizedStages(encoded, stages));
+    }
+
+    private static void requireSameDocumentFields(JsonNode reference, JsonNode candidate)
+            throws CorpusFormatException {
+        var referenceFields = new LinkedHashMap<String, JsonNode>();
+        for (var field : reference.properties()) {
+            if (!STAGES_FIELD.equals(field.getKey())) {
+                referenceFields.put(field.getKey(), field.getValue());
+            }
+        }
+        var candidateFields = new LinkedHashMap<String, JsonNode>();
+        for (var field : candidate.properties()) {
+            if (!STAGES_FIELD.equals(field.getKey())) {
+                candidateFields.put(field.getKey(), field.getValue());
+            }
+        }
+        if (!referenceFields.equals(candidateFields)) {
+            throw CborReader.malformed("corpus envelopes disagree outside stage metadata");
+        }
+    }
+
+    private static byte[] writeDocument(
+            JsonNode root,
+            Map<String, JsonNode> stageNodes,
+            Map<String, StageMetadata> parsedStages,
+            StageMetadata metadata)
+            throws CorpusFormatException {
 
         var stagesMap = new CborMapWriter();
-        if (stages != null) {
-            for (Map.Entry<String, JsonNode> field : stages.properties()) {
-                if (metadata.stage().equals(field.getKey())) {
-                    continue;
-                }
-                var parsed = existing.get(field.getKey());
-                if (parsed == null) {
-                    // Not stage metadata this build recognizes: keep exactly what is stored.
-                    stagesMap.tree(field.getKey(), field.getValue());
-                } else {
-                    stagesMap.map(field.getKey(), stageMetadata(parsed, field.getValue()));
-                }
+        for (var field : stageNodes.entrySet()) {
+            if (metadata.stage().equals(field.getKey())) {
+                continue;
+            }
+            var parsed = parsedStages.get(field.getKey());
+            if (parsed == null) {
+                // Not stage metadata this build recognizes: keep exactly what is stored.
+                stagesMap.tree(field.getKey(), field.getValue());
+            } else {
+                stagesMap.map(field.getKey(), stageMetadata(parsed, field.getValue()));
             }
         }
         stagesMap.map(
                 metadata.stage(),
-                stageMetadata(metadata, stages == null ? null : stages.get(metadata.stage())));
+                stageMetadata(metadata, stageNodes.get(metadata.stage())));
 
         var document = new CborMapWriter();
         for (Map.Entry<String, JsonNode> field : root.properties()) {
@@ -99,6 +173,11 @@ public final class CorpusEnvelopeCodec {
         }
         return output.toByteArray();
     }
+
+    private record Document(
+            JsonNode root,
+            Map<String, JsonNode> stageNodes,
+            Map<String, StageMetadata> parsedStages) {}
 
     /**
      * Parses every stage entry that carries the fields this build requires of stage metadata, and

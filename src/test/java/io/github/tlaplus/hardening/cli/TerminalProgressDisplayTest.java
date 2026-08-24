@@ -77,11 +77,14 @@ class TerminalProgressDisplayTest {
                         CorpusStage.TLC,
                         new StageVerdictSummary(1, 0, 0, Duration.ofSeconds(1)),
                         CorpusStage.APALACHE,
+                        new StageVerdictSummary(0, 0, 0, Duration.ZERO),
+                        CorpusStage.AGGREGATOR,
                         new StageVerdictSummary(0, 0, 0, Duration.ZERO)),
                 Map.of(
                         CorpusStage.PARSER, 1L,
                         CorpusStage.TLC, 1L,
-                        CorpusStage.APALACHE, 2L),
+                        CorpusStage.APALACHE, 2L,
+                        CorpusStage.AGGREGATOR, 0L),
                 3,
                 Duration.ofSeconds(4));
 
@@ -120,12 +123,15 @@ class TerminalProgressDisplayTest {
         var stages = new EnumMap<CorpusStage, CorpusInventory.StageEntries>(CorpusStage.class);
         stages.put(
                 CorpusStage.PARSER,
-                new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 1, 0)));
+                new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 1, 0), 1));
         for (var checker : CorpusStage.checkerBranches()) {
             stages.put(
                     checker,
-                    new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 0, 0)));
+                    new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 0, 0), 1));
         }
+        stages.put(
+                CorpusStage.AGGREGATOR,
+                new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(0, 0, 0), 0));
         var summary = new WorkflowRunSummary(
                 WorkflowRunSummary.StopReason.COMPLETED,
                 snapshot.generator(),
@@ -157,7 +163,8 @@ class TerminalProgressDisplayTest {
                 Map.of(
                         CorpusStage.PARSER, generated - parsed,
                         CorpusStage.TLC, 0L,
-                        CorpusStage.APALACHE, 0L),
+                        CorpusStage.APALACHE, 0L,
+                        CorpusStage.AGGREGATOR, 0L),
                 generated,
                 Duration.ofSeconds(generated));
     }

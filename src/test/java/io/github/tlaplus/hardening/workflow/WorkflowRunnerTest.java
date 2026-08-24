@@ -60,6 +60,7 @@ class WorkflowRunnerTest {
         assertEquals(0, initial.backlog(CorpusStage.PARSER));
         assertEquals(0, initial.backlog(CorpusStage.TLC));
         assertEquals(0, initial.backlog(CorpusStage.APALACHE));
+        assertEquals(0, initial.backlog(CorpusStage.AGGREGATOR));
 
         var last = observed.getLast();
         assertEquals(WorkflowProgress.Phase.FINALIZING, last.phase());
@@ -69,6 +70,9 @@ class WorkflowRunnerTest {
         assertEquals(summary.corpus().pendingEntries(CorpusStage.PARSER), last.backlog(CorpusStage.PARSER));
         assertEquals(summary.corpus().pendingEntries(CorpusStage.TLC), last.backlog(CorpusStage.TLC));
         assertEquals(summary.corpus().pendingEntries(CorpusStage.APALACHE), last.backlog(CorpusStage.APALACHE));
+        assertEquals(
+                summary.corpus().pendingEntries(CorpusStage.AGGREGATOR),
+                last.backlog(CorpusStage.AGGREGATOR));
 
         long generated = -1;
         long corpusEntries = -1;
@@ -87,6 +91,7 @@ class WorkflowRunnerTest {
             assertTrue(progress.backlog(CorpusStage.PARSER) >= 0);
             assertTrue(progress.backlog(CorpusStage.TLC) >= 0);
             assertTrue(progress.backlog(CorpusStage.APALACHE) >= 0);
+            assertTrue(progress.backlog(CorpusStage.AGGREGATOR) >= 0);
             assertTrue(progress.totalElapsed().compareTo(totalElapsed) >= 0);
             generated = progress.generator().generated();
             corpusEntries = progress.corpusEntries();
@@ -250,6 +255,9 @@ class WorkflowRunnerTest {
         assertEquals(0, summary.corpus().resultEntries(CorpusStage.PARSER));
         assertEquals(4, summary.corpus().counts(CorpusStage.TLC).passed());
         assertEquals(4, summary.corpus().counts(CorpusStage.APALACHE).passed());
+        assertEquals(4, summary.corpus().counts(CorpusStage.AGGREGATOR).passed());
+        assertEquals(0, summary.corpus().resultEntries(CorpusStage.TLC));
+        assertEquals(0, summary.corpus().resultEntries(CorpusStage.APALACHE));
     }
 
     @Test

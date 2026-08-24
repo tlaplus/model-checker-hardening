@@ -1,0 +1,23 @@
+# Integer outside TLC's supported range
+
+Observed share: 0.41% of aggregator deviations; TLC failed and Apalache passed.
+
+TLC stores integers in a Java `int` and rejects values outside the signed
+32-bit range. Apalache's integer encoding is not restricted to that range.
+
+## Representative MWE
+
+```tla
+---- MODULE IntegerOutsideTlcRange ----
+EXTENDS Integers
+VARIABLE
+\* @type: Int;
+result
+Init == result = 2147483648
+Next == UNCHANGED result
+Inv == TRUE
+====
+```
+
+TLC reports `TLC_INTEGER_TOO_BIG`; Apalache accepts the value. This is a known
+TLC capability limit, confirmed by the corpus.

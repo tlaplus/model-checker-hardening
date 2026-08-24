@@ -15,7 +15,7 @@ import java.util.Optional;
  *
  * <p>Only invariants of the record itself are checked here, so that this build can read a document
  * a later build wrote. Which failure metadata each stage of <em>this</em> pipeline must record is
- * checked where such a document is written, by {@link StageTransition}.
+ * checked by the transition layer through {@link CorpusStage}.
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record StageMetadata(
