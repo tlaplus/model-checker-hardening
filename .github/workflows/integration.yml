@@ -36,6 +36,8 @@ jobs:
             corpus/02apa-pass \
             corpus/02apa-fail \
             corpus/02apa-crash \
+            corpus/03aggregator-pass \
+            corpus/03aggregator-fail \
             -type f -name '*.cbor' | wc -l)
           tlc_results=$(find \
             corpus/02tlc-pass \
