@@ -10,6 +10,8 @@ conversion and causes `UnknownFormatConversionException`.
 Observed with `org.lamport:tla2tools:1.8.0-20260731.185822-52`, revision
 `30cc3601321c3fc02e044d0ecb5c58d8921e18df`, on OpenJDK 25.0.3.
 
+Reported upstream as [tlaplus/tlaplus#1406](https://github.com/tlaplus/tlaplus/issues/1406).
+
 ## Reproduction
 
 Parse the following module with full semantic analysis and level checking via
@@ -78,4 +80,3 @@ Nineteen independently generated inputs in the inspected corpus reached this
 same exception. With an output implementation that does not format the rendered
 message again, all nineteen produce ordinary level-checking failures. They are
 one SANY diagnostic-formatting defect, not parser crashes caused by the inputs.
-
