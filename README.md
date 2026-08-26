@@ -26,7 +26,7 @@ The project uses Apalache's Java façade for its TLA+ intermediate representatio
 ## Build and test
 
 The Apalache Java façade is a snapshot served by the Central Portal snapshots
-repository. The build also downloads the pinned Apalache 0.62.0 release archive from
+repository. The build also downloads the pinned Apalache 0.62.2 release archive from
 GitHub and verifies its SHA-256 digest. Compile and test the project with:
 
 ```sh
