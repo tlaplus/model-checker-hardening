@@ -15,7 +15,7 @@ import java.util.List;
  * <p>The catalog is the upper bound on how many forms one selection can address, so it must stay
  * within {@link #MAXIMUM_SELECTION_SLOTS}.
  */
-final class ExpressionKinds {
+public final class ExpressionKinds {
     /** Selection slots addressable by one fixed-width index. */
     static final int MAXIMUM_SELECTION_SLOTS = 1 << (IrExprGenFactory.SELECTION_BYTES * Byte.SIZE);
 
@@ -51,7 +51,7 @@ final class ExpressionKinds {
      * Returns every form in decoder order. Family order and each enum's declaration order are the
      * implementation-local byte encoding. The catalog is built once, not during expression draws.
      */
-    static List<ExpressionKind> all() {
+    public static List<ExpressionKind> all() {
         return ALL;
     }
 

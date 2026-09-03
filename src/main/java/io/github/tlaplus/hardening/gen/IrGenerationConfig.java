@@ -1,7 +1,11 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKinds;
+import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -15,7 +19,7 @@ public record IrGenerationConfig(
         int maximumStringBytes,
         int maximumIntegerBytes,
         Set<ExpressionCategory> ignoredCategories,
-        Map<ExpressionForm, Integer> formWeights) {
+        Map<ExpressionKind, Integer> formWeights) {
 
     public static final int DEFAULT_MAXIMUM_TYPE_DEPTH = 3;
     public static final int DEFAULT_MAXIMUM_EXPRESSION_DEPTH = 32;
@@ -42,9 +46,9 @@ public record IrGenerationConfig(
      * A weighted terminal measured slightly worse than none, because it crowds out the literals
      * that would otherwise be the other side of a comparison.
      */
-    private static final Map<ExpressionForm, Integer> DEFAULT_FORM_WEIGHTS = Map.of(
-            ExpressionForm.NAME, 8,
-            ExpressionForm.ENUM_SET, 16);
+    private static final Map<ExpressionKind, Integer> DEFAULT_FORM_WEIGHTS = Map.of(
+            GeneralExpressionKind.NAME, 8,
+            SetExpressionKind.ENUM_SET, 16);
 
     public IrGenerationConfig {
         if (maximumTypeDepth < 0) {
@@ -75,34 +79,38 @@ public record IrGenerationConfig(
             Objects.requireNonNull(entry.getKey(), "form");
             var weight = entry.getValue();
             if (weight == null
-                    || weight < ExpressionForm.DEFAULT_WEIGHT
+                    || weight < ExpressionKind.DEFAULT_WEIGHT
                     || weight > MAXIMUM_FORM_WEIGHT) {
                 throw new IllegalArgumentException(
                         "weight of '" + entry.getKey().configName() + "' must be in the range "
-                                + ExpressionForm.DEFAULT_WEIGHT + ".." + MAXIMUM_FORM_WEIGHT);
+                                + ExpressionKind.DEFAULT_WEIGHT + ".." + MAXIMUM_FORM_WEIGHT);
             }
         }
         formWeights = copyOf(formWeights);
     }
 
     /** Returns an unmodifiable snapshot that iterates in declaration order. */
-    private static Map<ExpressionForm, Integer> copyOf(Map<ExpressionForm, Integer> weights) {
-        var copy = new EnumMap<ExpressionForm, Integer>(ExpressionForm.class);
-        copy.putAll(weights);
+    private static Map<ExpressionKind, Integer> copyOf(Map<ExpressionKind, Integer> weights) {
+        var copy = new LinkedHashMap<ExpressionKind, Integer>();
+        for (var kind : ExpressionKinds.all()) {
+            if (weights.containsKey(kind)) {
+                copy.put(kind, weights.get(kind));
+            }
+        }
         return Collections.unmodifiableMap(copy);
     }
 
-    /** Returns the selection slots {@code form} occupies, defaulting to one. */
-    public int weightOf(ExpressionForm form) {
-        Objects.requireNonNull(form, "form");
-        return formWeights.getOrDefault(form, ExpressionForm.DEFAULT_WEIGHT);
+    /** Returns the selection slots {@code kind} occupies, defaulting to one. */
+    public int weightOf(ExpressionKind kind) {
+        Objects.requireNonNull(kind, "kind");
+        return formWeights.getOrDefault(kind, ExpressionKind.DEFAULT_WEIGHT);
     }
 
     /** Returns the slots the configured weights add beyond one per form. */
     public int additionalSelectionSlots() {
         var additional = 0;
         for (var weight : formWeights.values()) {
-            additional += weight - ExpressionForm.DEFAULT_WEIGHT;
+            additional += weight - ExpressionKind.DEFAULT_WEIGHT;
         }
         return additional;
     }

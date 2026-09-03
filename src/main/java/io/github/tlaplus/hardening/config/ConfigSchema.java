@@ -2,7 +2,7 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import io.github.tlaplus.hardening.gen.ExpressionForm;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
@@ -161,7 +161,7 @@ final class ConfigSchema {
             List.of(),
             config -> config.generator().ignoredCategories());
 
-    static final Key<Map<ExpressionForm, Integer>> FORM_WEIGHTS = new Key<>(
+    static final Key<Map<ExpressionKind, Integer>> FORM_WEIGHTS = new Key<>(
             GENERATOR_PATH,
             "weights",
             ConfigValueType.WEIGHTS,

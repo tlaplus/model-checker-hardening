@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import io.github.tlaplus.hardening.gen.ExpressionForm;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.IntegerExpressionKind;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -124,6 +126,8 @@ class TomlConfigTest {
         var none = readConfig(directory, rendered.replace(defaultWeights, "weights = {}"));
         var one = readConfig(
                 directory, rendered.replace(defaultWeights, "weights = { name = 3 }"));
+        var arbitrary = readConfig(
+                directory, rendered.replace(defaultWeights, "weights = { plus = 5 }"));
         // The inline table is how the config renders, but a reader may spell it as a header.
         var header = readConfig(
                 directory,
@@ -132,9 +136,11 @@ class TomlConfigTest {
 
         assertEquals(Map.of(), none.generator().formWeights());
         assertEquals(
-                ExpressionForm.DEFAULT_WEIGHT, none.generator().weightOf(ExpressionForm.NAME));
-        assertEquals(Map.of(ExpressionForm.NAME, 3), one.generator().formWeights());
-        assertEquals(Map.of(ExpressionForm.NAME, 3), header.generator().formWeights());
+                ExpressionKind.DEFAULT_WEIGHT,
+                none.generator().weightOf(GeneralExpressionKind.NAME));
+        assertEquals(Map.of(GeneralExpressionKind.NAME, 3), one.generator().formWeights());
+        assertEquals(Map.of(IntegerExpressionKind.PLUS, 5), arbitrary.generator().formWeights());
+        assertEquals(Map.of(GeneralExpressionKind.NAME, 3), header.generator().formWeights());
     }
 
     @Test
@@ -150,8 +156,8 @@ class TomlConfigTest {
         assertTrue(notATable.getMessage().contains("expected 'generator.weights' to be a table"));
 
         var unknownForm = assertInvalid(
-                directory, rendered.replace(defaultWeights, "weights = { fold_set = 4 }"));
-        assertTrue(unknownForm.getMessage().contains("unknown expression form 'fold_set'"));
+                directory, rendered.replace(defaultWeights, "weights = { unknown_form = 4 }"));
+        assertTrue(unknownForm.getMessage().contains("unknown expression form 'unknown_form'"));
 
         var notAnInteger = assertInvalid(
                 directory, rendered.replace(defaultWeights, "weights = { name = \"8\" }"));

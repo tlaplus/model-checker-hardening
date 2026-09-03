@@ -3,7 +3,10 @@ package io.github.tlaplus.hardening.gen;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.EnumMap;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
+import java.util.LinkedHashMap;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +28,7 @@ class IrGenerationConfigTest {
                                 ExpressionCategory.TEMPORAL,
                                 ExpressionCategory.UNBOUND,
                                 ExpressionCategory.EXOTIC),
-                        Map.of(ExpressionForm.NAME, 8, ExpressionForm.ENUM_SET, 16)),
+                        Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16)),
                 IrGenerationConfig.defaults());
     }
 
@@ -54,17 +57,17 @@ class IrGenerationConfigTest {
     @Test
     void formWeightsDefaultToOneAndAreValidated() {
         var config = new IrGenerationConfig(
-                0, 1, 1, 1, 0, 0, Set.of(), Map.of(ExpressionForm.NAME, 8));
+                0, 1, 1, 1, 0, 0, Set.of(), Map.of(GeneralExpressionKind.NAME, 8));
 
-        assertEquals(8, config.weightOf(ExpressionForm.NAME));
+        assertEquals(8, config.weightOf(GeneralExpressionKind.NAME));
         assertEquals(
-                ExpressionForm.DEFAULT_WEIGHT, config.weightOf(ExpressionForm.ENUM_SET));
+                ExpressionKind.DEFAULT_WEIGHT, config.weightOf(SetExpressionKind.ENUM_SET));
         assertEquals(7, config.additionalSelectionSlots());
 
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new IrGenerationConfig(
-                        0, 1, 1, 1, 0, 0, Set.of(), Map.of(ExpressionForm.NAME, 0)));
+                        0, 1, 1, 1, 0, 0, Set.of(), Map.of(GeneralExpressionKind.NAME, 0)));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new IrGenerationConfig(
@@ -76,7 +79,7 @@ class IrGenerationConfigTest {
                         0,
                         Set.of(),
                         Map.of(
-                                ExpressionForm.NAME,
+                                GeneralExpressionKind.NAME,
                                 IrGenerationConfig.MAXIMUM_FORM_WEIGHT + 1)));
         assertThrows(
                 NullPointerException.class,
@@ -85,13 +88,13 @@ class IrGenerationConfigTest {
 
     @Test
     void snapshotsFormWeights() {
-        var weights = new EnumMap<ExpressionForm, Integer>(ExpressionForm.class);
-        weights.put(ExpressionForm.NAME, 8);
+        var weights = new LinkedHashMap<ExpressionKind, Integer>();
+        weights.put(GeneralExpressionKind.NAME, 8);
 
         var config = new IrGenerationConfig(0, 1, 1, 1, 0, 0, Set.of(), weights);
         weights.clear();
 
-        assertEquals(8, config.weightOf(ExpressionForm.NAME));
+        assertEquals(8, config.weightOf(GeneralExpressionKind.NAME));
         assertThrows(UnsupportedOperationException.class, config.formWeights()::clear);
     }
 

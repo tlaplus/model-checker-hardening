@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import io.github.tlaplus.hardening.gen.ExpressionForm;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.Collections;
 import java.util.HashSet;
@@ -446,7 +445,11 @@ class ExpressionKindsTest {
 
     @Test
     void weightedFormsOccupyTheirConfiguredNumberOfSlots() {
-        var weighted = weightedConfig(Map.of(ExpressionForm.NAME, 8, ExpressionForm.ENUM_SET, 4));
+        var weighted = weightedConfig(Map.of(
+                GeneralExpressionKind.NAME, 8,
+                BooleanExpressionKind.EQUAL, 3,
+                IntegerExpressionKind.PLUS, 6,
+                SetExpressionKind.ENUM_SET, 4));
         var context = new GenerationContext(weighted);
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
@@ -457,6 +460,14 @@ class ExpressionKindsTest {
                 1, expressionFactory.selectionWeight(SetExpressionKind.EMPTY_SET, setOfBool));
         assertEquals(
                 4, expressionFactory.selectionWeight(SetExpressionKind.ENUM_SET, setOfBool));
+        assertEquals(
+                3,
+                expressionFactory.selectionWeight(
+                        BooleanExpressionKind.EQUAL, PrimitiveType.BOOL));
+        assertEquals(
+                6,
+                expressionFactory.selectionWeight(
+                        IntegerExpressionKind.PLUS, PrimitiveType.INT));
 
         // NAME is worth nothing without a binding, and its full weight with one.
         assertEquals(
@@ -479,7 +490,7 @@ class ExpressionKindsTest {
      */
     @Test
     void terminalTakesItsWeightOnlyWhileABindingIsVisible() {
-        var weighted = weightedConfig(Map.of(ExpressionForm.TERMINAL, 4));
+        var weighted = weightedConfig(Map.of(GeneralExpressionKind.TERMINAL, 4));
         var context = new GenerationContext(weighted);
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
@@ -503,7 +514,7 @@ class ExpressionKindsTest {
     @Test
     void weightsMayNotExceedTheAddressableSlots() {
         var tooMany = weightedConfig(
-                Map.of(ExpressionForm.NAME, IrGenerationConfig.MAXIMUM_FORM_WEIGHT));
+                Map.of(GeneralExpressionKind.NAME, IrGenerationConfig.MAXIMUM_FORM_WEIGHT));
         assertEquals(
                 IrGenerationConfig.MAXIMUM_FORM_WEIGHT - 1, tooMany.additionalSelectionSlots());
 
@@ -568,7 +579,7 @@ class ExpressionKindsTest {
                 new OperatorType(List.of(PrimitiveType.BOOL), PrimitiveType.INT));
     }
 
-    private IrGenerationConfig weightedConfig(Map<ExpressionForm, Integer> weights) {
+    private IrGenerationConfig weightedConfig(Map<ExpressionKind, Integer> weights) {
         var defaults = IrGenerationConfig.defaults();
         return new IrGenerationConfig(
                 defaults.maximumTypeDepth(),

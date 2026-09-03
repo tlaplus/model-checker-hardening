@@ -107,6 +107,7 @@ max_collection_size = 8
 max_string_bytes = 32
 max_integer_bytes = 16
 ignore = ["action", "temporal", "unbound", "exotic"]
+weights = { name = 8, enum_set = 16 }
 
 [workflow]
 # Maximum number of unique entries across every workflow directory.
@@ -161,7 +162,9 @@ depend on their syntax. The available excludable categories are `action`,
 `bool_logic`, `arithmetic`, `set`, `finite_set`, `universe`, `sequence`,
 `function`, `fold`, `tuple`, `record`, `variant`, and `model`. The reserved
 `core` category supplies atomic leaves and terminal fallback and cannot be
-ignored.
+ignored. `generator.weights` accepts the lowercase name of every
+`ExpressionKind` implementation, such as `plus`, `fold_set`, or
+`temporal_forall`. Unlisted kinds have weight one.
 
 Dependencies are disabled transitively. For example, ignoring `set` also
 removes bounded quantifiers and function values because they require set-valued
