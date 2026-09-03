@@ -39,7 +39,8 @@ IR-generator facade.
 | `BasicGenerators` | Combinators for constants, choices, bounded numbers, lists, and byte arrays. |
 | `InputRejectedException` | Expected rejection of one semantically unsuitable input. |
 | `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
-| `IrGenerationConfig` | Category exclusions and resource limits for type and expression generation. |
+| `ExpressionForm` | User-facing name of an expression form whose selection weight is configurable. |
+| `IrGenerationConfig` | Category exclusions, resource limits, and selection weights for type and expression generation. |
 | `IrGenerators` | Public factory for reusable `Generator<TlaEx>` instances. |
 
 The package `io.github.tlaplus.hardening.gen.engine` implements type-directed IR
@@ -239,13 +240,30 @@ For each nonterminal request, `IrExprGenFactory` works from the forms this run
 may use for the requested type: those whose requirements are not ignored by the
 configuration and whose result type matches. That set depends only on the type,
 so it is computed once per type and reused, in catalog order. The factory then
-scans it twice, checking only lexical scope, which is the one condition that
-changes between draws. The first scan counts the applicable forms, one
-fixed-width index selects among them, and the second scan dispatches only the
-selected form. Unavailable forms consume neither a selection slot nor operand
-bytes. Selection spends two bytes and distributes their 65536 values as evenly as
-possible, so the catalog must fit in 65536 entries. The width is fixed rather
-than derived from the applicable count, for the reason given in section 4.
+scans it twice, checking only the current weight, which is the one condition that
+changes between draws. The first scan sums the slots the applicable forms
+occupy, one fixed-width index selects among those slots, and the second scan
+dispatches only the selected form. Unavailable forms weigh zero and consume
+neither a selection slot nor operand bytes. Selection spends two bytes and
+distributes their 65536 values as evenly as possible, so the catalog plus the
+slots configured weights add must fit in 65536. The width is fixed rather than
+derived from the slot total, for the reason given in section 4.
+
+A form occupies as many slots as its weight, so a weight of `n` makes it `n`
+times as likely as an unweighted form applicable to the same request. Uniform
+selection spends the same probability on a form that consumes the surrounding
+lexical context as on any other, which leaves a generated lambda rarely
+mentioning its parameters and a membership test rarely testing against a
+non-empty literal. Such an expression is well-formed but exercises nothing a
+model checker has to work for. `ExpressionForm` names the forms that accept a
+weight; the catalog itself is not configuration surface. A kind states its weight
+where it already states its scope requirement, on the constant, and the selector
+asks the kind rather than naming a form.
+
+`TERMINAL` takes a configured weight only while a binding of the requested type
+is visible, because that is the case where it contributes a name. It applies to
+every type, so weighting its closed-constant case would shrink every expression
+rather than bias towards the surrounding context.
 
 A request with exactly one applicable form is dispatched without a draw, since
 nothing is being chosen. That case does not arise today — an enabled type always
@@ -311,6 +329,19 @@ always enabled. The default limits are:
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
 | `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |
 
+Selection weights default to one, except:
+
+```toml
+weights = { name = 8, enum_set = 16 }
+```
+
+These come from sweeping each weight against how often an admitted input contains
+a membership test on a fold parameter against a non-empty set literal. The set
+literal dominates: raising its weight from 1 to 16 took that shape from 148 to
+1168 per 20000 admitted inputs, while the same sweep over the name weight barely
+moved it. A weighted terminal measured slightly worse than none, because it
+crowds out the literals that would otherwise be the other side of a comparison.
+
 ## 7. Names and lexical scope
 
 The expression entry point starts with an empty scope. It never invents a free
@@ -374,10 +405,11 @@ Changes to this subsystem should preserve the following rules:
    inserting or reordering a constant reinterprets every stored corpus input and
    fails that test.
 2. State result-type constraints in `isTypeApplicable` and dynamic scope
-   constraints in `isScopeApplicable`, both on the kind itself. `IrExprGenFactory`
-   asks the kind; it never names a form. Only `isScopeApplicable` may consult the
-   generation context, because only it is re-evaluated on every draw — the rest of
-   applicability is cached per type.
+   constraints and weight in `selectionWeight`, both on the kind itself.
+   `IrExprGenFactory` asks the kind; it never names a form. Only `selectionWeight`
+   may consult the generation context, because only it is re-evaluated on every
+   draw — the rest of applicability is cached per type. A weight of zero is how a
+   form says the current scope cannot supply what it needs.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
    `scopedBody`, which restrict the extended scope to the construct's body. Create

@@ -1,7 +1,9 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.ExpressionForm;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +29,11 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                     .collect(Collectors.toUnmodifiableMap(
                             ExpressionCategory::configName, category -> category));
 
+    private static final Map<String, ExpressionForm> FORMS_BY_CONFIG_NAME =
+            Arrays.stream(ExpressionForm.values())
+                    .collect(Collectors.toUnmodifiableMap(
+                            ExpressionForm::configName, form -> form));
+
     static final ConfigValueType<Integer> INTEGER =
             new ConfigValueType<>(ConfigValueType::readInt, String::valueOf);
 
@@ -35,6 +42,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     static final ConfigValueType<Set<ExpressionCategory>> CATEGORIES = new ConfigValueType<>(
             ConfigValueType::readCategories, ConfigValueType::formatCategories);
+
+    static final ConfigValueType<Map<ExpressionForm, Integer>> WEIGHTS = new ConfigValueType<>(
+            ConfigValueType::readWeights, ConfigValueType::formatWeights);
 
     /** Reads one TOML integer and narrows it only when it fits in a Java {@code int}. */
     private static int readInt(TomlTable table, String path, String key) throws ConfigException {
@@ -82,6 +92,40 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             categories.add(category);
         }
         return Set.copyOf(categories);
+    }
+
+    /**
+     * Reads a table of form names to slot counts. An absent form keeps the default weight, so
+     * only the forms a corpus actually biases need to appear.
+     */
+    private static Map<ExpressionForm, Integer> readWeights(
+            TomlTable table, String path, String key) throws ConfigException {
+        if (!table.isTable(key)) {
+            throw new ConfigException("expected '" + path + "' to be a table");
+        }
+
+        var weights = new EnumMap<ExpressionForm, Integer>(ExpressionForm.class);
+        var entries = table.getTable(key);
+        for (var name : entries.keySet()) {
+            var form = FORMS_BY_CONFIG_NAME.get(name);
+            if (form == null) {
+                throw new ConfigException(
+                        "unknown expression form '" + name + "' in '" + path + "'");
+            }
+            weights.put(form, readInt(entries, path + "." + name, name));
+        }
+        return Map.copyOf(weights);
+    }
+
+    /** Renders the weights in {@link ExpressionForm} declaration order. */
+    private static String formatWeights(Map<ExpressionForm, Integer> weights) {
+        if (weights.isEmpty()) {
+            return "{}";
+        }
+        return Arrays.stream(ExpressionForm.values())
+                .filter(weights::containsKey)
+                .map(form -> form.configName() + " = " + weights.get(form))
+                .collect(Collectors.joining(", ", "{ ", " }"));
     }
 
     /** Renders a category list in {@link ExpressionCategory} declaration order. */

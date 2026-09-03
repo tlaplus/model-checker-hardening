@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen;
 
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -11,7 +14,8 @@ public record IrGenerationConfig(
         int maximumCollectionSize,
         int maximumStringBytes,
         int maximumIntegerBytes,
-        Set<ExpressionCategory> ignoredCategories) {
+        Set<ExpressionCategory> ignoredCategories,
+        Map<ExpressionForm, Integer> formWeights) {
 
     public static final int DEFAULT_MAXIMUM_TYPE_DEPTH = 3;
     public static final int DEFAULT_MAXIMUM_EXPRESSION_DEPTH = 32;
@@ -19,6 +23,28 @@ public record IrGenerationConfig(
     public static final int DEFAULT_MAXIMUM_COLLECTION_SIZE = 8;
     public static final int DEFAULT_MAXIMUM_STRING_BYTES = 32;
     public static final int DEFAULT_MAXIMUM_INTEGER_BYTES = 16;
+
+    /**
+     * Largest slot count a single form may occupy. The bound is arbitrary but deliberate: a form
+     * weighted beyond this crowds out the rest of the catalog rather than biasing towards it.
+     */
+    public static final int MAXIMUM_FORM_WEIGHT = 64;
+
+    /**
+     * Forms whose default weight is not one, chosen by sweeping each weight against how often
+     * property-based inputs contain a membership test on a fold parameter against a non-empty set
+     * literal. Uniform selection leaves a random expression rarely referring to its own bindings
+     * and rarely building a non-empty collection literal, and a construct whose meaning lives in
+     * those positions is then generated but never exercised.
+     *
+     * <p>The set literal dominates: raising its weight from 1 to 16 took that shape from 148 to
+     * 1168 per 20000 admitted inputs, while the same sweep over the name weight barely moved it.
+     * A weighted terminal measured slightly worse than none, because it crowds out the literals
+     * that would otherwise be the other side of a comparison.
+     */
+    private static final Map<ExpressionForm, Integer> DEFAULT_FORM_WEIGHTS = Map.of(
+            ExpressionForm.NAME, 8,
+            ExpressionForm.ENUM_SET, 16);
 
     public IrGenerationConfig {
         if (maximumTypeDepth < 0) {
@@ -44,6 +70,41 @@ public record IrGenerationConfig(
         if (ignoredCategories.stream().anyMatch(category -> !category.isIgnorable())) {
             throw new IllegalArgumentException("the core expression category cannot be ignored");
         }
+        Objects.requireNonNull(formWeights, "formWeights");
+        for (var entry : formWeights.entrySet()) {
+            Objects.requireNonNull(entry.getKey(), "form");
+            var weight = entry.getValue();
+            if (weight == null
+                    || weight < ExpressionForm.DEFAULT_WEIGHT
+                    || weight > MAXIMUM_FORM_WEIGHT) {
+                throw new IllegalArgumentException(
+                        "weight of '" + entry.getKey().configName() + "' must be in the range "
+                                + ExpressionForm.DEFAULT_WEIGHT + ".." + MAXIMUM_FORM_WEIGHT);
+            }
+        }
+        formWeights = copyOf(formWeights);
+    }
+
+    /** Returns an unmodifiable snapshot that iterates in declaration order. */
+    private static Map<ExpressionForm, Integer> copyOf(Map<ExpressionForm, Integer> weights) {
+        var copy = new EnumMap<ExpressionForm, Integer>(ExpressionForm.class);
+        copy.putAll(weights);
+        return Collections.unmodifiableMap(copy);
+    }
+
+    /** Returns the selection slots {@code form} occupies, defaulting to one. */
+    public int weightOf(ExpressionForm form) {
+        Objects.requireNonNull(form, "form");
+        return formWeights.getOrDefault(form, ExpressionForm.DEFAULT_WEIGHT);
+    }
+
+    /** Returns the slots the configured weights add beyond one per form. */
+    public int additionalSelectionSlots() {
+        var additional = 0;
+        for (var weight : formWeights.values()) {
+            additional += weight - ExpressionForm.DEFAULT_WEIGHT;
+        }
+        return additional;
     }
 
     public static IrGenerationConfig defaults() {
@@ -58,6 +119,7 @@ public record IrGenerationConfig(
                         ExpressionCategory.ACTION,
                         ExpressionCategory.TEMPORAL,
                         ExpressionCategory.UNBOUND,
-                        ExpressionCategory.EXOTIC));
+                        ExpressionCategory.EXOTIC),
+                DEFAULT_FORM_WEIGHTS);
     }
 }

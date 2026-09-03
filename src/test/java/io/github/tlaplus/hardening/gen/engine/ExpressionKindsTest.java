@@ -1,11 +1,13 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.ExpressionForm;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.Collections;
 import java.util.HashSet;
@@ -442,6 +444,76 @@ class ExpressionKindsTest {
         }
     }
 
+    @Test
+    void weightedFormsOccupyTheirConfiguredNumberOfSlots() {
+        var weighted = weightedConfig(Map.of(ExpressionForm.NAME, 8, ExpressionForm.ENUM_SET, 4));
+        var context = new GenerationContext(weighted);
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+        var setOfBool = new SetType(PrimitiveType.BOOL);
+
+        // A form nobody weights keeps one slot; a weighted one takes its configured share.
+        assertEquals(
+                1, expressionFactory.selectionWeight(SetExpressionKind.EMPTY_SET, setOfBool));
+        assertEquals(
+                4, expressionFactory.selectionWeight(SetExpressionKind.ENUM_SET, setOfBool));
+
+        // NAME is worth nothing without a binding, and its full weight with one.
+        assertEquals(
+                0, expressionFactory.selectionWeight(GeneralExpressionKind.NAME, setOfBool));
+        new Draw(new byte[0]).draw(context.withBinding(
+                new ScopedName("bound", setOfBool),
+                ignored -> {
+                    assertEquals(
+                            8,
+                            expressionFactory.selectionWeight(
+                                    GeneralExpressionKind.NAME, setOfBool));
+                    return null;
+                }));
+    }
+
+    /**
+     * A weighted terminal only pays off where it can name something. Weighting its
+     * closed-constant case would shrink every expression instead of biasing towards the
+     * surrounding lexical context.
+     */
+    @Test
+    void terminalTakesItsWeightOnlyWhileABindingIsVisible() {
+        var weighted = weightedConfig(Map.of(ExpressionForm.TERMINAL, 4));
+        var context = new GenerationContext(weighted);
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+
+        assertEquals(
+                1,
+                expressionFactory.selectionWeight(
+                        GeneralExpressionKind.TERMINAL, PrimitiveType.BOOL));
+
+        new Draw(new byte[0]).draw(context.withBinding(
+                new ScopedName("bound", PrimitiveType.BOOL),
+                ignored -> {
+                    assertEquals(
+                            4,
+                            expressionFactory.selectionWeight(
+                                    GeneralExpressionKind.TERMINAL, PrimitiveType.BOOL));
+                    return null;
+                }));
+    }
+
+    @Test
+    void weightsMayNotExceedTheAddressableSlots() {
+        var tooMany = weightedConfig(
+                Map.of(ExpressionForm.NAME, IrGenerationConfig.MAXIMUM_FORM_WEIGHT));
+        assertEquals(
+                IrGenerationConfig.MAXIMUM_FORM_WEIGHT - 1, tooMany.additionalSelectionSlots());
+
+        // The catalog plus the added slots is the worst case any single request can present.
+        assertTrue(
+                ExpressionKinds.all().size() + tooMany.additionalSelectionSlots()
+                        <= ExpressionKinds.MAXIMUM_SELECTION_SLOTS);
+        assertDoesNotThrow(() -> ExpressionKinds.requireAddressableSlots(tooMany));
+    }
+
     /**
      * The selector skips the draw when only one form applies, because choosing nothing must not
      * shift later bytes. That branch is defensive: an enabled type always offers {@code TERMINAL}
@@ -496,6 +568,19 @@ class ExpressionKindsTest {
                 new OperatorType(List.of(PrimitiveType.BOOL), PrimitiveType.INT));
     }
 
+    private IrGenerationConfig weightedConfig(Map<ExpressionForm, Integer> weights) {
+        var defaults = IrGenerationConfig.defaults();
+        return new IrGenerationConfig(
+                defaults.maximumTypeDepth(),
+                defaults.maximumExpressionDepth(),
+                defaults.maximumNodes(),
+                defaults.maximumCollectionSize(),
+                defaults.maximumStringBytes(),
+                defaults.maximumIntegerBytes(),
+                defaults.ignoredCategories(),
+                weights);
+    }
+
     private IrExprGenFactory expressionFactory(IrGenerationConfig config) {
         var context = new GenerationContext(config);
         return new IrExprGenFactory(context, new IrTypeGenFactory(context));
@@ -510,7 +595,8 @@ class ExpressionKindsTest {
                 defaults.maximumCollectionSize(),
                 defaults.maximumStringBytes(),
                 defaults.maximumIntegerBytes(),
-                ignoredCategories);
+                ignoredCategories,
+                defaults.formWeights());
     }
 
     private static Set<ExpressionKind> kinds(ExpressionKind... kinds) {

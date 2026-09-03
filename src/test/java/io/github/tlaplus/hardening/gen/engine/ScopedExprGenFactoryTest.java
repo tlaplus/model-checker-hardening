@@ -208,6 +208,11 @@ class ScopedExprGenFactoryTest {
         return bytes(values);
     }
 
+    /**
+     * Returns the first selection slot of a form, under the lexical scope the draw will see. A
+     * form occupies as many slots as its weight, so counting applicable forms would drift from
+     * the decoder the moment any form is weighted.
+     */
     private int applicableIndex(
             IrType type, ExpressionKind selectedKind, ScopedName... bindings) {
         var context = new GenerationContext(allExpressionsConfig());
@@ -216,15 +221,12 @@ class ScopedExprGenFactoryTest {
         return new Draw(new byte[0]).draw(context.withBindings(
                 List.of(bindings),
                 ignored -> {
-                    var selectedIndex = 0;
+                    var firstSlot = 0;
                     for (var kind : ExpressionKinds.all()) {
-                        if (!expressionFactory.isApplicable(kind, type)) {
-                            continue;
-                        }
                         if (kind == selectedKind) {
-                            return selectedIndex;
+                            return firstSlot;
                         }
-                        selectedIndex++;
+                        firstSlot += expressionFactory.selectionWeight(kind, type);
                     }
                     throw new IllegalArgumentException(
                             selectedKind + " is not applicable to " + type);
@@ -257,7 +259,8 @@ class ScopedExprGenFactoryTest {
                 defaults.maximumCollectionSize(),
                 defaults.maximumStringBytes(),
                 defaults.maximumIntegerBytes(),
-                Set.of());
+                Set.of(),
+                defaults.formWeights());
     }
 
     private String print(TlaEx expression) {

@@ -97,7 +97,8 @@ public final class TomlConfig {
                 ConfigSchema.MAXIMUM_COLLECTION_SIZE.read(tables),
                 ConfigSchema.MAXIMUM_STRING_BYTES.read(tables),
                 ConfigSchema.MAXIMUM_INTEGER_BYTES.read(tables),
-                ConfigSchema.IGNORED_CATEGORIES.read(tables));
+                ConfigSchema.IGNORED_CATEGORIES.read(tables),
+                ConfigSchema.FORM_WEIGHTS.read(tables));
 
         var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {

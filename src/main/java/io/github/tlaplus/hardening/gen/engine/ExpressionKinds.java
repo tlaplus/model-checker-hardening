@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,23 @@ final class ExpressionKinds {
     }
 
     private ExpressionKinds() {}
+
+    /**
+     * Checks that no request can present more slots than one index can address.
+     *
+     * <p>The catalog bounds how many forms a single request can offer, so the catalog size plus
+     * the slots the configured weights add is the worst case over every type and scope.
+     *
+     * @throws IllegalArgumentException if the configured weights exceed the addressable slots
+     */
+    static void requireAddressableSlots(IrGenerationConfig config) {
+        var worstCase = (long) ALL.size() + config.additionalSelectionSlots();
+        if (worstCase > MAXIMUM_SELECTION_SLOTS) {
+            throw new IllegalArgumentException(
+                    "configured weights need " + worstCase + " selection slots, but only "
+                            + MAXIMUM_SELECTION_SLOTS + " are addressable");
+        }
+    }
 
     /**
      * Returns every form in decoder order. Family order and each enum's declaration order are the

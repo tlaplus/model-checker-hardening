@@ -85,7 +85,8 @@ class IrTypeGenFactoryTest {
                 defaults.maximumCollectionSize(),
                 defaults.maximumStringBytes(),
                 defaults.maximumIntegerBytes(),
-                Set.of(category));
+                Set.of(category),
+                defaults.formWeights());
         return new IrTypeGenFactory(new GenerationContext(config));
     }
 }

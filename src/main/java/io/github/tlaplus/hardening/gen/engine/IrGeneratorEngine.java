@@ -19,11 +19,14 @@ public final class IrGeneratorEngine {
     /**
      * Creates a reusable engine with the supplied generation settings.
      *
-     * @param config category exclusions and resource limits
+     * @param config category exclusions, resource limits, and form weights
      * @throws NullPointerException if {@code config} is {@code null}
+     * @throws IllegalArgumentException if the configured weights need more selection slots than
+     *     one index can address
      */
     public IrGeneratorEngine(IrGenerationConfig config) {
         this.config = Objects.requireNonNull(config, "config");
+        ExpressionKinds.requireAddressableSlots(config);
     }
 
     /**

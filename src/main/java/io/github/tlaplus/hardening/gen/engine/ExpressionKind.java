@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.ExpressionForm;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -18,12 +19,15 @@ sealed interface ExpressionKind
     boolean isTypeApplicable(IrType type);
 
     /**
-     * Reports whether the current lexical scope can supply what this form needs. Most forms build
-     * everything they use, so the default is true; a form that refers to an existing binding says
-     * so here rather than being special-cased by the selector.
+     * Returns how many selection slots this form occupies for the requested type, or zero when the
+     * current lexical scope cannot supply what the form needs.
+     *
+     * <p>Most forms build everything they use and are worth one slot, so that is the default. A
+     * form that refers to an existing binding, or whose configured weight applies only under some
+     * condition, says so here rather than being special-cased by the selector.
      */
-    default boolean isScopeApplicable(GenerationContext context, IrType type) {
-        return true;
+    default int selectionWeight(GenerationContext context, IrType type) {
+        return ExpressionForm.DEFAULT_WEIGHT;
     }
 
     /** Returns this form's single primary user-facing category. */
@@ -93,12 +97,28 @@ enum GeneralExpressionKind implements ExpressionKind {
         };
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@code TERMINAL} takes its configured weight only while a binding of the requested type
+     * is visible, because that is the case where it contributes a name. It is applicable to every
+     * type, so weighting its closed-constant case would shrink every expression instead of
+     * biasing towards the surrounding context.
+     */
     @Override
-    public boolean isScopeApplicable(GenerationContext context, IrType type) {
+    public int selectionWeight(GenerationContext context, IrType type) {
+        var config = context.config();
         return switch (this) {
-            case NAME -> context.hasBinding(type);
-            case OPERATOR_APPLICATION -> context.hasOperatorReturning(type);
-            default -> true;
+            case NAME -> context.hasBinding(type)
+                    ? config.weightOf(ExpressionForm.NAME)
+                    : 0;
+            case OPERATOR_APPLICATION -> context.hasOperatorReturning(type)
+                    ? config.weightOf(ExpressionForm.OPERATOR_APPLICATION)
+                    : 0;
+            case TERMINAL -> context.hasBinding(type)
+                    ? config.weightOf(ExpressionForm.TERMINAL)
+                    : ExpressionForm.DEFAULT_WEIGHT;
+            default -> ExpressionForm.DEFAULT_WEIGHT;
         };
     }
 
@@ -262,6 +282,13 @@ enum SetExpressionKind implements ExpressionKind {
             case STRING_SET -> setElem == PrimitiveType.STRING;
             default -> true;
         };
+    }
+
+    @Override
+    public int selectionWeight(GenerationContext context, IrType type) {
+        return this == ENUM_SET
+                ? context.config().weightOf(ExpressionForm.ENUM_SET)
+                : ExpressionForm.DEFAULT_WEIGHT;
     }
 
     @Override
