@@ -9,6 +9,9 @@ import java.util.Map;
 
 /** Factory for deferred, type-directed expression generators within one generation run. */
 final class IrExprGenFactory {
+    /** Fixed width of one nonterminal form selection, in bytes. */
+    static final int SELECTION_BYTES = 2;
+
     private final GenerationContext context;
     private final IrTypeGenFactory typeFactory;
     private final Map<IrType, List<ExpressionKind>> typeApplicableForms = new HashMap<>();
@@ -37,13 +40,20 @@ final class IrExprGenFactory {
      * <p>Calling this factory consumes no bytes and does not increment the node counter. Those
      * effects occur only when the returned generator is invoked.
      *
-     * <p>Configured category exclusions, type applicability, and current lexical-scope
-     * applicability are evaluated before the index is drawn, and only the selected form is built.
-     * The catalog contains at most 256 entries, so every nonterminal selection consumes exactly one
-     * byte. Modulo reduction maps the 256 byte values round-robin over the applicable forms,
-     * assigning each form either the floor or ceiling of {@code 256 / formCount} values. Rejection
-     * sampling is intentionally avoided because its variable consumption would make
-     * mutation-fuzzer inputs sensitive to preceding choices.
+     * <p>Configured category exclusions, type applicability, and the current lexical scope are
+     * evaluated before the index is drawn, and only the selected form is built. Each applicable
+     * form occupies as many slots as its weight, so a configured weight of {@code n} makes a form
+     * {@code n} times as likely as an unweighted one applicable to the same request; a weight of
+     * zero means the form cannot be used here at all. The index has a fixed width of
+     * {@link #SELECTION_BYTES} bytes, so a nonterminal selection costs the same regardless of how
+     * many slots happen to be in play. Deriving that width from the slot total instead would let a
+     * change in type, lexical scope, or weight reframe every byte after the choice. Modulo
+     * reduction maps the values of those bytes round-robin over the slots, assigning each either
+     * the floor or ceiling of its share. Rejection sampling is intentionally avoided because its
+     * variable consumption would make mutation-fuzzer inputs sensitive to preceding choices.
+     *
+     * <p>A type with exactly one applicable form is dispatched without a draw. Nothing is being
+     * chosen there, so spending bytes on it would only shift the rest of the input.
      */
     Generator<TlaEx> mkGen(IrType type, int remainingDepth) {
         return draw -> {
@@ -57,24 +67,34 @@ final class IrExprGenFactory {
                 return draw.draw(generalFactory.terminal(type));
             }
 
-            // Only scope applicability can change between draws, so the rest is cached per type.
+            // Only the weight can change between draws, so the rest is cached per type.
             var candidates = typeApplicableForms(type);
-            var formCount = 0;
+            var slotTotal = 0;
+            var applicableCount = 0;
+            ExpressionKind onlyApplicable = null;
             for (var kind : candidates) {
-                if (kind.isScopeApplicable(context, type)) {
-                    formCount++;
+                var weight = kind.selectionWeight(context, type);
+                if (weight > 0) {
+                    slotTotal += weight;
+                    applicableCount++;
+                    onlyApplicable = kind;
                 }
             }
-            if (formCount == 0) {
+            if (applicableCount == 0) {
                 throw new InputRejectedException(
                         "no expression form can produce type " + type);
             }
+            if (applicableCount == 1) {
+                return draw.draw(mkGen(onlyApplicable, type, remainingDepth));
+            }
 
-            var selected = Math.toIntExact(draw.drawLong(0, formCount - 1L));
+            var selected = draw.drawIndex(slotTotal, SELECTION_BYTES);
             for (var kind : candidates) {
-                if (kind.isScopeApplicable(context, type) && selected-- == 0) {
+                var weight = kind.selectionWeight(context, type);
+                if (selected < weight) {
                     return draw.draw(mkGen(kind, type, remainingDepth));
                 }
+                selected -= weight;
             }
             throw new IllegalStateException("unreachable expression choice");
         };
@@ -83,7 +103,14 @@ final class IrExprGenFactory {
     /** Reports whether a form is enabled and its type and scope requirements are satisfied. */
     boolean isApplicable(ExpressionKind kind, IrType type) {
         return typeApplicableForms(type).contains(kind)
-                && kind.isScopeApplicable(context, type);
+                && kind.selectionWeight(context, type) > 0;
+    }
+
+    /** Returns the selection slots a form occupies for a type, or zero when it cannot be used. */
+    int selectionWeight(ExpressionKind kind, IrType type) {
+        return typeApplicableForms(type).contains(kind)
+                ? kind.selectionWeight(context, type)
+                : 0;
     }
 
     /**
@@ -97,7 +124,7 @@ final class IrExprGenFactory {
         }
         return typeApplicableForms.computeIfAbsent(
                 type,
-                requested -> ExpressionKinds.all().stream()
+                requested -> ExpressionKindCatalog.all().stream()
                         .filter(kind ->
                                 !kind.isUnavailableWith(context.config().ignoredCategories()))
                         .filter(kind -> kind.isTypeApplicable(requested))

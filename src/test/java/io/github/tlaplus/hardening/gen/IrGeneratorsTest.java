@@ -98,7 +98,8 @@ class IrGeneratorsTest {
                 8,
                 32,
                 16,
-                IrGenerationConfig.defaults().ignoredCategories());
+                IrGenerationConfig.defaults().ignoredCategories(),
+                IrGenerationConfig.defaults().formWeights());
         assertBuildsOrRejects(bounded, full);
 
         var longStructuredInput = Base64.getMimeDecoder()
@@ -159,7 +160,8 @@ class IrGeneratorsTest {
                 defaults.maximumCollectionSize(),
                 defaults.maximumStringBytes(),
                 defaults.maximumIntegerBytes(),
-                ignoredCategories);
+                ignoredCategories,
+                defaults.formWeights());
     }
 
     private String print(TlaEx expression) {

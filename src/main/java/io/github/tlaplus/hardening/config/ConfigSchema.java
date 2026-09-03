@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
@@ -160,6 +161,17 @@ final class ConfigSchema {
             List.of(),
             config -> config.generator().ignoredCategories());
 
+    static final Key<Map<ExpressionKind, Integer>> FORM_WEIGHTS = new Key<>(
+            GENERATOR_PATH,
+            "weights",
+            ConfigValueType.WEIGHTS,
+            List.of(
+                    "Selection slots per expression form, for the forms that are not weighted"
+                            + " one.",
+                    "A form with weight N is N times as likely as an unweighted form applicable"
+                            + " to the same request."),
+            config -> config.generator().formWeights());
+
     static final Key<Integer> WORKFLOW_MAXIMUM_ENTRIES = new Key<>(
             WORKFLOW_PATH,
             "max_entries",
@@ -265,7 +277,8 @@ final class ConfigSchema {
                         MAXIMUM_COLLECTION_SIZE,
                         MAXIMUM_STRING_BYTES,
                         MAXIMUM_INTEGER_BYTES,
-                        IGNORED_CATEGORIES)));
+                        IGNORED_CATEGORIES,
+                        FORM_WEIGHTS)));
         tables.add(new Table(WORKFLOW_PATH, List.of(WORKFLOW_MAXIMUM_ENTRIES)));
         tables.add(new Table(INPUTS_PATH, List.of(INPUTS_MAXIMUM_ENTRIES)));
         tables.add(new Table(

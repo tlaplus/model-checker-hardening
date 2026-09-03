@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -27,6 +29,11 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                     .collect(Collectors.toUnmodifiableMap(
                             ExpressionCategory::configName, category -> category));
 
+    private static final Map<String, ExpressionKind> KINDS_BY_CONFIG_NAME =
+            ExpressionKind.all().stream()
+                    .collect(Collectors.toUnmodifiableMap(
+                            ExpressionKind::configName, kind -> kind));
+
     static final ConfigValueType<Integer> INTEGER =
             new ConfigValueType<>(ConfigValueType::readInt, String::valueOf);
 
@@ -35,6 +42,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     static final ConfigValueType<Set<ExpressionCategory>> CATEGORIES = new ConfigValueType<>(
             ConfigValueType::readCategories, ConfigValueType::formatCategories);
+
+    static final ConfigValueType<Map<ExpressionKind, Integer>> WEIGHTS = new ConfigValueType<>(
+            ConfigValueType::readWeights, ConfigValueType::formatWeights);
 
     /** Reads one TOML integer and narrows it only when it fits in a Java {@code int}. */
     private static int readInt(TomlTable table, String path, String key) throws ConfigException {
@@ -82,6 +92,40 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             categories.add(category);
         }
         return Set.copyOf(categories);
+    }
+
+    /**
+     * Reads a table of form names to slot counts. An absent form keeps the default weight, so
+     * only the forms a corpus actually biases need to appear.
+     */
+    private static Map<ExpressionKind, Integer> readWeights(
+            TomlTable table, String path, String key) throws ConfigException {
+        if (!table.isTable(key)) {
+            throw new ConfigException("expected '" + path + "' to be a table");
+        }
+
+        var weights = new HashMap<ExpressionKind, Integer>();
+        var entries = table.getTable(key);
+        for (var name : entries.keySet()) {
+            var kind = KINDS_BY_CONFIG_NAME.get(name);
+            if (kind == null) {
+                throw new ConfigException(
+                        "unknown expression kind '" + name + "' in '" + path + "'");
+            }
+            weights.put(kind, readInt(entries, path + "." + name, name));
+        }
+        return Map.copyOf(weights);
+    }
+
+    /** Renders the weights in expression catalog order. */
+    private static String formatWeights(Map<ExpressionKind, Integer> weights) {
+        if (weights.isEmpty()) {
+            return "{}";
+        }
+        return ExpressionKind.all().stream()
+                .filter(weights::containsKey)
+                .map(kind -> kind.configName() + " = " + weights.get(kind))
+                .collect(Collectors.joining(", ", "{ ", " }"));
     }
 
     /** Renders a category list in {@link ExpressionCategory} declaration order. */

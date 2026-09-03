@@ -5,10 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.IntegerExpressionKind;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -23,7 +27,9 @@ class TomlConfigTest {
         assertEquals(FuzzTlaConfig.defaults(), TomlConfig.read(path));
         assertTrue(Files.readString(path).contains("max_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_sec = 30"));
-        assertTrue(Files.readString(path).contains("max_nodes = 32"));
+        assertTrue(Files.readString(path).contains("max_nodes = 128"));
+        assertTrue(Files.readString(path)
+                .contains("weights = { name = 8, enum_set = 16 }"));
         assertTrue(Files.readString(path)
                 .contains("ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]"));
         assertTrue(Files.readString(path).contains("max_input_bytes = 10240"));
@@ -113,6 +119,58 @@ class TomlConfigTest {
     }
 
     @Test
+    void readsFormWeightsAsATableOrAHeader(@TempDir Path directory) throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+        var defaultWeights = "weights = { name = 8, enum_set = 16 }";
+
+        var none = readConfig(directory, rendered.replace(defaultWeights, "weights = {}"));
+        var one = readConfig(
+                directory, rendered.replace(defaultWeights, "weights = { name = 3 }"));
+        var arbitrary = readConfig(
+                directory, rendered.replace(defaultWeights, "weights = { plus = 5 }"));
+        // The inline table is how the config renders, but a reader may spell it as a header.
+        var header = readConfig(
+                directory,
+                rendered.replace(defaultWeights, "")
+                        + "\n[generator.weights]\nname = 3\n");
+
+        assertEquals(Map.of(), none.generator().formWeights());
+        assertEquals(
+                ExpressionKind.DEFAULT_WEIGHT,
+                none.generator().weightOf(GeneralExpressionKind.NAME));
+        assertEquals(Map.of(GeneralExpressionKind.NAME, 3), one.generator().formWeights());
+        assertEquals(Map.of(IntegerExpressionKind.PLUS, 5), arbitrary.generator().formWeights());
+        assertEquals(Map.of(GeneralExpressionKind.NAME, 3), header.generator().formWeights());
+    }
+
+    @Test
+    void rejectsUnusableFormWeights(@TempDir Path directory) throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+        var defaultWeights = "weights = { name = 8, enum_set = 16 }";
+
+        var missing = assertInvalid(directory, rendered.replace(defaultWeights + "\n", ""));
+        assertTrue(missing.getMessage().contains("missing generator keys: weights"));
+
+        var notATable =
+                assertInvalid(directory, rendered.replace(defaultWeights, "weights = 4"));
+        assertTrue(notATable.getMessage().contains("expected 'generator.weights' to be a table"));
+
+        var unknownKind = assertInvalid(
+                directory, rendered.replace(defaultWeights, "weights = { unknown_kind = 4 }"));
+        assertTrue(unknownKind.getMessage().contains("unknown expression kind 'unknown_kind'"));
+
+        var notAnInteger = assertInvalid(
+                directory, rendered.replace(defaultWeights, "weights = { name = \"8\" }"));
+        assertTrue(
+                notAnInteger.getMessage().contains("expected 'generator.weights.name'"),
+                notAnInteger.getMessage());
+
+        var outOfRange = assertInvalid(
+                directory, rendered.replace(defaultWeights, "weights = { name = 0 }"));
+        assertTrue(outOfRange.getMessage().contains("weight of 'name'"), outOfRange.getMessage());
+    }
+
+    @Test
     void reportsMalformedToml(@TempDir Path directory) throws Exception {
         var failure = assertInvalid(directory, "[generator\n");
 
@@ -124,7 +182,7 @@ class TomlConfigTest {
         var missing = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("max_nodes = 32\n", ""));
+                        .replace("max_nodes = 128\n", ""));
         assertTrue(missing.getMessage().contains("missing generator keys: max_nodes"));
 
         var missingIgnore = assertInvalid(
@@ -223,7 +281,7 @@ class TomlConfigTest {
         var invalidGenerator = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("max_nodes = 32", "max_nodes = 0"));
+                        .replace("max_nodes = 128", "max_nodes = 0"));
         assertTrue(invalidGenerator.getMessage().contains("maximumNodes must be positive"));
 
         var impossibleCorpus = assertInvalid(

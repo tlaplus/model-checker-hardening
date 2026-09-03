@@ -57,8 +57,30 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a byte-free generator of a closed expression for the requested type. */
+    /**
+     * Returns a byte-free generator of a closed expression for the requested type.
+     *
+     * <p>Terminal construction is the most common leaf, so what it returns decides whether a
+     * starved lambda body, quantifier body, or comprehension refers to the name it just
+     * introduced or to a constant unrelated to it. When bindings of exactly this type are
+     * visible, successive terminals rotate over them and then the closed terminal, so that two
+     * sibling leaves differ rather than collapsing into a tautology. Operator types keep their
+     * lambda terminal, because an operator name is not a value.
+     */
     Generator<TlaEx> terminal(IrType type) {
+        return draw -> {
+            if (!(type instanceof OperatorType)) {
+                var binding = context.nextTerminalBinding(type);
+                if (binding.isPresent()) {
+                    return builder().name(binding.get().name(), type.toTlaType());
+                }
+            }
+            return draw.draw(closedTerminal(type));
+        };
+    }
+
+    /** Returns the closed terminal for a type, ignoring the current lexical scope. */
+    private Generator<TlaEx> closedTerminal(IrType type) {
         return draw -> switch (type) {
             case PrimitiveType primitive -> switch (primitive) {
                 case BOOL -> builder().bool(false);

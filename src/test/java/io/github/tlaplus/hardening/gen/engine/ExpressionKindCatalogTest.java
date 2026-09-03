@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,7 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class ExpressionKindsTest {
+class ExpressionKindCatalogTest {
     private static final Map<ExpressionCategory, Set<ExpressionKind>> KINDS_BY_CATEGORY =
             Map.ofEntries(
                     Map.entry(
@@ -346,7 +347,7 @@ class ExpressionKindsTest {
 
     @Test
     void catalogOrderIsTheStoredByteEncoding() {
-        assertEquals(CATALOG_ORDER, ExpressionKinds.all());
+        assertEquals(CATALOG_ORDER, ExpressionKindCatalog.all());
     }
 
     @Test
@@ -358,9 +359,9 @@ class ExpressionKindsTest {
                 + SequenceExpressionKind.values().length
                 + OtherExpressionKind.values().length;
 
-        assertEquals(expectedSize, ExpressionKinds.all().size());
-        assertEquals(expectedSize, new HashSet<>(ExpressionKinds.all()).size());
-        assertTrue(expectedSize <= 256);
+        assertEquals(expectedSize, ExpressionKindCatalog.all().size());
+        assertEquals(expectedSize, new HashSet<>(ExpressionKindCatalog.all()).size());
+        assertTrue(expectedSize <= ExpressionKindCatalog.MAXIMUM_SELECTION_SLOTS);
     }
 
     @Test
@@ -373,13 +374,13 @@ class ExpressionKindsTest {
             }
         }
 
-        assertEquals(new HashSet<>(ExpressionKinds.all()), assigned);
+        assertEquals(new HashSet<>(ExpressionKindCatalog.all()), assigned);
     }
 
     @Test
     void requirementsIncludePrimaryCategoriesAndDriveAvailability() {
         var ignoredByDefault = IrGenerationConfig.defaults().ignoredCategories();
-        for (var kind : ExpressionKinds.all()) {
+        for (var kind : ExpressionKindCatalog.all()) {
             var expectedRequirements = new HashSet<ExpressionCategory>();
             expectedRequirements.add(kind.category());
             expectedRequirements.addAll(
@@ -429,22 +430,9 @@ class ExpressionKindsTest {
     }
 
     @Test
-    void everyRepresentativeTypeUsesOneByteForItsTerminalChoice() {
-        var types = List.<IrType>of(
-                PrimitiveType.BOOL,
-                PrimitiveType.INT,
-                PrimitiveType.STRING,
-                new ConstantType("MODEL"),
-                new SetType(PrimitiveType.BOOL),
-                new SequenceType(PrimitiveType.BOOL),
-                new FunctionType(PrimitiveType.BOOL, PrimitiveType.INT),
-                new TupleType(List.of(PrimitiveType.BOOL, PrimitiveType.INT)),
-                new RecordType(List.of(new Field("field", PrimitiveType.BOOL))),
-                new VariantType(List.of(new Field("Tag", PrimitiveType.INT))),
-                new OperatorType(List.of(PrimitiveType.BOOL), PrimitiveType.INT));
-
-        for (var type : types) {
-            var draw = new Draw(new byte[] {0, 99});
+    void everyRepresentativeTypeUsesTheFixedSelectionWidth() {
+        for (var type : representativeTypes()) {
+            var draw = new Draw(new byte[] {0, 0, 99});
             var context = new GenerationContext(IrGenerationConfig.defaults());
             var typeFactory = new IrTypeGenFactory(context);
             var expressionFactory = new IrExprGenFactory(context, typeFactory);
@@ -456,8 +444,112 @@ class ExpressionKindsTest {
     }
 
     @Test
+    void weightedFormsOccupyTheirConfiguredNumberOfSlots() {
+        var weighted = weightedConfig(Map.of(
+                GeneralExpressionKind.NAME, 8,
+                BooleanExpressionKind.EQUAL, 3,
+                IntegerExpressionKind.PLUS, 6,
+                SetExpressionKind.ENUM_SET, 4));
+        var context = new GenerationContext(weighted);
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+        var setOfBool = new SetType(PrimitiveType.BOOL);
+
+        // A form nobody weights keeps one slot; a weighted one takes its configured share.
+        assertEquals(
+                1, expressionFactory.selectionWeight(SetExpressionKind.EMPTY_SET, setOfBool));
+        assertEquals(
+                4, expressionFactory.selectionWeight(SetExpressionKind.ENUM_SET, setOfBool));
+        assertEquals(
+                3,
+                expressionFactory.selectionWeight(
+                        BooleanExpressionKind.EQUAL, PrimitiveType.BOOL));
+        assertEquals(
+                6,
+                expressionFactory.selectionWeight(
+                        IntegerExpressionKind.PLUS, PrimitiveType.INT));
+
+        // NAME is worth nothing without a binding, and its full weight with one.
+        assertEquals(
+                0, expressionFactory.selectionWeight(GeneralExpressionKind.NAME, setOfBool));
+        new Draw(new byte[0]).draw(context.withBinding(
+                new ScopedName("bound", setOfBool),
+                ignored -> {
+                    assertEquals(
+                            8,
+                            expressionFactory.selectionWeight(
+                                    GeneralExpressionKind.NAME, setOfBool));
+                    return null;
+                }));
+    }
+
+    /**
+     * A weighted terminal only pays off where it can name something. Weighting its
+     * closed-constant case would shrink every expression instead of biasing towards the
+     * surrounding lexical context.
+     */
+    @Test
+    void terminalTakesItsWeightOnlyWhileABindingIsVisible() {
+        var weighted = weightedConfig(Map.of(GeneralExpressionKind.TERMINAL, 4));
+        var context = new GenerationContext(weighted);
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+
+        assertEquals(
+                1,
+                expressionFactory.selectionWeight(
+                        GeneralExpressionKind.TERMINAL, PrimitiveType.BOOL));
+
+        new Draw(new byte[0]).draw(context.withBinding(
+                new ScopedName("bound", PrimitiveType.BOOL),
+                ignored -> {
+                    assertEquals(
+                            4,
+                            expressionFactory.selectionWeight(
+                                    GeneralExpressionKind.TERMINAL, PrimitiveType.BOOL));
+                    return null;
+                }));
+    }
+
+    @Test
+    void weightsMayNotExceedTheAddressableSlots() {
+        var tooMany = weightedConfig(
+                Map.of(GeneralExpressionKind.NAME, IrGenerationConfig.MAXIMUM_FORM_WEIGHT));
+        assertEquals(
+                IrGenerationConfig.MAXIMUM_FORM_WEIGHT - 1, tooMany.additionalSelectionSlots());
+
+        // The catalog plus the added slots is the worst case any single request can present.
+        assertTrue(
+                ExpressionKindCatalog.all().size() + tooMany.additionalSelectionSlots()
+                        <= ExpressionKindCatalog.MAXIMUM_SELECTION_SLOTS);
+        assertDoesNotThrow(() -> ExpressionKindCatalog.requireAddressableSlots(tooMany));
+    }
+
+    /**
+     * The selector skips the draw when only one form applies, because choosing nothing must not
+     * shift later bytes. That branch is defensive: an enabled type always offers {@code TERMINAL}
+     * plus at least one enabled constructor, which is what makes the selection width uniform in
+     * practice. This pins that property, so a change making some type degenerate is visible here
+     * rather than as an unexplained shift in how corpus inputs decode.
+     */
+    @Test
+    void everyRepresentativeTypeOffersMoreThanOneForm() {
+        var expressionFactory = expressionFactory(IrGenerationConfig.defaults());
+
+        for (var type : representativeTypes()) {
+            var applicable = ExpressionKindCatalog.all().stream()
+                    .filter(kind -> expressionFactory.isApplicable(kind, type))
+                    .toList();
+
+            assertTrue(
+                    applicable.size() > 1,
+                    () -> "selection is degenerate for " + type + ": " + applicable);
+        }
+    }
+
+    @Test
     void constructingExpressionGeneratorsDoesNotSpendNodeBudgetOrBytes() {
-        var draw = new Draw(new byte[] {0, 99});
+        var draw = new Draw(new byte[] {0, 0, 99});
         var context = new GenerationContext(IrGenerationConfig.defaults());
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
@@ -466,9 +558,38 @@ class ExpressionKindsTest {
             expressionFactory.mkGen(PrimitiveType.BOOL, 1);
         }
 
-        assertEquals(2, draw.remaining());
+        assertEquals(3, draw.remaining());
         draw.draw(expressionFactory.mkGen(PrimitiveType.BOOL, 1));
         assertEquals(1, draw.remaining());
+    }
+
+    /** One type per {@link IrType} variant, covering every family of the catalog. */
+    private List<IrType> representativeTypes() {
+        return List.of(
+                PrimitiveType.BOOL,
+                PrimitiveType.INT,
+                PrimitiveType.STRING,
+                new ConstantType("MODEL"),
+                new SetType(PrimitiveType.BOOL),
+                new SequenceType(PrimitiveType.BOOL),
+                new FunctionType(PrimitiveType.BOOL, PrimitiveType.INT),
+                new TupleType(List.of(PrimitiveType.BOOL, PrimitiveType.INT)),
+                new RecordType(List.of(new Field("field", PrimitiveType.BOOL))),
+                new VariantType(List.of(new Field("Tag", PrimitiveType.INT))),
+                new OperatorType(List.of(PrimitiveType.BOOL), PrimitiveType.INT));
+    }
+
+    private IrGenerationConfig weightedConfig(Map<ExpressionKind, Integer> weights) {
+        var defaults = IrGenerationConfig.defaults();
+        return new IrGenerationConfig(
+                defaults.maximumTypeDepth(),
+                defaults.maximumExpressionDepth(),
+                defaults.maximumNodes(),
+                defaults.maximumCollectionSize(),
+                defaults.maximumStringBytes(),
+                defaults.maximumIntegerBytes(),
+                defaults.ignoredCategories(),
+                weights);
     }
 
     private IrExprGenFactory expressionFactory(IrGenerationConfig config) {
@@ -485,7 +606,8 @@ class ExpressionKindsTest {
                 defaults.maximumCollectionSize(),
                 defaults.maximumStringBytes(),
                 defaults.maximumIntegerBytes(),
-                ignoredCategories);
+                ignoredCategories,
+                defaults.formWeights());
     }
 
     private static Set<ExpressionKind> kinds(ExpressionKind... kinds) {

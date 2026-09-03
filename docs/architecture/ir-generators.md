@@ -1,7 +1,5 @@
 # IR generator architecture
 
-**Author:** OpenAI Codex GPT 5.6-sol max
-
 **Status:** Preliminary description of the implemented design
 
 ## 1. Purpose and scope
@@ -39,7 +37,7 @@ IR-generator facade.
 | `BasicGenerators` | Combinators for constants, choices, bounded numbers, lists, and byte arrays. |
 | `InputRejectedException` | Expected rejection of one semantically unsuitable input. |
 | `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
-| `IrGenerationConfig` | Category exclusions and resource limits for type and expression generation. |
+| `IrGenerationConfig` | Category exclusions, resource limits, and selection weights keyed by `ExpressionKind`. |
 | `IrGenerators` | Public factory for reusable `Generator<TlaEx>` instances. |
 
 The package `io.github.tlaplus.hardening.gen.engine` implements type-directed IR
@@ -51,7 +49,8 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
-| `ExpressionKind` and `ExpressionKinds` | Define the static catalog and byte-decoder order of expression forms. |
+| `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
+| `ExpressionKindCatalog` | Complete catalog in byte-decoder order. |
 | `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory. |
 | `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
 | `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration. |
@@ -122,6 +121,9 @@ The primitive mappings are:
   inclusive range. It interprets them in big-endian order and applies unsigned
   modulo reduction.
 - A choice draws a bounded index and selects the corresponding list element.
+- A fixed-width index consumes a byte count chosen by the caller rather than one
+  derived from the number of alternatives, and reduces the big-endian value
+  modulo that number.
 - Once the input is exhausted, byte reads return zero without advancing the
   cursor. Choices consequently prefer their first alternative.
 
@@ -130,6 +132,13 @@ width: each alternative receives either the floor or ceiling of the available
 byte patterns divided by the number of alternatives. The decoder does not use
 rejection sampling because variable retry counts would shift the interpretation
 of all subsequent bytes.
+
+A derived width has the same defect whenever the number of alternatives is not
+fixed by the format. Expression-form selection is such a case: how many forms
+apply depends on the requested type and on the current lexical scope, so a width
+derived from that count would change how many bytes one choice costs, reframing
+every byte after it for a reason unrelated to the choice. Form selection
+therefore uses a fixed-width index.
 
 Variable-size values use continuation markers rather than length prefixes.
 `BasicGenerators.listOf` and `byteArray` first generate their mandatory elements.
@@ -229,12 +238,34 @@ For each nonterminal request, `IrExprGenFactory` works from the forms this run
 may use for the requested type: those whose requirements are not ignored by the
 configuration and whose result type matches. That set depends only on the type,
 so it is computed once per type and reused, in catalog order. The factory then
-scans it twice, checking only lexical scope, which is the one condition that
-changes between draws. The first scan counts the applicable forms, one bounded
-index selects among them, and the second scan dispatches only the selected form.
-Unavailable forms consume neither a selection slot nor operand bytes. The complete
-catalog must fit in 256 entries, so current form selection uses one byte and
-distributes its 256 values as evenly as possible.
+scans it twice, checking only the current weight, which is the one condition that
+changes between draws. The first scan sums the slots the applicable forms
+occupy, one fixed-width index selects among those slots, and the second scan
+dispatches only the selected form. Unavailable forms weigh zero and consume
+neither a selection slot nor operand bytes. Selection spends two bytes and
+distributes their 65536 values as evenly as possible, so the catalog plus the
+slots configured weights add must fit in 65536. The width is fixed rather than
+derived from the slot total, for the reason given in section 4.
+
+A form occupies as many slots as its weight, so a weight of `n` makes it `n`
+times as likely as an unweighted form applicable to the same request. Uniform
+selection spends the same probability on a form that consumes the surrounding
+lexical context as on any other, which leaves a generated lambda rarely
+mentioning its parameters and a membership test rarely testing against a
+non-empty literal. Such an expression is well-formed but exercises nothing a
+model checker has to work for. Every `ExpressionKind` supplies its configuration
+name and selection weight; no parallel configuration enum exists.
+
+`TERMINAL` takes a configured weight only while a binding of the requested type
+is visible, because that is the case where it contributes a name. It applies to
+every type, so weighting its closed-constant case would shrink every expression
+rather than bias towards the surrounding context.
+
+A request with exactly one applicable form is dispatched without a draw, since
+nothing is being chosen. That case does not arise today — an enabled type always
+offers the terminal form plus at least one enabled constructor — and
+`ExpressionKindCatalogTest` pins that property, so selection costs the same two bytes
+everywhere.
 
 ## 6. Termination and resource limits
 
@@ -245,14 +276,51 @@ conditions holds:
 - the expression-request counter reaches `maximumNodes`; or
 - the input cursor is exhausted.
 
-Every `IrType` has a closed, byte-free terminal expression. Examples include
+Terminal construction is byte-free. When bindings of exactly the requested type are
+lexically visible, successive terminals rotate over them, innermost first, and then
+the closed terminal. Otherwise every `IrType` has a closed terminal expression:
 `FALSE`, zero, the empty string, empty sets and sequences, componentwise terminal
 tuples and records, an empty-domain function, and a lambda for an operator type.
-An empty input therefore selects Boolean as its root type and produces `FALSE`.
+Operator types always take the lambda terminal, because an operator name is not a
+value. An empty input therefore selects Boolean as its root type and produces
+`FALSE`.
+
+Using a visible name matters because terminals are the most common leaf: with a
+closed-constant-only terminal, a starved lambda body, quantifier body, or
+comprehension ignores the name it just introduced, and constructs whose meaning
+depends on that name degenerate. Measured over property-based inputs, 3-9% of
+generated fold lambdas referenced any of their own parameters before this rule and
+about 81% after it.
+
+Rotating, rather than always taking the innermost match, is what keeps that from
+overshooting. Returning one name unconditionally makes every starved leaf of a type
+in a scope the same name, so same-type sibling leaves collapse into tautologies such
+as `x = x` and `x \in {x}`, which a model checker folds away before reaching
+anything worth testing. Rotation halves that: measured on singleton membership tests
+whose left side is a fold parameter, tautologies fell from 30 of 50 to 19 of 45.
+
+The rotation position is kept per type rather than in one counter, because a terminal
+of an unrelated type would otherwise shift the phase between two same-type siblings
+and reinstate the collapse about half the time. It advances only when a binding is
+visible, and it is generator state rather than input, so terminal construction stays
+byte-free and deterministic. Byte-freeness is not incidental here: terminals are the
+exhaustion fallback, and exhausted reads return zero forever, so spending a byte on
+the choice would decode as one fixed position exactly where diversity is wanted.
 
 The node limit counts recursive expression-generation requests, not final IR
 nodes or builder operations. Terminal construction can itself contain several IR
 nodes when the requested type is composite.
+
+The counter is global to one run and is consumed in pre-order, so operands drawn
+later in a construct are the ones that fall back to terminals. `maximumNodes` must
+therefore stay above the point where a construct's last operand is routinely
+starved; below it, the constructs whose meaning lives in that position degenerate,
+such as a fold's collection or the right-hand side of membership. Raising
+`maximumNodes` from 32 to 128 moved folds over a non-empty collection literal from
+10% to 85% of property-based inputs, at 1.6x the Apalache checking time per input.
+Raising it further is not worthwhile: at 256 the precursor rate roughly doubles
+again but checking time per input grows by more than an order of magnitude,
+because a few very large expressions dominate it.
 
 The default configuration ignores these four categories:
 
@@ -267,10 +335,23 @@ always enabled. The default limits are:
 | --- | ---: | --- |
 | `maximumTypeDepth` | 3 | Maximum nesting depth of generated types. |
 | `maximumExpressionDepth` | 32 | Maximum recursive expression depth. |
-| `maximumNodes` | 32 | Maximum nonterminal expression requests. |
+| `maximumNodes` | 128 | Maximum nonterminal expression requests. |
 | `maximumCollectionSize` | 8 | Maximum generated elements in a variable-size collection. |
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
 | `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |
+
+Selection weights default to one, except:
+
+```toml
+weights = { name = 8, enum_set = 16 }
+```
+
+These come from sweeping each weight against how often an admitted input contains
+a membership test on a fold parameter against a non-empty set literal. The set
+literal dominates: raising its weight from 1 to 16 took that shape from 148 to
+1168 per 20000 admitted inputs, while the same sweep over the name weight barely
+moved it. A weighted terminal measured slightly worse than none, because it
+crowds out the literals that would otherwise be the other side of a comparison.
 
 ## 7. Names and lexical scope
 
@@ -330,15 +411,16 @@ Changes to this subsystem should preserve the following rules:
 
 1. Add a new expression form to the appropriate `ExpressionKind` enum and family
    factory, assigning exactly one primary `ExpressionCategory` and every syntax
-   capability it requires. Append the constant: its position in `ExpressionKinds`
-   is the byte encoding, and `ExpressionKindsTest` pins the whole order, so
+   capability it requires. Append the constant: its position in `ExpressionKindCatalog`
+   is the byte encoding, and `ExpressionKindCatalogTest` pins the whole order, so
    inserting or reordering a constant reinterprets every stored corpus input and
    fails that test.
 2. State result-type constraints in `isTypeApplicable` and dynamic scope
-   constraints in `isScopeApplicable`, both on the kind itself. `IrExprGenFactory`
-   asks the kind; it never names a form. Only `isScopeApplicable` may consult the
-   generation context, because only it is re-evaluated on every draw — the rest of
-   applicability is cached per type.
+   constraints and weight in `selectionWeight`, both on the kind itself.
+   `IrExprGenFactory` asks the kind; it never names a form. Only `selectionWeight`
+   may consult the generation context, because only it is re-evaluated on every
+   draw — the rest of applicability is cached per type. A weight of zero is how a
+   form says the current scope cannot supply what it needs.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
    `scopedBody`, which restrict the extended scope to the construct's body. Create
@@ -348,7 +430,9 @@ Changes to this subsystem should preserve the following rules:
    or `BasicGenerators.listOf` or `byteArray` for other variable-size payloads; do
    not introduce length-prefixed collections.
 6. Obtain all choices from the supplied `Draw`. Do not add hidden randomness.
-7. Provide a closed, byte-free terminal when adding an `IrType` variant.
+7. Provide a closed, byte-free terminal when adding an `IrType` variant. Terminal
+   construction consults the lexical scope first and falls back to that closed
+   expression, so the fallback must remain byte-free and closed.
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
 
@@ -356,5 +440,5 @@ Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog
 completeness, type applicability, lexical visibility, scope restoration,
 terminal construction, determinism, and adversarial inputs. A catalog change must
-retain the one-byte upper bound, update the pinned catalog order, and explicitly
-revise the decoding protocol.
+retain the fixed-width upper bound, update the pinned catalog order, and
+explicitly revise the decoding protocol.

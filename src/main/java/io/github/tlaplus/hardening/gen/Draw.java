@@ -27,6 +27,9 @@ import java.util.Objects;
  * either Arbitrary or Hypothesis.
  */
 public final class Draw {
+    /** Widest fixed index a caller may request, keeping the result within an {@code int}. */
+    private static final int MAXIMUM_INDEX_BYTES = 4;
+
     private final byte[] input;
     private int cursor;
 
@@ -122,6 +125,40 @@ public final class Draw {
         }
         var offset = range == 0 ? value : Long.remainderUnsigned(value, range);
         return minimum + offset;
+    }
+
+    /**
+     * Draws an index in {@code [0, count - 1]} consuming exactly {@code byteCount} bytes.
+     *
+     * <p>Unlike {@link #drawLong(long, long)}, the width is fixed by the caller rather than
+     * derived from {@code count}. A caller whose alternative count varies between draws needs
+     * this: a derived width would change how many bytes one choice costs, which reframes every
+     * byte after it and makes a stored input decode differently for reasons unrelated to that
+     * choice. Bytes are read big-endian and reduced modulo {@code count}, so the balance and
+     * exhaustion properties of {@code drawLong} apply here too, with {@code 256^byteCount}
+     * inputs spread over {@code count} results.
+     *
+     * @throws IllegalArgumentException if {@code count} is not positive, if {@code byteCount} is
+     *     not in {@code 1..4}, or if {@code count} exceeds {@code 256^byteCount}
+     */
+    public int drawIndex(int count, int byteCount) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+        if (byteCount < 1 || byteCount > MAXIMUM_INDEX_BYTES) {
+            throw new IllegalArgumentException(
+                    "byteCount must be in the range 1.." + MAXIMUM_INDEX_BYTES);
+        }
+        var domain = 1L << (byteCount * Byte.SIZE);
+        if (count > domain) {
+            throw new IllegalArgumentException(
+                    "count must not exceed " + domain + " for " + byteCount + " bytes");
+        }
+        long value = 0;
+        for (var index = 0; index < byteCount; index++) {
+            value = (value << Byte.SIZE) | drawByte();
+        }
+        return Math.toIntExact(value % count);
     }
 
     /**
