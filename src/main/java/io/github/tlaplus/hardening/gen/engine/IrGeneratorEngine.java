@@ -26,7 +26,7 @@ public final class IrGeneratorEngine {
      */
     public IrGeneratorEngine(IrGenerationConfig config) {
         this.config = Objects.requireNonNull(config, "config");
-        ExpressionKinds.requireAddressableSlots(config);
+        ExpressionKindCatalog.requireAddressableSlots(config);
     }
 
     /**

@@ -9,13 +9,13 @@ import java.util.List;
  *
  * <p>This order <em>is</em> the byte encoding of a nonterminal choice: family order and each
  * enum's declaration order decide which form a stored input decodes to. Reordering a family or an
- * enum constant therefore reinterprets every corpus entry ever written. {@code ExpressionKindsTest}
+ * enum constant therefore reinterprets every corpus entry ever written. {@code ExpressionKindCatalogTest}
  * pins the order so such a change fails a test instead of silently changing the corpus.
  *
  * <p>The catalog is the upper bound on how many forms one selection can address, so it must stay
  * within {@link #MAXIMUM_SELECTION_SLOTS}.
  */
-public final class ExpressionKinds {
+final class ExpressionKindCatalog {
     /** Selection slots addressable by one fixed-width index. */
     static final int MAXIMUM_SELECTION_SLOTS = 1 << (IrExprGenFactory.SELECTION_BYTES * Byte.SIZE);
 
@@ -28,7 +28,7 @@ public final class ExpressionKinds {
         }
     }
 
-    private ExpressionKinds() {}
+    private ExpressionKindCatalog() {}
 
     /**
      * Checks that no request can present more slots than one index can address.
@@ -51,7 +51,7 @@ public final class ExpressionKinds {
      * Returns every form in decoder order. Family order and each enum's declaration order are the
      * implementation-local byte encoding. The catalog is built once, not during expression draws.
      */
-    public static List<ExpressionKind> all() {
+    static List<ExpressionKind> all() {
         return ALL;
     }
 

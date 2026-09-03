@@ -155,9 +155,9 @@ class TomlConfigTest {
                 assertInvalid(directory, rendered.replace(defaultWeights, "weights = 4"));
         assertTrue(notATable.getMessage().contains("expected 'generator.weights' to be a table"));
 
-        var unknownForm = assertInvalid(
-                directory, rendered.replace(defaultWeights, "weights = { unknown_form = 4 }"));
-        assertTrue(unknownForm.getMessage().contains("unknown expression form 'unknown_form'"));
+        var unknownKind = assertInvalid(
+                directory, rendered.replace(defaultWeights, "weights = { unknown_kind = 4 }"));
+        assertTrue(unknownKind.getMessage().contains("unknown expression kind 'unknown_kind'"));
 
         var notAnInteger = assertInvalid(
                 directory, rendered.replace(defaultWeights, "weights = { name = \"8\" }"));

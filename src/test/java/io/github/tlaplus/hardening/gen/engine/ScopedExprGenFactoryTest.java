@@ -222,7 +222,7 @@ class ScopedExprGenFactoryTest {
                 List.of(bindings),
                 ignored -> {
                     var firstSlot = 0;
-                    for (var kind : ExpressionKinds.all()) {
+                    for (var kind : ExpressionKindCatalog.all()) {
                         if (kind == selectedKind) {
                             return firstSlot;
                         }

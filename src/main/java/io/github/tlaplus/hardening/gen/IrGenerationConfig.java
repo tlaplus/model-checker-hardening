@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen;
 
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
-import io.github.tlaplus.hardening.gen.engine.ExpressionKinds;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
 import java.util.Collections;
@@ -92,7 +91,7 @@ public record IrGenerationConfig(
     /** Returns an unmodifiable snapshot that iterates in declaration order. */
     private static Map<ExpressionKind, Integer> copyOf(Map<ExpressionKind, Integer> weights) {
         var copy = new LinkedHashMap<ExpressionKind, Integer>();
-        for (var kind : ExpressionKinds.all()) {
+        for (var kind : ExpressionKind.all()) {
             if (weights.containsKey(kind)) {
                 copy.put(kind, weights.get(kind));
             }

@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class ExpressionKindsTest {
+class ExpressionKindCatalogTest {
     private static final Map<ExpressionCategory, Set<ExpressionKind>> KINDS_BY_CATEGORY =
             Map.ofEntries(
                     Map.entry(
@@ -347,7 +347,7 @@ class ExpressionKindsTest {
 
     @Test
     void catalogOrderIsTheStoredByteEncoding() {
-        assertEquals(CATALOG_ORDER, ExpressionKinds.all());
+        assertEquals(CATALOG_ORDER, ExpressionKindCatalog.all());
     }
 
     @Test
@@ -359,9 +359,9 @@ class ExpressionKindsTest {
                 + SequenceExpressionKind.values().length
                 + OtherExpressionKind.values().length;
 
-        assertEquals(expectedSize, ExpressionKinds.all().size());
-        assertEquals(expectedSize, new HashSet<>(ExpressionKinds.all()).size());
-        assertTrue(expectedSize <= ExpressionKinds.MAXIMUM_SELECTION_SLOTS);
+        assertEquals(expectedSize, ExpressionKindCatalog.all().size());
+        assertEquals(expectedSize, new HashSet<>(ExpressionKindCatalog.all()).size());
+        assertTrue(expectedSize <= ExpressionKindCatalog.MAXIMUM_SELECTION_SLOTS);
     }
 
     @Test
@@ -374,13 +374,13 @@ class ExpressionKindsTest {
             }
         }
 
-        assertEquals(new HashSet<>(ExpressionKinds.all()), assigned);
+        assertEquals(new HashSet<>(ExpressionKindCatalog.all()), assigned);
     }
 
     @Test
     void requirementsIncludePrimaryCategoriesAndDriveAvailability() {
         var ignoredByDefault = IrGenerationConfig.defaults().ignoredCategories();
-        for (var kind : ExpressionKinds.all()) {
+        for (var kind : ExpressionKindCatalog.all()) {
             var expectedRequirements = new HashSet<ExpressionCategory>();
             expectedRequirements.add(kind.category());
             expectedRequirements.addAll(
@@ -520,9 +520,9 @@ class ExpressionKindsTest {
 
         // The catalog plus the added slots is the worst case any single request can present.
         assertTrue(
-                ExpressionKinds.all().size() + tooMany.additionalSelectionSlots()
-                        <= ExpressionKinds.MAXIMUM_SELECTION_SLOTS);
-        assertDoesNotThrow(() -> ExpressionKinds.requireAddressableSlots(tooMany));
+                ExpressionKindCatalog.all().size() + tooMany.additionalSelectionSlots()
+                        <= ExpressionKindCatalog.MAXIMUM_SELECTION_SLOTS);
+        assertDoesNotThrow(() -> ExpressionKindCatalog.requireAddressableSlots(tooMany));
     }
 
     /**
@@ -537,7 +537,7 @@ class ExpressionKindsTest {
         var expressionFactory = expressionFactory(IrGenerationConfig.defaults());
 
         for (var type : representativeTypes()) {
-            var applicable = ExpressionKinds.all().stream()
+            var applicable = ExpressionKindCatalog.all().stream()
                     .filter(kind -> expressionFactory.isApplicable(kind, type))
                     .toList();
 

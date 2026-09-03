@@ -2,10 +2,9 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
-import io.github.tlaplus.hardening.gen.engine.ExpressionKinds;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -31,7 +30,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                             ExpressionCategory::configName, category -> category));
 
     private static final Map<String, ExpressionKind> KINDS_BY_CONFIG_NAME =
-            ExpressionKinds.all().stream()
+            ExpressionKind.all().stream()
                     .collect(Collectors.toUnmodifiableMap(
                             ExpressionKind::configName, kind -> kind));
 
@@ -105,15 +104,15 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             throw new ConfigException("expected '" + path + "' to be a table");
         }
 
-        var weights = new LinkedHashMap<ExpressionKind, Integer>();
+        var weights = new HashMap<ExpressionKind, Integer>();
         var entries = table.getTable(key);
         for (var name : entries.keySet()) {
-            var form = KINDS_BY_CONFIG_NAME.get(name);
-            if (form == null) {
+            var kind = KINDS_BY_CONFIG_NAME.get(name);
+            if (kind == null) {
                 throw new ConfigException(
-                        "unknown expression form '" + name + "' in '" + path + "'");
+                        "unknown expression kind '" + name + "' in '" + path + "'");
             }
-            weights.put(form, readInt(entries, path + "." + name, name));
+            weights.put(kind, readInt(entries, path + "." + name, name));
         }
         return Map.copyOf(weights);
     }
@@ -123,9 +122,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
         if (weights.isEmpty()) {
             return "{}";
         }
-        return ExpressionKinds.all().stream()
+        return ExpressionKind.all().stream()
                 .filter(weights::containsKey)
-                .map(form -> form.configName() + " = " + weights.get(form))
+                .map(kind -> kind.configName() + " = " + weights.get(kind))
                 .collect(Collectors.joining(", ", "{ ", " }"));
     }
 

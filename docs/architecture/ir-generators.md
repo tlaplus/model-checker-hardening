@@ -1,7 +1,5 @@
 # IR generator architecture
 
-**Author:** OpenAI Codex GPT 5.6-sol max
-
 **Status:** Preliminary description of the implemented design
 
 ## 1. Purpose and scope
@@ -51,8 +49,8 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
-| `ExpressionKind` | Public sealed expression-form abstraction implemented by the six family enums; each implementation is directly configurable. |
-| `ExpressionKinds` | Defines the complete catalog and byte-decoder order of expression kinds. |
+| `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
+| `ExpressionKindCatalog` | Complete catalog in byte-decoder order. |
 | `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory. |
 | `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
 | `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration. |
@@ -255,10 +253,8 @@ selection spends the same probability on a form that consumes the surrounding
 lexical context as on any other, which leaves a generated lambda rarely
 mentioning its parameters and a membership test rarely testing against a
 non-empty literal. Such an expression is well-formed but exercises nothing a
-model checker has to work for. Every `ExpressionKind` implementation accepts a
-weight and supplies its lowercase configuration name. A kind states its weight
-where it already states its scope requirement, and the selector asks the kind
-rather than maintaining a parallel configuration enum.
+model checker has to work for. Every `ExpressionKind` supplies its configuration
+name and selection weight; no parallel configuration enum exists.
 
 `TERMINAL` takes a configured weight only while a binding of the requested type
 is visible, because that is the case where it contributes a name. It applies to
@@ -268,7 +264,7 @@ rather than bias towards the surrounding context.
 A request with exactly one applicable form is dispatched without a draw, since
 nothing is being chosen. That case does not arise today — an enabled type always
 offers the terminal form plus at least one enabled constructor — and
-`ExpressionKindsTest` pins that property, so selection costs the same two bytes
+`ExpressionKindCatalogTest` pins that property, so selection costs the same two bytes
 everywhere.
 
 ## 6. Termination and resource limits
@@ -413,10 +409,10 @@ caller must not mutate that array during generation.
 
 Changes to this subsystem should preserve the following rules:
 
-1. Add a new expression form to the appropriate `ExpressionKind` implementation
-   enum and family factory, assigning exactly one primary `ExpressionCategory` and every syntax
-   capability it requires. Append the constant: its position in `ExpressionKinds`
-   is the byte encoding, and `ExpressionKindsTest` pins the whole order, so
+1. Add a new expression form to the appropriate `ExpressionKind` enum and family
+   factory, assigning exactly one primary `ExpressionCategory` and every syntax
+   capability it requires. Append the constant: its position in `ExpressionKindCatalog`
+   is the byte encoding, and `ExpressionKindCatalogTest` pins the whole order, so
    inserting or reordering a constant reinterprets every stored corpus input and
    fails that test.
 2. State result-type constraints in `isTypeApplicable` and dynamic scope

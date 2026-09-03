@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -17,6 +18,14 @@ public sealed interface ExpressionKind
     /** Slots a form occupies when its weight is not configured. */
     int DEFAULT_WEIGHT = 1;
 
+    /** Returns every expression kind in decoder order. */
+    static List<ExpressionKind> all() {
+        return ExpressionKindCatalog.all();
+    }
+
+    /** Returns the enum constant name. */
+    String name();
+
     /** Reports whether this form can produce the requested type, independent of lexical scope. */
     boolean isTypeApplicable(IrType type);
 
@@ -30,7 +39,7 @@ public sealed interface ExpressionKind
 
     /** Returns the lowercase name used in {@code generator.weights}. */
     default String configName() {
-        return ((Enum<?>) this).name().toLowerCase(Locale.ROOT);
+        return name().toLowerCase(Locale.ROOT);
     }
 
     /** Returns this form's single primary user-facing category. */
@@ -49,7 +58,6 @@ public sealed interface ExpressionKind
         return false;
     }
 
-    /** Builds an immutable requirement set containing the primary category. */
     static Set<ExpressionCategory> requirements(
             ExpressionCategory category, ExpressionCategory... dependencies) {
         var result = EnumSet.of(category);

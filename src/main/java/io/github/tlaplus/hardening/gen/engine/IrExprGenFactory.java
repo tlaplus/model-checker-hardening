@@ -124,7 +124,7 @@ final class IrExprGenFactory {
         }
         return typeApplicableForms.computeIfAbsent(
                 type,
-                requested -> ExpressionKinds.all().stream()
+                requested -> ExpressionKindCatalog.all().stream()
                         .filter(kind ->
                                 !kind.isUnavailableWith(context.config().ignoredCategories()))
                         .filter(kind -> kind.isTypeApplicable(requested))
