@@ -11,7 +11,8 @@ to the function set `[{} -> {}]` and the invariant compares it with the same
 expression. TLC finds no violation. Equality with an identical value must be
 reflexive, so the counterexample is unsound.
 
-Observed twice in the inspected corpus with Apalache 0.62.0.
+Observed twice in the inspected corpus with Apalache 0.62.0 and reproduced with
+Apalache 0.62.2, build `f0dec98`.
 
 ## Reproduction
 

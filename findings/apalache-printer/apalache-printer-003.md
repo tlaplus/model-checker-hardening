@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `PrettyWriter` renders unbounded binders as internal operator calls
@@ -12,6 +12,8 @@ applications. The resulting names are internal IR identifiers, not TLA+
 operators, so SANY rejects the output.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT`.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal examples
 
@@ -58,3 +60,8 @@ failure group.
 syntax and preserve the represented binding structure. Add SANY round-trip
 tests for unbounded `CHOOSE`, `\A`, and `\E`, including nested expressions that
 require grouping against a parent expression.
+
+## Resolution
+
+Apalache 0.62.2 added valid TLA+ rendering for unbounded `CHOOSE`, `\A`, and
+`\E` binders.

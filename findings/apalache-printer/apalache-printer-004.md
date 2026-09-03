@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `PrettyWriter` emits malformed action and fairness syntax
@@ -12,6 +12,8 @@ specialized rendering paths use the wrong delimiters or rely on operator
 precedence where the TLA+ grammar requires a restricted expression.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT`.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal examples
 
@@ -78,3 +80,8 @@ SANY misinterpreted as undeclared operators.
 that is not valid in an unparenthesized restricted position in `[A]_v`,
 `<<A>>_v`, `WF_v(A)`, and `SF_v(A)`. Add SANY round-trip tests for all four
 operators with both bare-name and explicitly grouped subscripts.
+
+## Resolution
+
+Apalache 0.62.2 corrected the delimiters for non-stuttering actions and for
+action and fairness subscripts in `PrettyWriter` output.

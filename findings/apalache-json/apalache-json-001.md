@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `JsonToTlaViaBuilder` cannot read `LABEL` written by `TlaToJson`
@@ -13,6 +13,8 @@ when supplied as TLA+ source.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT` as the writer and
 Apalache 0.62.0 as the reader.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal reproduction
 
@@ -47,13 +49,18 @@ operator name. `BuilderCallByName.nameMap`, used by `JsonToTlaViaBuilder`, omits
 `TlaOper.label`, so it cannot reconstruct the node. Apalache's model-checker
 `LabelRule` otherwise treats a label as its first operand.
 
-## Workaround and TODO
+## Workaround
 
 FuzzTLA recursively replaces `LABEL(expression, ...)` with `expression` only in
 the Apalache JSON representation. SANY and TLC still receive the labeled TLA+
 module.
 
-Add `TlaOper.label` to the checked JSON reader and cover writer-to-reader round
-tripping with a label regression test. Once the pinned Apalache release includes
-that fix, remove FuzzTLA's label erasure and add an integration test that passes
-the unchanged label node to Apalache.
+Now that the pinned Apalache release contains the reader fix, FuzzTLA's label
+erasure can be removed and replaced with an integration test that passes the
+unchanged label node to Apalache.
+
+## Resolution
+
+Apalache 0.62.2 added JSON IR deserialization support for labelled expressions.
+The release notes reference upstream issue
+[`apalache-mc/apalache#3466`](https://github.com/apalache-mc/apalache/issues/3466).

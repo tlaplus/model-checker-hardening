@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `PrettyWriter` does not delimit membership-valued set-map bodies
@@ -11,6 +11,8 @@ a membership expression. SANY interprets the body's `\in` as part of the
 binding syntax that follows the colon and rejects or misparses the result.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT`.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal example
 
@@ -55,3 +57,8 @@ a tuple of bound identifiers.
 `PrettyWriter` should delimit a set-map body whenever its surface syntax can be
 consumed as part of the following binding. Add SANY round-trip tests for scalar
 and tuple membership bodies and for nested set maps.
+
+## Resolution
+
+Apalache 0.62.2 added parentheses around membership-valued set-map bodies so
+SANY does not parse them as map bindings.

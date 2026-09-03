@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `PrettyWriter` uses incorrect precedence intervals for TLA+ operators
@@ -13,6 +13,8 @@ precedence table, so the generic parenthesization test omits required
 parentheses.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT`.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal examples
 
@@ -74,3 +76,9 @@ should be regression cases for the same fix, not separate issues.
 `PrettyWriter` output should parse to the same operator tree represented by the
 input IR. Align the IR metadata with SANY's interval table and add round-trip
 tests for each affected operator in both left- and right-operand positions.
+
+## Resolution
+
+Apalache 0.62.2 aligned these operator priorities with SANY so `PrettyWriter`
+adds the required parentheses around sequential composition and set-prefix
+operators.

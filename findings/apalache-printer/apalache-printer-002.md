@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `PrettyWriter` does not consistently group prefix, prime, and negative operands
@@ -11,6 +11,8 @@ the normal precedence wrapper. The resulting text is ambiguous or lexically
 invalid even where the IR and SANY precedence numbers agree.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT`.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Examples
 
@@ -81,3 +83,8 @@ Every rendered operation, including prime and signed integer values, should be
 grouped against its parent through one precedence-aware path. Add SANY
 round-trip tests for the examples above and for `ENABLED`, `UNCHANGED`, `<>`,
 and `[]` in each affected context.
+
+## Resolution
+
+Apalache 0.62.2 corrected parenthesization of prefix and prime expressions and
+negative integer literals in `PrettyWriter` output.

@@ -13,7 +13,8 @@ inspected corpus contains 20 instances: five over `InfSet`, twelve over
 user to report a bug instead of returning a classified unsupported or
 input-evaluation result.
 
-Observed with Apalache 0.62.0.
+Observed with Apalache 0.62.0 and reproduced with Apalache 0.62.2, build
+`f0dec98`.
 
 ## Representative reproduction
 

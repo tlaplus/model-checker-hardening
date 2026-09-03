@@ -13,6 +13,9 @@ throws `StackOverflowError` instead of producing IR.
 Observed with `org.apalache-mc:tla-ir-java:0.61.1-SNAPSHOT`, Scalaz 7.3.5,
 and OpenJDK 25.0.3.
 
+The Apalache 0.62.2 release source still materializes the builder state with
+`State.run`, so this finding remains open.
+
 ## Regression test
 
 Add this test to

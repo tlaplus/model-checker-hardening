@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `DefaultType1Parser` exhausts the heap on nested JSON type tags
@@ -12,6 +12,8 @@ nested variants exhausts a 1 GiB heap. Complete generated modules fail in
 `SanyParser`, before Snowcat or bounded checking runs.
 
 Observed with Apalache 0.62.0 and OpenJDK 25.0.3.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal reproduction
 
@@ -103,3 +105,9 @@ a deterministic or memoized implementation and add regressions for nested
 variant, record, collection, function, and operator types. Include an
 end-to-end JSON test so the type-reader integration cannot reintroduce the
 resource failure.
+
+## Resolution
+
+Apalache 0.62.2 fixed the exponential backtracking in nested type annotations.
+The release notes reference upstream issue
+[`apalache-mc/apalache#3464`](https://github.com/apalache-mc/apalache/issues/3464).

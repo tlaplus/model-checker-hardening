@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 ---
 
 # `PrettyWriter` does not delimit labels used inside larger expressions
@@ -11,6 +11,8 @@ is an operand of another operator. The writer treats a label as a
 high-precedence operator and omits parentheses required by the TLA+ grammar.
 
 Observed with `org.apalache-mc:tla-io_2.13:0.61.1-SNAPSHOT`.
+
+Fixed in [Apalache 0.62.2](https://github.com/apalache-mc/apalache/releases/tag/v0.62.2).
 
 ## Minimal example
 
@@ -59,3 +61,8 @@ defect.
 another expression whose parse could extend across `::`. Add SANY round-trip
 tests for labels used as operands of infix operators, membership, function
 application, and other extendable expressions.
+
+## Resolution
+
+Apalache 0.62.2 added parentheses around labelled expressions embedded in
+larger `PrettyWriter` output so their grouping is preserved.

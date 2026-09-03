@@ -11,7 +11,8 @@ symbolic sets. It reports `Unexpected equality test over types` even when both
 reported arena types are identical.
 
 The inspected corpus contains three instances: two involving `PowSet` and one
-involving `FinFunSet`. Observed with Apalache 0.62.0.
+involving `FinFunSet`. Observed with Apalache 0.62.0; both representative
+reproductions still fail with Apalache 0.62.2, build `f0dec98`.
 
 ## Power-set reproduction
 
