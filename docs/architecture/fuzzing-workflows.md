@@ -362,4 +362,4 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0001]: ../decisions/0001-stages-and-workers.md
 [ADR 0002]: ../decisions/0002-pbt-richness-score.md
 [ADR 0003]: ../decisions/0003-checker-failure-codes.md
-[the JSON label finding]: ../../findings/apalache-json/issue-001.md
+[the JSON label finding]: ../../findings/apalache-json/apalache-json-001.md

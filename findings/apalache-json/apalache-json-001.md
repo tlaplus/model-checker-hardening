@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `JsonToTlaViaBuilder` cannot read `LABEL` written by `TlaToJson`
 
 ## Summary

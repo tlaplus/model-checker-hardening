@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` does not consistently group prefix, prime, and negative operands
 
 ## Summary
@@ -68,8 +72,8 @@ An exhaustive replay found 8,247 failures in this group:
 - 969 prefix action or temporal operators adjacent to comparison or membership;
 - 399 negative values following `^`, `*`, or `\div`.
 
-Together with the precedence-metadata group in `issue-001.md`, these cases
-account for all 12,231 audited precedence failures.
+Together with the precedence-metadata group in `apalache-printer-001.md`, these
+cases account for all 12,231 audited precedence failures.
 
 ## Expected behavior
 
@@ -77,4 +81,3 @@ Every rendered operation, including prime and signed integer values, should be
 grouped against its parent through one precedence-aware path. Add SANY
 round-trip tests for the examples above and for `ENABLED`, `UNCHANGED`, `<>`,
 and `[]` in each affected context.
-

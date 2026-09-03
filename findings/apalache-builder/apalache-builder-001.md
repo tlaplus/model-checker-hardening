@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `TlaCheckedBuilder.build` overflows on a long valid composition
 
 ## Summary

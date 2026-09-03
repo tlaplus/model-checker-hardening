@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` renders unbounded binders as internal operator calls
 
 ## Summary

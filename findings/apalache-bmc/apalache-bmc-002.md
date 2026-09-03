@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # Empty-domain function sets violate reflexive equality
 
 ## Summary

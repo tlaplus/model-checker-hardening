@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` uses incorrect precedence intervals for TLA+ operators
 
 ## Summary
@@ -70,4 +74,3 @@ should be regression cases for the same fix, not separate issues.
 `PrettyWriter` output should parse to the same operator tree represented by the
 input IR. Align the IR metadata with SANY's interval table and add round-trip
 tests for each affected operator in both left- and right-operand positions.
-

@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` does not delimit labels used inside larger expressions
 
 ## Summary

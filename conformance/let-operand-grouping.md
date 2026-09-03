@@ -26,4 +26,4 @@ Inv == TRUE
 
 TLC applied to `Printed` subtracts a Boolean from an integer. The intended IR
 and `Intended` are well typed. This is the defect filed as
-[`apalache-printer/issue-007`](../findings/apalache-printer/issue-007.md).
+[`apalache-printer/apalache-printer-007`](../findings/apalache-printer/apalache-printer-007.md).

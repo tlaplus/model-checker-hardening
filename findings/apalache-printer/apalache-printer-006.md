@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` does not delimit membership-valued set-map bodies
 
 ## Summary

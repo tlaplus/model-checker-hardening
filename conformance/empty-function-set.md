@@ -22,4 +22,4 @@ Inv == functions = [{} -> {}]
 
 TLC proves the invariant. Apalache 0.62.0 reports a violation at state zero.
 This soundness defect is filed as
-[`apalache-bmc/issue-002`](../findings/apalache-bmc/issue-002.md).
+[`apalache-bmc/apalache-bmc-002`](../findings/apalache-bmc/apalache-bmc-002.md).

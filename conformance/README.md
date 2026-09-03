@@ -15,9 +15,11 @@ IR JSON. For evaluation-order rows, the MWE isolates the TLA+ operation reached
 by the failing checker; feeding that isolated module through the other input
 path need not reproduce the observed pass.
 
-`Share` uses all aggregator deviations as the denominator for aggregator rows
-and all Apalache crash outcomes for crash-derived rows. Percentages are rounded
-to two decimal places, so table rows may not sum exactly to 100%.
+Unless an origin names a corpus, `Share` uses all aggregator deviations in the
+original analyzed session as the denominator for aggregator rows and all
+Apalache crash outcomes for crash-derived rows. Rows marked
+`Aggregator (corpus4)` use corpus4's 4,282 aggregator deviations. Percentages
+are rounded to two decimal places, so table rows may not sum exactly to 100%.
 
 | Origin | Share | TLC | Apalache | Short title | Representative example | Assessment |
 |---|---:|---|---|---|---|---|
@@ -36,16 +38,18 @@ to two decimal places, so table rows may not sum exactly to 100%.
 | Aggregator | 0.06% | 🔴 Fail | 🟢 Pass | Infinite set as state value | [MWE](infinite-set-as-state-value.md#representative-mwe) | TLC representation limit |
 | Aggregator | 0.03% | 🔴 Fail | 🟢 Pass | Union containing an infinite set | [MWE](union-containing-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.03% | 🔴 Fail | 🟢 Pass | Filtering `Nat` | [MWE](filter-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
-| Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | `LET` operand grouping | [MWE](let-operand-grouping.md#representative-mwe) | [Printer defect](../findings/apalache-printer/issue-007.md) |
+| Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Function over an infinite domain | [MWE](function-over-infinite-domain.md#representative-mwe) | TLC representation limit |
+| Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Finite set containing `Nat` | [MWE](finite-set-containing-infinite-set.md#representative-mwe) | TLC representation limit |
+| Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | `LET` operand grouping | [MWE](let-operand-grouping.md#representative-mwe) | [Printer defect](../findings/apalache-printer/apalache-printer-007.md) |
 | Aggregator | 4.04% | 🟢 Pass | 🔴 Fail | Apalache reaches modulo by zero | [MWE](modulo-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 4.01% | 🟢 Pass | 🔴 Fail | Apalache reaches division by zero | [MWE](division-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 1.92% | 🟢 Pass | 🔴 Fail | Unsupported `Seq(S)` | [MWE](sequence-set-unsupported.md#representative-mwe) | Known Apalache limitation |
 | Aggregator | 1.15% | 🟢 Pass | 🔴 Fail | Apalache reaches `0^0` | [MWE](zero-power-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 1.00% | 🟢 Pass | 🔴 Fail | Unsupported `STRING` | [MWE](string-set-unsupported.md#representative-mwe) | Apalache capability limit |
-| Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/issue-002.md) |
+| Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
 | Apalache crash | 0.16% | Supported | Input error | Nonconstant integer range | [MWE](nonconstant-integer-range.md#representative-mwe) | Known Apalache limitation |
-| Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/issue-001.md) |
-| Apalache crash | 0.16% | Varies | Crash | Symbolic-set equality | [MWE](symbolic-set-equality.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/issue-003.md) |
+| Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-001.md) |
+| Apalache crash | 0.16% | Varies | Crash | Symbolic-set equality | [MWE](symbolic-set-equality.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-003.md) |
 | Apalache crash | 0.05% | Varies | Guard | Function-set expansion | [MWE](function-set-expansion-guard.md#representative-mwe) | Intentional resource guard |
 
 Resource-only timeouts and heap exhaustion are excluded because they do not

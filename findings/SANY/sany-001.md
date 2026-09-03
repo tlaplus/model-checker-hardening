@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # SANY crashes while formatting a level error for `%`
 
 ## Summary

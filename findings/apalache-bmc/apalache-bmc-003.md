@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # Equality crashes on symbolic-set arena representations
 
 ## Summary

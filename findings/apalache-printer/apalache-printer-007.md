@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` lets `LET` bodies absorb surrounding operators
 
 ## Summary

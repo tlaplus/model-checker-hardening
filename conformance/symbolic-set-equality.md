@@ -25,4 +25,4 @@ Inv == sets = Rhs
 
 The corpus signature reports `PowSet[Set(Bool)]` on both sides. This defect is
 filed as
-[`apalache-bmc/issue-003`](../findings/apalache-bmc/issue-003.md).
+[`apalache-bmc/apalache-bmc-003`](../findings/apalache-bmc/apalache-bmc-003.md).

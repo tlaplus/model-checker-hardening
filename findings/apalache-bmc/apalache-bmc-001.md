@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `SetFilterRule` throws `NotImplementedError` for symbolic sets
 
 ## Summary

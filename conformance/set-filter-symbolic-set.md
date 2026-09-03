@@ -23,4 +23,4 @@ Inv == TRUE
 
 TLC reports that `Int` is not enumerable. Apalache instead aborts on the
 `InfSet` filter. The shared defect and its other arena variants are filed as
-[`apalache-bmc/issue-001`](../findings/apalache-bmc/issue-001.md).
+[`apalache-bmc/apalache-bmc-001`](../findings/apalache-bmc/apalache-bmc-001.md).

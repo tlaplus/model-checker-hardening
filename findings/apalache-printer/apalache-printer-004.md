@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `PrettyWriter` emits malformed action and fairness syntax
 
 ## Summary

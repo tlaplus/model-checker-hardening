@@ -1,3 +1,7 @@
+---
+state: open
+---
+
 # `DefaultType1Parser` exhausts the heap on nested JSON type tags
 
 ## Summary
