@@ -14,7 +14,7 @@ class IrGenerationConfigTest {
                 new IrGenerationConfig(
                         3,
                         32,
-                        32,
+                        128,
                         8,
                         32,
                         16,

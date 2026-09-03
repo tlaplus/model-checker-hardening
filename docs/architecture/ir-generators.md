@@ -265,6 +265,17 @@ The node limit counts recursive expression-generation requests, not final IR
 nodes or builder operations. Terminal construction can itself contain several IR
 nodes when the requested type is composite.
 
+The counter is global to one run and is consumed in pre-order, so operands drawn
+later in a construct are the ones that fall back to terminals. `maximumNodes` must
+therefore stay above the point where a construct's last operand is routinely
+starved; below it, the constructs whose meaning lives in that position degenerate,
+such as a fold's collection or the right-hand side of membership. Raising
+`maximumNodes` from 32 to 128 moved folds over a non-empty collection literal from
+10% to 85% of property-based inputs, at 1.6x the Apalache checking time per input.
+Raising it further is not worthwhile: at 256 the precursor rate roughly doubles
+again but checking time per input grows by more than an order of magnitude,
+because a few very large expressions dominate it.
+
 The default configuration ignores these four categories:
 
 ```toml
@@ -278,7 +289,7 @@ always enabled. The default limits are:
 | --- | ---: | --- |
 | `maximumTypeDepth` | 3 | Maximum nesting depth of generated types. |
 | `maximumExpressionDepth` | 32 | Maximum recursive expression depth. |
-| `maximumNodes` | 32 | Maximum nonterminal expression requests. |
+| `maximumNodes` | 128 | Maximum nonterminal expression requests. |
 | `maximumCollectionSize` | 8 | Maximum generated elements in a variable-size collection. |
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
 | `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |

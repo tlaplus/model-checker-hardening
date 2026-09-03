@@ -23,7 +23,7 @@ class TomlConfigTest {
         assertEquals(FuzzTlaConfig.defaults(), TomlConfig.read(path));
         assertTrue(Files.readString(path).contains("max_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_sec = 30"));
-        assertTrue(Files.readString(path).contains("max_nodes = 32"));
+        assertTrue(Files.readString(path).contains("max_nodes = 128"));
         assertTrue(Files.readString(path)
                 .contains("ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]"));
         assertTrue(Files.readString(path).contains("max_input_bytes = 10240"));
@@ -124,7 +124,7 @@ class TomlConfigTest {
         var missing = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("max_nodes = 32\n", ""));
+                        .replace("max_nodes = 128\n", ""));
         assertTrue(missing.getMessage().contains("missing generator keys: max_nodes"));
 
         var missingIgnore = assertInvalid(
@@ -223,7 +223,7 @@ class TomlConfigTest {
         var invalidGenerator = assertInvalid(
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
-                        .replace("max_nodes = 32", "max_nodes = 0"));
+                        .replace("max_nodes = 128", "max_nodes = 0"));
         assertTrue(invalidGenerator.getMessage().contains("maximumNodes must be positive"));
 
         var impossibleCorpus = assertInvalid(

@@ -15,7 +15,7 @@ public record IrGenerationConfig(
 
     public static final int DEFAULT_MAXIMUM_TYPE_DEPTH = 3;
     public static final int DEFAULT_MAXIMUM_EXPRESSION_DEPTH = 32;
-    public static final int DEFAULT_MAXIMUM_NODES = 32;
+    public static final int DEFAULT_MAXIMUM_NODES = 128;
     public static final int DEFAULT_MAXIMUM_COLLECTION_SIZE = 8;
     public static final int DEFAULT_MAXIMUM_STRING_BYTES = 32;
     public static final int DEFAULT_MAXIMUM_INTEGER_BYTES = 16;
