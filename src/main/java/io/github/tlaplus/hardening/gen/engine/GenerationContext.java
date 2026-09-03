@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
@@ -48,6 +49,17 @@ final class GenerationContext {
     /** Reports whether an exactly typed binding is currently visible. */
     boolean hasBinding(IrType type) {
         return !scope.matching(type).isEmpty();
+    }
+
+    /**
+     * Returns the innermost visible binding of exactly this type.
+     *
+     * <p>Selecting the innermost match consumes no bytes, which lets byte-free terminal
+     * construction prefer a bound name over a closed constant.
+     */
+    Optional<ScopedName> innermostBinding(IrType type) {
+        var visible = scope.matching(type);
+        return visible.isEmpty() ? Optional.empty() : Optional.of(visible.getFirst());
     }
 
     /** Selects an exactly typed visible binding without inventing a free name. */

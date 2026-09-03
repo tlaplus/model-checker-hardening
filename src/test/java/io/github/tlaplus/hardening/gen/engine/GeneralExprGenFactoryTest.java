@@ -41,6 +41,38 @@ class GeneralExprGenFactoryTest {
     }
 
     @Test
+    void terminalsPreferTheInnermostVisibleBindingOfTheRequestedType() {
+        var fixture = fixture();
+        var outer = new ScopedName("outer", PrimitiveType.INT);
+        var inner = new ScopedName("inner", PrimitiveType.INT);
+        var draw = new Draw(new byte[] {99});
+
+        var printed = draw.draw(fixture.context().withBinding(
+                outer,
+                fixture.context().withBinding(
+                        inner,
+                        innerDraw -> print(
+                                innerDraw.draw(fixture.factory().terminal(PrimitiveType.INT))))));
+
+        assertEquals("inner", printed);
+        assertEquals(1, draw.remaining(), "terminal consumed bytes");
+    }
+
+    @Test
+    void terminalsIgnoreBindingsOfOtherTypesAndOperatorBindings() {
+        var fixture = fixture();
+        var otherType = new ScopedName("text", PrimitiveType.STRING);
+        var operator = new ScopedName(
+                "Op", new OperatorType(List.of(), PrimitiveType.INT));
+
+        var printed = new Draw(new byte[0]).draw(fixture.context().withBindings(
+                List.of(otherType, operator),
+                draw -> print(draw.draw(fixture.factory().terminal(PrimitiveType.INT)))));
+
+        assertEquals("0", printed);
+    }
+
+    @Test
     void modelValueTerminalPrintsAsAQuotedIrValue() {
         var fixture = fixture();
         var expression = new Draw(new byte[0]).draw(
