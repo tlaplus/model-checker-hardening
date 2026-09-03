@@ -5,9 +5,20 @@ const FINDING_LABEL = "finding";
 const FINDING_LABEL_COLOR = "f9d0c4";
 const FINDING_LABEL_DESCRIPTION = "An issue found by the testing framework";
 const FINDING_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[0-9]{3}$/;
+const GITHUB_API_VERSION = "2026-03-10";
 const MANAGED_MARKER_PREFIX = "<!-- finding-sync-id: ";
 const MANAGED_MARKER_PATTERN = /^<!-- finding-sync-id: ([a-z0-9]+(?:-[a-z0-9]+)*) -->$/;
 const GITHUB_ACTIONS_BOT = "github-actions[bot]";
+
+function versionedRequest(parameters) {
+  return {
+    ...parameters,
+    headers: {
+      ...parameters.headers,
+      "X-GitHub-Api-Version": GITHUB_API_VERSION,
+    },
+  };
+}
 
 class FindingFormatError extends Error {
   constructor(sourcePath, message) {
@@ -388,18 +399,22 @@ function planReconciliation(findings, issues, renderOptions) {
 
 async function ensureFindingLabel(github, owner, repo) {
   try {
-    await github.rest.issues.getLabel({ owner, repo, name: FINDING_LABEL });
+    await github.rest.issues.getLabel(
+      versionedRequest({ owner, repo, name: FINDING_LABEL }),
+    );
   } catch (error) {
     if (error.status !== 404) {
       throw error;
     }
-    await github.rest.issues.createLabel({
-      owner,
-      repo,
-      name: FINDING_LABEL,
-      color: FINDING_LABEL_COLOR,
-      description: FINDING_LABEL_DESCRIPTION,
-    });
+    await github.rest.issues.createLabel(
+      versionedRequest({
+        owner,
+        repo,
+        name: FINDING_LABEL,
+        color: FINDING_LABEL_COLOR,
+        description: FINDING_LABEL_DESCRIPTION,
+      }),
+    );
   }
 }
 
@@ -414,22 +429,26 @@ async function executePlan(github, owner, repo, operations, core) {
     }
 
     if (operation.kind === "create") {
-      const response = await github.rest.issues.create({
-        owner,
-        repo,
-        title: operation.desired.title,
-        body: operation.desired.body,
-        labels: [FINDING_LABEL],
-      });
+      const response = await github.rest.issues.create(
+        versionedRequest({
+          owner,
+          repo,
+          title: operation.desired.title,
+          body: operation.desired.body,
+          labels: [FINDING_LABEL],
+        }),
+      );
       counts.created += 1;
       core.info(`${operation.id}: created #${response.data.number}`);
       if (operation.desired.state === "closed") {
-        await github.rest.issues.update({
-          owner,
-          repo,
-          issue_number: response.data.number,
-          state: "closed",
-        });
+        await github.rest.issues.update(
+          versionedRequest({
+            owner,
+            repo,
+            issue_number: response.data.number,
+            state: "closed",
+          }),
+        );
         counts.closed += 1;
       }
       continue;
@@ -437,12 +456,14 @@ async function executePlan(github, owner, repo, operations, core) {
 
     const patchEntries = Object.keys(operation.patch);
     if (patchEntries.length > 0) {
-      await github.rest.issues.update({
-        owner,
-        repo,
-        issue_number: operation.issueNumber,
-        ...operation.patch,
-      });
+      await github.rest.issues.update(
+        versionedRequest({
+          owner,
+          repo,
+          issue_number: operation.issueNumber,
+          ...operation.patch,
+        }),
+      );
       if (operation.patch.state === "open" && operation.previousState === "closed") {
         counts.reopened += 1;
       } else if (operation.patch.state === "closed" && operation.previousState === "open") {
@@ -453,12 +474,14 @@ async function executePlan(github, owner, repo, operations, core) {
       }
     }
     if (operation.addLabel) {
-      await github.rest.issues.addLabels({
-        owner,
-        repo,
-        issue_number: operation.issueNumber,
-        labels: [FINDING_LABEL],
-      });
+      await github.rest.issues.addLabels(
+        versionedRequest({
+          owner,
+          repo,
+          issue_number: operation.issueNumber,
+          labels: [FINDING_LABEL],
+        }),
+      );
       counts.updated += 1;
     }
     core.info(`${operation.id}: synchronized #${operation.issueNumber}`);
@@ -470,12 +493,15 @@ async function executePlan(github, owner, repo, operations, core) {
 async function synchronize({ github, context, core }) {
   const findings = loadFindings();
   const { owner, repo } = context.repo;
-  const issues = await github.paginate(github.rest.issues.listForRepo, {
-    owner,
-    repo,
-    state: "all",
-    per_page: 100,
-  });
+  const issues = await github.paginate(
+    github.rest.issues.listForRepo,
+    versionedRequest({
+      owner,
+      repo,
+      state: "all",
+      per_page: 100,
+    }),
+  );
   const renderOptions = {
     serverUrl: process.env.GITHUB_SERVER_URL || "https://github.com",
     repository: `${owner}/${repo}`,
@@ -528,3 +554,4 @@ module.exports.parseFinding = parseFinding;
 module.exports.planReconciliation = planReconciliation;
 module.exports.renderIssue = renderIssue;
 module.exports.rewriteRelativeLinks = rewriteRelativeLinks;
+module.exports.versionedRequest = versionedRequest;

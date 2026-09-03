@@ -209,5 +209,10 @@ test("executes planned mutations through Octokit", async () => {
     calls.map(([method]) => method),
     ["create", "update", "update", "addLabels"],
   );
+  assert.ok(
+    calls.every(
+      ([, request]) => request.headers["X-GitHub-Api-Version"] === "2026-03-10",
+    ),
+  );
   assert.deepEqual(counts, { created: 1, updated: 1, reopened: 1, closed: 1, unchanged: 0 });
 });
