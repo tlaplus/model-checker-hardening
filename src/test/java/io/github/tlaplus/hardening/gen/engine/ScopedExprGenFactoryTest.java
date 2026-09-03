@@ -231,10 +231,19 @@ class ScopedExprGenFactoryTest {
                 }));
     }
 
-    private byte[] bytes(int... values) {
-        var result = new byte[values.length];
-        for (var index = 0; index < values.length; index++) {
-            result[index] = (byte) values[index];
+    /**
+     * Encodes one form selection per value at the protocol's fixed selection width. Hand-packing
+     * a byte per value would silently desynchronize the moment that width changes.
+     */
+    private byte[] bytes(int... selections) {
+        var result = new byte[selections.length * IrExprGenFactory.SELECTION_BYTES];
+        for (var index = 0; index < selections.length; index++) {
+            var value = selections[index];
+            for (var offset = 0; offset < IrExprGenFactory.SELECTION_BYTES; offset++) {
+                var shift = Byte.SIZE * (IrExprGenFactory.SELECTION_BYTES - 1 - offset);
+                result[index * IrExprGenFactory.SELECTION_BYTES + offset] =
+                        (byte) (value >> shift);
+            }
         }
         return result;
     }

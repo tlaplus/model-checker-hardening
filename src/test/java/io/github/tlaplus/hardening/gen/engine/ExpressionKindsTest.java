@@ -360,7 +360,7 @@ class ExpressionKindsTest {
 
         assertEquals(expectedSize, ExpressionKinds.all().size());
         assertEquals(expectedSize, new HashSet<>(ExpressionKinds.all()).size());
-        assertTrue(expectedSize <= 256);
+        assertTrue(expectedSize <= ExpressionKinds.MAXIMUM_SELECTION_SLOTS);
     }
 
     @Test
@@ -429,8 +429,60 @@ class ExpressionKindsTest {
     }
 
     @Test
-    void everyRepresentativeTypeUsesOneByteForItsTerminalChoice() {
-        var types = List.<IrType>of(
+    void everyRepresentativeTypeUsesTheFixedSelectionWidth() {
+        for (var type : representativeTypes()) {
+            var draw = new Draw(new byte[] {0, 0, 99});
+            var context = new GenerationContext(IrGenerationConfig.defaults());
+            var typeFactory = new IrTypeGenFactory(context);
+            var expressionFactory = new IrExprGenFactory(context, typeFactory);
+
+            draw.draw(expressionFactory.mkGen(type, 1));
+
+            assertEquals(1, draw.remaining(), () -> "unexpected consumption for " + type);
+        }
+    }
+
+    /**
+     * The selector skips the draw when only one form applies, because choosing nothing must not
+     * shift later bytes. That branch is defensive: an enabled type always offers {@code TERMINAL}
+     * plus at least one enabled constructor, which is what makes the selection width uniform in
+     * practice. This pins that property, so a change making some type degenerate is visible here
+     * rather than as an unexplained shift in how corpus inputs decode.
+     */
+    @Test
+    void everyRepresentativeTypeOffersMoreThanOneForm() {
+        var expressionFactory = expressionFactory(IrGenerationConfig.defaults());
+
+        for (var type : representativeTypes()) {
+            var applicable = ExpressionKinds.all().stream()
+                    .filter(kind -> expressionFactory.isApplicable(kind, type))
+                    .toList();
+
+            assertTrue(
+                    applicable.size() > 1,
+                    () -> "selection is degenerate for " + type + ": " + applicable);
+        }
+    }
+
+    @Test
+    void constructingExpressionGeneratorsDoesNotSpendNodeBudgetOrBytes() {
+        var draw = new Draw(new byte[] {0, 0, 99});
+        var context = new GenerationContext(IrGenerationConfig.defaults());
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+
+        for (var index = 0; index < 100; index++) {
+            expressionFactory.mkGen(PrimitiveType.BOOL, 1);
+        }
+
+        assertEquals(3, draw.remaining());
+        draw.draw(expressionFactory.mkGen(PrimitiveType.BOOL, 1));
+        assertEquals(1, draw.remaining());
+    }
+
+    /** One type per {@link IrType} variant, covering every family of the catalog. */
+    private List<IrType> representativeTypes() {
+        return List.of(
                 PrimitiveType.BOOL,
                 PrimitiveType.INT,
                 PrimitiveType.STRING,
@@ -442,33 +494,6 @@ class ExpressionKindsTest {
                 new RecordType(List.of(new Field("field", PrimitiveType.BOOL))),
                 new VariantType(List.of(new Field("Tag", PrimitiveType.INT))),
                 new OperatorType(List.of(PrimitiveType.BOOL), PrimitiveType.INT));
-
-        for (var type : types) {
-            var draw = new Draw(new byte[] {0, 99});
-            var context = new GenerationContext(IrGenerationConfig.defaults());
-            var typeFactory = new IrTypeGenFactory(context);
-            var expressionFactory = new IrExprGenFactory(context, typeFactory);
-
-            draw.draw(expressionFactory.mkGen(type, 1));
-
-            assertEquals(1, draw.remaining(), () -> "unexpected consumption for " + type);
-        }
-    }
-
-    @Test
-    void constructingExpressionGeneratorsDoesNotSpendNodeBudgetOrBytes() {
-        var draw = new Draw(new byte[] {0, 99});
-        var context = new GenerationContext(IrGenerationConfig.defaults());
-        var typeFactory = new IrTypeGenFactory(context);
-        var expressionFactory = new IrExprGenFactory(context, typeFactory);
-
-        for (var index = 0; index < 100; index++) {
-            expressionFactory.mkGen(PrimitiveType.BOOL, 1);
-        }
-
-        assertEquals(2, draw.remaining());
-        draw.draw(expressionFactory.mkGen(PrimitiveType.BOOL, 1));
-        assertEquals(1, draw.remaining());
     }
 
     private IrExprGenFactory expressionFactory(IrGenerationConfig config) {

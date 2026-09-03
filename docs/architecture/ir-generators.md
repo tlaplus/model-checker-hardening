@@ -122,6 +122,9 @@ The primitive mappings are:
   inclusive range. It interprets them in big-endian order and applies unsigned
   modulo reduction.
 - A choice draws a bounded index and selects the corresponding list element.
+- A fixed-width index consumes a byte count chosen by the caller rather than one
+  derived from the number of alternatives, and reduces the big-endian value
+  modulo that number.
 - Once the input is exhausted, byte reads return zero without advancing the
   cursor. Choices consequently prefer their first alternative.
 
@@ -130,6 +133,13 @@ width: each alternative receives either the floor or ceiling of the available
 byte patterns divided by the number of alternatives. The decoder does not use
 rejection sampling because variable retry counts would shift the interpretation
 of all subsequent bytes.
+
+A derived width has the same defect whenever the number of alternatives is not
+fixed by the format. Expression-form selection is such a case: how many forms
+apply depends on the requested type and on the current lexical scope, so a width
+derived from that count would change how many bytes one choice costs, reframing
+every byte after it for a reason unrelated to the choice. Form selection
+therefore uses a fixed-width index.
 
 Variable-size values use continuation markers rather than length prefixes.
 `BasicGenerators.listOf` and `byteArray` first generate their mandatory elements.
@@ -230,11 +240,18 @@ may use for the requested type: those whose requirements are not ignored by the
 configuration and whose result type matches. That set depends only on the type,
 so it is computed once per type and reused, in catalog order. The factory then
 scans it twice, checking only lexical scope, which is the one condition that
-changes between draws. The first scan counts the applicable forms, one bounded
-index selects among them, and the second scan dispatches only the selected form.
-Unavailable forms consume neither a selection slot nor operand bytes. The complete
-catalog must fit in 256 entries, so current form selection uses one byte and
-distributes its 256 values as evenly as possible.
+changes between draws. The first scan counts the applicable forms, one
+fixed-width index selects among them, and the second scan dispatches only the
+selected form. Unavailable forms consume neither a selection slot nor operand
+bytes. Selection spends two bytes and distributes their 65536 values as evenly as
+possible, so the catalog must fit in 65536 entries. The width is fixed rather
+than derived from the applicable count, for the reason given in section 4.
+
+A request with exactly one applicable form is dispatched without a draw, since
+nothing is being chosen. That case does not arise today — an enabled type always
+offers the terminal form plus at least one enabled constructor — and
+`ExpressionKindsTest` pins that property, so selection costs the same two bytes
+everywhere.
 
 ## 6. Termination and resource limits
 
@@ -380,5 +397,5 @@ Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog
 completeness, type applicability, lexical visibility, scope restoration,
 terminal construction, determinism, and adversarial inputs. A catalog change must
-retain the one-byte upper bound, update the pinned catalog order, and explicitly
-revise the decoding protocol.
+retain the fixed-width upper bound, update the pinned catalog order, and
+explicitly revise the decoding protocol.

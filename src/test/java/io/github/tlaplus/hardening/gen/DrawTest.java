@@ -70,6 +70,52 @@ class DrawTest {
     }
 
     @Test
+    void fixedWidthIndicesConsumeTheirWidthWhateverTheCount() {
+        for (var count : List.of(1, 2, 37, 256, 257, 65536)) {
+            var draw = new Draw(new byte[] {1, 2, 99});
+
+            var index = draw.drawIndex(count, 2);
+
+            assertTrue(index >= 0 && index < count);
+            assertEquals(1, draw.remaining(), () -> "unexpected consumption for " + count);
+        }
+    }
+
+    @Test
+    void fixedWidthIndicesReadBigEndianAndReduceModuloTheCount() {
+        assertEquals(0x0102, new Draw(new byte[] {1, 2}).drawIndex(65536, 2));
+        assertEquals(0x0102 % 37, new Draw(new byte[] {1, 2}).drawIndex(37, 2));
+        assertEquals(0, new Draw(new byte[0]).drawIndex(37, 2));
+    }
+
+    @Test
+    void twoByteIndicesAreOptimallyBalancedWithoutRejection() {
+        for (var count : List.of(3, 37, 255)) {
+            var counts = new int[count];
+            for (var input = 0; input < 65536; input++) {
+                var draw = new Draw(new byte[] {(byte) (input >> 8), (byte) input});
+                counts[draw.drawIndex(count, 2)]++;
+                assertTrue(draw.isEmpty());
+            }
+
+            var floor = 65536 / count;
+            var ceiling = (65536 + count - 1) / count;
+            for (var occurrences : counts) {
+                assertTrue(occurrences == floor || occurrences == ceiling);
+            }
+        }
+    }
+
+    @Test
+    void fixedWidthIndicesRejectCountsTheWidthCannotAddress() {
+        assertThrows(
+                IllegalArgumentException.class, () -> new Draw(new byte[0]).drawIndex(257, 1));
+        assertThrows(IllegalArgumentException.class, () -> new Draw(new byte[0]).drawIndex(0, 2));
+        assertThrows(IllegalArgumentException.class, () -> new Draw(new byte[0]).drawIndex(2, 0));
+        assertThrows(IllegalArgumentException.class, () -> new Draw(new byte[0]).drawIndex(2, 5));
+    }
+
+    @Test
     void oneByteRangesAreOptimallyBalancedWithoutRejection() {
         for (var size : List.of(3, 10, 63, 127, 256)) {
             var counts = new int[size];

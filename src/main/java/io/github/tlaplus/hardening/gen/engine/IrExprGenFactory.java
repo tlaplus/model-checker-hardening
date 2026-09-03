@@ -9,6 +9,9 @@ import java.util.Map;
 
 /** Factory for deferred, type-directed expression generators within one generation run. */
 final class IrExprGenFactory {
+    /** Fixed width of one nonterminal form selection, in bytes. */
+    static final int SELECTION_BYTES = 2;
+
     private final GenerationContext context;
     private final IrTypeGenFactory typeFactory;
     private final Map<IrType, List<ExpressionKind>> typeApplicableForms = new HashMap<>();
@@ -39,11 +42,16 @@ final class IrExprGenFactory {
      *
      * <p>Configured category exclusions, type applicability, and current lexical-scope
      * applicability are evaluated before the index is drawn, and only the selected form is built.
-     * The catalog contains at most 256 entries, so every nonterminal selection consumes exactly one
-     * byte. Modulo reduction maps the 256 byte values round-robin over the applicable forms,
-     * assigning each form either the floor or ceiling of {@code 256 / formCount} values. Rejection
+     * The index has a fixed width of {@link #SELECTION_BYTES} bytes, so a nonterminal selection
+     * costs the same regardless of how many forms happen to be applicable. Deriving that width
+     * from the applicable count instead would let a change in type or lexical scope reframe every
+     * byte after the choice. Modulo reduction maps the values of those bytes round-robin over the
+     * applicable forms, assigning each either the floor or ceiling of its share. Rejection
      * sampling is intentionally avoided because its variable consumption would make
      * mutation-fuzzer inputs sensitive to preceding choices.
+     *
+     * <p>A type with exactly one applicable form is dispatched without a draw. Nothing is being
+     * chosen there, so spending bytes on it would only shift the rest of the input.
      */
     Generator<TlaEx> mkGen(IrType type, int remainingDepth) {
         return draw -> {
@@ -70,7 +78,7 @@ final class IrExprGenFactory {
                         "no expression form can produce type " + type);
             }
 
-            var selected = Math.toIntExact(draw.drawLong(0, formCount - 1L));
+            var selected = formCount == 1 ? 0 : draw.drawIndex(formCount, SELECTION_BYTES);
             for (var kind : candidates) {
                 if (kind.isScopeApplicable(context, type) && selected-- == 0) {
                     return draw.draw(mkGen(kind, type, remainingDepth));
