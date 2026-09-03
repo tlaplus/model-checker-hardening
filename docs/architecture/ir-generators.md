@@ -280,21 +280,36 @@ conditions holds:
 - the expression-request counter reaches `maximumNodes`; or
 - the input cursor is exhausted.
 
-Terminal construction is byte-free. When a binding of exactly the requested type
-is lexically visible, the terminal is the innermost such name; the innermost match
-is used because it needs no bytes to select. Otherwise every `IrType` has a closed
-terminal expression: `FALSE`, zero, the empty string, empty sets and sequences,
-componentwise terminal tuples and records, an empty-domain function, and a lambda
-for an operator type. Operator types always take the lambda terminal, because an
-operator name is not a value. An empty input therefore selects Boolean as its root
-type and produces `FALSE`.
+Terminal construction is byte-free. When bindings of exactly the requested type are
+lexically visible, successive terminals rotate over them, innermost first, and then
+the closed terminal. Otherwise every `IrType` has a closed terminal expression:
+`FALSE`, zero, the empty string, empty sets and sequences, componentwise terminal
+tuples and records, an empty-domain function, and a lambda for an operator type.
+Operator types always take the lambda terminal, because an operator name is not a
+value. An empty input therefore selects Boolean as its root type and produces
+`FALSE`.
 
-Preferring a visible name matters because terminals are the most common leaf: with
-a closed-constant-only terminal, a starved lambda body, quantifier body, or
+Using a visible name matters because terminals are the most common leaf: with a
+closed-constant-only terminal, a starved lambda body, quantifier body, or
 comprehension ignores the name it just introduced, and constructs whose meaning
 depends on that name degenerate. Measured over property-based inputs, 3-9% of
 generated fold lambdas referenced any of their own parameters before this rule and
-80-91% after it.
+about 81% after it.
+
+Rotating, rather than always taking the innermost match, is what keeps that from
+overshooting. Returning one name unconditionally makes every starved leaf of a type
+in a scope the same name, so same-type sibling leaves collapse into tautologies such
+as `x = x` and `x \in {x}`, which a model checker folds away before reaching
+anything worth testing. Rotation halves that: measured on singleton membership tests
+whose left side is a fold parameter, tautologies fell from 30 of 50 to 19 of 45.
+
+The rotation position is kept per type rather than in one counter, because a terminal
+of an unrelated type would otherwise shift the phase between two same-type siblings
+and reinstate the collapse about half the time. It advances only when a binding is
+visible, and it is generator state rather than input, so terminal construction stays
+byte-free and deterministic. Byte-freeness is not incidental here: terminals are the
+exhaustion fallback, and exhausted reads return zero forever, so spending a byte on
+the choice would decode as one fixed position exactly where diversity is wanted.
 
 The node limit counts recursive expression-generation requests, not final IR
 nodes or builder operations. Terminal construction can itself contain several IR

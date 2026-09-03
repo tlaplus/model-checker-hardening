@@ -3,7 +3,9 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -19,6 +21,7 @@ final class GenerationContext {
     private final TlaTypedScopeUncheckedBuilder builder =
             new TlaTypedScopeUncheckedBuilder();
     private final NameScope scope = new NameScope();
+    private final Map<IrType, Integer> terminalRotation = new HashMap<>();
     private int nameCount;
     private int fieldCount;
 
@@ -52,14 +55,29 @@ final class GenerationContext {
     }
 
     /**
-     * Returns the innermost visible binding of exactly this type.
+     * Returns the next terminal for this type, rotating over the visible bindings and then the
+     * closed terminal, which an empty result stands for.
      *
-     * <p>Selecting the innermost match consumes no bytes, which lets byte-free terminal
-     * construction prefer a bound name over a closed constant.
+     * <p>The rotation consumes no bytes, which is what lets byte-free terminal construction use a
+     * bound name at all. Returning the innermost binding every time instead would make every
+     * starved leaf of a type in one scope the same name, collapsing same-type sibling leaves into
+     * tautologies such as {@code x = x} and {@code x \in {x}} that a model checker folds away
+     * before reaching anything interesting.
+     *
+     * <p>The position is kept per type rather than in one counter, because a terminal of an
+     * unrelated type would otherwise shift the phase between two same-type siblings and reinstate
+     * that collapse about half the time. It advances only when a binding is visible; with nothing
+     * to rotate over, leaving it alone keeps the phase meaningful for the scopes that have one.
      */
-    Optional<ScopedName> innermostBinding(IrType type) {
+    Optional<ScopedName> nextTerminalBinding(IrType type) {
         var visible = scope.matching(type);
-        return visible.isEmpty() ? Optional.empty() : Optional.of(visible.getFirst());
+        if (visible.isEmpty()) {
+            return Optional.empty();
+        }
+        // The closed terminal is the last candidate of every cycle.
+        var position = terminalRotation.merge(type, 1, Integer::sum) - 1;
+        var choice = Math.floorMod(position, visible.size() + 1);
+        return choice == visible.size() ? Optional.empty() : Optional.of(visible.get(choice));
     }
 
     /** Selects an exactly typed visible binding without inventing a free name. */

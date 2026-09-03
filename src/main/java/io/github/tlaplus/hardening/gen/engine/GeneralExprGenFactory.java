@@ -60,16 +60,17 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
     /**
      * Returns a byte-free generator of a closed expression for the requested type.
      *
-     * <p>When a binding of exactly this type is visible, the innermost one is used. Terminal
-     * construction is the most common leaf, so preferring a bound name is what makes a starved
-     * lambda body, quantifier body, or comprehension refer to the name it just introduced instead
-     * of a constant unrelated to it. Operator types keep their lambda terminal, because an
-     * operator name is not a value.
+     * <p>Terminal construction is the most common leaf, so what it returns decides whether a
+     * starved lambda body, quantifier body, or comprehension refers to the name it just
+     * introduced or to a constant unrelated to it. When bindings of exactly this type are
+     * visible, successive terminals rotate over them and then the closed terminal, so that two
+     * sibling leaves differ rather than collapsing into a tautology. Operator types keep their
+     * lambda terminal, because an operator name is not a value.
      */
     Generator<TlaEx> terminal(IrType type) {
         return draw -> {
             if (!(type instanceof OperatorType)) {
-                var binding = context.innermostBinding(type);
+                var binding = context.nextTerminalBinding(type);
                 if (binding.isPresent()) {
                     return builder().name(binding.get().name(), type.toTlaType());
                 }
