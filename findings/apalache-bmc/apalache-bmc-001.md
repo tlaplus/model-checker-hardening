@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # `SetFilterRule` throws `NotImplementedError` for symbolic sets

@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `PrettyWriter` does not consistently group prefix, prime, and negative operands

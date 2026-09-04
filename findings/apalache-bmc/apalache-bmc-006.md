@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # `CherryPick` cannot select symbolic-set values from a finite set

@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [sany]
 ---
 
 # SANY rejects labels inside `EXCEPT` clauses

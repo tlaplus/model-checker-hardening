@@ -2,8 +2,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const FINDING_LABEL = "finding";
-const FINDING_LABEL_COLOR = "f9d0c4";
-const FINDING_LABEL_DESCRIPTION = "An issue found by the testing framework";
+const LABEL_CATALOG = new Map([
+  [FINDING_LABEL, { color: "f9d0c4", description: "An issue found by the testing framework" }],
+  ["apalache", { color: "7057ff", description: "A finding affecting Apalache" }],
+  ["sany", { color: "1d76db", description: "A finding affecting SANY" }],
+  ["tlc", { color: "0e8a16", description: "A finding affecting TLC" }],
+]);
+const TOOL_LABELS = new Set([...LABEL_CATALOG.keys()].filter((label) => label !== FINDING_LABEL));
 const FINDING_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[0-9]{3}$/;
 const GITHUB_API_VERSION = "2026-03-10";
 const MANAGED_MARKER_PREFIX = "<!-- finding-sync-id: ";
@@ -43,12 +48,12 @@ function parseFrontMatter(sourcePath, lines) {
     if (line.trim() === "") {
       continue;
     }
-    const match = /^([a-z]+):\s*(\S+)\s*$/.exec(line);
+    const match = /^([a-z]+):\s*(.*?)\s*$/.exec(line);
     if (!match) {
       throw new FindingFormatError(sourcePath, `invalid front-matter line: ${line}`);
     }
     const [, key, value] = match;
-    if (key !== "state") {
+    if (key !== "state" && key !== "labels") {
       throw new FindingFormatError(sourcePath, `unknown front-matter field: ${key}`);
     }
     if (metadata.has(key)) {
@@ -62,7 +67,28 @@ function parseFrontMatter(sourcePath, lines) {
     throw new FindingFormatError(sourcePath, "state must be open or closed");
   }
 
-  return { state, bodyStart: closingIndex + 1 };
+  const labelsValue = metadata.get("labels");
+  const labelsMatch = /^\[([^\]]*)\]$/.exec(labelsValue || "");
+  if (!labelsMatch) {
+    throw new FindingFormatError(sourcePath, "labels must be a non-empty inline YAML list");
+  }
+  const labels = labelsMatch[1].split(",").map((label) => label.trim()).filter(Boolean);
+  if (labels.length === 0) {
+    throw new FindingFormatError(sourcePath, "labels must be a non-empty inline YAML list");
+  }
+  if (new Set(labels).size !== labels.length) {
+    throw new FindingFormatError(sourcePath, "labels must not contain duplicates");
+  }
+  for (const label of labels) {
+    if (!TOOL_LABELS.has(label)) {
+      throw new FindingFormatError(
+        sourcePath,
+        `unknown label ${label}; expected one of ${[...TOOL_LABELS].join(", ")}`,
+      );
+    }
+  }
+
+  return { state, labels, bodyStart: closingIndex + 1 };
 }
 
 function findingId(sourcePath) {
@@ -148,7 +174,7 @@ function parseFinding(sourcePath, text) {
     throw new FindingFormatError(sourcePath, "contains the reserved synchronization marker");
   }
   const lines = normalized.split("\n");
-  const { state, bodyStart } = parseFrontMatter(sourcePath, lines);
+  const { state, labels, bodyStart } = parseFrontMatter(sourcePath, lines);
   const id = findingId(sourcePath);
 
   let titleIndex = bodyStart;
@@ -176,6 +202,7 @@ function parseFinding(sourcePath, text) {
   return {
     id,
     state,
+    labels,
     title,
     summary: findSummary(sourcePath, lines, titleIndex + 1),
     sourcePath,
@@ -302,7 +329,19 @@ function renderIssue(finding, options) {
 }
 
 function issueLabels(issue) {
-  return (issue.labels || []).map((label) => (typeof label === "string" ? label : label.name));
+  return (issue.labels || [])
+    .map((label) => (typeof label === "string" ? label : label.name))
+    .filter(Boolean);
+}
+
+function sameLabels(first, second) {
+  return first.length === second.length && first.every((label) => second.includes(label));
+}
+
+function synchronizedLabels(finding, issue) {
+  const desiredManaged = [FINDING_LABEL, ...finding.labels];
+  const unmanaged = issueLabels(issue).filter((label) => !LABEL_CATALOG.has(label));
+  return [...unmanaged, ...desiredManaged];
 }
 
 function managedIssueId(issue) {
@@ -349,6 +388,7 @@ function planReconciliation(findings, issues, renderOptions) {
       title: finding.title,
       body: renderIssue(finding, renderOptions),
       state: finding.state,
+      labels: [FINDING_LABEL, ...finding.labels],
     };
     const issue = managed.get(finding.id);
     if (!issue) {
@@ -366,13 +406,14 @@ function planReconciliation(findings, issues, renderOptions) {
     if (issue.state !== desired.state) {
       patch.state = desired.state;
     }
-    const addLabel = !issueLabels(issue).includes(FINDING_LABEL);
+    const labels = synchronizedLabels(finding, issue);
+    const labelsChanged = !sameLabels(issueLabels(issue), labels);
     operations.push({
-      kind: Object.keys(patch).length > 0 || addLabel ? "update" : "unchanged",
+      kind: Object.keys(patch).length > 0 || labelsChanged ? "update" : "unchanged",
       id: finding.id,
       issueNumber: issue.number,
       patch,
-      addLabel,
+      labels: labelsChanged ? labels : null,
       previousState: issue.state,
     });
   }
@@ -382,13 +423,16 @@ function planReconciliation(findings, issues, renderOptions) {
       continue;
     }
     const patch = issue.state === "open" ? { state: "closed" } : {};
-    const addLabel = !issueLabels(issue).includes(FINDING_LABEL);
+    const currentLabels = issueLabels(issue);
+    const labels = currentLabels.includes(FINDING_LABEL)
+      ? null
+      : [...currentLabels, FINDING_LABEL];
     operations.push({
-      kind: Object.keys(patch).length > 0 || addLabel ? "update" : "unchanged",
+      kind: Object.keys(patch).length > 0 || labels ? "update" : "unchanged",
       id,
       issueNumber: issue.number,
       patch,
-      addLabel,
+      labels,
       previousState: issue.state,
       removed: true,
     });
@@ -397,24 +441,18 @@ function planReconciliation(findings, issues, renderOptions) {
   return operations;
 }
 
-async function ensureFindingLabel(github, owner, repo) {
-  try {
-    await github.rest.issues.getLabel(
-      versionedRequest({ owner, repo, name: FINDING_LABEL }),
-    );
-  } catch (error) {
-    if (error.status !== 404) {
-      throw error;
+async function ensureLabels(github, owner, repo) {
+  for (const [name, properties] of LABEL_CATALOG) {
+    try {
+      await github.rest.issues.getLabel(versionedRequest({ owner, repo, name }));
+    } catch (error) {
+      if (error.status !== 404) {
+        throw error;
+      }
+      await github.rest.issues.createLabel(
+        versionedRequest({ owner, repo, name, ...properties }),
+      );
     }
-    await github.rest.issues.createLabel(
-      versionedRequest({
-        owner,
-        repo,
-        name: FINDING_LABEL,
-        color: FINDING_LABEL_COLOR,
-        description: FINDING_LABEL_DESCRIPTION,
-      }),
-    );
   }
 }
 
@@ -435,7 +473,7 @@ async function executePlan(github, owner, repo, operations, core) {
           repo,
           title: operation.desired.title,
           body: operation.desired.body,
-          labels: [FINDING_LABEL],
+          labels: operation.desired.labels,
         }),
       );
       counts.created += 1;
@@ -473,13 +511,13 @@ async function executePlan(github, owner, repo, operations, core) {
         counts.updated += 1;
       }
     }
-    if (operation.addLabel) {
-      await github.rest.issues.addLabels(
+    if (operation.labels) {
+      await github.rest.issues.setLabels(
         versionedRequest({
           owner,
           repo,
           issue_number: operation.issueNumber,
-          labels: [FINDING_LABEL],
+          labels: operation.labels,
         }),
       );
       counts.updated += 1;
@@ -509,7 +547,7 @@ async function synchronize({ github, context, core }) {
   };
   const operations = planReconciliation(findings, issues, renderOptions);
 
-  await ensureFindingLabel(github, owner, repo);
+  await ensureLabels(github, owner, repo);
   const counts = await executePlan(github, owner, repo, operations, core);
   await core.summary
     .addHeading("Finding synchronization")

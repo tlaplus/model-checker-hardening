@@ -12,9 +12,10 @@ const RENDER_OPTIONS = {
   branch: "main",
 };
 
-function findingText({ state = "open", title = "A defect" } = {}) {
+function findingText({ state = "open", labels = ["apalache"], title = "A defect" } = {}) {
   return `---
 state: ${state}
+labels: [${labels.join(", ")}]
 ---
 
 # ${title}
@@ -41,7 +42,7 @@ function remoteIssue(finding, overrides = {}) {
     title: finding.title,
     body: syncFindings.renderIssue(finding, RENDER_OPTIONS),
     state: finding.state,
-    labels: [{ name: "finding" }, { name: "triage" }],
+    labels: [{ name: "finding" }, ...finding.labels.map((name) => ({ name })), { name: "triage" }],
     user: { login: "github-actions[bot]" },
     ...overrides,
   };
@@ -52,6 +53,7 @@ test("derives the id from the filename and parses title, state, and Summary", ()
 
   assert.equal(finding.id, "tool-001");
   assert.equal(finding.state, "open");
+  assert.deepEqual(finding.labels, ["apalache"]);
   assert.equal(finding.title, "A defect");
   assert.match(finding.summary, /## This is not a section/);
   assert.doesNotMatch(finding.summary, /Details that must not enter/);
@@ -65,6 +67,10 @@ test("rejects malformed metadata and source markers", () => {
   assert.throws(
     () => syncFindings.parseFinding("bad.md", findingText({ state: "resolved" })),
     /state must be open or closed/,
+  );
+  assert.throws(
+    () => syncFindings.parseFinding("bad.md", findingText({ labels: ["other"] })),
+    /unknown label other/,
   );
   assert.throws(
     () =>
@@ -121,7 +127,7 @@ test("plans an idempotent create followed by no changes", () => {
   assert.deepEqual(secondPlan.map((operation) => operation.kind), ["unchanged"]);
 });
 
-test("plans content, state, and missing-label repairs without removing other labels", () => {
+test("plans content, state, and managed-label repairs without removing other labels", () => {
   const finding = syncFindings.parseFinding(
     "findings/tool/tool-001.md",
     findingText({ state: "open", title: "Current title" }),
@@ -130,15 +136,15 @@ test("plans content, state, and missing-label repairs without removing other lab
     title: "Old title",
     body: "<!-- finding-sync-id: tool-001 -->\nold body",
     state: "closed",
-    labels: [{ name: "triage" }],
+    labels: [{ name: "triage" }, { name: "tlc" }],
   });
 
   const [operation] = syncFindings.planReconciliation([finding], [issue], RENDER_OPTIONS);
   assert.equal(operation.kind, "update");
   assert.equal(operation.patch.title, "Current title");
   assert.equal(operation.patch.state, "open");
-  assert.equal(operation.addLabel, true);
-  assert.deepEqual(issue.labels, [{ name: "triage" }]);
+  assert.deepEqual(operation.labels, ["triage", "finding", "apalache"]);
+  assert.deepEqual(issue.labels, [{ name: "triage" }, { name: "tlc" }]);
 });
 
 test("closes a managed issue when its source id disappears", () => {
@@ -181,8 +187,8 @@ test("executes planned mutations through Octokit", async () => {
         update: async (request) => {
           calls.push(["update", request]);
         },
-        addLabels: async (request) => {
-          calls.push(["addLabels", request]);
+        setLabels: async (request) => {
+          calls.push(["setLabels", request]);
         },
       },
     },
@@ -192,14 +198,14 @@ test("executes planned mutations through Octokit", async () => {
     {
       kind: "create",
       id: "new-001",
-      desired: { title: "New", body: "Body", state: "closed" },
+      desired: { title: "New", body: "Body", state: "closed", labels: ["finding", "tlc"] },
     },
     {
       kind: "update",
       id: "old-001",
       issueNumber: 5,
       patch: { state: "open" },
-      addLabel: true,
+      labels: ["triage", "finding", "sany"],
       previousState: "closed",
     },
   ];
@@ -207,7 +213,7 @@ test("executes planned mutations through Octokit", async () => {
   const counts = await syncFindings.executePlan(github, "owner", "repo", operations, core);
   assert.deepEqual(
     calls.map(([method]) => method),
-    ["create", "update", "update", "addLabels"],
+    ["create", "update", "update", "setLabels"],
   );
   assert.ok(
     calls.every(

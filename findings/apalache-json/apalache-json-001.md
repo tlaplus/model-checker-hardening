@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `JsonToTlaViaBuilder` cannot read `LABEL` written by `TlaToJson`

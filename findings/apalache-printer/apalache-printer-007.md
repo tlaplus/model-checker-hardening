@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `PrettyWriter` lets `LET` bodies absorb surrounding operators

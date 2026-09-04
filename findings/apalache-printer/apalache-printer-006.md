@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `PrettyWriter` does not delimit membership-valued set-map bodies

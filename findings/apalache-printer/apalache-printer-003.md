@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `PrettyWriter` renders unbounded binders as internal operator calls

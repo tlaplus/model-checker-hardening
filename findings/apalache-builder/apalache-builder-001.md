@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # `TlaCheckedBuilder.build` overflows on a long valid composition

@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `PrettyWriter` uses incorrect precedence intervals for TLA+ operators

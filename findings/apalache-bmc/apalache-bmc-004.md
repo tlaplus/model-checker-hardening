@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # Symbolic exponentiation crashes while casting a Z3 real to an integer

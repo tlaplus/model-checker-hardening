@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # Empty-domain function sets violate reflexive equality

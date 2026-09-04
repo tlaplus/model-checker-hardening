@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # `ConstSimplifier` leaves an undeclared local operator

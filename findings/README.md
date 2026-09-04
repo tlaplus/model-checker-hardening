@@ -10,13 +10,15 @@ Every finding starts with this metadata:
 ```yaml
 ---
 state: open
+labels: [apalache]
 ---
 ```
 
 The filename is lowercase kebab case with a letter prefix and a three-digit
 number. It is globally unique and permanent. Move the file without renaming it,
 and do not reuse its name for a different finding. The `state` is either `open`
-or `closed` and controls the corresponding GitHub issue state.
+or `closed` and controls the corresponding GitHub issue state. `labels` is a
+non-empty inline list containing one or more of `apalache`, `sany`, and `tlc`.
 
 After the metadata, the file has exactly one H1 title and one `## Summary`
 section. The title and Summary are copied to the issue. The issue links back to
@@ -30,6 +32,7 @@ unused globally unique number for that subsystem. Start from this template:
 ````markdown
 ---
 state: open
+labels: [apalache]
 ---
 
 # Concise defect title
@@ -57,8 +60,9 @@ Describe the affected users or automated workflows and the severity.
 
 The synchronization workflow runs after relevant changes reach `main`. It also
 supports manual dispatch. It creates or updates issues, applies the `finding`
-label, and closes issues whose finding IDs have been removed. Changes to a
-managed issue's title, summary, or state must be made in its Markdown source.
+label and the tool labels declared in the finding, and closes issues whose
+finding IDs have been removed. Changes to a managed issue's title, summary,
+state, or tool labels must be made in its Markdown source.
 
 Validate the complete catalog and run the synchronization tests locally with:
 

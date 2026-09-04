@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # Quantification over `Int` escapes as `UnsupportedOperationException`

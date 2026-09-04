@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # `Cardinality(Nat)` input error exits with generic status 255

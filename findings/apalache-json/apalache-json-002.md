@@ -1,5 +1,6 @@
 ---
 state: closed
+labels: [apalache]
 ---
 
 # `DefaultType1Parser` exhausts the heap on nested JSON type tags

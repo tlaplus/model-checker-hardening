@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [sany]
 ---
 
 # SANY crashes while formatting a level error for `%`

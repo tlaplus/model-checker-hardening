@@ -1,5 +1,6 @@
 ---
 state: open
+labels: [apalache]
 ---
 
 # Equality crashes on symbolic-set arena representations
