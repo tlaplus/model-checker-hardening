@@ -49,7 +49,7 @@ public final class IrGeneratorEngine {
             throw new InputRejectedException(
                     "root expression has operator type; TLA+ operators are not values");
         }
-        return draw.draw(expressionFactory.mkGen(
-                resultType, config.maximumExpressionDepth()));
+        return draw.draw(context.withFreshNodeBudget(
+                expressionFactory.mkGen(resultType, config.maximumExpressionDepth())));
     }
 }

@@ -49,9 +49,11 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
      * @throws WorkflowException if the worker violated the protocol, which is an infrastructure
      *     failure rather than a verdict about the input
      */
-    public ToolResult request(String source, Duration timeout)
+    public ToolResult request(ToolInput source, Duration timeout)
             throws WorkflowException, InterruptedException {
-        var bytes = Objects.requireNonNull(source, "source").getBytes(StandardCharsets.UTF_8);
+        var bytes = Objects.requireNonNull(source, "source")
+                .text()
+                .getBytes(StandardCharsets.UTF_8);
         if (bytes.length > ToolWorkerProtocol.MAXIMUM_MESSAGE_BYTES) {
             throw new WorkflowException(
                     "generated specification exceeds worker protocol limit");
@@ -59,7 +61,7 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         if (!process.isAlive()) {
             return crashAndClose(description + " exited before accepting the input");
         }
-        if (!channel.writeRequest(bytes)) {
+        if (!channel.writeRequest(bytes, source.length())) {
             return crashAndClose(description + " died while accepting the input");
         }
 

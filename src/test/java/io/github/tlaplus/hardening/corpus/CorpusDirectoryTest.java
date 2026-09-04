@@ -13,6 +13,7 @@ import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -98,8 +99,8 @@ class CorpusDirectoryTest {
         var generation = new GenerationMetadata(3, 5.0);
 
         assertEquals("00-inputs", corpus.resolve(CorpusPath.INPUT).getFileName().toString());
-        assertEquals(StoreResult.ADDED, corpus.store(input, generation));
-        assertEquals(StoreResult.DUPLICATE, corpus.store(input, generation));
+        assertEquals(StoreResult.ADDED, corpus.store(InputKind.EXPRESSION, input, generation));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(InputKind.EXPRESSION, input, generation));
 
         var path = corpus.resolve(CorpusPath.INPUT).resolve(hash(input) + ".cbor");
         var encoded = Files.readAllBytes(path);
@@ -114,11 +115,11 @@ class CorpusDirectoryTest {
     void duplicateDetectionIgnoresAdditionalMetadata(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {1, 2, 3};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var path = corpus.resolve(CorpusPath.INPUT).resolve(hash(input) + ".cbor");
         Files.write(path, encodeWithStageMetadata(input));
 
-        assertEquals(StoreResult.DUPLICATE, corpus.store(input));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(InputKind.EXPRESSION, input));
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
     }
 
@@ -138,7 +139,7 @@ class CorpusDirectoryTest {
     void rejectsEntriesWhoseDigestDoesNotMatch(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var original = new byte[] {1, 2, 3};
-        corpus.store(original);
+        corpus.store(InputKind.EXPRESSION, original);
         var path = corpus.resolve(CorpusPath.INPUT).resolve(hash(original) + ".cbor");
         Files.write(path, CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 5, 6})));
 
@@ -167,7 +168,7 @@ class CorpusDirectoryTest {
         var corpus = CorpusDirectory.initialize(
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {7, 5};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
 
         var failure = assertThrows(
                 CorpusException.class,
@@ -199,25 +200,22 @@ class CorpusDirectoryTest {
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var moduleInput = new byte[] {7};
         var encoded =
-                CorpusInputCodec.encode(new CorpusInput(CorpusInput.Kind.MODULE, moduleInput));
+                CorpusInputCodec.encode(new CorpusInput(InputKind.MODULE, moduleInput));
         var modulePath = corpus.resolve(CorpusPath.INPUT).resolve(hash(moduleInput) + ".cbor");
         Files.write(modulePath, encoded);
 
         assertEquals(
-                CorpusInput.Kind.MODULE,
+                InputKind.MODULE,
                 CorpusEntries.decode(modulePath, encoded).envelope().corpusInput().kind());
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).pendingEntries(CorpusStage.PARSER));
 
-        // A stage that asks for an expression still refuses: that is the call's precondition.
-        var failure = assertThrows(
-                CorpusException.class, () -> corpus.readExpressionInput(modulePath));
-        assertTrue(
-                failure.getMessage().contains("does not hold an expression input, but 'module'"),
-                failure.getMessage());
+        // Reading reports the kind rather than judging it: the caller that regenerates the
+        // payload decides which kinds it can decode.
+        assertEquals(InputKind.MODULE, corpus.readParserInput(modulePath).kind());
 
         // And a run that consumes expressions rejects it through its own validator.
         CorpusEntryValidator expressionsOnly = (entry, input) -> {
-            if (input.kind() != CorpusInput.Kind.EXPRESSION) {
+            if (input.kind() != InputKind.EXPRESSION) {
                 throw new CorpusException("corpus entry is rejected: " + entry);
             }
         };
@@ -231,7 +229,7 @@ class CorpusDirectoryTest {
     @Test
     void rejectsEntriesThatTheGeneratorRejects(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
-        corpus.store(new byte[] {1});
+        corpus.store(InputKind.EXPRESSION, new byte[] {1});
         CorpusEntryValidator reject = (entry, payload) -> {
             throw new CorpusException("corpus entry is rejected: " + entry + ": not applicable");
         };
@@ -247,7 +245,7 @@ class CorpusDirectoryTest {
     void propagatesUnexpectedGeneratorFailures(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {1};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         CorpusEntryValidator broken = (entry, payload) -> {
             throw new IllegalStateException("generator defect");
         };
@@ -276,7 +274,7 @@ class CorpusDirectoryTest {
         var input = new byte[] {3, 1, 4};
 
         var candidate =
-                corpus.recordGeneratorCrash(input, new StackOverflowError("deliberate overflow"));
+                corpus.recordGeneratorCrash(InputKind.EXPRESSION, input, new StackOverflowError("deliberate overflow"));
 
         var report = candidate.resolveSibling(
                 hash(input) + CorpusDirectory.CRASH_REPORT_EXTENSION);
@@ -296,7 +294,7 @@ class CorpusDirectoryTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {3, 1, 4};
         var generation = new GenerationMetadata(2, 3.0);
-        corpus.store(input, generation);
+        corpus.store(InputKind.EXPRESSION, input, generation);
         var source = corpus.inputPath(input);
         var start = Instant.ofEpochSecond(10);
         var end = Instant.ofEpochSecond(12);
@@ -339,7 +337,7 @@ class CorpusDirectoryTest {
         var corpus = CorpusDirectory.initialize(
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {4, 2};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(
@@ -376,7 +374,7 @@ class CorpusDirectoryTest {
     void recordsTlcMetadataAfterParserFanOut(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {4, 2};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -409,7 +407,7 @@ class CorpusDirectoryTest {
     void recordsApalacheMetadataAfterParserFanOut(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {4, 3};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -439,11 +437,11 @@ class CorpusDirectoryTest {
     void rejectsAPathOutsideCheckerInputDirectories(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {4, 4};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
 
         var failure = assertThrows(
                 CorpusException.class,
-                () -> corpus.readCheckerExpressionInput(corpus.inputPath(input)));
+                () -> corpus.readCheckerInput(corpus.inputPath(input)));
 
         assertTrue(failure.getMessage().contains("not owned by a checker input stage"));
     }
@@ -452,7 +450,7 @@ class CorpusDirectoryTest {
     void recordsTlcFailureClassification(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {7, 5};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -493,7 +491,7 @@ class CorpusDirectoryTest {
     void completesAnInterruptedParserFanOut(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {7, 3};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -514,7 +512,7 @@ class CorpusDirectoryTest {
     void rejectsAMissingCheckerBranchCopy(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {7, 4};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -534,7 +532,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {7, 5};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -563,7 +561,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {7, 6};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -585,7 +583,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {6, 2};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -613,7 +611,7 @@ class CorpusDirectoryTest {
     void storesTlcCrashDiagnosticsBesideTheResult(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {9, 9};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -638,7 +636,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {9, 8};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -846,7 +844,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {2, 7, 1, 8};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var source = corpus.inputPath(input);
         var diagnostic = "java.lang.IllegalStateException: parser exploded\n"
                 + "\tat parser.Worker.parse(Worker.java:42)";
@@ -869,7 +867,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {8, 5};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var source = corpus.inputPath(input);
         Files.write(
                 source,
@@ -894,7 +892,7 @@ class CorpusDirectoryTest {
         var root = directory.resolve("corpus");
         var corpus = CorpusDirectory.initialize(root, TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {1, 6, 1, 8};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var source = corpus.inputPath(input);
         Files.write(
                 source,
@@ -983,7 +981,7 @@ class CorpusDirectoryTest {
             CorpusVerdict tlcVerdict,
             CorpusVerdict apalacheVerdict)
             throws Exception {
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(

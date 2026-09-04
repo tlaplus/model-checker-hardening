@@ -8,20 +8,27 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.oper.TlaOper;
-import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import java.util.List;
+import java.util.Objects;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import scala.jdk.javaapi.CollectionConverters;
 
-/** Renders the generated module as typed Apalache IR JSON. */
+/** Renders an assembled module as the typed Apalache IR JSON that Apalache consumes. */
 public final class ApalacheIrJson {
     private static final TlaOper LABEL_OPERATOR = labelOperator();
 
     private ApalacheIrJson() {}
 
-    public static String render(TlaEx expression) {
-        var module = eraseLabels(FuzzInputModule.create(expression));
-        return TlaToUJson$.MODULE$.apply(module).render(2, false);
+    /**
+     * Renders the module, dropping expression labels.
+     *
+     * <p>The pinned Apalache JSON reader cannot decode {@code LABEL}. Labels are semantically
+     * transparent to the model checker, so each is replaced by its first operand here; the parser
+     * and TLC keep the labeled expression.
+     */
+    public static String render(TlaModule module) {
+        Objects.requireNonNull(module, "module");
+        return TlaToUJson$.MODULE$.apply(eraseLabels(module)).render(2, false);
     }
 
     private static TlaModule eraseLabels(TlaModule module) {

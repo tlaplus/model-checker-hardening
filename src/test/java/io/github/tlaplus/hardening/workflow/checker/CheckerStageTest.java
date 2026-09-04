@@ -2,7 +2,7 @@ package io.github.tlaplus.hardening.workflow.checker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -12,6 +12,7 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
@@ -21,13 +22,19 @@ import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -37,11 +44,14 @@ class CheckerStageTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var expression = IrGenerators.expressions().generate(new byte[0]);
-        Generator<TlaEx> generator = _ -> expression;
+        var artifact =
+                new SpecArtifact(FuzzInputModule.create(expression), 0, List.of(expression));
+        Map<InputKind, Generator<SpecArtifact>> decoders =
+                Map.of(InputKind.EXPRESSION, _ -> artifact);
         var input = new WorkQueue<Path>();
         for (var value = 0; value < 2; value++) {
             var payload = new byte[] {(byte) value};
-            corpus.store(payload);
+            corpus.store(InputKind.EXPRESSION, payload);
             var parserPass = corpus.completeParser(
                 corpus.inputPath(payload),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -59,7 +69,7 @@ class CheckerStageTest {
                 backend,
                 new OccupancyGate(0, backend.maximumEntries()),
                 new StageCounters(initial, new ElapsedTimeAccumulator()),
-                new StageEnvironment(corpus, generator, new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders, new CpuBudget(1), control),
                 input,
                 output);
         try {
@@ -110,9 +120,11 @@ class CheckerStageTest {
         }
 
         @Override
-        public String renderInput(TlaEx expression) {
-            renders.incrementAndGet();
-            return "backend-specific input";
+        public Function<TlaModule, String> renderer() {
+            return module -> {
+                renders.incrementAndGet();
+                return "backend-specific input";
+            };
         }
 
         @Override
@@ -120,8 +132,8 @@ class CheckerStageTest {
             var ordinal = starts.getAndIncrement();
             return new CheckerWorker() {
                 @Override
-                public ToolResult check(String input) {
-                    assertEquals("backend-specific input", input);
+                public ToolResult check(ToolInput input) {
+                    assertEquals("backend-specific input", input.text());
                     return ordinal == 0
                             ? new ToolResult(StageOutcome.CRASH, "deliberate crash")
                             : new ToolResult(StageOutcome.PASS, "pass");

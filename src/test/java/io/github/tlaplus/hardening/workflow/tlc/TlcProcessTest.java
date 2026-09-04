@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -23,8 +24,8 @@ class TlcProcessTest {
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var pass = TlcProcess.check(scratch, source("exprValue = FALSE"), CONFIG, TIMEOUT);
-        var fail = TlcProcess.check(scratch, source("exprValue # FALSE"), CONFIG, TIMEOUT);
+        var pass = TlcProcess.check(scratch, new ToolInput(source("exprValue = FALSE"), 0), CONFIG, TIMEOUT);
+        var fail = TlcProcess.check(scratch, new ToolInput(source("exprValue # FALSE"), 0), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
@@ -90,7 +91,10 @@ class TlcProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
         var result = TlcProcess.check(
-                scratch, expressionSource("161520805147"), CONFIG, TIMEOUT);
+                scratch,
+                new ToolInput(expressionSource("161520805147"), 0),
+                CONFIG,
+                TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
         assertEquals(
@@ -118,7 +122,7 @@ class TlcProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
         var result = TlcProcess.check(
-                scratch, expressionSource("Head(<<>>)"), CONFIG, TIMEOUT);
+                scratch, new ToolInput(expressionSource("Head(<<>>)"), 0), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
         assertEquals(
@@ -146,6 +150,7 @@ class TlcProcessTest {
                 Init == exprValue = FALSE
                 Next == UNCHANGED exprValue
                 Inv == %s
+                Bound == TRUE
                 ====
                 """.formatted(invariant);
     }
@@ -158,6 +163,7 @@ class TlcProcessTest {
                 Init == exprValue = %1$s
                 Next == UNCHANGED exprValue
                 Inv == exprValue = %1$s
+                Bound == TRUE
                 ====
                 """.formatted(expression);
     }

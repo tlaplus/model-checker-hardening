@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
@@ -45,7 +46,7 @@ final class ApalacheProcess implements CheckerWorker {
     }
 
     @Override
-    public ToolResult check(String input) throws WorkflowException, InterruptedException {
+    public ToolResult check(ToolInput input) throws WorkflowException, InterruptedException {
         return worker.request(input, timeout);
     }
 

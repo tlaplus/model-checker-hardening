@@ -1,9 +1,10 @@
 package io.github.tlaplus.hardening.workflow.checker;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
+import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Checker-specific behavior injected into the shared checker stage.
@@ -33,9 +34,9 @@ public interface CheckerBackend {
 
     int cpuPermits();
 
-    /** Renders the generated typed expression in the representation consumed by this checker. */
-    default String renderInput(TlaEx expression) {
-        return ExprInputToSpec.render(expression);
+    /** Returns this checker's representation of an assembled module. */
+    default Function<TlaModule, String> renderer() {
+        return SpecText::render;
     }
 
     /** Returns a worker for the next input, per the lifecycle documented on this interface. */

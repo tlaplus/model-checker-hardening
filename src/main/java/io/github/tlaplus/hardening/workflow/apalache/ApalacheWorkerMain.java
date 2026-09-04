@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.common.FileTrees;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -21,7 +22,7 @@ import scala.Console$;
 /** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
 public final class ApalacheWorkerMain {
     private static final int MAXIMUM_OUTPUT_BYTES = 1024 * 1024 - 128;
-    private static final String SPECIFICATION_FILE = "FuzzInput.json";
+    private static final String SPECIFICATION_FILE = FuzzInputModule.MODULE_NAME + ".json";
     private static final String TOOL_CLASS = "at.forsyte.apalache.tla.Tool";
 
     private ApalacheWorkerMain() {}
@@ -52,12 +53,17 @@ public final class ApalacheWorkerMain {
                             var specification = jobDirectory.resolve(SPECIFICATION_FILE);
                             Files.writeString(
                                     specification,
-                                    source,
+                                    source.text(),
                                     StandardCharsets.UTF_8,
                                     StandardOpenOption.CREATE_NEW,
                                     StandardOpenOption.WRITE);
                             var result =
-                                    check(toolRun, jobDirectory, specification, processError);
+                                    check(
+                                            toolRun,
+                                            jobDirectory,
+                                            specification,
+                                            source.length(),
+                                            processError);
 
                             // Tool.run resets Logback at the beginning of every invocation.
                             // Once the current invocation returns, files retained by the
@@ -77,6 +83,7 @@ public final class ApalacheWorkerMain {
             Method toolRun,
             Path jobDirectory,
             Path specification,
+            int length,
             PrintStream processError) {
         var diagnostics =
                 new BoundedTextOutputStream(MAXIMUM_OUTPUT_BYTES, "Apalache output");
@@ -87,7 +94,7 @@ public final class ApalacheWorkerMain {
             setScalaConsole(diagnosticStream);
             try {
                 var exitStatus = (int) toolRun.invoke(
-                        null, (Object) arguments(jobDirectory, specification));
+                        null, (Object) arguments(jobDirectory, specification, length));
                 diagnosticStream.flush();
                 return ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text());
             } catch (Exception | StackOverflowError exception) {
@@ -117,14 +124,19 @@ public final class ApalacheWorkerMain {
         return method;
     }
 
-    private static String[] arguments(Path jobDirectory, Path specification) {
+    /**
+     * Returns the check invocation for one input. The unrolling length comes from the input rather
+     * than being fixed here: an expression input has a single state, while an assembled module
+     * bounds its own step counter and asks for exactly that many transitions.
+     */
+    private static String[] arguments(Path jobDirectory, Path specification, int length) {
         return new String[] {
             "--out-dir=" + jobDirectory.resolve("out"),
             "check",
-            "--init=Init",
-            "--next=Next",
-            "--inv=Inv",
-            "--length=0",
+            "--init=" + FuzzInputModule.INIT,
+            "--next=" + FuzzInputModule.NEXT,
+            "--inv=" + FuzzInputModule.INV,
+            "--length=" + length,
             "--no-deadlock",
             specification.toString()
         };

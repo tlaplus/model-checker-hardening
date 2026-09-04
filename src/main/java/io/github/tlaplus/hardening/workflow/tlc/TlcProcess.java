@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.tlc;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
@@ -15,7 +16,7 @@ final class TlcProcess {
 
     static ToolResult check(
             Path scratchDirectory,
-            String source,
+            ToolInput source,
             CheckerStageConfig config,
             Duration timeout)
             throws WorkflowException, InterruptedException {

@@ -13,7 +13,7 @@ import io.github.tlaplus.hardening.workflow.execution.StageWorker;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
-import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
+import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Path;
@@ -65,8 +65,8 @@ public final class ParserStage implements WorkflowStage {
         inputPreparation = new GeneratedInputPreparation(
                 "parser",
                 environment.corpus(),
-                environment.generator(),
-                ExprInputToSpec::render);
+                environment.decoders(),
+                SpecText::render);
         var outputs = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
         outputs.putAll(Objects.requireNonNull(checkerOutputs, "checkerOutputs"));
         for (var checker : CorpusStage.checkerBranches()) {
@@ -132,8 +132,7 @@ public final class ParserStage implements WorkflowStage {
         private void parse(Path path) throws Exception {
             var corpus = environment.corpus();
             var startTime = Instant.now();
-            var payload = corpus.readExpressionInput(path);
-            var source = inputPreparation.prepare(path, payload);
+            var source = inputPreparation.prepare(path, corpus.readParserInput(path));
             if (process == null) {
                 process = ParserProcess.start(scratchDirectory, timeout());
             }

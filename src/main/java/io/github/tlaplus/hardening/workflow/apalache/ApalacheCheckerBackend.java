@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 /** Adapts persistent Apalache tool workers to the shared checker stage. */
 public final class ApalacheCheckerBackend implements CheckerBackend {
@@ -49,8 +50,8 @@ public final class ApalacheCheckerBackend implements CheckerBackend {
     }
 
     @Override
-    public String renderInput(TlaEx expression) {
-        return ApalacheIrJson.render(expression);
+    public Function<TlaModule, String> renderer() {
+        return ApalacheIrJson::render;
     }
 
     private Duration timeout() {

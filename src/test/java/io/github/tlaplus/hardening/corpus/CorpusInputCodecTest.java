@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.util.Arrays;
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
@@ -100,7 +101,7 @@ class CorpusInputCodecTest {
 
     @Test
     void recognizesModuleInputs() throws Exception {
-        var corpusInput = new CorpusInput(CorpusInput.Kind.MODULE, new byte[] {9});
+        var corpusInput = new CorpusInput(InputKind.MODULE, new byte[] {9});
 
         assertEquals(corpusInput, CorpusInputCodec.decode(CorpusInputCodec.encode(corpusInput)));
     }

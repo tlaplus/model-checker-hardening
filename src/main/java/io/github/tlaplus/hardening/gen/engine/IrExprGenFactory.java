@@ -21,7 +21,6 @@ final class IrExprGenFactory {
     private final SetExprGenFactory setFactory;
     private final SequenceExprGenFactory sequenceFactory;
     private final OtherExprGenFactory otherFactory;
-    private int nodeCount;
 
     IrExprGenFactory(GenerationContext context, IrTypeGenFactory typeFactory) {
         this.context = context;
@@ -61,9 +60,7 @@ final class IrExprGenFactory {
                 throw new IllegalStateException(
                         "expression type uses an ignored category: " + type);
             }
-            if (remainingDepth <= 0
-                    || nodeCount++ >= context.config().maximumNodes()
-                    || draw.isEmpty()) {
+            if (remainingDepth <= 0 || !context.consumeNode() || draw.isEmpty()) {
                 return draw.draw(generalFactory.terminal(type));
             }
 

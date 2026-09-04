@@ -24,11 +24,14 @@ class FuzzInputModuleTest {
         assertEquals(1, module.varDeclarations().size());
         assertEquals("exprValue", module.varDeclarations().head().name());
 
+        // The definition names are the contract with the fixed tool invocations, and Bound is
+        // always defined so that one TLC configuration serves every input kind.
         var operators = CollectionConverters.asJava(module.operDeclarations());
-        assertEquals(3, operators.size());
-        assertEquals("Init", operators.get(0).name());
-        assertEquals("Next", operators.get(1).name());
-        assertEquals("Inv", operators.get(2).name());
+        assertEquals(4, operators.size());
+        assertEquals(FuzzInputModule.INIT, operators.get(0).name());
+        assertEquals(FuzzInputModule.NEXT, operators.get(1).name());
+        assertEquals(FuzzInputModule.INV, operators.get(2).name());
+        assertEquals(FuzzInputModule.BOUND, operators.get(3).name());
 
         var initExpression = equalityRightHandSide(operators.get(0));
         var invariantExpression = equalityRightHandSide(operators.get(2));
@@ -39,6 +42,7 @@ class FuzzInputModuleTest {
         assertTrue(source.contains("EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants"));
         assertTrue(source.contains("VARIABLE exprValue"));
         assertTrue(source.contains("Next == UNCHANGED exprValue"));
+        assertTrue(source.contains("Bound == TRUE"));
         assertEquals(2, occurrences(source, "exprValue = FALSE"));
         assertFalse(source.contains("GeneratedExpression"));
     }
