@@ -6,6 +6,7 @@ import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaType1$;
 import at.forsyte.apalache.tla.lir.transformations.impl.IdleTracker;
 import at.forsyte.apalache.tla.lir.transformations.standard.DeepCopy;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -74,6 +75,24 @@ public final class FuzzInputModule {
         declarations.add(next);
         declarations.add(invariant);
         declarations.add(bound);
+        return module(declarations);
+    }
+
+    /**
+     * Assembles a generated module, bounding exploration by its own step counter.
+     *
+     * <p>The generated declarations keep their names; only the four entry points are fixed, so the
+     * tool invocations need not change with the input.
+     */
+    public static TlaModule create(GeneratedSpec spec) {
+        Objects.requireNonNull(spec, "spec");
+        var builder = new TlaTypedScopeUncheckedBuilder();
+        var declarations = new ArrayList<TlaDecl>(spec.variables());
+        declarations.addAll(spec.auxiliaryOperators());
+        declarations.add(builder.decl(INIT, spec.initPredicate()));
+        declarations.add(builder.decl(NEXT, spec.nextAction()));
+        declarations.add(builder.decl(INV, spec.invariant()));
+        declarations.add(builder.decl(BOUND, spec.boundPredicate()));
         return module(declarations);
     }
 

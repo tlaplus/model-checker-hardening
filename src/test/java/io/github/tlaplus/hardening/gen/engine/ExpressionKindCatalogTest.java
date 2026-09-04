@@ -580,16 +580,7 @@ class ExpressionKindCatalogTest {
     }
 
     private IrGenerationConfig weightedConfig(Map<ExpressionKind, Integer> weights) {
-        var defaults = IrGenerationConfig.defaults();
-        return new IrGenerationConfig(
-                defaults.maximumTypeDepth(),
-                defaults.maximumExpressionDepth(),
-                defaults.maximumNodes(),
-                defaults.maximumCollectionSize(),
-                defaults.maximumStringBytes(),
-                defaults.maximumIntegerBytes(),
-                defaults.ignoredCategories(),
-                weights);
+        return IrGenerationConfig.defaults().withFormWeights(weights);
     }
 
     private IrExprGenFactory expressionFactory(IrGenerationConfig config) {
@@ -598,16 +589,7 @@ class ExpressionKindCatalogTest {
     }
 
     private IrGenerationConfig configIgnoring(Set<ExpressionCategory> ignoredCategories) {
-        var defaults = IrGenerationConfig.defaults();
-        return new IrGenerationConfig(
-                defaults.maximumTypeDepth(),
-                defaults.maximumExpressionDepth(),
-                defaults.maximumNodes(),
-                defaults.maximumCollectionSize(),
-                defaults.maximumStringBytes(),
-                defaults.maximumIntegerBytes(),
-                ignoredCategories,
-                defaults.formWeights());
+        return IrGenerationConfig.defaults().withIgnoredCategories(ignoredCategories);
     }
 
     private static Set<ExpressionKind> kinds(ExpressionKind... kinds) {

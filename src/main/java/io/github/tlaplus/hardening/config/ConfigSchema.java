@@ -154,6 +154,39 @@ final class ConfigSchema {
             "max_string_bytes", config -> config.generator().maximumStringBytes());
     static final Key<Integer> MAXIMUM_INTEGER_BYTES = generatorKey(
             "max_integer_bytes", config -> config.generator().maximumIntegerBytes());
+    static final Key<Integer> MAXIMUM_VARIABLES = new Key<>(
+            GENERATOR_PATH,
+            "max_variables",
+            ConfigValueType.INTEGER,
+            List.of("Maximum state variables declared by a generated module."),
+            config -> config.generator().maximumVariables());
+    static final Key<Integer> MAXIMUM_AUXILIARY_OPERATORS = new Key<>(
+            GENERATOR_PATH,
+            "max_auxiliary_operators",
+            ConfigValueType.INTEGER,
+            List.of("Maximum operator definitions a generated module may apply."),
+            config -> config.generator().maximumAuxiliaryOperators());
+    static final Key<Integer> MAXIMUM_ACTIONS = new Key<>(
+            GENERATOR_PATH,
+            "max_actions",
+            ConfigValueType.INTEGER,
+            List.of("Maximum disjuncts in a generated next-state action."),
+            config -> config.generator().maximumActions());
+    static final Key<Integer> MAXIMUM_ACTION_PARAMETERS = new Key<>(
+            GENERATOR_PATH,
+            "max_action_parameters",
+            ConfigValueType.INTEGER,
+            List.of("Maximum bounded existential parameters of one generated action."),
+            config -> config.generator().maximumActionParameters());
+    static final Key<Integer> MAXIMUM_STEPS = new Key<>(
+            GENERATOR_PATH,
+            "max_steps",
+            ConfigValueType.INTEGER,
+            List.of(
+                    "Transitions explored from an initial state of a generated module.",
+                    "Bounds Apalache's unrolling and TLC's state constraint alike."),
+            config -> config.generator().maximumSteps());
+
     static final Key<Set<ExpressionCategory>> IGNORED_CATEGORIES = new Key<>(
             GENERATOR_PATH,
             "ignore",
@@ -277,6 +310,11 @@ final class ConfigSchema {
                         MAXIMUM_COLLECTION_SIZE,
                         MAXIMUM_STRING_BYTES,
                         MAXIMUM_INTEGER_BYTES,
+                        MAXIMUM_VARIABLES,
+                        MAXIMUM_AUXILIARY_OPERATORS,
+                        MAXIMUM_ACTIONS,
+                        MAXIMUM_ACTION_PARAMETERS,
+                        MAXIMUM_STEPS,
                         IGNORED_CATEGORIES,
                         FORM_WEIGHTS)));
         tables.add(new Table(WORKFLOW_PATH, List.of(WORKFLOW_MAXIMUM_ENTRIES)));

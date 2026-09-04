@@ -251,16 +251,7 @@ class ScopedExprGenFactoryTest {
     }
 
     private IrGenerationConfig allExpressionsConfig() {
-        var defaults = IrGenerationConfig.defaults();
-        return new IrGenerationConfig(
-                defaults.maximumTypeDepth(),
-                defaults.maximumExpressionDepth(),
-                defaults.maximumNodes(),
-                defaults.maximumCollectionSize(),
-                defaults.maximumStringBytes(),
-                defaults.maximumIntegerBytes(),
-                Set.of(),
-                defaults.formWeights());
+        return IrGenerationConfig.defaults().withIgnoredCategories(Set.of());
     }
 
     private String print(TlaEx expression) {
