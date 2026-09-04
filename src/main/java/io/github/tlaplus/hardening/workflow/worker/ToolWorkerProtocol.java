@@ -9,7 +9,7 @@ import java.util.Arrays;
 /** Binary framing shared by isolated parser and model-checker workers. */
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 3;
+    static final int VERSION = 4;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 16 * 1024 * 1024;
@@ -31,19 +31,23 @@ public final class ToolWorkerProtocol {
     }
 
     /** Returns {@code null} for the graceful-stop message. */
-    public static String readRequest(DataInputStream input) throws IOException {
-        var length = input.readInt();
-        if (length == STOP) {
+    public static ToolInput readRequest(DataInputStream input) throws IOException {
+        var byteCount = input.readInt();
+        if (byteCount == STOP) {
             return null;
         }
-        if (length < 0 || length > MAXIMUM_MESSAGE_BYTES) {
-            throw new IOException("invalid worker request length: " + length);
+        if (byteCount < 0 || byteCount > MAXIMUM_MESSAGE_BYTES) {
+            throw new IOException("invalid worker request length: " + byteCount);
         }
-        var bytes = input.readNBytes(length);
-        if (bytes.length != length) {
+        var length = input.readInt();
+        if (length < 0) {
+            throw new IOException("invalid worker request exploration length: " + length);
+        }
+        var bytes = input.readNBytes(byteCount);
+        if (bytes.length != byteCount) {
             throw new IOException("truncated worker request");
         }
-        return new String(bytes, StandardCharsets.UTF_8);
+        return new ToolInput(new String(bytes, StandardCharsets.UTF_8), length);
     }
 
     public static void writeResult(DataOutputStream output, ToolResult result) throws IOException {

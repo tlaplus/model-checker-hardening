@@ -15,6 +15,7 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
@@ -23,6 +24,7 @@ import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -114,9 +116,10 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 config(1),
+                InputKind.EXPRESSION,
                 2,
                 0,
-                new StageEnvironment(corpus, acceptOnce, new CpuBudget(1), control),
+                new StageEnvironment(corpus, SpecDecoders.fromExpressions(acceptOnce), new CpuBudget(1), control),
                 99,
                 1,
                 queue,
@@ -147,9 +150,10 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 config(8),
+                InputKind.EXPRESSION,
                 1,
                 0,
-                new StageEnvironment(corpus, overflow, new CpuBudget(1), control),
+                new StageEnvironment(corpus, SpecDecoders.fromExpressions(overflow), new CpuBudget(1), control),
                 42,
                 1,
                 queue,
@@ -173,7 +177,7 @@ class PbtStageTest {
                     .findFirst()
                     .orElseThrow();
             var saved = CorpusInputCodec.decode(Files.readAllBytes(candidate));
-            assertEquals(CorpusInput.Kind.EXPRESSION, saved.kind());
+            assertEquals(InputKind.EXPRESSION, saved.kind());
             assertTrue(control.failure().getMessage().contains(candidate.toString()));
             assertTrue(Files.readString(report)
                     .contains("StackOverflowError: deliberate overflow"));
@@ -256,9 +260,10 @@ class PbtStageTest {
         var target = 12;
         var stage = new PbtStage(
                 config(32),
+                InputKind.EXPRESSION,
                 target,
                 0,
-                new StageEnvironment(corpus, observed, new CpuBudget(2), control),
+                new StageEnvironment(corpus, SpecDecoders.fromExpressions(observed), new CpuBudget(2), control),
                 42,
                 4,
                 queue,
@@ -307,9 +312,10 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 config(32),
+                InputKind.EXPRESSION,
                 20,
                 0,
-                new StageEnvironment(corpus, oneWorkerCrashes, new CpuBudget(4), control),
+                new StageEnvironment(corpus, SpecDecoders.fromExpressions(oneWorkerCrashes), new CpuBudget(4), control),
                 42,
                 4,
                 queue,
@@ -350,9 +356,10 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 config,
+                InputKind.EXPRESSION,
                 target,
                 0,
-                new StageEnvironment(corpus, generator, new CpuBudget(1), control),
+                new StageEnvironment(corpus, SpecDecoders.fromExpressions(generator), new CpuBudget(1), control),
                 seed,
                 1,
                 queue,

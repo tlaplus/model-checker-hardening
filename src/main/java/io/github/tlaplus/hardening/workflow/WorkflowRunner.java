@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.workflow;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -11,6 +10,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
@@ -32,6 +32,8 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -49,16 +51,23 @@ public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 
     private final FuzzTlaConfig config;
-    private final Generator<TlaEx> generator;
+    private final InputKind generatedKind;
+    private final Map<InputKind, Generator<SpecArtifact>> decoders;
 
     public WorkflowRunner(FuzzTlaConfig config) {
-        this(config, IrGenerators.expressions(
-                Objects.requireNonNull(config, "config").generator()));
+        this(
+                config,
+                InputKind.EXPRESSION,
+                SpecDecoders.of(Objects.requireNonNull(config, "config").generator()));
     }
 
-    WorkflowRunner(FuzzTlaConfig config, Generator<TlaEx> generator) {
+    WorkflowRunner(
+            FuzzTlaConfig config,
+            InputKind generatedKind,
+            Map<InputKind, Generator<SpecArtifact>> decoders) {
         this.config = Objects.requireNonNull(config, "config");
-        this.generator = Objects.requireNonNull(generator, "generator");
+        this.generatedKind = Objects.requireNonNull(generatedKind, "generatedKind");
+        this.decoders = Map.copyOf(Objects.requireNonNull(decoders, "decoders"));
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
@@ -162,7 +171,7 @@ public final class WorkflowRunner {
                         - Math.toIntExact(initial.pendingEntries(CorpusStage.PARSER)),
                 true);
         var cpuBudget = new CpuBudget(maximumCpus);
-        var environment = new StageEnvironment(corpus, generator, cpuBudget, control);
+        var environment = new StageEnvironment(corpus, decoders, cpuBudget, control);
 
         var checkerCapacities = new EnumMap<CorpusStage, OccupancyGate>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
@@ -204,6 +213,7 @@ public final class WorkflowRunner {
         }
         var pbt = new PbtStage(
                 config.pbt(),
+                generatedKind,
                 config.workflow().maximumEntries(),
                 initial.totalEntries(),
                 environment,
@@ -340,23 +350,23 @@ public final class WorkflowRunner {
 
     /**
      * Returns the policy that decides whether a stored input is still usable: this workflow runs
-     * expression inputs, and the payload must decode to an expression under this run's generator
+     * inputs of the kind it generates, and the payload must decode under this run's generator
      * configuration.
      */
     private CorpusEntryValidator entryValidator() {
         return (entry, input) -> {
-            if (input.kind() != CorpusInput.Kind.EXPRESSION) {
+            if (input.kind() != generatedKind) {
                 throw new CorpusException(
                         "corpus entry is rejected: "
                                 + entry
                                 + ": this workflow runs '"
-                                + CorpusInput.Kind.EXPRESSION.encodedName()
+                                + generatedKind.encodedName()
                                 + "' inputs, but the entry holds '"
                                 + input.kind().encodedName()
                                 + "'");
             }
             try {
-                generator.generate(input.input());
+                decoders.get(generatedKind).generate(input.input());
             } catch (InputRejectedException exception) {
                 throw new CorpusException(
                         "corpus entry is rejected: "

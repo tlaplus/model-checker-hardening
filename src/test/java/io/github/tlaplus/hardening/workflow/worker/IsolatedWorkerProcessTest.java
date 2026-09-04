@@ -43,7 +43,7 @@ class IsolatedWorkerProcessTest {
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, ProcessingFailureWorker.class, DESCRIPTION))) {
-            result = worker.request("request", TIMEOUT);
+            result = worker.request(new ToolInput("request", 0), TIMEOUT);
         }
 
         assertEquals(StageOutcome.CRASH, result.outcome());
@@ -60,7 +60,7 @@ class IsolatedWorkerProcessTest {
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, FatalErrorWorker.class, DESCRIPTION))) {
-            result = worker.request("request", TIMEOUT);
+            result = worker.request(new ToolInput("request", 0), TIMEOUT);
         }
 
         assertEquals(StageOutcome.CRASH, result.outcome());
@@ -78,13 +78,13 @@ class IsolatedWorkerProcessTest {
                 new WorkerSpec(scratch, TIMEOUT, HangingWorker.class, DESCRIPTION))) {
             assertEquals(
                     StageOutcome.CRASH,
-                    worker.request("request", Duration.ZERO).outcome());
+                    worker.request(new ToolInput("request", 0), Duration.ZERO).outcome());
         }
         try (var replacement = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, ClassifiedFailureWorker.class, DESCRIPTION))) {
             assertEquals(
                     StageOutcome.FAIL,
-                    replacement.request("request", TIMEOUT).outcome());
+                    replacement.request(new ToolInput("request", 0), TIMEOUT).outcome());
         }
         assertScratchIsEmpty(scratch);
     }
@@ -96,7 +96,7 @@ class IsolatedWorkerProcessTest {
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, ClassifiedFailureWorker.class, DESCRIPTION))) {
-            result = worker.request("request", TIMEOUT);
+            result = worker.request(new ToolInput("request", 0), TIMEOUT);
         }
 
         assertEquals(StageOutcome.FAIL, result.outcome());
@@ -115,7 +115,7 @@ class IsolatedWorkerProcessTest {
         ToolResult result;
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, NativeOutputWorker.class, DESCRIPTION))) {
-            result = worker.request("request", TIMEOUT);
+            result = worker.request(new ToolInput("request", 0), TIMEOUT);
         }
 
         assertEquals(StageOutcome.PASS, result.outcome());
@@ -131,7 +131,7 @@ class IsolatedWorkerProcessTest {
                 new WorkerSpec(scratch, TIMEOUT, UnknownFailureCodeWorker.class, DESCRIPTION))) {
             var failure = assertThrows(
                     WorkflowException.class,
-                    () -> worker.request("request", TIMEOUT));
+                    () -> worker.request(new ToolInput("request", 0), TIMEOUT));
             assertTrue(failure.getMessage().contains("protocol failed"));
             assertTrue(failure.getCause().getMessage().contains("unknown failure code: 999"));
         }

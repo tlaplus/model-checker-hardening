@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.corpus;
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
@@ -201,21 +202,24 @@ public final class CorpusDirectory {
                 .recover();
     }
 
-    /** Stores an expression input under its payload digest in {@code 00-inputs}. */
-    public synchronized StoreResult store(byte[] input) throws IOException, CorpusException {
-        return store.store(input, null);
+    /** Stores an input of the given kind under its payload digest in {@code 00-inputs}. */
+    public synchronized StoreResult store(InputKind kind, byte[] input)
+            throws IOException, CorpusException {
+        return store.store(kind, input, null);
     }
 
-    /** Stores an expression input and its admission-time PBT metadata. */
-    public synchronized StoreResult store(byte[] input, GenerationMetadata generation)
+    /** Stores an input of the given kind and its admission-time PBT metadata. */
+    public synchronized StoreResult store(
+            InputKind kind, byte[] input, GenerationMetadata generation)
             throws IOException, CorpusException {
-        return store.store(input, Objects.requireNonNull(generation, "generation"));
+        return store.store(kind, input, Objects.requireNonNull(generation, "generation"));
     }
 
     /** Preserves an input and stack trace for an unexpected generator failure. */
-    public synchronized Path recordGeneratorCrash(byte[] input, Throwable failure)
+    public synchronized Path recordGeneratorCrash(
+            InputKind kind, byte[] input, Throwable failure)
             throws IOException, CorpusException {
-        return store.recordGeneratorCrash(input, failure);
+        return store.recordGeneratorCrash(kind, input, failure);
     }
 
     /** Returns the canonical input-stage path for the supplied payload. */
@@ -224,17 +228,17 @@ public final class CorpusDirectory {
     }
 
     /** Reads an entry owned by the input directory of the parser stage. */
-    public synchronized byte[] readExpressionInput(Path path)
+    public synchronized CorpusInput readParserInput(Path path)
             throws IOException, CorpusException {
         return entries(CorpusEntryValidator.NONE)
-                .readOwnedExpressionInput(path, CorpusStage.PARSER);
+                .readOwnedInput(path, CorpusStage.PARSER);
     }
 
     /** Reads an entry owned by one checker's input directory. */
-    public synchronized byte[] readCheckerExpressionInput(Path path)
+    public synchronized CorpusInput readCheckerInput(Path path)
             throws IOException, CorpusException {
         return entries(CorpusEntryValidator.NONE)
-                .readOwnedExpressionInput(path, checkerStageFor(path));
+                .readOwnedInput(path, checkerStageFor(path));
     }
 
     /** Records a parser result and atomically moves it to its result directory. */

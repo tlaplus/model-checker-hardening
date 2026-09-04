@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.cli;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -12,10 +11,12 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
-import io.github.tlaplus.hardening.workflow.spec.ExprInputToSpec;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,14 +56,14 @@ final class PrintCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        final Generator<TlaEx> generator;
+        final IrGenerationConfig generatorConfig;
         if (corpus == null) {
-            generator = IrGenerators.expressions();
+            generatorConfig = IrGenerationConfig.defaults();
         } else {
             try {
                 var corpusDirectory = CorpusDirectory.openExisting(corpus);
-                var config = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG));
-                generator = IrGenerators.expressions(config.generator());
+                generatorConfig = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG))
+                        .generator();
             } catch (IOException | ConfigException | CorpusException exception) {
                 spec.commandLine()
                         .getErr()
@@ -103,27 +104,29 @@ final class PrintCommand implements Callable<Integer> {
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
-        if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
+        if (corpusInput.kind() != InputKind.EXPRESSION) {
             spec.commandLine()
                     .getErr()
                     .printf(
-                            "fuzztla: cannot generate expression from '%s': unsupported input kind '%s'%n",
+                            "fuzztla: cannot generate a specification from '%s': "
+                                    + "unsupported input kind '%s'%n",
                             input, corpusInput.kind().encodedName());
             return CommandLine.ExitCode.SOFTWARE;
         }
 
         try {
-            var expression = generator.generate(corpusInput.input());
+            var expression = IrGenerators.expressions(generatorConfig)
+                    .generate(corpusInput.input());
             final String output;
             if (printsApalacheIr()) {
-                output = ApalacheIrJson.render(expression);
+                output = ApalacheIrJson.render(FuzzInputModule.create(expression));
             } else if (printsSpecification()) {
-                output = ExprInputToSpec.render(expression);
+                output = SpecText.render(FuzzInputModule.create(expression));
             } else {
-                var renderedExpression = EnvelopeReport.expression(expression);
+                var rendered = EnvelopeReport.expression(expression);
                 output = envelope == null
-                        ? renderedExpression
-                        : EnvelopeReport.render(envelope, renderedExpression);
+                        ? rendered
+                        : EnvelopeReport.render(envelope, rendered);
             }
             print(output);
             return CommandLine.ExitCode.OK;
@@ -131,7 +134,7 @@ final class PrintCommand implements Callable<Integer> {
             spec.commandLine()
                     .getErr()
                     .printf(
-                            "fuzztla: cannot generate expression from '%s': %s%n",
+                            "fuzztla: cannot generate a specification from '%s': %s%n",
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }

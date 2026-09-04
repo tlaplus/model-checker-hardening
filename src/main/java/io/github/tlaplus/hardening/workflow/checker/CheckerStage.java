@@ -54,8 +54,8 @@ public final class CheckerStage implements WorkflowStage {
         inputPreparation = new GeneratedInputPreparation(
                 backend.displayName(),
                 environment.corpus(),
-                environment.generator(),
-                backend::renderInput);
+                environment.decoders(),
+                backend.renderer());
         this.resultCapacity = Objects.requireNonNull(resultCapacity, "resultCapacity");
         jobs = new StageJobLoop<>(
                 input,
@@ -118,8 +118,7 @@ public final class CheckerStage implements WorkflowStage {
             }
             var corpus = environment.corpus();
             var startTime = Instant.now();
-            var payload = corpus.readCheckerExpressionInput(path);
-            var checkerInput = inputPreparation.prepare(path, payload);
+            var checkerInput = inputPreparation.prepare(path, corpus.readCheckerInput(path));
             if (checker == null) {
                 checker = backend.startWorker();
             }

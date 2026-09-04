@@ -24,6 +24,7 @@ import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import java.io.ByteArrayOutputStream;
@@ -237,7 +238,7 @@ class MainTest {
                     var generation = CorpusEnvelopeCodec.decodeEnvelope(encoded)
                             .generation()
                             .orElseThrow();
-                    assertEquals(CorpusInput.Kind.EXPRESSION, corpusInput.kind());
+                    assertEquals(InputKind.EXPRESSION, corpusInput.kind());
                     assertTrue(generation.cohort() >= 0 && generation.cohort() < 10);
                     assertTrue(generation.richness()
                             >= new PbtConfig(32, 10, 2.0, 1.5)
@@ -569,7 +570,7 @@ class MainTest {
         Files.write(
                 module,
                 CorpusInputCodec.encode(
-                        new CorpusInput(CorpusInput.Kind.MODULE, new byte[] {0})));
+                        new CorpusInput(InputKind.MODULE, new byte[] {0})));
 
         var rawResult = execute("print", raw.toString());
         var moduleResult = execute("print", module.toString());

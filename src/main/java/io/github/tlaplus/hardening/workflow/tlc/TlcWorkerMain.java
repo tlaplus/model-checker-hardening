@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -37,12 +38,14 @@ public final class TlcWorkerMain {
         requireRuntimeDependencies();
 
         var temporaryDirectory = Files.createTempDirectory("fuzztla-tlc-");
-        var specification = temporaryDirectory.resolve("FuzzInput.tla");
-        var configuration = temporaryDirectory.resolve("FuzzInput.cfg");
+        var specification =
+                temporaryDirectory.resolve(FuzzInputModule.MODULE_NAME + ".tla");
+        var configuration =
+                temporaryDirectory.resolve(FuzzInputModule.MODULE_NAME + ".cfg");
         var metadata = temporaryDirectory.resolve("states");
         Files.writeString(
                 configuration,
-                "INIT Init\nNEXT Next\nINVARIANT Inv\n",
+                configurationText(),
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE_NEW,
                 StandardOpenOption.WRITE);
@@ -80,7 +83,7 @@ public final class TlcWorkerMain {
                     source -> {
                         Files.writeString(
                                 specification,
-                                source,
+                                source.text(),
                                 StandardCharsets.UTF_8,
                                 StandardOpenOption.CREATE,
                                 StandardOpenOption.TRUNCATE_EXISTING,
@@ -88,6 +91,19 @@ public final class TlcWorkerMain {
                         return check(tlc, diagnostics);
                     });
         }
+    }
+
+    /**
+     * Returns the fixed configuration naming the module's entry points.
+     *
+     * <p>The state constraint is what bounds TLC: an assembled module defines it, so naming it
+     * here unconditionally lets one configuration serve every input kind.
+     */
+    private static String configurationText() {
+        return "INIT " + FuzzInputModule.INIT + "\n"
+                + "NEXT " + FuzzInputModule.NEXT + "\n"
+                + "INVARIANT " + FuzzInputModule.INV + "\n"
+                + "CONSTRAINT " + FuzzInputModule.BOUND + "\n";
     }
 
     /** Checks the written specification and classifies whatever TLC reports. */

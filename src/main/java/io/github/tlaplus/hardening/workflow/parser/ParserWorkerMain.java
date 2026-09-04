@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -35,7 +36,8 @@ public final class ParserWorkerMain {
                 ParserWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
 
         var temporaryDirectory = Files.createTempDirectory("fuzztla-sany-");
-        var specification = temporaryDirectory.resolve("FuzzInput.tla");
+        var specification =
+                temporaryDirectory.resolve(FuzzInputModule.MODULE_NAME + ".tla");
         ToolIO.setUserDir(temporaryDirectory.toString());
         var resolver = new SimpleFilenameToStream(temporaryDirectory.toString());
 
@@ -46,7 +48,7 @@ public final class ParserWorkerMain {
                     source -> {
                         Files.writeString(
                                 specification,
-                                source,
+                                source.text(),
                                 StandardCharsets.UTF_8,
                                 StandardOpenOption.CREATE,
                                 StandardOpenOption.TRUNCATE_EXISTING,

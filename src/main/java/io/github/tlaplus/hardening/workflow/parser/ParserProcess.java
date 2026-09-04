@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.parser;
 
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
@@ -22,7 +23,7 @@ final class ParserProcess implements AutoCloseable {
                 new WorkerSpec(scratchDirectory, timeout, ParserWorkerMain.class, "parser worker")));
     }
 
-    ToolResult parse(String source, Duration timeout)
+    ToolResult parse(ToolInput source, Duration timeout)
             throws WorkflowException, InterruptedException {
         return worker.request(source, timeout);
     }

@@ -24,9 +24,11 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -109,11 +111,12 @@ class WorkflowRunnerTest {
                 .name("missing", BoolT1$.MODULE$);
         Generator<TlaEx> generator = _ -> expression;
         var input = new byte[] {1};
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
-        var runner = new WorkflowRunner(config, generator);
+        var runner = new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(generator));
 
         var first = runner.run(corpus, 42, 1);
         var second = runner.run(corpus, 43, 1);
@@ -149,7 +152,8 @@ class WorkflowRunnerTest {
         var failure = new AtomicReference<Throwable>();
         var run = Thread.ofPlatform().start(() -> {
             try {
-                new WorkflowRunner(config, blocking).run(corpus, 42, 1);
+                new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(blocking)).run(corpus, 42, 1);
             } catch (Throwable exception) {
                 failure.set(exception);
             }
@@ -217,9 +221,10 @@ class WorkflowRunnerTest {
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
         Generator<TlaEx> generator = _ -> unbound;
-        var runner = new WorkflowRunner(config, generator);
+        var runner = new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(generator));
         for (var candidate = 0; candidate < 5; candidate++) {
-            corpus.store(new byte[] {(byte) candidate});
+            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) candidate});
         }
 
         var first = runner.run(
@@ -242,10 +247,11 @@ class WorkflowRunnerTest {
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> constant = _ -> expression;
         for (var value = 0; value < 4; value++) {
-            corpus.store(new byte[] {(byte) value});
+            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) value});
         }
 
-        var summary = new WorkflowRunner(config, constant).run(
+        var summary = new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(constant)).run(
                 corpus,
                 42,
                 Math.min(2, Runtime.getRuntime().availableProcessors()));
@@ -279,10 +285,11 @@ class WorkflowRunnerTest {
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
         Generator<TlaEx> generator = _ -> unbound;
-        corpus.store(new byte[] {0});
-        corpus.store(new byte[] {1});
+        corpus.store(InputKind.EXPRESSION, new byte[] {0});
+        corpus.store(InputKind.EXPRESSION, new byte[] {1});
 
-        var summary = new WorkflowRunner(config, generator).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(generator)).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
         assertEquals(2, summary.stage(CorpusStage.PARSER).failed());
@@ -296,7 +303,7 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 0);
         var input = new byte[0];
-        corpus.store(input);
+        corpus.store(InputKind.EXPRESSION, input);
         var source = corpus.inputPath(input);
         var delegate = IrGenerators.expressions(config.generator());
         Generator<TlaEx> overflowInParser = payload -> {
@@ -308,7 +315,8 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 WorkflowException.class,
-                () -> new WorkflowRunner(config, overflowInParser).run(corpus, 42, 1));
+                () -> new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(overflowInParser)).run(corpus, 42, 1));
 
         var candidate = corpus.resolve(CorpusPath.GENERATOR_CRASH).resolve(source.getFileName());
         var reportName = source.getFileName()
@@ -334,7 +342,7 @@ class WorkflowRunnerTest {
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var moduleInput = new byte[] {7};
         var encoded =
-                CorpusInputCodec.encode(new CorpusInput(CorpusInput.Kind.MODULE, moduleInput));
+                CorpusInputCodec.encode(new CorpusInput(InputKind.MODULE, moduleInput));
         var entry = corpus.resolve(CorpusPath.INPUT)
                 .resolve(HexFormat.of()
                                 .formatHex(MessageDigest.getInstance("SHA-256")
@@ -436,7 +444,7 @@ class WorkflowRunnerTest {
             var input = new byte[] {(byte) candidate};
             try {
                 generator.generate(input);
-                corpus.store(input);
+                corpus.store(InputKind.EXPRESSION, input);
                 source = corpus.inputPath(input);
             } catch (InputRejectedException ignored) {
                 // Find one accepted deterministic input.
@@ -477,7 +485,7 @@ class WorkflowRunnerTest {
             var input = new byte[] {(byte) candidate};
             try {
                 generator.generate(input);
-                corpus.store(input);
+                corpus.store(InputKind.EXPRESSION, input);
                 source = corpus.inputPath(input);
             } catch (InputRejectedException ignored) {
                 // Find one accepted deterministic input.
@@ -517,14 +525,15 @@ class WorkflowRunnerTest {
         Generator<TlaEx> generator = _ -> expression;
         for (var value = 0; value < 2; value++) {
             var payload = new byte[] {(byte) value};
-            corpus.store(payload);
+            corpus.store(InputKind.EXPRESSION, payload);
             var parserPass = corpus.completeParser(
                 corpus.inputPath(payload),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
             corpus.fanOutParserPass(parserPass);
         }
 
-        var summary = new WorkflowRunner(config, generator).run(
+        var summary = new WorkflowRunner(
+                config, InputKind.EXPRESSION, SpecDecoders.fromExpressions(generator)).run(
                 corpus,
                 42,
                 Math.min(2, Runtime.getRuntime().availableProcessors()));

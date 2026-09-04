@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Objects;
@@ -93,14 +94,14 @@ public final class CorpusInputCodec {
         try (var reader = CborReader.of(encoded)) {
             reader.startDocument();
 
-            CorpusInput.Kind kind = null;
+            InputKind kind = null;
             byte[] input = null;
             GenerationMetadata generation = null;
             CborReader.Field field;
             while ((field = reader.nextField(CborReader.ROOT)) != null) {
                 switch (field.name()) {
                     case KIND_FIELD ->
-                        kind = CorpusInput.Kind.fromEncodedName(reader.text(field));
+                        kind = CorpusInput.kindFromEncodedName(reader.text(field));
                     case INPUT_FIELD -> input = reader.binary(field);
                     case GENERATION_FIELD -> {
                         reader.requireMap(field);

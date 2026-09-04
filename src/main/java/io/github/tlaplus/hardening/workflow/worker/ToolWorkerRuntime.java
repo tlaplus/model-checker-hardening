@@ -31,7 +31,7 @@ public final class ToolWorkerRuntime {
     /** Produces the verdict for one input. */
     @FunctionalInterface
     public interface Handler {
-        ToolResult handle(String source) throws Exception;
+        ToolResult handle(ToolInput source) throws Exception;
     }
 
     /**

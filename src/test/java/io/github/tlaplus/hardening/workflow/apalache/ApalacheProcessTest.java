@@ -9,7 +9,9 @@ import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,9 +41,9 @@ class ApalacheProcessTest {
         ToolResult fail;
         ToolResult secondPass;
         try (var worker = ApalacheProcess.start(releaseJar, scratch, CONFIG, TIMEOUT)) {
-            pass = worker.check(specification(true));
-            fail = worker.check(specification(false));
-            secondPass = worker.check(specification(true));
+            pass = worker.check(new ToolInput(specification(true), 0));
+            fail = worker.check(new ToolInput(specification(false), 0));
+            secondPass = worker.check(new ToolInput(specification(true), 0));
 
             try (var paths = Files.walk(scratch)) {
                 assertEquals(
@@ -86,7 +88,8 @@ class ApalacheProcessTest {
         ToolResult result;
         try (var worker = ApalacheProcess.start(
                 ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
-            result = worker.check(ApalacheIrJson.render(expression));
+            result = worker.check(new ToolInput(
+                    ApalacheIrJson.render(FuzzInputModule.create(expression)), 0));
         }
 
         assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic());

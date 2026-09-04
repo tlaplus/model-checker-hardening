@@ -4,6 +4,7 @@ import static io.github.tlaplus.hardening.corpus.CorpusLayout.CRASH_REPORT_EXTEN
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -28,9 +29,10 @@ final class CorpusEntryStore {
         this.layout = Objects.requireNonNull(layout, "layout");
     }
 
-    /** Stores an expression input, with its admission metadata when the caller has some. */
-    StoreResult store(byte[] input, GenerationMetadata generation)
+    /** Stores an input of the given kind, with its admission metadata when the caller has some. */
+    StoreResult store(InputKind kind, byte[] input, GenerationMetadata generation)
             throws IOException, CorpusException {
+        Objects.requireNonNull(kind, "kind");
         var payload = Objects.requireNonNull(input, "input").clone();
         var fileName = CorpusLayout.entryFileName(payload);
         for (var corpusPath : CorpusPath.values()) {
@@ -40,9 +42,9 @@ final class CorpusEntryStore {
             var existingPath = layout.resolve(corpusPath).resolve(fileName);
             if (Files.exists(existingPath, NO_FOLLOW_LINKS)) {
                 if (Files.isRegularFile(existingPath, NO_FOLLOW_LINKS)) {
-                    var existing = CorpusEntries.decodeExpressionInput(
+                    var existing = CorpusEntries.decodeInput(
                             existingPath, Files.readAllBytes(existingPath));
-                    if (Arrays.equals(payload, existing)) {
+                    if (Arrays.equals(payload, existing.input())) {
                         return StoreResult.DUPLICATE;
                     }
                 }
@@ -51,9 +53,10 @@ final class CorpusEntryStore {
         }
 
         var path = layout.resolve(CorpusPath.INPUT).resolve(fileName);
+        var corpusInput = new CorpusInput(kind, payload);
         var encoded = generation == null
-                ? CorpusInputCodec.encode(CorpusInput.expression(payload))
-                : CorpusInputCodec.encode(CorpusInput.expression(payload), generation);
+                ? CorpusInputCodec.encode(corpusInput)
+                : CorpusInputCodec.encode(corpusInput, generation);
         try {
             Files.write(path, encoded, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
             return StoreResult.ADDED;
@@ -73,8 +76,9 @@ final class CorpusEntryStore {
      * diagnostic artifacts: they keep the exact generator bytes without admitting a failing input
      * to a stage directory, and they do not count towards any capacity limit.
      */
-    Path recordGeneratorCrash(byte[] input, Throwable failure)
+    Path recordGeneratorCrash(InputKind kind, byte[] input, Throwable failure)
             throws IOException, CorpusException {
+        Objects.requireNonNull(kind, "kind");
         var payload = Objects.requireNonNull(input, "input").clone();
         Objects.requireNonNull(failure, "failure");
         ensureCrashDirectory();
@@ -86,7 +90,7 @@ final class CorpusEntryStore {
         layout.replaceAtomically(
                 candidate,
                 "generator-crash-",
-                CorpusInputCodec.encode(CorpusInput.expression(payload)));
+                CorpusInputCodec.encode(new CorpusInput(kind, payload)));
         try {
             layout.replaceAtomically(
                     report,
@@ -106,13 +110,14 @@ final class CorpusEntryStore {
      * Describes a generator failure on a stored entry, recording the payload for later inspection
      * and reporting whether that succeeded.
      */
-    CorpusException generatorCrash(Path source, byte[] input, Throwable failure) {
-        var message = "cannot generate expression from corpus entry '"
+    CorpusException generatorCrash(
+            Path source, InputKind kind, byte[] input, Throwable failure) {
+        var message = "cannot generate a specification from corpus entry '"
                 + source
                 + "': "
                 + Diagnostics.message(failure);
         try {
-            var candidate = recordGeneratorCrash(input, failure);
+            var candidate = recordGeneratorCrash(kind, input, failure);
             message += "; crash saved to '" + candidate + "'";
         } catch (IOException | CorpusException | RuntimeException recordingFailure) {
             failure.addSuppressed(recordingFailure);

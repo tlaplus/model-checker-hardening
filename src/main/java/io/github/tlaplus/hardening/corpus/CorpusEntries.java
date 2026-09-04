@@ -5,6 +5,7 @@ import static io.github.tlaplus.hardening.corpus.CorpusLayout.ENTRY_FILE_NAME;
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -98,7 +99,7 @@ final class CorpusEntries {
         } catch (RuntimeException | StackOverflowError exception) {
             // The payload broke the generator: keep it for inspection outside the stage
             // directories.
-            throw store.generatorCrash(path, input, exception);
+            throw store.generatorCrash(path, corpusInput.kind(), input, exception);
         }
         return entry;
     }
@@ -121,27 +122,19 @@ final class CorpusEntries {
     }
 
     /**
-     * Decodes the generator payload of an entry that must hold an expression. Unlike {@link
-     * #decode}, this method is asked for an expression specifically, so a different kind is a
-     * failed precondition of the call rather than an unusable corpus.
+     * Decodes the kind and generator payload of an entry. Which kinds a run can use is not decided
+     * here: the caller that regenerates the payload owns that, and says so through {@link
+     * CorpusEntryValidator}.
      */
-    static byte[] decodeExpressionInput(Path path, byte[] encoded) throws CorpusException {
-        var corpusInput = decode(path, encoded).envelope().corpusInput();
-        if (corpusInput.kind() != CorpusInput.Kind.EXPRESSION) {
-            throw new CorpusException(
-                    "corpus entry does not hold an expression input, but '"
-                            + corpusInput.kind().encodedName()
-                            + "': "
-                            + path);
-        }
-        return corpusInput.input();
+    static CorpusInput decodeInput(Path path, byte[] encoded) throws CorpusException {
+        return decode(path, encoded).envelope().corpusInput();
     }
 
-    /** Reads the payload of an entry owned by one stage's input directory. */
-    byte[] readOwnedExpressionInput(Path path, CorpusStage stage)
+    /** Reads the kind and payload of an entry owned by one stage's input directory. */
+    CorpusInput readOwnedInput(Path path, CorpusStage stage)
             throws IOException, CorpusException {
         requireOwnedPath(path, stage.input(), stage.displayName() + " input");
-        return decodeExpressionInput(path, Files.readAllBytes(path));
+        return decodeInput(path, Files.readAllBytes(path));
     }
 
     /** Rejects a path that does not name an existing entry of the given corpus directory. */

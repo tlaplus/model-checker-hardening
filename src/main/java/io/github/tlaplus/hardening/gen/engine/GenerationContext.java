@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -24,6 +25,7 @@ final class GenerationContext {
     private final Map<IrType, Integer> terminalRotation = new HashMap<>();
     private int nameCount;
     private int fieldCount;
+    private int nodeCount;
 
     GenerationContext(IrGenerationConfig config) {
         this.config = config;
@@ -114,6 +116,34 @@ final class GenerationContext {
             List<? extends ScopedName> bindings,
             Generator<? extends T> body) {
         return draw -> scope.withBindings(bindings, () -> draw.draw(body));
+    }
+
+    /**
+     * Returns a generator that runs its body under a node budget of its own.
+     *
+     * <p>The budget counts recursive expression requests and is consumed in pre-order, so whatever
+     * is drawn last is what falls back to terminals. One budget spanning several independent
+     * top-level bodies would therefore let an early body decide how much is left for a later one:
+     * a large {@code Init} would starve {@code Inv} into a constant. Each top-level body gets its
+     * own budget instead, and the prior count is restored afterwards, including on an exceptional
+     * exit, so a rejected body does not leak its consumption into the next one.
+     */
+    <T> Generator<T> withFreshNodeBudget(Generator<? extends T> body) {
+        Objects.requireNonNull(body, "body");
+        return draw -> {
+            var previous = nodeCount;
+            nodeCount = 0;
+            try {
+                return draw.draw(body);
+            } finally {
+                nodeCount = previous;
+            }
+        };
+    }
+
+    /** Reports whether another expression request fits in the current node budget, consuming it. */
+    boolean consumeNode() {
+        return nodeCount++ < config.maximumNodes();
     }
 
     /** Returns a fresh record-field identifier. */

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import at.forsyte.apalache.io.json.DefaultTagJsonReader;
 import at.forsyte.apalache.io.json.ujsonimpl.UJsonRepresentation;
 import at.forsyte.apalache.io.json.ujsonimpl.UJsonToTlaViaBuilder;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -28,7 +29,7 @@ class ApalacheIrJsonTest {
                 builder.emptySeq(TlaTypes.BOOL),
                 builder.variant("Tag0", builder.integer(0), variantType));
 
-        var json = ApalacheIrJson.render(expression).replaceAll("\\s+", "");
+        var json = ApalacheIrJson.render(FuzzInputModule.create(expression)).replaceAll("\\s+", "");
 
         assertTrue(json.contains("\"name\":\"ApalacheIR\""), json);
         assertTrue(json.contains("\"type\":\"Set(Int)\""), json);
@@ -45,7 +46,7 @@ class ApalacheIrJsonTest {
         var expression = builder.tuple(
                 builder.integer(0),
                 builder.label(builder.bool(false), "label0"));
-        var json = ApalacheIrJson.render(expression);
+        var json = ApalacheIrJson.render(FuzzInputModule.create(expression));
         var value = package$.MODULE$.read(Readable.fromString(json), false);
         var decoder = new UJsonToTlaViaBuilder(
                 Option.empty(), DefaultTagJsonReader::apply);

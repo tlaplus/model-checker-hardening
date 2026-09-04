@@ -1,10 +1,10 @@
 package io.github.tlaplus.hardening.workflow.input;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
@@ -28,6 +28,7 @@ public final class PbtStage implements WorkflowStage {
     private static final long MAXIMUM_ATTEMPTS_PER_ENTRY = 10_000;
 
     private final PbtConfig config;
+    private final InputKind kind;
     private final long initialEntries;
     private final StageEnvironment environment;
     private final long seed;
@@ -41,6 +42,7 @@ public final class PbtStage implements WorkflowStage {
 
     public PbtStage(
             PbtConfig config,
+            InputKind kind,
             long maximumEntries,
             long initialEntries,
             StageEnvironment environment,
@@ -50,6 +52,7 @@ public final class PbtStage implements WorkflowStage {
             Semaphore inputCapacity,
             GeneratorStatistics statistics) {
         this.config = Objects.requireNonNull(config, "config");
+        this.kind = Objects.requireNonNull(kind, "kind");
         if (initialEntries < 0) {
             throw new IllegalArgumentException("initialEntries must be nonnegative");
         }
@@ -107,6 +110,13 @@ public final class PbtStage implements WorkflowStage {
     }
 
     private void generateInputs(int workerId, long workerSeed) throws Exception {
+        var decoder = environment.decoders().get(kind);
+        if (decoder == null) {
+            throw new WorkflowException(
+                    "the input stage cannot generate '"
+                            + kind.encodedName()
+                            + "' inputs: no decoder for that kind");
+        }
         var random = new SplittableRandom(workerSeed);
         var cohortRandom = random.split();
         var inputRandom = random.split();
@@ -163,9 +173,9 @@ public final class PbtStage implements WorkflowStage {
                             input = new byte[length];
                             inputRandom.nextBytes(input);
                             try {
-                                var expression = environment.generator().generate(input);
+                                var artifact = decoder.generate(input);
                                 richness = CollectionRichness.score(
-                                        expression, config.richnessNestingBase());
+                                        artifact.generated(), config.richnessNestingBase());
                             } catch (InputRejectedException exception) {
                                 statistics.recordRejection();
                                 continue;
@@ -189,7 +199,7 @@ public final class PbtStage implements WorkflowStage {
                         }
 
                         var stored = environment.corpus()
-                                .store(input, new GenerationMetadata(cohort, richness));
+                                .store(kind, input, new GenerationMetadata(cohort, richness));
                         switch (stored) {
                             case ADDED -> {
                                 statistics.recordAdmission(richness);
@@ -232,7 +242,8 @@ public final class PbtStage implements WorkflowStage {
                 + ": "
                 + Diagnostics.message(failure);
         try {
-            var candidate = environment.corpus().recordGeneratorCrash(input, failure);
+            var candidate =
+                    environment.corpus().recordGeneratorCrash(kind, input, failure);
             message += "; candidate saved to '" + candidate + "'";
         } catch (IOException | CorpusException | RuntimeException recordingFailure) {
             failure.addSuppressed(recordingFailure);
