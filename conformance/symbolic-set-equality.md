@@ -1,7 +1,8 @@
 # Equality over symbolic-set representations
 
-Observed share: 0.16% of Apalache crash outcomes. Within this group, 66.67%
-involve `PowSet` and 33.33% involve `FinFunSet`.
+The original session's share was 0.16% of Apalache crash outcomes. The later
+`corpus2` run contains 44 instances among 341 crashes (12.90%): 25 compare the
+same symbolic representation and 19 compare symbolic and materialized sets.
 
 Apalache aborts with `Unexpected equality test over types` while comparing
 symbolic sets. TLC evaluates the corresponding equality normally.

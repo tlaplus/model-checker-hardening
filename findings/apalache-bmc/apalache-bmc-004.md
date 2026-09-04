@@ -11,8 +11,9 @@ Z3 `RealExpr`. When the expression is subsequently consumed by integer
 arithmetic inside a record, `Z3SolverContext` casts it to `IntExpr` and throws
 `ClassCastException`.
 
-Observed with Apalache 0.62.2, build `f0dec98`. The `corpus4` input reproduces
-deterministically; see the
+Observed with Apalache 0.62.2, build `f0dec98`. The later `corpus2` run found
+one additional instance. The `corpus4` input reproduces deterministically; see
+the
 [`4144072b...` input](../../corpus4/02apa-crash/4144072b74b01543c182591aa03ea67ab37166c14d694623ebe023de5d41ca61.cbor)
 and its [stacktrace](../../corpus4/02apa-crash/4144072b74b01543c182591aa03ea67ab37166c14d694623ebe023de5d41ca61.stacktrace).
 

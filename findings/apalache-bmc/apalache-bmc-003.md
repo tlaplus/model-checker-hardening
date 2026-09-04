@@ -10,9 +10,11 @@ Apalache's bounded checker aborts while comparing values represented by
 symbolic sets. It reports `Unexpected equality test over types` even when both
 reported arena types are identical.
 
-The inspected corpus contains three instances: two involving `PowSet` and one
-involving `FinFunSet`. Observed with Apalache 0.62.0; both representative
-reproductions still fail with Apalache 0.62.2, build `f0dec98`.
+The original inspected corpus contains three instances. The later `corpus2`
+run contains 44: 25 compare the same symbolic representation and 19 compare a
+symbolic representation with a materialized set. Observed with Apalache 0.62.0;
+both representative reproductions still fail with Apalache 0.62.2, build
+`f0dec98`.
 
 ## Power-set reproduction
 

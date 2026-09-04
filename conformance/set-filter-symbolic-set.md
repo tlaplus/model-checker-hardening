@@ -1,7 +1,8 @@
 # Set filtering over symbolic-set representations
 
-Observed share: 1.05% of Apalache crash outcomes. Within this group, 25% use an
-`InfSet` domain, 60% use `PowSet`, and 15% use `FinFunSet`.
+The original session's share was 1.05% of Apalache crash outcomes. The later
+`corpus2` run contains 185 instances among 341 crashes (54.25%): 68 use an
+`InfSet` domain, 88 use `PowSet`, and 29 use `FinFunSet`.
 
 Apalache reaches `SetFilterRule` and throws an unhandled
 `NotImplementedError` for these arena shapes. TLC either evaluates a finite

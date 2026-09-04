@@ -12,8 +12,8 @@ When a bounded quantifier over `Int` occurs below negation, Apalache's
 
 Infinite-domain quantification is a known Apalache limitation, but the
 exception is a checker crash rather than a classified unsupported-input result.
-Observed with Apalache 0.62.2, build `f0dec98`.
-The corpus evidence is the
+Observed with Apalache 0.62.2, build `f0dec98`. The later `corpus2` run found
+five additional instances. The corpus evidence is the
 [`8559bfa7...` input](../../corpus4/02apa-crash/8559bfa7129fccc8340501c41def25dbb2e15f0910a9e5d332479c785c0630a8.cbor)
 and its [stacktrace](../../corpus4/02apa-crash/8559bfa7129fccc8340501c41def25dbb2e15f0910a9e5d332479c785c0630a8.stacktrace).
 
