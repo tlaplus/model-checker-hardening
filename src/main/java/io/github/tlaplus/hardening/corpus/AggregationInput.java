@@ -24,7 +24,10 @@ public record AggregationInput(
         checkerVerdicts = Map.copyOf(copy);
     }
 
-    /** Returns pass when all checker verdicts agree, and fail when they disagree. */
+    /**
+     * Returns pass when all checker verdicts agree, and fail when they disagree. A counterexample
+     * therefore passes only when every checker reports one.
+     */
     public CorpusVerdict conformanceVerdict() {
         return checkerVerdicts.values().stream().distinct().count() == 1
                 ? CorpusVerdict.PASS

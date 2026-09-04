@@ -12,10 +12,14 @@ public enum CorpusPath {
     PARSER_CRASH("01parser-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_INPUT("02tlc-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_PASS("02tlc-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    TLC_COUNTEREXAMPLE(
+            "02tlc-counterexample", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_FAIL("02tlc-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_CRASH("02tlc-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_INPUT("02apa-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_PASS("02apa-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    APALACHE_COUNTEREXAMPLE(
+            "02apa-counterexample", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_FAIL("02apa-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_CRASH("02apa-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     AGGREGATOR_PASS("03aggregator-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),

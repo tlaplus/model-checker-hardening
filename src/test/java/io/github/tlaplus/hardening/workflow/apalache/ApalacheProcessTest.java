@@ -59,10 +59,8 @@ class ApalacheProcessTest {
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
         assertTrue(pass.diagnostic().contains("EXITCODE: OK"), pass.diagnostic());
-        assertEquals(StageOutcome.FAIL, fail.outcome(), fail.diagnostic());
-        assertEquals(
-                CheckerFailureCode.COUNTEREXAMPLE,
-                fail.failureCode().orElseThrow());
+        assertEquals(StageOutcome.COUNTEREXAMPLE, fail.outcome(), fail.diagnostic());
+        assertTrue(fail.failureCode().isEmpty());
         assertTrue(fail.diagnostic().contains("EXITCODE: ERROR (12)"), fail.diagnostic());
         assertEquals(StageOutcome.PASS, secondPass.outcome(), secondPass.diagnostic());
         assertTrue(secondPass.failureCode().isEmpty());
@@ -99,7 +97,7 @@ class ApalacheProcessTest {
     @Test
     void classifiesApalacheExitStatuses() {
         assertClassification(0, StageOutcome.PASS, null);
-        assertClassification(12, StageOutcome.FAIL, CheckerFailureCode.COUNTEREXAMPLE);
+        assertClassification(12, StageOutcome.COUNTEREXAMPLE, null);
         assertClassification(75, StageOutcome.FAIL, CheckerFailureCode.SPEC_EVAL);
         assertClassification(120, StageOutcome.FAIL, CheckerFailureCode.TYPECHECK);
         assertClassification(150, StageOutcome.FAIL, CheckerFailureCode.PARSE);

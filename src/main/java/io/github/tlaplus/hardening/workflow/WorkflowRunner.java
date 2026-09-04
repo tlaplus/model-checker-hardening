@@ -302,12 +302,8 @@ public final class WorkflowRunner {
     /** Returns what one stage has produced according to an inventory of the corpus. */
     private static StageVerdictSummary summary(
             CorpusInventory inventory, CorpusStage stage, WorkflowMetrics metrics) {
-        var counts = inventory.counts(stage);
         return new StageVerdictSummary(
-                counts.passed(),
-                counts.failed(),
-                counts.crashed(),
-                metrics.clocks().of(stage).elapsed());
+                inventory.counts(stage), metrics.clocks().of(stage).elapsed());
     }
 
     private static WorkflowProgress progressSnapshot(

@@ -29,10 +29,8 @@ class TlcProcessTest {
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
-        assertEquals(StageOutcome.FAIL, fail.outcome());
-        assertEquals(
-                CheckerFailureCode.COUNTEREXAMPLE,
-                fail.failureCode().orElseThrow());
+        assertEquals(StageOutcome.COUNTEREXAMPLE, fail.outcome());
+        assertTrue(fail.failureCode().isEmpty());
         assertTrue(fail.diagnostic().toLowerCase().contains("violat"), fail.diagnostic());
         try (var paths = Files.list(scratch)) {
             assertTrue(paths.findAny().isEmpty());
@@ -44,24 +42,24 @@ class TlcProcessTest {
         assertClassification(EC.ExitStatus.SUCCESS, StageOutcome.PASS, null);
         assertClassification(
                 EC.ExitStatus.VIOLATION_ASSUMPTION,
-                StageOutcome.FAIL,
-                CheckerFailureCode.COUNTEREXAMPLE);
+                StageOutcome.COUNTEREXAMPLE,
+                null);
         assertClassification(
                 EC.ExitStatus.VIOLATION_DEADLOCK,
-                StageOutcome.FAIL,
-                CheckerFailureCode.COUNTEREXAMPLE);
+                StageOutcome.COUNTEREXAMPLE,
+                null);
         assertClassification(
                 EC.ExitStatus.VIOLATION_SAFETY,
-                StageOutcome.FAIL,
-                CheckerFailureCode.COUNTEREXAMPLE);
+                StageOutcome.COUNTEREXAMPLE,
+                null);
         assertClassification(
                 EC.ExitStatus.VIOLATION_LIVENESS,
-                StageOutcome.FAIL,
-                CheckerFailureCode.COUNTEREXAMPLE);
+                StageOutcome.COUNTEREXAMPLE,
+                null);
         assertClassification(
                 EC.ExitStatus.VIOLATION_ASSERT,
-                StageOutcome.FAIL,
-                CheckerFailureCode.COUNTEREXAMPLE);
+                StageOutcome.COUNTEREXAMPLE,
+                null);
         assertClassification(
                 EC.ExitStatus.FAILURE_SPEC_EVAL,
                 StageOutcome.FAIL,

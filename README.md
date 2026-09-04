@@ -85,10 +85,12 @@ corpus/
 ├── 01parser-crash/
 ├── 02tlc-inputs/
 ├── 02tlc-pass/
+├── 02tlc-counterexample/
 ├── 02tlc-fail/
 ├── 02tlc-crash/
 ├── 02apa-inputs/
 ├── 02apa-pass/
+├── 02apa-counterexample/
 ├── 02apa-fail/
 ├── 02apa-crash/
 ├── 03aggregator-pass/
@@ -242,17 +244,20 @@ Parser passes are copied to `02tlc-inputs` and `02apa-inputs`; the two files cou
 as one logical corpus entry. TLC records `stages.tlc` and moves its copy to the
 matching TLC result directory. Apalache does the same under `stages.apalache`
 and its result directories. Once both non-crash results exist, the aggregator
-merges their metadata into one entry. Equal pass/pass or fail/fail verdicts move
-to `03aggregator-pass`; pass/fail disagreements move to
-`03aggregator-fail`. Failure codes do not affect this comparison. A pair with a
-checker crash remains in the checker result directories. The parser and TLC
+merges their metadata into one entry. Equal pass/pass,
+counterexample/counterexample, or fail/fail verdicts move to
+`03aggregator-pass`; any disagreement, including a
+counterexample from only one checker, moves to `03aggregator-fail`. Failure codes
+do not affect this comparison. A pair with a checker crash remains in the checker
+result directories. The parser and TLC
 receive a TLA+ module; Apalache
 receives typed Apalache IR JSON generated from the same expression. The JSON
 path preserves closed expression types that TLA+ source cannot fully annotate.
 Both checkers run the fixed `Init`, `Next`, and `Inv` configuration with deadlock
-checking disabled; Apalache checks length zero. A violated invariant or another
-classified non-crash checker error is a failure. Both stages use the shared
-failure-code taxonomy.
+checking disabled. Apalache uses the artifact's exploration length, which is zero
+for an expression input. A property violation is a `counterexample`; classified
+evaluation, typechecking, and parsing errors are failures. Both stages use the
+shared failure-code taxonomy for failures.
 
 Among generator exceptions, only `InputRejectedException` rejects a candidate;
 other failures stop the workflow. An unexpected generator or parser-preparation

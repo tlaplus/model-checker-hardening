@@ -10,12 +10,12 @@ import org.junit.jupiter.api.Test;
 class CheckerFailureTest {
     @Test
     void decodesTheSharedNumericRegistry() {
-        assertEquals(
-                CheckerFailureCode.COUNTEREXAMPLE,
-                CheckerFailureCode.fromEncodedCode(12));
         assertEquals(CheckerFailureCode.SPEC_EVAL, CheckerFailureCode.fromEncodedCode(75));
         assertEquals(CheckerFailureCode.TYPECHECK, CheckerFailureCode.fromEncodedCode(120));
         assertEquals(CheckerFailureCode.PARSE, CheckerFailureCode.fromEncodedCode(150));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CheckerFailureCode.fromEncodedCode(12));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> CheckerFailureCode.fromEncodedCode(76));

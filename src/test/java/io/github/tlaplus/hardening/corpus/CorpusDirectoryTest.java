@@ -43,10 +43,14 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.PARSER_CRASH, Path.of("01parser-crash")),
                 Map.entry(CorpusPath.TLC_INPUT, Path.of("02tlc-inputs")),
                 Map.entry(CorpusPath.TLC_PASS, Path.of("02tlc-pass")),
+                Map.entry(CorpusPath.TLC_COUNTEREXAMPLE, Path.of("02tlc-counterexample")),
                 Map.entry(CorpusPath.TLC_FAIL, Path.of("02tlc-fail")),
                 Map.entry(CorpusPath.TLC_CRASH, Path.of("02tlc-crash")),
                 Map.entry(CorpusPath.APALACHE_INPUT, Path.of("02apa-inputs")),
                 Map.entry(CorpusPath.APALACHE_PASS, Path.of("02apa-pass")),
+                Map.entry(
+                        CorpusPath.APALACHE_COUNTEREXAMPLE,
+                        Path.of("02apa-counterexample")),
                 Map.entry(CorpusPath.APALACHE_FAIL, Path.of("02apa-fail")),
                 Map.entry(CorpusPath.APALACHE_CRASH, Path.of("02apa-crash")),
                 Map.entry(CorpusPath.AGGREGATOR_PASS, Path.of("03aggregator-pass")),
@@ -351,13 +355,33 @@ class CorpusDirectoryTest {
                         .orElseThrow());
         var inventory = corpus.recoverAndValidate(ACCEPT);
         assertEquals(0, inventory.pendingEntries(CorpusStage.PARSER));
-        assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).count(CorpusVerdict.PASS));
         assertTrue(Files.notExists(destination));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.TLC_INPUT).resolve(source.getFileName())));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(source.getFileName())));
         assertEquals(1, inventory.totalEntries());
+    }
+
+    @Test
+    void rejectsCounterexampleVerdictsFromTheParser(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var input = new byte[] {3, 1, 5};
+        corpus.store(InputKind.EXPRESSION, input);
+
+        var failure = assertThrows(
+                CorpusException.class,
+                () -> corpus.completeParser(
+                        corpus.inputPath(input),
+                        new StageResult(
+                                CorpusVerdict.COUNTEREXAMPLE,
+                                Instant.ofEpochSecond(10),
+                                Instant.ofEpochSecond(12))));
+
+        assertTrue(failure.getMessage().contains("parser cannot record counterexample"));
+        assertTrue(Files.exists(corpus.inputPath(input)));
     }
 
     /**
@@ -431,8 +455,8 @@ class CorpusDirectoryTest {
                         .stage(CorpusStage.TLC)
                         .map(StageMetadata::verdict));
         var inventory = corpus.recoverAndValidate(ACCEPT);
-        assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
-        assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).count(CorpusVerdict.PASS));
+        assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
         assertEquals(1, inventory.pendingEntries(CorpusStage.APALACHE));
         assertEquals(1, inventory.totalEntries());
     }
@@ -462,7 +486,7 @@ class CorpusDirectoryTest {
                         .stage(CorpusStage.APALACHE)
                         .map(StageMetadata::verdict));
         var inventory = corpus.recoverAndValidate(ACCEPT);
-        assertEquals(1, inventory.counts(CorpusStage.APALACHE).passed());
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).count(CorpusVerdict.PASS));
         assertEquals(1, inventory.pendingEntries(CorpusStage.TLC));
         assertEquals(1, inventory.totalEntries());
     }
@@ -518,7 +542,45 @@ class CorpusDirectoryTest {
                 .findFirst()
                 .orElseThrow();
         assertEquals(Optional.of(failure), metadata.failure());
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.TLC).failed());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.TLC).count(CorpusVerdict.FAIL));
+    }
+
+    @Test
+    void recordsTlcCounterexamplesSeparatelyFromFailures(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var input = new byte[] {7, 6};
+        corpus.store(InputKind.EXPRESSION, input);
+        var parserPass = corpus.completeParser(
+                corpus.inputPath(input),
+                new StageResult(
+                        CorpusVerdict.PASS,
+                        Instant.ofEpochSecond(1),
+                        Instant.ofEpochSecond(2)));
+        corpus.fanOutParserPass(parserPass);
+
+        var result = corpus.completeChecker(
+                corpus.checkerInputPath(CorpusStage.TLC).resolve(parserPass.getFileName()),
+                new StageResult(
+                        CorpusVerdict.COUNTEREXAMPLE,
+                        Instant.ofEpochSecond(3),
+                        Instant.ofEpochSecond(4)));
+
+        assertEquals(
+                corpus.resolve(CorpusPath.TLC_COUNTEREXAMPLE)
+                        .resolve(parserPass.getFileName()),
+                result);
+        var metadata = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(result))
+                .stage(CorpusStage.TLC)
+                .orElseThrow();
+        assertEquals(CorpusVerdict.COUNTEREXAMPLE, metadata.verdict());
+        assertTrue(metadata.failure().isEmpty());
+        assertEquals(
+                1,
+                corpus.recoverAndValidate(ACCEPT)
+                        .counts(CorpusStage.TLC)
+                        .count(CorpusVerdict.COUNTEREXAMPLE));
     }
 
     @Test
@@ -538,7 +600,7 @@ class CorpusDirectoryTest {
         assertTrue(Files.exists(tlcInput));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName())));
-        assertEquals(1, inventory.counts(CorpusStage.PARSER).passed());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).count(CorpusVerdict.PASS));
         assertEquals(1, inventory.pendingEntries(CorpusStage.TLC));
     }
 
@@ -636,7 +698,7 @@ class CorpusDirectoryTest {
         var inventory = corpus.recoverAndValidate(ACCEPT);
 
         assertEquals(0, inventory.pendingEntries(CorpusStage.TLC));
-        assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.TLC_PASS).resolve(tlcInput.getFileName())));
     }
@@ -662,7 +724,7 @@ class CorpusDirectoryTest {
         assertEquals(
                 "java.lang.OutOfMemoryError: heap" + System.lineSeparator(),
                 Files.readString(report));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.TLC).crashed());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.TLC).count(CorpusVerdict.CRASH));
     }
 
     @Test
@@ -688,7 +750,7 @@ class CorpusDirectoryTest {
                         .resolve(apalacheInput.getFileName()),
                 result);
         assertEquals("Apalache timed out" + System.lineSeparator(), Files.readString(report));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.APALACHE).crashed());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.APALACHE).count(CorpusVerdict.CRASH));
     }
 
     @Test
@@ -771,12 +833,42 @@ class CorpusDirectoryTest {
                         .map(CheckerFailure::code));
 
         var inventory = corpus.recoverAndValidate(ACCEPT);
-        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).passed());
-        assertEquals(1, inventory.counts(CorpusStage.TLC).failed());
-        assertEquals(1, inventory.counts(CorpusStage.APALACHE).failed());
+        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.PASS));
+        assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.FAIL));
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).count(CorpusVerdict.FAIL));
         assertEquals(0, inventory.resultEntries(CorpusStage.TLC));
         assertEquals(0, inventory.resultEntries(CorpusStage.APALACHE));
         assertEquals(1, inventory.totalEntries());
+    }
+
+    @Test
+    void failsAggregationWhenOnlyOneCheckerFindsACounterexample(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pair = completeCheckerPair(
+                corpus,
+                new byte[] {5, 7},
+                CorpusVerdict.COUNTEREXAMPLE,
+                CorpusVerdict.FAIL);
+        var input = corpus.aggregationInput(pair.tlc()).orElseThrow();
+
+        var destination = corpus.completeAggregation(
+                input,
+                new StageResult(
+                        CorpusVerdict.FAIL,
+                        Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(21)));
+
+        assertEquals(
+                corpus.resolve(CorpusPath.AGGREGATOR_FAIL).resolve(pair.tlc().getFileName()),
+                destination);
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+        assertEquals(
+                1,
+                inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE));
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).count(CorpusVerdict.FAIL));
+        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.FAIL));
     }
 
     @Test
@@ -801,7 +893,7 @@ class CorpusDirectoryTest {
 
         assertTrue(Files.notExists(pair.tlc()));
         assertTrue(Files.notExists(pair.apalache()));
-        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).passed());
+        assertEquals(1, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.PASS));
         assertEquals(1, inventory.totalEntries());
     }
 
@@ -853,8 +945,8 @@ class CorpusDirectoryTest {
         assertTrue(corpus.aggregationInput(pair.apalache()).isEmpty());
         var inventory = corpus.recoverAndValidate(ACCEPT);
         assertEquals(0, inventory.pendingEntries(CorpusStage.AGGREGATOR));
-        assertEquals(1, inventory.counts(CorpusStage.TLC).crashed());
-        assertEquals(1, inventory.counts(CorpusStage.APALACHE).passed());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH));
+        assertEquals(1, inventory.counts(CorpusStage.APALACHE).count(CorpusVerdict.PASS));
         assertTrue(Files.exists(pair.tlc()));
         assertTrue(Files.exists(pair.apalache()));
     }
@@ -893,7 +985,7 @@ class CorpusDirectoryTest {
                 corpus.resolve(CorpusPath.PARSER_CRASH).resolve(source.getFileName()),
                 destination);
         assertEquals(diagnostic + System.lineSeparator(), Files.readString(report));
-        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.PARSER).crashed());
+        assertEquals(1, corpus.recoverAndValidate(ACCEPT).counts(CorpusStage.PARSER).count(CorpusVerdict.CRASH));
     }
 
     @Test
@@ -916,7 +1008,7 @@ class CorpusDirectoryTest {
         var inventory = corpus.recoverAndValidate(ACCEPT);
 
         assertEquals(0, inventory.pendingEntries(CorpusStage.PARSER));
-        assertEquals(1, inventory.counts(CorpusStage.PARSER).failed());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).count(CorpusVerdict.FAIL));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.PARSER_FAIL).resolve(source.getFileName())));
     }
@@ -944,7 +1036,7 @@ class CorpusDirectoryTest {
 
         var inventory = corpus.recoverAndValidate(ACCEPT);
 
-        assertEquals(1, inventory.counts(CorpusStage.PARSER).crashed());
+        assertEquals(1, inventory.counts(CorpusStage.PARSER).count(CorpusVerdict.CRASH));
         assertTrue(Files.exists(
                 corpus.resolve(CorpusPath.PARSER_CRASH).resolve(source.getFileName())));
         assertEquals(

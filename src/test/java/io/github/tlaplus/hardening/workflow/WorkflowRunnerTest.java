@@ -118,8 +118,8 @@ class WorkflowRunnerTest {
 
         assertEquals(1, first.generator().generated());
         assertEquals(1, second.generator().generated());
-        assertEquals(1, first.stage(CorpusStage.PARSER).failed());
-        assertEquals(1, second.stage(CorpusStage.PARSER).failed());
+        assertEquals(1, first.stage(CorpusStage.PARSER).count(CorpusVerdict.FAIL));
+        assertEquals(1, second.stage(CorpusStage.PARSER).count(CorpusVerdict.FAIL));
         assertEquals(Duration.ZERO, first.stage(CorpusStage.PARSER).elapsed());
         assertEquals(Duration.ZERO, second.stage(CorpusStage.PARSER).elapsed());
         assertTrue(second.totalElapsed().compareTo(first.totalElapsed()) >= 0);
@@ -248,11 +248,11 @@ class WorkflowRunnerTest {
                 Math.min(2, Runtime.getRuntime().availableProcessors()));
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
-        assertEquals(4, summary.stage(CorpusStage.PARSER).passed());
+        assertEquals(4, summary.stage(CorpusStage.PARSER).count(CorpusVerdict.PASS));
         assertEquals(0, summary.corpus().resultEntries(CorpusStage.PARSER));
-        assertEquals(4, summary.corpus().counts(CorpusStage.TLC).passed());
-        assertEquals(4, summary.corpus().counts(CorpusStage.APALACHE).passed());
-        assertEquals(4, summary.corpus().counts(CorpusStage.AGGREGATOR).passed());
+        assertEquals(4, summary.corpus().counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
+        assertEquals(4, summary.corpus().counts(CorpusStage.APALACHE).count(CorpusVerdict.PASS));
+        assertEquals(4, summary.corpus().counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.PASS));
         assertEquals(0, summary.corpus().resultEntries(CorpusStage.TLC));
         assertEquals(0, summary.corpus().resultEntries(CorpusStage.APALACHE));
     }
@@ -283,7 +283,7 @@ class WorkflowRunnerTest {
         var summary = runner(config, generator).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
-        assertEquals(2, summary.stage(CorpusStage.PARSER).failed());
+        assertEquals(2, summary.stage(CorpusStage.PARSER).count(CorpusVerdict.FAIL));
         assertEquals(0, summary.corpus().pendingEntries(CorpusStage.PARSER));
         assertEquals(0, summary.corpus().processedEntries(CorpusStage.TLC));
     }
@@ -346,7 +346,7 @@ class WorkflowRunnerTest {
         var summary = new WorkflowRunner(config).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
-        assertEquals(2, summary.stage(CorpusStage.PARSER).passed());
+        assertEquals(2, summary.stage(CorpusStage.PARSER).count(CorpusVerdict.PASS));
         assertEquals(2, summary.corpus().totalEntries());
     }
 

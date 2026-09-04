@@ -34,11 +34,22 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
             if (!copy.containsKey(stage)) {
                 throw new IllegalArgumentException("inventory is missing stage " + stage);
             }
+            var supported = stage.resultVerdicts();
+            for (var verdict : CorpusVerdict.values()) {
+                if (!supported.contains(verdict)
+                        && copy.get(stage).counts().count(verdict) != 0) {
+                    throw new IllegalArgumentException(
+                            stage + " inventory counts unsupported " + verdict.encodedName()
+                                    + " verdicts");
+                }
+            }
         }
         stages = Map.copyOf(copy);
 
         // A parser pass exists once per checker branch, so each branch accounts for all of them.
-        var parserPasses = stages.get(CorpusStage.PARSER).counts().passed();
+        var parserPasses = stages.get(CorpusStage.PARSER)
+                .counts()
+                .count(CorpusVerdict.PASS);
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = stages.get(checker);
             if (parserPasses != branch.pending().size() + branch.counts().processed()) {

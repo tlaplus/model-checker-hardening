@@ -6,6 +6,8 @@
 
 **Date:** 2026-08-14
 
+**Amended by:** [ADR 0005](0005-counterexample-verdict.md)
+
 ## Context
 
 The fuzzing pipeline must process independently owned corpus directories while
@@ -26,22 +28,25 @@ A workflow invocation runs five implemented stages concurrently:
   `01parser-crash`. It uses persistent child JVMs because SANY has process-global
   state. Each JVM handles one request at a time and is replaced after a timeout,
   crash, or unexpected exit.
-- The TLC stage consumes `02tlc-inputs` and owns `02tlc-pass`, `02tlc-fail`,
-  and `02tlc-crash`. Every input runs in a fresh child JVM, which bounds leaked
+- The TLC stage consumes `02tlc-inputs` and owns `02tlc-pass`,
+  `02tlc-counterexample`, `02tlc-fail`, and `02tlc-crash`. Every input runs in a
+  fresh child JVM, which bounds leaked
   process state and permits recovery after a JVM crash or out-of-memory exit.
   The stage calls `TLC.handleParameters` and `TLC.process`; it does not call
   `TLC.main`.
 - The Apalache stage consumes `02apa-inputs` and owns `02apa-pass`,
-  `02apa-fail`, and `02apa-crash`. Each FuzzTLA worker lazily starts one isolated
+  `02apa-counterexample`, `02apa-fail`, and `02apa-crash`. Each FuzzTLA worker
+  lazily starts one isolated
   Apalache JVM and invokes `Tool.run` sequentially for multiple inputs. The
   release is pinned to version 0.62.0, downloaded from the official GitHub
   release with a verified SHA-256 digest, and staged beside FuzzTLA's JAR.
 - The conformance aggregator owns `03aggregator-pass` and
   `03aggregator-fail`. One in-process worker joins a completed non-crash TLC
   result with the corresponding Apalache result. Equal verdicts pass;
-  different verdicts fail. Checker failure codes remain diagnostic metadata and
-  do not affect the comparison. Pairs containing a crash remain in the checker
-  result directories.
+  different verdicts fail. Thus a counterexample from exactly one checker fails
+  aggregation, including when the other checker reports an ordinary failure.
+  Checker failure codes remain diagnostic metadata and do not affect the
+  comparison. Pairs containing a crash remain in the checker result directories.
 
 The implementation mirrors these responsibilities in `workflow.input`,
 `workflow.parser`, `workflow.tlc`, `workflow.apalache`, and
@@ -171,21 +176,26 @@ abrupt worker exit, or a worker that dies while accepting an input.
 TLC receives a fixed configuration containing `INIT Init`, `NEXT Next`, and
 `INVARIANT Inv`; deadlock checking and trace-exploration specification generation
 are disabled. Since `Inv` repeats the expression used by `Init`, a reachable
-invariant violation is a TLC failure. TLC's error constant is first mapped with
-`EC.ExitStatus.errorConstantToExitStatus`, except `TLC_INTEGER_TOO_BIG`, which is
+invariant violation produces a counterexample. TLC's error constant is first
+mapped with `EC.ExitStatus.errorConstantToExitStatus`, except
+`TLC_INTEGER_TOO_BIG`, which is
 explicitly a failure because it reports an unsupported input value rather than a
-tool crash. Property violations map to shared failure code 12, evaluation
-failures and `TLC_INTEGER_TOO_BIG` to 75, and specification or configuration
-parse failures to 150. Other statuses are crashes. An exception, timeout, abrupt
+tool crash. Property violations produce the `counterexample` verdict.
+Evaluation failures and `TLC_INTEGER_TOO_BIG` produce `fail` with code 75, and
+specification or
+configuration parse failures produce `fail` with code 150. Other statuses are
+crashes. An exception, timeout, abrupt
 child exit, stack overflow, or out-of-memory exit is also a crash. Worker startup,
 protocol, corpus, and orchestration errors are workflow infrastructure failures.
 [ADR 0003](0003-checker-failure-codes.md) defines the shared checker taxonomy and
 bounded diagnostic detail.
 
-Apalache receives the same `Init`, `Next`, and `Inv` names, checks length zero,
-and disables deadlock checking. Exit status 0 is a pass. Exit statuses 12, 75,
-120, and 150 are failures with the corresponding shared code. Any other exit
-status, timeout, abrupt exit, or fatal JVM error is a crash. A process-start
+Apalache receives the same `Init`, `Next`, and `Inv` names and disables deadlock
+checking. Its exploration length is zero for an expression input and the
+configured step bound for a module input. Exit status 0 is a pass. Exit status
+12 is a counterexample. Exit statuses 75, 120, and 150 are failures with the
+corresponding shared code. Any other exit status, timeout, abrupt exit, or fatal
+JVM error is a crash. A process-start
 failure is workflow infrastructure failure. Each FuzzTLA worker calls `Tool.run`
 one input at a time in its persistent child JVM. Different workers use separate
 JVMs because Logback remains process-global. A crash retires the child; the next

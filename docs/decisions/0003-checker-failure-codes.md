@@ -6,10 +6,14 @@
 
 **Date:** 2026-08-17
 
+**Amended by:** [ADR 0005](0005-counterexample-verdict.md)
+
 ## Context
 
-TLC and Apalache must report failures through one corpus representation. TLC
-often collapses distinct undefined expressions into `FAILURE_SPEC_EVAL`; the
+TLC and Apalache must report classified errors through one corpus
+representation. Counterexamples use the separate verdict defined by [ADR 0005][];
+this decision covers the remaining `fail` outcomes. TLC often
+collapses distinct undefined expressions into `FAILURE_SPEC_EVAL`; the
 specific cause may appear only in human-readable output. Examples include
 function application outside the domain, an unsuccessful `CHOOSE`, `Head` of an
 empty sequence, invalid `SubSeq` indices, an unmatched `CASE`, and division by
@@ -26,14 +30,15 @@ Model-checker failures use these numeric codes:
 
 | Code | Symbol | TLC source | Apalache source |
 | ---: | --- | --- | --- |
-| 12 | `counterexample` | Exit statuses 10–14 | 12 |
 | 75 | `spec_eval` | Exit statuses 75–77 and `TLC_INTEGER_TOO_BIG` | 75, or status 255 with a recognized undefined-arithmetic input error |
 | 120 | `typecheck` | None | 120 |
 | 150 | `parse` | Exit statuses 150–151 | 150 |
 
 The registry belongs to neither checker. A checker worker returns a normalized
-code only for a failure. Successes and crashes have no failure code; unexpected
-or system-level statuses remain crashes. Apalache 0.62 returns status 255 for
+code only for a failure. Passes, counterexamples, and crashes have no failure
+code; unexpected or system-level statuses remain crashes. TLC exit statuses
+10–14 and Apalache status 12 produce the `counterexample` verdict rather than a
+failure code. Apalache 0.62 returns status 255 for
 division by zero, modulo by zero, and `0 ^ 0`. The Apalache classifier maps only
 those three exact `Input error (see the manual)` prefixes to `spec_eval`; other
 status-255 diagnostics remain crashes.
@@ -51,15 +56,19 @@ applying the same normalization and limit. The detail is optional, human-readabl
 and non-semantic.
 
 The conformance aggregator compares checker verdicts. Any TLC failure and
-Apalache failure still agree regardless of their codes. Codes support reporting
-and triage; automated comparison and grouping must not use the detail.
+Apalache failure still agree regardless of their codes. A failure does not agree
+with a counterexample: if exactly one checker reports `counterexample`,
+aggregation fails. Codes support reporting and triage; automated comparison and
+grouping must not use the detail.
 
 ## Consequences
 
 The same coarse failure class has the same stored value for both checkers.
 Undefined-expression variants remain distinguishable to a reader when TLC emits
 a useful diagnostic, without creating unstable message-derived codes. Existing
-TLC failure corpora must be regenerated because their envelopes lack the required
-code.
+checker corpora that encode a counterexample as `fail` with code 12 must be
+regenerated; this build does not accept code 12 as failure metadata.
+
+[ADR 0005]: 0005-counterexample-verdict.md
 
 [Apalache's exit-code registry]: https://github.com/apalache-mc/apalache/blob/main/mod-infra/src/main/scala/at/forsyte/apalache/infra/ExitCodes.scala
