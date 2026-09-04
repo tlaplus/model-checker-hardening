@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageEntryCounts;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
@@ -73,13 +74,13 @@ class TerminalProgressDisplayTest {
                         42, 3, 5, 0, 1, 1, 3, 1.25, 9.0, 4.5, Duration.ofSeconds(3)),
                 Map.of(
                         CorpusStage.PARSER,
-                        new StageVerdictSummary(2, 0, 0, Duration.ofSeconds(2)),
+                        summary(2, Duration.ofSeconds(2)),
                         CorpusStage.TLC,
-                        new StageVerdictSummary(1, 0, 0, Duration.ofSeconds(1)),
+                        summary(1, Duration.ofSeconds(1)),
                         CorpusStage.APALACHE,
-                        new StageVerdictSummary(0, 0, 0, Duration.ZERO),
+                        StageVerdictSummary.empty(),
                         CorpusStage.AGGREGATOR,
-                        new StageVerdictSummary(0, 0, 0, Duration.ZERO)),
+                        StageVerdictSummary.empty()),
                 Map.of(
                         CorpusStage.PARSER, 1L,
                         CorpusStage.TLC, 1L,
@@ -106,6 +107,34 @@ class TerminalProgressDisplayTest {
     }
 
     @Test
+    void rendersCounterexamplesSeparatelyFromFailures() {
+        var base = progress(WorkflowProgress.Phase.RUNNING, 2, 0);
+        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(base.stages());
+        stages.put(
+                CorpusStage.TLC,
+                new StageVerdictSummary(
+                        new StageEntryCounts(Map.of(
+                                CorpusVerdict.COUNTEREXAMPLE, 2L,
+                                CorpusVerdict.FAIL, 1L)),
+                        Duration.ZERO));
+        var snapshot = new WorkflowProgress(
+                base.phase(),
+                base.generator(),
+                stages,
+                base.backlog(),
+                base.corpusEntries(),
+                base.totalElapsed());
+
+        var table = RunTable.progress(snapshot);
+
+        assertTrue(table.lines().anyMatch(line -> line.contains("2")
+                && line.contains("TLC counterexamples")), table);
+        assertTrue(table.lines().anyMatch(line -> line.contains("1")
+                && line.contains("TLC failed")), table);
+        assertFalse(table.contains("parser counterexamples"), table);
+    }
+
+    @Test
     void rendersStageAndTotalElapsedTime() {
         var table = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 65, 3));
 
@@ -123,15 +152,23 @@ class TerminalProgressDisplayTest {
         var stages = new EnumMap<CorpusStage, CorpusInventory.StageEntries>(CorpusStage.class);
         stages.put(
                 CorpusStage.PARSER,
-                new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 1, 0), 1));
+                new CorpusInventory.StageEntries(
+                        List.of(),
+                        new StageEntryCounts(Map.of(
+                                CorpusVerdict.PASS, 1L,
+                                CorpusVerdict.FAIL, 1L)),
+                        1));
         for (var checker : CorpusStage.checkerBranches()) {
             stages.put(
                     checker,
-                    new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(1, 0, 0), 1));
+                    new CorpusInventory.StageEntries(
+                            List.of(),
+                            new StageEntryCounts(Map.of(CorpusVerdict.PASS, 1L)),
+                            1));
         }
         stages.put(
                 CorpusStage.AGGREGATOR,
-                new CorpusInventory.StageEntries(List.of(), new StageEntryCounts(0, 0, 0), 0));
+                new CorpusInventory.StageEntries(List.of(), StageEntryCounts.empty(), 0));
         var summary = new WorkflowRunSummary(
                 WorkflowRunSummary.StopReason.COMPLETED,
                 snapshot.generator(),
@@ -159,7 +196,7 @@ class TerminalProgressDisplayTest {
                         0.0,
                         0.0,
                         Duration.ofSeconds(generated)),
-                stageSummaries(new StageVerdictSummary(parsed, 0, 0, Duration.ofSeconds(parsed))),
+                stageSummaries(summary(parsed, Duration.ofSeconds(parsed))),
                 Map.of(
                         CorpusStage.PARSER, generated - parsed,
                         CorpusStage.TLC, 0L,
@@ -167,6 +204,11 @@ class TerminalProgressDisplayTest {
                         CorpusStage.AGGREGATOR, 0L),
                 generated,
                 Duration.ofSeconds(generated));
+    }
+
+    private static StageVerdictSummary summary(long passed, Duration elapsed) {
+        return new StageVerdictSummary(
+                new StageEntryCounts(Map.of(CorpusVerdict.PASS, passed)), elapsed);
     }
 
     private Map<CorpusStage, StageVerdictSummary> stageSummaries(StageVerdictSummary summary) {

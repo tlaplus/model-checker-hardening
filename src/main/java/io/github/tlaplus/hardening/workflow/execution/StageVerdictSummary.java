@@ -1,14 +1,14 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.StageEntryCounts;
 import java.time.Duration;
 import java.util.Objects;
 
 /** Cumulative verdict counters and summed worker elapsed time for one stage. */
-public record StageVerdictSummary(long passed, long failed, long crashed, Duration elapsed) {
+public record StageVerdictSummary(StageEntryCounts counts, Duration elapsed) {
     public StageVerdictSummary {
-        if (passed < 0 || failed < 0 || crashed < 0) {
-            throw new IllegalArgumentException("stage counters must be nonnegative");
-        }
+        Objects.requireNonNull(counts, "counts");
         Objects.requireNonNull(elapsed, "elapsed");
         if (elapsed.isNegative()) {
             throw new IllegalArgumentException("stage elapsed time must be nonnegative");
@@ -17,10 +17,14 @@ public record StageVerdictSummary(long passed, long failed, long crashed, Durati
 
     /** Returns a summary with no processed inputs and no elapsed time. */
     public static StageVerdictSummary empty() {
-        return new StageVerdictSummary(0, 0, 0, Duration.ZERO);
+        return new StageVerdictSummary(StageEntryCounts.empty(), Duration.ZERO);
+    }
+
+    public long count(CorpusVerdict verdict) {
+        return counts.count(verdict);
     }
 
     public long processed() {
-        return passed + failed + crashed;
+        return counts.processed();
     }
 }

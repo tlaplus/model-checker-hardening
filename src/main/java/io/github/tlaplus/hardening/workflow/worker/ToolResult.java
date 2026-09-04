@@ -23,6 +23,10 @@ public record ToolResult(
         this(outcome, Optional.empty(), diagnostic);
     }
 
+    public static ToolResult counterexample(String diagnostic) {
+        return new ToolResult(StageOutcome.COUNTEREXAMPLE, diagnostic);
+    }
+
     public static ToolResult failure(CheckerFailureCode failureCode, String diagnostic) {
         return new ToolResult(
                 StageOutcome.FAIL,

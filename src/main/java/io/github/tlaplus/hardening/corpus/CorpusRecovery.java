@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.ToLongFunction;
 
 /**
  * Brings a corpus to a consistent state at the start of a locked workflow run, then reports what it
@@ -79,7 +80,7 @@ final class CorpusRecovery {
                     "parser pass directory was not drained during checker fan-out");
         }
 
-        for (var verdict : CorpusVerdict.values()) {
+        for (var verdict : CorpusStage.PARSER.resultVerdicts()) {
             if (verdict == CorpusVerdict.PASS) {
                 continue;
             }
@@ -115,12 +116,14 @@ final class CorpusRecovery {
                 CorpusStage.PARSER,
                 new CorpusInventory.StageEntries(
                         inputs,
-                        new StageEntryCounts(
-                                parserPass,
-                                parserResultCounts.get(CorpusVerdict.FAIL),
-                                parserResultCounts.get(CorpusVerdict.CRASH)),
-                        parserResultCounts.get(CorpusVerdict.FAIL)
-                                + parserResultCounts.get(CorpusVerdict.CRASH)));
+                        counts(
+                                CorpusStage.PARSER,
+                                verdict -> verdict == CorpusVerdict.PASS
+                                        ? parserPass
+                                        : parserResultCounts.get(verdict)),
+                        parserResultCounts.values().stream()
+                                .mapToLong(Long::longValue)
+                                .sum()));
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = checkerBranches.get(checker);
             var downstream = aggregateResults.upstreamCounts().get(checker);
@@ -128,23 +131,19 @@ final class CorpusRecovery {
                     checker,
                     new CorpusInventory.StageEntries(
                             branch.inputs(),
-                            new StageEntryCounts(
-                                    branch.resultCount(CorpusVerdict.PASS)
-                                            + downstream.get(CorpusVerdict.PASS),
-                                    branch.resultCount(CorpusVerdict.FAIL)
-                                            + downstream.get(CorpusVerdict.FAIL),
-                                    branch.resultCount(CorpusVerdict.CRASH)
-                                            + downstream.get(CorpusVerdict.CRASH)),
+                            counts(
+                                    checker,
+                                    verdict -> branch.resultCount(verdict)
+                                            + downstream.get(verdict)),
                             branch.resultOccupancy()));
         }
         stages.put(
                 CorpusStage.AGGREGATOR,
                 new CorpusInventory.StageEntries(
                         aggregationCandidates,
-                        new StageEntryCounts(
-                                aggregateResults.resultCount(CorpusVerdict.PASS),
-                                aggregateResults.resultCount(CorpusVerdict.FAIL),
-                                0),
+                        counts(
+                                CorpusStage.AGGREGATOR,
+                                aggregateResults::resultCount),
                         aggregateResults.entries().size()));
         return new CorpusInventory(stages);
     }
@@ -161,6 +160,10 @@ final class CorpusRecovery {
                 continue;
             }
             var verdict = recorded.orElseThrow().verdict();
+            if (!stage.resultVerdicts().contains(verdict)) {
+                throw new CorpusException(
+                        stage.displayName() + " cannot record " + verdict.encodedName());
+            }
             var destination =
                     layout.resolve(stage.result(verdict)).resolve(entry.path().getFileName());
             if (Files.exists(destination, NO_FOLLOW_LINKS)) {
@@ -229,7 +232,7 @@ final class CorpusRecovery {
             addCheckerBranchEntry(checker, branchEntries, entry);
             inputs.add(path);
         }
-        for (var verdict : CorpusVerdict.values()) {
+        for (var verdict : checker.resultVerdicts()) {
             var count = visitResultEntries(
                     checker,
                     verdict,
@@ -361,6 +364,15 @@ final class CorpusRecovery {
         if (!names.add(name)) {
             throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
         }
+    }
+
+    private static StageEntryCounts counts(
+            CorpusStage stage, ToLongFunction<CorpusVerdict> counter) {
+        var counts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+        for (var verdict : stage.resultVerdicts()) {
+            counts.put(verdict, counter.applyAsLong(verdict));
+        }
+        return new StageEntryCounts(counts);
     }
 
     /** The pending inputs and completed results of one checker branch. */

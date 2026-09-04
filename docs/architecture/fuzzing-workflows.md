@@ -13,6 +13,7 @@ The input-generation, parser, TLC, Apalache, and conformance-aggregator stages
 described below are implemented. The quality gate, mutator, and final test-suite
 stages remain proposals. [ADR 0001][] records the stage and worker execution
 model. [ADR 0002][] records the property-based input admission policy.
+[ADR 0005][] records the separate model-checker counterexample verdict.
 
 ### 1.1. General architecture
 
@@ -71,6 +72,7 @@ flowchart LR
         direction TB
         apalache_inputs["02apa-inputs"]
         apalache_pass["02apa-pass"]
+        apalache_counterexample["02apa-counterexample"]
         apalache_fail["02apa-fail"]
         apalache_crash["02apa-crash"]
     end
@@ -79,6 +81,7 @@ flowchart LR
         direction TB
         tlc_inputs["02tlc-inputs"]
         tlc_pass["02tlc-pass"]
+        tlc_counterexample["02tlc-counterexample"]
         tlc_fail["02tlc-fail"]
         tlc_crash["02tlc-crash"]
     end
@@ -111,13 +114,17 @@ flowchart LR
     parse_pass --> tlc_inputs
     parse_pass --> apalache_inputs
     tlc_inputs --> tlc_pass
+    tlc_inputs --> tlc_counterexample
     tlc_inputs --> tlc_fail
     tlc_inputs --> tlc_crash
     apalache_inputs --> apalache_pass
+    apalache_inputs --> apalache_counterexample
     apalache_inputs --> apalache_fail
     apalache_inputs --> apalache_crash
     tlc_pass --> conformance
     apalache_pass --> conformance
+    tlc_counterexample --> conformance
+    apalache_counterexample --> conformance
     tlc_fail --> conformance
     apalache_fail --> conformance
     aggregator_pass --> quality
@@ -135,16 +142,23 @@ flowchart LR
 In this workflow, the goal is to collect a differential testing suite. This test suite contains three kinds of test
 inputs:
 
-- **Positive tests.** These specifications show that TLC and Apalache agree on model checking of the specifications.
-- **Negative tests.** These specifications show that one of the model checkers produces a counterexample, while another
-  model checker does not.
+- **Positive tests.** These specifications show that TLC and Apalache report the
+  same non-crash verdict.
+- **Negative tests.** These specifications show that TLC and Apalache report
+  different non-crash verdicts. In particular, they preserve cases in which
+  exactly one checker produces a counterexample.
 - **Crash tests.** One of the model checkers crashes on the input.
 
 This workflow specializes the general workflow as follows:
 
-- **Aggregator.** At this stage, the input is moved to `pass`, when both TLC and Apalache pass, or both fail. Failure
-  codes are diagnostic metadata and do not affect this verdict-level comparison. A pass/fail disagreement moves to
-  `fail`. A crash in either checker is not aggregated and remains in the checker result directories.
+- **Aggregator.** At this stage, the input is moved to `pass` when TLC and Apalache
+  report the same non-crash verdict: pass/pass, counterexample/counterexample, or
+  fail/fail. Any verdict disagreement moves to `fail`. In particular, a
+  counterexample from exactly one checker is a conformance failure, including
+  counterexample/fail: an ordinary checker failure does not claim that the
+  invariant was violated. Failure codes are diagnostic metadata and do not affect
+  this verdict-level comparison. A crash in either checker is not aggregated and
+  remains in the checker result directories.
 - **Mutator.** The mutator is no-operation. It does not generate new inputs.
 - **Quality gate.** Good quality gates are to be found.
 
@@ -254,10 +268,11 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
 
  - The conformance aggregator is a durable fan-in point. It has no input
    directory: completed checker result paths are queue notifications, and
-   startup reconstructs ready pairs from `02tlc-{pass,fail}` and
-   `02apa-{pass,fail}`. The aggregator merges both stage maps into one entry in
-   `03aggregator-pass` or `03aggregator-fail`, installs that destination before
-   deleting either checker source, and completes interrupted source deletion at
+   startup reconstructs ready pairs from `02tlc-{pass,counterexample,fail}` and
+   `02apa-{pass,counterexample,fail}`. The aggregator merges both stage maps
+   into one entry in `03aggregator-pass` or `03aggregator-fail`. It installs
+   that destination before deleting either checker source and completes
+   interrupted source deletion at
    startup. The merged entry preserves both checker failure classifications and
    unrecognized envelope fields. Aggregated checker results still contribute to
    historical checker verdict counters but no longer occupy checker result
@@ -338,10 +353,14 @@ When an input passes through a stage, this stage stores its metadata under `stag
 The metadata depends on the stage. The minimal set of fields is:
 
  - The field `"verdict"` contains the status of passing through the stage. It is
-   one of `"pass"`, `"fail"`, `"crashed"`. These are the outcomes the corpus
-   stores entries by, so a reader rejects any other value rather than treating it
-   as an extension. The stage *name* stays open: an entry may record a stage the
-   reader does not know, and the reader preserves that metadata unchanged.
+   one of `"pass"`, `"counterexample"`, `"fail"`, `"crashed"`. The
+   `"counterexample"` verdict is produced only by model-checker stages and means
+   that the checker reported a property violation; it is distinct from a
+   classified evaluation, typechecking, or parsing failure. These are the
+   outcomes the corpus stores entries by, so a reader rejects any other value
+   rather than treating it as an extension. The stage *name* stays open: an entry
+   may record a stage the reader does not know, and the reader preserves that
+   metadata unchanged.
  - The field `"startTime"` contains an [epoch-based date/time][] of the moment
    when a stage worker started to process the input. This timestamp must be in UTC.
  - The field `"endTime"` contains an [epoch-based date/time][] of the moment     
@@ -350,7 +369,8 @@ The metadata depends on the stage. The minimal set of fields is:
    `"startTime"` and `"endTime"` must be equal.
  - A failed model-checker stage also contains the integer field `"code"`. The
    code uses the shared TLC/Apalache registry defined by [ADR 0003][]. Model-checker
-   stages require this field for `"fail"` and forbid it for other verdicts.
+   stages require this field for `"fail"` and forbid it for other verdicts,
+   including `"counterexample"`.
  - A model-checker failure may contain a single-line `"detail"` of at most 80
    Unicode characters. This text is for triage only and must not participate in
    automated comparison or grouping. It is valid only when `"code"` is present.
@@ -382,4 +402,5 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0001]: ../decisions/0001-stages-and-workers.md
 [ADR 0002]: ../decisions/0002-pbt-richness-score.md
 [ADR 0003]: ../decisions/0003-checker-failure-codes.md
+[ADR 0005]: ../decisions/0005-counterexample-verdict.md
 [the JSON label finding]: ../../findings/apalache-json/apalache-json-001.md

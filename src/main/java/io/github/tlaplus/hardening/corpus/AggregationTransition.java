@@ -48,10 +48,7 @@ final class AggregationTransition {
             throws IOException, CorpusException {
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(result, "result");
-        CorpusStage.AGGREGATOR.requireValidFailureMetadata(result);
-        if (!CorpusStage.AGGREGATOR.resultVerdicts().contains(result.verdict())) {
-            throw new CorpusException("aggregator cannot record " + result.verdict().encodedName());
-        }
+        CorpusStage.AGGREGATOR.requireValidResult(result);
         if (result.verdict() != input.conformanceVerdict()) {
             throw new CorpusException(
                     "aggregator verdict does not match checker verdicts: "

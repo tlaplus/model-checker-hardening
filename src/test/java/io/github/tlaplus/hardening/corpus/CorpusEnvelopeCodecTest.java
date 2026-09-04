@@ -173,10 +173,36 @@ class CorpusEnvelopeCodecTest {
     }
 
     @Test
+    void encodesAndDecodesCounterexampleVerdictsWithoutFailureMetadata() throws Exception {
+        var encoded = CorpusEnvelopeCodec.withStageMetadata(
+                CorpusInputCodec.encode(
+                        new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 3})),
+                new StageMetadata(
+                        "tlc",
+                        CorpusVerdict.COUNTEREXAMPLE,
+                        Instant.ofEpochSecond(10),
+                        Instant.ofEpochSecond(12)));
+
+        var stage = CorpusEnvelopeCodec.decodeEnvelope(encoded).stages().getFirst();
+
+        assertEquals(CorpusVerdict.COUNTEREXAMPLE, stage.verdict());
+        assertEquals(Optional.empty(), stage.failure());
+        assertEquals(
+                "counterexample",
+                new ObjectMapper(FACTORY)
+                        .readTree(encoded)
+                        .path("stages")
+                        .path("tlc")
+                        .path("verdict")
+                        .textValue());
+    }
+
+    @Test
     void rejectsInvalidCheckerFailureMetadata() throws Exception {
         var unknownCode = checkerEnvelope("fail", 76, null);
         var detailWithoutCode = checkerEnvelope("fail", null, "undefined expression");
         var codeOnPass = checkerEnvelope("pass", 75, null);
+        var codeOnCounterexample = checkerEnvelope("counterexample", 75, null);
         var excessiveDetail = checkerEnvelope("fail", 75, "x".repeat(81));
         var multilineDetail = checkerEnvelope("fail", 75, "first\nsecond");
         var textCode = cbor(generator -> {
@@ -197,6 +223,7 @@ class CorpusEnvelopeCodecTest {
         assertInvalidEnvelope(unknownCode, "unsupported checker failure code: 76");
         assertInvalidEnvelope(detailWithoutCode, "requires field 'code'");
         assertInvalidEnvelope(codeOnPass, "requires the fail verdict");
+        assertInvalidEnvelope(codeOnCounterexample, "requires the fail verdict");
         assertInvalidEnvelope(excessiveDetail, "must not exceed 80 characters");
         assertInvalidEnvelope(multilineDetail, "must be a single line");
         assertInvalidEnvelope(textCode, "must be an integer");
@@ -417,14 +444,14 @@ class CorpusEnvelopeCodecTest {
                         Instant.ofEpochSecond(20),
                         Instant.ofEpochSecond(25),
                         Optional.of(new CheckerFailure(
-                                CheckerFailureCode.COUNTEREXAMPLE, Optional.of("new detail")))));
+                                CheckerFailureCode.SPEC_EVAL, Optional.of("new detail")))));
 
         var stage = CorpusEnvelopeCodec.decodeEnvelope(updated).stages().getFirst();
         assertEquals(CorpusVerdict.FAIL, stage.verdict());
         assertEquals(Instant.ofEpochSecond(20), stage.startTime());
         assertEquals(Instant.ofEpochSecond(25), stage.endTime());
         assertEquals(
-                CheckerFailureCode.COUNTEREXAMPLE, stage.failure().orElseThrow().code());
+                CheckerFailureCode.SPEC_EVAL, stage.failure().orElseThrow().code());
         assertEquals("new detail", stage.failure().orElseThrow().detail().orElseThrow());
 
         var tree = new ObjectMapper(FACTORY).readTree(updated).get("stages").get("tlc");

@@ -6,8 +6,9 @@ import io.github.tlaplus.hardening.workflow.WorkflowException;
 /** Common result of processing one input in a checking stage. */
 public enum StageOutcome {
     PASS(0, CorpusVerdict.PASS),
-    FAIL(1, CorpusVerdict.FAIL),
-    CRASH(2, CorpusVerdict.CRASH);
+    COUNTEREXAMPLE(1, CorpusVerdict.COUNTEREXAMPLE),
+    FAIL(2, CorpusVerdict.FAIL),
+    CRASH(3, CorpusVerdict.CRASH);
 
     private final int protocolCode;
     private final CorpusVerdict corpusVerdict;

@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
-import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -87,26 +86,14 @@ final class RunTable {
     private static void printVerdicts(
             PrintWriter writer, StageVerdictSummary summary, CorpusStage stage) {
         for (var verdict : stage.resultVerdicts()) {
-            var count = switch (verdict) {
-                case PASS -> summary.passed();
-                case FAIL -> summary.failed();
-                case CRASH -> summary.crashed();
-            };
             printCounter(
                     writer,
-                    count,
-                    stage.displayName() + " " + verdictLabel(verdict));
+                    summary.count(verdict),
+                    stage.displayName() + " " + verdict.countLabel());
         }
         printElapsed(writer, summary.elapsed(), stage.displayName() + " elapsed");
     }
 
-    private static String verdictLabel(CorpusVerdict verdict) {
-        return switch (verdict) {
-            case PASS -> "passed";
-            case FAIL -> "failed";
-            case CRASH -> "crashed";
-        };
-    }
 
     private static void printCounter(PrintWriter writer, long value, String label) {
         writer.printf("[%20d %-18s]%n", value, label);

@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.checker;
 
 /** Stable failure codes shared by model-checker stages. */
 public enum CheckerFailureCode {
-    COUNTEREXAMPLE(12, "counterexample"),
     SPEC_EVAL(75, "spec_eval"),
     TYPECHECK(120, "typecheck"),
     PARSE(150, "parse");

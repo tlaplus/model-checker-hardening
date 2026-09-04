@@ -20,7 +20,7 @@ final class ApalacheOutcomeClassifier {
         }
         return switch (exitStatus) {
             case 0 -> new ToolResult(StageOutcome.PASS, diagnostic);
-            case 12 -> ToolResult.failure(CheckerFailureCode.COUNTEREXAMPLE, diagnostic);
+            case 12 -> ToolResult.counterexample(diagnostic);
             case 75 -> ToolResult.failure(CheckerFailureCode.SPEC_EVAL, diagnostic);
             case 120 -> ToolResult.failure(CheckerFailureCode.TYPECHECK, diagnostic);
             case 150 -> ToolResult.failure(CheckerFailureCode.PARSE, diagnostic);

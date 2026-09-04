@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.corpus;
 
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -17,47 +20,48 @@ public enum CorpusStage {
     PARSER(
             "parser",
             "parser",
-            Passes.FAN_OUT,
-            CorpusPath.INPUT,
-            CorpusPath.PARSER_SCRATCH,
-            CorpusPath.PARSER_PASS,
-            CorpusPath.PARSER_FAIL,
-            CorpusPath.PARSER_CRASH,
-            true,
-            FailureMetadata.FORBIDDEN),
+            new StagePaths(
+                    CorpusPath.INPUT,
+                    CorpusPath.PARSER_SCRATCH,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.PARSER_PASS,
+                            CorpusVerdict.FAIL, CorpusPath.PARSER_FAIL,
+                            CorpusVerdict.CRASH, CorpusPath.PARSER_CRASH)),
+            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN)),
     TLC(
             "tlc",
             "TLC",
-            Passes.RETAINED,
-            CorpusPath.TLC_INPUT,
-            CorpusPath.TLC_SCRATCH,
-            CorpusPath.TLC_PASS,
-            CorpusPath.TLC_FAIL,
-            CorpusPath.TLC_CRASH,
-            true,
-            FailureMetadata.REQUIRED_ON_FAIL),
+            new StagePaths(
+                    CorpusPath.TLC_INPUT,
+                    CorpusPath.TLC_SCRATCH,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.TLC_PASS,
+                            CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLC_COUNTEREXAMPLE,
+                            CorpusVerdict.FAIL, CorpusPath.TLC_FAIL,
+                            CorpusVerdict.CRASH, CorpusPath.TLC_CRASH)),
+            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL)),
     APALACHE(
             "apalache",
             "Apalache",
-            Passes.RETAINED,
-            CorpusPath.APALACHE_INPUT,
-            CorpusPath.APALACHE_SCRATCH,
-            CorpusPath.APALACHE_PASS,
-            CorpusPath.APALACHE_FAIL,
-            CorpusPath.APALACHE_CRASH,
-            true,
-            FailureMetadata.REQUIRED_ON_FAIL),
+            new StagePaths(
+                    CorpusPath.APALACHE_INPUT,
+                    CorpusPath.APALACHE_SCRATCH,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.APALACHE_PASS,
+                            CorpusVerdict.COUNTEREXAMPLE, CorpusPath.APALACHE_COUNTEREXAMPLE,
+                            CorpusVerdict.FAIL, CorpusPath.APALACHE_FAIL,
+                            CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH)),
+            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL)),
     AGGREGATOR(
             "aggregator",
             "aggregator",
-            Passes.RETAINED,
-            null,
-            null,
-            CorpusPath.AGGREGATOR_PASS,
-            CorpusPath.AGGREGATOR_FAIL,
-            null,
-            false,
-            FailureMetadata.FORBIDDEN);
+            new StagePaths(
+                    null,
+                    null,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.AGGREGATOR_PASS,
+                            CorpusVerdict.FAIL, CorpusPath.AGGREGATOR_FAIL)),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN));
 
     /** What becomes of an entry this stage passes. */
     private enum Passes {
@@ -72,40 +76,35 @@ public enum CorpusStage {
         REQUIRED_ON_FAIL
     }
 
+    private record StagePaths(
+            CorpusPath input,
+            CorpusPath scratch,
+            Map<CorpusVerdict, CorpusPath> results) {
+        private StagePaths {
+            Objects.requireNonNull(results, "results");
+            var copy = new EnumMap<CorpusVerdict, CorpusPath>(CorpusVerdict.class);
+            copy.putAll(results);
+            results = Map.copyOf(copy);
+        }
+    }
+
+    private record StagePolicy(
+            Passes passes,
+            boolean configuredResultCapacity,
+            FailureMetadata failureMetadata) {}
+
     private static final List<CorpusStage> CHECKER_BRANCHES = List.of(TLC, APALACHE);
 
     private final String metadataName;
     private final String displayName;
-    private final Passes passes;
-    private final CorpusPath input;
-    private final CorpusPath scratch;
-    private final CorpusPath pass;
-    private final CorpusPath fail;
-    private final CorpusPath crash;
-    private final boolean configuredResultCapacity;
-    private final FailureMetadata failureMetadata;
+    private final StagePaths paths;
+    private final StagePolicy policy;
 
-    CorpusStage(
-            String metadataName,
-            String displayName,
-            Passes passes,
-            CorpusPath input,
-            CorpusPath scratch,
-            CorpusPath pass,
-            CorpusPath fail,
-            CorpusPath crash,
-            boolean configuredResultCapacity,
-            FailureMetadata failureMetadata) {
+    CorpusStage(String metadataName, String displayName, StagePaths paths, StagePolicy policy) {
         this.metadataName = metadataName;
         this.displayName = displayName;
-        this.passes = passes;
-        this.input = input;
-        this.scratch = scratch;
-        this.pass = pass;
-        this.fail = fail;
-        this.crash = crash;
-        this.configuredResultCapacity = configuredResultCapacity;
-        this.failureMetadata = failureMetadata;
+        this.paths = paths;
+        this.policy = policy;
     }
 
     /** Returns the stages that check a parser pass, in the order the parser fans out to them. */
@@ -135,51 +134,49 @@ public enum CorpusStage {
      * the parser's result capacity.
      */
     public boolean retainsPasses() {
-        return passes == Passes.RETAINED;
+        return policy.passes() == Passes.RETAINED;
     }
 
     /** Returns the stages that own a durable input directory. */
     static List<CorpusStage> inputStages() {
-        return Arrays.stream(values()).filter(stage -> stage.input != null).toList();
+        return Arrays.stream(values()).filter(stage -> stage.paths.input() != null).toList();
     }
 
     /** Returns the stages that need invocation-local scratch storage. */
     static List<CorpusStage> scratchStages() {
-        return Arrays.stream(values()).filter(stage -> stage.scratch != null).toList();
+        return Arrays.stream(values()).filter(stage -> stage.paths.scratch() != null).toList();
     }
 
     /** Returns the stages whose result occupancy has its own configuration limit. */
     public static List<CorpusStage> capacityLimitedStages() {
-        return Arrays.stream(values()).filter(stage -> stage.configuredResultCapacity).toList();
+        return Arrays.stream(values())
+                .filter(stage -> stage.policy.configuredResultCapacity())
+                .toList();
     }
 
     /** Returns the verdicts for which this stage owns a result directory. */
     public List<CorpusVerdict> resultVerdicts() {
-        return crash == null
-                ? List.of(CorpusVerdict.PASS, CorpusVerdict.FAIL)
-                : List.of(CorpusVerdict.PASS, CorpusVerdict.FAIL, CorpusVerdict.CRASH);
+        return Arrays.stream(CorpusVerdict.values())
+                .filter(paths.results()::containsKey)
+                .toList();
     }
 
     CorpusPath input() {
-        if (input == null) {
+        if (paths.input() == null) {
             throw new IllegalStateException(metadataName + " has no input directory");
         }
-        return input;
+        return paths.input();
     }
 
     CorpusPath scratch() {
-        if (scratch == null) {
+        if (paths.scratch() == null) {
             throw new IllegalStateException(metadataName + " has no scratch directory");
         }
-        return scratch;
+        return paths.scratch();
     }
 
     CorpusPath result(CorpusVerdict verdict) {
-        var path = switch (verdict) {
-            case PASS -> pass;
-            case FAIL -> fail;
-            case CRASH -> crash;
-        };
+        var path = paths.results().get(Objects.requireNonNull(verdict, "verdict"));
         if (path == null) {
             throw new IllegalArgumentException(
                     metadataName + " does not record " + verdict.encodedName() + " results");
@@ -187,13 +184,17 @@ public enum CorpusStage {
         return path;
     }
 
-    /** Enforces the failure-metadata policy of a result written by this build. */
-    void requireValidFailureMetadata(StageResult result) throws CorpusException {
+    /** Enforces the verdict and failure-metadata policy of a result written by this build. */
+    void requireValidResult(StageResult result) throws CorpusException {
+        if (!paths.results().containsKey(result.verdict())) {
+            throw new CorpusException(
+                    displayName + " cannot record " + result.verdict().encodedName());
+        }
         var hasFailure = result.failure().isPresent();
-        if (failureMetadata == FailureMetadata.FORBIDDEN && hasFailure) {
+        if (policy.failureMetadata() == FailureMetadata.FORBIDDEN && hasFailure) {
             throw new CorpusException(displayName + " metadata must not contain a failure code");
         }
-        if (failureMetadata == FailureMetadata.REQUIRED_ON_FAIL
+        if (policy.failureMetadata() == FailureMetadata.REQUIRED_ON_FAIL
                 && result.verdict() == CorpusVerdict.FAIL
                 && !hasFailure) {
             throw new CorpusException(displayName + " failure metadata requires a failure code");

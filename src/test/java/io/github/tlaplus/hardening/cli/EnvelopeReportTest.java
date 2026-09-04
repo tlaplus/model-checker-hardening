@@ -57,17 +57,34 @@ class EnvelopeReportTest {
         assertFalse(report.contains("detail:"), report);
     }
 
+    @Test
+    void reportsACounterexampleWithoutFailureMetadata() {
+        var report = EnvelopeReport.render(
+                envelope(
+                        Optional.empty(),
+                        List.of(new StageMetadata(
+                                "tlc",
+                                CorpusVerdict.COUNTEREXAMPLE,
+                                Instant.ofEpochSecond(10),
+                                Instant.ofEpochSecond(13)))),
+                INPUT);
+
+        assertTrue(report.contains("    verdict: counterexample"), report);
+        assertFalse(report.contains("code:"), report);
+        assertFalse(report.contains("detail:"), report);
+    }
+
     /** A failure code prints with its symbol; the detail line appears only when there is one. */
     @Test
     void reportsAFailureCodeWithAndWithoutADetail() {
         var withoutDetail = EnvelopeReport.render(
                 envelope(Optional.empty(), List.of(failedStage(Optional.empty()))), INPUT);
-        assertTrue(withoutDetail.contains("    code: 12 (counterexample)"), withoutDetail);
+        assertTrue(withoutDetail.contains("    code: 75 (spec_eval)"), withoutDetail);
         assertFalse(withoutDetail.contains("detail:"), withoutDetail);
 
         var withDetail = EnvelopeReport.render(
                 envelope(Optional.empty(), List.of(failedStage(Optional.of("boom")))), INPUT);
-        assertTrue(withDetail.contains("    code: 12 (counterexample)"), withDetail);
+        assertTrue(withDetail.contains("    code: 75 (spec_eval)"), withDetail);
         assertTrue(withDetail.contains("    detail: boom"), withDetail);
     }
 
@@ -107,7 +124,7 @@ class EnvelopeReportTest {
                 CorpusVerdict.FAIL,
                 Instant.ofEpochSecond(10),
                 Instant.ofEpochSecond(13),
-                Optional.of(new CheckerFailure(CheckerFailureCode.COUNTEREXAMPLE, detail)));
+                Optional.of(new CheckerFailure(CheckerFailureCode.SPEC_EVAL, detail)));
     }
 
     private static CorpusEnvelope envelope(

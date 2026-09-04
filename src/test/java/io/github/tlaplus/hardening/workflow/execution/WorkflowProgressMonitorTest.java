@@ -67,7 +67,7 @@ class WorkflowProgressMonitorTest {
     private static Map<CorpusStage, StageVerdictSummary> stageSummaries() {
         var stages = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
         for (var stage : CorpusStage.values()) {
-            stages.put(stage, new StageVerdictSummary(0, 0, 0, Duration.ZERO));
+            stages.put(stage, StageVerdictSummary.empty());
         }
         return stages;
     }

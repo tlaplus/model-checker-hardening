@@ -15,6 +15,10 @@ class AggregationInputTest {
                 input(CorpusVerdict.PASS, CorpusVerdict.PASS).conformanceVerdict());
         assertEquals(
                 CorpusVerdict.PASS,
+                input(CorpusVerdict.COUNTEREXAMPLE, CorpusVerdict.COUNTEREXAMPLE)
+                        .conformanceVerdict());
+        assertEquals(
+                CorpusVerdict.PASS,
                 input(CorpusVerdict.FAIL, CorpusVerdict.FAIL).conformanceVerdict());
     }
 
@@ -26,6 +30,22 @@ class AggregationInputTest {
         assertEquals(
                 CorpusVerdict.FAIL,
                 input(CorpusVerdict.FAIL, CorpusVerdict.PASS).conformanceVerdict());
+        assertEquals(
+                CorpusVerdict.FAIL,
+                input(CorpusVerdict.COUNTEREXAMPLE, CorpusVerdict.PASS)
+                        .conformanceVerdict());
+        assertEquals(
+                CorpusVerdict.FAIL,
+                input(CorpusVerdict.PASS, CorpusVerdict.COUNTEREXAMPLE)
+                        .conformanceVerdict());
+        assertEquals(
+                CorpusVerdict.FAIL,
+                input(CorpusVerdict.COUNTEREXAMPLE, CorpusVerdict.FAIL)
+                        .conformanceVerdict());
+        assertEquals(
+                CorpusVerdict.FAIL,
+                input(CorpusVerdict.FAIL, CorpusVerdict.COUNTEREXAMPLE)
+                        .conformanceVerdict());
     }
 
     @Test

@@ -26,7 +26,7 @@ final class TlcOutcomeClassifier {
                 || exitStatus == EC.ExitStatus.VIOLATION_SAFETY
                 || exitStatus == EC.ExitStatus.VIOLATION_LIVENESS
                 || exitStatus == EC.ExitStatus.VIOLATION_ASSERT) {
-            return ToolResult.failure(CheckerFailureCode.COUNTEREXAMPLE, diagnostic);
+            return ToolResult.counterexample(diagnostic);
         }
         if (exitStatus == EC.ExitStatus.FAILURE_SPEC_EVAL
                 || exitStatus == EC.ExitStatus.FAILURE_SAFETY_EVAL

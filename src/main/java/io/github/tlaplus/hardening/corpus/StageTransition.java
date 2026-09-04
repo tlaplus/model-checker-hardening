@@ -35,7 +35,7 @@ final class StageTransition {
         // Validate the requested transition and resolve its result path before changing the corpus.
         entries.requireOwnedPath(source, stage.input(), stage.displayName() + " input");
         Objects.requireNonNull(result, "result");
-        stage.requireValidFailureMetadata(result);
+        stage.requireValidResult(result);
         var verdict = result.verdict();
         var encoded = Files.readAllBytes(source);
         var entry = CorpusEntries.decode(source, encoded);

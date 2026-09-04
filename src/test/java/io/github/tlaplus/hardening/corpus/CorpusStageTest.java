@@ -18,7 +18,20 @@ class CorpusStageTest {
     }
 
     @Test
-    void aggregatorHasNoCrashResult() {
+    void onlyCheckerStagesRecordCounterexamples() {
+        assertEquals(
+                List.of(CorpusVerdict.PASS, CorpusVerdict.FAIL, CorpusVerdict.CRASH),
+                CorpusStage.PARSER.resultVerdicts());
+        assertEquals(
+                List.of(
+                        CorpusVerdict.PASS,
+                        CorpusVerdict.COUNTEREXAMPLE,
+                        CorpusVerdict.FAIL,
+                        CorpusVerdict.CRASH),
+                CorpusStage.TLC.resultVerdicts());
+        assertEquals(
+                CorpusStage.TLC.resultVerdicts(),
+                CorpusStage.APALACHE.resultVerdicts());
         assertEquals(
                 List.of(CorpusVerdict.PASS, CorpusVerdict.FAIL),
                 CorpusStage.AGGREGATOR.resultVerdicts());

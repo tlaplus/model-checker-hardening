@@ -76,11 +76,11 @@ class CheckerStageTest {
         assertEquals(2, backend.starts.get());
         assertEquals(2, backend.closes.get());
         assertEquals(2, backend.renders.get());
-        assertEquals(1, stage.summary().passed());
-        assertEquals(1, stage.summary().crashed());
+        assertEquals(1, stage.summary().count(CorpusVerdict.PASS));
+        assertEquals(1, stage.summary().count(CorpusVerdict.CRASH));
         var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
-        assertEquals(1, inventory.counts(CorpusStage.TLC).passed());
-        assertEquals(1, inventory.counts(CorpusStage.TLC).crashed());
+        assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
+        assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH));
     }
 
     private static final class RestartingBackend implements CheckerBackend {

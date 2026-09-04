@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.StageEntryCounts;
 import java.util.EnumMap;
 import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
@@ -18,11 +19,10 @@ public final class StageCounters {
         Objects.requireNonNull(initial, "initial");
         this.elapsed = Objects.requireNonNull(elapsed, "elapsed");
         for (var verdict : CorpusVerdict.values()) {
-            counters.put(verdict, new LongAdder());
+            var counter = new LongAdder();
+            counter.add(initial.count(verdict));
+            counters.put(verdict, counter);
         }
-        counters.get(CorpusVerdict.PASS).add(initial.passed());
-        counters.get(CorpusVerdict.FAIL).add(initial.failed());
-        counters.get(CorpusVerdict.CRASH).add(initial.crashed());
     }
 
     /** Records one processed input. */
@@ -36,11 +36,11 @@ public final class StageCounters {
 
     /** Returns the stage's cumulative counters and elapsed time. */
     public StageVerdictSummary summary() {
-        return new StageVerdictSummary(
-                count(CorpusVerdict.PASS),
-                count(CorpusVerdict.FAIL),
-                count(CorpusVerdict.CRASH),
-                elapsed.elapsed());
+        var counts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+        for (var verdict : CorpusVerdict.values()) {
+            counts.put(verdict, count(verdict));
+        }
+        return new StageVerdictSummary(new StageEntryCounts(counts), elapsed.elapsed());
     }
 
     /** Returns the accumulator that times this stage's active jobs. */
