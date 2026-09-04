@@ -94,11 +94,22 @@ This is semantic source corruption, and it is silent: the printed module is
 syntactically valid and SANY accepts it, so the corruption surfaces only as a
 downstream failure that describes the misprinted tree.
 
-It is not confined to the three crashes. Scanning `corpus1` for a `LET`
-printed without parentheses immediately after `=` or `/\` at the start of a
-line finds it in 3 of 150 sampled `03aggregator-pass` entries and 10 of 150
-sampled `03aggregator-fail` entries. That scan recognizes only two embeddings,
-so those rates are lower bounds.
+It is not confined to the three crashes, and the affected share of `corpus1` is
+bounded rather than pinned. Counting only a `LET` printed without parentheses
+immediately after `=` or `/\` at the start of a line gives 8.0% of the 653
+`03aggregator-fail` entries; counting every `LET` that appears as an operand
+without delimiters gives 75.3% of `03aggregator-fail` and 58.6% of
+`03aggregator-pass`. The first number undercounts because the writer also leaves
+the synthesized `LET` undelimited after `\in`, `CASE`, `THEN` and other
+operands; the second overcounts because a following keyword such as `ELSE`
+terminates the body harmlessly.
+
+One class within that range is certain rather than estimated. Eighteen
+`03aggregator-fail` entries have TLC report `Attempted to evaluate an
+expression of form P /\ Q when P was` a non-Boolean value. The IR is built
+through a type-checking builder, so a well-typed conjunction cannot have a
+non-Boolean operand; a runtime type error therefore proves that the source TLC
+parsed is not the tree the writer was given.
 
 The enrichment in the disagreement bucket follows from the two checkers reading
 different artifacts: Apalache consumes the typed IR JSON and sees the intended

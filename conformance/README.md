@@ -41,6 +41,8 @@ are rounded to two decimal places, so table rows may not sum exactly to 100%.
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Function over an infinite domain | [MWE](function-over-infinite-domain.md#representative-mwe) | TLC representation limit |
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Finite set containing `Nat` | [MWE](finite-set-containing-infinite-set.md#representative-mwe) | TLC representation limit |
 | Aggregator (corpus2) | <0.01% | 🔴 Fail | 🟢 Pass | Label inside an `EXCEPT` replacement | [MWE](label-inside-except.md#representative-mwe) | TLC/SANY language restriction |
+| Aggregator (corpus1) | 2.91% | 🔴 Fail | 🟢 Pass | Constant-level `FALSE` invariant | [MWE](constant-false-invariant.md#representative-mwe) | TLC restriction |
+| Aggregator (corpus1) | 0.31% | 🔴 Fail | 🟢 Pass | Non-enumerable initial assignment | [MWE](non-enumerable-initial-assignment.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | `LET` operand grouping | [MWE](let-operand-grouping.md#representative-mwe) | [Printer defect](../findings/apalache-printer/apalache-printer-007.md) |
 | Aggregator | 4.04% | 🟢 Pass | 🔴 Fail | Apalache reaches modulo by zero | [MWE](modulo-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 4.01% | 🟢 Pass | 🔴 Fail | Apalache reaches division by zero | [MWE](division-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
@@ -57,6 +59,32 @@ are rounded to two decimal places, so table rows may not sum exactly to 100%.
 Resource-only timeouts and heap exhaustion are excluded because they do not
 establish a semantic conformance difference. Known checker issues not observed
 in the analyzed PBT session are also excluded.
+
+## corpus1 and printer corruption
+
+`corpus1` is the first session generated with `generator.kind = "module"`, and
+its 653 aggregator deviations must be read with one caveat. The workflow gives
+TLC `PrettyWriter` source and gives Apalache typed IR JSON, and
+[`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md)
+makes that source mean something other than the IR whenever the writer
+synthesizes a `LET` for a lambda argument and leaves it undelimited. Where that
+happens the two checkers are not checking the same specification, so the
+deviation is an artifact rather than a conformance difference.
+
+The affected share is bounded but not pinned. Counting only a `LET` printed
+immediately after `=` or `/\` at the start of a line gives 8.0% of the 653;
+counting every `LET` that appears as an operand without delimiters gives 75.3%,
+which overcounts because a following keyword such as `ELSE` terminates the body
+harmlessly. One class is certain: the 18 deviations where TLC reports
+`Attempted to evaluate an expression of form P /\ Q when P was` cannot arise
+from the IR, which is built through a type-checking builder, so a non-Boolean
+conjunct proves the source differs from the tree.
+
+The two `corpus1` rows above were confirmed against that: neither involves a
+`LET`, and both reproduce from a hand-written MWE on both checkers. The
+remaining `corpus1` groups match existing rows by diagnostic, but their shares
+are not reported here, and this session should not be used to revise the
+percentages above until the writer is fixed and the corpus regenerated.
 
 The corpus2 aggregator contains 43,279 deviations: 38,199 TLC-fail/Apalache-pass
 pairs (88.26%) and 5,080 TLC-pass/Apalache-fail pairs (11.74%). Its high-volume
