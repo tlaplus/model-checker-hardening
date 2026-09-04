@@ -4,28 +4,25 @@ import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Settings and resource limits for generated TLA+ expressions. */
+/**
+ * Settings for generated TLA+ expressions and modules.
+ *
+ * @param expressions bounds on recursive construction within one expression
+ * @param modules bounds on the declarations of one generated module
+ * @param ignoredCategories syntax capabilities excluded before byte-level selection
+ * @param formWeights selection slots per expression form, for the forms that are not weighted one
+ */
 public record IrGenerationConfig(
-        int maximumTypeDepth,
-        int maximumExpressionDepth,
-        int maximumNodes,
-        int maximumCollectionSize,
-        int maximumStringBytes,
-        int maximumIntegerBytes,
+        ExpressionLimits expressions,
+        ModuleLimits modules,
         Set<ExpressionCategory> ignoredCategories,
         Map<ExpressionKind, Integer> formWeights) {
-
-    public static final int DEFAULT_MAXIMUM_TYPE_DEPTH = 3;
-    public static final int DEFAULT_MAXIMUM_EXPRESSION_DEPTH = 32;
-    public static final int DEFAULT_MAXIMUM_NODES = 128;
-    public static final int DEFAULT_MAXIMUM_COLLECTION_SIZE = 8;
-    public static final int DEFAULT_MAXIMUM_STRING_BYTES = 32;
-    public static final int DEFAULT_MAXIMUM_INTEGER_BYTES = 16;
 
     /**
      * Largest slot count a single form may occupy. The bound is arbitrary but deliberate: a form
@@ -50,24 +47,8 @@ public record IrGenerationConfig(
             SetExpressionKind.ENUM_SET, 16);
 
     public IrGenerationConfig {
-        if (maximumTypeDepth < 0) {
-            throw new IllegalArgumentException("maximumTypeDepth must be nonnegative");
-        }
-        if (maximumExpressionDepth < 1) {
-            throw new IllegalArgumentException("maximumExpressionDepth must be positive");
-        }
-        if (maximumNodes < 1) {
-            throw new IllegalArgumentException("maximumNodes must be positive");
-        }
-        if (maximumCollectionSize < 1) {
-            throw new IllegalArgumentException("maximumCollectionSize must be positive");
-        }
-        if (maximumStringBytes < 0) {
-            throw new IllegalArgumentException("maximumStringBytes must be nonnegative");
-        }
-        if (maximumIntegerBytes < 0) {
-            throw new IllegalArgumentException("maximumIntegerBytes must be nonnegative");
-        }
+        Objects.requireNonNull(expressions, "expressions");
+        Objects.requireNonNull(modules, "modules");
         ignoredCategories = Set.copyOf(
                 Objects.requireNonNull(ignoredCategories, "ignoredCategories"));
         if (ignoredCategories.stream().anyMatch(category -> !category.isIgnorable())) {
@@ -99,6 +80,50 @@ public record IrGenerationConfig(
         return Collections.unmodifiableMap(copy);
     }
 
+    public int maximumTypeDepth() {
+        return expressions.maximumTypeDepth();
+    }
+
+    public int maximumExpressionDepth() {
+        return expressions.maximumExpressionDepth();
+    }
+
+    public int maximumNodes() {
+        return expressions.maximumNodes();
+    }
+
+    public int maximumCollectionSize() {
+        return expressions.maximumCollectionSize();
+    }
+
+    public int maximumStringBytes() {
+        return expressions.maximumStringBytes();
+    }
+
+    public int maximumIntegerBytes() {
+        return expressions.maximumIntegerBytes();
+    }
+
+    public int maximumVariables() {
+        return modules.maximumVariables();
+    }
+
+    public int maximumAuxiliaryOperators() {
+        return modules.maximumAuxiliaryOperators();
+    }
+
+    public int maximumActions() {
+        return modules.maximumActions();
+    }
+
+    public int maximumActionParameters() {
+        return modules.maximumActionParameters();
+    }
+
+    public int maximumSteps() {
+        return modules.maximumSteps();
+    }
+
     /** Returns the selection slots {@code kind} occupies, defaulting to one. */
     public int weightOf(ExpressionKind kind) {
         Objects.requireNonNull(kind, "kind");
@@ -114,14 +139,40 @@ public record IrGenerationConfig(
         return additional;
     }
 
+    /**
+     * Returns these settings with further categories excluded.
+     *
+     * <p>Module generation uses this to take the action and temporal forms out of every
+     * subexpression it draws: it constructs all priming and {@code UNCHANGED} itself, and a prime
+     * appearing under a negation or a quantifier would break the assignment completeness that
+     * makes the module admissible.
+     */
+    public IrGenerationConfig ignoring(ExpressionCategory... categories) {
+        Objects.requireNonNull(categories, "categories");
+        var ignored = EnumSet.copyOf(ignoredCategories);
+        Collections.addAll(ignored, categories);
+        return new IrGenerationConfig(expressions, modules, ignored, formWeights);
+    }
+
+    /** Returns these settings with a different set of excluded categories. */
+    public IrGenerationConfig withIgnoredCategories(Set<ExpressionCategory> categories) {
+        return new IrGenerationConfig(expressions, modules, categories, formWeights);
+    }
+
+    /** Returns these settings with different expression limits. */
+    public IrGenerationConfig withExpressionLimits(ExpressionLimits limits) {
+        return new IrGenerationConfig(limits, modules, ignoredCategories, formWeights);
+    }
+
+    /** Returns these settings with different form weights. */
+    public IrGenerationConfig withFormWeights(Map<ExpressionKind, Integer> weights) {
+        return new IrGenerationConfig(expressions, modules, ignoredCategories, weights);
+    }
+
     public static IrGenerationConfig defaults() {
         return new IrGenerationConfig(
-                DEFAULT_MAXIMUM_TYPE_DEPTH,
-                DEFAULT_MAXIMUM_EXPRESSION_DEPTH,
-                DEFAULT_MAXIMUM_NODES,
-                DEFAULT_MAXIMUM_COLLECTION_SIZE,
-                DEFAULT_MAXIMUM_STRING_BYTES,
-                DEFAULT_MAXIMUM_INTEGER_BYTES,
+                ExpressionLimits.defaults(),
+                ModuleLimits.defaults(),
                 Set.of(
                         ExpressionCategory.ACTION,
                         ExpressionCategory.TEMPORAL,

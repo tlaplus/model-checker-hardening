@@ -91,15 +91,8 @@ class IrGeneratorsTest {
 
         var full = new byte[8192];
         java.util.Arrays.fill(full, (byte) 0xff);
-        var bounded = new IrGenerationConfig(
-                3,
-                12,
-                256,
-                8,
-                32,
-                16,
-                IrGenerationConfig.defaults().ignoredCategories(),
-                IrGenerationConfig.defaults().formWeights());
+        var bounded = IrGenerationConfig.defaults()
+                .withExpressionLimits(new ExpressionLimits(3, 12, 256, 8, 32, 16));
         assertBuildsOrRejects(bounded, full);
 
         var longStructuredInput = Base64.getMimeDecoder()
@@ -126,7 +119,7 @@ class IrGeneratorsTest {
             if (!category.isIgnorable()) {
                 continue;
             }
-            var config = configIgnoring(Set.of(category));
+            var config = IrGenerationConfig.defaults().ignoring(category);
             for (var sample = 0; sample < 128; sample++) {
                 var input = new byte[random.nextInt(65)];
                 random.nextBytes(input);
@@ -149,19 +142,6 @@ class IrGeneratorsTest {
                     "generation failed for input " + Base64.getEncoder().encodeToString(input),
                     failure);
         }
-    }
-
-    private IrGenerationConfig configIgnoring(Set<ExpressionCategory> ignoredCategories) {
-        var defaults = IrGenerationConfig.defaults();
-        return new IrGenerationConfig(
-                defaults.maximumTypeDepth(),
-                defaults.maximumExpressionDepth(),
-                defaults.maximumNodes(),
-                defaults.maximumCollectionSize(),
-                defaults.maximumStringBytes(),
-                defaults.maximumIntegerBytes(),
-                ignoredCategories,
-                defaults.formWeights());
     }
 
     private String print(TlaEx expression) {

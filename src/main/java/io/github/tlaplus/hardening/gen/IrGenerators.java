@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.gen;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine;
+import io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine;
 import java.util.Objects;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
@@ -102,5 +103,33 @@ public final class IrGenerators {
     public static Generator<TlaEx> expressions(IrGenerationConfig config) {
         Objects.requireNonNull(config, "config");
         return new IrGeneratorEngine(config)::generate;
+    }
+
+    /**
+     * Returns a generator of the declarations of one module, using the supplied settings.
+     *
+     * <p>A generated module declares state variables, defines auxiliary operators over its
+     * parameters alone, constrains every variable in its initial-state predicate, and builds a
+     * next-state action whose every disjunct accounts for every variable exactly once, by
+     * assignment or by {@code UNCHANGED}. That accounting is a property of construction rather
+     * than of the input: it is what makes the module admissible to the parser and to both
+     * checkers, so no byte string can produce a module that leaves a variable unspecified.
+     *
+     * <p>Priming and {@code UNCHANGED} belong to this level alone. The subexpression decoder runs
+     * with the action, temporal and exotic categories excluded whatever {@code config} ignores,
+     * because a prime buried under a negation or a quantifier would defeat that accounting. Every
+     * value a module expression produces therefore reads the current state only.
+     *
+     * <p>The byte encoding is separate from the expression encoding and shares none of it. An
+     * existing expression corpus is unaffected by changes here, and the same bytes decode to
+     * different artifacts under the two entry points.
+     *
+     * @param config immutable settings applied to every generation
+     * @return reusable generator of the declarations of a checked TLA+ module
+     * @throws NullPointerException if {@code config} is {@code null}
+     */
+    public static Generator<GeneratedSpec> specs(IrGenerationConfig config) {
+        Objects.requireNonNull(config, "config");
+        return new IrSpecGeneratorEngine(config)::generate;
     }
 }

@@ -77,16 +77,7 @@ class IrTypeGenFactoryTest {
     }
 
     private IrTypeGenFactory factoryIgnoring(ExpressionCategory category) {
-        var defaults = IrGenerationConfig.defaults();
-        var config = new IrGenerationConfig(
-                defaults.maximumTypeDepth(),
-                defaults.maximumExpressionDepth(),
-                defaults.maximumNodes(),
-                defaults.maximumCollectionSize(),
-                defaults.maximumStringBytes(),
-                defaults.maximumIntegerBytes(),
-                Set.of(category),
-                defaults.formWeights());
+        var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of(category));
         return new IrTypeGenFactory(new GenerationContext(config));
     }
 }

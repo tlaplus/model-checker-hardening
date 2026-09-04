@@ -24,7 +24,15 @@ public final class SpecDecoders {
     /** Returns the decoder for every input kind, under one generator configuration. */
     public static Map<InputKind, Generator<SpecArtifact>> of(IrGenerationConfig config) {
         Objects.requireNonNull(config, "config");
-        return fromExpressions(IrGenerators.expressions(config));
+        var decoders = fromExpressions(IrGenerators.expressions(config));
+        decoders.put(
+                InputKind.MODULE,
+                IrGenerators.specs(config)
+                        .map(spec -> new SpecArtifact(
+                                FuzzInputModule.create(spec),
+                                spec.stepBound(),
+                                spec.generated())));
+        return decoders;
     }
 
     /**
@@ -33,7 +41,7 @@ public final class SpecDecoders {
      * <p>An expression input is wrapped in the single-state module, which has one state and so
      * asks for no transitions.
      */
-    public static Map<InputKind, Generator<SpecArtifact>> fromExpressions(
+    public static EnumMap<InputKind, Generator<SpecArtifact>> fromExpressions(
             Generator<TlaEx> expressions) {
         Objects.requireNonNull(expressions, "expressions");
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
