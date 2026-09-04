@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -45,6 +46,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     static final ConfigValueType<Map<ExpressionKind, Integer>> WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readWeights, ConfigValueType::formatWeights);
+
+    static final ConfigValueType<InputKind> INPUT_KIND = new ConfigValueType<>(
+            ConfigValueType::readInputKind, kind -> '"' + kind.encodedName() + '"');
 
     /** Reads one TOML integer and narrows it only when it fits in a Java {@code int}. */
     private static int readInt(TomlTable table, String path, String key) throws ConfigException {
@@ -129,6 +133,25 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     }
 
     /** Renders a category list in {@link ExpressionCategory} declaration order. */
+    /** Reads the kind of input a run generates, by the same name the corpus stores. */
+    private static InputKind readInputKind(TomlTable table, String path, String key)
+            throws ConfigException {
+        if (!table.isString(key)) {
+            throw new ConfigException("expected '" + path + "' to be a string");
+        }
+        var name = table.getString(key);
+        return InputKind.fromEncodedName(name)
+                .orElseThrow(() -> new ConfigException(
+                        "unknown input kind '"
+                                + name
+                                + "' in '"
+                                + path
+                                + "'; expected one of "
+                                + Arrays.stream(InputKind.values())
+                                        .map(InputKind::encodedName)
+                                        .collect(Collectors.joining(", "))));
+    }
+
     private static String formatCategories(Set<ExpressionCategory> categories) {
         return Arrays.stream(ExpressionCategory.values())
                 .filter(categories::contains)

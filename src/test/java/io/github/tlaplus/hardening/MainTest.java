@@ -563,28 +563,37 @@ class MainTest {
     }
 
     @Test
-    void rejectsRawAndUnsupportedPrintInputs(@TempDir Path directory) throws Exception {
+    void rejectsRawPrintInput(@TempDir Path directory) throws Exception {
         var raw = directory.resolve("raw.bin");
         Files.write(raw, new byte[] {0});
+
+        var rawResult = execute("print", raw.toString());
+        var rawEnvelopeResult = execute("print", "--envelope", raw.toString());
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, rawResult.exitCode());
+        assertTrue(rawResult.err().contains("cannot decode"));
+        assertEquals(CommandLine.ExitCode.SOFTWARE, rawEnvelopeResult.exitCode());
+        assertTrue(rawEnvelopeResult.err().contains("cannot decode"));
+    }
+
+    @Test
+    void printsAModuleInputAsItsModule(@TempDir Path directory) throws Exception {
+        // A module input has no single expression to print, so the default output is the module
+        // that an expression input reaches only through --spec.
         var module = directory.resolve("module.cbor");
         Files.write(
                 module,
                 CorpusInputCodec.encode(
                         new CorpusInput(InputKind.MODULE, new byte[] {0})));
 
-        var rawResult = execute("print", raw.toString());
-        var moduleResult = execute("print", module.toString());
-        var rawEnvelopeResult = execute("print", "--envelope", raw.toString());
-        var moduleEnvelopeResult = execute("print", "--envelope", module.toString());
+        var result = execute("print", module.toString());
+        var envelopeResult = execute("print", "--envelope", module.toString());
 
-        assertEquals(CommandLine.ExitCode.SOFTWARE, rawResult.exitCode());
-        assertTrue(rawResult.err().contains("cannot decode"));
-        assertEquals(CommandLine.ExitCode.SOFTWARE, moduleResult.exitCode());
-        assertTrue(moduleResult.err().contains("unsupported input kind 'module'"));
-        assertEquals(CommandLine.ExitCode.SOFTWARE, rawEnvelopeResult.exitCode());
-        assertTrue(rawEnvelopeResult.err().contains("cannot decode"));
-        assertEquals(CommandLine.ExitCode.SOFTWARE, moduleEnvelopeResult.exitCode());
-        assertTrue(moduleEnvelopeResult.err().contains("unsupported input kind 'module'"));
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        assertTrue(result.out().contains("MODULE FuzzInput"), result.out());
+        assertTrue(result.out().contains("Next == (var0' = FALSE"), result.out());
+        assertEquals(CommandLine.ExitCode.OK, envelopeResult.exitCode(), envelopeResult.err());
+        assertTrue(envelopeResult.out().contains("kind: module"), envelopeResult.out());
     }
 
     @Test
@@ -673,6 +682,7 @@ class MainTest {
                 CommandLine.ExitCode.OK,
                 execute("init", "--corpus=" + corpus).exitCode());
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         entries,

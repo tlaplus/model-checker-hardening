@@ -21,7 +21,15 @@ import java.util.Objects;
 public final class SpecDecoders {
     private SpecDecoders() {}
 
-    /** Returns the decoder for every input kind, under one generator configuration. */
+    /**
+     * Returns the decoder of every input kind, under one generator configuration.
+     *
+     * <p>The result covers {@link InputKind} completely, so a caller looks a kind up where it
+     * needs the decoder rather than guarding each use. Adding a kind without a decoder here fails
+     * at the first lookup of this map instead of returning {@code null} somewhere downstream.
+     *
+     * @throws IllegalStateException if a kind has no decoder
+     */
     public static Map<InputKind, Generator<SpecArtifact>> of(IrGenerationConfig config) {
         Objects.requireNonNull(config, "config");
         var decoders = fromExpressions(IrGenerators.expressions(config));
@@ -32,13 +40,20 @@ public final class SpecDecoders {
                                 FuzzInputModule.create(spec),
                                 spec.stepBound(),
                                 spec.generated())));
+        for (var kind : InputKind.values()) {
+            if (!decoders.containsKey(kind)) {
+                throw new IllegalStateException(
+                        "no decoder for input kind '" + kind.encodedName() + "'");
+            }
+        }
         return decoders;
     }
 
     /**
-     * Returns the decoder for every input kind, given the expression decoder to build on.
+     * Returns the expression decoder alone, built on the supplied expression generator.
      *
-     * <p>An expression input is wrapped in the single-state module, which has one state and so
+     * <p>The result is deliberately partial: it serves a caller that consumes expression inputs
+     * only. An expression input is wrapped in the single-state module, which has one state and so
      * asks for no transitions.
      */
     public static EnumMap<InputKind, Generator<SpecArtifact>> fromExpressions(

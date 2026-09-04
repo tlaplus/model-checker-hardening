@@ -33,8 +33,10 @@ class IrSpecGeneratorsTest {
         assertEquals(List.of("var0", STEP), variableNames(spec));
         assertEquals(List.of(), spec.auxiliaryOperators());
         assertEquals("var0 = FALSE /\\ step = 0", print(spec.initPredicate()));
-        assertEquals("(var0' = var0 /\\ step' = step + 1)", print(spec.nextAction()));
-        assertEquals("FALSE", print(spec.invariant()));
+        assertEquals("(var0' = FALSE /\\ step' = step + 1)", print(spec.nextAction()));
+        // Even the empty input yields an invariant over the state rather than a constant: the
+        // Boolean terminal rotates over the visible bindings before the closed FALSE.
+        assertEquals("var0", print(spec.invariant()));
         assertEquals("step <= 5", print(spec.boundPredicate()));
         assertEquals(ModuleLimits.DEFAULT_MAXIMUM_STEPS, spec.stepBound());
     }

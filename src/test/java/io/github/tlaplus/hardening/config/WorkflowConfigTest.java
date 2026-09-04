@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -92,7 +93,8 @@ class WorkflowConfigTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new FuzzTlaConfig(
-                        IrGenerationConfig.defaults(),
+                InputKind.EXPRESSION,
+                IrGenerationConfig.defaults(),
                         new WorkflowConfig(
                                 2,
                                 new StageConfig(2),

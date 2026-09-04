@@ -92,6 +92,7 @@ public final class TomlConfig {
 
     /** Builds the configuration records from tables that have already passed key validation. */
     private static FuzzTlaConfig assemble(Map<String, TomlTable> tables) throws ConfigException {
+        var generatedKind = ConfigSchema.GENERATED_KIND.read(tables);
         var generationConfig = new IrGenerationConfig(
                 new ExpressionLimits(
                         ConfigSchema.MAXIMUM_TYPE_DEPTH.read(tables),
@@ -127,7 +128,7 @@ public final class TomlConfig {
                 ConfigSchema.RICHNESS_NESTING_BASE.read(tables),
                 ConfigSchema.RICHNESS_THRESHOLD_BASE.read(tables));
 
-        return new FuzzTlaConfig(generationConfig, workflowConfig, pbtConfig);
+        return new FuzzTlaConfig(generatedKind, generationConfig, workflowConfig, pbtConfig);
     }
 
     /** Reads one checker table, naming the stage in every diagnostic. */

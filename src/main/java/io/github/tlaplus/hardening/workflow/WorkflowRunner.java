@@ -57,8 +57,8 @@ public final class WorkflowRunner {
     public WorkflowRunner(FuzzTlaConfig config) {
         this(
                 config,
-                InputKind.EXPRESSION,
-                SpecDecoders.of(Objects.requireNonNull(config, "config").generator()));
+                Objects.requireNonNull(config, "config").generatedKind(),
+                SpecDecoders.of(config.generator()));
     }
 
     WorkflowRunner(

@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.cli;
 
+import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -15,7 +16,7 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
-import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -104,31 +105,22 @@ final class PrintCommand implements Callable<Integer> {
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
-        if (corpusInput.kind() != InputKind.EXPRESSION) {
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot generate a specification from '%s': "
-                                    + "unsupported input kind '%s'%n",
-                            input, corpusInput.kind().encodedName());
-            return CommandLine.ExitCode.SOFTWARE;
-        }
-
         try {
-            var expression = IrGenerators.expressions(generatorConfig)
-                    .generate(corpusInput.input());
-            final String output;
+            final String rendered;
             if (printsApalacheIr()) {
-                output = ApalacheIrJson.render(FuzzInputModule.create(expression));
-            } else if (printsSpecification()) {
-                output = SpecText.render(FuzzInputModule.create(expression));
+                rendered = ApalacheIrJson.render(module(generatorConfig, corpusInput));
+            } else if (printsSpecification() || corpusInput.kind() != InputKind.EXPRESSION) {
+                // Without a mode, an expression input prints its expression; a module has no
+                // single expression to print, so it prints the module either way.
+                rendered = SpecText.render(module(generatorConfig, corpusInput));
             } else {
-                var rendered = EnvelopeReport.expression(expression);
-                output = envelope == null
-                        ? rendered
-                        : EnvelopeReport.render(envelope, rendered);
+                rendered = EnvelopeReport.expression(
+                        IrGenerators.expressions(generatorConfig)
+                                .generate(corpusInput.input()));
             }
-            print(output);
+            // Every rendering can be reported inside its envelope, so the wrapping is decided
+            // once here rather than in each branch.
+            print(envelope == null ? rendered : EnvelopeReport.render(envelope, rendered));
             return CommandLine.ExitCode.OK;
         } catch (RuntimeException | StackOverflowError exception) {
             spec.commandLine()
@@ -138,6 +130,19 @@ final class PrintCommand implements Callable<Integer> {
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
+    }
+
+    /**
+     * Regenerates the assembled module of one entry, through the decoder its kind names.
+     *
+     * <p>{@link SpecDecoders#of} covers every kind, so the lookup happens where the module is
+     * wanted rather than ahead of the branch that wants it.
+     */
+    private static TlaModule module(IrGenerationConfig config, CorpusInput corpusInput) {
+        return SpecDecoders.of(config)
+                .get(corpusInput.kind())
+                .generate(corpusInput.input())
+                .module();
     }
 
     private boolean printsSpecification() {

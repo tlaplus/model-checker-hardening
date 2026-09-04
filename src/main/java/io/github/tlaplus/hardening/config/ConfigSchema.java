@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -154,6 +155,16 @@ final class ConfigSchema {
             "max_string_bytes", config -> config.generator().maximumStringBytes());
     static final Key<Integer> MAXIMUM_INTEGER_BYTES = generatorKey(
             "max_integer_bytes", config -> config.generator().maximumIntegerBytes());
+    static final Key<InputKind> GENERATED_KIND = new Key<>(
+            GENERATOR_PATH,
+            "kind",
+            ConfigValueType.INPUT_KIND,
+            List.of(
+                    "What this run generates: \"expr\" for one expression wrapped in a"
+                            + " single-state module, or \"module\" for a whole module.",
+                    "A corpus entry records its own kind, so a run only generates this one."),
+            config -> config.generatedKind());
+
     static final Key<Integer> MAXIMUM_VARIABLES = new Key<>(
             GENERATOR_PATH,
             "max_variables",
@@ -304,6 +315,7 @@ final class ConfigSchema {
         tables.add(new Table(
                 GENERATOR_PATH,
                 List.of(
+                        GENERATED_KIND,
                         MAXIMUM_TYPE_DEPTH,
                         MAXIMUM_EXPRESSION_DEPTH,
                         MAXIMUM_NODES,
