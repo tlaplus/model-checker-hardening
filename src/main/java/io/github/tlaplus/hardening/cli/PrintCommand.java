@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.cli;
 
-import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
@@ -12,12 +11,11 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
-import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -106,12 +104,7 @@ final class PrintCommand implements Callable<Integer> {
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
-        // The module renderings work from the assembled module, whatever kind produced it. The
-        // default output is one expression, which only an expression input has.
-        var decoder = printsModule()
-                ? SpecDecoders.of(generatorConfig).get(corpusInput.kind())
-                : null;
-        if (printsModule() ? decoder == null : corpusInput.kind() != InputKind.EXPRESSION) {
+        if (corpusInput.kind() != InputKind.EXPRESSION) {
             spec.commandLine()
                     .getErr()
                     .printf(
@@ -122,19 +115,18 @@ final class PrintCommand implements Callable<Integer> {
         }
 
         try {
+            var expression = IrGenerators.expressions(generatorConfig)
+                    .generate(corpusInput.input());
             final String output;
-            if (printsModule()) {
-                var module = decoder.generate(corpusInput.input()).module();
-                output = printsApalacheIr()
-                        ? ApalacheIrJson.render(module)
-                        : SpecText.render(module);
+            if (printsApalacheIr()) {
+                output = ApalacheIrJson.render(FuzzInputModule.create(expression));
+            } else if (printsSpecification()) {
+                output = SpecText.render(FuzzInputModule.create(expression));
             } else {
-                var expression = IrGenerators.expressions(generatorConfig)
-                        .generate(corpusInput.input());
-                var renderedExpression = EnvelopeReport.expression(expression);
+                var rendered = EnvelopeReport.expression(expression);
                 output = envelope == null
-                        ? renderedExpression
-                        : EnvelopeReport.render(envelope, renderedExpression);
+                        ? rendered
+                        : EnvelopeReport.render(envelope, rendered);
             }
             print(output);
             return CommandLine.ExitCode.OK;
@@ -146,11 +138,6 @@ final class PrintCommand implements Callable<Integer> {
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
-    }
-
-    /** Returns whether the requested output is a rendering of the whole module. */
-    private boolean printsModule() {
-        return printsApalacheIr() || printsSpecification();
     }
 
     private boolean printsSpecification() {
