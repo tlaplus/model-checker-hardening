@@ -13,7 +13,10 @@ reported arena types are identical.
 
 The original inspected corpus contains three instances. The later `corpus2`
 run contains 44: 25 compare the same symbolic representation and 19 compare a
-symbolic representation with a materialized set. Observed with Apalache 0.62.0;
+symbolic representation with a materialized set. The `corpus1` run, the first
+to generate whole modules, contains one more of the second kind, comparing
+`FinFunSet[...]` with `CellTFrom(Set(...))`
+([`58a7137b...`](../../corpus1/02apa-crash/58a7137b1f6727b91d8bda0b4a501d1588a86d0e8497b547a5191a63f8326896.stacktrace)). Observed with Apalache 0.62.0;
 both representative reproductions still fail with Apalache 0.62.2, build
 `f0dec98`.
 
