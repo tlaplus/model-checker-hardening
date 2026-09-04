@@ -42,6 +42,7 @@ are rounded to two decimal places, so table rows may not sum exactly to 100%.
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Finite set containing `Nat` | [MWE](finite-set-containing-infinite-set.md#representative-mwe) | TLC representation limit |
 | Aggregator (corpus2) | <0.01% | 🔴 Fail | 🟢 Pass | Label inside an `EXCEPT` replacement | [MWE](label-inside-except.md#representative-mwe) | TLC/SANY language restriction |
 | Aggregator (corpus1) | 2.91% | 🔴 Fail | 🟢 Pass | Constant-level `FALSE` invariant | [MWE](constant-false-invariant.md#representative-mwe) | TLC restriction |
+| Aggregator (corpus1) | 0.15% | 🔴 Fail | 🟢 Pass | `IsFiniteSet` of `Int` or `Nat` | [MWE](../findings/apalache-bmc/apalache-bmc-007.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-007.md) |
 | Aggregator (corpus1) | 0.31% | 🔴 Fail | 🟢 Pass | Non-enumerable initial assignment | [MWE](non-enumerable-initial-assignment.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | `LET` operand grouping | [MWE](let-operand-grouping.md#representative-mwe) | [Printer defect](../findings/apalache-printer/apalache-printer-007.md) |
 | Aggregator | 4.04% | 🟢 Pass | 🔴 Fail | Apalache reaches modulo by zero | [MWE](modulo-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
@@ -59,6 +60,12 @@ are rounded to two decimal places, so table rows may not sum exactly to 100%.
 Resource-only timeouts and heap exhaustion are excluded because they do not
 establish a semantic conformance difference. Known checker issues not observed
 in the analyzed PBT session are also excluded.
+
+[Vacuous initial predicate](vacuous-initial-predicate.md) has no table row
+because both checkers pass it. It is recorded because it is the second
+ingredient of the constant-level `FALSE` invariant row, and because an entry
+with no initial state verifies nothing while still consuming a corpus slot and
+both checkers.
 
 ## corpus1 and printer corruption
 
