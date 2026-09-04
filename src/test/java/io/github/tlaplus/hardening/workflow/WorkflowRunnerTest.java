@@ -271,6 +271,7 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         2,
@@ -351,6 +352,7 @@ class WorkflowRunnerTest {
         Files.write(entry, encoded);
 
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         10,
@@ -377,6 +379,7 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         0,
@@ -402,6 +405,7 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         0,
@@ -427,6 +431,7 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         1,
@@ -468,6 +473,7 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         1,
@@ -510,6 +516,7 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         2,
@@ -546,6 +553,7 @@ class WorkflowRunnerTest {
     private FuzzTlaConfig config(
             int total, int inputs, int parser, int maximumInputBytes) {
         return new FuzzTlaConfig(
+                InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         total,

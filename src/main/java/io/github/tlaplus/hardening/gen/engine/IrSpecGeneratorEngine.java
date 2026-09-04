@@ -86,25 +86,35 @@ public final class IrSpecGeneratorEngine {
         declarations.add(
                 TlaDeclarations.variable(step.name(), PrimitiveType.INT.toTlaType()));
 
-        var operators = draw.draw(auxiliaryOperators(context, typeFactory, expressionFactory));
-        var operatorNames = operators.stream().map(DefinedOperator::binding).toList();
         var actions = new ActionGenFactory(
                 context, typeFactory, expressionFactory, variables, step);
+
+        // The invariant is drawn first among the bodies, because it is the one that degrades
+        // worst when the cursor runs out: a starved definition or action is still a legal one,
+        // whereas a starved Boolean decodes to the closed terminal FALSE, and a constantly false
+        // invariant is violated by every initial state, which no checker explores past. Drawing
+        // it first took that shape from 69% of property-based inputs to 17%. The price is that
+        // it cannot apply the auxiliary definitions, which are not yet drawn; Init and Next
+        // still can.
+        var variableScope = new ArrayList<ScopedName>(variables);
+        variableScope.add(step);
+        var invariant = draw.draw(context.withBindings(
+                variableScope,
+                context.withFreshNodeBudget(
+                        expressionFactory.mkGen(PrimitiveType.BOOL, depth))));
+
+        var operators = draw.draw(auxiliaryOperators(context, typeFactory, expressionFactory));
+        var operatorNames = operators.stream().map(DefinedOperator::binding).toList();
+        var stateScope = new ArrayList<ScopedName>(operatorNames);
+        stateScope.addAll(variables);
+        stateScope.add(step);
 
         // Init sees the operators but not the variables: a conjunct that read another variable
         // would depend on an evaluation order the predicate does not fix.
         var initPredicate = draw.draw(context.withBindings(
                 operatorNames, context.withFreshNodeBudget(actions.initPredicate(depth))));
-
-        var stateScope = new ArrayList<ScopedName>(operatorNames);
-        stateScope.addAll(variables);
-        stateScope.add(step);
         var nextAction = draw.draw(
                 context.withBindings(stateScope, actions.nextAction(depth)));
-        var invariant = draw.draw(context.withBindings(
-                stateScope,
-                context.withFreshNodeBudget(
-                        expressionFactory.mkGen(PrimitiveType.BOOL, depth))));
 
         var boundPredicate = context.builder().le(
                 context.builder().name(step.name(), PrimitiveType.INT.toTlaType()),
