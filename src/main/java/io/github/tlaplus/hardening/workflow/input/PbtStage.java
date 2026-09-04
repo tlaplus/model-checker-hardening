@@ -2,20 +2,20 @@ package io.github.tlaplus.hardening.workflow.input;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.PbtConfig;
-import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
+import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageWorker;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
-import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
-import java.io.IOException;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.SplittableRandom;
@@ -29,6 +29,7 @@ public final class PbtStage implements WorkflowStage {
 
     private final PbtConfig config;
     private final InputKind kind;
+    private final Generator<SpecArtifact> decoder;
     private final long initialEntries;
     private final StageEnvironment environment;
     private final long seed;
@@ -58,6 +59,7 @@ public final class PbtStage implements WorkflowStage {
         }
         this.initialEntries = initialEntries;
         this.environment = Objects.requireNonNull(environment, "environment");
+        decoder = environment.decoders().decoder(kind);
         if (seed < 0) {
             throw new IllegalArgumentException("seed must be nonnegative");
         }
@@ -110,13 +112,6 @@ public final class PbtStage implements WorkflowStage {
     }
 
     private void generateInputs(int workerId, long workerSeed) throws Exception {
-        var decoder = environment.decoders().get(kind);
-        if (decoder == null) {
-            throw new WorkflowException(
-                    "the input stage cannot generate '"
-                            + kind.encodedName()
-                            + "' inputs: no decoder for that kind");
-        }
         var random = new SplittableRandom(workerSeed);
         var cohortRandom = random.split();
         var inputRandom = random.split();
@@ -241,16 +236,10 @@ public final class PbtStage implements WorkflowStage {
                 + targetAttempt
                 + ": "
                 + Diagnostics.message(failure);
-        try {
-            var candidate =
-                    environment.corpus().recordGeneratorCrash(kind, input, failure);
-            message += "; candidate saved to '" + candidate + "'";
-        } catch (IOException | CorpusException | RuntimeException recordingFailure) {
-            failure.addSuppressed(recordingFailure);
-            message += "; crash artifact could not be saved: "
-                    + Diagnostics.message(recordingFailure);
-        }
-        return new WorkflowException(message, failure);
+        var diagnostic = environment.corpus()
+                .preserveGeneratorCrash(kind, input, failure)
+                .appendTo(message);
+        return new WorkflowException(diagnostic, failure);
     }
 
     static long[] workerSeeds(long seed, int workerCount) {

@@ -1,9 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
-import io.github.tlaplus.hardening.gen.ExpressionLimits;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
-import io.github.tlaplus.hardening.gen.ModuleLimits;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -94,19 +92,8 @@ public final class TomlConfig {
     private static FuzzTlaConfig assemble(Map<String, TomlTable> tables) throws ConfigException {
         var generatedKind = ConfigSchema.GENERATED_KIND.read(tables);
         var generationConfig = new IrGenerationConfig(
-                new ExpressionLimits(
-                        ConfigSchema.MAXIMUM_TYPE_DEPTH.read(tables),
-                        ConfigSchema.MAXIMUM_EXPRESSION_DEPTH.read(tables),
-                        ConfigSchema.MAXIMUM_NODES.read(tables),
-                        ConfigSchema.MAXIMUM_COLLECTION_SIZE.read(tables),
-                        ConfigSchema.MAXIMUM_STRING_BYTES.read(tables),
-                        ConfigSchema.MAXIMUM_INTEGER_BYTES.read(tables)),
-                new ModuleLimits(
-                        ConfigSchema.MAXIMUM_VARIABLES.read(tables),
-                        ConfigSchema.MAXIMUM_AUXILIARY_OPERATORS.read(tables),
-                        ConfigSchema.MAXIMUM_ACTIONS.read(tables),
-                        ConfigSchema.MAXIMUM_ACTION_PARAMETERS.read(tables),
-                        ConfigSchema.MAXIMUM_STEPS.read(tables)),
+                ConfigSchema.GENERATOR_LIMITS.readExpressionLimits(tables),
+                ConfigSchema.GENERATOR_LIMITS.readModuleLimits(tables),
                 ConfigSchema.IGNORED_CATEGORIES.read(tables),
                 ConfigSchema.FORM_WEIGHTS.read(tables));
 

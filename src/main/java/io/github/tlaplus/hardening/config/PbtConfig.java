@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.Preconditions;
+
 /** Limits and collection-richness controls for property-based input generation. */
 public record PbtConfig(
         int maximumInputBytes,
@@ -11,12 +13,8 @@ public record PbtConfig(
     private static final double DEFAULT_RICHNESS_THRESHOLD_BASE = 1.5;
 
     public PbtConfig {
-        if (maximumInputBytes < 0) {
-            throw new IllegalArgumentException("maximumInputBytes must be nonnegative");
-        }
-        if (richnessCohorts <= 0) {
-            throw new IllegalArgumentException("richnessCohorts must be positive");
-        }
+        Preconditions.requireNonnegative(maximumInputBytes, "maximumInputBytes");
+        Preconditions.requirePositive(richnessCohorts, "richnessCohorts");
         if (!Double.isFinite(richnessNestingBase) || richnessNestingBase < 1.0) {
             throw new IllegalArgumentException(
                     "richnessNestingBase must be finite and at least 1");

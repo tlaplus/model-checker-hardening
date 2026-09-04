@@ -8,8 +8,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Encodes and decodes the fields that decide a corpus input's identity: its kind, its generator
- * payload, and the admission metadata recorded when it was generated.
+ * Encodes and decodes an input's kind, generator payload, and admission metadata.
+ *
+ * <p>The raw payload alone determines the corpus filename and storage identity. The kind says how
+ * to decode that payload, while admission metadata describes why it entered the corpus.
  *
  * <p>Stage metadata is deliberately not read here. A stage is free to add its own fields, and this
  * level must keep working when it does, so {@link #read} hands the {@code stages} map to a caller
@@ -25,7 +27,7 @@ public final class CorpusInputCodec {
 
     private CorpusInputCodec() {}
 
-    /** The identity level of one document: its required fields and its admission metadata. */
+    /** The input-level fields of one document, separate from stage metadata. */
     record Document(CorpusInput corpusInput, Optional<GenerationMetadata> generation) {}
 
     /** Reads the {@code stages} map of a document, or passes over it. */
@@ -85,8 +87,8 @@ public final class CorpusInputCodec {
     }
 
     /**
-     * Reads one document in a single pass, checking everything that decides its identity and
-     * letting {@code stages} take what it needs from the stages map.
+     * Reads one document in a single pass, checking its input fields and letting {@code stages}
+     * take what it needs from the stages map.
      */
     static Document read(byte[] encoded, StageReader stages) throws CorpusFormatException {
         Objects.requireNonNull(encoded, "encoded");

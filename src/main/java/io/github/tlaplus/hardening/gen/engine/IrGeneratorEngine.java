@@ -50,6 +50,7 @@ public final class IrGeneratorEngine {
                     "root expression has operator type; TLA+ operators are not values");
         }
         return draw.draw(context.withFreshNodeBudget(
-                expressionFactory.mkGen(resultType, config.maximumExpressionDepth())));
+                expressionFactory.mkGen(
+                        resultType, config.expressions().maximumExpressionDepth())));
     }
 }

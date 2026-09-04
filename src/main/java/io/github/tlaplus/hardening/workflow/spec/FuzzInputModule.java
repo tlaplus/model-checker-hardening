@@ -61,21 +61,10 @@ public final class FuzzInputModule {
         // Apalache requires unique node identities, and the expression appears twice.
         var expressionCopy = new DeepCopy(new IdleTracker()).deepCopyEx(expression);
 
-        var init = builder.decl(
-                INIT, builder.eql(builder.varDeclAsNameEx(exprValue), expression));
-        var next = builder.decl(
-                NEXT, builder.unchanged(builder.varDeclAsNameEx(exprValue)));
-        var invariant = builder.decl(
-                INV,
-                builder.eql(builder.varDeclAsNameEx(exprValue), expressionCopy));
-        var bound = builder.decl(BOUND, builder.bool(true));
-
-        var declarations = new ArrayList<TlaDecl>(List.of(exprValue));
-        declarations.add(init);
-        declarations.add(next);
-        declarations.add(invariant);
-        declarations.add(bound);
-        return module(declarations);
+        var init = builder.eql(builder.varDeclAsNameEx(exprValue), expression);
+        var next = builder.unchanged(builder.varDeclAsNameEx(exprValue));
+        var invariant = builder.eql(builder.varDeclAsNameEx(exprValue), expressionCopy);
+        return assemble(List.of(exprValue), init, next, invariant, builder.bool(true));
     }
 
     /**
@@ -86,17 +75,29 @@ public final class FuzzInputModule {
      */
     public static TlaModule create(GeneratedSpec spec) {
         Objects.requireNonNull(spec, "spec");
-        var builder = new TlaTypedScopeUncheckedBuilder();
         var declarations = new ArrayList<TlaDecl>(spec.variables());
         declarations.addAll(spec.auxiliaryOperators());
-        declarations.add(builder.decl(INIT, spec.initPredicate()));
-        declarations.add(builder.decl(NEXT, spec.nextAction()));
-        declarations.add(builder.decl(INV, spec.invariant()));
-        declarations.add(builder.decl(BOUND, spec.boundPredicate()));
-        return module(declarations);
+        return assemble(
+                declarations,
+                spec.initPredicate(),
+                spec.nextAction(),
+                spec.invariant(),
+                spec.boundPredicate());
     }
 
-    private static TlaModule module(List<TlaDecl> declarations) {
+    /** Appends the fixed entry points once, in the order emitted to every tool. */
+    private static TlaModule assemble(
+            List<? extends TlaDecl> prefix,
+            TlaEx init,
+            TlaEx next,
+            TlaEx invariant,
+            TlaEx bound) {
+        var builder = new TlaTypedScopeUncheckedBuilder();
+        var declarations = new ArrayList<TlaDecl>(prefix);
+        declarations.add(builder.decl(INIT, init));
+        declarations.add(builder.decl(NEXT, next));
+        declarations.add(builder.decl(INV, invariant));
+        declarations.add(builder.decl(BOUND, bound));
         return new TlaModule(
                 MODULE_NAME, CollectionConverters.asScala(declarations).toSeq());
     }

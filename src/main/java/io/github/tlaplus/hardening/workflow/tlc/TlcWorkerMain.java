@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -122,7 +123,7 @@ public final class TlcWorkerMain {
                     StageOutcome.CRASH,
                     WorkerDiagnostics.append(
                             diagnostics.toString(StandardCharsets.UTF_8),
-                            WorkerDiagnostics.stackTrace(exception)));
+                            Diagnostics.stackTrace(exception)));
         }
     }
 

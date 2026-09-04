@@ -120,7 +120,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
                             updateDraw.draw(expression(
                                     type.result(), remainingDepth - 1))),
                     1,
-                    context.config().maximumCollectionSize()));
+                    context.config().expressions().maximumCollectionSize()));
             return builder().exceptMany(
                     draw.draw(expression(type, remainingDepth - 1)),
                     BuilderArrays.updates(updates));
@@ -129,7 +129,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
 
     /** Returns a generator that decodes a terminated string payload. */
     private Generator<String> stringLiteral() {
-        return BasicGenerators.byteArray(0, context.config().maximumStringBytes())
+        return BasicGenerators.byteArray(0, context.config().expressions().maximumStringBytes())
                 .map(payload -> {
                     var result = new StringBuilder(payload.length);
                     for (var value : payload) {

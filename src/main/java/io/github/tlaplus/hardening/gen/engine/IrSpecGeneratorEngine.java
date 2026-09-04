@@ -70,10 +70,10 @@ public final class IrSpecGeneratorEngine {
         var context = new GenerationContext(config);
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
-        var depth = config.maximumExpressionDepth();
+        var depth = config.expressions().maximumExpressionDepth();
 
         var variableTypes = draw.draw(BasicGenerators.listOf(
-                typeFactory.valueType(), 1, config.maximumVariables()));
+                typeFactory.valueType(), 1, config.modules().maximumVariables()));
         var variables = new ArrayList<ScopedName>();
         var declarations = new ArrayList<TlaVarDecl>();
         for (var type : variableTypes) {
@@ -118,7 +118,8 @@ public final class IrSpecGeneratorEngine {
 
         var boundPredicate = context.builder().le(
                 context.builder().name(step.name(), PrimitiveType.INT.toTlaType()),
-                context.builder().integer(BigInteger.valueOf(config.maximumSteps())));
+                context.builder().integer(
+                        BigInteger.valueOf(config.modules().maximumSteps())));
         return new GeneratedSpec(
                 declarations,
                 operators.stream().map(DefinedOperator::declaration).toList(),
@@ -126,7 +127,7 @@ public final class IrSpecGeneratorEngine {
                 nextAction,
                 invariant,
                 boundPredicate,
-                config.maximumSteps());
+                config.modules().maximumSteps());
     }
 
     /** One generated definition and the binding through which later expressions apply it. */
@@ -148,10 +149,12 @@ public final class IrSpecGeneratorEngine {
         return draw -> {
             var defined = new ArrayList<DefinedOperator>();
             var visible = new ArrayList<ScopedName>();
-            var maximum = config.maximumAuxiliaryOperators();
+            var maximum = config.modules().maximumAuxiliaryOperators();
             while (defined.size() < maximum && draw.drawBoolean()) {
                 var arguments = draw.draw(BasicGenerators.listOf(
-                        typeFactory.valueType(), 0, config.maximumCollectionSize()));
+                        typeFactory.valueType(),
+                        0,
+                        config.expressions().maximumCollectionSize()));
                 var result = draw.draw(typeFactory.valueType());
                 var type = new OperatorType(arguments, result);
 
@@ -168,7 +171,7 @@ public final class IrSpecGeneratorEngine {
                 var body = draw.draw(context.withBindings(
                         bindings,
                         context.withFreshNodeBudget(expressionFactory.mkGen(
-                                result, config.maximumExpressionDepth()))));
+                                result, config.expressions().maximumExpressionDepth()))));
                 var declaration = context.builder()
                         .decl(name, body, parameters.toArray(TypedParameter[]::new));
                 var binding = new ScopedName(name, type);

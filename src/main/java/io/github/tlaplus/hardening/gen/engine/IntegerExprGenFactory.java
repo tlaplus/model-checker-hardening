@@ -60,7 +60,7 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
 
     /** Returns a generator that decodes a terminated two's-complement integer payload. */
     private Generator<BigInteger> integerLiteral() {
-        return BasicGenerators.byteArray(0, context.config().maximumIntegerBytes())
+        return BasicGenerators.byteArray(0, context.config().expressions().maximumIntegerBytes())
                 .map(payload -> payload.length == 0
                         ? BigInteger.ZERO
                         : new BigInteger(payload));

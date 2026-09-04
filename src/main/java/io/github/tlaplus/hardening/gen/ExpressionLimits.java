@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.Preconditions;
+
 /**
  * Bounds on recursive construction and variable-size payloads within one expression.
  *
@@ -30,24 +32,12 @@ public record ExpressionLimits(
     public static final int DEFAULT_MAXIMUM_INTEGER_BYTES = 16;
 
     public ExpressionLimits {
-        if (maximumTypeDepth < 0) {
-            throw new IllegalArgumentException("maximumTypeDepth must be nonnegative");
-        }
-        if (maximumExpressionDepth < 1) {
-            throw new IllegalArgumentException("maximumExpressionDepth must be positive");
-        }
-        if (maximumNodes < 1) {
-            throw new IllegalArgumentException("maximumNodes must be positive");
-        }
-        if (maximumCollectionSize < 1) {
-            throw new IllegalArgumentException("maximumCollectionSize must be positive");
-        }
-        if (maximumStringBytes < 0) {
-            throw new IllegalArgumentException("maximumStringBytes must be nonnegative");
-        }
-        if (maximumIntegerBytes < 0) {
-            throw new IllegalArgumentException("maximumIntegerBytes must be nonnegative");
-        }
+        Preconditions.requireNonnegative(maximumTypeDepth, "maximumTypeDepth");
+        Preconditions.requirePositive(maximumExpressionDepth, "maximumExpressionDepth");
+        Preconditions.requirePositive(maximumNodes, "maximumNodes");
+        Preconditions.requirePositive(maximumCollectionSize, "maximumCollectionSize");
+        Preconditions.requireNonnegative(maximumStringBytes, "maximumStringBytes");
+        Preconditions.requireNonnegative(maximumIntegerBytes, "maximumIntegerBytes");
     }
 
     public static ExpressionLimits defaults() {

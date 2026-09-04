@@ -80,50 +80,6 @@ public record IrGenerationConfig(
         return Collections.unmodifiableMap(copy);
     }
 
-    public int maximumTypeDepth() {
-        return expressions.maximumTypeDepth();
-    }
-
-    public int maximumExpressionDepth() {
-        return expressions.maximumExpressionDepth();
-    }
-
-    public int maximumNodes() {
-        return expressions.maximumNodes();
-    }
-
-    public int maximumCollectionSize() {
-        return expressions.maximumCollectionSize();
-    }
-
-    public int maximumStringBytes() {
-        return expressions.maximumStringBytes();
-    }
-
-    public int maximumIntegerBytes() {
-        return expressions.maximumIntegerBytes();
-    }
-
-    public int maximumVariables() {
-        return modules.maximumVariables();
-    }
-
-    public int maximumAuxiliaryOperators() {
-        return modules.maximumAuxiliaryOperators();
-    }
-
-    public int maximumActions() {
-        return modules.maximumActions();
-    }
-
-    public int maximumActionParameters() {
-        return modules.maximumActionParameters();
-    }
-
-    public int maximumSteps() {
-        return modules.maximumSteps();
-    }
-
     /** Returns the selection slots {@code kind} occupies, defaulting to one. */
     public int weightOf(ExpressionKind kind) {
         Objects.requireNonNull(kind, "kind");
@@ -149,7 +105,8 @@ public record IrGenerationConfig(
      */
     public IrGenerationConfig ignoring(ExpressionCategory... categories) {
         Objects.requireNonNull(categories, "categories");
-        var ignored = EnumSet.copyOf(ignoredCategories);
+        var ignored = EnumSet.noneOf(ExpressionCategory.class);
+        ignored.addAll(ignoredCategories);
         Collections.addAll(ignored, categories);
         return new IrGenerationConfig(expressions, modules, ignored, formWeights);
     }

@@ -5,14 +5,10 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
-import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
-import io.github.tlaplus.hardening.gen.Generator;
-import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
-import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
@@ -20,6 +16,7 @@ import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
+import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
@@ -30,9 +27,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
-import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
-import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
@@ -51,23 +46,17 @@ public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 
     private final FuzzTlaConfig config;
-    private final InputKind generatedKind;
-    private final Map<InputKind, Generator<SpecArtifact>> decoders;
+    private final SpecDecoders decoders;
 
     public WorkflowRunner(FuzzTlaConfig config) {
         this(
                 config,
-                Objects.requireNonNull(config, "config").generatedKind(),
-                SpecDecoders.of(config.generator()));
+                SpecDecoders.of(Objects.requireNonNull(config, "config").generator()));
     }
 
-    WorkflowRunner(
-            FuzzTlaConfig config,
-            InputKind generatedKind,
-            Map<InputKind, Generator<SpecArtifact>> decoders) {
+    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) {
         this.config = Objects.requireNonNull(config, "config");
-        this.generatedKind = Objects.requireNonNull(generatedKind, "generatedKind");
-        this.decoders = Map.copyOf(Objects.requireNonNull(decoders, "decoders"));
+        this.decoders = Objects.requireNonNull(decoders, "decoders");
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
@@ -213,7 +202,7 @@ public final class WorkflowRunner {
         }
         var pbt = new PbtStage(
                 config.pbt(),
-                generatedKind,
+                config.generatedKind(),
                 config.workflow().maximumEntries(),
                 initial.totalEntries(),
                 environment,
@@ -349,24 +338,13 @@ public final class WorkflowRunner {
     }
 
     /**
-     * Returns the policy that decides whether a stored input is still usable: this workflow runs
-     * inputs of the kind it generates, and the payload must decode under this run's generator
-     * configuration.
+     * Returns the policy that decides whether a stored input is still usable. Each entry selects
+     * its own decoder; {@code generator.kind} only selects what the input stage adds to the corpus.
      */
     private CorpusEntryValidator entryValidator() {
         return (entry, input) -> {
-            if (input.kind() != generatedKind) {
-                throw new CorpusException(
-                        "corpus entry is rejected: "
-                                + entry
-                                + ": this workflow runs '"
-                                + generatedKind.encodedName()
-                                + "' inputs, but the entry holds '"
-                                + input.kind().encodedName()
-                                + "'");
-            }
             try {
-                decoders.get(generatedKind).generate(input.input());
+                decoders.decode(input);
             } catch (InputRejectedException exception) {
                 throw new CorpusException(
                         "corpus entry is rejected: "

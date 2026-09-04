@@ -9,6 +9,7 @@ import at.forsyte.apalache.io.lir.PrettyWriter;
 import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import org.junit.jupiter.api.Test;
 import scala.jdk.javaapi.CollectionConverters;
@@ -27,11 +28,7 @@ class FuzzInputModuleTest {
         // The definition names are the contract with the fixed tool invocations, and Bound is
         // always defined so that one TLC configuration serves every input kind.
         var operators = CollectionConverters.asJava(module.operDeclarations());
-        assertEquals(4, operators.size());
-        assertEquals(FuzzInputModule.INIT, operators.get(0).name());
-        assertEquals(FuzzInputModule.NEXT, operators.get(1).name());
-        assertEquals(FuzzInputModule.INV, operators.get(2).name());
-        assertEquals(FuzzInputModule.BOUND, operators.get(3).name());
+        assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
 
         var initExpression = equalityRightHandSide(operators.get(0));
         var invariantExpression = equalityRightHandSide(operators.get(2));
@@ -45,6 +42,25 @@ class FuzzInputModuleTest {
         assertTrue(source.contains("Bound == TRUE"));
         assertEquals(2, occurrences(source, "exprValue = FALSE"));
         assertFalse(source.contains("GeneratedExpression"));
+    }
+
+    @Test
+    void appendsTheSameEntryPointsToAGeneratedModule() {
+        var spec = IrGenerators.specs(IrGenerationConfig.defaults()).generate(new byte[0]);
+
+        var module = FuzzInputModule.create(spec);
+
+        var operators = CollectionConverters.asJava(module.operDeclarations());
+        assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
+    }
+
+    private void assertEntryPointOrder(
+            java.util.List<TlaOperDecl> entryPoints) {
+        assertEquals(4, entryPoints.size());
+        assertEquals(FuzzInputModule.INIT, entryPoints.get(0).name());
+        assertEquals(FuzzInputModule.NEXT, entryPoints.get(1).name());
+        assertEquals(FuzzInputModule.INV, entryPoints.get(2).name());
+        assertEquals(FuzzInputModule.BOUND, entryPoints.get(3).name());
     }
 
     private at.forsyte.apalache.tla.lir.TlaEx equalityRightHandSide(

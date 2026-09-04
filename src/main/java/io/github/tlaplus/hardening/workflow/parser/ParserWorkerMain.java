@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
@@ -86,12 +87,7 @@ public final class ParserWorkerMain {
                     StageOutcome.CRASH,
                     WorkerDiagnostics.append(
                             diagnostics.toString(StandardCharsets.UTF_8),
-                            WorkerDiagnostics.stackTrace(exception)));
+                            Diagnostics.stackTrace(exception)));
         }
     }
-
-    static String stackTrace(Throwable exception) {
-        return WorkerDiagnostics.stackTrace(exception);
-    }
-
 }

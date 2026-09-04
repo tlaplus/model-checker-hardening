@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.gen;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -52,9 +53,7 @@ public record GeneratedSpec(
         Objects.requireNonNull(nextAction, "nextAction");
         Objects.requireNonNull(invariant, "invariant");
         Objects.requireNonNull(boundPredicate, "boundPredicate");
-        if (stepBound < 0) {
-            throw new IllegalArgumentException("stepBound must be nonnegative");
-        }
+        Preconditions.requireNonnegative(stepBound, "stepBound");
     }
 
     /** Returns the generated expressions, each listed once. */

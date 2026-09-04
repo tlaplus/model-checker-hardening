@@ -229,7 +229,9 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
 
  - The filename contains the lowercase SHA-256 digest of the byte string in `"input"`,
    not of the complete CBOR document. A stage may therefore add or update metadata
-   without changing the input's identity or filename.
+   without changing the input's identity or filename. Consequently, the same byte
+   string under another `kind` is a duplicate rather than a second entry; a mixed-kind
+   corpus stores at most one interpretation of any payload.
 
  - `<stage-status>` is a directory like `00-inputs` and `02tlc-pass`.
    Every directory belonging to an implemented stage is required; workflow runs

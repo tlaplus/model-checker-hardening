@@ -17,7 +17,7 @@ class CorpusInputCodecTest {
 
     @Test
     void encodesTheDocumentedMinimalExpressionInput() throws Exception {
-        var corpusInput = CorpusInput.expression(new byte[] {0x01, 0x23, (byte) 0xaf});
+        var corpusInput = new CorpusInput(InputKind.EXPRESSION, new byte[] {0x01, 0x23, (byte) 0xaf});
 
         var encoded = CorpusInputCodec.encode(corpusInput);
 
@@ -29,7 +29,7 @@ class CorpusInputCodecTest {
 
     @Test
     void encodesAndDecodesCompactGenerationMetadata() throws Exception {
-        var corpusInput = CorpusInput.expression(new byte[] {1, 2, 3});
+        var corpusInput = new CorpusInput(InputKind.EXPRESSION, new byte[] {1, 2, 3});
         var generation = new GenerationMetadata(7, 18.5);
 
         var encoded = CorpusInputCodec.encode(corpusInput, generation);
@@ -95,7 +95,7 @@ class CorpusInputCodecTest {
         });
 
         assertEquals(
-                CorpusInput.expression(new byte[] {4, 5, 6}),
+                new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 5, 6}),
                 CorpusInputCodec.decode(encoded));
     }
 
@@ -109,7 +109,7 @@ class CorpusInputCodecTest {
     @Test
     void corpusInputOwnsItsByteArray() {
         var source = new byte[] {1, 2};
-        var corpusInput = CorpusInput.expression(source);
+        var corpusInput = new CorpusInput(InputKind.EXPRESSION, source);
         source[0] = 9;
         var returned = corpusInput.input();
         returned[1] = 9;
@@ -170,7 +170,7 @@ class CorpusInputCodecTest {
             generator.writeBinaryField("input", new byte[0]);
             generator.writeEndObject();
         });
-        var minimal = CorpusInputCodec.encode(CorpusInput.expression(new byte[0]));
+        var minimal = CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0]));
         var trailing = Arrays.copyOf(minimal, minimal.length + 1);
         trailing[trailing.length - 1] = (byte) 0xf6;
 
@@ -233,6 +233,6 @@ class CorpusInputCodecTest {
         });
 
         assertEquals(
-                CorpusInput.expression(new byte[] {7}), CorpusInputCodec.decode(encoded));
+                new CorpusInput(InputKind.EXPRESSION, new byte[] {7}), CorpusInputCodec.decode(encoded));
     }
 }

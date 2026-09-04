@@ -70,7 +70,7 @@ final class ActionGenFactory extends AbstractExprGenFactory {
         return BasicGenerators.listOf(
                         context.withFreshNodeBudget(action(remainingDepth)),
                         1,
-                        context.config().maximumActions())
+                        context.config().modules().maximumActions())
                 .map(disjuncts -> builder().or(BuilderArrays.expressions(disjuncts)));
     }
 
@@ -91,7 +91,7 @@ final class ActionGenFactory extends AbstractExprGenFactory {
                             .ignoredCategories()
                             .contains(ExpressionCategory.SET)
                     ? 0
-                    : context.config().maximumActionParameters();
+                    : context.config().modules().maximumActionParameters();
             while (parameters.size() < maximumParameters && draw.drawBoolean()) {
                 var type = draw.draw(typeFactory.valueType());
                 // Creating the binder consumes no bytes, so it may precede its own bound set.

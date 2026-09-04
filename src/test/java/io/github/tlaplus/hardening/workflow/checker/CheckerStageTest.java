@@ -11,7 +11,6 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
-import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
@@ -22,16 +21,13 @@ import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
-import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
-import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -44,10 +40,8 @@ class CheckerStageTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var expression = IrGenerators.expressions().generate(new byte[0]);
-        var artifact =
-                new SpecArtifact(FuzzInputModule.create(expression), 0, List.of(expression));
-        Map<InputKind, Generator<SpecArtifact>> decoders =
-                Map.of(InputKind.EXPRESSION, _ -> artifact);
+        var decoders = SpecDecoders.of(FuzzTlaConfig.defaults().generator())
+                .replacingExpressions(_ -> expression);
         var input = new WorkQueue<Path>();
         for (var value = 0; value < 2; value++) {
             var payload = new byte[] {(byte) value};

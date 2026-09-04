@@ -119,7 +119,7 @@ class PbtStageTest {
                 InputKind.EXPRESSION,
                 2,
                 0,
-                new StageEnvironment(corpus, SpecDecoders.fromExpressions(acceptOnce), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(acceptOnce), new CpuBudget(1), control),
                 99,
                 1,
                 queue,
@@ -153,7 +153,7 @@ class PbtStageTest {
                 InputKind.EXPRESSION,
                 1,
                 0,
-                new StageEnvironment(corpus, SpecDecoders.fromExpressions(overflow), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(overflow), new CpuBudget(1), control),
                 42,
                 1,
                 queue,
@@ -263,7 +263,7 @@ class PbtStageTest {
                 InputKind.EXPRESSION,
                 target,
                 0,
-                new StageEnvironment(corpus, SpecDecoders.fromExpressions(observed), new CpuBudget(2), control),
+                new StageEnvironment(corpus, decoders(observed), new CpuBudget(2), control),
                 42,
                 4,
                 queue,
@@ -315,7 +315,7 @@ class PbtStageTest {
                 InputKind.EXPRESSION,
                 20,
                 0,
-                new StageEnvironment(corpus, SpecDecoders.fromExpressions(oneWorkerCrashes), new CpuBudget(4), control),
+                new StageEnvironment(corpus, decoders(oneWorkerCrashes), new CpuBudget(4), control),
                 42,
                 4,
                 queue,
@@ -359,7 +359,7 @@ class PbtStageTest {
                 InputKind.EXPRESSION,
                 target,
                 0,
-                new StageEnvironment(corpus, SpecDecoders.fromExpressions(generator), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(generator), new CpuBudget(1), control),
                 seed,
                 1,
                 queue,
@@ -369,6 +369,11 @@ class PbtStageTest {
         stage.await();
         assertFalse(control.hasFailed());
         return stage.summary();
+    }
+
+    private static SpecDecoders decoders(Generator<TlaEx> expressions) {
+        return SpecDecoders.of(FuzzTlaConfig.defaults().generator())
+                .replacingExpressions(expressions);
     }
 
     private static PbtConfig config(int maximumInputBytes) {

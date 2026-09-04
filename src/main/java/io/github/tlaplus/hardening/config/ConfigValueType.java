@@ -132,7 +132,6 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                 .collect(Collectors.joining(", ", "{ ", " }"));
     }
 
-    /** Renders a category list in {@link ExpressionCategory} declaration order. */
     /** Reads the kind of input a run generates, by the same name the corpus stores. */
     private static InputKind readInputKind(TomlTable table, String path, String key)
             throws ConfigException {
@@ -152,6 +151,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                                         .collect(Collectors.joining(", "))));
     }
 
+    /** Renders a category list in {@link ExpressionCategory} declaration order. */
     private static String formatCategories(Set<ExpressionCategory> categories) {
         return Arrays.stream(ExpressionCategory.values())
                 .filter(categories::contains)

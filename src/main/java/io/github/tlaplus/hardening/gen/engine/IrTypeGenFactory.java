@@ -44,12 +44,12 @@ final class IrTypeGenFactory {
 
     /** Returns a generator of enabled type kinds, including enabled operator types. */
     Generator<IrType> anyType() {
-        return mkGen(context.config().maximumTypeDepth(), true);
+        return mkGen(context.config().expressions().maximumTypeDepth(), true);
     }
 
     /** Returns a generator of enabled non-operator types for use as expression values. */
     Generator<IrType> valueType() {
-        return mkGen(context.config().maximumTypeDepth(), false);
+        return mkGen(context.config().expressions().maximumTypeDepth(), false);
     }
 
     /** Creates a single-tag variant carrying the supplied payload type. */
@@ -113,7 +113,7 @@ final class IrTypeGenFactory {
                     yield draw.draw(BasicGenerators.listOf(
                                     element,
                                     1,
-                                    context.config().maximumCollectionSize())
+                                    context.config().expressions().maximumCollectionSize())
                             .map(TupleType::new));
                 }
                 case RECORD -> {
@@ -126,7 +126,7 @@ final class IrTypeGenFactory {
                     yield draw.draw(BasicGenerators.listOf(
                                     field,
                                     1,
-                                    context.config().maximumCollectionSize())
+                                    context.config().expressions().maximumCollectionSize())
                             .map(RecordType::new));
                 }
                 case VARIANT -> {
@@ -139,7 +139,7 @@ final class IrTypeGenFactory {
                     yield draw.draw(BasicGenerators.listOf(
                                     field,
                                     1,
-                                    context.config().maximumCollectionSize())
+                                    context.config().expressions().maximumCollectionSize())
                             .map(VariantType::new));
                 }
                 case OPERATOR -> {
@@ -147,7 +147,7 @@ final class IrTypeGenFactory {
                     yield draw.draw(BasicGenerators.listOf(
                                     component,
                                     0,
-                                    context.config().maximumCollectionSize())
+                                    context.config().expressions().maximumCollectionSize())
                             .flatMap(arguments -> component.map(
                                     result -> new OperatorType(arguments, result))));
                 }

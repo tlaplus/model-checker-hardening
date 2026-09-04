@@ -396,7 +396,7 @@ class MainTest {
     @Test
     void printsExpressionFromEmptyFile(@TempDir Path directory) throws Exception {
         var input = directory.resolve("empty.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", input.toString());
         var envelope = execute("print", "--envelope", input.toString());
@@ -419,7 +419,7 @@ class MainTest {
         var startTime = Instant.parse("2026-08-13T14:26:07Z");
         var endTime = startTime.plusSeconds(93_784);
         var encoded = CorpusEnvelopeCodec.withStageMetadata(
-                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])),
                 new StageMetadata("parser", CorpusVerdict.PASS, startTime, endTime));
         Files.write(input, encoded);
 
@@ -447,7 +447,7 @@ class MainTest {
         var input = directory.resolve("metadata.cbor");
         var startTime = Instant.parse("2026-08-13T14:26:07Z");
         var encoded = CorpusEnvelopeCodec.withStageMetadata(
-                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])),
                 new StageMetadata(
                         "tlc",
                         CorpusVerdict.FAIL,
@@ -474,7 +474,7 @@ class MainTest {
         Files.write(
                 input,
                 CorpusInputCodec.encode(
-                        CorpusInput.expression(new byte[0]),
+                        new CorpusInput(InputKind.EXPRESSION, new byte[0]),
                         new GenerationMetadata(6, 12.5)));
 
         var result = execute("print", "--envelope", input.toString());
@@ -498,7 +498,7 @@ class MainTest {
         var input = directory.resolve("metadata.cbor");
         var timestamp = Instant.parse("2026-08-13T14:26:07Z");
         var encoded = CorpusEnvelopeCodec.withStageMetadata(
-                CorpusInputCodec.encode(CorpusInput.expression(new byte[0])),
+                CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])),
                 new StageMetadata("parser", CorpusVerdict.FAIL, timestamp, timestamp));
         Files.write(input, encoded);
 
@@ -516,7 +516,7 @@ class MainTest {
         var generatorInput = Base64.getDecoder()
                 .decode("LNehJNvsP7MYvY+AwsbJ/oNuCdm3JRQxvq0=");
         Files.write(
-                input, CorpusInputCodec.encode(CorpusInput.expression(generatorInput)));
+                input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, generatorInput)));
 
         var result = execute("print", "--envelope", input.toString());
 
@@ -531,7 +531,7 @@ class MainTest {
     @Test
     void printsTheCompleteParserSpecification(@TempDir Path directory) throws Exception {
         var input = directory.resolve("empty.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", "--spec", input.toString());
 
@@ -551,7 +551,7 @@ class MainTest {
     @Test
     void printsTheTypedApalacheIr(@TempDir Path directory) throws Exception {
         var input = directory.resolve("empty.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", "--apalache-ir", input.toString());
 
@@ -600,7 +600,7 @@ class MainTest {
     void printsUsingCorpusGeneratorConfiguration(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 0, 0);
         var input = directory.resolve("empty.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", "--corpus=" + corpus, input.toString());
         var envelope = execute(
@@ -619,7 +619,7 @@ class MainTest {
     void rejectsCombiningSpecificationAndEnvelopeOutput(@TempDir Path directory)
             throws Exception {
         var input = directory.resolve("input.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", "--spec", "--envelope", input.toString());
 
@@ -632,7 +632,7 @@ class MainTest {
     void rejectsCombiningApalacheIrWithAnotherOutputMode(@TempDir Path directory)
             throws Exception {
         var input = directory.resolve("input.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", "--apalache-ir", "--spec", input.toString());
 
@@ -656,7 +656,7 @@ class MainTest {
     @Test
     void reportsUnreadablePrintCorpus(@TempDir Path directory) throws Exception {
         var input = directory.resolve("input.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", "--corpus=" + directory.resolve("missing"), input.toString());
 
@@ -667,7 +667,7 @@ class MainTest {
     @Test
     void rejectsExtraPrintArguments(@TempDir Path directory) throws Exception {
         var input = directory.resolve("input.cbor");
-        Files.write(input, CorpusInputCodec.encode(CorpusInput.expression(new byte[0])));
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
 
         var result = execute("print", input.toString(), "extra");
 

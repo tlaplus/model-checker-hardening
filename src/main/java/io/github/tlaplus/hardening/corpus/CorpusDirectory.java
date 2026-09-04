@@ -216,10 +216,19 @@ public final class CorpusDirectory {
     }
 
     /** Preserves an input and stack trace for an unexpected generator failure. */
-    public synchronized Path recordGeneratorCrash(
+    synchronized Path recordGeneratorCrash(
             InputKind kind, byte[] input, Throwable failure)
             throws IOException, CorpusException {
         return store.recordGeneratorCrash(kind, input, failure);
+    }
+
+    /**
+     * Tries to preserve a generator failure without replacing it when writing the artifact fails.
+     * A recording failure is attached as suppressed to {@code failure} and returned for diagnostics.
+     */
+    public synchronized GeneratorCrashRecording preserveGeneratorCrash(
+            InputKind kind, byte[] input, Throwable failure) {
+        return store.preserveGeneratorCrash(kind, input, failure);
     }
 
     /** Returns the canonical input-stage path for the supplied payload. */

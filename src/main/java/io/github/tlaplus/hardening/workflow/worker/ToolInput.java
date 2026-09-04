@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.Objects;
 
 /**
@@ -17,8 +18,6 @@ import java.util.Objects;
 public record ToolInput(String text, int length) {
     public ToolInput {
         Objects.requireNonNull(text, "text");
-        if (length < 0) {
-            throw new IllegalArgumentException("length must be nonnegative");
-        }
+        Preconditions.requireNonnegative(length, "length");
     }
 }

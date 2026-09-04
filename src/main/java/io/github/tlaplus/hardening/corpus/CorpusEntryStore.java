@@ -6,8 +6,6 @@ import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -95,7 +93,7 @@ final class CorpusEntryStore {
             layout.replaceAtomically(
                     report,
                     "generator-crash-",
-                    stackTrace(failure).getBytes(StandardCharsets.UTF_8));
+                    Diagnostics.stackTrace(failure).getBytes(StandardCharsets.UTF_8));
         } catch (IOException exception) {
             throw new CorpusException(
                     "generator crash candidate was saved to '"
@@ -106,9 +104,21 @@ final class CorpusEntryStore {
         return candidate;
     }
 
+    /** Tries to preserve a generator failure without replacing the original failure. */
+    GeneratorCrashRecording preserveGeneratorCrash(
+            InputKind kind, byte[] input, Throwable failure) {
+        Objects.requireNonNull(failure, "failure");
+        try {
+            return new GeneratorCrashRecording.Saved(
+                    recordGeneratorCrash(kind, input, failure));
+        } catch (IOException | CorpusException | RuntimeException recordingFailure) {
+            failure.addSuppressed(recordingFailure);
+            return new GeneratorCrashRecording.Failed(recordingFailure);
+        }
+    }
+
     /**
-     * Describes a generator failure on a stored entry, recording the payload for later inspection
-     * and reporting whether that succeeded.
+     * Describes a generator failure on a stored entry, recording the payload for later inspection.
      */
     CorpusException generatorCrash(
             Path source, InputKind kind, byte[] input, Throwable failure) {
@@ -116,15 +126,8 @@ final class CorpusEntryStore {
                 + source
                 + "': "
                 + Diagnostics.message(failure);
-        try {
-            var candidate = recordGeneratorCrash(kind, input, failure);
-            message += "; crash saved to '" + candidate + "'";
-        } catch (IOException | CorpusException | RuntimeException recordingFailure) {
-            failure.addSuppressed(recordingFailure);
-            message += "; crash artifact could not be saved: "
-                    + Diagnostics.message(recordingFailure);
-        }
-        return new CorpusException(message, failure);
+        return new CorpusException(
+                preserveGeneratorCrash(kind, input, failure).appendTo(message), failure);
     }
 
     private void ensureCrashDirectory() throws IOException, CorpusException {
@@ -134,11 +137,5 @@ final class CorpusEntryStore {
             throw new CorpusException("generator crash path is not a directory: " + directory);
         }
         Files.createDirectories(directory);
-    }
-
-    private static String stackTrace(Throwable failure) {
-        var output = new StringWriter();
-        failure.printStackTrace(new PrintWriter(output));
-        return output.toString();
     }
 }

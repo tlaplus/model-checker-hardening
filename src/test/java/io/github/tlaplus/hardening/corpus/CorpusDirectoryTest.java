@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.corpus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -104,11 +105,25 @@ class CorpusDirectoryTest {
 
         var path = corpus.resolve(CorpusPath.INPUT).resolve(hash(input) + ".cbor");
         var encoded = Files.readAllBytes(path);
-        assertEquals(CorpusInput.expression(input), CorpusInputCodec.decode(encoded));
+        assertEquals(new CorpusInput(InputKind.EXPRESSION, input), CorpusInputCodec.decode(encoded));
         assertEquals(
                 generation,
                 CorpusEnvelopeCodec.decodeEnvelope(encoded).generation().orElseThrow());
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
+    }
+
+    @Test
+    void duplicateDetectionUsesTheRawPayloadAcrossInputKinds(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var input = new byte[] {1, 2, 3};
+
+        assertEquals(StoreResult.ADDED, corpus.store(InputKind.EXPRESSION, input));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(InputKind.MODULE, input));
+        assertEquals(
+                InputKind.EXPRESSION,
+                corpus.readParserInput(corpus.inputPath(input)).kind());
     }
 
     @Test
@@ -141,7 +156,7 @@ class CorpusDirectoryTest {
         var original = new byte[] {1, 2, 3};
         corpus.store(InputKind.EXPRESSION, original);
         var path = corpus.resolve(CorpusPath.INPUT).resolve(hash(original) + ".cbor");
-        Files.write(path, CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 5, 6})));
+        Files.write(path, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 5, 6})));
 
         var failure = assertThrows(
                 CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
@@ -261,10 +276,29 @@ class CorpusDirectoryTest {
         assertTrue(failure.getMessage().contains(candidate.toString()));
         assertTrue(failure.getCause() instanceof IllegalStateException);
         assertEquals(
-                CorpusInput.expression(input),
+                new CorpusInput(InputKind.EXPRESSION, input),
                 CorpusInputCodec.decode(Files.readAllBytes(candidate)));
         assertTrue(Files.readString(report).contains("IllegalStateException: generator defect"));
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
+    }
+
+    @Test
+    void keepsTheOriginalFailureWhenACrashArtifactCannotBeSaved(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var crashDirectory = corpus.resolve(CorpusPath.GENERATOR_CRASH);
+        Files.createDirectories(crashDirectory.getParent());
+        Files.writeString(crashDirectory, "obstruction");
+        var failure = new IllegalStateException("generator failed");
+
+        var recording = corpus.preserveGeneratorCrash(
+                InputKind.EXPRESSION, new byte[] {1}, failure);
+
+        var failed = assertInstanceOf(GeneratorCrashRecording.Failed.class, recording);
+        assertEquals(failed.recordingFailure(), failure.getSuppressed()[0]);
+        assertTrue(recording.appendTo("generation failed")
+                .contains("crash artifact could not be saved"));
     }
 
     @Test
@@ -282,7 +316,7 @@ class CorpusDirectoryTest {
                 corpus.resolve(CorpusPath.GENERATOR_CRASH).resolve(hash(input) + ".cbor"),
                 candidate);
         assertEquals(
-                CorpusInput.expression(input),
+                new CorpusInput(InputKind.EXPRESSION, input),
                 CorpusInputCodec.decode(Files.readAllBytes(candidate)));
         assertTrue(Files.readString(report).contains("StackOverflowError: deliberate overflow"));
         assertEquals(0, corpus.recoverAndValidate(ACCEPT).totalEntries());
@@ -568,7 +602,7 @@ class CorpusDirectoryTest {
         corpus.fanOutParserPass(parserPass);
         Files.write(
                 corpus.resolve(CorpusPath.INPUT).resolve(parserPass.getFileName()),
-                CorpusInputCodec.encode(CorpusInput.expression(input)));
+                CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, input)));
 
         var failure = assertThrows(
                 CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
@@ -1015,7 +1049,7 @@ class CorpusDirectoryTest {
 
     private byte[] encodeWithStageMetadata(byte[] input) throws Exception {
         return CorpusEnvelopeCodec.withStageMetadata(
-                CorpusInputCodec.encode(CorpusInput.expression(input)),
+                CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, input)),
                 new StageMetadata(
                         "parser",
                         CorpusVerdict.PASS,
