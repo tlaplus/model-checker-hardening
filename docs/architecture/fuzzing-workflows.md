@@ -25,11 +25,23 @@ collection literals from dominating the corpus. For each target entry, it select
 one collection-richness cohort uniformly and retains that cohort until it admits a
 unique input. Each generator worker has deterministic, independent candidate and
 cohort streams derived from the run seed. Workers claim target entries
-dynamically. This policy belongs to the workflow; the IR decoder remains a
-deterministic mapping from bytes to an expression.
+dynamically. This policy belongs to the workflow; the IR decoders remain
+deterministic mappings from bytes to IR. The richness score covers the
+expressions an input decoded to, each counted once, rather than the assembled
+module: the module also holds the fixed skeleton, and the expression wrapper
+repeats its one expression in two definitions, so scoring the module would make
+a stored score depend on the skeleton rather than on the input.
 
-Every tool stage regenerates the same closed, typed IR expression from the
-stored bytes. The parser and TLC consume a TLA+ module rendered with
+Every tool stage regenerates the same closed, typed IR from the stored bytes.
+Which decoder it uses is a property of the entry rather than of the run: the
+envelope's `kind` field names it, `workflow.spec.SpecDecoders` pairs each kind
+with its decoder, and `generator.kind` selects only what a run *generates*, so a
+corpus may hold entries of more than one kind. An `expr` entry is wrapped in the
+fixed single-state module; a `module` entry decodes to a whole module's
+declarations. Either way the stage receives one assembled module and the
+exploration depth it asks for.
+
+The parser and TLC consume a TLA+ module rendered with
 `PrettyWriterWithAnnotations`. Apalache instead consumes its typed IR JSON
 format, which preserves the type tag on every expression and avoids inferring
 types again from lossy source syntax. The pinned Apalache JSON reader cannot
@@ -202,8 +214,14 @@ The fields have the following meaning:
 
  - The field `"input"` contains a byte array that is decoded by the IR generators.
  - The field `"kind"` tells the fuzzer how to decode `"input"`:
-    - When `"kind"` is `"expr"`, the field `"input"` encodes a single TLA<sup>+</sup> expression.
-    - When `"kind"` is `"module"`, the field `"input"` encodes a single TLA<sup>+</sup> module.
+    - When `"kind"` is `"expr"`, the field `"input"` encodes a single TLA<sup>+</sup> expression,
+      which the workflow wraps in a fixed single-state module.
+    - When `"kind"` is `"module"`, the field `"input"` encodes the declarations of a single
+      TLA<sup>+</sup> module: its state variables, operator definitions, initial-state
+      predicate, next-state action, and invariant.
+
+   The two encodings are independent, so a change to one cannot reinterpret an
+   entry stored under the other.
 
 ### 2.3. Corpus storage
 

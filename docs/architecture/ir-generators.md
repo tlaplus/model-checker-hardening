@@ -5,15 +5,28 @@
 ## 1. Purpose and scope
 
 The packages `io.github.tlaplus.hardening.gen` and
-`io.github.tlaplus.hardening.gen.engine` implement a deterministic decoder from
-an arbitrary byte array to one typed Apalache TLA<sup>+</sup> IR expression.
-The decoder favors well-formed output from short inputs and remains useful under
-byte-level mutation.
+`io.github.tlaplus.hardening.gen.engine` implement deterministic decoders from
+an arbitrary byte array to typed Apalache TLA<sup>+</sup> IR. The decoders favor
+well-formed output from short inputs and remain useful under byte-level
+mutation.
 
-The generator produces a single `TlaEx`. It does not produce declarations or
-modules, run a random search, maintain a corpus, or shrink failing inputs. The
+There are two entry points, and an `InputKind` names which one a byte array
+belongs to:
+
+- `IrGenerators.expressions` produces a single `TlaEx`.
+- `IrGenerators.specs` produces a `GeneratedSpec`: the state variables,
+  auxiliary operator definitions, initial-state predicate, next-state action,
+  invariant and bound predicate of one module.
+
+Neither produces a `TlaModule`. The surrounding skeleton names the entry points
+that the tool invocations spell, so that contract lives beside those invocations
+in `workflow.spec.FuzzInputModule` rather than here. Neither runs a random
+search, maintains a corpus, or shrinks failing inputs. The
 [fuzzing workflow](fuzzing-workflows.md) supplies byte arrays and decides how to
 store or mutate them.
+
+The two encodings are independent and share no bytes. Adding a module form
+cannot reinterpret a stored expression input, and the reverse holds too.
 
 The design has six primary requirements:
 
@@ -21,7 +34,8 @@ The design has six primary requirements:
 2. Exhausted input produces small defaults instead of failing.
 3. Local byte mutations should not unnecessarily perturb later decoding.
 4. Successful generation returns a value-typed expression accepted by Apalache's
-   type-safe, scope-unchecked builder.
+   type-safe, scope-unchecked builder; a generated module additionally
+   determines its initial states and every successor state completely.
 5. Configuration can exclude expression categories before byte-level selection.
 6. Explicit limits bound recursive construction and variable-size payloads.
 
@@ -38,7 +52,10 @@ IR-generator facade.
 | `InputRejectedException` | Expected rejection of one semantically unsuitable input. |
 | `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
 | `IrGenerationConfig` | Category exclusions, resource limits, and selection weights keyed by `ExpressionKind`. |
-| `IrGenerators` | Public factory for reusable `Generator<TlaEx>` instances. |
+| `IrGenerators` | Public factory for reusable expression and module generators. |
+| `ExpressionLimits` and `ModuleLimits` | Bounds on one expression and on one module's declarations. |
+| `GeneratedSpec` | The declarations of one generated module, and the exploration depth it asks for. |
+| `InputKind` | Which decoder a byte array belongs to: `expr` or `module`. |
 
 The package `io.github.tlaplus.hardening.gen.engine` implements type-directed IR
 construction. Most engine types are package-private. `IrGeneratorEngine` is
@@ -47,7 +64,9 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | Component | Responsibility |
 | --- | --- |
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
-| `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, and immutable configuration for one run. |
+| `IrSpecGeneratorEngine` | Creates per-run state, then draws a module's variables, definitions, and predicates. |
+| `ActionGenFactory` | Constructs the initial-state predicate and the next-state action over the declared variables. |
+| `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
 | `ExpressionKindCatalog` | Complete catalog in byte-decoder order. |
@@ -58,10 +77,13 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 
 ## 3. Generation protocol
 
-The method `IrGenerators.expressions(config)` captures immutable configuration and returns
-a reusable generator backed by `IrGeneratorEngine`. Each invocation creates a
-new `GenerationContext`; no builder, scope, counter, or name supply crosses run
-boundaries.
+The methods `IrGenerators.expressions(config)` and `IrGenerators.specs(config)`
+capture immutable configuration and return reusable generators backed by
+`IrGeneratorEngine` and `IrSpecGeneratorEngine`. Each invocation creates a new
+`GenerationContext`; no builder, scope, counter, or name supply crosses run
+boundaries. Section 10 describes the module protocol; the rest of this section
+and sections 4 to 8 describe expression generation, which module generation
+draws every subexpression through.
 
 ```mermaid
 sequenceDiagram
@@ -276,6 +298,13 @@ conditions holds:
 - the expression-request counter reaches `maximumNodes`; or
 - the input cursor is exhausted.
 
+The counter lives on `GenerationContext`, which can scope a fresh budget around
+a generator. The expression entry point scopes one budget around its whole run.
+Module generation scopes one per top-level body and per action disjunct: a
+budget spanning several independent bodies would let an early one decide how
+much is left for a later one, and a large `Init` would starve `Inv` into a
+constant.
+
 Terminal construction is byte-free. When bindings of exactly the requested type are
 lexically visible, successive terminals rotate over them, innermost first, and then
 the closed terminal. Otherwise every `IrType` has a closed terminal expression:
@@ -331,14 +360,26 @@ ignore = ["action", "temporal", "unbound", "exotic"]
 An empty list enables every excludable category. The reserved `core` category is
 always enabled. The default limits are:
 
+`ExpressionLimits` bounds one expression:
+
 | Limit | Default | Meaning |
 | --- | ---: | --- |
 | `maximumTypeDepth` | 3 | Maximum nesting depth of generated types. |
 | `maximumExpressionDepth` | 32 | Maximum recursive expression depth. |
-| `maximumNodes` | 128 | Maximum nonterminal expression requests. |
+| `maximumNodes` | 128 | Maximum nonterminal expression requests per top-level body. |
 | `maximumCollectionSize` | 8 | Maximum generated elements in a variable-size collection. |
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
 | `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |
+
+`ModuleLimits` bounds one module's declarations:
+
+| Limit | Default | Meaning |
+| --- | ---: | --- |
+| `maximumVariables` | 3 | Maximum declared state variables, excluding the step counter. |
+| `maximumAuxiliaryOperators` | 2 | Maximum operator definitions the predicates may apply. |
+| `maximumActions` | 3 | Maximum disjuncts of the next-state action. |
+| `maximumActionParameters` | 2 | Maximum bounded existential parameters of one action. |
+| `maximumSteps` | 5 | Transitions explored from an initial state. |
 
 Selection weights default to one, except:
 
@@ -375,9 +416,11 @@ type, then generates arguments from its declared signature.
 Applicability is partly dynamic. `NAME` and operator application are excluded
 from selection when no compatible binding exists. When the `action` category is
 enabled, `PRIME_EQUAL` is selectable but rejects if no state variable is in
-scope. The current single-expression entry point declares no state variables,
-so such an input may raise `InputRejectedException`. Future module generation
-can populate this role.
+scope. The expression entry point declares no state variables, so such an input
+raises `InputRejectedException`. Module generation declares them, but excludes
+the `action` category from every subexpression for the reason given in section
+10, so `PRIME_EQUAL` is unreachable there as well; `ActionGenFactory` primes
+names directly instead.
 
 ## 8. Correctness and failure semantics
 
@@ -393,6 +436,13 @@ definedness, temporal-level correctness in a surrounding module, or usefulness
 to a model checker. Operations such as division, sequence head, and unsafe
 variant access may still receive values for which evaluation is partial.
 
+A generated module carries two further guarantees, stated in section 9: its
+initial-state predicate constrains every declared variable, and every disjunct
+of its next-state action accounts for every declared variable exactly once. It
+does not guarantee that the module parses. The expression decoder can place a
+label under a binder without mentioning it, or inside an `EXCEPT`, both of which
+SANY rejects; those failures occur at the same rate for expression inputs.
+
 `InputRejectedException` denotes an expected dead end for the current bytes,
 such as decoding an operator type at the expression root or selecting a
 state-variable-dependent form without a state variable. A fuzzing driver may
@@ -400,12 +450,89 @@ discard that input. Exhaustion and budget fallback are not rejections. Other
 runtime exceptions, builder failures, and violated invariants indicate defects
 or dependency incompatibilities and must propagate.
 
-`IrGeneratorEngine` is reusable and safe for concurrent calls with distinct
-`Draw` instances because every call creates its own mutable context. `Draw`
-itself is not thread-safe and retains, rather than copies, its input array. The
-caller must not mutate that array during generation.
+Both engines are reusable and safe for concurrent calls with distinct `Draw`
+instances because every call creates its own mutable context. `Draw` itself is
+not thread-safe and retains, rather than copies, its input array. The caller
+must not mutate that array during generation.
 
-## 9. Extension rules
+## 9. Module generation
+
+`IrSpecGeneratorEngine` decodes a `GeneratedSpec`. Its output is admissible to
+the parser and to both model checkers, which requires more than type
+correctness: a checker rejects a module that names something it does not
+declare, that does not determine its initial states, or that leaves a variable
+unspecified in a successor state. These are invariants of construction, not
+properties of the input — no byte string can violate them.
+
+### 9.1. Declaration order
+
+1. **Variables.** A terminated non-empty list of value types, named `var0`
+   onward, each entering the scope with the `STATE_VARIABLE` role. An `Int`
+   step counter named `step` is appended unconditionally.
+2. **Invariant.** One Boolean expression over the variables.
+3. **Auxiliary operators.** A terminated list of definitions named `Op<N>`.
+   Each body sees the definitions before it and its own parameters, but no
+   state variable, so definitions are acyclic and in declaration order.
+4. **Initial-state predicate.** One conjunct per declared variable, in
+   declaration order, either `v = e` or `v \in S`, plus `step = 0`.
+5. **Next-state action.** A terminated non-empty disjunction of actions.
+6. **Bound predicate.** `step <= maximumSteps`.
+
+The invariant is drawn first among the bodies because it degrades worst when
+the cursor runs out. A starved definition or action is still a legal one,
+whereas a starved Boolean decodes to the closed terminal `FALSE`, and a
+constantly false invariant is violated by every initial state, statically
+rejected by TLC, and checks nothing. Drawing it first took that shape from 69%
+of property-based inputs to 17%. The price is that the invariant cannot apply
+the definitions, which are not yet drawn; `Init` and `Next` still can.
+
+Definitions are closed over their parameters for a related reason: one that
+read a state variable could not be applied in `Init`, where no variable has a
+value yet, so keeping them state-free makes every definition applicable in
+`Init`, `Next` and `Inv` alike without an ordering analysis. `Init` likewise
+constrains each variable without reading another, because a conjunct that read
+one would depend on an evaluation order the predicate does not fix.
+
+### 9.2. Action shape
+
+`ActionGenFactory` builds one action as:
+
+- zero or more bounded existential parameters, whose bound sets belong to the
+  enclosing scope and whose names are visible to everything inside;
+- an optional guard, an ordinary Boolean state predicate;
+- one assignment per variable in a drawn subset, each either `v' = e` or
+  `v' \in S`;
+- `step' = step + 1`; and
+- one `UNCHANGED` over the variables left, as a tuple when there is more than
+  one.
+
+An empty assignment subset falls back to the first variable. That fallback is
+byte-free, so it stays out of the encoding: a disjunct that changed only the
+step counter would be a stuttering step that the checkers explore without
+learning anything.
+
+The invariant a test can check is that in every disjunct, each declared
+variable appears exactly once — primed on the left of an assignment, or inside
+that disjunct's `UNCHANGED`. What makes it checkable is that the accounting is
+assembled here, over the declaration list. This is why `ActionGenFactory` is
+the only component that primes a name or builds an `UNCHANGED`, and why module
+generation excludes the `action`, `temporal` and `exotic` categories from every
+subexpression whatever the corpus configured: a prime reached through an
+expression form could sit under a negation or a quantifier, where it accounts
+for nothing. Every value a module expression produces therefore reads the
+current state only.
+
+### 9.3. Bounding exploration
+
+A generated action can run forever, and the two checkers bound exploration
+differently: Apalache takes an unrolling length, TLC takes a state constraint.
+The step counter serves both. `GeneratedSpec.stepBound` reaches Apalache as
+`--length`, and `boundPredicate` becomes the `Bound` definition that TLC's
+configuration names as its `CONSTRAINT`. The expression wrapper defines `Bound`
+as `TRUE` and asks for zero transitions, so one configuration file serves both
+kinds.
+
+## 10. Extension rules
 
 Changes to this subsystem should preserve the following rules:
 
@@ -435,10 +562,23 @@ Changes to this subsystem should preserve the following rules:
    expression, so the fallback must remain byte-free and closed.
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
+9. Keep priming and `UNCHANGED` in `ActionGenFactory`. Nothing else may prime a
+   name, and module generation must keep excluding the `action` and `temporal`
+   categories from its subexpressions, or a disjunct's account of the declared
+   variables stops being checkable.
+10. Give a new module-level body a node budget of its own with
+    `GenerationContext.withFreshNodeBudget`, and place it in the draw order by
+    how badly it degrades when starved.
+11. Request a set type only where one is available. A configuration that ignores
+    the `set` category disables set types entirely, so a form that needs one
+    must either fall back or consume no bytes deciding not to.
 
 Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog
 completeness, type applicability, lexical visibility, scope restoration,
-terminal construction, determinism, and adversarial inputs. A catalog change must
-retain the fixed-width upper bound, update the pinned catalog order, and
-explicitly revise the decoding protocol.
+terminal construction, determinism, and adversarial inputs. For module
+generation they should additionally cover assignment completeness per disjunct,
+the absence of primes outside the action, and that definitions and the
+initial-state predicate read no state variable. A catalog change must retain the
+fixed-width upper bound, update the pinned catalog order, and explicitly revise
+the decoding protocol.
