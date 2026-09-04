@@ -144,7 +144,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                                     PrimitiveType.BOOL, remainingDepth - 1)),
                             branchDraw.draw(expression(type, remainingDepth - 1))),
                     1,
-                    context.config().maximumCollectionSize()));
+                    context.config().expressions().maximumCollectionSize()));
             if (draw.drawBoolean()) {
                 return builder().caseOther(
                         draw.draw(expression(type, remainingDepth - 1)),

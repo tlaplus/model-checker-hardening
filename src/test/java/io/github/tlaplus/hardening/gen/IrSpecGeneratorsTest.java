@@ -122,6 +122,13 @@ class IrSpecGeneratorsTest {
     }
 
     @Test
+    void anEmptyIgnoreListStillBuildsModules() {
+        var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of());
+
+        assertFalse(render(IrGenerators.specs(config).generate(new byte[0])).isEmpty());
+    }
+
+    @Test
     void everyCategoryFilterBuildsAdversarialInputsCleanly() {
         var random = new Random(0xca7e60L);
         for (var category : ExpressionCategory.values()) {

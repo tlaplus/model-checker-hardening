@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
@@ -102,7 +103,7 @@ public final class ApalacheWorkerMain {
                 return new ToolResult(
                         StageOutcome.CRASH,
                         WorkerDiagnostics.append(
-                                diagnostics.text(), WorkerDiagnostics.stackTrace(exception)));
+                                diagnostics.text(), Diagnostics.stackTrace(exception)));
             } finally {
                 System.setOut(processError);
                 System.setErr(processError);

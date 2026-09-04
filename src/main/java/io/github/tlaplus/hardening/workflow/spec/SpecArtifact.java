@@ -2,11 +2,14 @@ package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * One assembled module and the exploration depth it asks for.
+ * One assembled module, the exploration depth it asks for, and what its decoder produced.
  *
  * <p>The depth belongs to the artifact, not to the stage checking it: an expression input has a
  * single state and asks for no transitions, while a generated module bounds its own step counter.
@@ -18,16 +21,55 @@ import java.util.Objects;
  * two definitions. Admission policy scores what the decoder actually produced, so a change to the
  * skeleton cannot shift the score of an input already in the corpus.
  *
- * @param module the module the tools check
- * @param length transitions a bounded checker should explore, never negative
- * @param generated the expressions this input decoded to, each listed once
+ * <p>An expression artifact also retains that standalone expression for the CLI's default
+ * rendering. A generated module has no single expression that represents it.
  */
-public record SpecArtifact(TlaModule module, int length, List<TlaEx> generated) {
-    public SpecArtifact {
-        Objects.requireNonNull(module, "module");
-        generated = List.copyOf(Objects.requireNonNull(generated, "generated"));
-        if (length < 0) {
-            throw new IllegalArgumentException("length must be nonnegative");
-        }
+public final class SpecArtifact {
+    private final TlaModule module;
+    private final int length;
+    private final List<TlaEx> generated;
+    private final TlaEx standaloneExpression;
+
+    private SpecArtifact(
+            TlaModule module,
+            int length,
+            List<TlaEx> generated,
+            TlaEx standaloneExpression) {
+        this.module = Objects.requireNonNull(module, "module");
+        Preconditions.requireNonnegative(length, "length");
+        this.length = length;
+        this.generated = List.copyOf(Objects.requireNonNull(generated, "generated"));
+        this.standaloneExpression = standaloneExpression;
+    }
+
+    /** Wraps one generated expression in the single-state checker module. */
+    public static SpecArtifact fromExpression(TlaEx expression) {
+        Objects.requireNonNull(expression, "expression");
+        return new SpecArtifact(
+                FuzzInputModule.create(expression), 0, List.of(expression), expression);
+    }
+
+    /** Assembles the declarations produced by the whole-module decoder. */
+    public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec) {
+        Objects.requireNonNull(spec, "spec");
+        return new SpecArtifact(
+                FuzzInputModule.create(spec), spec.stepBound(), spec.generated(), null);
+    }
+
+    public TlaModule module() {
+        return module;
+    }
+
+    public int length() {
+        return length;
+    }
+
+    public List<TlaEx> generated() {
+        return generated;
+    }
+
+    /** Returns the input expression when this artifact came from the expression decoder. */
+    public Optional<TlaEx> standaloneExpression() {
+        return Optional.ofNullable(standaloneExpression);
     }
 }

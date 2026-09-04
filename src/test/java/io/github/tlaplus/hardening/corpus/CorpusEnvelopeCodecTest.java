@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +68,7 @@ class CorpusEnvelopeCodecTest {
      */
     @Test
     void keepsEarlierStageTimesTaggedWhenAnotherStageIsAdded() throws Exception {
-        var input = CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 2}));
+        var input = CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 2}));
         var withParser = CorpusEnvelopeCodec.withStageMetadata(
                 input,
                 new StageMetadata(
@@ -100,7 +101,7 @@ class CorpusEnvelopeCodecTest {
     void preservesGenerationMetadataWhenAddingStageMetadata() throws Exception {
         var generation = new GenerationMetadata(4, 8.0);
         var encoded = CorpusInputCodec.encode(
-                CorpusInput.expression(new byte[] {4, 2}), generation);
+                new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 2}), generation);
 
         var updated = CorpusEnvelopeCodec.withStageMetadata(
                 encoded,
@@ -153,7 +154,7 @@ class CorpusEnvelopeCodecTest {
                 CheckerFailureCode.SPEC_EVAL,
                 Optional.of("Attempted to apply Head to the empty sequence."));
         var encoded = CorpusEnvelopeCodec.withStageMetadata(
-                CorpusInputCodec.encode(CorpusInput.expression(new byte[] {4, 2})),
+                CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 2})),
                 new StageMetadata(
                         "tlc",
                         CorpusVerdict.FAIL,
@@ -241,7 +242,7 @@ class CorpusEnvelopeCodecTest {
 
         var envelope = CorpusEnvelopeCodec.decodeEnvelope(encoded);
 
-        assertEquals(CorpusInput.expression(new byte[] {4, 2}), envelope.corpusInput());
+        assertEquals(new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 2}), envelope.corpusInput());
         assertEquals(
                 List.of(
                         new StageMetadata(

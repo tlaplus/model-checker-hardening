@@ -143,18 +143,8 @@ final class ConfigSchema {
                             "Initialized to half the available processors, rounded down"
                                     + " (at least one).")));
 
-    static final Key<Integer> MAXIMUM_TYPE_DEPTH = generatorKey(
-            "max_type_depth", config -> config.generator().maximumTypeDepth());
-    static final Key<Integer> MAXIMUM_EXPRESSION_DEPTH = generatorKey(
-            "max_expression_depth", config -> config.generator().maximumExpressionDepth());
-    static final Key<Integer> MAXIMUM_NODES =
-            generatorKey("max_nodes", config -> config.generator().maximumNodes());
-    static final Key<Integer> MAXIMUM_COLLECTION_SIZE = generatorKey(
-            "max_collection_size", config -> config.generator().maximumCollectionSize());
-    static final Key<Integer> MAXIMUM_STRING_BYTES = generatorKey(
-            "max_string_bytes", config -> config.generator().maximumStringBytes());
-    static final Key<Integer> MAXIMUM_INTEGER_BYTES = generatorKey(
-            "max_integer_bytes", config -> config.generator().maximumIntegerBytes());
+    static final GeneratorLimitSchema GENERATOR_LIMITS =
+            GeneratorLimitSchema.in(GENERATOR_PATH);
     static final Key<InputKind> GENERATED_KIND = new Key<>(
             GENERATOR_PATH,
             "kind",
@@ -164,39 +154,6 @@ final class ConfigSchema {
                             + " single-state module, or \"module\" for a whole module.",
                     "A corpus entry records its own kind, so a run only generates this one."),
             config -> config.generatedKind());
-
-    static final Key<Integer> MAXIMUM_VARIABLES = new Key<>(
-            GENERATOR_PATH,
-            "max_variables",
-            ConfigValueType.INTEGER,
-            List.of("Maximum state variables declared by a generated module."),
-            config -> config.generator().maximumVariables());
-    static final Key<Integer> MAXIMUM_AUXILIARY_OPERATORS = new Key<>(
-            GENERATOR_PATH,
-            "max_auxiliary_operators",
-            ConfigValueType.INTEGER,
-            List.of("Maximum operator definitions a generated module may apply."),
-            config -> config.generator().maximumAuxiliaryOperators());
-    static final Key<Integer> MAXIMUM_ACTIONS = new Key<>(
-            GENERATOR_PATH,
-            "max_actions",
-            ConfigValueType.INTEGER,
-            List.of("Maximum disjuncts in a generated next-state action."),
-            config -> config.generator().maximumActions());
-    static final Key<Integer> MAXIMUM_ACTION_PARAMETERS = new Key<>(
-            GENERATOR_PATH,
-            "max_action_parameters",
-            ConfigValueType.INTEGER,
-            List.of("Maximum bounded existential parameters of one generated action."),
-            config -> config.generator().maximumActionParameters());
-    static final Key<Integer> MAXIMUM_STEPS = new Key<>(
-            GENERATOR_PATH,
-            "max_steps",
-            ConfigValueType.INTEGER,
-            List.of(
-                    "Transitions explored from an initial state of a generated module.",
-                    "Bounds Apalache's unrolling and TLC's state constraint alike."),
-            config -> config.generator().maximumSteps());
 
     static final Key<Set<ExpressionCategory>> IGNORED_CATEGORIES = new Key<>(
             GENERATOR_PATH,
@@ -312,23 +269,7 @@ final class ConfigSchema {
 
     private static List<Table> tables() {
         var tables = new ArrayList<Table>();
-        tables.add(new Table(
-                GENERATOR_PATH,
-                List.of(
-                        GENERATED_KIND,
-                        MAXIMUM_TYPE_DEPTH,
-                        MAXIMUM_EXPRESSION_DEPTH,
-                        MAXIMUM_NODES,
-                        MAXIMUM_COLLECTION_SIZE,
-                        MAXIMUM_STRING_BYTES,
-                        MAXIMUM_INTEGER_BYTES,
-                        MAXIMUM_VARIABLES,
-                        MAXIMUM_AUXILIARY_OPERATORS,
-                        MAXIMUM_ACTIONS,
-                        MAXIMUM_ACTION_PARAMETERS,
-                        MAXIMUM_STEPS,
-                        IGNORED_CATEGORIES,
-                        FORM_WEIGHTS)));
+        tables.add(new Table(GENERATOR_PATH, generatorKeys()));
         tables.add(new Table(WORKFLOW_PATH, List.of(WORKFLOW_MAXIMUM_ENTRIES)));
         tables.add(new Table(INPUTS_PATH, List.of(INPUTS_MAXIMUM_ENTRIES)));
         tables.add(new Table(
@@ -345,6 +286,15 @@ final class ConfigSchema {
                         RICHNESS_NESTING_BASE,
                         RICHNESS_THRESHOLD_BASE)));
         return List.copyOf(tables);
+    }
+
+    private static List<Key<?>> generatorKeys() {
+        var keys = new ArrayList<Key<?>>();
+        keys.add(GENERATED_KIND);
+        keys.addAll(GENERATOR_LIMITS.keys());
+        keys.add(IGNORED_CATEGORIES);
+        keys.add(FORM_WEIGHTS);
+        return List.copyOf(keys);
     }
 
     private static Map<CorpusStage, CheckerKeys> checkerKeys() {
@@ -391,11 +341,6 @@ final class ConfigSchema {
                                     config -> config.workflow().checker(stage).workers())));
         }
         return Map.copyOf(keys);
-    }
-
-    private static Key<Integer> generatorKey(
-            String name, Function<FuzzTlaConfig, Integer> value) {
-        return new Key<>(GENERATOR_PATH, name, ConfigValueType.INTEGER, List.of(), value);
     }
 
     /** Returns the table path of one stage, so a stage is named the same way everywhere. */

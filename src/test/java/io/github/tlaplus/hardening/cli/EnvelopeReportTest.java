@@ -11,6 +11,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -112,7 +113,7 @@ class EnvelopeReportTest {
     private static CorpusEnvelope envelope(
             Optional<GenerationMetadata> generation, List<StageMetadata> stages) {
         return new CorpusEnvelope(
-                CorpusInput.expression(new byte[] {1}), generation, stages);
+                new CorpusInput(InputKind.EXPRESSION, new byte[] {1}), generation, stages);
     }
 
     private static String newline() {

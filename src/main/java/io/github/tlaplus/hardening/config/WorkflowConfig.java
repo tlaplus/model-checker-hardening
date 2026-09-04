@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.util.EnumMap;
 import java.util.Map;
@@ -17,7 +18,7 @@ public record WorkflowConfig(
         ParserStageConfig parser,
         Map<CorpusStage, CheckerStageConfig> checkers) {
     public WorkflowConfig {
-        ConfigValues.requireNonnegative(maximumEntries, "maximumEntries");
+        Preconditions.requireNonnegative(maximumEntries, "maximumEntries");
         Objects.requireNonNull(inputs, "inputs");
         Objects.requireNonNull(parser, "parser");
         Objects.requireNonNull(checkers, "checkers");

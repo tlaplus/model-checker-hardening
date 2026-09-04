@@ -78,7 +78,7 @@ abstract class AbstractExprGenFactory {
         return BasicGenerators.listOf(
                         expression(type, remainingDepth),
                         1,
-                        context.config().maximumCollectionSize())
+                        context.config().expressions().maximumCollectionSize())
                 .map(BuilderArrays::expressions);
     }
 }

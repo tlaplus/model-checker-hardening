@@ -11,16 +11,6 @@ public record CorpusInput(InputKind kind, byte[] input) {
         input = Objects.requireNonNull(input, "input").clone();
     }
 
-    /** Creates an input consumed by the expression IR generator. */
-    public static CorpusInput expression(byte[] input) {
-        return new CorpusInput(InputKind.EXPRESSION, input);
-    }
-
-    /** Creates an input consumed by the module IR generator. */
-    public static CorpusInput module(byte[] input) {
-        return new CorpusInput(InputKind.MODULE, input);
-    }
-
     /** Returns an independent copy of the generator input bytes. */
     @Override
     public byte[] input() {

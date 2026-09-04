@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.Preconditions;
+
 /**
  * Bounds on the declarations of one generated module.
  *
@@ -27,21 +29,12 @@ public record ModuleLimits(
     public static final int DEFAULT_MAXIMUM_STEPS = 5;
 
     public ModuleLimits {
-        if (maximumVariables < 1) {
-            throw new IllegalArgumentException("maximumVariables must be positive");
-        }
-        if (maximumAuxiliaryOperators < 0) {
-            throw new IllegalArgumentException("maximumAuxiliaryOperators must be nonnegative");
-        }
-        if (maximumActions < 1) {
-            throw new IllegalArgumentException("maximumActions must be positive");
-        }
-        if (maximumActionParameters < 0) {
-            throw new IllegalArgumentException("maximumActionParameters must be nonnegative");
-        }
-        if (maximumSteps < 0) {
-            throw new IllegalArgumentException("maximumSteps must be nonnegative");
-        }
+        Preconditions.requirePositive(maximumVariables, "maximumVariables");
+        Preconditions.requireNonnegative(
+                maximumAuxiliaryOperators, "maximumAuxiliaryOperators");
+        Preconditions.requirePositive(maximumActions, "maximumActions");
+        Preconditions.requireNonnegative(maximumActionParameters, "maximumActionParameters");
+        Preconditions.requireNonnegative(maximumSteps, "maximumSteps");
     }
 
     public static ModuleLimits defaults() {

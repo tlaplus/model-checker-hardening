@@ -143,7 +143,7 @@ final class GenerationContext {
 
     /** Reports whether another expression request fits in the current node budget, consuming it. */
     boolean consumeNode() {
-        return nodeCount++ < config.maximumNodes();
+        return nodeCount++ < config.expressions().maximumNodes();
     }
 
     /** Returns a fresh record-field identifier. */

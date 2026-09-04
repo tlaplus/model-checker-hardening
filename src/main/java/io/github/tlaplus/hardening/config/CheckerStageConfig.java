@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.Preconditions;
+
 /**
  * Capacity and resource limits for one model-checker stage.
  *
@@ -24,10 +26,10 @@ public record CheckerStageConfig(
             Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
 
     public CheckerStageConfig {
-        ConfigValues.requireNonnegative(maximumEntries, "maximumEntries");
-        ConfigValues.requirePositive(timeoutSeconds, "timeoutSeconds");
-        ConfigValues.requirePositive(maximumHeapMegabytes, "maximumHeapMegabytes");
-        ConfigValues.requirePositive(workers, "workers");
+        Preconditions.requireNonnegative(maximumEntries, "maximumEntries");
+        Preconditions.requirePositive(timeoutSeconds, "timeoutSeconds");
+        Preconditions.requirePositive(maximumHeapMegabytes, "maximumHeapMegabytes");
+        Preconditions.requirePositive(workers, "workers");
     }
 
     public static CheckerStageConfig tlcDefaults() {
