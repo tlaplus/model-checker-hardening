@@ -13,7 +13,13 @@ arithmetic inside a record, `Z3SolverContext` casts it to `IntExpr` and throws
 `ClassCastException`.
 
 Observed with Apalache 0.62.2, build `f0dec98`. The later `corpus2` run found
-one additional instance. The `corpus4` input reproduces deterministically; see
+one additional instance, and the `corpus1` run, the first to generate whole
+modules, found three more
+([`5c72450e...`](../../corpus1/02apa-crash/5c72450ecff8b92fa3fe8714c66936b12ff5cfc189e010c22db919620bc6cc05.stacktrace),
+[`b5e62cf1...`](../../corpus1/02apa-crash/b5e62cf1669471b599f86339504f66c4f9149558eb7939a9d49ac7933a8bddc3.stacktrace),
+[`e7413240...`](../../corpus1/02apa-crash/e741324025b855c12cd5435e489083d4e8fefa53f45c538021f68ae7c43dc3bb.stacktrace)),
+each applying `^` and entering `Z3SolverContext.toArithExpr` on the path this
+finding describes. The `corpus4` input reproduces deterministically; see
 the
 [`4144072b...` input](../../corpus4/02apa-crash/4144072b74b01543c182591aa03ea67ab37166c14d694623ebe023de5d41ca61.cbor)
 and its [stacktrace](../../corpus4/02apa-crash/4144072b74b01543c182591aa03ea67ab37166c14d694623ebe023de5d41ca61.stacktrace).

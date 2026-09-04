@@ -11,7 +11,9 @@ Apalache's bounded checker throws an unhandled `scala.NotImplementedError` when
 it evaluates a set filter over several symbolic-set representations. The
 original inspected corpus contains 20 instances. The later `corpus2` run
 contains 185: 68 over `InfSet`, 88 over `PowSet`, and 29 over `FinFunSet`. The
-tool exits with status 255 and asks the user to report a bug instead of
+`corpus1` run, the first to generate whole modules, contains one more over
+`InfSet` ([`28a6b4e2...`](../../corpus1/02apa-crash/28a6b4e23b2a98f000ae710a95eb9c86a024ff2977594d6f61deb174fa56f213.stacktrace)).
+The tool exits with status 255 and asks the user to report a bug instead of
 returning a classified unsupported or input-evaluation result.
 
 Observed with Apalache 0.62.0 and reproduced with Apalache 0.62.2, build

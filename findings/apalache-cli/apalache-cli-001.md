@@ -3,17 +3,38 @@ state: open
 labels: [apalache]
 ---
 
-# `Cardinality(Nat)` input error exits with generic status 255
+# Diagnosed errors exit with generic status 255
 
 ## Summary
 
-Apalache correctly diagnoses `Cardinality(Nat)` as applying `Cardinality` to a
-non-finite set, but exits with generic error status 255. FuzzTLA therefore
-stores the result as a crash instead of a specification-evaluation failure.
+Apalache reaches a definite diagnosis, prints it, and then exits with the
+generic error status 255. FuzzTLA therefore stores the result as a crash
+instead of a classified failure, and cannot tell these runs apart from an
+unhandled exception or a resource failure.
 
-Observed with Apalache 0.62.2, build `f0dec98`.
-See the [`2d51b926...` input](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.cbor)
-and its [diagnostic](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.stacktrace).
+Observed with Apalache 0.62.2, build `f0dec98`. Four diagnoses are known to
+reach this status:
+
+| Diagnosis | Kind | Instances |
+| --- | --- | ---: |
+| `Cardinality expected a finite set, found: InfSet[CellTFrom(Int)]` | input error | `corpus4`: 1 |
+| `Expected a constant integer range in [ .. ]` | input error, upstream-known | `corpus1`: 2 |
+| `error when rewriting to SMT: z3 reports UNKNOWN` | solver capability | `corpus1`: 3 |
+| `rewriter error: Trying to expand a set of functions` | rewriter refusal | `corpus1`: 1 |
+
+The first is reproduced below. See also the
+[`2d51b926...` input](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.cbor)
+and its [diagnostic](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.stacktrace),
+and for the three `corpus1` diagnoses
+[`714f9c96...`](../../corpus1/02apa-crash/714f9c966cd2e4802ecb29b0792e1e96ece5e975706f93e6b87d32fab0de0a37.stacktrace),
+[`6439457b...`](../../corpus1/02apa-crash/6439457b665ead77b6a3406369c7174f094f6bc4dc53a4ea69f41f3167ed9561.stacktrace) and
+[`8aed066e...`](../../corpus1/02apa-crash/8aed066e4d4833e9fdabbac946e898e2abcdf7a10a76a12cfcb3d5fbb19be6d8.stacktrace).
+
+The last two rows are not input errors, and one of them Apalache itself asks
+users to report; they are grouped here because they share this exit status, not
+because they share a cause. `Trying to expand a set of functions` prints
+*"Please report an issue"*, so it may warrant its own finding once the
+underlying rewriter behavior is understood.
 
 ## Reproduction
 
