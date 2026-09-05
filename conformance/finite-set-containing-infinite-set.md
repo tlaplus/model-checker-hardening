@@ -1,7 +1,9 @@
 # Finite set containing an infinite set
 
-Observed once in corpus4 (0.02% of its 4,282 aggregator deviations); TLC failed
-and Apalache passed.
+Observed once in corpus4 (0.02% of its 4,282 aggregator deviations) and 37
+times in corpus3 (<0.01% of its 435,265 deviations); TLC failed and Apalache
+passed. Corpus3 also compares `Int`, `STRING`, and `Seq(S)` representations with
+materialized finite sets.
 
 While materializing the finite set `{Nat, {}}`, TLC compares its elements and
 rejects the comparison between the finite empty set and `Nat`. Both values have

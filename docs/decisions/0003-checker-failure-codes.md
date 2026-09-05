@@ -52,14 +52,18 @@ meaningful diagnostic line beginning with `Error:`, removes that prefix,
 normalizes whitespace, and limits the result to 80 Unicode code points. Longer
 text uses the first 79 code points followed by `…`. Apalache uses its first
 timestamped error line and removes the source location and log timestamp before
-applying the same normalization and limit. The detail is optional, human-readable,
-and non-semantic.
+applying the same normalization and limit. The detail is optional,
+human-readable, and non-semantic. Offline triage tooling may use conservative
+diagnostic signatures to associate a result with a
+previously documented issue. Such a label is advisory and remains outside the
+corpus envelope.
 
 The conformance aggregator compares checker verdicts. Any TLC failure and
 Apalache failure still agree regardless of their codes. A failure does not agree
 with a counterexample: if exactly one checker reports `counterexample`,
-aggregation fails. Codes support reporting and triage; automated comparison and
-grouping must not use the detail.
+aggregation fails. Codes support reporting and triage. The detail must not affect
+a checker or aggregator verdict, corpus placement, or semantic conformance
+comparison.
 
 ## Consequences
 

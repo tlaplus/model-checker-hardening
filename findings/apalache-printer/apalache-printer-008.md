@@ -105,11 +105,22 @@ operands; the second overcounts because a following keyword such as `ELSE`
 terminates the body harmlessly.
 
 One class within that range is certain rather than estimated. Eighteen
-`03aggregator-fail` entries have TLC report `Attempted to evaluate an
-expression of form P /\ Q when P was` a non-Boolean value. The IR is built
-through a type-checking builder, so a well-typed conjunction cannot have a
-non-Boolean operand; a runtime type error therefore proves that the source TLC
-parsed is not the tree the writer was given.
+`corpus1/03aggregator-fail` entries have TLC report `Attempted to evaluate an
+expression of form P /\ Q when P was` a non-Boolean value. Corpus3 adds 338
+fail/pass deviations in which TLC receives an impossible runtime operand for a
+Boolean connective, condition, membership test, sequence composition, or
+negation. These account for 0.08% of corpus3's 435,265 deviations. For example,
+[`ddaa3b45...bd70`](../../corpus3/03aggregator-fail/ddaa3b45d08b835b780648a06dea50b8913db83d486d5d1e4418ceceec54bd70.cbor)
+has a record as the antecedent of an implication in the printed source, while
+the corresponding typed IR gives `IMPLIES` a Boolean equality operand.
+
+The IR is built through a type-checking builder, so these runtime type errors
+prove that the source TLC parsed is not the tree the writer was given. Another
+319 corpus3 entries have only the truncated detail `Attempted to apply the
+operator overridden by the Java method`. Replays sampled from that group show
+both impossible arithmetic operands, which are further instances of source
+corruption, and ordinary finite-set capability failures. The stored detail does
+not distinguish them, so the triager conservatively leaves the group unlabelled.
 
 The enrichment in the disagreement bucket follows from the two checkers reading
 different artifacts: Apalache consumes the typed IR JSON and sees the intended

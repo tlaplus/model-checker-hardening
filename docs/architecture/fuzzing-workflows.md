@@ -372,8 +372,10 @@ The metadata depends on the stage. The minimal set of fields is:
    stages require this field for `"fail"` and forbid it for other verdicts,
    including `"counterexample"`.
  - A model-checker failure may contain a single-line `"detail"` of at most 80
-   Unicode characters. This text is for triage only and must not participate in
-   automated comparison or grouping. It is valid only when `"code"` is present.
+   Unicode characters. This text is non-semantic and must not affect verdicts,
+   corpus placement, or conformance comparison. Offline triage tooling may use
+   conservative signatures over it to assign advisory labels that are not stored
+   in the corpus envelope. It is valid only when `"code"` is present.
 
 ```cbor
 {

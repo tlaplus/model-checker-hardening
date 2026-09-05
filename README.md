@@ -272,19 +272,24 @@ A crashed checker invocation similarly writes
 `02apa-crash/<sha256>.stacktrace`. Parser and checker temporary files live under
 `<corpus>/.work/{parser,tlc,apalache}-tmp` and are removed after the run.
 
-Classify crash diagnostics against the known findings with:
+Install the triager's Python dependency and classify crash diagnostics and
+conformance aggregator failures with:
 
 ```sh
+python3 -m pip install -r script/requirements.txt
 python3 script/triager.py corpus
 ```
 
-The triager writes `01parser-crash-triage.csv`, `02tlc-crash-triage.csv`, and
-`02apa-crash-triage.csv` in the corpus directory. Each row contains the entry
-hash and either the matching finding filename or `NEW`. Signatures are
-conservative and deterministic: add a pattern set to `SIGNATURES` in
-`script/triager.py` only after confirming that the diagnostic has the same root
-cause as the named finding. The [Crash triage workflow](.github/workflows/triage.yml)
-runs a short, fixed-seed fuzzing session and publishes these CSV files as a
+The triager writes `01parser-crash-triage.csv`, `02tlc-crash-triage.csv`,
+`02apa-crash-triage.csv`, and `03aggregator-fail-triage.csv` in the corpus
+directory. Each row contains the entry hash and either the matching finding or
+conformance-report filename, or `NEW`. Signatures are conservative and
+deterministic: add one only after confirming that the diagnostic has the same
+root cause as the named document. Aggregator signatures also require the
+documented checker verdict pair and failure code; ambiguous diagnostics and
+unmatched counterexample pairings remain `NEW`. The
+[Corpus triage workflow](.github/workflows/triage.yml) runs a short, fixed-seed
+fuzzing session and publishes these CSV files as a
 workflow artifact.
 
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:

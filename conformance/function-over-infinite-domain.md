@@ -1,7 +1,8 @@
 # Function construction over an infinite domain
 
-Observed once in corpus4 (0.02% of its 4,282 aggregator deviations); TLC failed
-and Apalache passed.
+Observed once in corpus4 (0.02% of its 4,282 aggregator deviations) and 58
+times in corpus3 (0.01% of its 435,265 deviations); TLC failed and Apalache
+passed. The corpus3 instances include `Int`, `Nat`, and `Seq(S)` domains.
 
 TLC cannot construct a function whose domain is `Nat`, because it tries to
 compute the domain's cardinality while evaluating the function constructor.

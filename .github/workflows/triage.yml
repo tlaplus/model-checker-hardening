@@ -1,22 +1,24 @@
-name: Crash triage
+name: Corpus triage
 
 on:
   push:
     branches: [main]
     paths:
-      - "script/triager.py"
+      - "script/**"
       - "findings/**"
+      - "conformance/**"
       - ".github/workflows/triage.yml"
   pull_request:
     branches: [main]
     paths:
-      - "script/triager.py"
+      - "script/**"
       - "findings/**"
+      - "conformance/**"
       - ".github/workflows/triage.yml"
   workflow_dispatch:
 
 concurrency:
-  group: crash-triage-${{ github.ref }}
+  group: corpus-triage-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -36,6 +38,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+      - name: Install triager dependencies
+        run: python3 -m pip install -r script/requirements.txt
+      - name: Test triager
+        run: python3 -m unittest discover -s script -p 'test_*.py' -v
       - name: Package FuzzTLA
         run: mvn --batch-mode --no-transfer-progress -DskipTests package
       - name: Initialize a short-run corpus
@@ -48,12 +54,12 @@ jobs:
             triage-corpus/config.toml
       - name: Run the PBT workflow
         run: ./bin/fuzztla run --how=pbt --corpus=triage-corpus --seed=42 --max-cpus=2
-      - name: Classify crashes
+      - name: Classify corpus results
         run: python3 script/triager.py triage-corpus
       - name: Upload triage reports
         uses: actions/upload-artifact@v6
         with:
-          name: crash-triage-${{ github.run_id }}
-          path: triage-corpus/*-crash-triage.csv
+          name: corpus-triage-${{ github.run_id }}
+          path: triage-corpus/*-triage.csv
           if-no-files-found: error
           retention-days: 14
