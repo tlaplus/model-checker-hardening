@@ -12,28 +12,32 @@ generic error status 255. FuzzTLA therefore stores the result as a crash
 instead of a classified failure, and cannot tell these runs apart from an
 unhandled exception or a resource failure.
 
-Observed with Apalache 0.62.2, build `f0dec98`. Four diagnoses are known to
-reach this status:
+Observed with Apalache 0.62.2, build `f0dec98`. The following diagnoses are
+known to reach this status:
 
 | Diagnosis | Kind | Instances |
 | --- | --- | ---: |
-| `Cardinality expected a finite set, found: InfSet[CellTFrom(Int)]` | input error | `corpus4`: 1 |
+| `Cardinality expected a finite set` | input error | `corpus3`: 7; `corpus4`: 1 |
 | `Expected a constant integer range in [ .. ]` | input error, upstream-known | `corpus1`: 2 |
+| `Found a set map over an infinite set` | input error | `corpus3`: 142 |
+| `FoldSet is not supported over an infinite set` | known limitation | `corpus3`: 27 |
+| Negative or implementation-sized exponentiation | input error | `corpus3`: 29 |
+| `Accessing a non-existing variant option` | rewriter diagnosis | `corpus3`: 10 |
+| `Range bounds are too large to fit in scala.Int` | rewriter diagnosis | `corpus3`: 2 |
 | `error when rewriting to SMT: z3 reports UNKNOWN` | solver capability | `corpus1`: 3 |
 | `rewriter error: Trying to expand a set of functions` | rewriter refusal | `corpus1`: 1 |
 
 The first is reproduced below. See also the
 [`2d51b926...` input](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.cbor)
 and its [diagnostic](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.stacktrace),
-and for the three `corpus1` diagnoses
+and for three `corpus1` diagnoses
 [`714f9c96...`](../../corpus1/02apa-crash/714f9c966cd2e4802ecb29b0792e1e96ece5e975706f93e6b87d32fab0de0a37.stacktrace),
 [`6439457b...`](../../corpus1/02apa-crash/6439457b665ead77b6a3406369c7174f094f6bc4dc53a4ea69f41f3167ed9561.stacktrace) and
 [`8aed066e...`](../../corpus1/02apa-crash/8aed066e4d4833e9fdabbac946e898e2abcdf7a10a76a12cfcb3d5fbb19be6d8.stacktrace).
 
-The last two rows are not input errors, and one of them Apalache itself asks
-users to report; they are grouped here because they share this exit status, not
-because they share a cause. `Trying to expand a set of functions` prints
-*"Please report an issue"*, so it may warrant its own finding once the
+The rewriter and solver rows are grouped here because they share this exit
+status, not because they share a cause. `Trying to expand a set of functions`
+prints *"Please report an issue"*, so it may warrant its own finding once the
 underlying rewriter behavior is understood.
 
 ## Reproduction
@@ -67,8 +71,10 @@ The result contains no unhandled exception or resource failure.
 
 `Cardinality` is defined only for finite sets. Applying it to `Nat` is an input
 evaluation error and should use Apalache's specification-evaluation exit status
-75, consistently with other classified input errors.
+75, consistently with other classified input errors. Every listed diagnosis is
+conclusive enough to use an input, unsupported-feature, or solver status rather
+than the generic status.
 
-The generic status conflates an expected negative specification with a checker
-crash. Consumers must otherwise grow an operation-specific status-255
+Status 255 conflates expected negative specifications and capability limits
+with checker crashes. Consumers must otherwise grow an operation-specific
 allowlist, which is incomplete by construction.
