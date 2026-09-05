@@ -344,7 +344,10 @@ AGGREGATOR_SIGNATURES = (
         Checker.TLC,
         "pass",
         75,
-        (all_of(r"^In applying the function$"),),
+        (
+            all_of(r"^In applying the function$"),
+            all_of(r"^Attempted to apply function:$"),
+        ),
     ),
     AggregatorSignature(
         "choose-without-witness.md",
@@ -393,7 +396,10 @@ AGGREGATOR_SIGNATURES = (
         Checker.TLC,
         "pass",
         75,
-        (all_of(r"^TLC can't handle a number this big\.$"),),
+        (
+            all_of(r"^TLC can't handle a number this big\.$"),
+            all_of(r"^Overflow when computing -?\d+\^\d+$"),
+        ),
     ),
     AggregatorSignature(
         "modulo-nonpositive-divisor.md",
@@ -428,14 +434,107 @@ AGGREGATOR_SIGNATURES = (
         Checker.TLC,
         "pass",
         75,
-        (all_of(r"^Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\.$"),),
+        (
+            all_of(
+                r"^Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\.$"
+            ),
+            all_of(r"^Attempted to enumerate S \\cup T when S:$"),
+        ),
     ),
     AggregatorSignature(
         "function-over-infinite-domain.md",
         Checker.TLC,
         "pass",
         75,
-        (all_of(r"^Attempted to enumerate a set of the form \[D -> R\],but the domain D:$"),),
+        (
+            all_of(
+                r"^Attempted to enumerate a set of the form \[D -> R\],but the domain D:$"
+            ),
+            all_of(
+                r"^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\(.+\))\.$"
+            ),
+        ),
+    ),
+    AggregatorSignature(
+        "quantification-over-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (
+            all_of(r"^TLC encountered (?:the |a )non-enumerable quantifier bound$"),
+        ),
+    ),
+    AggregatorSignature(
+        "finite-set-containing-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (
+            all_of(r"^Attempted to compare (?:the set|overridden value) .+ with (?:the value|non-overridden value):$"),
+            all_of(r"^Attempted to check equality of the set .+ with the value:$"),
+        ),
+    ),
+    AggregatorSignature(
+        "cardinality-of-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^Attempted to compute cardinality of the value$"),),
+    ),
+    AggregatorSignature(
+        "difference-with-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^Attempted to enumerate S \\ T when S:$"),),
+    ),
+    AggregatorSignature(
+        "intersection-of-infinite-sets.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^Attempted to enumerate S \\cap T when neither S:$"),),
+    ),
+    AggregatorSignature(
+        "subset-test-over-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^Attempted to evaluate an expression of form S \\subseteq T, but S was not enumer"),),
+    ),
+    AggregatorSignature(
+        "cartesian-product-with-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^Attempted to enumerate a set of the form s1 \\X s2 \.\.\. \\X sn,$"),),
+    ),
+    AggregatorSignature(
+        "function-set-over-infinite-set.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^Attempted to enumerate a set of the form \[D -> R\],but the range R:$"),),
+    ),
+    AggregatorSignature(
+        "negative-exponent-tlc-fails.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (all_of(r"^The second argument of \^ should be a natural number"),),
+    ),
+    AggregatorSignature(
+        "apalache-printer-008.md",
+        Checker.TLC,
+        "pass",
+        75,
+        (
+            all_of(r"^Attempted to evaluate an expression of form P (?:=>|<=>|/\\|\\/) Q when P"),
+            all_of(r"^A non-boolean expression "),
+            all_of(r"^Attempted to apply the operator ~ to a non-boolean$"),
+            all_of(r"^Evaluating an expression of the form t \\o s when s is not a sequence:$"),
+            all_of(r"^Attempted to check if the value:$"),
+        ),
     ),
     AggregatorSignature(
         "constant-false-invariant.md",
@@ -498,16 +597,16 @@ VALID_VERDICTS = frozenset(("pass", "counterexample", "fail", "crashed"))
 
 
 def validate_catalog_references(
-    directory: Path, referenced_files: set[str], description: str
+    directories: Sequence[Path], referenced_files: set[str], description: str
 ) -> None:
-    if not directory.is_dir():
-        raise TriageError(f"{description} directory does not exist: {directory}")
-
     files_by_name: dict[str, list[Path]] = {}
-    for document in directory.rglob("*.md"):
-        if document.name == "README.md":
-            continue
-        files_by_name.setdefault(document.name, []).append(document)
+    for directory in directories:
+        if not directory.is_dir():
+            raise TriageError(f"{description} directory does not exist: {directory}")
+        for document in directory.rglob("*.md"):
+            if document.name == "README.md":
+                continue
+            files_by_name.setdefault(document.name, []).append(document)
 
     for referenced_file in sorted(referenced_files):
         matches = files_by_name.get(referenced_file, [])
@@ -524,15 +623,17 @@ def validate_catalog_references(
 
 
 def validate_signature_catalog(repository_root: Path) -> None:
+    findings = repository_root / "findings"
+    conformance = repository_root / "conformance"
     validate_catalog_references(
-        repository_root / "findings",
+        (findings,),
         {signature.finding_file for signature in SIGNATURES},
         "finding",
     )
     validate_catalog_references(
-        repository_root / "conformance",
+        (findings, conformance),
         {signature.issue_file for signature in AGGREGATOR_SIGNATURES},
-        "conformance report",
+        "triage document",
     )
 
 

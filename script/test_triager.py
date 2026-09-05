@@ -64,6 +64,30 @@ class AggregatorClassificationTest(unittest.TestCase):
         )
         self.assertEqual("division-by-zero-apalache-fails.md", actual)
 
+    def test_classifies_new_conformance_and_printer_groups(self) -> None:
+        cases = (
+            (
+                "Attempted to compute cardinality of the value",
+                "cardinality-of-infinite-set.md",
+            ),
+            (
+                "Attempted to evaluate an expression of form S \\subseteq T, but S was not enumer…",
+                "subset-test-over-infinite-set.md",
+            ),
+            (
+                "Attempted to evaluate an expression of form P => Q when P was",
+                "apalache-printer-008.md",
+            ),
+        )
+        for detail, issue in cases:
+            with self.subTest(issue=issue):
+                self.assertEqual(
+                    issue,
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail), HASH_A
+                    ),
+                )
+
     def test_requires_expected_verdict_pair(self) -> None:
         actual = triager.classify_aggregator(
             results(

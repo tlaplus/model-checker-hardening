@@ -19,7 +19,8 @@ Unless an origin names a corpus, `Share` uses all aggregator deviations in the
 original analyzed session as the denominator for aggregator rows and all
 Apalache crash outcomes for crash-derived rows. Rows marked
 `Aggregator (corpus4)` use corpus4's 4,282 aggregator deviations. The
-`Aggregator (corpus6)` row uses corpus6's 8,644 aggregator deviations. The
+`Aggregator (corpus6)` row uses corpus6's 8,644 aggregator deviations. Rows
+marked `Aggregator (corpus3)` use corpus3's 435,265 aggregator deviations. The
 `Apalache crash (corpus6)` row uses its 61 Apalache crash-classified results.
 Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
@@ -38,16 +39,24 @@ to 100%.
 | Aggregator | 0.18% | 🔴 Fail | 🟢 Pass | TLC reaches division by zero | [MWE](division-by-zero-tlc-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 0.15% | 🔴 Fail | 🟢 Pass | `CHOOSE` over `Int` or `Nat` | [MWE](choose-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | Infinite-domain quantification | [MWE](quantification-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
+| Aggregator (corpus3) | 0.02% | 🔴 Fail | 🟢 Pass | Subset test over an infinite set | [MWE](subset-test-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
+| Aggregator (corpus3) | 0.01% | 🔴 Fail | 🟢 Pass | Cardinality of an infinite set | [MWE](cardinality-of-infinite-set.md#representative-mwe) | Undefined expression |
+| Aggregator (corpus3) | 0.01% | 🔴 Fail | 🟢 Pass | Difference with an infinite set | [MWE](difference-with-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.06% | 🔴 Fail | 🟢 Pass | Infinite set as state value | [MWE](infinite-set-as-state-value.md#representative-mwe) | TLC representation limit |
 | Aggregator | 0.03% | 🔴 Fail | 🟢 Pass | Union containing an infinite set | [MWE](union-containing-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.03% | 🔴 Fail | 🟢 Pass | Filtering `Nat` | [MWE](filter-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Function over an infinite domain | [MWE](function-over-infinite-domain.md#representative-mwe) | TLC representation limit |
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Finite set containing `Nat` | [MWE](finite-set-containing-infinite-set.md#representative-mwe) | TLC representation limit |
+| Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | Intersection of infinite sets | [MWE](intersection-of-infinite-sets.md#representative-mwe) | TLC enumeration limit |
+| Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | Cartesian product with an infinite set | [MWE](cartesian-product-with-infinite-set.md#representative-mwe) | TLC enumeration limit |
+| Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | Function set with an infinite component | [MWE](function-set-over-infinite-set.md#representative-mwe) | TLC representation limit |
+| Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | TLC reaches a negative exponent | [MWE](negative-exponent-tlc-fails.md#representative-mwe) | Undefined expression |
 | Aggregator (corpus2) | <0.01% | 🔴 Fail | 🟢 Pass | Label inside an `EXCEPT` replacement | [MWE](label-inside-except.md#representative-mwe) | TLC/SANY language restriction |
 | Aggregator (corpus1) | 2.91% | 🔴 Fail | 🟢 Pass | Constant-level `FALSE` invariant | [MWE](constant-false-invariant.md#representative-mwe) | TLC restriction |
 | Aggregator (corpus1) | 0.15% | 🔴 Fail | 🟢 Pass | `IsFiniteSet` of `Int` or `Nat` | [MWE](../findings/apalache-bmc/apalache-bmc-007.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-007.md) |
 | Aggregator (corpus1) | 0.31% | 🔴 Fail | 🟢 Pass | Non-enumerable initial assignment | [MWE](non-enumerable-initial-assignment.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | `LET` operand grouping | [MWE](let-operand-grouping.md#representative-mwe) | [Printer defect](../findings/apalache-printer/apalache-printer-007.md) |
+| Aggregator (corpus3) | 0.08% | 🔴 Fail | 🟢 Pass | Synthesized `LET` changes operand types | [Finding](../findings/apalache-printer/apalache-printer-008.md) | [Printer defect](../findings/apalache-printer/apalache-printer-008.md) |
 | Aggregator | 4.04% | 🟢 Pass | 🔴 Fail | Apalache reaches modulo by zero | [MWE](modulo-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 4.01% | 🟢 Pass | 🔴 Fail | Apalache reaches division by zero | [MWE](division-by-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 1.92% | 🟢 Pass | 🔴 Fail | Unsupported `Seq(S)` | [MWE](sequence-set-unsupported.md#representative-mwe) | Known Apalache limitation |
@@ -127,3 +136,24 @@ semantic-analysis restriction: SANY does not implement labels inside `EXCEPT`
 replacement expressions. It is documented above as an input-path capability
 difference and does not establish a new TLC defect. This independent
 classification adds no new TLC finding.
+
+## corpus3 residuals
+
+The triager originally left 1,389 of corpus3's 435,265 aggregator deviations as
+`NEW`. Conservative diagnostic signatures now associate 1,029 of them with
+existing or newly documented conformance classes and with
+[`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md).
+The added conformance classes are infinite-set cardinality, difference,
+intersection, subset testing, Cartesian products, and function sets, plus
+negative exponents. None establishes a new checker defect.
+
+The remaining 360 entries cannot be classified safely from their stored
+metadata. Of these, 319 retain only TLC's truncated prefix `Attempted to apply
+the operator overridden by the Java method`. Replays show that this group mixes
+printer-induced runtime type errors with ordinary infinite-set capability
+failures. Another 40 use the obsolete Apalache failure code 12, which represented
+a counterexample before the corpus format gained the `counterexample` verdict;
+they have no diagnostic detail, and the current envelope reader intentionally
+rejects that encoding. The final entry retains only `Cannot decide if element:`.
+These entries need original full diagnostics or replay with their historical
+checker and generator revisions before they can support another classification.

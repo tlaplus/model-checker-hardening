@@ -1,6 +1,8 @@
 # Quantification over an infinite set
 
-Observed share: 0.09% of aggregator deviations; TLC failed and Apalache passed.
+Observed share: 0.09% of the original session's aggregator deviations; TLC
+failed and Apalache passed. Corpus3 adds 375 instances (0.09% of its 435,265
+deviations) under two versions of TLC's non-enumerable-bound diagnostic.
 
 TLC reached a bounded quantifier whose domain was not enumerable. Apalache's
 typed-IR rewriting eliminated the surrounding computation in the observed

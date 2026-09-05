@@ -19,5 +19,7 @@ Inv == TRUE
 ====
 ```
 
-TLC reports `TLC_INTEGER_TOO_BIG`; Apalache accepts the value. This is a known
+TLC reports `TLC_INTEGER_TOO_BIG`; Apalache accepts the value. Corpus3 also
+contains three exponentiations that overflow TLC's integer representation; they
+produce the same capability difference. This is a known
 TLC capability limit, confirmed by the corpus.
