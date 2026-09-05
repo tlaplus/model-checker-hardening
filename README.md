@@ -272,6 +272,21 @@ A crashed checker invocation similarly writes
 `02apa-crash/<sha256>.stacktrace`. Parser and checker temporary files live under
 `<corpus>/.work/{parser,tlc,apalache}-tmp` and are removed after the run.
 
+Classify crash diagnostics against the known findings with:
+
+```sh
+python3 script/triager.py corpus
+```
+
+The triager writes `01parser-crash-triage.csv`, `02tlc-crash-triage.csv`, and
+`02apa-crash-triage.csv` in the corpus directory. Each row contains the entry
+hash and either the matching finding filename or `NEW`. Signatures are
+conservative and deterministic: add a pattern set to `SIGNATURES` in
+`script/triager.py` only after confirming that the diagnostic has the same root
+cause as the named finding. The [Crash triage workflow](.github/workflows/triage.yml)
+runs a short, fixed-seed fuzzing session and publishes these CSV files as a
+workflow artifact.
+
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
 ```sh

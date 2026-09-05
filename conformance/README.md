@@ -18,8 +18,11 @@ path need not reproduce the observed pass.
 Unless an origin names a corpus, `Share` uses all aggregator deviations in the
 original analyzed session as the denominator for aggregator rows and all
 Apalache crash outcomes for crash-derived rows. Rows marked
-`Aggregator (corpus4)` use corpus4's 4,282 aggregator deviations. Percentages
-are rounded to two decimal places, so table rows may not sum exactly to 100%.
+`Aggregator (corpus4)` use corpus4's 4,282 aggregator deviations. The
+`Aggregator (corpus6)` row uses corpus6's 8,644 aggregator deviations. The
+`Apalache crash (corpus6)` row uses its 61 Apalache crash-classified results.
+Percentages are rounded to two decimal places, so table rows may not sum exactly
+to 100%.
 
 | Origin | Share | TLC | Apalache | Short title | Representative example | Assessment |
 |---|---:|---|---|---|---|---|
@@ -50,8 +53,10 @@ are rounded to two decimal places, so table rows may not sum exactly to 100%.
 | Aggregator | 1.92% | 🟢 Pass | 🔴 Fail | Unsupported `Seq(S)` | [MWE](sequence-set-unsupported.md#representative-mwe) | Known Apalache limitation |
 | Aggregator | 1.15% | 🟢 Pass | 🔴 Fail | Apalache reaches `0^0` | [MWE](zero-power-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 1.00% | 🟢 Pass | 🔴 Fail | Unsupported `STRING` | [MWE](string-set-unsupported.md#representative-mwe) | Apalache capability limit |
+| Aggregator (corpus6) | 0.01% | Counterexample | 🟢 Pass | Division with a negative divisor | [MWE](division-negative-divisor.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-008.md) |
 | Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
 | Apalache crash | 0.16% | Supported | Input error | Nonconstant integer range | [MWE](nonconstant-integer-range.md#representative-mwe) | Known Apalache limitation |
+| Apalache crash (corpus6) | 6.56% | 🟢 Pass | Input error | Apalache reaches a negative power | [MWE](negative-power-apalache-fails.md#representative-mwe) | Evaluation order |
 | Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-001.md) |
 | Apalache crash | 0.16% | Varies | Crash | Symbolic-set equality | [MWE](symbolic-set-equality.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-003.md) |
 | Apalache crash | 0.05% | Varies | Guard | Function-set expansion | [MWE](function-set-expansion-guard.md#representative-mwe) | Intentional resource guard |
