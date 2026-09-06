@@ -121,6 +121,76 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
         )
 
+    def test_classifies_worker_timeout(self) -> None:
+        cases = (
+            (triager.CrashKind.APALACHE, "Apalache worker timed out after PT30S"),
+            (triager.CrashKind.TLC, "TLC worker timed out after PT30S"),
+        )
+        for crash_kind, diagnostic in cases:
+            with self.subTest(crash_kind=crash_kind):
+                self.assertEqual(
+                    triager.WORKER_TIMEOUT,
+                    triager.classify(crash_kind, diagnostic + "\n", HASH_A),
+                )
+
+    def test_worker_timeout_precedes_signature_match(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "Apalache worker timed out after PT30S",
+                "java.lang.UnsupportedOperationException: "
+                "Quantification over InfSet[CellTFrom(Int)] is not supported yet",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.QuantRule.apply(QuantRule.scala:59)",
+            )
+        )
+        self.assertEqual(
+            triager.WORKER_TIMEOUT,
+            triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
+    def test_classifies_quantification_over_int_expression(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "java.lang.UnsupportedOperationException: "
+                "Quantification over InfSet[CellTFrom(Int)] is not supported yet",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.QuantRule.apply(QuantRule.scala:59)",
+            )
+        )
+        self.assertEqual(
+            "apalache-bmc-012.md",
+            triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
+    def test_quantification_expansion_stays_bmc_005(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "java.lang.UnsupportedOperationException: "
+                "Expansion of InfSet[CellTFrom(Int)] is not supported yet",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.QuantRule."
+                "expandExistsOrForall(QuantRule.scala:120)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.QuantRule.apply(QuantRule.scala:69)",
+            )
+        )
+        self.assertEqual(
+            "apalache-bmc-005.md",
+            triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
+    def test_classifies_foldset_accumulator_membership(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "java.util.NoSuchElementException: key not found: $C$0",
+                "\tat at.forsyte.apalache.tla.bmcmt.Binding.apply(Binding.scala:11)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.SetInRule.apply(SetInRule.scala:40)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.FoldSetRule."
+                "$anonfun$apply$1(FoldSetRule.scala:111)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.FoldSetRule.apply(FoldSetRule.scala:96)",
+            )
+        )
+        self.assertEqual(
+            "apalache-bmc-013.md",
+            triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
     def test_reports_ambiguous_matches(self) -> None:
         duplicate = triager.AggregatorSignature(
             "duplicate.md",

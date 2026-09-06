@@ -268,6 +268,31 @@ SIGNATURES = (
         ),
     ),
     FindingSignature(
+        # Skolemizable \E over a set expression that evaluates to Int/Nat.
+        # Distinct from apalache-bmc-005, which is the expansion path with the
+        # "Expansion of InfSet[...]" message from QuantRule.expandExistsOrForall.
+        "apalache-bmc-012.md",
+        CrashKind.APALACHE,
+        (
+            all_of(
+                r"java\.lang\.UnsupportedOperationException: Quantification over InfSet\[CellTFrom\(Int\)\] is not supported yet",
+                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.apply",
+            ),
+        ),
+    ),
+    FindingSignature(
+        "apalache-bmc-013.md",
+        CrashKind.APALACHE,
+        (
+            all_of(
+                r"java\.util\.NoSuchElementException: key not found: \$C\$\d+",
+                r"at\.forsyte\.apalache\.tla\.bmcmt\.Binding\.apply",
+                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetInRule\.apply",
+                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FoldSetRule\.",
+            ),
+        ),
+    ),
+    FindingSignature(
         "apalache-cli-001.md",
         CrashKind.APALACHE,
         (
@@ -591,6 +616,13 @@ ENTRY_NAME = re.compile(r"(?P<hash>[0-9a-f]{64})\.cbor\Z")
 STACKTRACE_NAME = re.compile(r"(?P<hash>[0-9a-f]{64})\.stacktrace\Z")
 CSV_HEADER = ("entry_hash", "issue")
 NEW_FINDING = "NEW"
+
+# A worker timeout is the harness killing a slow run; the diagnostic carries no
+# tool output to classify against a finding. Bucket it separately so that NEW
+# keeps meaning "an unclassified crash that needs investigation". The message is
+# "<Apalache|TLC> worker timed out after <Duration>" (IsolatedWorkerProcess).
+WORKER_TIMEOUT = "TIMEOUT"
+WORKER_TIMEOUT_PATTERN = re.compile(r"^\w+ worker timed out after ", re.MULTILINE)
 AGGREGATOR_DIRECTORY = "03aggregator-fail"
 AGGREGATOR_REPORT = "03aggregator-fail-triage.csv"
 VALID_VERDICTS = frozenset(("pass", "counterexample", "fail", "crashed"))
@@ -638,6 +670,8 @@ def validate_signature_catalog(repository_root: Path) -> None:
 
 
 def classify(crash_kind: CrashKind, diagnostic: str, entry_hash: str) -> str:
+    if WORKER_TIMEOUT_PATTERN.search(diagnostic):
+        return WORKER_TIMEOUT
     matches = {
         signature.finding_file
         for signature in SIGNATURES
