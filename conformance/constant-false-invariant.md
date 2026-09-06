@@ -51,9 +51,12 @@ Error: The invariant of Inv is equal to FALSE
 Apalache reports `The outcome is: ExecutionsTooShort` and exits `OK`.
 
 The MWE pairs the restriction with an unsatisfiable initial predicate, because
-that is the only way to observe TLC failing while Apalache passes. Given a
-reachable state, `Inv == FALSE` is violated and Apalache reports the
-counterexample, so both checkers fail and no deviation is recorded.
+that is the only way to observe TLC failing while Apalache *passes*. Given a
+reachable state, `Inv == FALSE` is violated and Apalache reports a
+counterexample. The aggregator records any verdict mismatch as a deviation, so
+the `fail`/`counterexample` pair is a deviation too, and the more common one:
+TLC's unconditional constant-level check is the whole of TLC's side either way,
+so the triager classifies both pairs here.
 
 This shape is a property of the generator rather than of TLA<sup>+</sup>: it
 arises where a generated invariant degenerates to the closed Boolean terminal.
