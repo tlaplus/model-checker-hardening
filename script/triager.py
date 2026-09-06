@@ -71,11 +71,19 @@ class CheckerResult:
     detail: str | None
 
 
+# The other checker's completed verdicts. A documented conformance class is
+# fixed by the failing checker's diagnostic, not by whether the other checker's
+# completed run reported no violation ("pass") or a counterexample: both are
+# completions, and the aggregator records the fail/pass and fail/counterexample
+# pairs alike as a deviation. "fail" and "crashed" on the other side are a
+# separate, unclassified event (and "crashed" never reaches here).
+OTHER_CHECKER_COMPLETED = frozenset(("pass", "counterexample"))
+
+
 @dataclass(frozen=True)
 class AggregatorSignature:
     issue_file: str
     failed_checker: Checker
-    other_verdict: str
     code: int
     alternatives: tuple[PatternSet, ...]
 
@@ -86,7 +94,7 @@ class AggregatorSignature:
             failed.verdict == "fail"
             and failed.code == self.code
             and failed.detail is not None
-            and other.verdict == self.other_verdict
+            and other.verdict in OTHER_CHECKER_COMPLETED
             and any(
                 alternative.matches(failed.detail)
                 for alternative in self.alternatives
@@ -367,7 +375,6 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "function-application-outside-domain.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(r"^In applying the function$"),
@@ -377,49 +384,42 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "choose-without-witness.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to compute the value of an expression of(?: form)?$"),),
     ),
     AggregatorSignature(
         "head-of-empty-sequence.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to apply Head to the empty sequence\.$"),),
     ),
     AggregatorSignature(
         "case-without-matching-arm.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to evaluate a CASE with no conditions true\.$"),),
     ),
     AggregatorSignature(
         "subseq-outside-domain.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^The second argument of SubSeq must be in the domain of its first argument:$"),),
     ),
     AggregatorSignature(
         "tail-of-empty-sequence.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to apply Tail to the empty sequence\.$"),),
     ),
     AggregatorSignature(
         "zero-power-zero-tlc-fails.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^0\^0 is undefined\.$"),),
     ),
     AggregatorSignature(
         "integer-outside-tlc-range.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(r"^TLC can't handle a number this big\.$"),
@@ -429,35 +429,30 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "modulo-nonpositive-divisor.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^The second argument of % should be a positive number"),),
     ),
     AggregatorSignature(
         "division-by-zero-tlc-fails.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^The second argument of \\div is 0\.$"),),
     ),
     AggregatorSignature(
         "infinite-set-as-state-value.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^TLC has found a state in which the value of a variable contains (?:Int|Nat)$"),),
     ),
     AggregatorSignature(
         "filter-over-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to enumerate \{ x \\in S : p\(x\) \} when S:$"),),
     ),
     AggregatorSignature(
         "union-containing-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(
@@ -469,7 +464,6 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "function-over-infinite-domain.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(
@@ -483,7 +477,6 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "quantification-over-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(r"^TLC encountered (?:the |a )non-enumerable quantifier bound$"),
@@ -492,7 +485,6 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "finite-set-containing-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(r"^Attempted to compare (?:the set|overridden value) .+ with (?:the value|non-overridden value):$"),
@@ -502,56 +494,48 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "cardinality-of-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to compute cardinality of the value$"),),
     ),
     AggregatorSignature(
         "difference-with-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to enumerate S \\ T when S:$"),),
     ),
     AggregatorSignature(
         "intersection-of-infinite-sets.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to enumerate S \\cap T when neither S:$"),),
     ),
     AggregatorSignature(
         "subset-test-over-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to evaluate an expression of form S \\subseteq T, but S was not enumer"),),
     ),
     AggregatorSignature(
         "cartesian-product-with-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to enumerate a set of the form s1 \\X s2 \.\.\. \\X sn,$"),),
     ),
     AggregatorSignature(
         "function-set-over-infinite-set.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^Attempted to enumerate a set of the form \[D -> R\],but the range R:$"),),
     ),
     AggregatorSignature(
         "negative-exponent-tlc-fails.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^The second argument of \^ should be a natural number"),),
     ),
     AggregatorSignature(
         "apalache-printer-008.md",
         Checker.TLC,
-        "pass",
         75,
         (
             all_of(r"^Attempted to evaluate an expression of form P (?:=>|<=>|/\\|\\/) Q when P"),
@@ -564,49 +548,42 @@ AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "constant-false-invariant.md",
         Checker.TLC,
-        "pass",
         150,
         (all_of(r"^The invariant of Inv is equal to FALSE$"),),
     ),
     AggregatorSignature(
         "non-enumerable-initial-assignment.md",
         Checker.TLC,
-        "pass",
         75,
         (all_of(r"^In computing initial states, the right side of \\IN is not enumerable\.$"),),
     ),
     AggregatorSignature(
         "modulo-by-zero-apalache-fails.md",
         Checker.APALACHE,
-        "pass",
         75,
         (all_of(r"^Input error \(see the manual\): Mod by zero at "),),
     ),
     AggregatorSignature(
         "division-by-zero-apalache-fails.md",
         Checker.APALACHE,
-        "pass",
         75,
         (all_of(r"^Input error \(see the manual\): Division by zero at "),),
     ),
     AggregatorSignature(
         "zero-power-zero-apalache-fails.md",
         Checker.APALACHE,
-        "pass",
         75,
         (all_of(r"^Input error \(see the manual\): 0 \^ 0 is undefined$"),),
     ),
     AggregatorSignature(
         "sequence-set-unsupported.md",
         Checker.APALACHE,
-        "pass",
         75,
         (all_of(r"^<unknown>: unsupported expression: Seq\(_\) produces an infinite set"),),
     ),
     AggregatorSignature(
         "string-set-unsupported.md",
         Checker.APALACHE,
-        "pass",
         75,
         (all_of(r"^<unknown>: unsupported expression: STRING$"),),
     ),

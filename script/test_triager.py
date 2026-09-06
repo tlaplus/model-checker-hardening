@@ -88,16 +88,18 @@ class AggregatorClassificationTest(unittest.TestCase):
                     ),
                 )
 
-    def test_requires_expected_verdict_pair(self) -> None:
-        actual = triager.classify_aggregator(
-            results(
-                triager.Checker.TLC,
-                "Attempted to apply Head to the empty sequence.",
-                other_verdict="counterexample",
-            ),
-            HASH_A,
-        )
-        self.assertEqual(triager.NEW_FINDING, actual)
+    def test_other_checker_pass_and_counterexample_classify_alike(self) -> None:
+        for other_verdict in triager.OTHER_CHECKER_COMPLETED:
+            with self.subTest(other_verdict=other_verdict):
+                actual = triager.classify_aggregator(
+                    results(
+                        triager.Checker.TLC,
+                        "Attempted to apply Head to the empty sequence.",
+                        other_verdict=other_verdict,
+                    ),
+                    HASH_A,
+                )
+                self.assertEqual("head-of-empty-sequence.md", actual)
 
     def test_unknown_and_missing_details_are_new(self) -> None:
         for detail in (None, "An unfamiliar diagnostic"):
@@ -195,7 +197,6 @@ class AggregatorClassificationTest(unittest.TestCase):
         duplicate = triager.AggregatorSignature(
             "duplicate.md",
             triager.Checker.TLC,
-            "pass",
             75,
             (triager.all_of(r"^In applying the function$"),),
         )
