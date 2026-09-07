@@ -338,7 +338,13 @@ the choice would decode as one fixed position exactly where diversity is wanted.
 
 The node limit counts recursive expression-generation requests, not final IR
 nodes or builder operations. Terminal construction can itself contain several IR
-nodes when the requested type is composite.
+nodes when the requested type is composite. Because these bounds are on structure
+rather than rendered size, they do not by themselves keep a module's source under
+the worker request frame limit; the workflow's input stage renders each admitted
+candidate and rejects one that would not fit (see
+[fuzzing-workflows.md](fuzzing-workflows.md)). This is a workflow admission
+policy, not a generator limit: the decoders stay deterministic byte-to-IR
+mappings.
 
 The counter is global to one run and is consumed in pre-order, so operands drawn
 later in a construct are the ones that fall back to terminals. `maximumNodes` must

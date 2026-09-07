@@ -16,6 +16,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
+import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.SplittableRandom;
@@ -160,6 +161,7 @@ public final class PbtStage implements WorkflowStage {
                     try {
                         final byte[] input;
                         final double richness;
+                        final SpecArtifact artifact;
                         try {
                             statistics.recordAttempt();
                             entryAttempts++;
@@ -168,7 +170,7 @@ public final class PbtStage implements WorkflowStage {
                             input = new byte[length];
                             inputRandom.nextBytes(input);
                             try {
-                                var artifact = decoder.generate(input);
+                                artifact = decoder.generate(input);
                                 richness = CollectionRichness.score(
                                         artifact.generated(), config.richnessNestingBase());
                             } catch (InputRejectedException exception) {
@@ -190,6 +192,14 @@ public final class PbtStage implements WorkflowStage {
                         bestRichness = Math.max(bestRichness, richness);
                         if (richness < threshold) {
                             statistics.recordRichnessRejection();
+                            continue;
+                        }
+
+                        // A module that renders past the worker request frame cannot reach the
+                        // parser or checkers; reject it here rather than store an entry they can
+                        // only crash on.
+                        if (!SpecText.withinWorkerProtocolLimit(artifact.module())) {
+                            statistics.recordRejection();
                             continue;
                         }
 

@@ -25,6 +25,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
+import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -99,6 +100,25 @@ class PbtStageTest {
         assertEquals(3, summary.rejected());
         assertEquals(4, summary.generated());
         assertEquals(7 + summary.duplicates(), summary.attempts());
+    }
+
+    @Test
+    void rejectsACandidateThatRendersPastTheWorkerRequestFrame(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var oversized = new TlaTypedScopeUncheckedBuilder()
+                .str("x".repeat(ToolWorkerProtocol.maximumMessageBytes() / 2 + 64));
+        var calls = new AtomicInteger();
+        Generator<TlaEx> oversizedThenRich = _ -> calls.getAndIncrement() == 0 ? oversized : RICH;
+
+        var summary = runStage(corpus, config(8), oversizedThenRich, 1, 7);
+
+        assertEquals(1, summary.generated());
+        assertEquals(1, summary.rejected());
+        assertEquals(2, summary.attempts());
+        assertEquals(
+                1,
+                corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
     }
 
     @Test

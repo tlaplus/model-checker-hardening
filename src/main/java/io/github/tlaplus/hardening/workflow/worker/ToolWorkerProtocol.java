@@ -12,12 +12,21 @@ public final class ToolWorkerProtocol {
     static final int VERSION = 4;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
-    static final int MAXIMUM_MESSAGE_BYTES = 16 * 1024 * 1024;
+    static final int MAXIMUM_MESSAGE_BYTES = 128 * 1024 * 1024;
     static final int MAXIMUM_DIAGNOSTIC_BYTES = 1024 * 1024;
     static final String PORT_PROPERTY = "fuzztla.worker.protocol.port";
     static final String TOKEN_PROPERTY = "fuzztla.worker.protocol.token";
 
     private ToolWorkerProtocol() {}
+
+    /**
+     * Maximum size in bytes of one request payload, the UTF-8 bytes of a rendered specification.
+     * A larger rendering cannot be carried to a worker; the workflow rejects such an input at
+     * generation and records it as a crash verdict if one is already stored.
+     */
+    public static int maximumMessageBytes() {
+        return MAXIMUM_MESSAGE_BYTES;
+    }
 
     public static void writeHandshake(DataOutputStream output) throws IOException {
         var token = System.getProperty(TOKEN_PROPERTY);
