@@ -16,7 +16,8 @@ import java.util.concurrent.TimeoutException;
  * <p>A worker is a child JVM that runs one tool over a private, token-authenticated loopback
  * connection. Every way it can fail — a timeout, an abrupt exit, a protocol violation, a fatal JVM
  * error — is reported as a crash verdict carrying whatever the child printed, and retires the
- * worker: a crashed worker is closed, never reused.
+ * worker: a crashed worker is closed, never reused. A rendered specification that does not fit one
+ * request frame is likewise a crash verdict about that input, not an infrastructure failure.
  *
  * <p>{@link WorkerLaunch} brings a worker up, {@link WorkerChannel} carries the protocol, and
  * {@link WorkerOutput} collects what the child said. This class owns their lifetime and turns
@@ -46,6 +47,10 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
     /**
      * Sends one input and waits for its verdict. A crash verdict has already closed this worker.
      *
+     * <p>A rendered specification larger than one request frame returns a crash verdict about that
+     * input rather than throwing: one oversized entry is contained like any other crash and does
+     * not stop the run.
+     *
      * @throws WorkflowException if the worker violated the protocol, which is an infrastructure
      *     failure rather than a verdict about the input
      */
@@ -55,8 +60,12 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
                 .text()
                 .getBytes(StandardCharsets.UTF_8);
         if (bytes.length > ToolWorkerProtocol.MAXIMUM_MESSAGE_BYTES) {
-            throw new WorkflowException(
-                    "generated specification exceeds worker protocol limit");
+            return crashAndClose(description
+                    + ": rendered specification is "
+                    + bytes.length
+                    + " bytes, over the "
+                    + ToolWorkerProtocol.MAXIMUM_MESSAGE_BYTES
+                    + "-byte worker protocol limit; not submitted to the tool");
         }
         if (!process.isAlive()) {
             return crashAndClose(description + " exited before accepting the input");

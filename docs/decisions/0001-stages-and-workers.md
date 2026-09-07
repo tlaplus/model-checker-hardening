@@ -171,7 +171,8 @@ so startup can complete an interrupted transition.
 
 A SANY return value, including its generic `ERROR` result, is a parser failure.
 The crash verdict is reserved for an exception that escapes SANY, a timeout, an
-abrupt worker exit, or a worker that dies while accepting an input.
+abrupt worker exit, a worker that dies while accepting an input, or a rendered
+module that does not fit one worker request frame.
 
 TLC receives a fixed configuration containing `INIT Init`, `NEXT Next`, and
 `INVARIANT Inv`; deadlock checking and trace-exploration specification generation
@@ -185,7 +186,8 @@ Evaluation failures and `TLC_INTEGER_TOO_BIG` produce `fail` with code 75, and
 specification or
 configuration parse failures produce `fail` with code 150. Other statuses are
 crashes. An exception, timeout, abrupt
-child exit, stack overflow, or out-of-memory exit is also a crash. Worker startup,
+child exit, stack overflow, out-of-memory exit, or a rendered module larger than
+one worker request frame is also a crash. Worker startup,
 protocol, corpus, and orchestration errors are workflow infrastructure failures.
 [ADR 0003](0003-checker-failure-codes.md) defines the shared checker taxonomy and
 bounded diagnostic detail.
@@ -194,8 +196,9 @@ Apalache receives the same `Init`, `Next`, and `Inv` names and disables deadlock
 checking. Its exploration length is zero for an expression input and the
 configured step bound for a module input. Exit status 0 is a pass. Exit status
 12 is a counterexample. Exit statuses 75, 120, and 150 are failures with the
-corresponding shared code. Any other exit status, timeout, abrupt exit, or fatal
-JVM error is a crash. A process-start
+corresponding shared code. Any other exit status, timeout, abrupt exit, fatal
+JVM error, or a rendered specification larger than one worker request frame is a
+crash. A process-start
 failure is workflow infrastructure failure. Each FuzzTLA worker calls `Tool.run`
 one input at a time in its persistent child JVM. Different workers use separate
 JVMs because Logback remains process-global. A crash retires the child; the next
@@ -205,7 +208,9 @@ isolates the FuzzTLA host from fatal errors.
 An unexpected host-process failure while generating an expression or preparing
 a specification stops the workflow. The input and stack trace are retained
 under `.work/generator-crash`; these files are diagnostic artifacts, not stage
-entries.
+entries. A rendered module too large for one worker request frame is not such a
+failure: the input stage rejects it before admission, and a checker or parser
+stage records an already-stored one as a crash verdict and continues.
 
 Generation stops at the global entry limit. The last generator worker closes the
 parser queue; the last parser worker closes both checker queues. The run finishes

@@ -31,7 +31,10 @@ deterministic mappings from bytes to IR. The richness score covers the
 expressions an input decoded to, each counted once, rather than the assembled
 module: the module also holds the fixed skeleton, and the expression wrapper
 repeats its one expression in two definitions, so scoring the module would make
-a stored score depend on the skeleton rather than on the input.
+a stored score depend on the skeleton rather than on the input. Admission also
+rejects a candidate whose assembled module renders to more TLA<sup>+</sup> source
+than one worker request frame holds, so no stored entry can only be crashed on by
+the parser and TLC.
 
 Every tool stage regenerates the same closed, typed IR from the stored bytes.
 Which decoder it uses is a property of the entry rather than of the run: the
@@ -256,7 +259,8 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    `02tlc-crash/<sha256>.stacktrace`, or
    `02apa-crash/<sha256>.stacktrace`, beside the corresponding CBOR entry.
    The UTF-8 sidecar contains the Java stack trace when the tool threw an
-   exception, or a diagnostic for non-exceptional crashes such as a timeout.
+   exception, or a diagnostic for non-exceptional crashes such as a timeout or a
+   rendered specification too large for one worker request frame.
    Sidecars are not corpus entries and do not count towards capacity limits.
 
  - A parser pass is the durable fan-out point. The same parser output is copied

@@ -108,6 +108,23 @@ class IsolatedWorkerProcessTest {
     }
 
     @Test
+    void reportsAnOversizedSpecificationAsACrashRatherThanStoppingTheRun(@TempDir Path directory)
+            throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        var oversized = "x".repeat(ToolWorkerProtocol.maximumMessageBytes() + 1);
+
+        ToolResult result;
+        try (var worker = IsolatedWorkerProcess.start(
+                new WorkerSpec(scratch, TIMEOUT, ClassifiedFailureWorker.class, DESCRIPTION))) {
+            result = worker.request(new ToolInput(oversized, 0), TIMEOUT);
+        }
+
+        assertEquals(StageOutcome.CRASH, result.outcome());
+        assertTrue(result.diagnostic().contains("worker protocol limit"));
+        assertScratchIsEmpty(scratch);
+    }
+
+    @Test
     void nativeStandardOutputCannotCorruptTheProtocol(@TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
