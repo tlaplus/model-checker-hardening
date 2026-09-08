@@ -19,9 +19,12 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
  * values; lambdas remain available where an expression form requires an operator argument.
  *
  * <p>The result is one {@link TlaEx}, not a module or an operator declaration. Actual name
- * references are selected only from the active generation scope. The expression-only entry point
- * starts with an empty scope, and lexical constructs such as quantifiers, functions, lambdas, and
- * LET expressions introduce the bindings their bodies may reference. Model-value literals may
+ * references are selected from the active generation scope or the explicit prepared library in
+ * the configuration. The expression-only entry point starts with an empty lexical scope, and
+ * quantifiers, functions, lambdas, and LET expressions introduce local bindings. With a library,
+ * callers must link its used definitions before rendering a module, or use
+ * {@link io.github.tlaplus.hardening.gen.library.OperatorLibrary#close(TlaEx)} for a closed standalone
+ * expression. The workflow performs this linking for both input kinds. Model-value literals may
  * contain identifier-like text, but they are IR values rather than name references.
  *
  * <p>All choices come from the supplied {@link Draw}. A new internal builder, name supply, and
@@ -83,6 +86,9 @@ public final class IrGenerators {
      * size, string payload size, and integer payload size. Increasing these limits permits larger
      * and more deeply nested expressions, while also increasing construction work and the size of
      * the resulting IR.
+     *
+     * <p>The prepared library is captured with the settings. Each custom call independently
+     * instantiates its polymorphic signature; generation never loads files or invokes a typechecker.
      *
      * <p>Category exclusions apply recursively to expression forms and structural type choices.
      * Forms that require an ignored syntax capability are unavailable even when it is not their

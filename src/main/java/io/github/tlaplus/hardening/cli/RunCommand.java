@@ -81,9 +81,9 @@ final class RunCommand implements Callable<Integer> {
             if (supportsTerminalUpdates()) {
                 progress = new TerminalProgressDisplay(spec.commandLine().getOut());
             }
-            var runner = new WorkflowRunner(config);
             final WorkflowRunSummary summary;
             try (var shutdown = RunShutdownHook.install()) {
+                var runner = new WorkflowRunner(config);
                 summary = progress == null
                         ? runner.run(directory, effectiveSeed, maximumCpus)
                         : runner.run(directory, effectiveSeed, maximumCpus, progress::update);

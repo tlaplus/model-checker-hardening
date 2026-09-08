@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
+import io.github.tlaplus.hardening.gen.library.OperatorId;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -52,11 +54,12 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     /** Reads one TOML integer and narrows it only when it fits in a Java {@code int}. */
     private static int readInt(TomlTable table, String path, String key) throws ConfigException {
-        if (!table.isLong(key)) {
+        var literalKey = java.util.List.of(key);
+        if (!table.isLong(literalKey)) {
             throw new ConfigException("expected '" + path + "' to be an integer");
         }
         try {
-            return Math.toIntExact(table.getLong(key));
+            return Math.toIntExact(table.getLong(literalKey));
         } catch (ArithmeticException exception) {
             throw new ConfigException(
                     "'" + path + "' is outside the supported integer range", exception);
@@ -112,6 +115,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
         var entries = table.getTable(key);
         for (var name : entries.keySet()) {
             var kind = KINDS_BY_CONFIG_NAME.get(name);
+            if (kind == null && name.contains("!")) {
+                kind = new CustomExpressionKind(OperatorId.parse(name));
+            }
             if (kind == null) {
                 throw new ConfigException(
                         "unknown expression kind '" + name + "' in '" + path + "'");
@@ -126,9 +132,13 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
         if (weights.isEmpty()) {
             return "{}";
         }
-        return ExpressionKind.all().stream()
-                .filter(weights::containsKey)
-                .map(kind -> kind.configName() + " = " + weights.get(kind))
+        return java.util.stream.Stream.concat(
+                        ExpressionKind.all().stream().filter(weights::containsKey),
+                        weights.keySet().stream().filter(CustomExpressionKind.class::isInstance)
+                                .sorted(java.util.Comparator.comparing(ExpressionKind::configName)))
+                .map(kind -> (kind instanceof CustomExpressionKind
+                        ? LibraryConfigValues.quote(kind.configName()) : kind.configName())
+                        + " = " + weights.get(kind))
                 .collect(Collectors.joining(", ", "{ ", " }"));
     }
 

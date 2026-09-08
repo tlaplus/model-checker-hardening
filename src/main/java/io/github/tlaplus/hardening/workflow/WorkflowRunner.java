@@ -27,6 +27,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
+import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
@@ -48,10 +49,8 @@ public final class WorkflowRunner {
     private final FuzzTlaConfig config;
     private final SpecDecoders decoders;
 
-    public WorkflowRunner(FuzzTlaConfig config) {
-        this(
-                config,
-                SpecDecoders.of(Objects.requireNonNull(config, "config").generator()));
+    public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
+        this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
     }
 
     WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) {
@@ -110,6 +109,8 @@ public final class WorkflowRunner {
         var apalacheJar = ApalacheDistribution.locate();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
+            LibraryManifest.verify(
+                    corpus, decoders.libraryManifest(), true);
             var initial = corpus.recoverAndValidate(entryValidator());
             validateOccupancy(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());

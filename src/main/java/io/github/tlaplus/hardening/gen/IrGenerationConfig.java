@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -17,12 +19,19 @@ import java.util.Set;
  * @param modules bounds on the declarations of one generated module
  * @param ignoredCategories syntax capabilities excluded before byte-level selection
  * @param formWeights selection slots per expression form, for the forms that are not weighted one
+ * @param library immutable prepared definitions; loading them is the caller's responsibility
  */
 public record IrGenerationConfig(
         ExpressionLimits expressions,
         ModuleLimits modules,
         Set<ExpressionCategory> ignoredCategories,
-        Map<ExpressionKind, Integer> formWeights) {
+        Map<ExpressionKind, Integer> formWeights,
+        OperatorLibrary library) {
+
+    public IrGenerationConfig(ExpressionLimits expressions, ModuleLimits modules,
+            Set<ExpressionCategory> ignoredCategories, Map<ExpressionKind, Integer> formWeights) {
+        this(expressions, modules, ignoredCategories, formWeights, OperatorLibrary.empty());
+    }
 
     /**
      * Largest slot count a single form may occupy. The bound is arbitrary but deliberate: a form
@@ -48,6 +57,7 @@ public record IrGenerationConfig(
 
     public IrGenerationConfig {
         Objects.requireNonNull(expressions, "expressions");
+        Objects.requireNonNull(library, "library");
         Objects.requireNonNull(modules, "modules");
         ignoredCategories = Set.copyOf(
                 Objects.requireNonNull(ignoredCategories, "ignoredCategories"));
@@ -77,6 +87,9 @@ public record IrGenerationConfig(
                 copy.put(kind, weights.get(kind));
             }
         }
+        weights.keySet().stream().filter(CustomExpressionKind.class::isInstance)
+                .sorted(java.util.Comparator.comparing(ExpressionKind::configName))
+                .forEach(kind -> copy.put(kind, weights.get(kind)));
         return Collections.unmodifiableMap(copy);
     }
 
@@ -108,27 +121,32 @@ public record IrGenerationConfig(
         var ignored = EnumSet.noneOf(ExpressionCategory.class);
         ignored.addAll(ignoredCategories);
         Collections.addAll(ignored, categories);
-        return new IrGenerationConfig(expressions, modules, ignored, formWeights);
+        return new IrGenerationConfig(expressions, modules, ignored, formWeights, library);
     }
 
     /** Returns these settings with a different set of excluded categories. */
     public IrGenerationConfig withIgnoredCategories(Set<ExpressionCategory> categories) {
-        return new IrGenerationConfig(expressions, modules, categories, formWeights);
+        return new IrGenerationConfig(expressions, modules, categories, formWeights, library);
     }
 
     /** Returns these settings with different expression limits. */
     public IrGenerationConfig withExpressionLimits(ExpressionLimits limits) {
-        return new IrGenerationConfig(limits, modules, ignoredCategories, formWeights);
+        return new IrGenerationConfig(limits, modules, ignoredCategories, formWeights, library);
     }
 
     /** Returns these settings with different module limits. */
     public IrGenerationConfig withModuleLimits(ModuleLimits limits) {
-        return new IrGenerationConfig(expressions, limits, ignoredCategories, formWeights);
+        return new IrGenerationConfig(expressions, limits, ignoredCategories, formWeights, library);
     }
 
     /** Returns these settings with different form weights. */
     public IrGenerationConfig withFormWeights(Map<ExpressionKind, Integer> weights) {
-        return new IrGenerationConfig(expressions, modules, ignoredCategories, weights);
+        return new IrGenerationConfig(expressions, modules, ignoredCategories, weights, library);
+    }
+
+    /** Returns these settings with a prepared library, without performing any source I/O. */
+    public IrGenerationConfig withLibrary(OperatorLibrary library) {
+        return new IrGenerationConfig(expressions, modules, ignoredCategories, formWeights, library);
     }
 
     public static IrGenerationConfig defaults() {

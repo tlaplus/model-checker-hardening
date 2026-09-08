@@ -6,11 +6,9 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import io.github.tlaplus.hardening.common.Digests;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -29,8 +27,7 @@ final class CorpusLayout {
     static final String CRASH_REPORT_EXTENSION = ".stacktrace";
     static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};
 
-    private static final String DIGEST_ALGORITHM = "SHA-256";
-    private static final String ENTRY_EXTENSION = ".cbor";
+    static final String ENTRY_EXTENSION = ".cbor";
     private static final String DIGEST_PATTERN = "([0-9a-f]{" + digestHexLength() + "})";
 
     static final Pattern ENTRY_FILE_NAME =
@@ -81,7 +78,7 @@ final class CorpusLayout {
 
     /** Returns the lowercase hexadecimal digest that identifies a payload. */
     static String digest(byte[] input) {
-        return HexFormat.of().formatHex(newDigest().digest(input));
+        return Digests.digest(input);
     }
 
     /** Returns the crash-report name beside an entry, rejecting a non-entry name. */
@@ -139,14 +136,6 @@ final class CorpusLayout {
     }
 
     private static int digestHexLength() {
-        return newDigest().getDigestLength() * 2;
-    }
-
-    private static MessageDigest newDigest() {
-        try {
-            return MessageDigest.getInstance(DIGEST_ALGORITHM);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException(DIGEST_ALGORITHM + " is unavailable", exception);
-        }
+        return Digests.sha256().getDigestLength() * 2;
     }
 }

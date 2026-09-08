@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
@@ -173,6 +174,16 @@ final class ConfigSchema {
                             + " to the same request."),
             config -> config.generator().formWeights());
 
+    static final Key<List<Path>> CLASSPATH = new Key<>(
+            GENERATOR_PATH, "classpath", LibraryConfigValues.CLASSPATH,
+            List.of("Ordered TLA+ source directories or JARs, relative to this config file."),
+            config -> config.libraries().classpath());
+
+    static final Key<List<OperatorLibraryConfig.Module>> CUSTOM_OPERATORS = new Key<>(
+            GENERATOR_PATH, "custom_operators", LibraryConfigValues.MODULES,
+            List.of("Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }."),
+            config -> config.libraries().modules());
+
     static final Key<Integer> WORKFLOW_MAXIMUM_ENTRIES = new Key<>(
             WORKFLOW_PATH,
             "max_entries",
@@ -294,6 +305,8 @@ final class ConfigSchema {
         keys.addAll(GENERATOR_LIMITS.keys());
         keys.add(IGNORED_CATEGORIES);
         keys.add(FORM_WEIGHTS);
+        keys.add(CLASSPATH);
+        keys.add(CUSTOM_OPERATORS);
         return List.copyOf(keys);
     }
 

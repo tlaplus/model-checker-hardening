@@ -2,7 +2,9 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Complete configuration of input generation and workflow execution.
@@ -15,12 +17,26 @@ public record FuzzTlaConfig(
         InputKind generatedKind,
         IrGenerationConfig generator,
         WorkflowConfig workflow,
-        PbtConfig pbt) {
+        PbtConfig pbt,
+        OperatorLibraryConfig libraries) {
+    public FuzzTlaConfig(InputKind kind, IrGenerationConfig generator,
+            WorkflowConfig workflow, PbtConfig pbt) {
+        this(kind, generator, workflow, pbt, OperatorLibraryConfig.empty());
+    }
+
     public FuzzTlaConfig {
         Objects.requireNonNull(generatedKind, "generatedKind");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(workflow, "workflow");
         Objects.requireNonNull(pbt, "pbt");
+        Objects.requireNonNull(libraries, "libraries");
+        var selected = Set.copyOf(libraries.operators());
+        for (var kind : generator.formWeights().keySet()) {
+            if (kind instanceof CustomExpressionKind custom
+                    && !selected.contains(custom.id())) {
+                throw new IllegalArgumentException("weight names an unselected custom operator: " + custom.id());
+            }
+        }
         if (!pbt.supportsDistinctInputs(workflow.maximumEntries())) {
             throw new IllegalArgumentException(
                     "workflow.maximumEntries exceeds the number of distinct bounded inputs");

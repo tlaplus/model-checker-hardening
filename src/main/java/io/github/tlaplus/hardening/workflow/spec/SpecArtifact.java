@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -44,16 +45,26 @@ public final class SpecArtifact {
 
     /** Wraps one generated expression in the single-state checker module. */
     public static SpecArtifact fromExpression(TlaEx expression) {
+        return fromExpression(expression, OperatorLibrary.empty());
+    }
+
+    public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
         return new SpecArtifact(
-                FuzzInputModule.create(expression), 0, List.of(expression), expression);
+                library.link(FuzzInputModule.create(expression), List.of(expression)),
+                0, List.of(expression), library.close(expression));
     }
 
     /** Assembles the declarations produced by the whole-module decoder. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec) {
+        return fromGeneratedSpec(spec, OperatorLibrary.empty());
+    }
+
+    public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
         return new SpecArtifact(
-                FuzzInputModule.create(spec), spec.stepBound(), spec.generated(), null);
+                library.link(FuzzInputModule.create(spec), spec.generated()),
+                spec.stepBound(), spec.generated(), null);
     }
 
     public TlaModule module() {

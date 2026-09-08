@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.VarT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -7,6 +8,9 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Optional;
 
 /**
  * Factory for deferred generators of internal types within the configured remaining-depth budget.
@@ -34,6 +38,7 @@ final class IrTypeGenFactory {
     private final List<TypeKind> primitiveTypeKinds;
     private final List<TypeKind> valueTypeKinds;
     private final List<TypeKind> allTypeKinds;
+    private final Map<Integer, List<TypeInstantiation>> templates = new HashMap<>();
 
     IrTypeGenFactory(GenerationContext context) {
         this.context = context;
@@ -50,6 +55,11 @@ final class IrTypeGenFactory {
     /** Returns a generator of enabled non-operator types for use as expression values. */
     Generator<IrType> valueType() {
         return mkGen(context.config().expressions().maximumTypeDepth(), false);
+    }
+
+    /** Draws a value type within the residual budget of a polymorphic type variable. */
+    Generator<IrType> valueType(int remainingDepth) {
+        return mkGen(remainingDepth, false);
     }
 
     /** Creates a single-tag variant carrying the supplied payload type. */
@@ -94,7 +104,17 @@ final class IrTypeGenFactory {
             var kinds = primitiveOnly
                     ? primitiveTypeKinds
                     : (allowOperator ? allTypeKinds : valueTypeKinds);
-            return switch (draw.choose(kinds)) {
+            var custom = templates(remainingDepth);
+            int count = kinds.size() + custom.size();
+            // A library can add enough templates to cross a byte-width boundary. Keep its
+            // type choices fixed-width too, without changing the no-library encoding.
+            int selected = context.config().library().exports().isEmpty()
+                    ? (int) draw.drawLong(0, count - 1)
+                    : draw.drawIndex(count, IrExprGenFactory.SELECTION_BYTES);
+            if (selected >= kinds.size()) {
+                return ImportedTypes.from(draw.draw(custom.get(selected - kinds.size()).generator(context, this)));
+            }
+            return switch (kinds.get(selected)) {
                 case BOOL -> PrimitiveType.BOOL;
                 case INT -> PrimitiveType.INT;
                 case STRING -> PrimitiveType.STRING;
@@ -153,6 +173,18 @@ final class IrTypeGenFactory {
                 }
             };
         };
+    }
+
+    /** Library result shapes make fixed field/tag/model names reachable without replacing standard types. */
+    private List<TypeInstantiation> templates(int depth) {
+        return templates.computeIfAbsent(depth, remaining -> context.config().library().exports().stream()
+                .filter(export -> Collections.disjoint(export.categories(), context.config().ignoredCategories()))
+                .map(export -> TypeInstantiation.canonical(export.signature().res()))
+                .filter(type -> !(type instanceof VarT1))
+                .distinct()
+                .map(type -> TypeInstantiation.plan(type, context.config().expressions(),
+                        context.config().ignoredCategories(), remaining))
+                .flatMap(Optional::stream).toList());
     }
 
     private List<TypeKind> enabledKinds(List<TypeKind> candidates) {

@@ -21,10 +21,14 @@ final class IrExprGenFactory {
     private final SetExprGenFactory setFactory;
     private final SequenceExprGenFactory sequenceFactory;
     private final OtherExprGenFactory otherFactory;
+    private final CustomExprGenFactory customFactory;
+    private final List<ExpressionKind> catalog;
 
     IrExprGenFactory(GenerationContext context, IrTypeGenFactory typeFactory) {
         this.context = context;
         this.typeFactory = typeFactory;
+        catalog = ExpressionKindCatalog.all(context.config());
+        customFactory = new CustomExprGenFactory(context, typeFactory, this);
         otherFactory = new OtherExprGenFactory(context, typeFactory, this);
         generalFactory = new GeneralExprGenFactory(context, typeFactory, this, otherFactory);
         booleanFactory = new BooleanExprGenFactory(context, typeFactory, this);
@@ -121,10 +125,8 @@ final class IrExprGenFactory {
         }
         return typeApplicableForms.computeIfAbsent(
                 type,
-                requested -> ExpressionKindCatalog.all().stream()
-                        .filter(kind ->
-                                !kind.isUnavailableWith(context.config().ignoredCategories()))
-                        .filter(kind -> kind.isTypeApplicable(requested))
+                requested -> catalog.stream()
+                        .filter(kind -> kind.isConfiguredApplicable(context.config(), requested))
                         .toList());
     }
 
@@ -142,6 +144,7 @@ final class IrExprGenFactory {
                 sequenceFactory.mkGen(sequence, (SequenceType) type, remainingDepth);
             case OtherExpressionKind other ->
                 otherFactory.mkGen(other, type, remainingDepth);
+            case CustomExpressionKind custom -> customFactory.mkGen(custom, type, remainingDepth);
         };
     }
 }

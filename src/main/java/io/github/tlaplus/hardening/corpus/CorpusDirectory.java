@@ -160,6 +160,32 @@ public final class CorpusDirectory {
                 resolve(CorpusPath.WORKFLOW_STATISTICS), "workflow-stats-", encoded);
     }
 
+    /** Reads opaque external-library replay metadata; its interpretation belongs to the workflow. */
+    public synchronized Optional<byte[]> readLibraryManifest() throws IOException, CorpusException {
+        var path = resolve(CorpusPath.LIBRARY_MANIFEST);
+        if (Files.notExists(path, NO_FOLLOW_LINKS)) return Optional.empty();
+        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("library manifest is not a regular file: " + path);
+        }
+        return Optional.of(Files.readAllBytes(path));
+    }
+
+    /** Writes opaque replay metadata atomically. The caller must hold the corpus lock. */
+    public synchronized void writeLibraryManifest(byte[] bytes) throws IOException {
+        layout.replaceAtomically(resolve(CorpusPath.LIBRARY_MANIFEST), "library-", bytes);
+    }
+
+    /** Whether any stage directory contains an input; does not decode or recover entries. */
+    public synchronized boolean hasStoredInputs() throws IOException {
+        for (var path : CorpusPath.values()) {
+            if (!path.storesEntries()) continue;
+            try (var entries = Files.list(resolve(path))) {
+                if (entries.anyMatch(entry -> entry.getFileName().toString().endsWith(CorpusLayout.ENTRY_EXTENSION))) return true;
+            }
+        }
+        return false;
+    }
+
     /** Acquires the process-wide exclusive lock for this corpus. */
     public CorpusLock acquireExclusiveLock() throws IOException, CorpusException {
         var channel = FileChannel.open(
