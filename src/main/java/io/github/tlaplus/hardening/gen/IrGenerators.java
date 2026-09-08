@@ -108,17 +108,21 @@ public final class IrGenerators {
     /**
      * Returns a generator of the declarations of one module, using the supplied settings.
      *
-     * <p>A generated module declares state variables, defines auxiliary operators over its
-     * parameters alone, constrains every variable in its initial-state predicate, and builds a
-     * next-state action whose every disjunct accounts for every variable exactly once, by
-     * assignment or by {@code UNCHANGED}. That accounting is a property of construction rather
-     * than of the input: it is what makes the module admissible to the parser and to both
-     * checkers, so no byte string can produce a module that leaves a variable unspecified.
+     * <p>A generated module declares state variables, defines state-free auxiliary operators over
+     * their parameters alone, defines action operators whose bodies read current state and prime a
+     * recorded subset of the variables, constrains every variable in its initial-state predicate,
+     * and builds a next-state action whose every disjunct accounts for every variable exactly
+     * once, by assignment or by {@code UNCHANGED}. The disjunct may nest disjunction, conjunction,
+     * and {@code IF-THEN-ELSE}, and may apply an action operator; the accounting resolves through
+     * both. That accounting is a property of construction rather than of the input: it is what
+     * makes the module admissible to the parser and to both checkers, so no byte string can
+     * produce a module that leaves a variable unspecified.
      *
-     * <p>Priming and {@code UNCHANGED} belong to this level alone. The subexpression decoder runs
-     * with the action, temporal and exotic categories excluded whatever {@code config} ignores,
-     * because a prime buried under a negation or a quantifier would defeat that accounting. Every
-     * value a module expression produces therefore reads the current state only.
+     * <p>Priming and {@code UNCHANGED} belong to this level alone, action-operator bodies
+     * included. The subexpression decoder runs with the action, temporal and exotic categories
+     * excluded whatever {@code config} ignores, because a prime buried under a negation or a
+     * quantifier would defeat that accounting. Every value a module expression produces therefore
+     * reads the current state only.
      *
      * <p>The byte encoding is separate from the expression encoding and shares none of it. An
      * existing expression corpus is unaffected by changes here, and the same bytes decode to

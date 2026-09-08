@@ -121,6 +121,11 @@ public record IrGenerationConfig(
         return new IrGenerationConfig(limits, modules, ignoredCategories, formWeights);
     }
 
+    /** Returns these settings with different module limits. */
+    public IrGenerationConfig withModuleLimits(ModuleLimits limits) {
+        return new IrGenerationConfig(expressions, limits, ignoredCategories, formWeights);
+    }
+
     /** Returns these settings with different form weights. */
     public IrGenerationConfig withFormWeights(Map<ExpressionKind, Integer> weights) {
         return new IrGenerationConfig(expressions, modules, ignoredCategories, weights);

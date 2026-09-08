@@ -11,6 +11,7 @@ import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -18,8 +19,10 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import scala.jdk.javaapi.CollectionConverters;
 
@@ -52,19 +55,126 @@ class IrSpecGeneratorsTest {
     void everyNextDisjunctAccountsForEveryVariableExactlyOnce() {
         forEachGeneratedSpec(spec -> {
             var declared = new LinkedHashSet<>(variableNames(spec));
+            var actionOps = actionOperatorBodies(spec);
             for (var disjunct : disjuncts(spec.nextAction())) {
-                var accounted = new ArrayList<String>();
-                collectAccountedVariables(disjunct, declared, accounted);
+                var account = collectAssignedVars(disjunct, declared, actionOps);
                 assertEquals(
                         declared,
-                        new LinkedHashSet<>(accounted),
+                        new LinkedHashSet<>(account),
                         "disjunct does not account for every variable: " + print(disjunct));
                 assertEquals(
                         declared.size(),
-                        accounted.size(),
+                        account.size(),
                         "a variable is accounted for twice: " + print(disjunct));
             }
         });
+    }
+
+    @Test
+    void actionOperatorBodiesAccountForTheirDeclaredEffect() {
+        var random = new Random(0xAC7057L);
+        var checkedOperators = 0;
+        for (var sample = 0; sample < 400; sample++) {
+            var input = new byte[256 + random.nextInt(1024)];
+            random.nextBytes(input);
+            final GeneratedSpec spec;
+            try {
+                spec = generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            var declared = new LinkedHashSet<>(variableNames(spec));
+            var actionOps = actionOperatorBodies(spec);
+            for (var operator : spec.actionOperators()) {
+                var body = operator.declaration().body();
+                var account = collectAssignedVars(body, declared, actionOps);
+                assertEquals(
+                        new LinkedHashSet<>(operator.effect()),
+                        new LinkedHashSet<>(account),
+                        operator.declaration().name()
+                                + " does not account for its effect: " + print(body));
+                assertEquals(
+                        operator.effect().size(),
+                        account.size(),
+                        operator.declaration().name() + " accounts for a variable twice: "
+                                + print(body));
+                checkedOperators++;
+            }
+        }
+        assertTrue(
+                checkedOperators > 20,
+                "too few action operators were generated: " + checkedOperators);
+    }
+
+    @Test
+    void nextMayApplyAnActionOperatorAndStillAccountForEveryVariable() {
+        // One variable makes every action operator's effect the full state, so a call matches
+        // wherever the shape asks for it; a call still has to be drawn, which needs the bytes a
+        // larger input carries into the action.
+        var config = IrGenerationConfig.defaults()
+                .withModuleLimits(new ModuleLimits(1, 0, 3, 3, 0, 3, 5));
+        var generator = IrGenerators.specs(config);
+        var random = new Random(0xACCA11L);
+        var sawCall = false;
+        var checked = 0;
+        for (var sample = 0; sample < 600; sample++) {
+            var input = new byte[512 + random.nextInt(1536)];
+            random.nextBytes(input);
+            final GeneratedSpec spec;
+            try {
+                spec = generator.generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            var declared = new LinkedHashSet<>(variableNames(spec));
+            var actionOps = actionOperatorBodies(spec);
+            for (var disjunct : disjuncts(spec.nextAction())) {
+                assertEquals(
+                        declared,
+                        new LinkedHashSet<>(collectAssignedVars(disjunct, declared, actionOps)),
+                        "a disjunct applying an action operator does not account for every"
+                                + " variable: " + print(disjunct));
+                sawCall |= appliesAny(disjunct, actionOps.keySet());
+            }
+            checked++;
+        }
+        assertTrue(checked > 100, "too few inputs were admitted to be conclusive: " + checked);
+        assertTrue(sawCall, "no generated Next disjunct applied an action operator");
+    }
+
+    @Test
+    void nestedActionShapesAppearAndRemainComplete() {
+        // The next-state action is drawn after the invariant, the auxiliary operators, and Init, so
+        // a short input is exhausted before the action shape and always decodes to a flat leaf.
+        // Larger inputs leave the bytes a nested disjunction or IF-THEN-ELSE needs.
+        var random = new Random(0xACC0DEL);
+        var sawDisjunction = false;
+        var sawConditional = false;
+        var checked = 0;
+        for (var sample = 0; sample < 400; sample++) {
+            var input = new byte[512 + random.nextInt(1024)];
+            random.nextBytes(input);
+            final GeneratedSpec spec;
+            try {
+                spec = generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            var declared = new LinkedHashSet<>(variableNames(spec));
+            var actionOps = actionOperatorBodies(spec);
+            for (var disjunct : disjuncts(spec.nextAction())) {
+                assertEquals(
+                        declared,
+                        new LinkedHashSet<>(collectAssignedVars(disjunct, declared, actionOps)),
+                        "nested disjunct does not account for every variable: " + print(disjunct));
+                sawDisjunction |= containsOperator(disjunct, "OR");
+                sawConditional |= containsOperator(disjunct, "IF_THEN_ELSE");
+            }
+            checked++;
+        }
+        assertTrue(checked > 100, "too few inputs were admitted to be conclusive: " + checked);
+        assertTrue(sawDisjunction, "no generated action nested a disjunction");
+        assertTrue(sawConditional, "no generated action used IF-THEN-ELSE");
     }
 
     @Test
@@ -177,41 +287,102 @@ class IrSpecGeneratorsTest {
         return List.of(nextAction);
     }
 
+    /** Maps each generated action operator's name to its body. */
+    private Map<String, TlaEx> actionOperatorBodies(GeneratedSpec spec) {
+        return spec.actionOperators().stream()
+                .collect(Collectors.toMap(
+                        operator -> operator.declaration().name(),
+                        operator -> operator.declaration().body()));
+    }
+
     /**
-     * Collects the variables one disjunct accounts for: those assigned by a primed equality or
-     * membership, and those listed in its UNCHANGED.
+     * Collects the variables one action shape settles, recursively: those given a next value by a
+     * primed equality or membership, and those listed in an {@code UNCHANGED}. The conjunctive
+     * spine unions its children; every arm of a nested disjunction and every branch of an
+     * IF-THEN-ELSE must settle the same variables, so the shape collapses to that shared set. An
+     * application of a generated action operator contributes whatever its body settles.
      */
-    private void collectAccountedVariables(
-            TlaEx expression, Set<String> declared, List<String> accounted) {
+    private List<String> collectAssignedVars(
+            TlaEx expression, Set<String> declared, Map<String, TlaEx> actionOperators) {
         if (!(expression instanceof OperEx operator)) {
-            return;
+            return List.of();
         }
         var arguments = CollectionConverters.asJava(operator.args());
-        switch (operator.oper().name()) {
+        return switch (operator.oper().name()) {
             case "EQ", "SET_IN" -> {
                 var assigned = primedName(arguments.getFirst());
-                if (assigned != null && declared.contains(assigned)) {
-                    accounted.add(assigned);
-                    return;
-                }
+                yield assigned != null && declared.contains(assigned)
+                        ? List.of(assigned)
+                        : List.of();
             }
-            case "UNCHANGED" -> {
-                names(arguments.getFirst()).stream()
-                        .filter(declared::contains)
-                        .forEach(accounted::add);
-                return;
+            case "UNCHANGED" ->
+                names(arguments.getFirst()).stream().filter(declared::contains).toList();
+            case "AND" -> {
+                var settled = new ArrayList<String>();
+                arguments.forEach(argument ->
+                        settled.addAll(collectAssignedVars(argument, declared, actionOperators)));
+                yield settled;
             }
-            default -> {}
+            case "OR" -> branchAssignedVars(arguments, declared, actionOperators);
+            case "IF_THEN_ELSE" ->
+                branchAssignedVars(
+                        List.of(arguments.get(1), arguments.get(2)), declared, actionOperators);
+            case "EXISTS3" -> collectAssignedVars(arguments.get(2), declared, actionOperators);
+            case "OPER_APP" -> {
+                var applied = arguments.getFirst();
+                yield applied instanceof NameEx name && actionOperators.containsKey(name.name())
+                        ? collectAssignedVars(actionOperators.get(name.name()), declared, actionOperators)
+                        : List.of();
+            }
+            default -> List.of();
+        };
+    }
+
+    /**
+     * Returns the variable set every branch of a disjunction or IF-THEN-ELSE settles, asserting
+     * that the branches agree on it and that none settles a variable twice.
+     */
+    private List<String> branchAssignedVars(
+            List<TlaEx> branches, Set<String> declared, Map<String, TlaEx> actionOperators) {
+        List<String> shared = null;
+        for (var branch : branches) {
+            var settled = collectAssignedVars(branch, declared, actionOperators);
+            assertEquals(
+                    settled.size(),
+                    new LinkedHashSet<>(settled).size(),
+                    "a variable is settled twice in a branch: " + print(branch));
+            if (shared == null) {
+                shared = settled;
+            } else {
+                assertEquals(
+                        new LinkedHashSet<>(shared),
+                        new LinkedHashSet<>(settled),
+                        "action branches disagree on the variables they settle: " + print(branch));
+            }
         }
-        // Only the conjunctive spine and the existential bodies carry the accounting.
-        switch (operator.oper().name()) {
-            case "AND" ->
-                arguments.forEach(
-                        argument -> collectAccountedVariables(argument, declared, accounted));
-            case "EXISTS3" ->
-                collectAccountedVariables(arguments.get(2), declared, accounted);
-            default -> {}
+        return shared == null ? List.of() : shared;
+    }
+
+    /** Reports whether {@code expression} applies any operator named in {@code names}. */
+    private boolean appliesAny(TlaEx expression, Set<String> names) {
+        if (!(expression instanceof OperEx operator)) {
+            return false;
         }
+        if (operator.oper().name().equals("OPER_APP")
+                && operator.args().head() instanceof NameEx name
+                && names.contains(name.name())) {
+            return true;
+        }
+        return CollectionConverters.asJava(operator.args()).stream()
+                .anyMatch(argument -> appliesAny(argument, names));
+    }
+
+    /** Reports whether {@code expression} contains an application of the named operator. */
+    private boolean containsOperator(TlaEx expression, String name) {
+        return expression instanceof OperEx operator
+                && (operator.oper().name().equals(name)
+                        || CollectionConverters.asJava(operator.args()).stream()
+                                .anyMatch(argument -> containsOperator(argument, name)));
     }
 
     /** Returns the name a PRIME wraps, or {@code null} when the expression is not primed. */

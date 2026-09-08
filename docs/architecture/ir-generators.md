@@ -15,8 +15,8 @@ belongs to:
 
 - `IrGenerators.expressions` produces a single `TlaEx`.
 - `IrGenerators.specs` produces a `GeneratedSpec`: the state variables,
-  auxiliary operator definitions, initial-state predicate, next-state action,
-  invariant and bound predicate of one module.
+  auxiliary and action operator definitions, initial-state predicate,
+  next-state action, invariant and bound predicate of one module.
 
 Neither produces a `TlaModule`. The surrounding skeleton names the entry points
 that the tool invocations spell, so that contract lives beside those invocations
@@ -65,7 +65,7 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | --- | --- |
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
 | `IrSpecGeneratorEngine` | Creates per-run state, then draws a module's variables, definitions, and predicates. |
-| `ActionGenFactory` | Constructs the initial-state predicate and the next-state action over the declared variables. |
+| `ActionGenFactory` | Constructs the initial-state predicate, the action operators, and the next-state action over the declared variables. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
@@ -305,6 +305,11 @@ budget spanning several independent bodies would let an early one decide how
 much is left for a later one, and a large `Init` would starve `Inv` into a
 constant.
 
+Within one action disjunct the recursive action shape (section 9.2) also
+consumes this counter and observes `maximumActionDepth`. It falls back to a leaf
+when the depth reaches zero, the per-disjunct budget is spent, or the input is
+exhausted, mirroring the expression fallback above.
+
 Terminal construction is byte-free. When bindings of exactly the requested type are
 lexically visible, successive terminals rotate over them, innermost first, and then
 the closed terminal. Otherwise every `IrType` has a closed terminal expression:
@@ -382,9 +387,11 @@ always enabled. The default limits are:
 | Limit | Default | Meaning |
 | --- | ---: | --- |
 | `maximumVariables` | 3 | Maximum declared state variables, excluding the step counter. |
-| `maximumAuxiliaryOperators` | 2 | Maximum operator definitions the predicates may apply. |
+| `maximumAuxiliaryOperators` | 2 | Maximum state-free operator definitions the predicates may apply. |
+| `maximumActionOperators` | 2 | Maximum action operator definitions `Next` may apply; each reads current state and primes its effect set. |
 | `maximumActions` | 3 | Maximum disjuncts of the next-state action. |
 | `maximumActionParameters` | 2 | Maximum bounded existential parameters of one action. |
+| `maximumActionDepth` | 3 | Maximum nesting of disjunction, conjunction, and IF-THEN-ELSE within one action disjunct; 0 keeps each disjunct a flat conjunction. |
 | `maximumSteps` | 5 | Transitions explored from an initial state. |
 
 Selection weights default to one, except:
@@ -479,10 +486,18 @@ properties of the input — no byte string can violate them.
 3. **Auxiliary operators.** A terminated list of definitions named `Op<N>`.
    Each body sees the definitions before it and its own parameters, but no
    state variable, so definitions are acyclic and in declaration order.
-4. **Initial-state predicate.** One conjunct per declared variable, in
+4. **Action operators.** A terminated list of definitions named `Act<N>`. Each
+   body is a recursive action shape (section 9.2) over a chosen non-empty subset
+   of the declared variables — its *effect* — drawn with the state variables, the
+   auxiliary operators, and the earlier action operators in scope. Unlike an
+   auxiliary operator it reads current state and primes, so it is applicable only
+   in `Next`, never in `Init` or `Inv`. A later operator may apply an earlier
+   one; none mentions `step`. `ActionGenFactory` generates these, so priming and
+   `UNCHANGED` still occur nowhere else.
+5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
-5. **Next-state action.** A terminated non-empty disjunction of actions.
-6. **Bound predicate.** `step <= maximumSteps`.
+6. **Next-state action.** A terminated non-empty disjunction of actions.
+7. **Bound predicate.** `step <= maximumSteps`.
 
 The invariant is drawn first among the bodies because it degrades worst when
 the cursor runs out. A starved definition or action is still a legal one,
@@ -492,12 +507,15 @@ rejected by TLC, and checks nothing. Drawing it first took that shape from 69%
 of property-based inputs to 17%. The price is that the invariant cannot apply
 the definitions, which are not yet drawn; `Init` and `Next` still can.
 
-Definitions are closed over their parameters for a related reason: one that
-read a state variable could not be applied in `Init`, where no variable has a
-value yet, so keeping them state-free makes every definition applicable in
-`Init`, `Next` and `Inv` alike without an ordering analysis. `Init` likewise
-constrains each variable without reading another, because a conjunct that read
-one would depend on an evaluation order the predicate does not fix.
+Auxiliary definitions are closed over their parameters for a related reason: one
+that read a state variable could not be applied in `Init`, where no variable has
+a value yet, so keeping them state-free makes every auxiliary definition
+applicable in `Init`, `Next` and `Inv` alike without an ordering analysis. Action
+operators make the opposite trade deliberately — they read current state and
+prime — which is why they are drawn after `Init` in the visibility order and are
+offered only to `Next`. `Init` likewise constrains each variable without reading
+another, because a conjunct that read one would depend on an evaluation order the
+predicate does not fix.
 
 ### 9.2. Action shape
 
@@ -506,27 +524,55 @@ one would depend on an evaluation order the predicate does not fix.
 - zero or more bounded existential parameters, whose bound sets belong to the
   enclosing scope and whose names are visible to everything inside;
 - an optional guard, an ordinary Boolean state predicate;
-- one assignment per variable in a drawn subset, each either `v' = e` or
-  `v' \in S`;
-- `step' = step + 1`; and
-- one `UNCHANGED` over the variables left, as a tuple when there is more than
-  one.
+- a recursive *action shape* over the declared variables (below); and
+- `step' = step + 1`.
 
-An empty assignment subset falls back to the first variable. That fallback is
-byte-free, so it stays out of the encoding: a disjunct that changed only the
-step counter would be a stuttering step that the checkers explore without
-learning anything.
+The step advance and the guard sit outside the shape, so the shape's only job is
+to account for its variables exactly once, however deeply it nests. Define the
+*effect* of a shape as the set of variables it accounts for. The shape draws one
+of five kinds, bounded by `maximumActionDepth` and biased towards the leaf:
 
-The invariant a test can check is that in every disjunct, each declared
-variable appears exactly once — primed on the left of an assignment, or inside
-that disjunct's `UNCHANGED`. What makes it checkable is that the accounting is
-assembled here, over the declaration list. This is why `ActionGenFactory` is
-the only component that primes a name or builds an `UNCHANGED`, and why module
-generation excludes the `action`, `temporal` and `exotic` categories from every
-subexpression whatever the corpus configured: a prime reached through an
-expression form could sit under a negation or a quantifier, where it accounts
-for nothing. Every value a module expression produces therefore reads the
-current state only.
+- **leaf** — partition the variables into an assigned subset and the rest; emit
+  `v' = e` or `v' \in S` per assigned variable and one `UNCHANGED` (a tuple when
+  more than one) over the rest; effect is all of them;
+- **conjunction** — split the variables into two non-empty groups and shape each
+  recursively; the two conjunct lists are spliced flat; effect is the union;
+- **disjunction** — two arms, each shaping the *same* variables recursively;
+- **IF-THEN-ELSE** — an ordinary current-state Boolean predicate and two
+  branches, each shaping the same variables recursively;
+- **call** — apply a visible action operator whose effect is exactly the
+  variables requested here, drawing its arguments from its signature; effect is
+  that operator's effect.
+
+Recursion falls back to a leaf at zero depth, a spent node budget, or exhausted
+input, and a call falls back to a leaf when no operator's effect matches. The
+leaf on the conjunction spine assigns at least one of its variables, so no
+complete branch is a pure stuttering step that the checkers explore without
+learning anything; that fallback is byte-free, so it stays out of the encoding. A
+non-spine conjunction group may be left entirely `UNCHANGED`.
+
+The invariant a test can check is that in every disjunct the conjunctive spine —
+with each nested disjunction and IF-THEN-ELSE collapsed to the variable set its
+arms share, and each call resolved to its operator's effect by recursing into the
+applied body — accounts for each declared variable exactly once (primed on the
+left of an assignment, or inside an `UNCHANGED`), and that sibling arms and
+branches account for the same set. What makes it checkable is that the accounting
+is assembled here, over the declaration list, and that the effect of every action
+operator is recorded. This is why `ActionGenFactory` is the only component that
+primes a name or builds an `UNCHANGED` — the action-operator bodies it generates
+included — and why module generation excludes the `action`, `temporal` and
+`exotic` categories from every subexpression — the IF-THEN-ELSE predicate
+included — whatever the corpus configured: a prime reached through an expression
+form could sit under a negation or a quantifier, where it accounts for nothing.
+Every value a module expression produces therefore reads the current state only.
+
+**Deviation.** This weakens the previous invariant — "each declared variable
+appears exactly once on a flat conjunctive spine" — to the recursive form above,
+and adds a definition kind (action operators, section 9.1) that reads state and
+primes, where auxiliary operators do neither. Priming and `UNCHANGED` stay
+confined to `ActionGenFactory`; the category exclusion is unchanged. Every stored
+`module` corpus input is reinterpreted, because the partition layout changed,
+`step' = step + 1` moved out of it, and a new declaration list is drawn.
 
 ### 9.3. Bounding exploration
 
@@ -568,23 +614,33 @@ Changes to this subsystem should preserve the following rules:
    expression, so the fallback must remain byte-free and closed.
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
-9. Keep priming and `UNCHANGED` in `ActionGenFactory`. Nothing else may prime a
-   name, and module generation must keep excluding the `action` and `temporal`
-   categories from its subexpressions, or a disjunct's account of the declared
-   variables stops being checkable.
+9. Keep priming and `UNCHANGED` in `ActionGenFactory`, including inside the
+   recursive action shape (leaf, conjunction, disjunction, IF-THEN-ELSE, call)
+   and the action-operator bodies it generates. Nothing else may prime a name,
+   and module generation must keep excluding the `action` and `temporal`
+   categories from its subexpressions — the IF-THEN-ELSE predicate included — or
+   a disjunct's account of the declared variables stops being checkable.
 10. Give a new module-level body a node budget of its own with
     `GenerationContext.withFreshNodeBudget`, and place it in the draw order by
     how badly it degrades when starved.
 11. Request a set type only where one is available. A configuration that ignores
     the `set` category disables set types entirely, so a form that needs one
     must either fall back or consume no bytes deciding not to.
+12. Generate an action operator's body with the action shape over its effect
+    subset, and record the effect. A call site applies an operator only where the
+    requested variable set equals a visible operator's effect; the completeness
+    check resolves a call by recursing into the applied body, so the effect must
+    stay exact and the operators must stay acyclic in declaration order.
 
 Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog
 completeness, type applicability, lexical visibility, scope restoration,
 terminal construction, determinism, and adversarial inputs. For module
-generation they should additionally cover assignment completeness per disjunct,
-the absence of primes outside the action, and that definitions and the
-initial-state predicate read no state variable. A catalog change must retain the
-fixed-width upper bound, update the pinned catalog order, and explicitly revise
-the decoding protocol.
+generation they should additionally cover assignment completeness per disjunct
+across the recursive action shape — that sibling disjunction arms and IF branches
+account for the same variables, that the spine accounts for each declared
+variable exactly once, and that each action-operator body accounts for its
+declared effect — the absence of primes outside the action, and that auxiliary
+definitions and the initial-state predicate read no state variable. A catalog
+change must retain the fixed-width upper bound, update the pinned catalog order,
+and explicitly revise the decoding protocol.

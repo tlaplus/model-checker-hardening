@@ -48,8 +48,17 @@ final class GeneratorLimitSchema {
                 integerKey(
                         tablePath,
                         "max_auxiliary_operators",
-                        List.of("Maximum operator definitions a generated module may apply."),
+                        List.of("Maximum state-free operator definitions a generated module may"
+                                + " apply."),
                         config -> config.generator().modules().maximumAuxiliaryOperators()),
+                integerKey(
+                        tablePath,
+                        "max_action_operators",
+                        List.of(
+                                "Maximum action operator definitions the next-state action may"
+                                        + " apply.",
+                                "Each reads current state and primes a subset of the variables."),
+                        config -> config.generator().modules().maximumActionOperators()),
                 integerKey(
                         tablePath,
                         "max_actions",
@@ -60,6 +69,15 @@ final class GeneratorLimitSchema {
                         "max_action_parameters",
                         List.of("Maximum bounded existential parameters of one generated action."),
                         config -> config.generator().modules().maximumActionParameters()),
+                integerKey(
+                        tablePath,
+                        "max_action_depth",
+                        List.of(
+                                "Maximum nesting depth of disjunctions, conjunctions, and"
+                                        + " IF-THEN-ELSE",
+                                "within one generated next-state action disjunct. Zero keeps every"
+                                        + " disjunct a flat conjunction."),
+                        config -> config.generator().modules().maximumActionDepth()),
                 integerKey(
                         tablePath,
                         "max_steps",
@@ -134,15 +152,19 @@ final class GeneratorLimitSchema {
     private record ModuleKeys(
             ConfigSchema.Key<Integer> maximumVariables,
             ConfigSchema.Key<Integer> maximumAuxiliaryOperators,
+            ConfigSchema.Key<Integer> maximumActionOperators,
             ConfigSchema.Key<Integer> maximumActions,
             ConfigSchema.Key<Integer> maximumActionParameters,
+            ConfigSchema.Key<Integer> maximumActionDepth,
             ConfigSchema.Key<Integer> maximumSteps) {
         List<ConfigSchema.Key<?>> keys() {
             return List.of(
                     maximumVariables,
                     maximumAuxiliaryOperators,
+                    maximumActionOperators,
                     maximumActions,
                     maximumActionParameters,
+                    maximumActionDepth,
                     maximumSteps);
         }
 
@@ -150,8 +172,10 @@ final class GeneratorLimitSchema {
             return new ModuleLimits(
                     maximumVariables.read(tables),
                     maximumAuxiliaryOperators.read(tables),
+                    maximumActionOperators.read(tables),
                     maximumActions.read(tables),
                     maximumActionParameters.read(tables),
+                    maximumActionDepth.read(tables),
                     maximumSteps.read(tables));
         }
     }
