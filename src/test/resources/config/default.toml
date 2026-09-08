@@ -1,0 +1,76 @@
+[generator]
+# What this run generates: "expr" for one expression wrapped in a single-state module, or "module" for a whole module.
+# A corpus entry records its own kind, so a run only generates this one.
+kind = "expr"
+max_type_depth = 3
+max_expression_depth = 32
+max_nodes = 128
+max_collection_size = 8
+max_string_bytes = 32
+max_integer_bytes = 16
+# Maximum state variables declared by a generated module.
+max_variables = 3
+# Maximum state-free operator definitions a generated module may apply.
+max_auxiliary_operators = 2
+# Maximum action operator definitions the next-state action may apply.
+# Each reads current state and primes a subset of the variables.
+max_action_operators = 2
+# Maximum disjuncts in a generated next-state action.
+max_actions = 3
+# Maximum bounded existential parameters of one generated action.
+max_action_parameters = 2
+# Maximum nesting depth of disjunctions, conjunctions, and IF-THEN-ELSE
+# within one generated next-state action disjunct. Zero keeps every disjunct a flat conjunction.
+max_action_depth = 3
+# Transitions explored from an initial state of a generated module.
+# Bounds Apalache's unrolling and TLC's state constraint alike.
+max_steps = 5
+ignore = ["action", "temporal", "unbound", "exotic"]
+# Selection slots per expression form, for the forms that are not weighted one.
+# A form with weight N is N times as likely as an unweighted form applicable to the same request.
+weights = { name = 8, enum_set = 16 }
+
+[workflow]
+# Maximum number of unique entries across every workflow directory.
+max_entries = 1000
+
+[workflow.inputs]
+# Maximum current occupancy of 00-inputs.
+max_entries = 1000
+
+[workflow.parser]
+# Maximum combined occupancy of the parser result directories.
+max_entries = 1000
+# Wall-clock limit for parsing one generated specification.
+timeout_sec = 30
+
+[workflow.tlc]
+# Maximum combined occupancy of the TLC result directories.
+max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Maximum heap allocated to each isolated TLC JVM.
+max_heap_mb = 512
+# Number of TLC model-checking workers in each isolated JVM.
+workers = 1
+
+[workflow.apalache]
+# Maximum combined occupancy of the Apalache result directories.
+max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Maximum heap allocated to each persistent Apalache worker JVM.
+max_heap_mb = 1024
+# Number of concurrent FuzzTLA Apalache workers.
+# Initialized to half the available processors, rounded down (at least one).
+workers = 4
+
+[pbt]
+# Inclusive upper bound on a randomly generated input's length.
+max_input_bytes = 10240
+# Number of uniformly selected collection-richness cohorts.
+richness_cohorts = 10
+# Weight multiplier for each level of collection nesting.
+richness_nesting_base = 2.0
+# Growth factor for successive cohort admission thresholds.
+richness_threshold_base = 1.5

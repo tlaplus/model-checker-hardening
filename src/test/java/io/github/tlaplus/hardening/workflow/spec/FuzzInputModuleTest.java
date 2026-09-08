@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
+import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.actionOperators;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -66,7 +68,7 @@ class FuzzInputModuleTest {
             } catch (io.github.tlaplus.hardening.gen.InputRejectedException rejected) {
                 continue;
             }
-            if (spec.actionOperators().isEmpty()) {
+            if (actionOperators(spec).isEmpty()) {
                 continue;
             }
             var names = CollectionConverters.asJava(
@@ -74,7 +76,7 @@ class FuzzInputModuleTest {
                     .map(TlaOperDecl::name)
                     .toList();
             var lastAuxiliary = lastIndexWithPrefix(names, "Op");
-            var firstAction = names.indexOf(spec.actionOperators().get(0).declaration().name());
+            var firstAction = names.indexOf(actionOperators(spec).get(0).declaration().name());
             var initIndex = names.indexOf(FuzzInputModule.INIT);
             assertTrue(firstAction > lastAuxiliary, "action operator precedes an auxiliary one");
             assertTrue(firstAction < initIndex, "action operator follows Init");

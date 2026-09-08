@@ -19,6 +19,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class TomlConfigTest {
+    @org.junit.jupiter.api.Test
+    void renderedDefaultsMatchThePreRefactorFixture() throws Exception {
+        try (var fixture = getClass().getResourceAsStream("/config/default.toml")) {
+            org.junit.jupiter.api.Assertions.assertArrayEquals(fixture.readAllBytes(),
+                    TomlConfig.render(FuzzTlaConfig.defaults()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
     @Test
     void renderedDefaultsRoundTripThroughTheStrictParser(@TempDir Path directory) throws Exception {
         var path = directory.resolve("config.toml");

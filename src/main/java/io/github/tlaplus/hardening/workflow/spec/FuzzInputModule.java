@@ -76,8 +76,7 @@ public final class FuzzInputModule {
     public static TlaModule create(GeneratedSpec spec) {
         Objects.requireNonNull(spec, "spec");
         var declarations = new ArrayList<TlaDecl>(spec.variables());
-        declarations.addAll(spec.auxiliaryOperators());
-        spec.actionOperators().forEach(operator -> declarations.add(operator.declaration()));
+        spec.operators().forEach(operator -> declarations.add(operator.declaration()));
         return assemble(
                 declarations,
                 spec.initPredicate(),

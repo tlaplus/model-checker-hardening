@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen;
 
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -16,12 +15,10 @@ import java.util.Objects;
  * @param declaration the {@code Act<N> == ...} definition, in dependency order
  * @param effect the names of the state variables the body accounts for
  */
-public record GeneratedActionOperator(TlaOperDecl declaration, List<String> effect) {
+public record GeneratedActionOperator(TlaOperDecl declaration, ActionEffect effect)
+        implements GeneratedOperator {
     public GeneratedActionOperator {
         Objects.requireNonNull(declaration, "declaration");
-        effect = List.copyOf(Objects.requireNonNull(effect, "effect"));
-        if (effect.isEmpty()) {
-            throw new IllegalArgumentException("an action operator accounts for at least one variable");
-        }
+        Objects.requireNonNull(effect, "effect");
     }
 }

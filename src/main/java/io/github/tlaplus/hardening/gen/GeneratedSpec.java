@@ -1,12 +1,12 @@
 package io.github.tlaplus.hardening.gen;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 /**
  * The declarations one generated module consists of.
@@ -26,9 +26,7 @@ import java.util.stream.Stream;
  * </ul>
  *
  * @param variables the declared state variables, in declaration order
- * @param auxiliaryOperators state-free definitions the predicates may apply, in dependency order
- * @param actionOperators action definitions the next-state action may apply, in dependency order;
- *     each reads current state and primes its effect set
+ * @param operators definitions in declaration order: state-free auxiliaries, then action operators
  * @param initPredicate the initial-state predicate
  * @param nextAction the next-state action
  * @param invariant the state invariant
@@ -38,8 +36,7 @@ import java.util.stream.Stream;
  */
 public record GeneratedSpec(
         List<TlaVarDecl> variables,
-        List<TlaOperDecl> auxiliaryOperators,
-        List<GeneratedActionOperator> actionOperators,
+        List<GeneratedOperator> operators,
         TlaEx initPredicate,
         TlaEx nextAction,
         TlaEx invariant,
@@ -50,10 +47,14 @@ public record GeneratedSpec(
         if (variables.isEmpty()) {
             throw new IllegalArgumentException("a module declares at least one variable");
         }
-        auxiliaryOperators =
-                List.copyOf(Objects.requireNonNull(auxiliaryOperators, "auxiliaryOperators"));
-        actionOperators =
-                List.copyOf(Objects.requireNonNull(actionOperators, "actionOperators"));
+        operators = List.copyOf(Objects.requireNonNull(operators, "operators"));
+        var declared = variables.stream().map(TlaVarDecl::name).collect(Collectors.toSet());
+        for (var operator : operators) {
+            if (operator instanceof GeneratedActionOperator action
+                    && !declared.containsAll(action.effect().variables())) {
+                throw new IllegalArgumentException("action effect refers to an undeclared variable");
+            }
+        }
         Objects.requireNonNull(initPredicate, "initPredicate");
         Objects.requireNonNull(nextAction, "nextAction");
         Objects.requireNonNull(invariant, "invariant");
@@ -64,8 +65,7 @@ public record GeneratedSpec(
     /** Returns the generated expressions, each listed once. */
     public List<TlaEx> generated() {
         return Stream.of(
-                        auxiliaryOperators.stream().map(TlaOperDecl::body),
-                        actionOperators.stream().map(operator -> operator.declaration().body()),
+                        operators.stream().map(operator -> operator.declaration().body()),
                         Stream.of(initPredicate, nextAction, invariant))
                 .flatMap(stream -> stream)
                 .toList();
