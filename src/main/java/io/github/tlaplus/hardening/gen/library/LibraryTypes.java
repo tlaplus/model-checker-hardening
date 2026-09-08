@@ -66,12 +66,4 @@ public final class LibraryTypes {
         children(type).forEach(child -> result.addAll(categories(child)));
         return Set.copyOf(result);
     }
-
-    /** Row wrappers don't add a second level to record/variant nesting. */
-    public static int depth(TlaType1 type) {
-        var children = children(type);
-        if (children.isEmpty()) return type instanceof RowT1 ? -1 : 0;
-        int nested = children.stream().mapToInt(LibraryTypes::depth).max().orElse(0);
-        return nested + (type instanceof RowT1 ? 0 : 1);
-    }
 }

@@ -174,7 +174,7 @@ final class WorkerLaunch {
     private static List<String> command(
             WorkerSpec spec, Path temporaryDirectory, ServerSocket listener, String token) {
         var command = new ArrayList<String>();
-        command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
+        command.add(JavaLaunch.executable());
         command.addAll(spec.jvmArguments());
         command.add("-XX:ErrorFile=" + WorkerOutput.fatalErrorReportPattern(temporaryDirectory));
         command.add("-Djava.io.tmpdir=" + temporaryDirectory);

@@ -175,12 +175,12 @@ final class ConfigSchema {
             config -> config.generator().formWeights());
 
     static final Key<List<Path>> CLASSPATH = new Key<>(
-            GENERATOR_PATH, "classpath", LibraryConfigValues.CLASSPATH,
+            GENERATOR_PATH, "classpath", ConfigValueType.CLASSPATH,
             List.of("Ordered TLA+ source directories or JARs, relative to this config file."),
             config -> config.libraries().classpath());
 
     static final Key<List<OperatorLibraryConfig.Module>> CUSTOM_OPERATORS = new Key<>(
-            GENERATOR_PATH, "custom_operators", LibraryConfigValues.MODULES,
+            GENERATOR_PATH, "custom_operators", ConfigValueType.MODULES,
             List.of("Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }."),
             config -> config.libraries().modules());
 

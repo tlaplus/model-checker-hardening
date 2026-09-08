@@ -3,8 +3,7 @@ package io.github.tlaplus.hardening.gen.engine;
 import at.forsyte.apalache.tla.lir.*;
 import at.forsyte.apalache.tla.types.EqClass;
 import at.forsyte.apalache.tla.types.Substitution;
-import io.github.tlaplus.hardening.gen.ExpressionLimits;
-import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 import java.util.*;
@@ -34,11 +33,19 @@ record TypeInstantiation(TlaType1 template, List<Variable> variables) {
         }
     }
 
-    static Optional<TypeInstantiation> plan(TlaType1 template, ExpressionLimits limits,
-            Set<ExpressionCategory> ignored, int depth) {
-        if (!Collections.disjoint(LibraryTypes.categories(template), ignored)) return Optional.empty();
+    /** Plans within the full configured type depth. */
+    static Optional<TypeInstantiation> plan(TlaType1 template, IrGenerationConfig config) {
+        return plan(template, config, config.expressions().maximumTypeDepth());
+    }
+
+    static Optional<TypeInstantiation> plan(TlaType1 template, IrGenerationConfig config, int depth) {
+        if (!Collections.disjoint(LibraryTypes.categories(template), config.ignoredCategories())) {
+            return Optional.empty();
+        }
         var variables = new LinkedHashMap<Integer, Variable>();
-        if (!inspect(template, limits.maximumCollectionSize(), depth, variables)) return Optional.empty();
+        if (!inspect(template, config.expressions().maximumCollectionSize(), depth, variables)) {
+            return Optional.empty();
+        }
         if (variables.values().stream().flatMap(v -> v.row().stream())
                 .anyMatch(row -> row.minimumFields() > row.maximumFields())) {
             return Optional.empty();

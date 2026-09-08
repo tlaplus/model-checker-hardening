@@ -14,7 +14,8 @@ import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import org.junit.jupiter.api.Test;
-import scala.jdk.javaapi.CollectionConverters;
+import static io.github.tlaplus.hardening.common.ScalaCollections.list;
+import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
 
 class FuzzInputModuleTest {
     @Test
@@ -29,7 +30,7 @@ class FuzzInputModuleTest {
 
         // The definition names are the contract with the fixed tool invocations, and Bound is
         // always defined so that one TLC configuration serves every input kind.
-        var operators = CollectionConverters.asJava(module.operDeclarations());
+        var operators = list(module.operDeclarations());
         assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
 
         var initExpression = equalityRightHandSide(operators.get(0));
@@ -52,7 +53,7 @@ class FuzzInputModuleTest {
 
         var module = FuzzInputModule.create(spec);
 
-        var operators = CollectionConverters.asJava(module.operDeclarations());
+        var operators = list(module.operDeclarations());
         assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
     }
 
@@ -71,7 +72,7 @@ class FuzzInputModuleTest {
             if (actionOperators(spec).isEmpty()) {
                 continue;
             }
-            var names = CollectionConverters.asJava(
+            var names = list(
                             FuzzInputModule.create(spec).operDeclarations()).stream()
                     .map(TlaOperDecl::name)
                     .toList();

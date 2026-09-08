@@ -4,13 +4,14 @@ import at.forsyte.apalache.tla.lir.VarT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Factory for deferred generators of internal types within the configured remaining-depth budget.
@@ -39,6 +40,7 @@ final class IrTypeGenFactory {
     private final List<TypeKind> valueTypeKinds;
     private final List<TypeKind> allTypeKinds;
     private final Map<Integer, List<TypeInstantiation>> templates = new HashMap<>();
+    private final Map<IrType, Boolean> enabled = new HashMap<>();
 
     IrTypeGenFactory(GenerationContext context) {
         this.context = context;
@@ -67,34 +69,15 @@ final class IrTypeGenFactory {
         return new VariantType(List.of(new Field(context.freshTag(), payloadType)));
     }
 
-    /** Reports whether the type and every nested component use enabled syntax categories. */
+    /**
+     * Reports whether the type and every nested component use enabled syntax categories. The walk
+     * is {@link LibraryTypes#categories}, which also checks imported signatures, so the two cannot
+     * drift; exclusions are fixed for a run, so the answer is memoized rather than redrawn.
+     */
     boolean isEnabled(IrType type) {
-        return switch (type) {
-            case PrimitiveType ignored -> true;
-            case ConstantType ignored -> isEnabledCategory(ExpressionCategory.MODEL);
-            case SetType(IrType element) ->
-                isEnabledCategory(ExpressionCategory.SET) && isEnabled(element);
-            case SequenceType(IrType element) ->
-                isEnabledCategory(ExpressionCategory.SEQUENCE) && isEnabled(element);
-            case FunctionType(IrType argument, IrType result) ->
-                isEnabledCategory(ExpressionCategory.FUNCTION)
-                        && isEnabledCategory(ExpressionCategory.SET)
-                        && isEnabled(argument)
-                        && isEnabled(result);
-            case TupleType(List<IrType> elements) ->
-                isEnabledCategory(ExpressionCategory.TUPLE)
-                        && elements.stream().allMatch(this::isEnabled);
-            case RecordType(List<Field> fields) ->
-                isEnabledCategory(ExpressionCategory.RECORD)
-                        && fields.stream().allMatch(field -> isEnabled(field.type()));
-            case VariantType(List<Field> fields) ->
-                isEnabledCategory(ExpressionCategory.VARIANT)
-                        && fields.stream().allMatch(field -> isEnabled(field.type()));
-            case OperatorType(List<IrType> arguments, IrType result) ->
-                isEnabledCategory(ExpressionCategory.OPERATOR)
-                        && arguments.stream().allMatch(this::isEnabled)
-                        && isEnabled(result);
-        };
+        return enabled.computeIfAbsent(type, requested -> Collections.disjoint(
+                LibraryTypes.categories(requested.toTlaType()),
+                context.config().ignoredCategories()));
     }
 
     /** Returns a recursive type recipe within the remaining nesting budget. */
@@ -178,12 +161,11 @@ final class IrTypeGenFactory {
     /** Library result shapes make fixed field/tag/model names reachable without replacing standard types. */
     private List<TypeInstantiation> templates(int depth) {
         return templates.computeIfAbsent(depth, remaining -> context.config().library().exports().stream()
-                .filter(export -> Collections.disjoint(export.categories(), context.config().ignoredCategories()))
+                .filter(export -> export.isEnabledWith(context.config().ignoredCategories()))
                 .map(export -> TypeInstantiation.canonical(export.signature().res()))
                 .filter(type -> !(type instanceof VarT1))
                 .distinct()
-                .map(type -> TypeInstantiation.plan(type, context.config().expressions(),
-                        context.config().ignoredCategories(), remaining))
+                .map(type -> TypeInstantiation.plan(type, context.config(), remaining))
                 .flatMap(Optional::stream).toList());
     }
 
@@ -191,10 +173,6 @@ final class IrTypeGenFactory {
         return candidates.stream()
                 .filter(kind -> kind.isAvailableWith(context.config().ignoredCategories()))
                 .toList();
-    }
-
-    private boolean isEnabledCategory(ExpressionCategory category) {
-        return !context.config().ignoredCategories().contains(category);
     }
 
     /** Type choices in decoder order. */

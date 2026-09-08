@@ -26,11 +26,15 @@ import java.util.Objects;
 public final class SpecDecoders {
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
     private final OperatorLibrary library;
+    private final String libraryManifest;
 
-    public String libraryManifest() { return library.replayManifest(); }
+    /** The replay identity of the prepared library, empty when none is configured. */
+    public String libraryManifest() { return libraryManifest; }
 
-    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library) {
-        this.library = Objects.requireNonNull(library);
+    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library,
+            String libraryManifest) {
+        this.library = Objects.requireNonNull(library, "library");
+        this.libraryManifest = Objects.requireNonNull(libraryManifest, "libraryManifest");
         Objects.requireNonNull(decoders, "decoders");
         var copy = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         copy.putAll(decoders);
@@ -46,7 +50,8 @@ public final class SpecDecoders {
     /** Loads configured libraries once before constructing the reusable decoders. */
     public static SpecDecoders prepare(FuzzTlaConfig config) throws WorkflowException {
         try {
-            return of(LibraryPreparation.prepare(config));
+            var prepared = LibraryPreparation.prepare(config);
+            return of(prepared.generator(), prepared.manifest());
         } catch (IllegalArgumentException exception) {
             throw new WorkflowException(
                     "invalid custom generator configuration: " + exception.getMessage(), exception);
@@ -55,6 +60,10 @@ public final class SpecDecoders {
 
     /** Returns a complete decoder registry under one generator configuration. */
     public static SpecDecoders of(IrGenerationConfig config) {
+        return of(config, "");
+    }
+
+    private static SpecDecoders of(IrGenerationConfig config, String libraryManifest) {
         Objects.requireNonNull(config, "config");
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(
@@ -63,7 +72,7 @@ public final class SpecDecoders {
         decoders.put(
                 InputKind.MODULE,
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
-        return new SpecDecoders(decoders, config.library());
+        return new SpecDecoders(decoders, config.library(), libraryManifest);
     }
 
     /** Returns the decoder of {@code kind}; completeness is checked when the registry is built. */
@@ -89,6 +98,6 @@ public final class SpecDecoders {
         replacements.putAll(decoders);
         replacements.put(
                 InputKind.EXPRESSION, expressions.map(expression -> SpecArtifact.fromExpression(expression, library)));
-        return new SpecDecoders(replacements, library);
+        return new SpecDecoders(replacements, library, libraryManifest);
     }
 }

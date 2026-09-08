@@ -13,27 +13,29 @@ import static org.junit.jupiter.api.Assertions.*;
 class OneShotToolTest {
     private static OneShotTool.Invocation invocation(Path directory, String mode, Duration timeout) {
         var command = new ArrayList<String>();
-        command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
+        command.add(JavaLaunch.executable());
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(Fixture.class.getName());
         command.add(mode);
         command.add(directory.toString());
-        return new OneShotTool.Invocation(command, directory, timeout);
+        return new OneShotTool.Invocation(command, directory, timeout, "test fixture");
     }
 
     @Test
     void boundsDiagnosticsWithoutBlockingAndPreservesExitCode(@TempDir Path directory) throws Exception {
         var result = OneShotTool.run(invocation(directory, "output", Duration.ofSeconds(10)));
+        // A child that writes far more than the bound must neither block nor lose its exit code;
+        // the prefix contract itself is covered by BoundedTextOutputStreamTest.
         assertEquals(7, result.exitCode());
         assertTrue(result.diagnostics().contains("truncated"));
-        assertTrue(result.diagnostics().length() < 1024 * 1024 + 100);
     }
 
     @Test
     void timeoutKillsTheChild(@TempDir Path directory) throws Exception {
-        assertThrows(WorkflowException.class,
+        var failure = assertThrows(WorkflowException.class,
                 () -> OneShotTool.run(invocation(directory, "hang", Duration.ofSeconds(2))));
+        assertTrue(failure.getMessage().startsWith("test fixture timed out"), failure.getMessage());
         assertDead(directory);
     }
 

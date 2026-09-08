@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 
 class WorkflowRunnerTest {
     @Test
@@ -273,7 +274,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5));
+                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", BoolT1$.MODULE$);
         Generator<TlaEx> generator = _ -> unbound;
@@ -341,7 +342,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(2, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 10, 512, 1))),
-                new PbtConfig(4, 10, 2.0, 1.5));
+                new PbtConfig(4, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
 
         var summary = new WorkflowRunner(config).run(corpus, 42, 1);
 
@@ -366,7 +367,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 2),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(0, 10, 512, 1))),
-                new PbtConfig(0, 10, 2.0, 1.5));
+                new PbtConfig(0, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
 
         var failure = assertThrows(
                 WorkflowException.class,
@@ -392,7 +393,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(0, 10, 512, 2))),
-                new PbtConfig(0, 10, 2.0, 1.5));
+                new PbtConfig(0, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
 
         var failure = assertThrows(
                 WorkflowException.class,
@@ -418,7 +419,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(1, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5));
+                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
         for (var candidate = 0; source == null; candidate++) {
@@ -460,7 +461,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(1, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(0, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5));
+                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
         for (var candidate = 0; source == null; candidate++) {
@@ -503,7 +504,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(1, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5));
+                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> generator = _ -> expression;
         for (var value = 0; value < 2; value++) {
@@ -545,7 +546,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(total, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(total, 10, 512, 1))),
-                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
     }
 
 }

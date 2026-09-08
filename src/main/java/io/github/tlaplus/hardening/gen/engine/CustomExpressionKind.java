@@ -7,7 +7,6 @@ import at.forsyte.apalache.tla.types.TypeVarPool;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -29,26 +28,22 @@ public record CustomExpressionKind(OperatorId id) implements ExpressionKind {
     /** Rejects enabled signatures that cannot produce any supported value under these limits. */
     static void requireUsableLibrary(IrGenerationConfig config) {
         for (var export : config.library().exports()) {
-            if (Collections.disjoint(export.categories(), config.ignoredCategories())
-                    && TypeInstantiation.plan(export.signature(), config.expressions(),
-                            config.ignoredCategories(), config.expressions().maximumTypeDepth()).isEmpty()) {
+            if (export.isEnabledWith(config.ignoredCategories())
+                    && TypeInstantiation.plan(export.signature(), config).isEmpty()) {
                 throw new IllegalArgumentException("custom operator " + export.id()
                         + " has no supported instantiation within the configured type limits");
             }
         }
     }
 
+    /** Matches this operator's result against the requested type, then plans the residual variables. */
     Optional<TypeInstantiation> plan(IrGenerationConfig config, IrType result) {
         var export = config.library().get(id);
-        if (export == null || !Collections.disjoint(export.categories(), config.ignoredCategories())) {
-            return Optional.empty();
-        }
+        if (export == null || !export.isEnabledWith(config.ignoredCategories())) return Optional.empty();
         var signature = (OperT1) TypeInstantiation.canonical(export.signature());
         var pool = new TypeVarPool(signature.usedNames().size());
         var unified = new TypeUnifier(pool).unify(Substitution.empty(), signature.res(), result.toTlaType());
         if (unified.isEmpty() || !unified.get()._2().equals(result.toTlaType())) return Optional.empty();
-        var partial = unified.get()._1().subRec(signature);
-        return TypeInstantiation.plan(partial, config.expressions(), config.ignoredCategories(),
-                config.expressions().maximumTypeDepth());
+        return TypeInstantiation.plan(unified.get()._1().subRec(signature), config);
     }
 }

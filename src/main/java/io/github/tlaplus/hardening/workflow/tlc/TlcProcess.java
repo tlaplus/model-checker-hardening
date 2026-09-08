@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.tlc;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -21,7 +22,7 @@ final class TlcProcess {
             Duration timeout)
             throws WorkflowException, InterruptedException {
         var arguments = List.of(
-                "-Xmx" + config.maximumHeapMegabytes() + "m",
+                JavaLaunch.maximumHeap(config.maximumHeapMegabytes()),
                 "-XX:+ExitOnOutOfMemoryError",
                 "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers());
         try (var worker = IsolatedWorkerProcess.start(new WorkerSpec(

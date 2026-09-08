@@ -7,6 +7,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import io.github.tlaplus.hardening.common.TlaExpressions;
 import java.util.function.UnaryOperator;
 import static io.github.tlaplus.hardening.common.ScalaCollections.*;
 
@@ -87,38 +88,30 @@ final class LibraryExpressions {
         } else throw new IllegalArgumentException("unsupported binding: " + expression);
     }
 
-    /** Rewrites every spelling injectively, including binders, preserving shadowing. Always copies. */
+    /** Rewrites every spelling injectively, including binders, preserving shadowing. */
     static TlaOperDecl rename(TlaOperDecl declaration, UnaryOperator<String> names) {
-        var params = list(declaration.formalParams()).stream()
-                .map(p -> new OperParam(names.apply(p.name()), p.arity())).toList();
-        var result = new TlaOperDecl(names.apply(declaration.name()), seq(params).toList(),
-                rename(declaration.body(), names), declaration.typeTag());
-        result.isRecursive_$eq(declaration.isRecursive());
-        return result;
+        return header(TlaExpressions.rewrite(declaration, node -> renamed(node, names)), names);
     }
 
-    private static TlaEx rename(TlaEx expression, UnaryOperator<String> names) {
+    /** Renames one already-rebuilt node, rejecting any shape the importer does not support. */
+    private static TlaEx renamed(TlaEx expression, UnaryOperator<String> names) {
         return switch (expression) {
             case NameEx name -> new NameEx(names.apply(name.name()), name.typeTag());
-            case ValEx value -> new ValEx(value.value(), value.typeTag());
-            case OperEx operator -> new OperEx(operator.oper(), seq(list(operator.args()).stream()
-                    .map(arg -> rename(arg, names)).toList()), operator.typeTag());
-            case LetInEx let -> new LetInEx(rename(let.body(), names), seq(list(let.decls()).stream()
-                    .map(decl -> rename(decl, names)).toList()), let.typeTag());
+            case LetInEx let -> new LetInEx(let.body(), seq(list(let.decls()).stream()
+                    .map(declaration -> header(declaration, names)).toList()), let.typeTag());
+            case ValEx ignored -> expression;
+            case OperEx ignored -> expression;
             default -> throw new IllegalArgumentException("unsupported imported expression: " + expression);
         };
     }
 
-    /** Collects name references; library names are in a namespace no generated binder uses. */
-    static void references(TlaEx expression, Set<String> names) {
-        switch (expression) {
-            case NameEx name -> names.add(name.name());
-            case OperEx operator -> list(operator.args()).forEach(arg -> references(arg, names));
-            case LetInEx let -> {
-                references(let.body(), names);
-                list(let.decls()).forEach(decl -> references(decl.body(), names));
-            }
-            default -> { }
-        }
+    /** Renames a declaration's own spellings; the walk has already rewritten its body. */
+    private static TlaOperDecl header(TlaOperDecl declaration, UnaryOperator<String> names) {
+        var params = list(declaration.formalParams()).stream()
+                .map(p -> new OperParam(names.apply(p.name()), p.arity())).toList();
+        var result = new TlaOperDecl(names.apply(declaration.name()), seq(params).toList(),
+                declaration.body(), declaration.typeTag());
+        result.isRecursive_$eq(declaration.isRecursive());
+        return result;
     }
 }

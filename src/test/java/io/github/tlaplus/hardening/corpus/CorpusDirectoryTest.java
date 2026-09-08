@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import io.github.tlaplus.hardening.common.Digests;
 
 class CorpusDirectoryTest {
     private static final CorpusEntryValidator ACCEPT = CorpusEntryValidator.NONE;
@@ -1094,7 +1095,7 @@ class CorpusDirectoryTest {
     }
 
     private String hash(byte[] input) throws Exception {
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
+        return Digests.digest(input);
     }
 
     private static Path checkerInput(

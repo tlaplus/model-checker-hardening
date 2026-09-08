@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.tomlj.Toml;
 import org.tomlj.TomlTable;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 
 /**
  * Reads and writes the strict {@code config.toml} format used by a corpus.
@@ -96,7 +97,7 @@ public final class TomlConfig {
                 ConfigSchema.GENERATOR_LIMITS.readExpressionLimits(tables),
                 ConfigSchema.GENERATOR_LIMITS.readModuleLimits(tables),
                 ConfigSchema.IGNORED_CATEGORIES.read(tables),
-                ConfigSchema.FORM_WEIGHTS.read(tables));
+                ConfigSchema.FORM_WEIGHTS.read(tables), OperatorLibrary.empty());
 
         var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {

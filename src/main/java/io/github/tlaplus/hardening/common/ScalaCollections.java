@@ -8,6 +8,7 @@ import scala.jdk.javaapi.CollectionConverters;
 public final class ScalaCollections {
     private ScalaCollections() {}
 
+    /** An immutable copy, in the sequence's own order. */
     public static <T> List<T> list(scala.collection.Seq<T> values) {
         return List.copyOf(CollectionConverters.asJava(values));
     }
@@ -16,6 +17,10 @@ public final class ScalaCollections {
         return CollectionConverters.asScala(values).toSeq();
     }
 
+    /**
+     * A view, not a copy. Apalache row types carry their fields in a sorted map, and that order is
+     * the order library fields are inspected and drawn in, so it must not be discarded here.
+     */
     public static <K, V> Map<K, V> map(scala.collection.Map<K, V> values) {
         return CollectionConverters.asJava(values);
     }

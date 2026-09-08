@@ -43,11 +43,7 @@ public final class SpecArtifact {
         this.standaloneExpression = standaloneExpression;
     }
 
-    /** Wraps one generated expression in the single-state checker module. */
-    public static SpecArtifact fromExpression(TlaEx expression) {
-        return fromExpression(expression, OperatorLibrary.empty());
-    }
-
+    /** Wraps one generated expression, and the library definitions it uses, in the checker module. */
     public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
         return new SpecArtifact(
@@ -55,11 +51,7 @@ public final class SpecArtifact {
                 0, List.of(expression), library.close(expression));
     }
 
-    /** Assembles the declarations produced by the whole-module decoder. */
-    public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec) {
-        return fromGeneratedSpec(spec, OperatorLibrary.empty());
-    }
-
+    /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
         return new SpecArtifact(

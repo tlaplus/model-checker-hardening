@@ -25,7 +25,7 @@ class CustomOperatorsTest {
         config = LibraryPreparation.prepare(new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(),
                 defaults.workflow(), defaults.pbt(), new OperatorLibraryConfig(
                         List.of(Path.of("src/test/resources/custom").toAbsolutePath()),
-                        List.of(new OperatorLibraryConfig.Module("PolyOps", SELECTED)))));
+                        List.of(new OperatorLibraryConfig.Module("PolyOps", SELECTED))))).generator();
     }
 
     private static CustomExpressionKind kind(String name) {
@@ -35,8 +35,7 @@ class CustomOperatorsTest {
     private static TlaEx call(String name, IrType result, byte... input) {
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
-        var expressions = new IrExprGenFactory(context, types);
-        return new CustomExprGenFactory(context, types, expressions).mkGen(kind(name), result, 1).generate(input);
+        return new IrExprGenFactory(context, types).mkGen(kind(name), result, 1).generate(input);
     }
 
     @Test
@@ -106,7 +105,7 @@ class CustomOperatorsTest {
         var signature = new OperT1(seq(List.of(variant)), PrimitiveType.BOOL.toTlaType());
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
-        var plan = TypeInstantiation.plan(signature, config.expressions(), config.ignoredCategories(), 3).orElseThrow();
+        var plan = TypeInstantiation.plan(signature, config, 3).orElseThrow();
         var concrete = (OperT1) plan.generator(context, types).generate(new byte[] {0, 1, 1, 0, 2, 0});
         var row = ((VariantT1) concrete.args().head()).row();
         assertTrue(concrete.isMono());
@@ -120,7 +119,7 @@ class CustomOperatorsTest {
         var both = new OperT1(seq(List.of(left, right)), PrimitiveType.BOOL.toTlaType());
         context = new GenerationContext(config);
         types = new IrTypeGenFactory(context);
-        var shared = (OperT1) TypeInstantiation.plan(both, config.expressions(), config.ignoredCategories(), 3)
+        var shared = (OperT1) TypeInstantiation.plan(both, config, 3)
                 .orElseThrow().generator(context, types).generate(new byte[] {1, 0, 0, 0});
         for (var argument : list(shared.args())) {
             var fields = ((RecRowT1) argument).row().fieldTypes();
@@ -139,13 +138,12 @@ class CustomOperatorsTest {
         var bounded = config.withExpressionLimits(limits);
         var context = new GenerationContext(bounded);
         var types = new IrTypeGenFactory(context);
-        var plan = TypeInstantiation.plan(canonical, limits, config.ignoredCategories(), 1).orElseThrow();
+        var plan = TypeInstantiation.plan(canonical, bounded, 1).orElseThrow();
         assertEquals(0, plan.variables().getFirst().depth());
         var concrete = (OperT1) plan.generator(context, types).generate(new byte[] {(byte) 255});
-        for (var argument : list(concrete.args())) assertTrue(LibraryTypes.depth(argument) <= 1);
-        assertTrue(TypeInstantiation.plan(canonical, limits, config.ignoredCategories(), 0).isEmpty());
-        assertTrue(TypeInstantiation.plan(new SetT1(new SetT1(new VarT1(0))),
-                limits, config.ignoredCategories(), 1).isEmpty());
+        for (var argument : list(concrete.args())) assertTrue(depth(argument) <= 1);
+        assertTrue(TypeInstantiation.plan(canonical, bounded, 0).isEmpty());
+        assertTrue(TypeInstantiation.plan(new SetT1(new SetT1(new VarT1(0))), bounded, 1).isEmpty());
     }
 
     @Test
@@ -246,4 +244,13 @@ class CustomOperatorsTest {
         }
         assertTrue(used > 20, "custom calls must be reachable, found " + used);
     }
+
+    /** Nesting depth of an instantiated type; row wrappers do not add a level. */
+    private static int depth(at.forsyte.apalache.tla.lir.TlaType1 type) {
+        var children = LibraryTypes.children(type);
+        boolean row = type instanceof at.forsyte.apalache.tla.lir.RowT1;
+        if (children.isEmpty()) return row ? -1 : 0;
+        return children.stream().mapToInt(CustomOperatorsTest::depth).max().orElse(0) + (row ? 0 : 1);
+    }
+
 }

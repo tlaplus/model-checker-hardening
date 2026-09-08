@@ -25,7 +25,7 @@ class LibraryPreparationTest {
         var defaults = FuzzTlaConfig.defaults();
         var config = new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(), defaults.workflow(), defaults.pbt(),
                 new OperatorLibraryConfig(List.of(Path.of("does-not-exist")), List.of()));
-        assertSame(defaults.generator(), LibraryPreparation.prepare(config));
+        assertSame(defaults.generator(), LibraryPreparation.prepare(config).generator());
     }
 
     @Test
@@ -41,9 +41,9 @@ class LibraryPreparationTest {
         var bad = Files.createDirectory(directory.resolve("bad"));
         Files.writeString(bad.resolve("CustomOperators.tla"), "not a module");
         var prepared = LibraryPreparation.prepare(config(List.of(jar, bad), "PolyOps", "Wrapped", "Empty"));
-        assertFalse(prepared.library().get(new OperatorId("PolyOps", "Wrapped")).signature().isMono());
-        assertFalse(prepared.library().get(new OperatorId("PolyOps", "Empty")).signature().isMono());
-        assertTrue(prepared.library().replayManifest().contains("source CustomOperators.tla"));
+        assertFalse(prepared.generator().library().get(new OperatorId("PolyOps", "Wrapped")).signature().isMono());
+        assertFalse(prepared.generator().library().get(new OperatorId("PolyOps", "Empty")).signature().isMono());
+        assertTrue(prepared.manifest().contains("source CustomOperators.tla"));
         assertThrows(WorkflowException.class,
                 () -> LibraryPreparation.prepare(config(List.of(bad, jar), "PolyOps", "Wrapped")));
     }
@@ -89,17 +89,17 @@ class LibraryPreparationTest {
         var source = sources.resolve("Mine.tla");
         Files.writeString(source, "---- MODULE Mine ----\nOp(x) == x\n====\n");
         var config = config(List.of(sources), "Mine", "Op");
-        var initial = LibraryPreparation.prepare(config).library().replayManifest();
+        var initial = LibraryPreparation.prepare(config).manifest();
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(config));
         try (var lock = corpus.acquireExclusiveLock()) { LibraryManifest.verify(corpus, initial, true); }
         LibraryManifest.verify(corpus, initial, false);
-        assertEquals(initial, LibraryPreparation.prepare(config).library().replayManifest());
+        assertEquals(initial, LibraryPreparation.prepare(config).manifest());
         var relocated = Files.createDirectory(directory.resolve("relocated"));
         Files.copy(source, relocated.resolve("Mine.tla"));
         assertEquals(initial, LibraryPreparation.prepare(config(List.of(relocated), "Mine", "Op"))
-                .library().replayManifest());
+                .manifest());
         Files.writeString(source, "---- MODULE Mine ----\nOp(x) == {x}\n====\n");
-        var changed = LibraryPreparation.prepare(config).library().replayManifest();
+        var changed = LibraryPreparation.prepare(config).manifest();
         assertThrows(WorkflowException.class, () -> LibraryManifest.verify(corpus, changed, false));
         assertThrows(WorkflowException.class, () -> LibraryManifest.verify(corpus, "", false));
         assertThrows(WorkflowException.class, () -> LibraryManifest.verify(

@@ -28,11 +28,6 @@ public record IrGenerationConfig(
         Map<ExpressionKind, Integer> formWeights,
         OperatorLibrary library) {
 
-    public IrGenerationConfig(ExpressionLimits expressions, ModuleLimits modules,
-            Set<ExpressionCategory> ignoredCategories, Map<ExpressionKind, Integer> formWeights) {
-        this(expressions, modules, ignoredCategories, formWeights, OperatorLibrary.empty());
-    }
-
     /**
      * Largest slot count a single form may occupy. The bound is arbitrary but deliberate: a form
      * weighted beyond this crowds out the rest of the catalog rather than biasing towards it.
@@ -158,6 +153,6 @@ public record IrGenerationConfig(
                         ExpressionCategory.TEMPORAL,
                         ExpressionCategory.UNBOUND,
                         ExpressionCategory.EXOTIC),
-                DEFAULT_FORM_WEIGHTS);
+                DEFAULT_FORM_WEIGHTS, OperatorLibrary.empty());
     }
 }

@@ -104,6 +104,6 @@ class WorkflowConfigTest {
                                         new CheckerStageConfig(2, 30, 512, 1),
                                         CorpusStage.APALACHE,
                                         new CheckerStageConfig(2, 30, 512, 1))),
-                        new PbtConfig(0, 10, 2.0, 1.5)));
+                        new PbtConfig(0, 10, 2.0, 1.5), OperatorLibraryConfig.empty()));
     }
 }

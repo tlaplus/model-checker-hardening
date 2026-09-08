@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.library;
 
 import io.github.tlaplus.hardening.gen.library.OperatorId;
+import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -13,7 +14,6 @@ import java.util.zip.ZipFile;
 /** Materializes an ordered module search path as one source-only snapshot for SANY. */
 final class LibrarySources {
     static final int MAXIMUM_SOURCE_BYTES = 32 * 1024 * 1024;
-    private static final String STANDARD_PREFIX = "tla2sany/StandardModules/";
     private int remaining = MAXIMUM_SOURCE_BYTES;
     private final Path directory;
     private final Set<String> standardModules;
@@ -36,8 +36,8 @@ final class LibrarySources {
     private static Set<String> standardModules(Path distribution) throws IOException {
         try (var zip = new ZipFile(distribution.toFile())) {
             return zip.stream().map(java.util.zip.ZipEntry::getName)
-                    .filter(name -> name.startsWith(STANDARD_PREFIX) && name.endsWith(".tla"))
-                    .map(name -> name.substring(STANDARD_PREFIX.length()))
+                    .filter(name -> name.startsWith(StandardModuleResources.PREFIX) && name.endsWith(".tla"))
+                    .map(name -> name.substring(StandardModuleResources.PREFIX.length()))
                     .collect(Collectors.toUnmodifiableSet());
         }
     }
@@ -56,11 +56,11 @@ final class LibrarySources {
         try (var zip = new ZipFile(source.toFile())) {
             // SANY's classpath lookup tries StandardModules resources before root resources.
             var order = java.util.Comparator.comparing(
-                    (java.util.zip.ZipEntry entry) -> !entry.getName().startsWith(STANDARD_PREFIX))
+                    (java.util.zip.ZipEntry entry) -> !entry.getName().startsWith(StandardModuleResources.PREFIX))
                     .thenComparing(java.util.zip.ZipEntry::getName);
             for (var entry : zip.stream().sorted(order).toList()) {
                 var name = entry.getName();
-                if (name.startsWith(STANDARD_PREFIX)) name = name.substring(STANDARD_PREFIX.length());
+                if (name.startsWith(StandardModuleResources.PREFIX)) name = name.substring(StandardModuleResources.PREFIX.length());
                 if (!entry.isDirectory() && accepts(name)) {
                     try (var stream = zip.getInputStream(entry)) { save(name, stream); }
                 }

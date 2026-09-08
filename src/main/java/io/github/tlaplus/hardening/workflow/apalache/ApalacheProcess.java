@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -32,7 +33,7 @@ final class ApalacheProcess implements CheckerWorker {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(timeout, "timeout");
         var arguments = List.of(
-                "-Xmx" + config.maximumHeapMegabytes() + "m",
+                JavaLaunch.maximumHeap(config.maximumHeapMegabytes()),
                 "-XX:+ExitOnOutOfMemoryError",
                 "-XX:-UsePerfData");
         var worker = IsolatedWorkerProcess.start(new WorkerSpec(

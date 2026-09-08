@@ -19,11 +19,6 @@ public record FuzzTlaConfig(
         WorkflowConfig workflow,
         PbtConfig pbt,
         OperatorLibraryConfig libraries) {
-    public FuzzTlaConfig(InputKind kind, IrGenerationConfig generator,
-            WorkflowConfig workflow, PbtConfig pbt) {
-        this(kind, generator, workflow, pbt, OperatorLibraryConfig.empty());
-    }
-
     public FuzzTlaConfig {
         Objects.requireNonNull(generatedKind, "generatedKind");
         Objects.requireNonNull(generator, "generator");
@@ -49,6 +44,6 @@ public record FuzzTlaConfig(
                 InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 WorkflowConfig.defaults(),
-                PbtConfig.defaults());
+                PbtConfig.defaults(), OperatorLibraryConfig.empty());
     }
 }

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.gen.library;
 
 import at.forsyte.apalache.tla.lir.*;
+import io.github.tlaplus.hardening.common.TlaExpressions;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -12,6 +13,11 @@ public final class OperatorLibrary {
     public record Export(OperatorId id, String name, OperT1 signature,
             Set<ExpressionCategory> categories) {
         public Export { categories = Set.copyOf(categories); }
+
+        /** Whether the whole definition closure avoids every excluded category. */
+        public boolean isEnabledWith(Set<ExpressionCategory> ignoredCategories) {
+            return Collections.disjoint(categories, ignoredCategories);
+        }
     }
 
     private record Definition(TlaOperDecl declaration, Set<String> dependencies,
@@ -19,16 +25,10 @@ public final class OperatorLibrary {
 
     private static final OperatorLibrary EMPTY = new OperatorLibrary(List.of(), Map.of());
     private final List<Export> exports;
-    private final String replayManifest;
     private final Map<OperatorId, Export> byId;
     private final Map<String, Definition> definitions;
 
     private OperatorLibrary(List<Export> exports, Map<String, Definition> definitions) {
-        this(exports, definitions, "");
-    }
-
-    private OperatorLibrary(List<Export> exports, Map<String, Definition> definitions, String replayManifest) {
-        this.replayManifest = Objects.requireNonNull(replayManifest);
         this.exports = List.copyOf(exports);
         var index = new LinkedHashMap<OperatorId, Export>();
         for (var export : exports) {
@@ -38,11 +38,6 @@ public final class OperatorLibrary {
         }
         byId = Map.copyOf(index);
         this.definitions = Collections.unmodifiableMap(new LinkedHashMap<>(definitions));
-    }
-
-    public String replayManifest() { return replayManifest; }
-    public OperatorLibrary withReplayManifest(String manifest) {
-        return new OperatorLibrary(exports, definitions, manifest);
     }
 
     public static OperatorLibrary empty() { return EMPTY; }
@@ -66,7 +61,8 @@ public final class OperatorLibrary {
             var definition = definitions.get(rename.apply(id.operator()));
             var signature = signature(definition.declaration());
             var categories = EnumSet.noneOf(ExpressionCategory.class);
-            accumulateCategories(rename.apply(id.operator()), definitions, categories, new HashSet<>());
+            closure(definition.declaration().name(), definitions, new LinkedHashSet<>())
+                    .forEach(name -> categories.addAll(definitions.get(name).categories()));
             exports.add(new Export(id, definition.declaration().name(), signature, categories));
         }
         return new OperatorLibrary(exports, definitions);
@@ -125,12 +121,12 @@ public final class OperatorLibrary {
         LibraryTypes.children(type).forEach(OperatorLibrary::requireValueType);
     }
 
-    private static void accumulateCategories(String name, Map<String, Definition> definitions,
-            Set<ExpressionCategory> categories, Set<String> visited) {
-        if (!visited.add(name)) return;
+    /** The definitions reachable from {@code name}, including it; unknown names are not library. */
+    private static Set<String> closure(String name, Map<String, Definition> definitions, Set<String> reached) {
         var definition = definitions.get(name);
-        categories.addAll(definition.categories());
-        definition.dependencies().forEach(dep -> accumulateCategories(dep, definitions, categories, visited));
+        if (definition == null || !reached.add(name)) return reached;
+        definition.dependencies().forEach(dependency -> closure(dependency, definitions, reached));
+        return reached;
     }
 
     private static UnaryOperator<String> names(String module) {
@@ -144,19 +140,15 @@ public final class OperatorLibrary {
 
     /** Returns fresh declarations for the used closure, in stable dependency order. */
     public List<TlaOperDecl> declarationsFor(List<TlaEx> expressions) {
-        var references = new HashSet<String>();
-        expressions.forEach(expression -> LibraryExpressions.references(expression, references));
-        var needed = new HashSet<String>();
-        references.forEach(name -> include(name, needed));
+        // Library names live in a namespace no generated binder uses, so every name reference
+        // that matches a definition is one.
+        var needed = new LinkedHashSet<String>();
+        expressions.forEach(expression -> TlaExpressions.forEach(expression, node -> {
+            if (node instanceof NameEx name) closure(name.name(), definitions, needed);
+        }));
         return definitions.entrySet().stream().filter(entry -> needed.contains(entry.getKey()))
-                .map(entry -> LibraryExpressions.rename(entry.getValue().declaration(), UnaryOperator.identity()))
+                .map(entry -> TlaExpressions.copy(entry.getValue().declaration()))
                 .toList();
-    }
-
-    private void include(String name, Set<String> needed) {
-        var definition = definitions.get(name);
-        if (definition == null || !needed.add(name)) return;
-        definition.dependencies().forEach(dependency -> include(dependency, needed));
     }
 
     /** A closed standalone expression, without copying library bodies into richness scoring. */

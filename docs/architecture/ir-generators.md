@@ -78,9 +78,9 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
 | `ExpressionKindCatalog` | Standard catalog followed by configured custom kinds, in byte-decoder order. |
-| `CustomExpressionKind`, `CustomExprGenFactory` | Match exported type schemes and construct concretely typed applications. |
+| `CustomExpressionKind` | Matches an exported type scheme against a requested result type. |
 | `TypeInstantiation`, `ImportedTypes` | Plan bounded type-variable instantiations and convert concrete imported types to private generator types. |
-| `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory. |
+| `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory; builds custom applications itself, caching one type plan per operator and requested type. |
 | `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
 | `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration. |
 | `BuilderArrays` | Adapts typed lists to Apalache's generic varargs APIs. |

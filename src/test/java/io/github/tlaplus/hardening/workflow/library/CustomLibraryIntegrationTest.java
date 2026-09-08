@@ -33,7 +33,7 @@ class CustomLibraryIntegrationTest {
     void selfContainedPolymorphicCallsPassAllTools(@TempDir Path directory) throws Exception {
         var config = LibraryPreparationTest.config(List.of(Path.of("src/test/resources/custom")), "PolyOps",
                 "Wrapped", "Empty", "ReadValue", "Local", "Init");
-        var library = LibraryPreparation.prepare(config).library();
+        var library = LibraryPreparation.prepare(config).generator().library();
         var integer = BUILDER.integer(1);
         var bool = BUILDER.bool(true);
         var recordType = TlaTypes.rowRecord(new NamedType("value", TlaTypes.INT));
@@ -52,7 +52,7 @@ class CustomLibraryIntegrationTest {
     void usefulOperatorsSatisfyTheirContractsAcrossTypes(@TempDir Path directory) throws Exception {
         var config = LibraryPreparationTest.config(List.of(Path.of("src/test/resources/custom")),
                 "CustomOperatorsChecks", "Check");
-        var library = LibraryPreparation.prepare(config).library();
+        var library = LibraryPreparation.prepare(config).generator().library();
         var invariant = call(library, new OperatorId("CustomOperatorsChecks", "Check"), TlaTypes.BOOL);
         var state = TlaDeclarations.variable("state", TlaTypes.BOOL);
         var spec = new GeneratedSpec(List.of(state), List.of(),
