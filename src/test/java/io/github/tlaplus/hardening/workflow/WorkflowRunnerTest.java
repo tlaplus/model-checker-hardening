@@ -159,7 +159,7 @@ class WorkflowRunnerTest {
         assertFalse(run.isAlive());
         assertTrue(failure.get() instanceof WorkflowException);
         var saved = corpus.readRunStatistics();
-        assertEquals(1, saved.generatorAttempts());
+        assertEquals(1, saved.generator().attempts());
         assertTrue(saved.generatorElapsedNanos() > 0);
         assertTrue(saved.totalElapsedNanos() > 0);
     }

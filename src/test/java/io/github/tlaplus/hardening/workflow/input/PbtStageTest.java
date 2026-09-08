@@ -62,9 +62,9 @@ class PbtStageTest {
 
         assertEquals(20, summary.generated());
         assertEquals(1, maximumActive.get());
-        assertEquals(32.0, summary.minimumRichness());
-        assertEquals(32.0, summary.maximumRichness());
-        assertEquals(32.0, summary.averageRichness());
+        assertEquals(32.0, summary.aggregate().richness().minimum());
+        assertEquals(32.0, summary.aggregate().richness().maximum());
+        assertEquals(32.0, summary.aggregate().richness().average());
         assertEquals(20, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
     }
 
@@ -97,9 +97,9 @@ class PbtStageTest {
 
         var summary = runStage(corpus, config(8), rejectFirstThree, 4, 7);
 
-        assertEquals(3, summary.rejected());
+        assertEquals(3, summary.aggregate().rejected());
         assertEquals(4, summary.generated());
-        assertEquals(7 + summary.duplicates(), summary.attempts());
+        assertEquals(7 + summary.aggregate().duplicates(), summary.aggregate().attempts());
     }
 
     @Test
@@ -114,8 +114,8 @@ class PbtStageTest {
         var summary = runStage(corpus, config(8), oversizedThenRich, 1, 7);
 
         assertEquals(1, summary.generated());
-        assertEquals(1, summary.rejected());
-        assertEquals(2, summary.attempts());
+        assertEquals(1, summary.aggregate().rejected());
+        assertEquals(2, summary.aggregate().attempts());
         assertEquals(
                 1,
                 corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
@@ -150,9 +150,9 @@ class PbtStageTest {
         stage.await();
 
         assertTrue(control.hasFailed());
-        assertEquals(10_001, stage.summary().attempts());
+        assertEquals(10_001, stage.summary().aggregate().attempts());
         assertEquals(1, stage.summary().generated());
-        assertEquals(10_000, stage.summary().rejected());
+        assertEquals(10_000, stage.summary().aggregate().rejected());
         assertTrue(control.failure().getMessage().contains("richness cohort 0"));
         assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
         assertTrue(control.failure().getMessage().contains("best richness was 0.0"));
@@ -185,7 +185,7 @@ class PbtStageTest {
 
         assertTrue(control.hasFailed());
         assertInstanceOf(WorkflowException.class, control.failure());
-        assertEquals(1, stage.summary().attempts());
+        assertEquals(1, stage.summary().aggregate().attempts());
         try (var paths = Files.list(corpus.resolve(CorpusPath.GENERATOR_CRASH))) {
             var files = paths.toList();
             var candidate = files.stream()
@@ -217,8 +217,8 @@ class PbtStageTest {
         var summary = runStage(
                 corpus, new PbtConfig(16, 10, 2.0, 1.5), sparseThenRich, 1, seed);
 
-        assertEquals(1, summary.richnessRejected());
-        assertEquals(2, summary.attempts());
+        assertEquals(1, summary.aggregate().richnessRejected());
+        assertEquals(2, summary.aggregate().attempts());
         var entry = readEntries(corpus).values().iterator().next();
         var generation = CorpusEnvelopeCodec.decodeEnvelope(entry).generation().orElseThrow();
         assertEquals(expectedCohort, generation.cohort());

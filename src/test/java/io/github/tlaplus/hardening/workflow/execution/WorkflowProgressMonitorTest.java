@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.common.GeneratorAggregate;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.time.Duration;
@@ -86,14 +87,7 @@ class WorkflowProgressMonitorTest {
                 new GeneratorSummary(
                         1,
                         value,
-                        value,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0.0,
-                        0.0,
-                        0.0,
+                        new GeneratorAggregate(value, 0, 0, 0, GeneratorAggregate.Richness.empty()),
                         Duration.ofSeconds(value)),
                 stageSummaries(),
                 backlog(),
