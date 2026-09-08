@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,6 +21,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class TomlConfigTest {
+    @Test
+    void renderedDefaultsMatchThePreRefactorFixture() throws Exception {
+        try (var fixture = getClass().getResourceAsStream("/config/default.toml.template")) {
+            // Only Apalache's worker default is host-dependent. WorkflowConfigTest pins its
+            // CPU-count formula; all other defaults and formatting remain fixed byte-for-byte.
+            var expected = new String(fixture.readAllBytes(), UTF_8).replace(
+                    "${APALACHE_WORKERS}", Integer.toString(CheckerStageConfig.DEFAULT_APALACHE_WORKERS));
+            assertArrayEquals(expected.getBytes(UTF_8),
+                    TomlConfig.render(FuzzTlaConfig.defaults()).getBytes(UTF_8));
+        }
+    }
+
     @Test
     void renderedDefaultsRoundTripThroughTheStrictParser(@TempDir Path directory) throws Exception {
         var path = directory.resolve("config.toml");

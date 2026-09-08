@@ -45,18 +45,10 @@ public final class WorkflowMetrics {
 
     /** Returns the durable aggregate to persist for this invocation. */
     public CorpusRunStatistics snapshot(Duration invocationElapsed) {
-        var generation = generator.generation();
         return new CorpusRunStatistics(
                 totalElapsed(invocationElapsed).toNanos(),
-                generation.elapsedNanos(),
+                generator.elapsed().elapsed().toNanos(),
                 clocks.elapsedNanos(),
-                generation.attempts(),
-                generation.rejected(),
-                generation.richnessRejected(),
-                generation.duplicates(),
-                generation.richnessSamples(),
-                generation.minimumRichness(),
-                generation.maximumRichness(),
-                generation.averageRichness());
+                generator.snapshot());
     }
 }

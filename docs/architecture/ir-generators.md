@@ -53,8 +53,9 @@ IR-generator facade.
 | `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
 | `IrGenerationConfig` | Category exclusions, resource limits, and selection weights keyed by `ExpressionKind`. |
 | `IrGenerators` | Public factory for reusable expression and module generators. |
-| `ExpressionLimits` and `ModuleLimits` | Bounds on one expression and on one module's declarations. |
+| `ExpressionLimits`, `ModuleLimits`, and `ActionLimits` | Bounds on expressions, module declarations and exploration, and action construction; `ModuleLimits` contains `ActionLimits`. |
 | `GeneratedSpec` | The declarations of one generated module, and the exploration depth it asks for. |
+| `GeneratedOperator` | One canonical definition: a state-free auxiliary or a `GeneratedActionOperator` with an immutable `ActionEffect`. |
 | `InputKind` | Which decoder a byte array belongs to: `expr` or `module`. |
 
 The package `io.github.tlaplus.hardening.gen.engine` implements type-directed IR
@@ -65,7 +66,9 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | --- | --- |
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
 | `IrSpecGeneratorEngine` | Creates per-run state, then draws a module's variables, definitions, and predicates. |
-| `ActionGenFactory` | Constructs the initial-state predicate, the action operators, and the next-state action over the declared variables. |
+| `ActionGenFactory` | Assembles Init, action definitions, bounded parameters, guards, Next disjuncts and the unconditional step update. |
+| `ActionShapeGenFactory` | Decodes recursive shapes, partitions effects, builds assignments and `UNCHANGED`, and applies explicitly visible action operators. |
+| `VisibleActionOperators` | Immutable effect index over an explicit declaration-order operator prefix, preserving candidate order. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
@@ -382,7 +385,8 @@ always enabled. The default limits are:
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
 | `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |
 
-`ModuleLimits` bounds one module's declarations:
+`ModuleLimits` bounds declarations and exploration and contains an `ActionLimits`
+value for the four action-specific limits. TOML keys and defaults are unchanged:
 
 | Limit | Default | Meaning |
 | --- | ---: | --- |
@@ -432,8 +436,8 @@ enabled, `PRIME_EQUAL` is selectable but rejects if no state variable is in
 scope. The expression entry point declares no state variables, so such an input
 raises `InputRejectedException`. Module generation declares them, but excludes
 the `action` category from every subexpression for the reason given in section
-10, so `PRIME_EQUAL` is unreachable there as well; `ActionGenFactory` primes
-names directly instead.
+10, so `PRIME_EQUAL` is unreachable there as well; the action-generation components
+prime names directly instead.
 
 ## 8. Correctness and failure semantics
 
@@ -492,12 +496,20 @@ properties of the input — no byte string can violate them.
    auxiliary operators, and the earlier action operators in scope. Unlike an
    auxiliary operator it reads current state and primes, so it is applicable only
    in `Next`, never in `Init` or `Inv`. A later operator may apply an earlier
-   one; none mentions `step`. `ActionGenFactory` generates these, so priming and
-   `UNCHANGED` still occur nowhere else.
+   one; none mentions `step`. `ActionGenFactory` assembles these definitions using
+   `ActionShapeGenFactory` for their bodies.
 5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
 6. **Next-state action.** A terminated non-empty disjunction of actions.
 7. **Bound predicate.** `step <= maximumSteps`.
+
+`GeneratedSpec.operators` stores auxiliary and action variants of the sealed
+`GeneratedOperator` abstraction in one declaration-order list. Declaration-only
+consumers iterate it without distinguishing variants. Each action's `ActionEffect`
+retains distinct variable names in declaration order and has set-style identity;
+`GeneratedSpec` rejects effects naming undeclared variables. Completeness is
+established by construction and checked by tests, not a second production analyzer.
+Internal scope decorators reference the canonical operator and add only its signature.
 
 The invariant is drawn first among the bodies because it degrades worst when
 the cursor runs out. A starved definition or action is still a legal one,
@@ -526,6 +538,12 @@ predicate does not fix.
 - an optional guard, an ordinary Boolean state predicate;
 - a recursive *action shape* over the declared variables (below); and
 - `step' = step + 1`.
+
+`ActionShapeGenFactory` constructs the recursive shape. Operator generation passes
+an immutable index of the already generated prefix to each body, and Next receives
+the completed index explicitly. The factory owns no mutable operator registry;
+creating or running another factory method cannot change a shape's visibility.
+Matching uses `ActionEffect` identity and retains declaration order among candidates.
 
 The step advance and the guard sit outside the shape, so the shape's only job is
 to account for its variables exactly once, however deeply it nests. Define the
@@ -558,21 +576,28 @@ applied body — accounts for each declared variable exactly once (primed on the
 left of an assignment, or inside an `UNCHANGED`), and that sibling arms and
 branches account for the same set. What makes it checkable is that the accounting
 is assembled here, over the declaration list, and that the effect of every action
-operator is recorded. This is why `ActionGenFactory` is the only component that
-primes a name or builds an `UNCHANGED` — the action-operator bodies it generates
-included — and why module generation excludes the `action`, `temporal` and
+operator is recorded. This is why only `ActionGenFactory` (the step update) and
+`ActionShapeGenFactory` (recursive bodies) prime names or build `UNCHANGED`,
+and why module generation excludes the `action`, `temporal` and
 `exotic` categories from every subexpression — the IF-THEN-ELSE predicate
 included — whatever the corpus configured: a prime reached through an expression
 form could sit under a negation or a quantifier, where it accounts for nothing.
 Every value a module expression produces therefore reads the current state only.
 
-**Deviation.** This weakens the previous invariant — "each declared variable
+**Historical decoder deviation (introduction of nested actions).** This weakened the previous invariant — "each declared variable
 appears exactly once on a flat conjunctive spine" — to the recursive form above,
 and adds a definition kind (action operators, section 9.1) that reads state and
-primes, where auxiliary operators do neither. Priming and `UNCHANGED` stay
-confined to `ActionGenFactory`; the category exclusion is unchanged. Every stored
-`module` corpus input is reinterpreted, because the partition layout changed,
-`step' = step + 1` moved out of it, and a new declaration list is drawn.
+primes, where auxiliary operators do neither. Priming and `UNCHANGED` stayed
+confined to action generation; the category exclusion was unchanged. That change
+reinterpreted stored `module` corpus inputs, because the partition layout changed,
+`step' = step + 1` moved out of it, and a new declaration list was drawn.
+
+**Implementation refactor.** The unified operator model, explicit visibility,
+shape-factory extraction and grouped limits do not revise the byte decoder.
+Shape kinds are decoded from pinned enum order with the same geometric Boolean
+markers; fixed-byte tests pin shapes and remaining bytes, including fallbacks.
+`AssignmentRequirement` names the recursive non-stuttering obligation described
+above. Declaration order, category exclusions and generated behavior are unchanged.
 
 ### 9.3. Bounding exploration
 
@@ -614,9 +639,9 @@ Changes to this subsystem should preserve the following rules:
    expression, so the fallback must remain byte-free and closed.
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
-9. Keep priming and `UNCHANGED` in `ActionGenFactory`, including inside the
-   recursive action shape (leaf, conjunction, disjunction, IF-THEN-ELSE, call)
-   and the action-operator bodies it generates. Nothing else may prime a name,
+9. Keep the step prime in `ActionGenFactory` and recursive priming and `UNCHANGED`
+   in `ActionShapeGenFactory`, including action-operator bodies. No ordinary
+   module subexpression may prime a name,
    and module generation must keep excluding the `action` and `temporal`
    categories from its subexpressions — the IF-THEN-ELSE predicate included — or
    a disjunct's account of the declared variables stops being checkable.

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.GeneratorAggregate;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.EnumMap;
@@ -30,6 +31,8 @@ final class CorpusRunStatisticsCodec {
         for (var stage : CorpusStage.values()) {
             stages.number(stage.metadataName(), statistics.stageElapsedNanos(stage));
         }
+        var aggregate = statistics.generator();
+        var richness = aggregate.richness();
         var document = new CborMapWriter()
                 .map(
                         ELAPSED_FIELD,
@@ -40,16 +43,16 @@ final class CorpusRunStatisticsCodec {
                 .map(
                         GENERATOR_FIELD,
                         new CborMapWriter()
-                                .number(ATTEMPTS_FIELD, statistics.generatorAttempts())
-                                .number(REJECTED_FIELD, statistics.generatorRejected())
+                                .number(ATTEMPTS_FIELD, aggregate.attempts())
+                                .number(REJECTED_FIELD, aggregate.rejected())
                                 .number(
                                         RICHNESS_REJECTED_FIELD,
-                                        statistics.generatorRichnessRejected())
-                                .number(DUPLICATES_FIELD, statistics.generatorDuplicates())
-                                .number(RICHNESS_SAMPLES_FIELD, statistics.richnessSamples())
-                                .number(MINIMUM_RICHNESS_FIELD, statistics.minimumRichness())
-                                .number(MAXIMUM_RICHNESS_FIELD, statistics.maximumRichness())
-                                .number(AVERAGE_RICHNESS_FIELD, statistics.averageRichness()));
+                                        aggregate.richnessRejected())
+                                .number(DUPLICATES_FIELD, aggregate.duplicates())
+                                .number(RICHNESS_SAMPLES_FIELD, richness.samples())
+                                .number(MINIMUM_RICHNESS_FIELD, richness.minimum())
+                                .number(MAXIMUM_RICHNESS_FIELD, richness.maximum())
+                                .number(AVERAGE_RICHNESS_FIELD, richness.average()));
         var output = new ByteArrayOutputStream();
         try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
             document.writeTo(generator);
@@ -62,7 +65,7 @@ final class CorpusRunStatisticsCodec {
         try (var reader = CborReader.of(encoded)) {
             reader.startDocument();
             Elapsed elapsed = null;
-            Generator generator = null;
+            GeneratorAggregate generator = null;
             CborReader.Field field;
             while ((field = reader.nextField(CborReader.ROOT)) != null) {
                 switch (field.name()) {
@@ -85,14 +88,7 @@ final class CorpusRunStatisticsCodec {
                         elapsedNanos.total(),
                         elapsedNanos.generator(),
                         elapsedNanos.stages(),
-                        generatorStatistics.attempts(),
-                        generatorStatistics.rejected(),
-                        generatorStatistics.richnessRejected(),
-                        generatorStatistics.duplicates(),
-                        generatorStatistics.richnessSamples(),
-                        generatorStatistics.minimumRichness(),
-                        generatorStatistics.maximumRichness(),
-                        generatorStatistics.averageRichness());
+                        generatorStatistics);
             } catch (IllegalArgumentException exception) {
                 throw CborReader.malformed(
                         "invalid workflow statistics: " + Diagnostics.message(exception));
@@ -145,7 +141,7 @@ final class CorpusRunStatisticsCodec {
         return stages;
     }
 
-    private static Generator readGenerator(CborReader reader) throws IOException {
+    private static GeneratorAggregate readGenerator(CborReader reader) throws IOException {
         Long attempts = null;
         Long rejected = null;
         Long richnessRejected = null;
@@ -168,20 +164,20 @@ final class CorpusRunStatisticsCodec {
                 default -> reader.skipValue();
             }
         }
-        return new Generator(
-                CborReader.required(attempts, path(GENERATOR_FIELD, ATTEMPTS_FIELD)),
-                CborReader.required(rejected, path(GENERATOR_FIELD, REJECTED_FIELD)),
-                CborReader.required(
-                        richnessRejected, path(GENERATOR_FIELD, RICHNESS_REJECTED_FIELD)),
-                CborReader.required(duplicates, path(GENERATOR_FIELD, DUPLICATES_FIELD)),
-                CborReader.required(
-                        richnessSamples, path(GENERATOR_FIELD, RICHNESS_SAMPLES_FIELD)),
-                CborReader.required(
-                        minimumRichness, path(GENERATOR_FIELD, MINIMUM_RICHNESS_FIELD)),
-                CborReader.required(
-                        maximumRichness, path(GENERATOR_FIELD, MAXIMUM_RICHNESS_FIELD)),
-                CborReader.required(
-                        averageRichness, path(GENERATOR_FIELD, AVERAGE_RICHNESS_FIELD)));
+        try {
+            return new GeneratorAggregate(
+                    CborReader.required(attempts, path(GENERATOR_FIELD, ATTEMPTS_FIELD)),
+                    CborReader.required(rejected, path(GENERATOR_FIELD, REJECTED_FIELD)),
+                    CborReader.required(richnessRejected, path(GENERATOR_FIELD, RICHNESS_REJECTED_FIELD)),
+                    CborReader.required(duplicates, path(GENERATOR_FIELD, DUPLICATES_FIELD)),
+                    new GeneratorAggregate.Richness(
+                            CborReader.required(richnessSamples, path(GENERATOR_FIELD, RICHNESS_SAMPLES_FIELD)),
+                            CborReader.required(minimumRichness, path(GENERATOR_FIELD, MINIMUM_RICHNESS_FIELD)),
+                            CborReader.required(maximumRichness, path(GENERATOR_FIELD, MAXIMUM_RICHNESS_FIELD)),
+                            CborReader.required(averageRichness, path(GENERATOR_FIELD, AVERAGE_RICHNESS_FIELD))));
+        } catch (IllegalArgumentException exception) {
+            throw CborReader.malformed("invalid workflow statistics: " + Diagnostics.message(exception));
+        }
     }
 
     private static String path(String map, String field) {
@@ -190,13 +186,4 @@ final class CorpusRunStatisticsCodec {
 
     private record Elapsed(long total, long generator, Map<CorpusStage, Long> stages) {}
 
-    private record Generator(
-            long attempts,
-            long rejected,
-            long richnessRejected,
-            long duplicates,
-            long richnessSamples,
-            double minimumRichness,
-            double maximumRichness,
-            double averageRichness) {}
 }

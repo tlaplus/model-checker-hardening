@@ -1,12 +1,11 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import java.math.BigInteger;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
+import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -111,22 +110,21 @@ public final class IrSpecGeneratorEngine {
         stateScope.add(step);
 
         // Action operators read current state and prime, so they are drawn with the state
-        // variables in scope. Populating the factory's registry here is what lets Next apply them;
-        // Init and the invariant never see them.
+        // variables in scope. Only Next receives the completed visibility index;
+        // Init and the invariant never see action operators.
         var actionOperators = draw.draw(context.withBindings(
                 stateScope, actions.actionOperators(depth)));
-        var generatedActionOperators = actionOperators.stream()
-                .map(operator -> new GeneratedActionOperator(
-                        operator.declaration(),
-                        operator.effect().stream().map(ScopedName::name).toList()))
-                .toList();
+        var generatedOperators = new ArrayList<GeneratedOperator>();
+        operators.forEach(operator -> generatedOperators.add(operator.generated()));
+        actionOperators.forEach(operator -> generatedOperators.add(operator.generated()));
 
         // Init sees the operators but not the variables: a conjunct that read another variable
         // would depend on an evaluation order the predicate does not fix.
         var initPredicate = draw.draw(context.withBindings(
                 operatorNames, context.withFreshNodeBudget(actions.initPredicate(depth))));
         var nextAction = draw.draw(
-                context.withBindings(stateScope, actions.nextAction(depth)));
+                context.withBindings(stateScope, actions.nextAction(depth,
+                        new VisibleActionOperators(actionOperators))));
 
         var boundPredicate = context.builder().le(
                 context.builder().name(step.name(), PrimitiveType.INT.toTlaType()),
@@ -134,8 +132,7 @@ public final class IrSpecGeneratorEngine {
                         BigInteger.valueOf(config.modules().maximumSteps())));
         return new GeneratedSpec(
                 declarations,
-                operators.stream().map(DefinedOperator::declaration).toList(),
-                generatedActionOperators,
+                generatedOperators,
                 initPredicate,
                 nextAction,
                 invariant,
@@ -145,7 +142,7 @@ public final class IrSpecGeneratorEngine {
 
     /** One generated definition and the binding through which later expressions apply it. */
     private record DefinedOperator(
-            ScopedName binding, TlaOperDecl declaration) {}
+            ScopedName binding, GeneratedOperator.Auxiliary generated) {}
 
     /**
      * Returns a generator of the auxiliary definitions, in dependency order.
@@ -189,7 +186,7 @@ public final class IrSpecGeneratorEngine {
                         .decl(name, body, parameters.toArray(TypedParameter[]::new));
                 var binding = new ScopedName(name, type);
                 visible.add(binding);
-                defined.add(new DefinedOperator(binding, declaration));
+                defined.add(new DefinedOperator(binding, new GeneratedOperator.Auxiliary(declaration)));
             }
             return defined;
         };

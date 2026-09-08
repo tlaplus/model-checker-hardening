@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.common.GeneratorAggregate;
+import io.github.tlaplus.hardening.common.GeneratorAggregate.Richness;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageEntryCounts;
@@ -71,7 +73,8 @@ class TerminalProgressDisplayTest {
         var snapshot = new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
                 new GeneratorSummary(
-                        42, 3, 5, 0, 1, 1, 3, 1.25, 9.0, 4.5, Duration.ofSeconds(3)),
+                        42, 3, new GeneratorAggregate(5, 0, 1, 1, new Richness(3, 1.25, 9.0, 4.5)),
+                        Duration.ofSeconds(3)),
                 Map.of(
                         CorpusStage.PARSER,
                         summary(2, Duration.ofSeconds(2)),
@@ -187,14 +190,7 @@ class TerminalProgressDisplayTest {
                 new GeneratorSummary(
                         42,
                         generated,
-                        generated,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0.0,
-                        0.0,
-                        0.0,
+                        new GeneratorAggregate(generated, 0, 0, 0, Richness.empty()),
                         Duration.ofSeconds(generated)),
                 stageSummaries(summary(parsed, Duration.ofSeconds(parsed))),
                 Map.of(

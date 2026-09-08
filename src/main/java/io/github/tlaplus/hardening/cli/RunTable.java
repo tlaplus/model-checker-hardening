@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.common.GeneratorAggregate;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -72,7 +73,7 @@ final class RunTable {
                         "awaiting " + stage.displayName());
             }
             printCounter(writer, view.generator().generated(), "generated inputs");
-            printGenerationCounters(writer, view.generator());
+            printGenerationCounters(writer, view.generator().aggregate());
             printElapsed(writer, view.generator().elapsed(), "generator elapsed");
             for (var stage : CorpusStage.values()) {
                 printVerdicts(writer, view.stages().get(stage), stage);
@@ -99,18 +100,19 @@ final class RunTable {
         writer.printf("[%20d %-18s]%n", value, label);
     }
 
-    private static void printGenerationCounters(PrintWriter writer, GeneratorSummary generator) {
-        if (generator.richnessSamples() == 0) {
+    private static void printGenerationCounters(PrintWriter writer, GeneratorAggregate generator) {
+        var richness = generator.richness();
+        if (richness.samples() == 0) {
             printStatistic(writer, "n/a", "min richness");
             printStatistic(writer, "n/a", "max richness");
             printStatistic(writer, "n/a", "avg richness");
         } else {
             printStatistic(
-                    writer, formatRichness(generator.minimumRichness()), "min richness");
+                    writer, formatRichness(richness.minimum()), "min richness");
             printStatistic(
-                    writer, formatRichness(generator.maximumRichness()), "max richness");
+                    writer, formatRichness(richness.maximum()), "max richness");
             printStatistic(
-                    writer, formatRichness(generator.averageRichness()), "avg richness");
+                    writer, formatRichness(richness.average()), "avg richness");
         }
         printCounter(writer, generator.attempts(), "candidate attempts");
         printCounter(writer, generator.rejected(), "generator rejected");

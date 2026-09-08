@@ -5,9 +5,16 @@ public final class Preconditions {
     private Preconditions() {}
 
     /** Requires a nonnegative integer named by {@code name}. */
-    public static void requireNonnegative(int value, String name) {
+    public static void requireNonnegative(long value, String name) {
         if (value < 0) {
             throw new IllegalArgumentException(name + " must be nonnegative");
+        }
+    }
+
+    /** Requires a finite, nonnegative floating-point value named by {@code name}. */
+    public static void requireFiniteNonnegative(double value, String name) {
+        if (!Double.isFinite(value) || value < 0.0) {
+            throw new IllegalArgumentException(name + " must be finite and nonnegative");
         }
     }
 
