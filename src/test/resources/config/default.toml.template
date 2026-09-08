@@ -63,7 +63,7 @@ timeout_sec = 30
 max_heap_mb = 1024
 # Number of concurrent FuzzTLA Apalache workers.
 # Initialized to half the available processors, rounded down (at least one).
-workers = 4
+workers = ${APALACHE_WORKERS}
 
 [pbt]
 # Inclusive upper bound on a randomly generated input's length.
