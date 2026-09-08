@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.Set;
 
 /** Expression forms not covered by the dedicated type and general families. */
 public enum OtherExpressionKind implements ExpressionKind {
@@ -17,13 +16,11 @@ public enum OtherExpressionKind implements ExpressionKind {
     VARIANT_LITERAL(ExpressionCategory.VARIANT),
     LAMBDA(ExpressionCategory.OPERATOR);
 
-    private final ExpressionCategory category;
-    private final Set<ExpressionCategory> requiredCategories;
+    private final Categories categories;
 
     OtherExpressionKind(
             ExpressionCategory category, ExpressionCategory... dependencies) {
-        this.category = category;
-        requiredCategories = ExpressionKind.requirements(category, dependencies);
+        categories = new Categories(category, dependencies);
     }
 
     @Override
@@ -41,12 +38,7 @@ public enum OtherExpressionKind implements ExpressionKind {
     }
 
     @Override
-    public ExpressionCategory category() {
-        return category;
-    }
-
-    @Override
-    public Set<ExpressionCategory> requiredCategories() {
-        return requiredCategories;
+    public Categories categories() {
+        return categories;
     }
 }

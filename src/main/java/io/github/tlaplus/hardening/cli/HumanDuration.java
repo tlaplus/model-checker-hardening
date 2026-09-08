@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -9,9 +10,7 @@ final class HumanDuration {
 
     static String format(Duration duration) {
         Objects.requireNonNull(duration, "duration");
-        if (duration.isNegative()) {
-            throw new IllegalArgumentException("duration must be nonnegative");
-        }
+        Preconditions.require(!duration.isNegative(), "duration must be nonnegative");
         var output = new StringBuilder();
         appendPart(output, duration.toDaysPart(), "d");
         appendPart(output, duration.toHoursPart(), "h");

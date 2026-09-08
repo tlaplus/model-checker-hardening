@@ -5,7 +5,6 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
-import java.util.ArrayList;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExceptUpdate;
 import org.apalache_mc.tla.jir.ExpressionPair;
@@ -76,37 +75,20 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
     /** Returns a lambda generator whose body sees every typed parameter. */
     Generator<TlaEx> lambda(OperatorType type, int remainingDepth) {
         return draw -> {
-            var parameters = new ArrayList<org.apalache_mc.tla.jir.TypedParameter>();
-            var bindings = new ArrayList<ScopedName>();
-            for (var argument : type.arguments()) {
-                var binding = context.freshBinding("parameter", argument);
-                bindings.add(binding);
-                parameters.add(builder().param(binding.name(), argument.toTlaType()));
-            }
+            var parameters = context.parameters("parameter", type.arguments());
             var lambdaName = context.fresh("Lambda");
             var body = draw.draw(context.withBindings(
-                    bindings, expression(type.result(), remainingDepth - 1)));
-            return builder().lambda(
-                    lambdaName,
-                    body,
-                    parameters.toArray(
-                            org.apalache_mc.tla.jir.TypedParameter[]::new));
+                    parameters.bindings(), expression(type.result(), remainingDepth - 1)));
+            return builder().lambda(lambdaName, body, parameters.declarations());
         };
     }
 
     /** Returns a function-definition generator whose body sees its bounded argument. */
     private Generator<TlaEx> functionDefinition(
             FunctionType type, int remainingDepth) {
-        return draw -> {
-            var binding = context.freshBinding("arg", type.argument());
-            var variable = builder().name(binding.name(), type.argument().toTlaType());
-            var domain = draw.draw(expression(
-                    new SetType(type.argument()), remainingDepth - 1));
-            var pair = new ExpressionPair<>(variable, domain);
-            var body = draw.draw(context.withBinding(
-                    binding, expression(type.result(), remainingDepth - 1)));
-            return builder().funDef(body, BuilderArrays.pairs(List.of(pair)));
-        };
+        return bounded("arg", type.argument(), type.result(), remainingDepth - 1,
+                (variable, domain, body) -> builder().funDef(
+                        body, BuilderArrays.pairs(List.of(new ExpressionPair<>(variable, domain)))));
     }
 
     /** Returns a function-update generator containing a terminated update collection. */

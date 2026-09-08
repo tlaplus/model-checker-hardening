@@ -2,187 +2,75 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.ActionLimits;
 import io.github.tlaplus.hardening.gen.ExpressionLimits;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.ModuleLimits;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.tomlj.TomlTable;
 
 /** Declares and assembles the expression and module limit keys in the generator table. */
 final class GeneratorLimitSchema {
-    private final ExpressionKeys expressions;
-    private final ModuleKeys modules;
+    private final ConfigSchema.Key<Integer> maximumTypeDepth;
+    private final ConfigSchema.Key<Integer> maximumExpressionDepth;
+    private final ConfigSchema.Key<Integer> maximumNodes;
+    private final ConfigSchema.Key<Integer> maximumCollectionSize;
+    private final ConfigSchema.Key<Integer> maximumStringBytes;
+    private final ConfigSchema.Key<Integer> maximumIntegerBytes;
+    private final ConfigSchema.Key<Integer> maximumVariables;
+    private final ConfigSchema.Key<Integer> maximumAuxiliaryOperators;
+    private final ConfigSchema.Key<Integer> maximumActionOperators;
+    private final ConfigSchema.Key<Integer> maximumActions;
+    private final ConfigSchema.Key<Integer> maximumActionParameters;
+    private final ConfigSchema.Key<Integer> maximumActionDepth;
+    private final ConfigSchema.Key<Integer> maximumSteps;
 
-    private GeneratorLimitSchema(String tablePath) {
-        expressions = new ExpressionKeys(
-                integerKey(
-                        tablePath,
-                        "max_type_depth",
-                        config -> config.generator().expressions().maximumTypeDepth()),
-                integerKey(
-                        tablePath,
-                        "max_expression_depth",
-                        config -> config.generator().expressions().maximumExpressionDepth()),
-                integerKey(
-                        tablePath,
-                        "max_nodes",
-                        config -> config.generator().expressions().maximumNodes()),
-                integerKey(
-                        tablePath,
-                        "max_collection_size",
-                        config -> config.generator().expressions().maximumCollectionSize()),
-                integerKey(
-                        tablePath,
-                        "max_string_bytes",
-                        config -> config.generator().expressions().maximumStringBytes()),
-                integerKey(
-                        tablePath,
-                        "max_integer_bytes",
-                        config -> config.generator().expressions().maximumIntegerBytes()));
-        modules = new ModuleKeys(
-                integerKey(
-                        tablePath,
-                        "max_variables",
-                        List.of("Maximum state variables declared by a generated module."),
-                        config -> config.generator().modules().maximumVariables()),
-                integerKey(
-                        tablePath,
-                        "max_auxiliary_operators",
-                        List.of("Maximum state-free operator definitions a generated module may"
-                                + " apply."),
-                        config -> config.generator().modules().maximumAuxiliaryOperators()),
-                new ActionKeys(integerKey(
-                        tablePath,
-                        "max_action_operators",
-                        List.of(
-                                "Maximum action operator definitions the next-state action may"
-                                        + " apply.",
-                                "Each reads current state and primes a subset of the variables."),
-                        config -> config.generator().modules().actions().maximumActionOperators()),
-                integerKey(
-                        tablePath,
-                        "max_actions",
-                        List.of("Maximum disjuncts in a generated next-state action."),
-                        config -> config.generator().modules().actions().maximumActions()),
-                integerKey(
-                        tablePath,
-                        "max_action_parameters",
-                        List.of("Maximum bounded existential parameters of one generated action."),
-                        config -> config.generator().modules().actions().maximumActionParameters()),
-                integerKey(
-                        tablePath,
-                        "max_action_depth",
-                        List.of(
-                                "Maximum nesting depth of disjunctions, conjunctions, and"
-                                        + " IF-THEN-ELSE",
-                                "within one generated next-state action disjunct. Zero keeps every"
-                                        + " disjunct a flat conjunction."),
-                        config -> config.generator().modules().actions().maximumActionDepth())),
-                integerKey(
-                        tablePath,
-                        "max_steps",
-                        List.of(
-                                "Transitions explored from an initial state of a generated module.",
-                                "Bounds Apalache's unrolling and TLC's state constraint alike."),
-                        config -> config.generator().modules().maximumSteps()));
-    }
-
-    static GeneratorLimitSchema in(String tablePath) {
-        return new GeneratorLimitSchema(tablePath);
-    }
-
-    List<ConfigSchema.Key<?>> keys() {
-        var keys = new ArrayList<ConfigSchema.Key<?>>();
-        keys.addAll(expressions.keys());
-        keys.addAll(modules.keys());
-        return List.copyOf(keys);
+    GeneratorLimitSchema(ConfigTableBuilder<IrGenerationConfig> generator) {
+        var expressions = generator.project(IrGenerationConfig::expressions);
+        maximumTypeDepth = expressions.integer("max_type_depth", ExpressionLimits::maximumTypeDepth);
+        maximumExpressionDepth = expressions.integer("max_expression_depth", ExpressionLimits::maximumExpressionDepth);
+        maximumNodes = expressions.integer("max_nodes", ExpressionLimits::maximumNodes);
+        maximumCollectionSize = expressions.integer("max_collection_size", ExpressionLimits::maximumCollectionSize);
+        maximumStringBytes = expressions.integer("max_string_bytes", ExpressionLimits::maximumStringBytes);
+        maximumIntegerBytes = expressions.integer("max_integer_bytes", ExpressionLimits::maximumIntegerBytes);
+        var modules = generator.project(IrGenerationConfig::modules);
+        maximumVariables = modules.integer("max_variables", ModuleLimits::maximumVariables,
+                "Maximum state variables declared by a generated module.");
+        maximumAuxiliaryOperators = modules.integer("max_auxiliary_operators", ModuleLimits::maximumAuxiliaryOperators,
+                "Maximum state-free operator definitions a generated module may"
+                        + " apply.");
+        var actions = modules.project(ModuleLimits::actions);
+        maximumActionOperators = actions.integer("max_action_operators", ActionLimits::maximumActionOperators,
+                "Maximum action operator definitions the next-state action may"
+                        + " apply.",
+                "Each reads current state and primes a subset of the variables.");
+        maximumActions = actions.integer("max_actions", ActionLimits::maximumActions,
+                "Maximum disjuncts in a generated next-state action.");
+        maximumActionParameters = actions.integer("max_action_parameters", ActionLimits::maximumActionParameters,
+                "Maximum bounded existential parameters of one generated action.");
+        maximumActionDepth = actions.integer("max_action_depth", ActionLimits::maximumActionDepth,
+                "Maximum nesting depth of disjunctions, conjunctions, and"
+                        + " IF-THEN-ELSE",
+                "within one generated next-state action disjunct. Zero keeps every"
+                        + " disjunct a flat conjunction.");
+        maximumSteps = modules.integer("max_steps", ModuleLimits::maximumSteps,
+                "Transitions explored from an initial state of a generated module.",
+                "Bounds Apalache's unrolling and TLC's state constraint alike.");
     }
 
     ExpressionLimits readExpressionLimits(Map<String, TomlTable> tables)
             throws ConfigException {
-        return expressions.read(tables);
+        return new ExpressionLimits(
+                maximumTypeDepth.read(tables),
+                maximumExpressionDepth.read(tables),
+                maximumNodes.read(tables),
+                maximumCollectionSize.read(tables),
+                maximumStringBytes.read(tables),
+                maximumIntegerBytes.read(tables));
     }
 
     ModuleLimits readModuleLimits(Map<String, TomlTable> tables) throws ConfigException {
-        return modules.read(tables);
-    }
-
-    private static ConfigSchema.Key<Integer> integerKey(
-            String tablePath, String name, Function<FuzzTlaConfig, Integer> value) {
-        return integerKey(tablePath, name, List.of(), value);
-    }
-
-    private static ConfigSchema.Key<Integer> integerKey(
-            String tablePath,
-            String name,
-            List<String> documentation,
-            Function<FuzzTlaConfig, Integer> value) {
-        return new ConfigSchema.Key<>(
-                tablePath, name, ConfigValueType.INTEGER, documentation, value);
-    }
-
-    private record ExpressionKeys(
-            ConfigSchema.Key<Integer> maximumTypeDepth,
-            ConfigSchema.Key<Integer> maximumExpressionDepth,
-            ConfigSchema.Key<Integer> maximumNodes,
-            ConfigSchema.Key<Integer> maximumCollectionSize,
-            ConfigSchema.Key<Integer> maximumStringBytes,
-            ConfigSchema.Key<Integer> maximumIntegerBytes) {
-        List<ConfigSchema.Key<?>> keys() {
-            return List.of(
-                    maximumTypeDepth,
-                    maximumExpressionDepth,
-                    maximumNodes,
-                    maximumCollectionSize,
-                    maximumStringBytes,
-                    maximumIntegerBytes);
-        }
-
-        ExpressionLimits read(Map<String, TomlTable> tables) throws ConfigException {
-            return new ExpressionLimits(
-                    maximumTypeDepth.read(tables),
-                    maximumExpressionDepth.read(tables),
-                    maximumNodes.read(tables),
-                    maximumCollectionSize.read(tables),
-                    maximumStringBytes.read(tables),
-                    maximumIntegerBytes.read(tables));
-        }
-    }
-
-    private record ActionKeys(
-            ConfigSchema.Key<Integer> maximumActionOperators,
-            ConfigSchema.Key<Integer> maximumActions,
-            ConfigSchema.Key<Integer> maximumActionParameters,
-            ConfigSchema.Key<Integer> maximumActionDepth) {
-        List<ConfigSchema.Key<?>> keys() {
-            return List.of(maximumActionOperators, maximumActions,
-                    maximumActionParameters, maximumActionDepth);
-        }
-
-        ActionLimits read(Map<String, TomlTable> tables) throws ConfigException {
-            return new ActionLimits(maximumActionOperators.read(tables), maximumActions.read(tables),
-                    maximumActionParameters.read(tables), maximumActionDepth.read(tables));
-        }
-    }
-
-    private record ModuleKeys(
-            ConfigSchema.Key<Integer> maximumVariables,
-            ConfigSchema.Key<Integer> maximumAuxiliaryOperators,
-            ActionKeys actions,
-            ConfigSchema.Key<Integer> maximumSteps) {
-        List<ConfigSchema.Key<?>> keys() {
-            var keys = new ArrayList<ConfigSchema.Key<?>>();
-            keys.add(maximumVariables);
-            keys.add(maximumAuxiliaryOperators);
-            keys.addAll(actions.keys());
-            keys.add(maximumSteps);
-            return List.copyOf(keys);
-        }
-
-        ModuleLimits read(Map<String, TomlTable> tables) throws ConfigException {
-            return new ModuleLimits(maximumVariables.read(tables), maximumAuxiliaryOperators.read(tables),
-                    actions.read(tables), maximumSteps.read(tables));
-        }
+        return new ModuleLimits(maximumVariables.read(tables), maximumAuxiliaryOperators.read(tables),
+                new ActionLimits(maximumActionOperators.read(tables), maximumActions.read(tables),
+                        maximumActionParameters.read(tables), maximumActionDepth.read(tables)),
+                maximumSteps.read(tables));
     }
 }

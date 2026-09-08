@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
@@ -90,9 +91,7 @@ public final class WorkflowRunner {
         var invocationElapsed = new ElapsedTimeAccumulator();
         invocationElapsed.start();
         Objects.requireNonNull(corpus, "corpus");
-        if (seed < 0) {
-            throw new IllegalArgumentException("seed must be nonnegative");
-        }
+        Preconditions.requireNonnegative(seed, "seed");
         var availableCpus = Runtime.getRuntime().availableProcessors();
         if (maximumCpus <= 0 || maximumCpus > availableCpus) {
             throw new IllegalArgumentException(

@@ -6,12 +6,13 @@ import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Factory for deferred generators of internal types within the configured remaining-depth budget.
@@ -119,32 +120,8 @@ final class IrTypeGenFactory {
                                     context.config().expressions().maximumCollectionSize())
                             .map(TupleType::new));
                 }
-                case RECORD -> {
-                    var fieldType = mkGen(remainingDepth - 1, false);
-                    Generator<Field> field = fieldDraw -> {
-                        var fieldName = context.freshField();
-                        return fieldDraw.draw(fieldType.map(
-                                type -> new Field(fieldName, type)));
-                    };
-                    yield draw.draw(BasicGenerators.listOf(
-                                    field,
-                                    1,
-                                    context.config().expressions().maximumCollectionSize())
-                            .map(RecordType::new));
-                }
-                case VARIANT -> {
-                    var payloadType = mkGen(remainingDepth - 1, false);
-                    Generator<Field> field = fieldDraw -> {
-                        var tag = context.freshTag();
-                        return fieldDraw.draw(payloadType.map(
-                                type -> new Field(tag, type)));
-                    };
-                    yield draw.draw(BasicGenerators.listOf(
-                                    field,
-                                    1,
-                                    context.config().expressions().maximumCollectionSize())
-                            .map(VariantType::new));
-                }
+                case RECORD -> draw.draw(fields(remainingDepth - 1, context::freshField, RecordType::new));
+                case VARIANT -> draw.draw(fields(remainingDepth - 1, context::freshTag, VariantType::new));
                 case OPERATOR -> {
                     var component = mkGen(remainingDepth - 1, false);
                     yield draw.draw(BasicGenerators.listOf(
@@ -156,6 +133,15 @@ final class IrTypeGenFactory {
                 }
             };
         };
+    }
+
+    /** Each field name precedes its type draw, even when that type exhausts the input. */
+    private <T extends IrType> Generator<T> fields(
+            int depth, Supplier<String> name, Function<List<Field>, T> constructor) {
+        var component = mkGen(depth, false);
+        Generator<Field> field = draw -> new Field(name.get(), draw.draw(component));
+        return BasicGenerators.listOf(field, 1, context.config().expressions().maximumCollectionSize())
+                .map(constructor);
     }
 
     /** Library result shapes make fixed field/tag/model names reachable without replacing standard types. */
@@ -192,9 +178,7 @@ final class IrTypeGenFactory {
         private final Set<ExpressionCategory> requiredCategories;
 
         TypeKind(ExpressionCategory category, ExpressionCategory... dependencies) {
-            var requirements = EnumSet.of(category);
-            Collections.addAll(requirements, dependencies);
-            requiredCategories = Set.copyOf(requirements);
+            requiredCategories = ExpressionKind.requirements(category, dependencies);
         }
 
         boolean isAvailableWith(Set<ExpressionCategory> ignoredCategories) {

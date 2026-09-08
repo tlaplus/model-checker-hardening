@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.util.List;
-import java.util.Set;
 
 /** Set-valued expression forms. */
 public enum SetExpressionKind implements ExpressionKind {
@@ -27,12 +26,10 @@ public enum SetExpressionKind implements ExpressionKind {
     VARIANT_FILTER(ExpressionCategory.VARIANT, ExpressionCategory.SET),
     DOMAIN(ExpressionCategory.FUNCTION, ExpressionCategory.SET);
 
-    private final ExpressionCategory category;
-    private final Set<ExpressionCategory> requiredCategories;
+    private final Categories categories;
 
     SetExpressionKind(ExpressionCategory category, ExpressionCategory... dependencies) {
-        this.category = category;
-        requiredCategories = ExpressionKind.requirements(category, dependencies);
+        categories = new Categories(category, dependencies);
     }
 
     @Override
@@ -56,12 +53,7 @@ public enum SetExpressionKind implements ExpressionKind {
     }
 
     @Override
-    public ExpressionCategory category() {
-        return category;
-    }
-
-    @Override
-    public Set<ExpressionCategory> requiredCategories() {
-        return requiredCategories;
+    public Categories categories() {
+        return categories;
     }
 }

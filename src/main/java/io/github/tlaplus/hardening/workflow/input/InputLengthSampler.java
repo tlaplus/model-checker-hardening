@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.Objects;
 import java.util.random.RandomGenerator;
 
@@ -10,9 +11,7 @@ public final class InputLengthSampler {
     /** Chooses among {@code 0..3}, {@code 4..7}, {@code 8..15}, and so on. */
     public static int sample(RandomGenerator random, int maximum) {
         Objects.requireNonNull(random, "random");
-        if (maximum < 0) {
-            throw new IllegalArgumentException("maximum must be nonnegative");
-        }
+        Preconditions.requireNonnegative(maximum, "maximum");
         if (maximum == 0) {
             return 0;
         }

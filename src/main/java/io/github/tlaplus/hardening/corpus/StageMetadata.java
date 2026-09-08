@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,20 +26,14 @@ public record StageMetadata(
         Instant endTime,
         Optional<CheckerFailure> failure) {
     public StageMetadata {
-        if (Objects.requireNonNull(stage, "stage").isBlank()) {
-            throw new IllegalArgumentException("stage must not be blank");
-        }
+        Preconditions.require(!Objects.requireNonNull(stage, "stage").isBlank(), "stage must not be blank");
         Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(startTime, "startTime");
         Objects.requireNonNull(endTime, "endTime");
         Objects.requireNonNull(failure, "failure");
-        if (endTime.isBefore(startTime)) {
-            throw new IllegalArgumentException("endTime must not precede startTime");
-        }
-        if (failure.isPresent() && verdict != CorpusVerdict.FAIL) {
-            throw new IllegalArgumentException(
-                    "checker failure metadata requires the fail verdict");
-        }
+        Preconditions.require(!endTime.isBefore(startTime), "endTime must not precede startTime");
+        Preconditions.require(failure.isEmpty() || verdict == CorpusVerdict.FAIL,
+                "checker failure metadata requires the fail verdict");
     }
 
     public StageMetadata(String stage, CorpusVerdict verdict, Instant startTime, Instant endTime) {

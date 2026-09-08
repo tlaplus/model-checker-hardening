@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.ThrowingConsumer;
 import java.util.Objects;
 
@@ -28,9 +29,7 @@ public final class StageJobLoop<T> {
         this.queue = Objects.requireNonNull(queue, "queue");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.priority = Objects.requireNonNull(priority, "priority");
-        if (permits <= 0) {
-            throw new IllegalArgumentException("permits must be positive");
-        }
+        Preconditions.requirePositive(permits, "permits");
         this.permits = permits;
         this.counters = Objects.requireNonNull(counters, "counters");
         this.control = Objects.requireNonNull(control, "control");

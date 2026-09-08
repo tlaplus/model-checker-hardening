@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -64,11 +63,7 @@ final class PrintCommand implements Callable<Integer> {
                 corpusDirectory = CorpusDirectory.openExisting(corpus);
                 config = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG));
             } catch (IOException | ConfigException | CorpusException exception) {
-                spec.commandLine()
-                        .getErr()
-                        .printf(
-                                "fuzztla: cannot read corpus '%s': %s%n",
-                                corpus, Diagnostics.message(exception));
+                CommandDiagnostic.print(spec.commandLine().getErr(), "cannot read corpus", corpus, exception);
                 return CommandLine.ExitCode.SOFTWARE;
             }
         }
@@ -77,11 +72,7 @@ final class PrintCommand implements Callable<Integer> {
         try {
             encoded = Files.readAllBytes(input);
         } catch (IOException exception) {
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot read '%s': %s%n",
-                            input, Diagnostics.message(exception));
+            CommandDiagnostic.print(spec.commandLine().getErr(), "cannot read", input, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
 
@@ -96,11 +87,7 @@ final class PrintCommand implements Callable<Integer> {
                 corpusInput = CorpusInputCodec.decode(encoded);
             }
         } catch (CorpusFormatException exception) {
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot decode '%s': %s%n",
-                            input, Diagnostics.message(exception));
+            CommandDiagnostic.print(spec.commandLine().getErr(), "cannot decode", input, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
         try (var shutdown = RunShutdownHook.install()) {
@@ -116,11 +103,8 @@ final class PrintCommand implements Callable<Integer> {
             print(envelope == null ? rendered : EnvelopeReport.render(envelope, rendered));
             return CommandLine.ExitCode.OK;
         } catch (IOException | CorpusException | WorkflowException | RuntimeException | StackOverflowError exception) {
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot generate a specification from '%s': %s%n",
-                            input, Diagnostics.message(exception));
+            CommandDiagnostic.print(
+                    spec.commandLine().getErr(), "cannot generate a specification from", input, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
     }

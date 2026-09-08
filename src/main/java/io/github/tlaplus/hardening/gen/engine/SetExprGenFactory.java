@@ -4,7 +4,6 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExpressionPair;
-import org.apalache_mc.tla.jir.NamedExpression;
 
 /** Constructs set-valued expression generators. */
 final class SetExprGenFactory extends AbstractExprGenFactory {
@@ -24,15 +23,9 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
                 case EMPTY_SET -> builder().emptySet(type.element().toTlaType());
                 case ENUM_SET -> builder().enumSet(
                         draw.draw(operands(type.element(), nextDepth)));
-                case SET_INTERSECTION -> builder().intersect(
-                        draw.draw(expression(type, nextDepth)),
-                        draw.draw(expression(type, nextDepth)));
-                case SET_UNION -> builder().union(
-                        draw.draw(expression(type, nextDepth)),
-                        draw.draw(expression(type, nextDepth)));
-                case SET_DIFFERENCE -> builder().difference(
-                        draw.draw(expression(type, nextDepth)),
-                        draw.draw(expression(type, nextDepth)));
+                case SET_INTERSECTION -> draw.draw(binary(type, nextDepth, builder()::intersect));
+                case SET_UNION -> draw.draw(binary(type, nextDepth, builder()::union));
+                case SET_DIFFERENCE -> draw.draw(binary(type, nextDepth, builder()::difference));
                 case UNION_ALL -> builder().unionAll(
                         draw.draw(expression(new SetType(type), nextDepth)));
                 case SET_FILTER -> draw.draw(filter(type, remainingDepth));
@@ -56,9 +49,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
                         (TupleType) type.element(), remainingDepth));
                 case POWER_SET -> builder().powerSet(
                         draw.draw(expression(type.element(), nextDepth)));
-                case INTERVAL -> builder().interval(
-                        draw.draw(expression(PrimitiveType.INT, nextDepth)),
-                        draw.draw(expression(PrimitiveType.INT, nextDepth)));
+                case INTERVAL -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::interval));
                 case BOOLEAN_SET -> builder().booleanSet();
                 case STRING_SET -> builder().stringSet();
                 case INTEGER_SET -> builder().intSet();
@@ -76,28 +67,17 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
 
     /** Returns a set-filter generator whose predicate sees its bound name. */
     private Generator<TlaEx> filter(SetType resultType, int remainingDepth) {
-        return draw -> {
-            var binding = freshBinding("filtered", resultType.element());
-            var source = draw.draw(expression(resultType, remainingDepth - 1));
-            var predicate = draw.draw(
-                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
-            return builder().filter(binding.variable(), source, predicate);
-        };
+        return bounded("filtered", resultType.element(), PrimitiveType.BOOL,
+                remainingDepth - 1, builder()::filter);
     }
 
     /** Returns a set-map generator from a generated source type. */
     private Generator<TlaEx> map(
             IrType resultElementType, int remainingDepth) {
-        return draw -> {
-            var sourceType = draw.draw(typeFactory.valueType());
-            var binding = freshBinding("mapped", sourceType);
-            var source = draw.draw(expression(
-                    new SetType(sourceType), remainingDepth - 1));
-            var pair = new ExpressionPair<>(binding.variable(), source);
-            var body = draw.draw(
-                    scopedBody(binding, resultElementType, remainingDepth - 1));
-            return builder().map(body, BuilderArrays.pairs(List.of(pair)));
-        };
+        return typeFactory.valueType().flatMap(sourceType -> bounded(
+                "mapped", sourceType, resultElementType, remainingDepth - 1,
+                (variable, source, body) -> builder().map(
+                        body, BuilderArrays.pairs(List.of(new ExpressionPair<>(variable, source))))));
     }
 
     /**
@@ -107,14 +87,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
      * which is incompatible with the row-record type produced by its record-value form.
      */
     private Generator<TlaEx> recordSet(RecordType type, int remainingDepth) {
-        return draw -> {
-            var fields = type.fields().stream()
-                    .map(field -> new NamedExpression<>(
-                            field.name(),
-                            draw.draw(expression(field.type(), remainingDepth - 1))))
-                    .toList();
-            return builder().enumSet(builder().record(BuilderArrays.named(fields)));
-        };
+        return record(type, field -> expression(field, remainingDepth - 1)).map(builder()::enumSet);
     }
 
     /** Returns a Cartesian-product generator for the tuple component types. */

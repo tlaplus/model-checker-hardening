@@ -26,12 +26,8 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                         draw.draw(operands(PrimitiveType.BOOL, nextDepth)));
                 case OR -> builder().or(
                         draw.draw(operands(PrimitiveType.BOOL, nextDepth)));
-                case IMPLIES -> builder().implies(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case EQUIVALENT -> builder().equiv(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
+                case IMPLIES -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::implies));
+                case EQUIVALENT -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::equiv));
                 case FORALL_BOUNDED ->
                     draw.draw(quantifier(true, true, remainingDepth));
                 case EXISTS_BOUNDED ->
@@ -40,21 +36,15 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                     draw.draw(quantifier(true, false, remainingDepth));
                 case EXISTS_UNBOUNDED ->
                     draw.draw(quantifier(false, false, remainingDepth));
-                case LESS_THAN ->
-                    draw.draw(integerComparison(remainingDepth, Comparison.LESS));
-                case GREATER_THAN ->
-                    draw.draw(integerComparison(remainingDepth, Comparison.GREATER));
-                case LESS_EQUAL ->
-                    draw.draw(integerComparison(remainingDepth, Comparison.LESS_EQUAL));
-                case GREATER_EQUAL ->
-                    draw.draw(integerComparison(remainingDepth, Comparison.GREATER_EQUAL));
+                case LESS_THAN -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::lt));
+                case GREATER_THAN -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::gt));
+                case LESS_EQUAL -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::le));
+                case GREATER_EQUAL -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::ge));
                 case IN -> draw.draw(membership(remainingDepth, false));
                 case NOT_IN -> draw.draw(membership(remainingDepth, true));
                 case SUBSET_EQUAL -> {
                     var elementType = draw.draw(typeFactory.valueType());
-                    yield builder().subsetEq(
-                            draw.draw(expression(new SetType(elementType), nextDepth)),
-                            draw.draw(expression(new SetType(elementType), nextDepth)));
+                    yield draw.draw(binary(new SetType(elementType), nextDepth, builder()::subsetEq));
                 }
                 case IS_FINITE_SET -> {
                     var elementType = draw.draw(typeFactory.valueType());
@@ -78,19 +68,13 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
                 case UNCHANGED -> builder().unchanged(
                         draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)));
-                case ACTION_THEN -> builder().actionThen(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
+                case ACTION_THEN -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::actionThen));
                 case ALWAYS -> builder().always(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
                 case EVENTUALLY -> builder().eventually(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case LEADS_TO -> builder().leadsTo(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case GUARANTEES -> builder().guarantees(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
+                case LEADS_TO -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::leadsTo));
+                case GUARANTEES -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::guarantees));
                 case WEAK_FAIR -> builder().weakFair(
                         draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)),
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
@@ -118,38 +102,11 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     /** Returns a quantifier generator with an arbitrary scoped predicate. */
     private Generator<TlaEx> quantifier(
             boolean universal, boolean bounded, int remainingDepth) {
-        return draw -> {
-            var type = draw.draw(typeFactory.valueType());
-            var binding = freshBinding("q", type);
-            if (bounded) {
-                var set = draw.draw(expression(new SetType(type), remainingDepth - 1));
-                var predicate = draw.draw(
-                        scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
-                return universal
-                        ? builder().forall(binding.variable(), set, predicate)
-                        : builder().exists(binding.variable(), set, predicate);
-            }
-            var predicate = draw.draw(
-                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
-            return universal
-                    ? builder().forall(binding.variable(), predicate)
-                    : builder().exists(binding.variable(), predicate);
-        };
-    }
-
-    /** Returns a generator of the selected integer comparison. */
-    private Generator<TlaEx> integerComparison(
-            int remainingDepth, Comparison comparison) {
-        return draw -> {
-            var left = draw.draw(expression(PrimitiveType.INT, remainingDepth - 1));
-            var right = draw.draw(expression(PrimitiveType.INT, remainingDepth - 1));
-            return switch (comparison) {
-                case LESS -> builder().lt(left, right);
-                case GREATER -> builder().gt(left, right);
-                case LESS_EQUAL -> builder().le(left, right);
-                case GREATER_EQUAL -> builder().ge(left, right);
-            };
-        };
+        return typeFactory.valueType().flatMap(type -> bounded
+                ? bounded("q", type, PrimitiveType.BOOL, remainingDepth - 1,
+                        universal ? builder()::forall : builder()::exists)
+                : unbounded("q", type, PrimitiveType.BOOL, remainingDepth - 1,
+                        universal ? builder()::forall : builder()::exists));
     }
 
     /** Returns a generator of membership or non-membership. */
@@ -165,22 +122,9 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
     /** Returns a temporal quantifier generator with an arbitrary scoped predicate. */
     private Generator<TlaEx> temporalQuantifier(
             boolean existential, int remainingDepth) {
-        return draw -> {
-            var type = draw.draw(typeFactory.valueType());
-            var binding = freshBinding("temporal", type);
-            var predicate = draw.draw(
-                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
-            return existential
-                    ? builder().temporalExists(binding.variable(), predicate)
-                    : builder().temporalForAll(binding.variable(), predicate);
-        };
+        return typeFactory.valueType().flatMap(type -> unbounded(
+                "temporal", type, PrimitiveType.BOOL, remainingDepth - 1,
+                existential ? builder()::temporalExists : builder()::temporalForAll));
     }
 
-    /** Integer comparison operations. */
-    private enum Comparison {
-        LESS,
-        GREATER,
-        LESS_EQUAL,
-        GREATER_EQUAL
-    }
 }

@@ -33,16 +33,16 @@ class ParserProcessTest {
         try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.PASS,
-                    worker.parse(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
+                    worker.request(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
             assertEquals(
                     StageOutcome.FAIL,
-                    worker.parse(new ToolInput(semanticFailure, 0), STARTUP_TIMEOUT).outcome());
+                    worker.request(new ToolInput(semanticFailure, 0), STARTUP_TIMEOUT).outcome());
             assertEquals(
                     StageOutcome.FAIL,
-                    worker.parse(new ToolInput(syntaxFailure, 0), STARTUP_TIMEOUT).outcome());
+                    worker.request(new ToolInput(syntaxFailure, 0), STARTUP_TIMEOUT).outcome());
             assertEquals(
                     StageOutcome.PASS,
-                    worker.parse(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
+                    worker.request(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
             try (var paths = Files.walk(scratch)) {
                 assertEquals(
                         1,
@@ -75,7 +75,7 @@ class ParserProcessTest {
         try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.PASS,
-                    worker.parse(new ToolInput(source, 0), STARTUP_TIMEOUT).outcome());
+                    worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT).outcome());
         }
     }
 
@@ -88,12 +88,12 @@ class ParserProcessTest {
         try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.CRASH,
-                    worker.parse(new ToolInput(valid, 0), Duration.ZERO).outcome());
+                    worker.request(new ToolInput(valid, 0), Duration.ZERO).outcome());
         }
         try (var replacement = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.PASS,
-                    replacement.parse(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
+                    replacement.request(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
         }
     }
 
@@ -124,7 +124,7 @@ class ParserProcessTest {
                     continue;
                 }
                 generated++;
-                var result = worker.parse(new ToolInput(source, 0), STARTUP_TIMEOUT);
+                var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
                 if (result.outcome() == StageOutcome.PASS) {
                     parsed++;
                     continue;

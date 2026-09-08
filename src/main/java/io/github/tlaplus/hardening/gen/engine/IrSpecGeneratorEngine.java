@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.apalache_mc.tla.jir.TlaDeclarations;
-import org.apalache_mc.tla.jir.TypedParameter;
 
 /**
  * Reusable coordinator for generating the declarations of one TLA+ module.
@@ -169,14 +168,9 @@ public final class IrSpecGeneratorEngine {
                 var result = draw.draw(typeFactory.valueType());
                 var type = new OperatorType(arguments, result);
 
-                var parameters = new ArrayList<TypedParameter>();
+                var parameters = context.parameters("parameter", arguments);
                 var bindings = new ArrayList<ScopedName>(visible);
-                for (var argument : arguments) {
-                    var parameter = context.freshBinding("parameter", argument);
-                    bindings.add(parameter);
-                    parameters.add(
-                            context.builder().param(parameter.name(), argument.toTlaType()));
-                }
+                bindings.addAll(parameters.bindings());
 
                 var name = context.fresh("Op");
                 var body = draw.draw(context.withBindings(
@@ -184,7 +178,7 @@ public final class IrSpecGeneratorEngine {
                         context.withFreshNodeBudget(expressionFactory.mkGen(
                                 result, config.expressions().maximumExpressionDepth()))));
                 var declaration = context.builder()
-                        .decl(name, body, parameters.toArray(TypedParameter[]::new));
+                        .decl(name, body, parameters.declarations());
                 var binding = new ScopedName(name, type);
                 visible.add(binding);
                 defined.add(new DefinedOperator(binding, new GeneratedOperator.Auxiliary(declaration)));

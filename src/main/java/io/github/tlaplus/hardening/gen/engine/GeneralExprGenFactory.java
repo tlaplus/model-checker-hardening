@@ -5,8 +5,10 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.vavr.Function3;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.function.Function;
 import org.apalache_mc.tla.jir.ExpressionPair;
 
 /** Constructs terminal and type-polymorphic expression generators. */
@@ -36,8 +38,11 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                         draw.draw(expression(type, nextDepth)));
                 case LABEL -> builder().label(
                         draw.draw(expression(type, nextDepth)), context.fresh("label"));
-                case BOUNDED_CHOOSE -> draw.draw(boundedChoose(type, remainingDepth));
-                case UNBOUNDED_CHOOSE -> draw.draw(unboundedChoose(type, remainingDepth));
+                // CHOOSE predicates see their bound name, but the domain does not.
+                case BOUNDED_CHOOSE -> draw.draw(bounded(
+                        "bound", type, PrimitiveType.BOOL, nextDepth, builder()::choose));
+                case UNBOUNDED_CHOOSE -> draw.draw(unbounded(
+                        "chosen", type, PrimitiveType.BOOL, nextDepth, builder()::choose));
                 case CASE -> draw.draw(caseExpression(type, remainingDepth));
                 case OPERATOR_APPLICATION ->
                     draw.draw(operatorApplication(type, remainingDepth));
@@ -45,8 +50,8 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 case PRIME -> builder().prime(draw.draw(expression(type, nextDepth)));
                 case FUNCTION_APPLICATION ->
                     draw.draw(functionApplication(type, remainingDepth));
-                case FOLD_SET -> draw.draw(foldSet(type, remainingDepth));
-                case FOLD_SEQUENCE -> draw.draw(foldSequence(type, remainingDepth));
+                case FOLD_SET -> draw.draw(fold(type, remainingDepth, SetType::new, builder()::foldSet));
+                case FOLD_SEQUENCE -> draw.draw(fold(type, remainingDepth, SequenceType::new, builder()::foldSeq));
                 case HEAD -> builder().head(
                         draw.draw(expression(new SequenceType(type), nextDepth)));
                 case VARIANT_GET_OR_ELSE ->
@@ -114,27 +119,6 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of a bounded CHOOSE expression. */
-    private Generator<TlaEx> boundedChoose(IrType type, int remainingDepth) {
-        return draw -> {
-            var binding = freshBinding("bound", type);
-            var set = draw.draw(expression(new SetType(type), remainingDepth - 1));
-            var predicate = draw.draw(
-                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
-            return builder().choose(binding.variable(), set, predicate);
-        };
-    }
-
-    /** Returns a generator of an unbounded CHOOSE expression. */
-    private Generator<TlaEx> unboundedChoose(IrType type, int remainingDepth) {
-        return draw -> {
-            var binding = freshBinding("chosen", type);
-            var predicate = draw.draw(
-                    scopedBody(binding, PrimitiveType.BOOL, remainingDepth - 1));
-            return builder().choose(binding.variable(), predicate);
-        };
-    }
-
     /** Returns a generator of a CASE expression with a terminated branch collection. */
     private Generator<TlaEx> caseExpression(IrType type, int remainingDepth) {
         return draw -> {
@@ -196,31 +180,17 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of a set fold. */
-    private Generator<TlaEx> foldSet(IrType resultType, int remainingDepth) {
+    /** Draws a set or sequence fold's lambda, initial value and collection in that order. */
+    private Generator<TlaEx> fold(
+            IrType resultType, int remainingDepth, Function<IrType, IrType> collection,
+            Function3<TlaEx, TlaEx, TlaEx, TlaEx> operation) {
         return draw -> {
             var elementType = draw.draw(typeFactory.valueType());
-            var operatorType = new OperatorType(
-                    List.of(resultType, elementType), resultType);
-            return builder().foldSet(
+            var operatorType = new OperatorType(List.of(resultType, elementType), resultType);
+            return operation.apply(
                     draw.draw(otherFactory.lambda(operatorType, remainingDepth - 1)),
                     draw.draw(expression(resultType, remainingDepth - 1)),
-                    draw.draw(expression(new SetType(elementType), remainingDepth - 1)));
-        };
-    }
-
-    /** Returns a generator of a sequence fold. */
-    private Generator<TlaEx> foldSequence(
-            IrType resultType, int remainingDepth) {
-        return draw -> {
-            var elementType = draw.draw(typeFactory.valueType());
-            var operatorType = new OperatorType(
-                    List.of(resultType, elementType), resultType);
-            return builder().foldSeq(
-                    draw.draw(otherFactory.lambda(operatorType, remainingDepth - 1)),
-                    draw.draw(expression(resultType, remainingDepth - 1)),
-                    draw.draw(expression(
-                            new SequenceType(elementType), remainingDepth - 1)));
+                    draw.draw(expression(collection.apply(elementType), remainingDepth - 1)));
         };
     }
 

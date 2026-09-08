@@ -34,6 +34,7 @@ jobs:
             corpus/01parser-fail \
             corpus/01parser-crash \
             corpus/02apa-pass \
+            corpus/02apa-counterexample \
             corpus/02apa-fail \
             corpus/02apa-crash \
             corpus/03aggregator-pass \
@@ -41,11 +42,13 @@ jobs:
             -type f -name '*.cbor' | wc -l)
           tlc_results=$(find \
             corpus/02tlc-pass \
+            corpus/02tlc-counterexample \
             corpus/02tlc-fail \
             corpus/02tlc-crash \
             -type f -name '*.cbor' | wc -l)
           apalache_results=$(find \
             corpus/02apa-pass \
+            corpus/02apa-counterexample \
             corpus/02apa-fail \
             corpus/02apa-crash \
             -type f -name '*.cbor' | wc -l)

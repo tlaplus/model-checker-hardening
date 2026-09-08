@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.ThrowingRunnable;
 import java.io.PrintStream;
 import java.util.Objects;
 
@@ -22,12 +23,6 @@ public final class ToolWorkerRuntime {
         UNTIL_CRASH
     }
 
-    /** Everything a worker main does, including the setup its tool needs. */
-    @FunctionalInterface
-    public interface Body {
-        void run() throws Exception;
-    }
-
     /** Produces the verdict for one input. */
     @FunctionalInterface
     public interface Handler {
@@ -37,8 +32,10 @@ public final class ToolWorkerRuntime {
     /**
      * Runs a worker main. A failure that escapes the body is printed to {@code processError} and
      * exits non-zero, which the parent reports as a crash together with this output.
+     *
+     * @param body everything a worker main does, including the setup its tool needs
      */
-    public static void main(Body body, PrintStream processError) {
+    public static void main(ThrowingRunnable<Exception> body, PrintStream processError) {
         Objects.requireNonNull(body, "body");
         Objects.requireNonNull(processError, "processError");
         try {

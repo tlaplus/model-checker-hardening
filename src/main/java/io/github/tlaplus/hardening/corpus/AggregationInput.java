@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.Map;
@@ -14,13 +15,9 @@ public record AggregationInput(
         Objects.requireNonNull(checkerVerdicts, "checkerVerdicts");
         var copy = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
         copy.putAll(checkerVerdicts);
-        if (!copy.keySet().equals(Set.copyOf(CorpusStage.checkerBranches()))) {
-            throw new IllegalArgumentException(
-                    "checkerVerdicts must name every checker branch exactly once");
-        }
-        if (copy.containsValue(CorpusVerdict.CRASH)) {
-            throw new IllegalArgumentException("crashed checker results cannot be aggregated");
-        }
+        Preconditions.require(copy.keySet().equals(Set.copyOf(CorpusStage.checkerBranches())),
+                "checkerVerdicts must name every checker branch exactly once");
+        Preconditions.require(!copy.containsValue(CorpusVerdict.CRASH), "crashed checker results cannot be aggregated");
         checkerVerdicts = Map.copyOf(copy);
     }
 

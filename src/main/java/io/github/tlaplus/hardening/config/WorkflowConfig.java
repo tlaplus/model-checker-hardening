@@ -25,9 +25,7 @@ public record WorkflowConfig(
         var copy = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
         copy.putAll(checkers);
         for (var checker : CorpusStage.checkerBranches()) {
-            if (!copy.containsKey(checker)) {
-                throw new IllegalArgumentException("checkers is missing stage " + checker);
-            }
+            Preconditions.require(copy.containsKey(checker), "checkers is missing stage " + checker);
         }
         checkers = Map.copyOf(copy);
 
@@ -54,9 +52,7 @@ public record WorkflowConfig(
     /** Returns the limits of one checker stage. */
     public CheckerStageConfig checker(CorpusStage stage) {
         var checker = checkers.get(Objects.requireNonNull(stage, "stage"));
-        if (checker == null) {
-            throw new IllegalArgumentException(stage + " is not a checker stage");
-        }
+        Preconditions.require(checker != null, stage + " is not a checker stage");
         return checker;
     }
 
@@ -68,9 +64,7 @@ public record WorkflowConfig(
     }
 
     private static void requireWithinTotal(int stageEntries, int maximumEntries, String table) {
-        if (stageEntries > maximumEntries) {
-            throw new IllegalArgumentException(
-                    table + ".maximumEntries must not exceed workflow.maximumEntries");
-        }
+        Preconditions.require(stageEntries <= maximumEntries,
+                table + ".maximumEntries must not exceed workflow.maximumEntries");
     }
 }

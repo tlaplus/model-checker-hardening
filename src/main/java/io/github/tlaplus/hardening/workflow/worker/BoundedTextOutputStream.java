@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -13,9 +14,7 @@ public final class BoundedTextOutputStream extends OutputStream {
     private boolean truncated;
 
     public BoundedTextOutputStream(int maximumBytes, String truncationLabel) {
-        if (maximumBytes <= 0) {
-            throw new IllegalArgumentException("maximumBytes must be positive");
-        }
+        Preconditions.requirePositive(maximumBytes, "maximumBytes");
         this.maximumBytes = maximumBytes;
         this.truncationLabel = Objects.requireNonNull(truncationLabel, "truncationLabel");
     }

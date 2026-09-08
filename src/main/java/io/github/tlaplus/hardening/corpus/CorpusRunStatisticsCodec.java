@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.GeneratorAggregate;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
@@ -53,11 +52,7 @@ final class CorpusRunStatisticsCodec {
                                 .number(MINIMUM_RICHNESS_FIELD, richness.minimum())
                                 .number(MAXIMUM_RICHNESS_FIELD, richness.maximum())
                                 .number(AVERAGE_RICHNESS_FIELD, richness.average()));
-        var output = new ByteArrayOutputStream();
-        try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
-            document.writeTo(generator);
-        }
-        return output.toByteArray();
+        return document.encode();
     }
 
     static CorpusRunStatistics decode(byte[] encoded) throws CorpusFormatException {

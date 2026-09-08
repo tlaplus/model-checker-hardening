@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.corpus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import io.github.tlaplus.hardening.common.ThrowingConsumer;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -87,6 +88,16 @@ final class CborMapWriter {
     /** Reports whether a field of this name has already been appended. */
     boolean has(String name) {
         return names.contains(Objects.requireNonNull(name, "name"));
+    }
+
+    /** Serializes a complete document, deriving every map length from its registered fields. */
+    byte[] encode() throws IOException {
+        var output = new ByteArrayOutputStream();
+        try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
+            generator.setCodec(CorpusCbor.MAPPER);
+            writeTo(generator);
+        }
+        return output.toByteArray();
     }
 
     /** Writes this map as a definite-length CBOR map of exactly the fields it holds. */

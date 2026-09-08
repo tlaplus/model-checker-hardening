@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageResult;
@@ -15,6 +16,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation;
+import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -54,9 +56,7 @@ public final class ParserStage implements WorkflowStage {
             Map<CorpusStage, WorkQueue<Path>> checkerOutputs,
             Semaphore inputCapacity) {
         this.config = Objects.requireNonNull(config, "config");
-        if (workerCount <= 0) {
-            throw new IllegalArgumentException("workerCount must be positive");
-        }
+        Preconditions.requirePositive(workerCount, "workerCount");
         this.workerCount = workerCount;
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
@@ -127,7 +127,7 @@ public final class ParserStage implements WorkflowStage {
 
     /** One parser worker and the persistent SANY JVM it reuses until that JVM dies. */
     private final class Worker implements AutoCloseable {
-        private ParserProcess process;
+        private IsolatedWorkerProcess process;
 
         private void parse(Path path) throws Exception {
             var corpus = environment.corpus();
@@ -136,7 +136,7 @@ public final class ParserStage implements WorkflowStage {
             if (process == null) {
                 process = ParserProcess.start(scratchDirectory, timeout());
             }
-            var result = process.parse(source, timeout());
+            var result = process.request(source, timeout());
             if (result.outcome() == StageOutcome.CRASH) {
                 // A crash verdict has already closed the child process.
                 process = null;

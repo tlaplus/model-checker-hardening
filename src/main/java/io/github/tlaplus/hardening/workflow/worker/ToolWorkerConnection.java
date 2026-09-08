@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.Cleanup;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -42,11 +43,7 @@ public final class ToolWorkerConnection implements AutoCloseable {
             socket.setTcpNoDelay(true);
             return new ToolWorkerConnection(socket);
         } catch (IOException exception) {
-            try {
-                socket.close();
-            } catch (IOException closeException) {
-                exception.addSuppressed(closeException);
-            }
+            Cleanup.suppressIOException(exception, socket::close);
             throw exception;
         }
     }

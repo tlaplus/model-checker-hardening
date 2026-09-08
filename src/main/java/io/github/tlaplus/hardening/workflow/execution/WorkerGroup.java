@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -25,9 +26,7 @@ public final class WorkerGroup implements AutoCloseable {
 
     public WorkerGroup(String threadNamePrefix) {
         this.threadNamePrefix = Objects.requireNonNull(threadNamePrefix, "threadNamePrefix");
-        if (threadNamePrefix.isBlank()) {
-            throw new IllegalArgumentException("threadNamePrefix must not be blank");
-        }
+        Preconditions.require(!threadNamePrefix.isBlank(), "threadNamePrefix must not be blank");
     }
 
     public void start(int workerCount, IntFunction<? extends Runnable> workerFactory) {
@@ -45,9 +44,7 @@ public final class WorkerGroup implements AutoCloseable {
             case STARTED -> throw new IllegalStateException("worker group has already started");
             case CLOSED -> throw new IllegalStateException("worker group has already closed");
         }
-        if (workerCount < 0) {
-            throw new IllegalArgumentException("workerCount must be nonnegative");
-        }
+        Preconditions.requireNonnegative(workerCount, "workerCount");
         Objects.requireNonNull(workerFactory, "workerFactory");
         Objects.requireNonNull(afterCompletion, "afterCompletion");
 

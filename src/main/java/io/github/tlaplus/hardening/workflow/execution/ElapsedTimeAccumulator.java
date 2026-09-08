@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Objects;
@@ -22,9 +23,7 @@ public final class ElapsedTimeAccumulator {
 
     ElapsedTimeAccumulator(Duration previous, LongSupplier nanoTime) {
         Objects.requireNonNull(previous, "previous");
-        if (previous.isNegative()) {
-            throw new IllegalArgumentException("previous elapsed time must be nonnegative");
-        }
+        Preconditions.require(!previous.isNegative(), "previous elapsed time must be nonnegative");
         this.nanoTime = Objects.requireNonNull(nanoTime, "nanoTime");
         completedNanos = previous.toNanos();
     }

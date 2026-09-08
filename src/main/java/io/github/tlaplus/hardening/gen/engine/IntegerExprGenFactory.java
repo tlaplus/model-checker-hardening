@@ -20,16 +20,14 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
             var nextDepth = remainingDepth - 1;
             return switch (kind) {
                 case INTEGER_LITERAL -> builder().integer(draw.draw(integerLiteral()));
-                case PLUS -> draw.draw(integerBinary(remainingDepth, Arithmetic.PLUS));
-                case MINUS -> draw.draw(integerBinary(remainingDepth, Arithmetic.MINUS));
+                case PLUS -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::plus));
+                case MINUS -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::minus));
                 case UNARY_MINUS -> builder().uminus(
                         draw.draw(expression(PrimitiveType.INT, nextDepth)));
-                case MULTIPLY ->
-                    draw.draw(integerBinary(remainingDepth, Arithmetic.MULTIPLY));
-                case DIVIDE -> draw.draw(integerBinary(remainingDepth, Arithmetic.DIVIDE));
-                case MODULO -> draw.draw(integerBinary(remainingDepth, Arithmetic.MODULO));
-                case EXPONENT ->
-                    draw.draw(integerBinary(remainingDepth, Arithmetic.EXPONENT));
+                case MULTIPLY -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::mult));
+                case DIVIDE -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::div));
+                case MODULO -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::mod));
+                case EXPONENT -> draw.draw(binary(PrimitiveType.INT, nextDepth, builder()::exp));
                 case CARDINALITY -> {
                     var elementType = draw.draw(typeFactory.valueType());
                     yield builder().cardinality(
@@ -37,23 +35,6 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
                 }
                 case LENGTH -> builder().len(draw.draw(expression(
                         new SequenceType(draw.draw(typeFactory.valueType())), nextDepth)));
-            };
-        };
-    }
-
-    /** Returns a generator of the selected binary integer operation. */
-    private Generator<TlaEx> integerBinary(
-            int remainingDepth, Arithmetic operation) {
-        return draw -> {
-            var left = draw.draw(expression(PrimitiveType.INT, remainingDepth - 1));
-            var right = draw.draw(expression(PrimitiveType.INT, remainingDepth - 1));
-            return switch (operation) {
-                case PLUS -> builder().plus(left, right);
-                case MINUS -> builder().minus(left, right);
-                case MULTIPLY -> builder().mult(left, right);
-                case DIVIDE -> builder().div(left, right);
-                case MODULO -> builder().mod(left, right);
-                case EXPONENT -> builder().exp(left, right);
             };
         };
     }
@@ -66,13 +47,4 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
                         : new BigInteger(payload));
     }
 
-    /** Binary arithmetic operations. */
-    private enum Arithmetic {
-        PLUS,
-        MINUS,
-        MULTIPLY,
-        DIVIDE,
-        MODULO,
-        EXPONENT
-    }
 }

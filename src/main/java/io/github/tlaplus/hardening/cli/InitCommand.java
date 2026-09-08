@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -44,11 +43,7 @@ final class InitCommand implements Callable<Integer> {
                             initialized.resolve(CorpusPath.ROOT));
             return CommandLine.ExitCode.OK;
         } catch (IOException | CorpusException exception) {
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot initialize corpus '%s': %s%n",
-                            corpus, Diagnostics.message(exception));
+            CommandDiagnostic.print(spec.commandLine().getErr(), "cannot initialize corpus", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
     }

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.time.Duration;
@@ -27,22 +28,12 @@ public record WorkflowProgress(
         stages = copyOf(stages, "stages");
         backlog = copyOf(backlog, "backlog");
         Objects.requireNonNull(totalElapsed, "totalElapsed");
-        if (corpusEntries < 0) {
-            throw new IllegalArgumentException("workflow progress counters must be nonnegative");
-        }
+        Preconditions.require(corpusEntries >= 0, "workflow progress counters must be nonnegative");
         for (var pending : backlog.values()) {
-            if (pending < 0) {
-                throw new IllegalArgumentException(
-                        "workflow progress counters must be nonnegative");
-            }
-            if (pending > corpusEntries) {
-                throw new IllegalArgumentException(
-                        "pending stage counts must not exceed corpus entries");
-            }
+            Preconditions.require(pending >= 0, "workflow progress counters must be nonnegative");
+            Preconditions.require(pending <= corpusEntries, "pending stage counts must not exceed corpus entries");
         }
-        if (totalElapsed.isNegative()) {
-            throw new IllegalArgumentException("total elapsed time must be nonnegative");
-        }
+        Preconditions.require(!totalElapsed.isNegative(), "total elapsed time must be nonnegative");
     }
 
     /** Returns what one stage has produced so far. */
@@ -58,9 +49,7 @@ public record WorkflowProgress(
     private static <T> Map<CorpusStage, T> copyOf(Map<CorpusStage, T> values, String name) {
         Objects.requireNonNull(values, name);
         for (var stage : CorpusStage.values()) {
-            if (!values.containsKey(stage)) {
-                throw new IllegalArgumentException(name + " is missing stage " + stage);
-            }
+            Preconditions.require(values.containsKey(stage), name + " is missing stage " + stage);
         }
         var copy = new EnumMap<CorpusStage, T>(CorpusStage.class);
         copy.putAll(values);

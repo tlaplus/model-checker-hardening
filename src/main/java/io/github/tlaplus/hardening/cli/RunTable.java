@@ -1,7 +1,7 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.common.GeneratorAggregate;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -10,23 +10,19 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.ToLongFunction;
 
 /** Formats live and final workflow counters with one stable table layout. */
 final class RunTable {
     private RunTable() {}
 
     static String progress(WorkflowProgress progress) {
-        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
-        for (var stage : CorpusStage.values()) {
-            backlog.put(stage, progress.backlog(stage));
-        }
         return render(new View(
                 "Workflow run in progress",
                 progress.corpusEntries(),
-                backlog,
+                progress::backlog,
                 progress.generator(),
                 progress.stages(),
                 progress.totalElapsed(),
@@ -35,14 +31,10 @@ final class RunTable {
     }
 
     static String finished(Path corpus, WorkflowRunSummary summary) {
-        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
-        for (var stage : CorpusStage.values()) {
-            backlog.put(stage, summary.corpus().pendingEntries(stage));
-        }
         return render(new View(
                 "Workflow run finished for '" + corpus + "'",
                 summary.corpus().totalEntries(),
-                backlog,
+                summary.corpus()::pendingEntries,
                 summary.generator(),
                 summary.stages(),
                 summary.totalElapsed(),
@@ -54,7 +46,7 @@ final class RunTable {
     private record View(
             String header,
             long corpusEntries,
-            Map<CorpusStage, Long> backlog,
+            ToLongFunction<CorpusStage> backlog,
             GeneratorSummary generator,
             Map<CorpusStage, StageVerdictSummary> stages,
             Duration totalElapsed,
@@ -69,7 +61,7 @@ final class RunTable {
             for (var stage : CorpusStage.values()) {
                 printCounter(
                         writer,
-                        view.backlog().get(stage),
+                        view.backlog().applyAsLong(stage),
                         "awaiting " + stage.displayName());
             }
             printCounter(writer, view.generator().generated(), "generated inputs");
@@ -79,7 +71,7 @@ final class RunTable {
                 printVerdicts(writer, view.stages().get(stage), stage);
             }
             printElapsed(writer, view.totalElapsed(), "total elapsed");
-            writer.printf("[%20s %-18s]%n", view.stateValue(), view.stateLabel());
+            printStatistic(writer, view.stateValue(), view.stateLabel());
         }
         return output.toString();
     }
@@ -102,22 +94,17 @@ final class RunTable {
 
     private static void printGenerationCounters(PrintWriter writer, GeneratorAggregate generator) {
         var richness = generator.richness();
-        if (richness.samples() == 0) {
-            printStatistic(writer, "n/a", "min richness");
-            printStatistic(writer, "n/a", "max richness");
-            printStatistic(writer, "n/a", "avg richness");
-        } else {
-            printStatistic(
-                    writer, formatRichness(richness.minimum()), "min richness");
-            printStatistic(
-                    writer, formatRichness(richness.maximum()), "max richness");
-            printStatistic(
-                    writer, formatRichness(richness.average()), "avg richness");
-        }
+        printRichness(writer, richness.samples(), richness.minimum(), "min richness");
+        printRichness(writer, richness.samples(), richness.maximum(), "max richness");
+        printRichness(writer, richness.samples(), richness.average(), "avg richness");
         printCounter(writer, generator.attempts(), "candidate attempts");
         printCounter(writer, generator.rejected(), "generator rejected");
         printCounter(writer, generator.richnessRejected(), "richness rejected");
         printCounter(writer, generator.duplicates(), "duplicate inputs");
+    }
+
+    private static void printRichness(PrintWriter writer, long samples, double value, String label) {
+        printStatistic(writer, samples == 0 ? "n/a" : formatRichness(value), label);
     }
 
     private static void printStatistic(PrintWriter writer, String value, String label) {

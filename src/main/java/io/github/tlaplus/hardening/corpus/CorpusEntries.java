@@ -5,7 +5,6 @@ import static io.github.tlaplus.hardening.corpus.CorpusLayout.ENTRY_FILE_NAME;
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
-import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -171,6 +170,16 @@ final class CorpusEntries {
                             + stage.metadataName()
                             + " entry remains in an input directory: "
                             + entry.path());
+        }
+    }
+
+    /** A checker branch must not contain another checker's stage metadata. */
+    static void requireMissingOtherCheckerStages(CorpusStage checker, Entry entry)
+            throws CorpusException {
+        for (var other : CorpusStage.checkerBranches()) {
+            if (other != checker) {
+                requireMissingStage(entry, other);
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.List;
@@ -20,9 +21,7 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
         public StageEntries {
             pending = List.copyOf(pending);
             Objects.requireNonNull(counts, "counts");
-            if (resultOccupancy < 0) {
-                throw new IllegalArgumentException("resultOccupancy must be nonnegative");
-            }
+            Preconditions.requireNonnegative(resultOccupancy, "resultOccupancy");
         }
     }
 
@@ -31,17 +30,13 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
         var copy = new EnumMap<CorpusStage, StageEntries>(CorpusStage.class);
         copy.putAll(stages);
         for (var stage : CorpusStage.values()) {
-            if (!copy.containsKey(stage)) {
-                throw new IllegalArgumentException("inventory is missing stage " + stage);
-            }
+            Preconditions.require(copy.containsKey(stage), "inventory is missing stage " + stage);
             var supported = stage.resultVerdicts();
             for (var verdict : CorpusVerdict.values()) {
-                if (!supported.contains(verdict)
-                        && copy.get(stage).counts().count(verdict) != 0) {
-                    throw new IllegalArgumentException(
-                            stage + " inventory counts unsupported " + verdict.encodedName()
-                                    + " verdicts");
-                }
+                Preconditions.require(supported.contains(verdict)
+                                || copy.get(stage).counts().count(verdict) == 0,
+                        stage + " inventory counts unsupported " + verdict.encodedName()
+                                + " verdicts");
             }
         }
         stages = Map.copyOf(copy);
@@ -52,10 +47,8 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
                 .count(CorpusVerdict.PASS);
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = stages.get(checker);
-            if (parserPasses != branch.pending().size() + branch.counts().processed()) {
-                throw new IllegalArgumentException(
-                        "each parser pass must have one entry in each checker branch");
-            }
+            Preconditions.require(parserPasses == branch.pending().size() + branch.counts().processed(),
+                    "each parser pass must have one entry in each checker branch");
         }
     }
 

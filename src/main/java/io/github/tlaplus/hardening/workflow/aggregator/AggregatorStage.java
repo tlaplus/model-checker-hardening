@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.aggregator;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
@@ -36,9 +37,7 @@ public final class AggregatorStage implements WorkflowStage {
             StageEnvironment environment,
             WorkQueue<Path> input,
             Map<CorpusStage, OccupancyGate> checkerCapacities) {
-        if (recoveredCandidates < 0) {
-            throw new IllegalArgumentException("recoveredCandidates must be nonnegative");
-        }
+        Preconditions.requireNonnegative(recoveredCandidates, "recoveredCandidates");
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");

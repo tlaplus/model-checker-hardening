@@ -105,29 +105,21 @@ final class CborReader implements AutoCloseable {
 
     /** Requires a field to hold a map and positions the reader inside it. */
     void requireMap(Field field) throws IOException {
-        if (field.value() != JsonToken.START_OBJECT) {
-            throw malformed("field '" + field.path() + "' must be a map");
-        }
+        requireToken(field, JsonToken.START_OBJECT, "a map");
     }
 
     String text(Field field) throws IOException {
-        if (field.value() != JsonToken.VALUE_STRING) {
-            throw malformed("field '" + field.path() + "' must be a text string");
-        }
+        requireToken(field, JsonToken.VALUE_STRING, "a text string");
         return parser.getText();
     }
 
     byte[] binary(Field field) throws IOException {
-        if (field.value() != JsonToken.VALUE_EMBEDDED_OBJECT) {
-            throw malformed("field '" + field.path() + "' must be a byte string");
-        }
+        requireToken(field, JsonToken.VALUE_EMBEDDED_OBJECT, "a byte string");
         return parser.getBinaryValue();
     }
 
     long longValue(Field field) throws IOException {
-        if (field.value() != JsonToken.VALUE_NUMBER_INT) {
-            throw malformed("field '" + field.path() + "' must be an integer");
-        }
+        requireToken(field, JsonToken.VALUE_NUMBER_INT, "an integer");
         return parser.getLongValue();
     }
 
@@ -166,6 +158,13 @@ final class CborReader implements AutoCloseable {
         } catch (ArithmeticException | DateTimeException | NumberFormatException exception) {
             throw malformed(
                     "field '" + field.path() + "' is outside the supported timestamp range");
+        }
+    }
+
+    private static void requireToken(Field field, JsonToken token, String expected)
+            throws CorpusFormatException {
+        if (field.value() != token) {
+            throw malformed("field '" + field.path() + "' must be " + expected);
         }
     }
 

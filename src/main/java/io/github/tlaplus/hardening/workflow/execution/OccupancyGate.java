@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -11,12 +12,8 @@ public final class OccupancyGate {
     private final int maximum;
 
     public OccupancyGate(long initialOccupancy, long maximum) {
-        if (initialOccupancy < 0) {
-            throw new IllegalArgumentException("initialOccupancy must be nonnegative");
-        }
-        if (maximum < 0) {
-            throw new IllegalArgumentException("maximum must be nonnegative");
-        }
+        Preconditions.requireNonnegative(initialOccupancy, "initialOccupancy");
+        Preconditions.requireNonnegative(maximum, "maximum");
         occupancy = new AtomicInteger(Math.toIntExact(initialOccupancy));
         this.maximum = Math.toIntExact(maximum);
     }

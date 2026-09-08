@@ -1,6 +1,8 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,13 +16,18 @@ public record ToolResult(
         Objects.requireNonNull(outcome, "outcome");
         Objects.requireNonNull(failureCode, "failureCode");
         diagnostic = Objects.requireNonNullElse(diagnostic, "");
-        if (failureCode.isPresent() && outcome != StageOutcome.FAIL) {
-            throw new IllegalArgumentException("only a failed tool result may carry a failure code");
-        }
+        Preconditions.require(failureCode.isEmpty() || outcome == StageOutcome.FAIL,
+                "only a failed tool result may carry a failure code");
     }
 
     public ToolResult(StageOutcome outcome, String diagnostic) {
         this(outcome, Optional.empty(), diagnostic);
+    }
+
+    /** Keeps captured tool output before the full stack trace of an escaped failure. */
+    public static ToolResult crash(Throwable failure, String diagnostic) {
+        return new ToolResult(StageOutcome.CRASH,
+                WorkerDiagnostics.append(diagnostic, Diagnostics.stackTrace(failure)));
     }
 
     public static ToolResult counterexample(String diagnostic) {

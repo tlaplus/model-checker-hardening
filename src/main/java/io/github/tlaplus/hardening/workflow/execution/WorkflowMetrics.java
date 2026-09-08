@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
 import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -36,9 +37,7 @@ public final class WorkflowMetrics {
     /** Returns this corpus's total elapsed time including the current invocation. */
     public Duration totalElapsed(Duration invocationElapsed) {
         Objects.requireNonNull(invocationElapsed, "invocationElapsed");
-        if (invocationElapsed.isNegative()) {
-            throw new IllegalArgumentException("invocationElapsed must be nonnegative");
-        }
+        Preconditions.require(!invocationElapsed.isNegative(), "invocationElapsed must be nonnegative");
         return Duration.ofNanos(
                 Math.addExact(previousTotalElapsedNanos, invocationElapsed.toNanos()));
     }

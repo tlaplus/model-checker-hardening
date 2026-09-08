@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.gen.InputKind;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
@@ -69,11 +68,7 @@ public final class CorpusInputCodec {
                 .binary(INPUT_FIELD, corpusInput.input());
         generationMetadata.ifPresent(
                 metadata -> document.map(GENERATION_FIELD, generationMetadata(metadata)));
-        var output = new ByteArrayOutputStream();
-        try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
-            document.writeTo(generator);
-        }
-        return output.toByteArray();
+        return document.encode();
     }
 
     /**

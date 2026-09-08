@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.Set;
 
 /** Type-polymorphic and terminal expression forms. */
 public enum GeneralExpressionKind implements ExpressionKind {
@@ -28,13 +27,11 @@ public enum GeneralExpressionKind implements ExpressionKind {
     VARIANT_GET_OR_ELSE(ExpressionCategory.VARIANT),
     VARIANT_GET_UNSAFE(ExpressionCategory.VARIANT);
 
-    private final ExpressionCategory category;
-    private final Set<ExpressionCategory> requiredCategories;
+    private final Categories categories;
 
     GeneralExpressionKind(
             ExpressionCategory category, ExpressionCategory... dependencies) {
-        this.category = category;
-        requiredCategories = ExpressionKind.requirements(category, dependencies);
+        categories = new Categories(category, dependencies);
     }
 
     @Override
@@ -71,12 +68,7 @@ public enum GeneralExpressionKind implements ExpressionKind {
     }
 
     @Override
-    public ExpressionCategory category() {
-        return category;
-    }
-
-    @Override
-    public Set<ExpressionCategory> requiredCategories() {
-        return requiredCategories;
+    public Categories categories() {
+        return categories;
     }
 }

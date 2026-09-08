@@ -12,8 +12,6 @@ public record GeneratorSummary(long seed, long generated, GeneratorAggregate agg
         Preconditions.requireNonnegative(generated, "generated");
         Objects.requireNonNull(aggregate, "aggregate");
         Objects.requireNonNull(elapsed, "elapsed");
-        if (elapsed.isNegative()) {
-            throw new IllegalArgumentException("generator elapsed time must be nonnegative");
-        }
+        Preconditions.require(!elapsed.isNegative(), "generator elapsed time must be nonnegative");
     }
 }

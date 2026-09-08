@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.Set;
 
 /** Sequence-valued expression forms. */
 public enum SequenceExpressionKind implements ExpressionKind {
@@ -12,12 +11,10 @@ public enum SequenceExpressionKind implements ExpressionKind {
     TAIL(ExpressionCategory.SEQUENCE),
     SUBSEQUENCE(ExpressionCategory.SEQUENCE);
 
-    private final ExpressionCategory category;
-    private final Set<ExpressionCategory> requiredCategories;
+    private final Categories categories;
 
     SequenceExpressionKind(ExpressionCategory category) {
-        this.category = category;
-        requiredCategories = ExpressionKind.requirements(category);
+        categories = new Categories(category);
     }
 
     @Override
@@ -26,12 +23,7 @@ public enum SequenceExpressionKind implements ExpressionKind {
     }
 
     @Override
-    public ExpressionCategory category() {
-        return category;
-    }
-
-    @Override
-    public Set<ExpressionCategory> requiredCategories() {
-        return requiredCategories;
+    public Categories categories() {
+        return categories;
     }
 }

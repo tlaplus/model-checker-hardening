@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -23,9 +24,8 @@ public record WorkerSpec(
         Objects.requireNonNull(workerMain, "workerMain");
         classpathPrefix = List.copyOf(classpathPrefix);
         jvmArguments = List.copyOf(jvmArguments);
-        if (Objects.requireNonNull(description, "description").isBlank()) {
-            throw new IllegalArgumentException("description must not be blank");
-        }
+        Preconditions.require(!Objects.requireNonNull(description, "description").isBlank(),
+                "description must not be blank");
     }
 
     /** A worker that needs no extra class-path entries and no extra JVM options. */

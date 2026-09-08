@@ -26,9 +26,7 @@ final class SequenceExprGenFactory extends AbstractExprGenFactory {
                 case APPEND -> builder().append(
                         draw.draw(expression(type, nextDepth)),
                         draw.draw(expression(type.element(), nextDepth)));
-                case CONCATENATE -> builder().concat(
-                        draw.draw(expression(type, nextDepth)),
-                        draw.draw(expression(type, nextDepth)));
+                case CONCATENATE -> draw.draw(binary(type, nextDepth, builder()::concat));
                 case TAIL -> builder().tail(draw.draw(expression(type, nextDepth)));
                 case SUBSEQUENCE -> builder().subSeq(
                         draw.draw(expression(type, nextDepth)),
