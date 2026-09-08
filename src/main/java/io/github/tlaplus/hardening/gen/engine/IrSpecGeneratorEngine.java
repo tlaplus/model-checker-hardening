@@ -6,6 +6,7 @@ import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -109,6 +110,17 @@ public final class IrSpecGeneratorEngine {
         stateScope.addAll(variables);
         stateScope.add(step);
 
+        // Action operators read current state and prime, so they are drawn with the state
+        // variables in scope. Populating the factory's registry here is what lets Next apply them;
+        // Init and the invariant never see them.
+        var actionOperators = draw.draw(context.withBindings(
+                stateScope, actions.actionOperators(depth)));
+        var generatedActionOperators = actionOperators.stream()
+                .map(operator -> new GeneratedActionOperator(
+                        operator.declaration(),
+                        operator.effect().stream().map(ScopedName::name).toList()))
+                .toList();
+
         // Init sees the operators but not the variables: a conjunct that read another variable
         // would depend on an evaluation order the predicate does not fix.
         var initPredicate = draw.draw(context.withBindings(
@@ -123,6 +135,7 @@ public final class IrSpecGeneratorEngine {
         return new GeneratedSpec(
                 declarations,
                 operators.stream().map(DefinedOperator::declaration).toList(),
+                generatedActionOperators,
                 initPredicate,
                 nextAction,
                 invariant,

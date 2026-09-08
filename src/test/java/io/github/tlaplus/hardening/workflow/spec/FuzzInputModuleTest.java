@@ -54,6 +54,45 @@ class FuzzInputModuleTest {
         assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
     }
 
+    @Test
+    void placesActionOperatorsAfterAuxiliaryOperatorsAndBeforeTheEntryPoints() {
+        var random = new java.util.Random(0xF1F0L);
+        for (var sample = 0; sample < 2000; sample++) {
+            var input = new byte[400 + random.nextInt(800)];
+            random.nextBytes(input);
+            final io.github.tlaplus.hardening.gen.GeneratedSpec spec;
+            try {
+                spec = IrGenerators.specs(IrGenerationConfig.defaults()).generate(input);
+            } catch (io.github.tlaplus.hardening.gen.InputRejectedException rejected) {
+                continue;
+            }
+            if (spec.actionOperators().isEmpty()) {
+                continue;
+            }
+            var names = CollectionConverters.asJava(
+                            FuzzInputModule.create(spec).operDeclarations()).stream()
+                    .map(TlaOperDecl::name)
+                    .toList();
+            var lastAuxiliary = lastIndexWithPrefix(names, "Op");
+            var firstAction = names.indexOf(spec.actionOperators().get(0).declaration().name());
+            var initIndex = names.indexOf(FuzzInputModule.INIT);
+            assertTrue(firstAction > lastAuxiliary, "action operator precedes an auxiliary one");
+            assertTrue(firstAction < initIndex, "action operator follows Init");
+            return;
+        }
+        throw new AssertionError("no generated module declared an action operator");
+    }
+
+    private int lastIndexWithPrefix(java.util.List<String> names, String prefix) {
+        var index = -1;
+        for (var position = 0; position < names.size(); position++) {
+            if (names.get(position).startsWith(prefix)) {
+                index = position;
+            }
+        }
+        return index;
+    }
+
     private void assertEntryPointOrder(
             java.util.List<TlaOperDecl> entryPoints) {
         assertEquals(4, entryPoints.size());

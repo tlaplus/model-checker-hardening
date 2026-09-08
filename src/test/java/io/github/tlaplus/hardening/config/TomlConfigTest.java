@@ -28,6 +28,8 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("max_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_sec = 30"));
         assertTrue(Files.readString(path).contains("max_nodes = 128"));
+        assertTrue(Files.readString(path).contains("max_action_operators = 2"));
+        assertTrue(Files.readString(path).contains("max_action_depth = 3"));
         assertTrue(Files.readString(path)
                 .contains("weights = { name = 8, enum_set = 16 }"));
         assertTrue(Files.readString(path)

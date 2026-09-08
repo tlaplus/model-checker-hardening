@@ -21,7 +21,7 @@ class IrGenerationConfigTest {
         assertEquals(
                 new IrGenerationConfig(
                         new ExpressionLimits(3, 32, 128, 8, 32, 16),
-                        new ModuleLimits(3, 2, 3, 2, 5),
+                        new ModuleLimits(3, 2, 2, 3, 2, 3, 5),
                         Set.of(
                                 ExpressionCategory.ACTION,
                                 ExpressionCategory.TEMPORAL,
@@ -49,11 +49,13 @@ class IrGenerationConfigTest {
 
     @Test
     void rejectsInvalidModuleLimits() {
-        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(0, 0, 1, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, -1, 1, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 1, -1, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 1, 0, -1));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(0, 0, 0, 1, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, -1, 0, 1, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, -1, 1, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 0, 1, -1, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 0, 1, 0, -1, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ModuleLimits(1, 0, 0, 1, 0, 0, -1));
     }
 
     @Test

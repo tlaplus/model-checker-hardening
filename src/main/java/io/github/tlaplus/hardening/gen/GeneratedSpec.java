@@ -26,7 +26,9 @@ import java.util.stream.Stream;
  * </ul>
  *
  * @param variables the declared state variables, in declaration order
- * @param auxiliaryOperators definitions the predicates may apply, in dependency order
+ * @param auxiliaryOperators state-free definitions the predicates may apply, in dependency order
+ * @param actionOperators action definitions the next-state action may apply, in dependency order;
+ *     each reads current state and primes its effect set
  * @param initPredicate the initial-state predicate
  * @param nextAction the next-state action
  * @param invariant the state invariant
@@ -37,6 +39,7 @@ import java.util.stream.Stream;
 public record GeneratedSpec(
         List<TlaVarDecl> variables,
         List<TlaOperDecl> auxiliaryOperators,
+        List<GeneratedActionOperator> actionOperators,
         TlaEx initPredicate,
         TlaEx nextAction,
         TlaEx invariant,
@@ -49,6 +52,8 @@ public record GeneratedSpec(
         }
         auxiliaryOperators =
                 List.copyOf(Objects.requireNonNull(auxiliaryOperators, "auxiliaryOperators"));
+        actionOperators =
+                List.copyOf(Objects.requireNonNull(actionOperators, "actionOperators"));
         Objects.requireNonNull(initPredicate, "initPredicate");
         Objects.requireNonNull(nextAction, "nextAction");
         Objects.requireNonNull(invariant, "invariant");
@@ -58,9 +63,11 @@ public record GeneratedSpec(
 
     /** Returns the generated expressions, each listed once. */
     public List<TlaEx> generated() {
-        return Stream.concat(
+        return Stream.of(
                         auxiliaryOperators.stream().map(TlaOperDecl::body),
+                        actionOperators.stream().map(operator -> operator.declaration().body()),
                         Stream.of(initPredicate, nextAction, invariant))
+                .flatMap(stream -> stream)
                 .toList();
     }
 }
