@@ -2,6 +2,10 @@ package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -21,8 +25,16 @@ import java.util.Objects;
  */
 public final class SpecDecoders {
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
+    private final OperatorLibrary library;
+    private final String libraryManifest;
 
-    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders) {
+    /** The replay identity of the prepared library, empty when none is configured. */
+    public String libraryManifest() { return libraryManifest; }
+
+    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library,
+            String libraryManifest) {
+        this.library = Objects.requireNonNull(library, "library");
+        this.libraryManifest = Objects.requireNonNull(libraryManifest, "libraryManifest");
         Objects.requireNonNull(decoders, "decoders");
         var copy = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         copy.putAll(decoders);
@@ -35,17 +47,32 @@ public final class SpecDecoders {
         this.decoders = Collections.unmodifiableMap(copy);
     }
 
+    /** Loads configured libraries once before constructing the reusable decoders. */
+    public static SpecDecoders prepare(FuzzTlaConfig config) throws WorkflowException {
+        try {
+            var prepared = LibraryPreparation.prepare(config);
+            return of(prepared.generator(), prepared.manifest());
+        } catch (IllegalArgumentException exception) {
+            throw new WorkflowException(
+                    "invalid custom generator configuration: " + exception.getMessage(), exception);
+        }
+    }
+
     /** Returns a complete decoder registry under one generator configuration. */
     public static SpecDecoders of(IrGenerationConfig config) {
+        return of(config, "");
+    }
+
+    private static SpecDecoders of(IrGenerationConfig config, String libraryManifest) {
         Objects.requireNonNull(config, "config");
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(
                 InputKind.EXPRESSION,
-                IrGenerators.expressions(config).map(SpecArtifact::fromExpression));
+                IrGenerators.expressions(config).map(expression -> SpecArtifact.fromExpression(expression, config.library())));
         decoders.put(
                 InputKind.MODULE,
-                IrGenerators.specs(config).map(SpecArtifact::fromGeneratedSpec));
-        return new SpecDecoders(decoders);
+                IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
+        return new SpecDecoders(decoders, config.library(), libraryManifest);
     }
 
     /** Returns the decoder of {@code kind}; completeness is checked when the registry is built. */
@@ -70,7 +97,7 @@ public final class SpecDecoders {
         var replacements = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         replacements.putAll(decoders);
         replacements.put(
-                InputKind.EXPRESSION, expressions.map(SpecArtifact::fromExpression));
-        return new SpecDecoders(replacements);
+                InputKind.EXPRESSION, expressions.map(expression -> SpecArtifact.fromExpression(expression, library)));
+        return new SpecDecoders(replacements, library, libraryManifest);
     }
 }

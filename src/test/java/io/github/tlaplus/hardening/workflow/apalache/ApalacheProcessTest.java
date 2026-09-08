@@ -24,7 +24,8 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import scala.jdk.javaapi.CollectionConverters;
+import static io.github.tlaplus.hardening.common.ScalaCollections.list;
+import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
 
 class ApalacheProcessTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
@@ -164,7 +165,7 @@ class ApalacheProcessTest {
         var inv = builder.decl("Inv", invariant);
         var declarations = List.<TlaDecl>of(variable, init, next, inv);
         var module = new TlaModule(
-                "FuzzInput", CollectionConverters.asScala(declarations).toSeq());
+                "FuzzInput", seq(declarations));
         return TlaToUJson$.MODULE$.apply(module).render(2, false);
     }
 }

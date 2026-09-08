@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -42,18 +43,20 @@ public final class SpecArtifact {
         this.standaloneExpression = standaloneExpression;
     }
 
-    /** Wraps one generated expression in the single-state checker module. */
-    public static SpecArtifact fromExpression(TlaEx expression) {
+    /** Wraps one generated expression, and the library definitions it uses, in the checker module. */
+    public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
         return new SpecArtifact(
-                FuzzInputModule.create(expression), 0, List.of(expression), expression);
+                library.link(FuzzInputModule.create(expression), List.of(expression)),
+                0, List.of(expression), library.close(expression));
     }
 
-    /** Assembles the declarations produced by the whole-module decoder. */
-    public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec) {
+    /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
+    public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
         return new SpecArtifact(
-                FuzzInputModule.create(spec), spec.stepBound(), spec.generated(), null);
+                library.link(FuzzInputModule.create(spec), spec.generated()),
+                spec.stepBound(), spec.generated(), null);
     }
 
     public TlaModule module() {

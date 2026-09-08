@@ -41,6 +41,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
+import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
+import io.github.tlaplus.hardening.common.Digests;
 
 class MainTest {
     @Test
@@ -693,7 +695,7 @@ class MainTest {
                                 new CheckerStageConfig(entries, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(entries, 10, 512, 1))),
-                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5));
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
         Files.writeString(
                 corpus.resolve(CorpusPath.CONFIG.relativePath()),
                 TomlConfig.render(config),
@@ -702,7 +704,7 @@ class MainTest {
     }
 
     private String hash(byte[] input) throws Exception {
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input));
+        return Digests.digest(input);
     }
 
     private Result execute(String... args) {

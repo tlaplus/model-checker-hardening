@@ -12,6 +12,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 
 class IrGenerationConfigTest {
     private static final ExpressionLimits LIMITS = new ExpressionLimits(0, 1, 1, 1, 0, 0);
@@ -27,7 +28,7 @@ class IrGenerationConfigTest {
                                 ExpressionCategory.TEMPORAL,
                                 ExpressionCategory.UNBOUND,
                                 ExpressionCategory.EXOTIC),
-                        Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16)),
+                        Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16), OperatorLibrary.empty()),
                 IrGenerationConfig.defaults());
     }
 
@@ -75,7 +76,7 @@ class IrGenerationConfigTest {
     @Test
     void formWeightsDefaultToOneAndAreValidated() {
         var config = new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), Set.of(), Map.of(GeneralExpressionKind.NAME, 8));
+                        LIMITS, ModuleLimits.defaults(), Set.of(), Map.of(GeneralExpressionKind.NAME, 8), OperatorLibrary.empty());
 
         assertEquals(8, config.weightOf(GeneralExpressionKind.NAME));
         assertEquals(
@@ -85,7 +86,7 @@ class IrGenerationConfigTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), Set.of(), Map.of(GeneralExpressionKind.NAME, 0)));
+                        LIMITS, ModuleLimits.defaults(), Set.of(), Map.of(GeneralExpressionKind.NAME, 0), OperatorLibrary.empty()));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new IrGenerationConfig(
@@ -93,11 +94,11 @@ class IrGenerationConfigTest {
                         Set.of(),
                         Map.of(
                                 GeneralExpressionKind.NAME,
-                                IrGenerationConfig.MAXIMUM_FORM_WEIGHT + 1)));
+                                IrGenerationConfig.MAXIMUM_FORM_WEIGHT + 1), OperatorLibrary.empty()));
         assertThrows(
                 NullPointerException.class,
                 () -> new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), Set.of(), null));
+                        LIMITS, ModuleLimits.defaults(), Set.of(), null, OperatorLibrary.empty()));
     }
 
     @Test
@@ -106,7 +107,7 @@ class IrGenerationConfigTest {
         weights.put(GeneralExpressionKind.NAME, 8);
 
         var config = new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), Set.of(), weights);
+                        LIMITS, ModuleLimits.defaults(), Set.of(), weights, OperatorLibrary.empty());
         weights.clear();
 
         assertEquals(8, config.weightOf(GeneralExpressionKind.NAME));
@@ -118,7 +119,7 @@ class IrGenerationConfigTest {
         var categories = EnumSet.of(ExpressionCategory.ACTION);
 
         var config = new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), categories, Map.of());
+                        LIMITS, ModuleLimits.defaults(), categories, Map.of(), OperatorLibrary.empty());
         categories.clear();
 
         assertEquals(Set.of(ExpressionCategory.ACTION), config.ignoredCategories());
@@ -126,10 +127,10 @@ class IrGenerationConfigTest {
         assertThrows(
                 NullPointerException.class,
                 () -> new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), null, Map.of()));
+                        LIMITS, ModuleLimits.defaults(), null, Map.of(), OperatorLibrary.empty()));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new IrGenerationConfig(
-                        LIMITS, ModuleLimits.defaults(), Set.of(ExpressionCategory.CORE), Map.of()));
+                        LIMITS, ModuleLimits.defaults(), Set.of(ExpressionCategory.CORE), Map.of(), OperatorLibrary.empty()));
     }
 }

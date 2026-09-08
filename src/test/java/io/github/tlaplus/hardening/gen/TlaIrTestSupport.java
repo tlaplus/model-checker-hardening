@@ -19,7 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import scala.jdk.javaapi.CollectionConverters;
+import static io.github.tlaplus.hardening.common.ScalaCollections.list;
+import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
 
 /** IR traversal and recursive action-accounting assertions shared by generator tests. */
 public final class TlaIrTestSupport {
@@ -28,7 +29,7 @@ public final class TlaIrTestSupport {
     /** Returns the top-level disjuncts of the next-state action. */
     public static List<TlaEx> disjuncts(TlaEx nextAction) {
         if (nextAction instanceof OperEx operator && operator.oper().name().equals("OR")) {
-            return CollectionConverters.asJava(operator.args()).stream().toList();
+            return list(operator.args()).stream().toList();
         }
         return List.of(nextAction);
     }
@@ -63,7 +64,7 @@ public final class TlaIrTestSupport {
         if (!(expression instanceof OperEx operator)) {
             return List.of();
         }
-        var arguments = CollectionConverters.asJava(operator.args());
+        var arguments = list(operator.args());
         return switch (operator.oper().name()) {
             case "EQ", "SET_IN" -> {
                 var assigned = primedName(arguments.getFirst());
@@ -134,9 +135,9 @@ public final class TlaIrTestSupport {
 
     private static java.util.stream.Stream<TlaEx> walk(TlaEx expression) {
         var children = switch (expression) {
-            case OperEx operator -> CollectionConverters.asJava(operator.args()).stream();
+            case OperEx operator -> list(operator.args()).stream();
             case LetInEx let -> java.util.stream.Stream.concat(java.util.stream.Stream.of(let.body()),
-                    CollectionConverters.asJava(let.decls()).stream().map(TlaOperDecl::body));
+                    list(let.decls()).stream().map(TlaOperDecl::body));
             default -> java.util.stream.Stream.<TlaEx>empty();
         };
         return java.util.stream.Stream.concat(java.util.stream.Stream.of(expression),
@@ -147,7 +148,7 @@ public final class TlaIrTestSupport {
     public static boolean guaranteesAssignment(TlaEx expression, Set<String> variables,
                                                Map<String, TlaEx> operators) {
         if (!(expression instanceof OperEx operator)) return false;
-        var args = CollectionConverters.asJava(operator.args());
+        var args = list(operator.args());
         return switch (operator.oper().name()) {
             case "EQ", "SET_IN" -> {
                 var name = primedName(args.getFirst());
@@ -180,7 +181,7 @@ public final class TlaIrTestSupport {
             return List.of(name.name());
         }
         if (expression instanceof OperEx operator && operator.oper().name().equals("TUPLE")) {
-            return CollectionConverters.asJava(operator.args()).stream()
+            return list(operator.args()).stream()
                     .flatMap(argument -> names(argument).stream())
                     .toList();
         }
@@ -208,7 +209,7 @@ public final class TlaIrTestSupport {
         }
         if (expression instanceof LetInEx letIn) {
             collectFreeReads(letIn.body(), variables, reads, false);
-            CollectionConverters.asJava(letIn.decls())
+            list(letIn.decls())
                     .forEach(declaration ->
                             collectFreeReads(declaration.body(), variables, reads, false));
             return;
@@ -216,7 +217,7 @@ public final class TlaIrTestSupport {
         if (!(expression instanceof OperEx operator)) {
             return;
         }
-        var arguments = CollectionConverters.asJava(operator.args());
+        var arguments = list(operator.args());
         if (skipConjunctHeads && operator.oper().name().equals("AND")) {
             arguments.forEach(
                     argument -> collectFreeReads(argument, variables, reads, true));

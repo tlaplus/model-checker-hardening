@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import static io.github.tlaplus.hardening.common.ScalaCollections.list;
+
+import at.forsyte.apalache.tla.lir.OperT1;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -21,10 +24,16 @@ final class IrExprGenFactory {
     private final SetExprGenFactory setFactory;
     private final SequenceExprGenFactory sequenceFactory;
     private final OtherExprGenFactory otherFactory;
+    private final List<ExpressionKind> catalog;
+    private final Map<Instantiation, TypeInstantiation> plans = new HashMap<>();
+
+    /** One custom operator at one requested result type: the unit its type plan is cached by. */
+    private record Instantiation(CustomExpressionKind kind, IrType type) {}
 
     IrExprGenFactory(GenerationContext context, IrTypeGenFactory typeFactory) {
         this.context = context;
         this.typeFactory = typeFactory;
+        catalog = ExpressionKindCatalog.all(context.config());
         otherFactory = new OtherExprGenFactory(context, typeFactory, this);
         generalFactory = new GeneralExprGenFactory(context, typeFactory, this, otherFactory);
         booleanFactory = new BooleanExprGenFactory(context, typeFactory, this);
@@ -121,15 +130,13 @@ final class IrExprGenFactory {
         }
         return typeApplicableForms.computeIfAbsent(
                 type,
-                requested -> ExpressionKindCatalog.all().stream()
-                        .filter(kind ->
-                                !kind.isUnavailableWith(context.config().ignoredCategories()))
-                        .filter(kind -> kind.isTypeApplicable(requested))
+                requested -> catalog.stream()
+                        .filter(kind -> kind.isConfiguredApplicable(context.config(), requested))
                         .toList());
     }
 
     /** Returns the generator supplied by a selected kind's typed family. */
-    private Generator<TlaEx> mkGen(
+    Generator<TlaEx> mkGen(
             ExpressionKind kind, IrType type, int remainingDepth) {
         return switch (kind) {
             case GeneralExpressionKind general ->
@@ -142,6 +149,25 @@ final class IrExprGenFactory {
                 sequenceFactory.mkGen(sequence, (SequenceType) type, remainingDepth);
             case OtherExpressionKind other ->
                 otherFactory.mkGen(other, type, remainingDepth);
+            case CustomExpressionKind custom -> custom(custom, type, remainingDepth);
+        };
+    }
+
+    /**
+     * Instantiates one exported type scheme and draws its value arguments under the ordinary
+     * expression budget. The plan depends only on the operator and the requested type, both fixed
+     * for the run, so it is computed once; applicability already established that one exists.
+     */
+    private Generator<TlaEx> custom(CustomExpressionKind kind, IrType type, int remainingDepth) {
+        return draw -> {
+            var plan = plans.computeIfAbsent(new Instantiation(kind, type),
+                    request -> request.kind().plan(context.config(), request.type()).orElseThrow());
+            var signature = (OperT1) draw.draw(plan.generator(context, typeFactory));
+            var arguments = list(signature.args()).stream()
+                    .map(argument -> draw.draw(mkGen(ImportedTypes.from(argument), remainingDepth - 1)))
+                    .toArray(TlaEx[]::new);
+            var name = context.config().library().get(kind.id()).name();
+            return context.builder().operApply(context.builder().name(name, signature), arguments);
         };
     }
 }

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 
 /**
  * Runs generated modules whose next-state action nests {@code \/} and {@code IF-THEN-ELSE} through
@@ -85,7 +86,7 @@ class GeneratedNestedActionShapesTest {
         try (var worker = ApalacheProcess.start(
                 ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
             for (var spec : samples) {
-                var artifact = SpecArtifact.fromGeneratedSpec(spec);
+                var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
                 results.add(worker.check(new ToolInput(
                         ApalacheIrJson.render(artifact.module()), artifact.length())));
             }

@@ -1,6 +1,6 @@
 # IR generator architecture
 
-**Status:** Preliminary description of the implemented design
+**Status:** Description of the implemented design
 
 ## 1. Purpose and scope
 
@@ -17,6 +17,11 @@ belongs to:
 - `IrGenerators.specs` produces a `GeneratedSpec`: the state variables,
   auxiliary and action operator definitions, initial-state predicate,
   next-state action, invariant and bound predicate of one module.
+
+Both accept an immutable prepared custom-operator library. With a nonempty
+library, their output may reference its exported operators; the workflow linker
+closes those references before rendering. Neither loads source files or invokes
+a typechecker. Section 11 specifies this extension.
 
 Neither produces a `TlaModule`. The surrounding skeleton names the entry points
 that the tool invocations spell, so that contract lives beside those invocations
@@ -51,7 +56,7 @@ IR-generator facade.
 | `BasicGenerators` | Combinators for constants, choices, bounded numbers, lists, and byte arrays. |
 | `InputRejectedException` | Expected rejection of one semantically unsuitable input. |
 | `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
-| `IrGenerationConfig` | Category exclusions, resource limits, and selection weights keyed by `ExpressionKind`. |
+| `IrGenerationConfig` | Category exclusions, resource limits, selection weights keyed by `ExpressionKind`, and the prepared `OperatorLibrary`. |
 | `IrGenerators` | Public factory for reusable expression and module generators. |
 | `ExpressionLimits`, `ModuleLimits`, and `ActionLimits` | Bounds on expressions, module declarations and exploration, and action construction; `ModuleLimits` contains `ActionLimits`. |
 | `GeneratedSpec` | The declarations of one generated module, and the exploration depth it asks for. |
@@ -72,8 +77,10 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
-| `ExpressionKindCatalog` | Complete catalog in byte-decoder order. |
-| `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory. |
+| `ExpressionKindCatalog` | Standard catalog followed by configured custom kinds, in byte-decoder order. |
+| `CustomExpressionKind` | Matches an exported type scheme against a requested result type. |
+| `TypeInstantiation`, `ImportedTypes` | Plan bounded type-variable instantiations and convert concrete imported types to private generator types. |
+| `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory; builds custom applications itself, caching one type plan per operator and requested type. |
 | `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
 | `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration. |
 | `BuilderArrays` | Adapts typed lists to Apalache's generic varargs APIs. |
@@ -413,8 +420,9 @@ crowds out the literals that would otherwise be the other side of a comparison.
 
 ## 7. Names and lexical scope
 
-The expression entry point starts with an empty scope. It never invents a free
-name reference. Quantifiers, set comprehensions, function definitions, lambdas,
+The expression entry point starts with an empty lexical scope. It never invents a
+free name reference: a custom call names an export from its explicit prepared
+library, and other references must be lexically bound. Quantifiers, set comprehensions, function definitions, lambdas,
 and local operators extend the scope only while generating their lexical bodies.
 `NameScope`, rather than Apalache's builder, is the authority for lexical
 visibility.
@@ -621,9 +629,11 @@ Changes to this subsystem should preserve the following rules:
    fails that test.
 2. State result-type constraints in `isTypeApplicable` and dynamic scope
    constraints and weight in `selectionWeight`, both on the kind itself.
-   `IrExprGenFactory` asks the kind; it never names a form. Only `selectionWeight`
-   may consult the generation context, because only it is re-evaluated on every
-   draw — the rest of applicability is cached per type. A weight of zero is how a
+   `IrExprGenFactory` asks the kind; it never names a form. The
+   `isConfiguredApplicable` hook combines static applicability with the immutable
+   configuration; custom kinds use it to match their library signatures. Only
+   `selectionWeight` may consult mutable lexical state, because only it is
+   re-evaluated on every draw — the rest of applicability is cached per type. A weight of zero is how a
    form says the current scope cannot supply what it needs.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
@@ -669,3 +679,66 @@ declared effect — the absence of primes outside the action, and that auxiliary
 definitions and the initial-state predicate read no state variable. A catalog
 change must retain the fixed-width upper bound, update the pinned catalog order,
 and explicitly revise the decoding protocol.
+
+## 11. Configured polymorphic operators
+
+**Approved architectural extension.** The catalog is no longer exclusively static,
+and generated expressions may be closed over an explicit library rather than only
+lexical bindings. The byte decoders remain free of I/O and external processes.
+An empty library preserves the existing decoding protocol exactly.
+
+`gen.library.OperatorLibrary` owns a defensive snapshot of imported definitions.
+It exposes immutable signatures and returns only fresh declaration copies.
+`OperatorId(module, operator)` is the case-sensitive identity; generated names
+are injective, identifier-safe encodings in a namespace the decoder never binds.
+Rewriting includes all imported binders and references, preserving shadowing.
+Only selected exports are candidates. Helpers are retained in dependency order,
+but do not acquire selection slots unless explicitly selected.
+
+Each custom kind has the primary category `operator`. Its additional requirements
+include the syntax and structural types of its transitive definition closure.
+Exclusions therefore cannot be bypassed through a helper body. The importer
+rejects unsupported syntax, free constants/state variables, assumptions and
+recursive dependencies. Exported and module-helper signatures are first-order:
+parameters and results are values, not operators. Local operator definitions and
+standard folds may still occur inside their bodies. Type terms may be polymorphic
+and may contain open record or variant rows; real, legacy record and sparse-tuple
+types are unsupported.
+
+For a requested concrete result type, a custom kind alpha-normalizes its type
+scheme and uses Apalache's published `TypeUnifier` and `Substitution` APIs to
+match its result. The unified result must equal the requested type, not merely a
+compatible widening. A byte-free feasibility pass checks exclusions, type depth,
+collection width and every occurrence of each residual type variable. A selected
+call then draws each unresolved value type once. Row variables draw bounded rows,
+excluding field names already required by any occurrence of that variable.
+Draw order is first structural occurrence in parameters followed by result;
+record/variant fields use sorted name order, and row tails follow explicit fields.
+Snowcat's variable numbers are not decoder order. Calls do not share substitutions.
+
+Every generated argument and application has a concrete type. Library definitions
+retain their generic type tags; the linker does not monomorphize them. Arguments
+use the ordinary expression factory at reduced expression depth. Imported body
+size is fixed library data, not recursive generation work, and exhaustion still
+uses only the existing byte-free terminals.
+
+Custom kinds are appended in configured module/operator order, with one weight per
+operator, independently of how many type instantiations it admits. The combined
+catalog and weights must fit the existing two-byte selection bound. The value-type
+catalog also appends distinct, feasible library result templates, allowing fixed
+record fields, variant tags and model-type names to be reached. Instantiating a
+template reduces structural depth before recursively drawing its type variables.
+With a library configured, every type choice also uses a fixed two-byte index:
+filtering templates by depth must not cross a derived byte-width boundary and
+reframe subsequent decoding. Without a library, type decoding is unchanged.
+Empty record/variant shapes and empty tuple types are not part of this decoder.
+A selected, enabled signature with no instantiation within the type limits is a
+configuration error.
+
+The workflow links only the used definition closure into each module, once per
+import namespace. Importing the same helper through distinct root modules gives
+it distinct namespaces. Standalone expression printing closes the same references
+with `LET`. Library bodies are excluded from collection-richness scoring, while
+the generated applications and their arguments are scored normally. Rendering
+admission limits include the linked definitions. Every assembled artifact owns
+fresh library IR identities and cannot mutate the prepared snapshot.

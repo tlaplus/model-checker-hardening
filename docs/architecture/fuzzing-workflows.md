@@ -36,7 +36,8 @@ rejects a candidate whose assembled module renders to more TLA<sup>+</sup> sourc
 than one worker request frame holds, so no stored entry can only be crashed on by
 the parser and TLC.
 
-Every tool stage regenerates the same closed, typed IR from the stored bytes.
+Every tool stage regenerates the same closed, typed IR from the stored bytes and
+the invocation's immutable prepared operator library.
 Which decoder it uses is a property of the entry rather than of the run: the
 envelope's `kind` field names it, `workflow.spec.SpecDecoders` pairs each kind
 with its decoder, and `generator.kind` selects only what a run *generates*, so a
@@ -140,7 +141,57 @@ flowchart LR
     apalache_crash --> tests_crash
 ```
 
-### 1.2. Conformance testing of TLC vs. Apalache with random inputs
+### 1.2. Custom-operator preparation
+
+**Implemented architectural extension.** Before constructing decoders, the workflow
+prepares the modules selected by `generator.custom_operators`. `generator.classpath`
+is an ordered list of directories or JARs; paths read from TOML are resolved against
+that file's directory. Directory roots and JAR root resources contain `Module.tla`;
+JARs may also use `tla2sany/StandardModules/Module.tla`. First occurrence wins.
+Bundled standard module names cannot be overridden. JARs supply source resources,
+not executable Java operator overrides.
+
+`workflow.library.LibrarySources` copies the source search path into a private
+snapshot, bounded to 32 MiB. The snapshot includes unselected source files so SANY
+can resolve transitive `EXTENDS` and `INSTANCE` dependencies without a second,
+ad-hoc dependency parser. SANY in the pinned Apalache distribution performs the
+actual module lookup. The entire source snapshot, including unused files, belongs
+to the replay identity.
+
+`LibraryTypechecker` invokes that distribution as an isolated CLI process:
+`typecheck --infer-poly=true --output=<module.json> <module.tla>`. It runs once per
+configured root module, not per candidate or stage. It uses a private working
+directory, explicit Apalache configuration and row typing, bounded diagnostics,
+and the Apalache stage's heap and timeout settings. Cancellation interrupts the
+wait and terminates the child; it does not poll the process. All scratch files are
+removed on completion or failure. No Maven importer/typechecker dependency is
+introduced. With no selected modules, preparation does not inspect paths or launch
+a process.
+
+The direct typed-IR JSON reader loads output of at most 64 MiB. The builder-backed
+reader is deliberately not used: in the pinned dependency it incorrectly
+reconstructs a polymorphic empty set as a set of sets. Library validation then
+checks supported types, dependency closure, first-order signatures and state-free
+syntax. Preparation errors stop the invocation; they are not input rejections or
+checker-stage verdicts.
+
+`SpecDecoders` captures the prepared library for both input kinds. `OperatorLibrary`
+links each used definition closure into the assembled module with fresh IR
+identities. TLA+ and Apalache JSON outputs are self-contained and require no custom
+classpath in checker workers. Standalone expression printing uses a surrounding
+`LET`; richness scoring retains the unlinked generated expressions.
+
+The first custom-library run records `.operator-library` atomically under the
+corpus lock, before admitting inputs. It contains the ordered export selection,
+source filenames and SHA-256 digests, and the pinned Apalache JAR digest. Subsequent
+runs and `print --corpus` require an exact match. Paths may move without changing
+identity. A missing manifest cannot be initialized over existing inputs, and
+read-only printing never creates one. Removing the custom library from the config
+also fails verification if a manifest exists. To change a library, initialize a
+new corpus. Storage reads and writes opaque bytes; this validation policy belongs
+to the workflow.
+
+### 1.3. Conformance testing of TLC vs. Apalache with random inputs
 
 In this workflow, the goal is to collect a differential testing suite. This test suite contains three kinds of test
 inputs:
@@ -165,7 +216,7 @@ This workflow specializes the general workflow as follows:
 - **Mutator.** The mutator is no-operation. It does not generate new inputs.
 - **Quality gate.** Good quality gates are to be found.
 
-### 1.3. Metamorphic testing of TLC and Apalache
+### 1.4. Metamorphic testing of TLC and Apalache
 
 In this workflow, the goal is to collect a metamorphic test suite. This test suite contains two kinds of test inputs:
 
@@ -181,7 +232,7 @@ This workflow specializes the general workflow as follows:
   the input.
 - **Quality gate.** Good quality gates are to be found.
 
-### 1.4. Coverage-based fuzzing
+### 1.5. Coverage-based fuzzing
 
 In this workflow, the goal is to generate a test suite that produces a high coverage of the model checker's source code.
 This test suite contains one kind of test inputs:

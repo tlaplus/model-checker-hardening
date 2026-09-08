@@ -29,6 +29,10 @@ ignore = ["action", "temporal", "unbound", "exotic"]
 # Selection slots per expression form, for the forms that are not weighted one.
 # A form with weight N is N times as likely as an unweighted form applicable to the same request.
 weights = { name = 8, enum_set = 16 }
+# Ordered TLA+ source directories or JARs, relative to this config file.
+classpath = []
+# Additional operator kinds: { module = "MyModule", operators = ["MyOp"] }.
+custom_operators = []
 
 [workflow]
 # Maximum number of unique entries across every workflow directory.

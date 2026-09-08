@@ -55,6 +55,7 @@ public final class IrSpecGeneratorEngine {
                 ExpressionCategory.TEMPORAL,
                 ExpressionCategory.EXOTIC);
         ExpressionKindCatalog.requireAddressableSlots(this.config);
+        CustomExpressionKind.requireUsableLibrary(this.config);
     }
 
     /**

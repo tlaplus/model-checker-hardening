@@ -11,7 +11,9 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -52,14 +54,15 @@ final class PrintCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        final IrGenerationConfig generatorConfig;
+        final FuzzTlaConfig config;
+        final CorpusDirectory corpusDirectory;
         if (corpus == null) {
-            generatorConfig = IrGenerationConfig.defaults();
+            config = FuzzTlaConfig.defaults();
+            corpusDirectory = null;
         } else {
             try {
-                var corpusDirectory = CorpusDirectory.openExisting(corpus);
-                generatorConfig = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG))
-                        .generator();
+                corpusDirectory = CorpusDirectory.openExisting(corpus);
+                config = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG));
             } catch (IOException | ConfigException | CorpusException exception) {
                 spec.commandLine()
                         .getErr()
@@ -100,14 +103,19 @@ final class PrintCommand implements Callable<Integer> {
                             input, Diagnostics.message(exception));
             return CommandLine.ExitCode.SOFTWARE;
         }
-        try {
-            var artifact = SpecDecoders.of(generatorConfig).decode(corpusInput);
+        try (var shutdown = RunShutdownHook.install()) {
+            var decoders = SpecDecoders.prepare(config);
+            if (corpusDirectory != null) {
+                LibraryManifest.verify(
+                        corpusDirectory, decoders.libraryManifest(), false);
+            }
+            var artifact = decoders.decode(corpusInput);
             var rendered = DecodedInputRenderer.render(artifact, renderMode());
             // Every rendering can be reported inside its envelope, so the wrapping is decided
             // once here rather than in each branch.
             print(envelope == null ? rendered : EnvelopeReport.render(envelope, rendered));
             return CommandLine.ExitCode.OK;
-        } catch (RuntimeException | StackOverflowError exception) {
+        } catch (IOException | CorpusException | WorkflowException | RuntimeException | StackOverflowError exception) {
             spec.commandLine()
                     .getErr()
                     .printf(

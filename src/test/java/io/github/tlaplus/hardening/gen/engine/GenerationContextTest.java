@@ -3,9 +3,9 @@ package io.github.tlaplus.hardening.gen.engine;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import at.forsyte.apalache.tla.lir.BoolT1$;
-import at.forsyte.apalache.tla.lir.TlaType1$;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import org.junit.jupiter.api.Test;
+import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 
 class GenerationContextTest {
     @Test
@@ -19,6 +19,6 @@ class GenerationContextTest {
 
         assertEquals(
                 BoolT1$.MODULE$,
-                TlaType1$.MODULE$.fromTypeTag(expression.typeTag()));
+                LibraryTypes.type(expression.typeTag()));
     }
 }

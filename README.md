@@ -110,6 +110,8 @@ max_string_bytes = 32
 max_integer_bytes = 16
 ignore = ["action", "temporal", "unbound", "exotic"]
 weights = { name = 8, enum_set = 16 }
+classpath = []
+custom_operators = []
 
 [workflow]
 # Maximum number of unique entries across every workflow directory.
@@ -174,6 +176,56 @@ domains. Set `ignore = []` to enable every excludable category. The fixed
 workflow module still uses `Next == UNCHANGED exprValue`; filtering applies to
 the expression copied into `Init` and `Inv`. The current format requires every
 listed field and workflow directory.
+
+### Custom TLA+ operators
+
+Custom operators are additional kinds, not replacements for standard operators.
+For example, put this module in `<corpus>/tla/MyOperators.tla`:
+
+```tla
+---- MODULE MyOperators ----
+Singleton(value) == {value}
+Contains(values, value) == value \\in values
+====
+```
+
+Set these fields in the existing `[generator]` table:
+
+```toml
+classpath = ["./tla"]
+custom_operators = [
+  { module = "MyOperators", operators = ["Singleton", "Contains"] },
+]
+weights = { name = 8, enum_set = 16, "MyOperators!Contains" = 8 }
+```
+
+Names are case-sensitive TLA+ identifiers. Paths are relative to `config.toml`;
+directories and JARs are searched in order. A JAR may contain `Module.tla` at its
+root or under `tla2sany/StandardModules/`. Standard module overrides and Java
+operator overrides are not supported.
+
+FuzzTLA runs the pinned Apalache CLI's `typecheck --infer-poly=true --output`
+once per module before generation. Inferred types and ordinary `@type` annotations
+are supported, including polymorphic record/variant rows. Each generated call
+instantiates its signature independently. Only selected operators become kinds;
+helpers are linked automatically. Exclusions apply to the complete helper closure,
+and each unweighted custom kind has weight one.
+
+Definitions must be first-order and state-free: no operator-valued parameters or
+results, free constants/variables, assumptions, recursive definitions, or
+action/temporal constructs. Types must be representable by the generator; real,
+legacy record, sparse-tuple and empty record/variant/tuple types are unsupported.
+Library source snapshots are bounded to 32 MiB, typed JSON to 64 MiB, and each
+preparation process uses the Apalache stage's heap and timeout limits.
+
+Both checker formats are self-contained, and standalone expression printing uses
+`LET` for library definitions. The first run records `.operator-library` in an
+empty corpus, pinning source contents, selected operators and the Apalache JAR.
+Subsequent runs and `print --corpus` reject mismatches. Keep the same sources to
+replay inputs; initialize a new corpus when changing a library. No subprocess is
+launched for library preparation when `custom_operators = []`.
+
+### Running
 
 Populate the corpus with property-based inputs by running:
 

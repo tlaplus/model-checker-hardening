@@ -39,7 +39,8 @@ final class ExpressionKindCatalog {
      * @throws IllegalArgumentException if the configured weights exceed the addressable slots
      */
     static void requireAddressableSlots(IrGenerationConfig config) {
-        var worstCase = (long) ALL.size() + config.additionalSelectionSlots();
+        var worstCase = (long) ALL.size() + config.library().exports().size()
+                + config.additionalSelectionSlots();
         if (worstCase > MAXIMUM_SELECTION_SLOTS) {
             throw new IllegalArgumentException(
                     "configured weights need " + worstCase + " selection slots, but only "
@@ -53,6 +54,14 @@ final class ExpressionKindCatalog {
      */
     static List<ExpressionKind> all() {
         return ALL;
+    }
+
+    /** Appends configured custom operators without changing the standard catalog. */
+    static List<ExpressionKind> all(IrGenerationConfig config) {
+        if (config.library().exports().isEmpty()) return ALL;
+        var result = new ArrayList<ExpressionKind>(ALL);
+        config.library().exports().forEach(export -> result.add(new CustomExpressionKind(export.id())));
+        return List.copyOf(result);
     }
 
     /** Concatenates the family enums once in their documented decoder order. */

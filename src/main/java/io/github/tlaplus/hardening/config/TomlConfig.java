@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.tomlj.Toml;
 import org.tomlj.TomlTable;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 
 /**
  * Reads and writes the strict {@code config.toml} format used by a corpus.
@@ -50,7 +51,7 @@ public final class TomlConfig {
         }
 
         try {
-            return assemble(tables);
+            return assemble(tables, path.toAbsolutePath().normalize().getParent());
         } catch (IllegalArgumentException exception) {
             throw new ConfigException(exception.getMessage(), exception);
         }
@@ -89,13 +90,14 @@ public final class TomlConfig {
     }
 
     /** Builds the configuration records from tables that have already passed key validation. */
-    private static FuzzTlaConfig assemble(Map<String, TomlTable> tables) throws ConfigException {
+    private static FuzzTlaConfig assemble(Map<String, TomlTable> tables, Path directory)
+            throws ConfigException {
         var generatedKind = ConfigSchema.GENERATED_KIND.read(tables);
         var generationConfig = new IrGenerationConfig(
                 ConfigSchema.GENERATOR_LIMITS.readExpressionLimits(tables),
                 ConfigSchema.GENERATOR_LIMITS.readModuleLimits(tables),
                 ConfigSchema.IGNORED_CATEGORIES.read(tables),
-                ConfigSchema.FORM_WEIGHTS.read(tables));
+                ConfigSchema.FORM_WEIGHTS.read(tables), OperatorLibrary.empty());
 
         var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {
@@ -115,7 +117,10 @@ public final class TomlConfig {
                 ConfigSchema.RICHNESS_NESTING_BASE.read(tables),
                 ConfigSchema.RICHNESS_THRESHOLD_BASE.read(tables));
 
-        return new FuzzTlaConfig(generatedKind, generationConfig, workflowConfig, pbtConfig);
+        var libraries = new OperatorLibraryConfig(
+                ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))
+                .relativeTo(directory);
+        return new FuzzTlaConfig(generatedKind, generationConfig, workflowConfig, pbtConfig, libraries);
     }
 
     /** Reads one checker table, naming the stage in every diagnostic. */

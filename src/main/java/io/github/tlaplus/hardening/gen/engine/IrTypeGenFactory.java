@@ -1,11 +1,16 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.VarT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -34,6 +39,8 @@ final class IrTypeGenFactory {
     private final List<TypeKind> primitiveTypeKinds;
     private final List<TypeKind> valueTypeKinds;
     private final List<TypeKind> allTypeKinds;
+    private final Map<Integer, List<TypeInstantiation>> templates = new HashMap<>();
+    private final Map<IrType, Boolean> enabled = new HashMap<>();
 
     IrTypeGenFactory(GenerationContext context) {
         this.context = context;
@@ -52,39 +59,25 @@ final class IrTypeGenFactory {
         return mkGen(context.config().expressions().maximumTypeDepth(), false);
     }
 
+    /** Draws a value type within the residual budget of a polymorphic type variable. */
+    Generator<IrType> valueType(int remainingDepth) {
+        return mkGen(remainingDepth, false);
+    }
+
     /** Creates a single-tag variant carrying the supplied payload type. */
     VariantType singleVariant(IrType payloadType) {
         return new VariantType(List.of(new Field(context.freshTag(), payloadType)));
     }
 
-    /** Reports whether the type and every nested component use enabled syntax categories. */
+    /**
+     * Reports whether the type and every nested component use enabled syntax categories. The walk
+     * is {@link LibraryTypes#categories}, which also checks imported signatures, so the two cannot
+     * drift; exclusions are fixed for a run, so the answer is memoized rather than redrawn.
+     */
     boolean isEnabled(IrType type) {
-        return switch (type) {
-            case PrimitiveType ignored -> true;
-            case ConstantType ignored -> isEnabledCategory(ExpressionCategory.MODEL);
-            case SetType(IrType element) ->
-                isEnabledCategory(ExpressionCategory.SET) && isEnabled(element);
-            case SequenceType(IrType element) ->
-                isEnabledCategory(ExpressionCategory.SEQUENCE) && isEnabled(element);
-            case FunctionType(IrType argument, IrType result) ->
-                isEnabledCategory(ExpressionCategory.FUNCTION)
-                        && isEnabledCategory(ExpressionCategory.SET)
-                        && isEnabled(argument)
-                        && isEnabled(result);
-            case TupleType(List<IrType> elements) ->
-                isEnabledCategory(ExpressionCategory.TUPLE)
-                        && elements.stream().allMatch(this::isEnabled);
-            case RecordType(List<Field> fields) ->
-                isEnabledCategory(ExpressionCategory.RECORD)
-                        && fields.stream().allMatch(field -> isEnabled(field.type()));
-            case VariantType(List<Field> fields) ->
-                isEnabledCategory(ExpressionCategory.VARIANT)
-                        && fields.stream().allMatch(field -> isEnabled(field.type()));
-            case OperatorType(List<IrType> arguments, IrType result) ->
-                isEnabledCategory(ExpressionCategory.OPERATOR)
-                        && arguments.stream().allMatch(this::isEnabled)
-                        && isEnabled(result);
-        };
+        return enabled.computeIfAbsent(type, requested -> Collections.disjoint(
+                LibraryTypes.categories(requested.toTlaType()),
+                context.config().ignoredCategories()));
     }
 
     /** Returns a recursive type recipe within the remaining nesting budget. */
@@ -94,7 +87,17 @@ final class IrTypeGenFactory {
             var kinds = primitiveOnly
                     ? primitiveTypeKinds
                     : (allowOperator ? allTypeKinds : valueTypeKinds);
-            return switch (draw.choose(kinds)) {
+            var custom = templates(remainingDepth);
+            int count = kinds.size() + custom.size();
+            // A library can add enough templates to cross a byte-width boundary. Keep its
+            // type choices fixed-width too, without changing the no-library encoding.
+            int selected = context.config().library().exports().isEmpty()
+                    ? (int) draw.drawLong(0, count - 1)
+                    : draw.drawIndex(count, IrExprGenFactory.SELECTION_BYTES);
+            if (selected >= kinds.size()) {
+                return ImportedTypes.from(draw.draw(custom.get(selected - kinds.size()).generator(context, this)));
+            }
+            return switch (kinds.get(selected)) {
                 case BOOL -> PrimitiveType.BOOL;
                 case INT -> PrimitiveType.INT;
                 case STRING -> PrimitiveType.STRING;
@@ -155,14 +158,21 @@ final class IrTypeGenFactory {
         };
     }
 
+    /** Library result shapes make fixed field/tag/model names reachable without replacing standard types. */
+    private List<TypeInstantiation> templates(int depth) {
+        return templates.computeIfAbsent(depth, remaining -> context.config().library().exports().stream()
+                .filter(export -> export.isEnabledWith(context.config().ignoredCategories()))
+                .map(export -> TypeInstantiation.canonical(export.signature().res()))
+                .filter(type -> !(type instanceof VarT1))
+                .distinct()
+                .map(type -> TypeInstantiation.plan(type, context.config(), remaining))
+                .flatMap(Optional::stream).toList());
+    }
+
     private List<TypeKind> enabledKinds(List<TypeKind> candidates) {
         return candidates.stream()
                 .filter(kind -> kind.isAvailableWith(context.config().ignoredCategories()))
                 .toList();
-    }
-
-    private boolean isEnabledCategory(ExpressionCategory category) {
-        return !context.config().ignoredCategories().contains(category);
     }
 
     /** Type choices in decoder order. */
