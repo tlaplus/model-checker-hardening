@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import java.util.ArrayList;
+import org.apalache_mc.tla.jir.TypedParameter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +51,21 @@ final class GenerationContext {
     /** Creates a fresh typed binding without changing the current scope. */
     ScopedName freshBinding(String prefix, IrType type) {
         return new ScopedName(fresh(prefix), type);
+    }
+
+    /** A definition's fresh bindings and the corresponding typed builder parameters. */
+    record Parameters(List<ScopedName> bindings, TypedParameter[] declarations) {}
+
+    /** Allocates parameters in signature order without changing lexical scope. */
+    Parameters parameters(String prefix, List<IrType> types) {
+        var bindings = new ArrayList<ScopedName>();
+        var declarations = new ArrayList<TypedParameter>();
+        for (var type : types) {
+            var binding = freshBinding(prefix, type);
+            bindings.add(binding);
+            declarations.add(builder.param(binding.name(), type.toTlaType()));
+        }
+        return new Parameters(List.copyOf(bindings), declarations.toArray(TypedParameter[]::new));
     }
 
     /** Reports whether an exactly typed binding is currently visible. */

@@ -50,11 +50,28 @@ public sealed interface ExpressionKind
         return name().toLowerCase(Locale.ROOT);
     }
 
+    /** One immutable category declaration, shared by every family of expression kinds. */
+    record Categories(ExpressionCategory primary, Set<ExpressionCategory> required) {
+        public Categories {
+            required = Set.copyOf(required);
+        }
+
+        Categories(ExpressionCategory primary, ExpressionCategory... dependencies) {
+            this(primary, requirements(primary, dependencies));
+        }
+    }
+
+    Categories categories();
+
     /** Returns this form's single primary user-facing category. */
-    ExpressionCategory category();
+    default ExpressionCategory category() {
+        return categories().primary();
+    }
 
     /** Returns the syntax capabilities required to construct this form. */
-    Set<ExpressionCategory> requiredCategories();
+    default Set<ExpressionCategory> requiredCategories() {
+        return categories().required();
+    }
 
     /** Reports whether this form requires one of the supplied exclusion categories. */
     default boolean isUnavailableWith(Set<ExpressionCategory> ignoredCategories) {

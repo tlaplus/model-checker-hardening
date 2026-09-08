@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.List;
 import java.util.Objects;
 
@@ -105,9 +106,7 @@ public final class Draw {
      * @throws IllegalArgumentException if {@code minimum > maximum}
      */
     public long drawLong(long minimum, long maximum) {
-        if (minimum > maximum) {
-            throw new IllegalArgumentException("minimum must not exceed maximum");
-        }
+        Preconditions.require(minimum <= maximum, "minimum must not exceed maximum");
         if (minimum == maximum) {
             return minimum;
         }
@@ -142,18 +141,12 @@ public final class Draw {
      *     not in {@code 1..4}, or if {@code count} exceeds {@code 256^byteCount}
      */
     public int drawIndex(int count, int byteCount) {
-        if (count <= 0) {
-            throw new IllegalArgumentException("count must be positive");
-        }
-        if (byteCount < 1 || byteCount > MAXIMUM_INDEX_BYTES) {
-            throw new IllegalArgumentException(
-                    "byteCount must be in the range 1.." + MAXIMUM_INDEX_BYTES);
-        }
+        Preconditions.requirePositive(count, "count");
+        Preconditions.require(byteCount >= 1 && byteCount <= MAXIMUM_INDEX_BYTES,
+                "byteCount must be in the range 1.." + MAXIMUM_INDEX_BYTES);
         var domain = 1L << (byteCount * Byte.SIZE);
-        if (count > domain) {
-            throw new IllegalArgumentException(
-                    "count must not exceed " + domain + " for " + byteCount + " bytes");
-        }
+        Preconditions.require(count <= domain,
+                "count must not exceed " + domain + " for " + byteCount + " bytes");
         long value = 0;
         for (var index = 0; index < byteCount; index++) {
             value = (value << Byte.SIZE) | drawByte();
@@ -168,9 +161,7 @@ public final class Draw {
      * @throws IllegalArgumentException if {@code length} is negative
      */
     public byte[] drawBytes(int length) {
-        if (length < 0) {
-            throw new IllegalArgumentException("length must be nonnegative");
-        }
+        Preconditions.requireNonnegative(length, "length");
         var result = new byte[length];
         for (var index = 0; index < length; index++) {
             result[index] = (byte) drawByte();
@@ -188,9 +179,7 @@ public final class Draw {
      */
     public <T> T choose(List<? extends T> choices) {
         Objects.requireNonNull(choices, "choices");
-        if (choices.isEmpty()) {
-            throw new IllegalArgumentException("choices must not be empty");
-        }
+        Preconditions.require(!choices.isEmpty(), "choices must not be empty");
         var index = Math.toIntExact(drawLong(0, choices.size() - 1L));
         return choices.get(index);
     }

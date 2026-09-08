@@ -1,0 +1,1091 @@
+{
+  "crashes": [
+    [
+      "sany-001.md",
+      "PARSER",
+      [
+        [
+          [
+            "java\\.util\\.UnknownFormatConversionException: Conversion = ':'",
+            40
+          ],
+          [
+            "tla2sany\\.semantic\\.Errors\\$ErrorDetails\\.getMessage",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "tlc-001.md",
+      "TLC",
+      [
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "In applying the function",
+            40
+          ],
+          [
+            "which is not in its domain\\.",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "tlc-002.md",
+      "TLC",
+      [
+        [
+          [
+            "^TLC error code 2184 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: Attempted to apply (?:Head|Tail) to the empty sequence\\.",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 2183 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: The second argument of SubSeq must be in the domain of its first argument:",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 2180 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: 0\\^0 is undefined\\.",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 2179 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: The second argument of \\\\div is 0\\.",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 2169 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: The second argument of % should be a positive number",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "tlc-003.md",
+      "TLC",
+      [
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to compare the set .+ with the value:",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to compare overridden value .+ with non-overridden value:",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to compute the number of elements in the overridden value",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to enumerate S \\\\ T when S:",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to enumerate S \\\\cap T when neither S:",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to enumerate UNION\\(s\\), but some element of s is nonenumerable\\.",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC error code 1000 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: TLC threw an unexpected exception\\.",
+            40
+          ],
+          [
+            "The exception was a java\\.lang\\.RuntimeException",
+            40
+          ],
+          [
+            "Attempted to enumerate \\{ x \\\\in S : p\\(x\\) \\} when S:",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-printer-008.md",
+      "TLC",
+      [
+        [
+          [
+            "^TLC error code 2102 mapped to exit status 255$",
+            40
+          ],
+          [
+            "Error: current state is not a legal state",
+            40
+          ],
+          [
+            "/\\\\ step = null",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-001.md",
+      "APALACHE",
+      [
+        [
+          [
+            "scala\\.NotImplementedError: A set filter over .+ is not implemented",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.rules\\.SetFilterRule\\.apply",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-003.md",
+      "APALACHE",
+      [
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "checker error: Unexpected equality test over types",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-004.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.lang\\.ClassCastException: class com\\.microsoft\\.z3\\.RealExpr cannot be cast to class com\\.microsoft\\.z3\\.IntExpr",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.smt\\.Z3SolverContext\\.toArithExpr",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-005.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.lang\\.UnsupportedOperationException: Expansion of InfSet\\[CellTFrom\\(Int\\)\\] is not supported yet",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.rules\\.QuantRule\\.expandExistsOrForall",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-006.md",
+      "APALACHE",
+      [
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "rewriter error: Do not know how pick an element from a set of type:",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-009.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.lang\\.IllegalArgumentException: requirement failed: The right-hand side of a function set should be: a finite set or a powerset",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.rules\\.FunSetCtorRule\\.apply",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-010.md",
+      "APALACHE",
+      [
+        [
+          [
+            "internal error in type checking: Applying UNION to CHOOSE",
+            40
+          ],
+          [
+            "of type PowSet\\[Set\\(",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-011.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.lang\\.AssertionError: assertion failed",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.LazyEquality\\.subsetEq",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.LazyEquality\\.mkFunSetEq",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-012.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.lang\\.UnsupportedOperationException: Quantification over InfSet\\[CellTFrom\\(Int\\)\\] is not supported yet",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.rules\\.QuantRule\\.apply",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-013.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.util\\.NoSuchElementException: key not found: \\$C\\$\\d+",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.Binding\\.apply",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.rules\\.SetInRule\\.apply",
+            40
+          ],
+          [
+            "at\\.forsyte\\.apalache\\.tla\\.bmcmt\\.rules\\.FoldSetRule\\.",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-cli-001.md",
+      "APALACHE",
+      [
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "Input error \\(see the manual\\): Cardinality expected a finite set, found: (?:InfSet|FinFunSet|PowSet)\\[",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "Input error \\(see the manual\\): Expected a constant integer range in \\[ \\.\\. \\]",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "Input error \\(see the manual\\): Found a set map over an infinite set",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "known limitation: FoldSet is not supported over an infinite set",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "Input error \\(see the manual\\): Negative power at ",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "Input error \\(see the manual\\): (?:The power at|The result of) .+ exceedes the limit",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "rewriter error: Accessing a non-existing variant option via tag ",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "rewriter error: Range bounds are too large to fit in scala\\.Int",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "error when rewriting to SMT: SMT \\d+: z3 reports UNKNOWN",
+            40
+          ]
+        ],
+        [
+          [
+            "^Apalache exited with status 255$",
+            40
+          ],
+          [
+            "rewriter error: Trying to expand a set of functions\\. This will blow up the solver\\.",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-optimizer-001.md",
+      "APALACHE",
+      [
+        [
+          [
+            "unexpected expression: undeclared operator LocalOp\\d+\\$\\d+ \\[FlatLanguagePred\\]",
+            40
+          ],
+          [
+            "ConstSimplifier",
+            40
+          ],
+          [
+            "ExprOptimizer",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-json-002.md",
+      "APALACHE",
+      [
+        [
+          [
+            "java\\.lang\\.OutOfMemoryError: Java heap space",
+            40
+          ],
+          [
+            "DefaultType1Parser",
+            40
+          ]
+        ]
+      ]
+    ]
+  ],
+  "aggregator": [
+    [
+      "function-application-outside-domain.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^In applying the function$",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to apply function:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "choose-without-witness.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to compute the value of an expression of(?: form)?$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "head-of-empty-sequence.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to apply Head to the empty sequence\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "case-without-matching-arm.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to evaluate a CASE with no conditions true\\.$",
+            40
+          ]
+        ],
+        [
+          [
+            "^In computing next states, TLC encountered a CASE with no conditions true\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "subseq-outside-domain.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^The second argument of SubSeq must be in the domain of its first argument:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "tail-of-empty-sequence.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to apply Tail to the empty sequence\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "zero-power-zero-tlc-fails.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^0\\^0 is undefined\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "integer-outside-tlc-range.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^TLC can't handle a number this big\\.$",
+            40
+          ]
+        ],
+        [
+          [
+            "^Overflow when computing ",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "modulo-nonpositive-divisor.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^The second argument of % should be a positive number",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "division-by-zero-tlc-fails.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^The second argument of \\\\div is 0\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "infinite-set-as-state-value.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^TLC has found a state in which the value of a variable contains (?:Int|Nat)$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "filter-over-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate \\{ x \\\\in S : p\\(x\\) \\} when S:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "union-containing-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate UNION\\(s\\), but some element of s is nonenumerable\\.$",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to enumerate S \\\\cup T when S:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "function-over-infinite-domain.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate a set of the form \\[D -> R\\],but the domain D:$",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\\(.+\\))\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "quantification-over-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^TLC encountered (?:the |a )non-enumerable quantifier bound$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "finite-set-containing-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to compare (?:the set|overridden value) ",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to check equality of the set .+ with the value:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "cardinality-of-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to compute cardinality of the value$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "difference-with-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate S \\\\ T when S:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "intersection-of-infinite-sets.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate S \\\\cap T when neither S:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "subset-test-over-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to evaluate an expression of form S \\\\subseteq T, but S was not enumer",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "cartesian-product-with-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate a set of the form s1 \\\\X s2 \\.\\.\\. \\\\X sn,$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "function-set-over-infinite-set.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to enumerate a set of the form \\[D -> R\\],but the range R:$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "negative-exponent-tlc-fails.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^The second argument of \\^ should be a natural number",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-printer-008.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to evaluate an expression of form P (?:=>|<=>|/\\\\|\\\\/) Q when P",
+            40
+          ]
+        ],
+        [
+          [
+            "^A non-boolean expression ",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to apply the operator ~ to a non-boolean$",
+            40
+          ]
+        ],
+        [
+          [
+            "^Evaluating an expression of the form t \\\\o s when s is not a sequence:$",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to check if the value:$",
+            40
+          ]
+        ],
+        [
+          [
+            "^In evaluation, the identifier \\w+ is either undefined or not an operator\\.",
+            40
+          ]
+        ],
+        [
+          [
+            "^TLC expected a boolean value, but did not find one",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to check equality of integer -?\\d+ with non-integer:",
+            40
+          ]
+        ],
+        [
+          [
+            "^Attempted to apply the operator DOMAIN to a non-function",
+            40
+          ]
+        ],
+        [
+          [
+            "^Cannot cast tlc2\\.value\\.\\S+ to tlc2\\.value\\.\\S+$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-printer-008.md",
+      "TLC",
+      150,
+      [
+        [
+          [
+            "^The invariant of Inv is equal to (?!FALSE$)",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "constant-false-invariant.md",
+      "TLC",
+      150,
+      [
+        [
+          [
+            "^The invariant of Inv is equal to FALSE$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "apalache-bmc-007.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^Attempted to check if expression of form \\{x \\\\in S : p\\(x\\)\\} is a finite set",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "non-enumerable-initial-assignment.md",
+      "TLC",
+      75,
+      [
+        [
+          [
+            "^In computing initial states, the right side of \\\\IN is not enumerable\\.$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "modulo-by-zero-apalache-fails.md",
+      "APALACHE",
+      75,
+      [
+        [
+          [
+            "^Input error \\(see the manual\\): Mod by zero at ",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "division-by-zero-apalache-fails.md",
+      "APALACHE",
+      75,
+      [
+        [
+          [
+            "^Input error \\(see the manual\\): Division by zero at ",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "zero-power-zero-apalache-fails.md",
+      "APALACHE",
+      75,
+      [
+        [
+          [
+            "^Input error \\(see the manual\\): 0 \\^ 0 is undefined$",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "sequence-set-unsupported.md",
+      "APALACHE",
+      75,
+      [
+        [
+          [
+            "^<unknown>: unsupported expression: Seq\\(_\\) produces an infinite set",
+            40
+          ]
+        ]
+      ]
+    ],
+    [
+      "string-set-unsupported.md",
+      "APALACHE",
+      75,
+      [
+        [
+          [
+            "^<unknown>: unsupported expression: STRING$",
+            40
+          ]
+        ]
+      ]
+    ]
+  ]
+}

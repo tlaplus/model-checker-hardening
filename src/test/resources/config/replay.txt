@@ -1,0 +1,140 @@
+valid
+[generator]
+kind = "expr"
+max_type_depth = 3
+max_expression_depth = 32
+max_nodes = 128
+max_collection_size = 8
+max_string_bytes = 32
+max_integer_bytes = 16
+max_variables = 3
+max_auxiliary_operators = 2
+max_action_operators = 2
+max_actions = 3
+max_action_parameters = 2
+max_action_depth = 3
+max_steps = 5
+ignore = ["action", "temporal", "unbound", "exotic"]
+weights = { name = 8, enum_set = 16 }
+classpath = []
+custom_operators = []
+[workflow]
+max_entries = 1000
+[workflow.inputs]
+max_entries = 1000
+[workflow.parser]
+max_entries = 1000
+timeout_sec = 30
+[workflow.tlc]
+max_entries = 1000
+timeout_sec = 30
+max_heap_mb = 512
+workers = 3
+[workflow.apalache]
+max_entries = 1000
+timeout_sec = 30
+max_heap_mb = 1024
+workers = 3
+[pbt]
+max_input_bytes = 10240
+richness_cohorts = 10
+richness_nesting_base = 2.0
+richness_threshold_base = 1.5
+nondefault
+[generator]
+kind = "module"
+max_type_depth = 2
+max_expression_depth = 32
+max_nodes = 71
+max_collection_size = 8
+max_string_bytes = 32
+max_integer_bytes = 16
+max_variables = 3
+max_auxiliary_operators = 2
+max_action_operators = 2
+max_actions = 3
+max_action_parameters = 2
+max_action_depth = 1
+max_steps = 2
+ignore = ["action", "temporal", "unbound", "exotic"]
+weights = { name = 2, plus = 9 }
+classpath = []
+custom_operators = []
+[workflow]
+max_entries = 1000
+[workflow.inputs]
+max_entries = 1000
+[workflow.parser]
+max_entries = 1000
+timeout_sec = 30
+[workflow.tlc]
+max_entries = 1000
+timeout_sec = 30
+max_heap_mb = 512
+workers = 3
+[workflow.apalache]
+max_entries = 1000
+timeout_sec = 30
+max_heap_mb = 1024
+workers = 3
+[pbt]
+max_input_bytes = 10240
+richness_cohorts = 3
+richness_nesting_base = 1.5
+richness_threshold_base = 1.5
+missing-before-unknown
+io.github.tlaplus.hardening.config.ConfigException: missing generator keys: max_nodes
+table-before-key
+io.github.tlaplus.hardening.config.ConfigException: expected 'tlc' to be a table
+kind-before-limits
+io.github.tlaplus.hardening.config.ConfigException: unknown input kind 'invalid' in 'generator.kind'; expected one of expr, module
+limit-read-order
+io.github.tlaplus.hardening.config.ConfigException: expected 'generator.max_type_depth' to be an integer
+record-order
+io.github.tlaplus.hardening.config.ConfigException: maximumTypeDepth must be nonnegative
+checker-before-pbt
+io.github.tlaplus.hardening.config.ConfigException: timeoutSeconds must be positive
+pbt-order
+io.github.tlaplus.hardening.config.ConfigException: richnessNestingBase must be finite and at least 1
+classpath
+[generator]
+kind = "expr"
+max_type_depth = 3
+max_expression_depth = 32
+max_nodes = 128
+max_collection_size = 8
+max_string_bytes = 32
+max_integer_bytes = 16
+max_variables = 3
+max_auxiliary_operators = 2
+max_action_operators = 2
+max_actions = 3
+max_action_parameters = 2
+max_action_depth = 3
+max_steps = 5
+ignore = ["action", "temporal", "unbound", "exotic"]
+weights = { name = 8, enum_set = 16 }
+classpath = ["<root>/sources", "<root>/lib.jar"]
+custom_operators = []
+[workflow]
+max_entries = 1000
+[workflow.inputs]
+max_entries = 1000
+[workflow.parser]
+max_entries = 1000
+timeout_sec = 30
+[workflow.tlc]
+max_entries = 1000
+timeout_sec = 30
+max_heap_mb = 512
+workers = 3
+[workflow.apalache]
+max_entries = 1000
+timeout_sec = 30
+max_heap_mb = 1024
+workers = 3
+[pbt]
+max_input_bytes = 10240
+richness_cohorts = 10
+richness_nesting_base = 2.0
+richness_threshold_base = 1.5

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.input;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -55,19 +56,13 @@ public final class PbtStage implements WorkflowStage {
             GeneratorStatistics statistics) {
         this.config = Objects.requireNonNull(config, "config");
         this.kind = Objects.requireNonNull(kind, "kind");
-        if (initialEntries < 0) {
-            throw new IllegalArgumentException("initialEntries must be nonnegative");
-        }
+        Preconditions.requireNonnegative(initialEntries, "initialEntries");
         this.initialEntries = initialEntries;
         this.environment = Objects.requireNonNull(environment, "environment");
         decoder = environment.decoders().decoder(kind);
-        if (seed < 0) {
-            throw new IllegalArgumentException("seed must be nonnegative");
-        }
+        Preconditions.requireNonnegative(seed, "seed");
         this.seed = seed;
-        if (workerLimit <= 0) {
-            throw new IllegalArgumentException("workerLimit must be positive");
-        }
+        Preconditions.requirePositive(workerLimit, "workerLimit");
         this.workerLimit = workerLimit;
         this.output = Objects.requireNonNull(output, "output");
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
@@ -253,12 +248,8 @@ public final class PbtStage implements WorkflowStage {
     }
 
     static long[] workerSeeds(long seed, int workerCount) {
-        if (seed < 0) {
-            throw new IllegalArgumentException("seed must be nonnegative");
-        }
-        if (workerCount < 0) {
-            throw new IllegalArgumentException("workerCount must be nonnegative");
-        }
+        Preconditions.requireNonnegative(seed, "seed");
+        Preconditions.requireNonnegative(workerCount, "workerCount");
         var seeds = new long[workerCount];
         var source = new SplittableRandom(seed);
         for (var workerId = 0; workerId < workerCount; workerId++) {

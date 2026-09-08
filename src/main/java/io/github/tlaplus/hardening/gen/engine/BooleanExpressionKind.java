@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.Set;
 
 /** Boolean-valued expression forms. */
 public enum BooleanExpressionKind implements ExpressionKind {
@@ -40,13 +39,11 @@ public enum BooleanExpressionKind implements ExpressionKind {
     TEMPORAL_EXISTS(ExpressionCategory.EXOTIC),
     TEMPORAL_FORALL(ExpressionCategory.EXOTIC);
 
-    private final ExpressionCategory category;
-    private final Set<ExpressionCategory> requiredCategories;
+    private final Categories categories;
 
     BooleanExpressionKind(
             ExpressionCategory category, ExpressionCategory... dependencies) {
-        this.category = category;
-        requiredCategories = ExpressionKind.requirements(category, dependencies);
+        categories = new Categories(category, dependencies);
     }
 
     @Override
@@ -55,12 +52,7 @@ public enum BooleanExpressionKind implements ExpressionKind {
     }
 
     @Override
-    public ExpressionCategory category() {
-        return category;
-    }
-
-    @Override
-    public Set<ExpressionCategory> requiredCategories() {
-        return requiredCategories;
+    public Categories categories() {
+        return categories;
     }
 }

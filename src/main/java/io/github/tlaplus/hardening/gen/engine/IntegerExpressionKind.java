@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.Set;
 
 /** Integer-valued expression forms. */
 public enum IntegerExpressionKind implements ExpressionKind {
@@ -16,13 +15,11 @@ public enum IntegerExpressionKind implements ExpressionKind {
     CARDINALITY(ExpressionCategory.FINITE_SET, ExpressionCategory.SET),
     LENGTH(ExpressionCategory.SEQUENCE);
 
-    private final ExpressionCategory category;
-    private final Set<ExpressionCategory> requiredCategories;
+    private final Categories categories;
 
     IntegerExpressionKind(
             ExpressionCategory category, ExpressionCategory... dependencies) {
-        this.category = category;
-        requiredCategories = ExpressionKind.requirements(category, dependencies);
+        categories = new Categories(category, dependencies);
     }
 
     @Override
@@ -31,12 +28,7 @@ public enum IntegerExpressionKind implements ExpressionKind {
     }
 
     @Override
-    public ExpressionCategory category() {
-        return category;
-    }
-
-    @Override
-    public Set<ExpressionCategory> requiredCategories() {
-        return requiredCategories;
+    public Categories categories() {
+        return categories;
     }
 }

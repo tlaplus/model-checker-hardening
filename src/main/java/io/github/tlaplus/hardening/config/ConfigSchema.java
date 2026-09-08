@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -22,10 +24,10 @@ import org.tomlj.TomlTable;
  *
  * <p>A key is declared exactly once, here. Strict key validation, reading, and rendering are all
  * derived from these declarations, so a key cannot be present in one of the three and absent from
- * another. Adding a setting is one {@link Key} in one {@link Table}.
+ * another. Adding a setting registers one {@link Key} in its table builder.
  *
  * <p>Declaration order is document order: {@link #TABLES} is the order tables are rendered, and a
- * table's key order is the order its keys are rendered.
+ * table's registration order is the order its keys are rendered.
  */
 final class ConfigSchema {
     /**
@@ -75,10 +77,8 @@ final class ConfigSchema {
             Objects.requireNonNull(path, "path");
             keys = List.copyOf(Objects.requireNonNull(keys, "keys"));
             for (var key : keys) {
-                if (!key.tablePath().equals(path)) {
-                    throw new IllegalArgumentException(
-                            "key " + key.path() + " does not belong to table " + path);
-                }
+                Preconditions.require(key.tablePath().equals(path),
+                        "key " + key.path() + " does not belong to table " + path);
             }
         }
 
@@ -111,26 +111,15 @@ final class ConfigSchema {
             Key<Integer> maximumEntries,
             Key<Integer> timeoutSeconds,
             Key<Integer> maximumHeapMegabytes,
-            Key<Integer> workers) {
-        List<Key<?>> all() {
-            return List.of(maximumEntries, timeoutSeconds, maximumHeapMegabytes, workers);
-        }
-    }
+            Key<Integer> workers) {}
 
     /**
      * The checker documentation that genuinely differs between checkers, because their worker
-     * lifecycles differ: TLC runs many inputs in one isolated JVM, Apalache one input per worker.
+     * lifecycles differ: TLC runs one child per input, Apalache one persistent child per worker.
      */
     private record CheckerDocumentation(String heap, List<String> workers) {}
 
-    private static final String GENERATOR_PATH = "generator";
     private static final String WORKFLOW_PATH = "workflow";
-    private static final String INPUTS_PATH = WORKFLOW_PATH + ".inputs";
-    private static final String PBT_PATH = "pbt";
-
-    private static final String CHECKER_TIMEOUT_DOCUMENTATION =
-            "Wall-clock limit for checking one generated specification.";
-
     private static final Map<CorpusStage, CheckerDocumentation> CHECKER_DOCUMENTATION = Map.of(
             CorpusStage.TLC,
             new CheckerDocumentation(
@@ -144,99 +133,63 @@ final class ConfigSchema {
                             "Initialized to half the available processors, rounded down"
                                     + " (at least one).")));
 
-    static final GeneratorLimitSchema GENERATOR_LIMITS =
-            GeneratorLimitSchema.in(GENERATOR_PATH);
-    static final Key<InputKind> GENERATED_KIND = new Key<>(
-            GENERATOR_PATH,
-            "kind",
-            ConfigValueType.INPUT_KIND,
-            List.of(
-                    "What this run generates: \"expr\" for one expression wrapped in a"
-                            + " single-state module, or \"module\" for a whole module.",
-                    "A corpus entry records its own kind, so a run only generates this one."),
-            config -> config.generatedKind());
+    private static final ConfigTableBuilder<FuzzTlaConfig> GENERATOR =
+            new ConfigTableBuilder<>("generator", Function.identity());
+    private static final ConfigTableBuilder<IrGenerationConfig> GENERATION =
+            GENERATOR.project(FuzzTlaConfig::generator);
+    private static final ConfigTableBuilder<WorkflowConfig> WORKFLOW =
+            new ConfigTableBuilder<>(WORKFLOW_PATH, FuzzTlaConfig::workflow);
+    private static final ConfigTableBuilder<StageConfig> INPUTS =
+            new ConfigTableBuilder<>(WORKFLOW_PATH + ".inputs", config -> config.workflow().inputs());
+    private static final ConfigTableBuilder<ParserStageConfig> PARSER =
+            new ConfigTableBuilder<>(stagePath(CorpusStage.PARSER), config -> config.workflow().parser());
+    private static final ConfigTableBuilder<PbtConfig> PBT =
+            new ConfigTableBuilder<>("pbt", FuzzTlaConfig::pbt);
+    private static final Map<CorpusStage, Table> CHECKER_TABLES = new EnumMap<>(CorpusStage.class);
 
-    static final Key<Set<ExpressionCategory>> IGNORED_CATEGORIES = new Key<>(
-            GENERATOR_PATH,
-            "ignore",
-            ConfigValueType.CATEGORIES,
-            List.of(),
-            config -> config.generator().ignoredCategories());
-
-    static final Key<Map<ExpressionKind, Integer>> FORM_WEIGHTS = new Key<>(
-            GENERATOR_PATH,
-            "weights",
-            ConfigValueType.WEIGHTS,
-            List.of(
-                    "Selection slots per expression form, for the forms that are not weighted"
-                            + " one.",
-                    "A form with weight N is N times as likely as an unweighted form applicable"
-                            + " to the same request."),
-            config -> config.generator().formWeights());
-
-    static final Key<List<Path>> CLASSPATH = new Key<>(
-            GENERATOR_PATH, "classpath", ConfigValueType.CLASSPATH,
-            List.of("Ordered TLA+ source directories or JARs, relative to this config file."),
-            config -> config.libraries().classpath());
-
-    static final Key<List<OperatorLibraryConfig.Module>> CUSTOM_OPERATORS = new Key<>(
-            GENERATOR_PATH, "custom_operators", ConfigValueType.MODULES,
-            List.of("Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }."),
-            config -> config.libraries().modules());
-
-    static final Key<Integer> WORKFLOW_MAXIMUM_ENTRIES = new Key<>(
-            WORKFLOW_PATH,
-            "max_entries",
-            ConfigValueType.INTEGER,
-            List.of("Maximum number of unique entries across every workflow directory."),
-            config -> config.workflow().maximumEntries());
-
-    static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = new Key<>(
-            INPUTS_PATH,
-            "max_entries",
-            ConfigValueType.INTEGER,
-            List.of("Maximum current occupancy of 00-inputs."),
-            config -> config.workflow().inputs().maximumEntries());
-
-    static final Key<Integer> PARSER_MAXIMUM_ENTRIES = new Key<>(
-            stagePath(CorpusStage.PARSER),
-            "max_entries",
-            ConfigValueType.INTEGER,
-            List.of(resultDirectoryDocumentation(CorpusStage.PARSER)),
-            config -> config.workflow().parser().maximumEntries());
-    static final Key<Integer> PARSER_TIMEOUT_SECONDS = new Key<>(
-            stagePath(CorpusStage.PARSER),
-            "timeout_sec",
-            ConfigValueType.INTEGER,
-            List.of("Wall-clock limit for parsing one generated specification."),
-            config -> config.workflow().parser().timeoutSeconds());
-
+    static final Key<InputKind> GENERATED_KIND = GENERATOR.key(
+            "kind", ConfigValueType.INPUT_KIND, FuzzTlaConfig::generatedKind,
+            "What this run generates: \"expr\" for one expression wrapped in a"
+                    + " single-state module, or \"module\" for a whole module.",
+            "A corpus entry records its own kind, so a run only generates this one.");
+    static final GeneratorLimitSchema GENERATOR_LIMITS = new GeneratorLimitSchema(GENERATION);
+    static final Key<Set<ExpressionCategory>> IGNORED_CATEGORIES = GENERATION.key(
+            "ignore", ConfigValueType.CATEGORIES, IrGenerationConfig::ignoredCategories);
+    static final Key<Map<ExpressionKind, Integer>> FORM_WEIGHTS = GENERATION.key(
+            "weights", ConfigValueType.WEIGHTS, IrGenerationConfig::formWeights,
+            "Selection slots per expression form, for the forms that are not weighted"
+                    + " one.",
+            "A form with weight N is N times as likely as an unweighted form applicable"
+                    + " to the same request.");
+    static final Key<List<Path>> CLASSPATH = GENERATOR.key(
+            "classpath", ConfigValueType.CLASSPATH, config -> config.libraries().classpath(),
+            "Ordered TLA+ source directories or JARs, relative to this config file.");
+    static final Key<List<OperatorLibraryConfig.Module>> CUSTOM_OPERATORS = GENERATOR.key(
+            "custom_operators", ConfigValueType.MODULES, config -> config.libraries().modules(),
+            "Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }.");
+    static final Key<Integer> WORKFLOW_MAXIMUM_ENTRIES = WORKFLOW.integer(
+            "max_entries", WorkflowConfig::maximumEntries,
+            "Maximum number of unique entries across every workflow directory.");
+    static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.integer(
+            "max_entries", StageConfig::maximumEntries, "Maximum current occupancy of 00-inputs.");
+    static final Key<Integer> PARSER_MAXIMUM_ENTRIES = PARSER.integer(
+            "max_entries", ParserStageConfig::maximumEntries, resultDirectoryDocumentation(CorpusStage.PARSER));
+    static final Key<Integer> PARSER_TIMEOUT_SECONDS = PARSER.integer(
+            "timeout_sec", ParserStageConfig::timeoutSeconds,
+            "Wall-clock limit for parsing one generated specification.");
     private static final Map<CorpusStage, CheckerKeys> CHECKER_KEYS = checkerKeys();
-
-    static final Key<Integer> MAXIMUM_INPUT_BYTES = new Key<>(
-            PBT_PATH,
-            "max_input_bytes",
-            ConfigValueType.INTEGER,
-            List.of("Inclusive upper bound on a randomly generated input's length."),
-            config -> config.pbt().maximumInputBytes());
-    static final Key<Integer> RICHNESS_COHORTS = new Key<>(
-            PBT_PATH,
-            "richness_cohorts",
-            ConfigValueType.INTEGER,
-            List.of("Number of uniformly selected collection-richness cohorts."),
-            config -> config.pbt().richnessCohorts());
-    static final Key<Double> RICHNESS_NESTING_BASE = new Key<>(
-            PBT_PATH,
-            "richness_nesting_base",
-            ConfigValueType.NUMBER,
-            List.of("Weight multiplier for each level of collection nesting."),
-            config -> config.pbt().richnessNestingBase());
-    static final Key<Double> RICHNESS_THRESHOLD_BASE = new Key<>(
-            PBT_PATH,
-            "richness_threshold_base",
-            ConfigValueType.NUMBER,
-            List.of("Growth factor for successive cohort admission thresholds."),
-            config -> config.pbt().richnessThresholdBase());
+    static final Key<Integer> MAXIMUM_INPUT_BYTES = PBT.integer(
+            "max_input_bytes", PbtConfig::maximumInputBytes,
+            "Inclusive upper bound on a randomly generated input's length.");
+    static final Key<Integer> RICHNESS_COHORTS = PBT.integer(
+            "richness_cohorts", PbtConfig::richnessCohorts,
+            "Number of uniformly selected collection-richness cohorts.");
+    static final Key<Double> RICHNESS_NESTING_BASE = PBT.key(
+            "richness_nesting_base", ConfigValueType.NUMBER, PbtConfig::richnessNestingBase,
+            "Weight multiplier for each level of collection nesting.");
+    static final Key<Double> RICHNESS_THRESHOLD_BASE = PBT.key(
+            "richness_threshold_base", ConfigValueType.NUMBER, PbtConfig::richnessThresholdBase,
+            "Growth factor for successive cohort admission thresholds.");
 
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();
@@ -246,9 +199,7 @@ final class ConfigSchema {
     /** Returns the keys of one checker stage. */
     static CheckerKeys checker(CorpusStage stage) {
         var keys = CHECKER_KEYS.get(Objects.requireNonNull(stage, "stage"));
-        if (keys == null) {
-            throw new IllegalArgumentException(stage + " is not a checker stage");
-        }
+        Preconditions.require(keys != null, stage + " is not a checker stage");
         return keys;
     }
 
@@ -279,79 +230,28 @@ final class ConfigSchema {
     }
 
     private static List<Table> tables() {
-        var tables = new ArrayList<Table>();
-        tables.add(new Table(GENERATOR_PATH, generatorKeys()));
-        tables.add(new Table(WORKFLOW_PATH, List.of(WORKFLOW_MAXIMUM_ENTRIES)));
-        tables.add(new Table(INPUTS_PATH, List.of(INPUTS_MAXIMUM_ENTRIES)));
-        tables.add(new Table(
-                stagePath(CorpusStage.PARSER),
-                List.of(PARSER_MAXIMUM_ENTRIES, PARSER_TIMEOUT_SECONDS)));
-        for (var stage : CorpusStage.checkerBranches()) {
-            tables.add(new Table(stagePath(stage), checker(stage).all()));
-        }
-        tables.add(new Table(
-                PBT_PATH,
-                List.of(
-                        MAXIMUM_INPUT_BYTES,
-                        RICHNESS_COHORTS,
-                        RICHNESS_NESTING_BASE,
-                        RICHNESS_THRESHOLD_BASE)));
+        var tables = new ArrayList<>(List.of(GENERATOR.build(), WORKFLOW.build(), INPUTS.build(), PARSER.build()));
+        CorpusStage.checkerBranches().forEach(stage -> tables.add(CHECKER_TABLES.get(stage)));
+        tables.add(PBT.build());
         return List.copyOf(tables);
-    }
-
-    private static List<Key<?>> generatorKeys() {
-        var keys = new ArrayList<Key<?>>();
-        keys.add(GENERATED_KIND);
-        keys.addAll(GENERATOR_LIMITS.keys());
-        keys.add(IGNORED_CATEGORIES);
-        keys.add(FORM_WEIGHTS);
-        keys.add(CLASSPATH);
-        keys.add(CUSTOM_OPERATORS);
-        return List.copyOf(keys);
     }
 
     private static Map<CorpusStage, CheckerKeys> checkerKeys() {
         var keys = new EnumMap<CorpusStage, CheckerKeys>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {
-            var path = stagePath(stage);
             var documentation = CHECKER_DOCUMENTATION.get(stage);
             if (documentation == null) {
                 throw new IllegalStateException(
                         "no configuration documentation for checker " + stage);
             }
-            keys.put(
-                    stage,
-                    new CheckerKeys(
-                            new Key<>(
-                                    path,
-                                    "max_entries",
-                                    ConfigValueType.INTEGER,
-                                    List.of(resultDirectoryDocumentation(stage)),
-                                    config -> config.workflow()
-                                            .checker(stage)
-                                            .maximumEntries()),
-                            new Key<>(
-                                    path,
-                                    "timeout_sec",
-                                    ConfigValueType.INTEGER,
-                                    List.of(CHECKER_TIMEOUT_DOCUMENTATION),
-                                    config -> config.workflow()
-                                            .checker(stage)
-                                            .timeoutSeconds()),
-                            new Key<>(
-                                    path,
-                                    "max_heap_mb",
-                                    ConfigValueType.INTEGER,
-                                    List.of(documentation.heap()),
-                                    config -> config.workflow()
-                                            .checker(stage)
-                                            .maximumHeapMegabytes()),
-                            new Key<>(
-                                    path,
-                                    "workers",
-                                    ConfigValueType.INTEGER,
-                                    documentation.workers(),
-                                    config -> config.workflow().checker(stage).workers())));
+            var table = new ConfigTableBuilder<>(stagePath(stage), config -> config.workflow().checker(stage));
+            keys.put(stage, new CheckerKeys(
+                    table.integer("max_entries", CheckerStageConfig::maximumEntries, resultDirectoryDocumentation(stage)),
+                    table.integer("timeout_sec", CheckerStageConfig::timeoutSeconds,
+                            "Wall-clock limit for checking one generated specification."),
+                    table.integer("max_heap_mb", CheckerStageConfig::maximumHeapMegabytes, documentation.heap()),
+                    table.integer("workers", CheckerStageConfig::workers, documentation.workers().toArray(String[]::new))));
+            CHECKER_TABLES.put(stage, table.build());
         }
         return Map.copyOf(keys);
     }

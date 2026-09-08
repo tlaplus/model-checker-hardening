@@ -228,7 +228,7 @@ final class CorpusRecovery {
             CorpusEntries.requireStageVerdict(
                     entry, CorpusStage.PARSER, CorpusVerdict.PASS);
             CorpusEntries.requireMissingStage(entry, checker);
-            requireMissingOtherCheckerStages(checker, entry);
+            CorpusEntries.requireMissingOtherCheckerStages(checker, entry);
             addCheckerBranchEntry(checker, branchEntries, entry);
             inputs.add(path);
         }
@@ -239,7 +239,7 @@ final class CorpusRecovery {
                     entry -> {
                         CorpusEntries.requireStageVerdict(
                                 entry, CorpusStage.PARSER, CorpusVerdict.PASS);
-                        requireMissingOtherCheckerStages(checker, entry);
+                        CorpusEntries.requireMissingOtherCheckerStages(checker, entry);
                         addCheckerBranchEntry(checker, branchEntries, entry);
                         resultEntries.put(entry.path().getFileName().toString(), entry);
                     });
@@ -280,15 +280,6 @@ final class CorpusRecovery {
                     checker.displayName()
                             + " entry appears in multiple workflow directories: "
                             + name);
-        }
-    }
-
-    private void requireMissingOtherCheckerStages(CorpusStage checker, Entry entry)
-            throws CorpusException {
-        for (var otherChecker : CorpusStage.checkerBranches()) {
-            if (otherChecker != checker) {
-                CorpusEntries.requireMissingStage(entry, otherChecker);
-            }
         }
     }
 

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
@@ -21,18 +22,14 @@ public record WorkflowRunSummary(
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(stages, "stages");
         for (var stage : CorpusStage.values()) {
-            if (!stages.containsKey(stage)) {
-                throw new IllegalArgumentException("stages is missing stage " + stage);
-            }
+            Preconditions.require(stages.containsKey(stage), "stages is missing stage " + stage);
         }
         var copy = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
         copy.putAll(stages);
         stages = Map.copyOf(copy);
         Objects.requireNonNull(corpus, "corpus");
         Objects.requireNonNull(totalElapsed, "totalElapsed");
-        if (totalElapsed.isNegative()) {
-            throw new IllegalArgumentException("total elapsed time must be nonnegative");
-        }
+        Preconditions.require(!totalElapsed.isNegative(), "total elapsed time must be nonnegative");
     }
 
     /** Returns what one stage produced over this corpus's lifetime. */

@@ -25,11 +25,11 @@ public record GeneratorAggregate(long attempts, long rejected, long richnessReje
             Preconditions.requireFiniteNonnegative(maximum, "maximum richness");
             Preconditions.requireFiniteNonnegative(average, "average richness");
             if (samples == 0) {
-                if (minimum != 0.0 || maximum != 0.0 || average != 0.0) {
-                    throw new IllegalArgumentException("richness statistics must be zero without samples");
-                }
-            } else if (minimum > average || average > maximum) {
-                throw new IllegalArgumentException("average richness must be between the minimum and maximum");
+                Preconditions.require(minimum == 0.0 && maximum == 0.0 && average == 0.0,
+                        "richness statistics must be zero without samples");
+            } else {
+                Preconditions.require(minimum <= average && average <= maximum,
+                        "average richness must be between the minimum and maximum");
             }
         }
 

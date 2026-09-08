@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.gen.engine;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.vavr.Function3;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -33,6 +35,12 @@ abstract class AbstractExprGenFactory {
         return expressionFactory.mkGen(type, remainingDepth);
     }
 
+    /** Draws same-typed operands left-to-right before invoking the selected builder operation. */
+    protected final Generator<TlaEx> binary(
+            IrType type, int depth, BinaryOperator<TlaEx> operation) {
+        return draw -> operation.apply(draw.draw(expression(type, depth)), draw.draw(expression(type, depth)));
+    }
+
     /** A fresh name usable as a binder, together with the expression that refers to it. */
     protected record Binding(ScopedName name, TlaEx variable) {}
 
@@ -49,6 +57,27 @@ abstract class AbstractExprGenFactory {
     protected final Generator<TlaEx> scopedBody(
             Binding binding, IrType bodyType, int bodyDepth) {
         return context.withBinding(binding.name(), expression(bodyType, bodyDepth));
+    }
+
+    /** Draws an unbounded construct, extending lexical scope only around its body. */
+    protected final Generator<TlaEx> unbounded(
+            String prefix, IrType variableType, IrType bodyType, int depth,
+            BinaryOperator<TlaEx> operation) {
+        return draw -> {
+            var binding = freshBinding(prefix, variableType);
+            return operation.apply(binding.variable(), draw.draw(scopedBody(binding, bodyType, depth)));
+        };
+    }
+
+    /** Allocates the binder before drawing its domain; only the body sees that binding. */
+    protected final Generator<TlaEx> bounded(
+            String prefix, IrType variableType, IrType bodyType, int depth,
+            Function3<TlaEx, TlaEx, TlaEx, TlaEx> operation) {
+        return draw -> {
+            var binding = freshBinding(prefix, variableType);
+            var domain = draw.draw(expression(new SetType(variableType), depth));
+            return operation.apply(binding.variable(), domain, draw.draw(scopedBody(binding, bodyType, depth)));
+        };
     }
 
     /** Returns a tuple whose components are drawn in declaration order. */

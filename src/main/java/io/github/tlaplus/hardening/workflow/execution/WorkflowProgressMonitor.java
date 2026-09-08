@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -22,9 +23,7 @@ public final class WorkflowProgressMonitor implements AutoCloseable {
             Supplier<WorkflowProgress> snapshots,
             Consumer<WorkflowProgress> listener) {
         this.interval = Objects.requireNonNull(interval, "interval");
-        if (interval.isZero() || interval.isNegative()) {
-            throw new IllegalArgumentException("progress interval must be positive");
-        }
+        Preconditions.require(!interval.isZero() && !interval.isNegative(), "progress interval must be positive");
         this.snapshots = Objects.requireNonNull(snapshots, "snapshots");
         this.listener = Objects.requireNonNull(listener, "listener");
     }

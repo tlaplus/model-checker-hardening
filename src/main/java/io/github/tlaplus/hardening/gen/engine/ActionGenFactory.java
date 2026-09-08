@@ -11,7 +11,6 @@ import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.Request;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import org.apalache_mc.tla.jir.TypedParameter;
 
 /**
  * Module-level action assembly: Init, operator definitions, bounded parameters, guards, Next and
@@ -52,19 +51,13 @@ final class ActionGenFactory extends AbstractExprGenFactory {
                 }
                 var argumentTypes = draw.draw(BasicGenerators.listOf(typeFactory.valueType(),
                         0, context.config().expressions().maximumCollectionSize()));
-                var parameters = new ArrayList<TypedParameter>();
-                var parameterNames = new ArrayList<ScopedName>();
-                for (var argumentType : argumentTypes) {
-                    var parameter = context.freshBinding("actionArg", argumentType);
-                    parameterNames.add(parameter);
-                    parameters.add(builder().param(parameter.name(), argumentType.toTlaType()));
-                }
+                var parameters = context.parameters("actionArg", argumentTypes);
                 var name = context.fresh("Act");
                 var visiblePrefix = new VisibleActionOperators(operators);
-                var body = draw.draw(context.withBindings(parameterNames,
+                var body = draw.draw(context.withBindings(parameters.bindings(),
                         context.withFreshNodeBudget(shapes.shape(
                                 request(effect, expressionDepth), visiblePrefix).map(shapes::conjoin))));
-                var declaration = builder().decl(name, body, parameters.toArray(TypedParameter[]::new));
+                var declaration = builder().decl(name, body, parameters.declarations());
                 var generated = new GeneratedActionOperator(declaration,
                         new ActionEffect(effect.stream().map(ScopedName::name).toList()));
                 operators.add(new VisibleActionOperators.Operator(generated,

@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.ArrayDeque;
 import java.util.EnumMap;
 import java.util.Objects;
@@ -36,9 +37,7 @@ public final class CpuBudget {
     private int availablePermits;
 
     public CpuBudget(int maximumCpus) {
-        if (maximumCpus <= 0) {
-            throw new IllegalArgumentException("maximumCpus must be positive");
-        }
+        Preconditions.requirePositive(maximumCpus, "maximumCpus");
         this.maximumCpus = maximumCpus;
         availablePermits = maximumCpus;
         for (var priority : Priority.values()) {
@@ -51,10 +50,8 @@ public final class CpuBudget {
             throws InterruptedException {
         Objects.requireNonNull(priority, "priority");
         Objects.requireNonNull(cancelled, "cancelled");
-        if (requestedPermits <= 0 || requestedPermits > maximumCpus) {
-            throw new IllegalArgumentException(
-                    "requestedPermits must be in the range 1.." + maximumCpus);
-        }
+        Preconditions.require(requestedPermits > 0 && requestedPermits <= maximumCpus,
+                "requestedPermits must be in the range 1.." + maximumCpus);
 
         var request = new Request(requestedPermits);
         var enqueued = false;
@@ -87,9 +84,7 @@ public final class CpuBudget {
     }
 
     public void release(int releasedPermits) {
-        if (releasedPermits <= 0) {
-            throw new IllegalArgumentException("releasedPermits must be positive");
-        }
+        Preconditions.requirePositive(releasedPermits, "releasedPermits");
 
         lock.lock();
         try {

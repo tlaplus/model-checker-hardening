@@ -1,11 +1,9 @@
 package io.github.tlaplus.hardening.corpus;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.common.Diagnostics;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,8 +30,6 @@ public final class CorpusEnvelopeCodec {
     private static final String DETAIL_FIELD = "detail";
     private static final String START_TIME_FIELD = "startTime";
     private static final String END_TIME_FIELD = "endTime";
-
-    private static final ObjectMapper MAPPER = new ObjectMapper(CorpusCbor.FACTORY);
 
     private CorpusEnvelopeCodec() {}
 
@@ -79,20 +75,8 @@ public final class CorpusEnvelopeCodec {
         for (var index = 1; index < encoded.size(); index++) {
             var candidate = readDocument(encoded.get(index));
             requireSameDocumentFields(reference.root(), candidate.root());
-            for (var entry : candidate.stageNodes().entrySet()) {
-                var previous = stages.putIfAbsent(entry.getKey(), entry.getValue());
-                if (previous != null && !previous.equals(entry.getValue())) {
-                    throw CborReader.malformed(
-                            "conflicting metadata for stage '" + entry.getKey() + "'");
-                }
-            }
-            for (var entry : candidate.parsedStages().entrySet()) {
-                var previous = parsed.putIfAbsent(entry.getKey(), entry.getValue());
-                if (previous != null && !previous.equals(entry.getValue())) {
-                    throw CborReader.malformed(
-                            "conflicting metadata for stage '" + entry.getKey() + "'");
-                }
-            }
+            mergeStages(stages, candidate.stageNodes());
+            mergeStages(parsed, candidate.parsedStages());
         }
         return writeDocument(reference.root(), stages, parsed, metadata);
     }
@@ -112,21 +96,29 @@ public final class CorpusEnvelopeCodec {
         return new Document(root, nodes, readRecognizedStages(encoded, stages));
     }
 
+    private static <T> void mergeStages(Map<String, T> target, Map<String, T> source)
+            throws CorpusFormatException {
+        for (var entry : source.entrySet()) {
+            var previous = target.putIfAbsent(entry.getKey(), entry.getValue());
+            if (previous != null && !previous.equals(entry.getValue())) {
+                throw CborReader.malformed("conflicting metadata for stage '" + entry.getKey() + "'");
+            }
+        }
+    }
+
+    private static Map<String, JsonNode> documentFields(JsonNode root) {
+        var fields = new LinkedHashMap<String, JsonNode>();
+        root.properties().forEach(field -> {
+            if (!STAGES_FIELD.equals(field.getKey())) {
+                fields.put(field.getKey(), field.getValue());
+            }
+        });
+        return fields;
+    }
+
     private static void requireSameDocumentFields(JsonNode reference, JsonNode candidate)
             throws CorpusFormatException {
-        var referenceFields = new LinkedHashMap<String, JsonNode>();
-        for (var field : reference.properties()) {
-            if (!STAGES_FIELD.equals(field.getKey())) {
-                referenceFields.put(field.getKey(), field.getValue());
-            }
-        }
-        var candidateFields = new LinkedHashMap<String, JsonNode>();
-        for (var field : candidate.properties()) {
-            if (!STAGES_FIELD.equals(field.getKey())) {
-                candidateFields.put(field.getKey(), field.getValue());
-            }
-        }
-        if (!referenceFields.equals(candidateFields)) {
+        if (!documentFields(reference).equals(documentFields(candidate))) {
             throw CborReader.malformed("corpus envelopes disagree outside stage metadata");
         }
     }
@@ -156,22 +148,14 @@ public final class CorpusEnvelopeCodec {
                 stageMetadata(metadata, stageNodes.get(metadata.stage())));
 
         var document = new CborMapWriter();
-        for (Map.Entry<String, JsonNode> field : root.properties()) {
-            if (!STAGES_FIELD.equals(field.getKey())) {
-                document.tree(field.getKey(), field.getValue());
-            }
-        }
+        documentFields(root).forEach(document::tree);
         document.map(STAGES_FIELD, stagesMap);
-
-        var output = new ByteArrayOutputStream();
-        try (var generator = CorpusCbor.FACTORY.createGenerator(output)) {
-            generator.setCodec(MAPPER);
-            document.writeTo(generator);
+        try {
+            return document.encode();
         } catch (IOException exception) {
             throw new CorpusFormatException(
                     "cannot encode CBOR metadata: " + Diagnostics.message(exception), exception);
         }
-        return output.toByteArray();
     }
 
     private record Document(
@@ -211,7 +195,7 @@ public final class CorpusEnvelopeCodec {
     private static JsonNode readTree(byte[] encoded) throws CorpusFormatException {
         Objects.requireNonNull(encoded, "encoded");
         try {
-            return MAPPER.readTree(encoded);
+            return CorpusCbor.MAPPER.readTree(encoded);
         } catch (IOException exception) {
             throw CborReader.invalidCbor(exception);
         }

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,9 +26,7 @@ public record StageResult(
         Objects.requireNonNull(endTime, "endTime");
         Objects.requireNonNull(failure, "failure");
         Objects.requireNonNull(diagnostic, "diagnostic");
-        if (endTime.isBefore(startTime)) {
-            throw new IllegalArgumentException("endTime must not precede startTime");
-        }
+        Preconditions.require(!endTime.isBefore(startTime), "endTime must not precede startTime");
     }
 
     /**

@@ -106,6 +106,23 @@ def all_of(*patterns: str) -> PatternSet:
     return PatternSet(tuple(re.compile(pattern, re.MULTILINE) for pattern in patterns))
 
 
+def finding(file: str, kind: CrashKind, *alternatives: PatternSet) -> FindingSignature:
+    return FindingSignature(file, kind, alternatives)
+
+
+EVALUATION_FAILURE_CODE = 75
+
+
+def failure(
+    file: str, checker: Checker, *patterns: str, code: int = EVALUATION_FAILURE_CODE
+) -> AggregatorSignature:
+    return AggregatorSignature(file, checker, code, tuple(all_of(pattern) for pattern in patterns))
+
+
+def apalache_error(pattern: str) -> PatternSet:
+    return all_of(r"^Apalache exited with status 255$", pattern)
+
+
 def tlc_runtime_error(*patterns: str) -> PatternSet:
     return all_of(
         r"^TLC error code 1000 mapped to exit status 255$",
@@ -118,255 +135,80 @@ def tlc_runtime_error(*patterns: str) -> PatternSet:
 # Keep signatures conservative. Add an alternative only after a crash has been
 # confirmed to have the same root cause as the finding it names.
 SIGNATURES = (
-    FindingSignature(
-        "sany-001.md",
-        CrashKind.PARSER,
-        (
-            all_of(
-                r"java\.util\.UnknownFormatConversionException: Conversion = ':'",
-                r"tla2sany\.semantic\.Errors\$ErrorDetails\.getMessage",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "tlc-001.md",
-        CrashKind.TLC,
-        (
-            tlc_runtime_error(
-                r"In applying the function",
-                r"which is not in its domain\.",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "tlc-002.md",
-        CrashKind.TLC,
-        (
-            all_of(
-                r"^TLC error code 2184 mapped to exit status 255$",
-                r"Error: Attempted to apply (?:Head|Tail) to the empty sequence\.",
-            ),
-            all_of(
-                r"^TLC error code 2183 mapped to exit status 255$",
-                r"Error: The second argument of SubSeq must be in the domain of its first argument:",
-            ),
-            all_of(
-                r"^TLC error code 2180 mapped to exit status 255$",
-                r"Error: 0\^0 is undefined\.",
-            ),
-            all_of(
-                r"^TLC error code 2179 mapped to exit status 255$",
-                r"Error: The second argument of \\div is 0\.",
-            ),
-            all_of(
-                r"^TLC error code 2169 mapped to exit status 255$",
-                r"Error: The second argument of % should be a positive number",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "tlc-003.md",
-        CrashKind.TLC,
-        (
+    finding("sany-001.md", CrashKind.PARSER,
+            all_of(r"java\.util\.UnknownFormatConversionException: Conversion = ':'",
+                   r"tla2sany\.semantic\.Errors\$ErrorDetails\.getMessage")),
+    finding("tlc-001.md", CrashKind.TLC,
+            tlc_runtime_error(r"In applying the function", r"which is not in its domain\.")),
+    finding("tlc-002.md", CrashKind.TLC,
+            all_of(r"^TLC error code 2184 mapped to exit status 255$",
+                   r"Error: Attempted to apply (?:Head|Tail) to the empty sequence\."),
+            all_of(r"^TLC error code 2183 mapped to exit status 255$",
+                   r"Error: The second argument of SubSeq must be in the domain of its first argument:"),
+            all_of(r"^TLC error code 2180 mapped to exit status 255$", r"Error: 0\^0 is undefined\."),
+            all_of(r"^TLC error code 2179 mapped to exit status 255$", r"Error: The second argument of \\div is 0\."),
+            all_of(r"^TLC error code 2169 mapped to exit status 255$",
+                   r"Error: The second argument of % should be a positive number")),
+    finding("tlc-003.md", CrashKind.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
-            tlc_runtime_error(
-                r"Attempted to compare overridden value .+ with non-overridden value:"
-            ),
-            tlc_runtime_error(
-                r"Attempted to compute the number of elements in the overridden value"
-            ),
+            tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
+            tlc_runtime_error(r"Attempted to compute the number of elements in the overridden value"),
             tlc_runtime_error(r"Attempted to enumerate S \\ T when S:"),
             tlc_runtime_error(r"Attempted to enumerate S \\cap T when neither S:"),
-            tlc_runtime_error(
-                r"Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\."
-            ),
-            tlc_runtime_error(r"Attempted to enumerate \{ x \\in S : p\(x\) \} when S:"),
-        ),
-    ),
-    FindingSignature(
-        "apalache-printer-008.md",
-        CrashKind.TLC,
-        (
-            all_of(
-                r"^TLC error code 2102 mapped to exit status 255$",
-                r"Error: current state is not a legal state",
-                r"/\\ step = null",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-001.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"scala\.NotImplementedError: A set filter over .+ is not implemented",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetFilterRule\.apply",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-003.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"checker error: Unexpected equality test over types",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-004.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.lang\.ClassCastException: class com\.microsoft\.z3\.RealExpr cannot be cast to class com\.microsoft\.z3\.IntExpr",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.smt\.Z3SolverContext\.toArithExpr",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-005.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.lang\.UnsupportedOperationException: Expansion of InfSet\[CellTFrom\(Int\)\] is not supported yet",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.expandExistsOrForall",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-006.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"rewriter error: Do not know how pick an element from a set of type:",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-009.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.lang\.IllegalArgumentException: requirement failed: The right-hand side of a function set should be: a finite set or a powerset",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FunSetCtorRule\.apply",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-010.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"internal error in type checking: Applying UNION to CHOOSE",
-                r"of type PowSet\[Set\(",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-011.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.lang\.AssertionError: assertion failed",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.subsetEq",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.mkFunSetEq",
-            ),
-        ),
-    ),
-    FindingSignature(
-        # Skolemizable \E over a set expression that evaluates to Int/Nat.
-        # Distinct from apalache-bmc-005, which is the expansion path with the
-        # "Expansion of InfSet[...]" message from QuantRule.expandExistsOrForall.
-        "apalache-bmc-012.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.lang\.UnsupportedOperationException: Quantification over InfSet\[CellTFrom\(Int\)\] is not supported yet",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.apply",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-bmc-013.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.util\.NoSuchElementException: key not found: \$C\$\d+",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.Binding\.apply",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetInRule\.apply",
-                r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FoldSetRule\.",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-cli-001.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"Input error \(see the manual\): Cardinality expected a finite set, found: (?:InfSet|FinFunSet|PowSet)\[",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"Input error \(see the manual\): Expected a constant integer range in \[ \.\. \]",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"Input error \(see the manual\): Found a set map over an infinite set",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"known limitation: FoldSet is not supported over an infinite set",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"Input error \(see the manual\): Negative power at ",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"Input error \(see the manual\): (?:The power at|The result of) .+ exceedes the limit",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"rewriter error: Accessing a non-existing variant option via tag ",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"rewriter error: Range bounds are too large to fit in scala\.Int",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"error when rewriting to SMT: SMT \d+: z3 reports UNKNOWN",
-            ),
-            all_of(
-                r"^Apalache exited with status 255$",
-                r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\.",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-optimizer-001.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"unexpected expression: undeclared operator LocalOp\d+\$\d+ \[FlatLanguagePred\]",
-                r"ConstSimplifier",
-                r"ExprOptimizer",
-            ),
-        ),
-    ),
-    FindingSignature(
-        "apalache-json-002.md",
-        CrashKind.APALACHE,
-        (
-            all_of(
-                r"java\.lang\.OutOfMemoryError: Java heap space",
-                r"DefaultType1Parser",
-            ),
-        ),
-    ),
+            tlc_runtime_error(r"Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\."),
+            tlc_runtime_error(r"Attempted to enumerate \{ x \\in S : p\(x\) \} when S:")),
+    finding("apalache-printer-008.md", CrashKind.TLC,
+            all_of(r"^TLC error code 2102 mapped to exit status 255$",
+                   r"Error: current state is not a legal state", r"/\\ step = null")),
+    finding("apalache-bmc-001.md", CrashKind.APALACHE,
+            all_of(r"scala\.NotImplementedError: A set filter over .+ is not implemented",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetFilterRule\.apply")),
+    finding("apalache-bmc-003.md", CrashKind.APALACHE,
+            apalache_error(r"checker error: Unexpected equality test over types")),
+    finding("apalache-bmc-004.md", CrashKind.APALACHE,
+            all_of(r"java\.lang\.ClassCastException: class com\.microsoft\.z3\.RealExpr cannot be cast to class com\.microsoft\.z3\.IntExpr",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.smt\.Z3SolverContext\.toArithExpr")),
+    finding("apalache-bmc-005.md", CrashKind.APALACHE,
+            all_of(r"java\.lang\.UnsupportedOperationException: Expansion of InfSet\[CellTFrom\(Int\)\] is not supported yet",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.expandExistsOrForall")),
+    finding("apalache-bmc-006.md", CrashKind.APALACHE,
+            apalache_error(r"rewriter error: Do not know how pick an element from a set of type:")),
+    finding("apalache-bmc-009.md", CrashKind.APALACHE,
+            all_of(r"java\.lang\.IllegalArgumentException: requirement failed: The right-hand side of a function set should be: a finite set or a powerset",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FunSetCtorRule\.apply")),
+    finding("apalache-bmc-010.md", CrashKind.APALACHE,
+            all_of(r"internal error in type checking: Applying UNION to CHOOSE", r"of type PowSet\[Set\(")),
+    finding("apalache-bmc-011.md", CrashKind.APALACHE,
+            all_of(r"java\.lang\.AssertionError: assertion failed",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.subsetEq",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.mkFunSetEq")),
+    # Skolemizable \E over a set expression that evaluates to Int/Nat.
+    # Distinct from apalache-bmc-005, which is the expansion path with the
+    # "Expansion of InfSet[...]" message from QuantRule.expandExistsOrForAll.
+    finding("apalache-bmc-012.md", CrashKind.APALACHE,
+            all_of(r"java\.lang\.UnsupportedOperationException: Quantification over InfSet\[CellTFrom\(Int\)\] is not supported yet",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.apply")),
+    finding("apalache-bmc-013.md", CrashKind.APALACHE,
+            all_of(r"java\.util\.NoSuchElementException: key not found: \$C\$\d+",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.Binding\.apply",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetInRule\.apply",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FoldSetRule\.")),
+    finding("apalache-cli-001.md", CrashKind.APALACHE,
+            apalache_error(r"Input error \(see the manual\): Cardinality expected a finite set, found: (?:InfSet|FinFunSet|PowSet)\["),
+            apalache_error(r"Input error \(see the manual\): Expected a constant integer range in \[ \.\. \]"),
+            apalache_error(r"Input error \(see the manual\): Found a set map over an infinite set"),
+            apalache_error(r"known limitation: FoldSet is not supported over an infinite set"),
+            apalache_error(r"Input error \(see the manual\): Negative power at "),
+            apalache_error(r"Input error \(see the manual\): (?:The power at|The result of) .+ exceedes the limit"),
+            apalache_error(r"rewriter error: Accessing a non-existing variant option via tag "),
+            apalache_error(r"rewriter error: Range bounds are too large to fit in scala\.Int"),
+            apalache_error(r"error when rewriting to SMT: SMT \d+: z3 reports UNKNOWN"),
+            apalache_error(r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\.")),
+    finding("apalache-optimizer-001.md", CrashKind.APALACHE,
+            all_of(r"unexpected expression: undeclared operator LocalOp\d+\$\d+ \[FlatLanguagePred\]",
+                   r"ConstSimplifier", r"ExprOptimizer")),
+    finding("apalache-json-002.md", CrashKind.APALACHE,
+            all_of(r"java\.lang\.OutOfMemoryError: Java heap space", r"DefaultType1Parser")),
 )
 
 # These signatures intentionally use only diagnostics that uniquely identify a
@@ -381,260 +223,100 @@ SIGNATURES = (
 # exception.", "Attempted to apply the operator overridden by the Java method"),
 # so the root cause is not in the stored line at all and those groups stay NEW.
 AGGREGATOR_SIGNATURES = (
-    AggregatorSignature(
-        "function-application-outside-domain.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(r"^In applying the function$"),
-            all_of(r"^Attempted to apply function:$"),
-        ),
-    ),
-    AggregatorSignature(
-        "choose-without-witness.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to compute the value of an expression of(?: form)?$"),),
-    ),
-    AggregatorSignature(
-        "head-of-empty-sequence.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to apply Head to the empty sequence\.$"),),
-    ),
-    AggregatorSignature(
-        "case-without-matching-arm.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(r"^Attempted to evaluate a CASE with no conditions true\.$"),
-            all_of(r"^In computing next states, TLC encountered a CASE with no conditions true\.$"),
-        ),
-    ),
-    AggregatorSignature(
-        "subseq-outside-domain.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^The second argument of SubSeq must be in the domain of its first argument:$"),),
-    ),
-    AggregatorSignature(
-        "tail-of-empty-sequence.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to apply Tail to the empty sequence\.$"),),
-    ),
-    AggregatorSignature(
-        "zero-power-zero-tlc-fails.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^0\^0 is undefined\.$"),),
-    ),
-    AggregatorSignature(
-        "integer-outside-tlc-range.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(r"^TLC can't handle a number this big\.$"),
+    failure("function-application-outside-domain.md", Checker.TLC,
+            r"^In applying the function$", r"^Attempted to apply function:$"),
+    failure("choose-without-witness.md", Checker.TLC,
+            r"^Attempted to compute the value of an expression of(?: form)?$"),
+    failure("head-of-empty-sequence.md", Checker.TLC,
+            r"^Attempted to apply Head to the empty sequence\.$"),
+    failure("case-without-matching-arm.md", Checker.TLC,
+            r"^Attempted to evaluate a CASE with no conditions true\.$",
+            r"^In computing next states, TLC encountered a CASE with no conditions true\.$"),
+    failure("subseq-outside-domain.md", Checker.TLC,
+            r"^The second argument of SubSeq must be in the domain of its first argument:$"),
+    failure("tail-of-empty-sequence.md", Checker.TLC,
+            r"^Attempted to apply Tail to the empty sequence\.$"),
+    failure("zero-power-zero-tlc-fails.md", Checker.TLC, r"^0\^0 is undefined\.$"),
+    failure("integer-outside-tlc-range.md", Checker.TLC,
+            r"^TLC can't handle a number this big\.$",
             # Any operator whose result leaves TLC's integer range reports this;
             # corpus8 adds a multiplication to corpus3's exponentiations.
-            all_of(r"^Overflow when computing "),
-        ),
-    ),
-    AggregatorSignature(
-        "modulo-nonpositive-divisor.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^The second argument of % should be a positive number"),),
-    ),
-    AggregatorSignature(
-        "division-by-zero-tlc-fails.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^The second argument of \\div is 0\.$"),),
-    ),
-    AggregatorSignature(
-        "infinite-set-as-state-value.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^TLC has found a state in which the value of a variable contains (?:Int|Nat)$"),),
-    ),
-    AggregatorSignature(
-        "filter-over-infinite-set.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to enumerate \{ x \\in S : p\(x\) \} when S:$"),),
-    ),
-    AggregatorSignature(
-        "union-containing-infinite-set.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(
-                r"^Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\.$"
-            ),
-            all_of(r"^Attempted to enumerate S \\cup T when S:$"),
-        ),
-    ),
-    AggregatorSignature(
-        "function-over-infinite-domain.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(
-                r"^Attempted to enumerate a set of the form \[D -> R\],but the domain D:$"
-            ),
-            all_of(
-                r"^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\(.+\))\.$"
-            ),
-        ),
-    ),
-    AggregatorSignature(
-        "quantification-over-infinite-set.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(r"^TLC encountered (?:the |a )non-enumerable quantifier bound$"),
-        ),
-    ),
-    AggregatorSignature(
-        "finite-set-containing-infinite-set.md",
-        Checker.TLC,
-        75,
-        (
+            r"^Overflow when computing "),
+    failure("modulo-nonpositive-divisor.md", Checker.TLC,
+            r"^The second argument of % should be a positive number"),
+    failure("division-by-zero-tlc-fails.md", Checker.TLC,
+            r"^The second argument of \\div is 0\.$"),
+    failure("infinite-set-as-state-value.md", Checker.TLC,
+            r"^TLC has found a state in which the value of a variable contains (?:Int|Nat)$"),
+    failure("filter-over-infinite-set.md", Checker.TLC,
+            r"^Attempted to enumerate \{ x \\in S : p\(x\) \} when S:$"),
+    failure("union-containing-infinite-set.md", Checker.TLC,
+            r"^Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\.$",
+            r"^Attempted to enumerate S \\cup T when S:$"),
+    failure("function-over-infinite-domain.md", Checker.TLC,
+            r"^Attempted to enumerate a set of the form \[D -> R\],but the domain D:$",
+            r"^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\(.+\))\.$"),
+    failure("quantification-over-infinite-set.md", Checker.TLC,
+            r"^TLC encountered (?:the |a )non-enumerable quantifier bound$"),
+    failure("finite-set-containing-infinite-set.md", Checker.TLC,
             # Truncation drops the "with <value>:" tail whenever the compared
             # value is long, so match only the prefix TLC always emits.
-            all_of(r"^Attempted to compare (?:the set|overridden value) "),
-            all_of(r"^Attempted to check equality of the set .+ with the value:$"),
-        ),
-    ),
-    AggregatorSignature(
-        "cardinality-of-infinite-set.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to compute cardinality of the value$"),),
-    ),
-    AggregatorSignature(
-        "difference-with-infinite-set.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to enumerate S \\ T when S:$"),),
-    ),
-    AggregatorSignature(
-        "intersection-of-infinite-sets.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to enumerate S \\cap T when neither S:$"),),
-    ),
-    AggregatorSignature(
-        "subset-test-over-infinite-set.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to evaluate an expression of form S \\subseteq T, but S was not enumer"),),
-    ),
-    AggregatorSignature(
-        "cartesian-product-with-infinite-set.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to enumerate a set of the form s1 \\X s2 \.\.\. \\X sn,$"),),
-    ),
-    AggregatorSignature(
-        "function-set-over-infinite-set.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^Attempted to enumerate a set of the form \[D -> R\],but the range R:$"),),
-    ),
-    AggregatorSignature(
-        "negative-exponent-tlc-fails.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^The second argument of \^ should be a natural number"),),
-    ),
-    AggregatorSignature(
-        "apalache-printer-008.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(r"^Attempted to evaluate an expression of form P (?:=>|<=>|/\\|\\/) Q when P"),
-            all_of(r"^A non-boolean expression "),
-            all_of(r"^Attempted to apply the operator ~ to a non-boolean$"),
-            all_of(r"^Evaluating an expression of the form t \\o s when s is not a sequence:$"),
-            all_of(r"^Attempted to check if the value:$"),
+            r"^Attempted to compare (?:the set|overridden value) ",
+            r"^Attempted to check equality of the set .+ with the value:$"),
+    failure("cardinality-of-infinite-set.md", Checker.TLC,
+            r"^Attempted to compute cardinality of the value$"),
+    failure("difference-with-infinite-set.md", Checker.TLC,
+            r"^Attempted to enumerate S \\ T when S:$"),
+    failure("intersection-of-infinite-sets.md", Checker.TLC,
+            r"^Attempted to enumerate S \\cap T when neither S:$"),
+    failure("subset-test-over-infinite-set.md", Checker.TLC,
+            r"^Attempted to evaluate an expression of form S \\subseteq T, but S was not enumer"),
+    failure("cartesian-product-with-infinite-set.md", Checker.TLC,
+            r"^Attempted to enumerate a set of the form s1 \\X s2 \.\.\. \\X sn,$"),
+    failure("function-set-over-infinite-set.md", Checker.TLC,
+            r"^Attempted to enumerate a set of the form \[D -> R\],but the range R:$"),
+    failure("negative-exponent-tlc-fails.md", Checker.TLC,
+            r"^The second argument of \^ should be a natural number"),
+    failure("apalache-printer-008.md", Checker.TLC,
+            r"^Attempted to evaluate an expression of form P (?:=>|<=>|/\\|\\/) Q when P",
+            r"^A non-boolean expression ",
+            r"^Attempted to apply the operator ~ to a non-boolean$",
+            r"^Evaluating an expression of the form t \\o s when s is not a sequence:$",
+            r"^Attempted to check if the value:$",
             # A LET body that absorbed a conjunct leaves a state variable
             # unassigned, so TLC evaluates an identifier the IR always binds.
-            all_of(r"^In evaluation, the identifier \w+ is either undefined or not an operator\."),
-            all_of(r"^TLC expected a boolean value, but did not find one"),
-            all_of(r"^Attempted to check equality of integer -?\d+ with non-integer:"),
-            all_of(r"^Attempted to apply the operator DOMAIN to a non-function"),
+            r"^In evaluation, the identifier \w+ is either undefined or not an operator\.",
+            r"^TLC expected a boolean value, but did not find one",
+            r"^Attempted to check equality of integer -?\d+ with non-integer:",
+            r"^Attempted to apply the operator DOMAIN to a non-function",
             # A TLC module override refusing an operand of the wrong Java value
             # class. Reachable only once the detail stores the innermost
             # failure: before that, the override wrapper was the stored line.
-            all_of(r"^Cannot cast tlc2\.value\.\S+ to tlc2\.value\.\S+$"),
-        ),
-    ),
-    AggregatorSignature(
-        # Inv is Bool in the IR, so a set-valued invariant is printed source that
-        # no longer denotes the tree. A constant FALSE invariant is the separate,
-        # legitimate TLC restriction below and must not match here.
-        "apalache-printer-008.md",
-        Checker.TLC,
-        150,
-        (all_of(r"^The invariant of Inv is equal to (?!FALSE$)"),),
-    ),
-    AggregatorSignature(
-        "constant-false-invariant.md",
-        Checker.TLC,
-        150,
-        (all_of(r"^The invariant of Inv is equal to FALSE$"),),
-    ),
-    AggregatorSignature(
-        # TLC declines an operand whose finiteness it cannot decide; Apalache
-        # answers TRUE for the same set. Reachable once the detail stores the
-        # innermost failure, since TLC reports this inside the override wrapper.
-        "apalache-bmc-007.md",
-        Checker.TLC,
-        75,
-        (
-            all_of(
-                r"^Attempted to check if expression of form \{x \\in S : p\(x\)\} is a finite set"
-            ),
-        ),
-    ),
-    AggregatorSignature(
-        "non-enumerable-initial-assignment.md",
-        Checker.TLC,
-        75,
-        (all_of(r"^In computing initial states, the right side of \\IN is not enumerable\.$"),),
-    ),
-    AggregatorSignature(
-        "modulo-by-zero-apalache-fails.md",
-        Checker.APALACHE,
-        75,
-        (all_of(r"^Input error \(see the manual\): Mod by zero at "),),
-    ),
-    AggregatorSignature(
-        "division-by-zero-apalache-fails.md",
-        Checker.APALACHE,
-        75,
-        (all_of(r"^Input error \(see the manual\): Division by zero at "),),
-    ),
-    AggregatorSignature(
-        "zero-power-zero-apalache-fails.md",
-        Checker.APALACHE,
-        75,
-        (all_of(r"^Input error \(see the manual\): 0 \^ 0 is undefined$"),),
-    ),
-    AggregatorSignature(
-        "sequence-set-unsupported.md",
-        Checker.APALACHE,
-        75,
-        (all_of(r"^<unknown>: unsupported expression: Seq\(_\) produces an infinite set"),),
-    ),
-    AggregatorSignature(
-        "string-set-unsupported.md",
-        Checker.APALACHE,
-        75,
-        (all_of(r"^<unknown>: unsupported expression: STRING$"),),
-    ),
+            r"^Cannot cast tlc2\.value\.\S+ to tlc2\.value\.\S+$"),
+    # Inv is Bool in the IR, so a set-valued invariant is printed source that
+    # no longer denotes the tree. A constant FALSE invariant is the separate,
+    # legitimate TLC restriction below and must not match here.
+    failure("apalache-printer-008.md", Checker.TLC,
+            r"^The invariant of Inv is equal to (?!FALSE$)", code=150),
+    failure("constant-false-invariant.md", Checker.TLC,
+            r"^The invariant of Inv is equal to FALSE$", code=150),
+    # TLC declines an operand whose finiteness it cannot decide; Apalache
+    # answers TRUE for the same set. Reachable once the detail stores the
+    # innermost failure, since TLC reports this inside the override wrapper.
+    failure("apalache-bmc-007.md", Checker.TLC,
+            r"^Attempted to check if expression of form \{x \\in S : p\(x\)\} is a finite set"),
+    failure("non-enumerable-initial-assignment.md", Checker.TLC,
+            r"^In computing initial states, the right side of \\IN is not enumerable\.$"),
+    failure("modulo-by-zero-apalache-fails.md", Checker.APALACHE,
+            r"^Input error \(see the manual\): Mod by zero at "),
+    failure("division-by-zero-apalache-fails.md", Checker.APALACHE,
+            r"^Input error \(see the manual\): Division by zero at "),
+    failure("zero-power-zero-apalache-fails.md", Checker.APALACHE,
+            r"^Input error \(see the manual\): 0 \^ 0 is undefined$"),
+    failure("sequence-set-unsupported.md", Checker.APALACHE,
+            r"^<unknown>: unsupported expression: Seq\(_\) produces an infinite set"),
+    failure("string-set-unsupported.md", Checker.APALACHE,
+            r"^<unknown>: unsupported expression: STRING$"),
 )
 
 ENTRY_NAME = re.compile(r"(?P<hash>[0-9a-f]{64})\.cbor\Z")
@@ -702,14 +384,7 @@ def classify(crash_kind: CrashKind, diagnostic: str, entry_hash: str) -> str:
         for signature in SIGNATURES
         if signature.crash_kind is crash_kind and signature.matches(diagnostic)
     }
-    if not matches:
-        return NEW_FINDING
-    if len(matches) > 1:
-        findings = ", ".join(sorted(matches))
-        raise TriageError(
-            f"{crash_kind.value}/{entry_hash} matches multiple findings: {findings}"
-        )
-    return next(iter(matches))
+    return unique_match(matches, f"{crash_kind.value}/{entry_hash}", "findings")
 
 
 def classify_aggregator(
@@ -720,13 +395,15 @@ def classify_aggregator(
         for signature in AGGREGATOR_SIGNATURES
         if signature.matches(results)
     }
+    return unique_match(matches, f"{AGGREGATOR_DIRECTORY}/{entry_hash}", "issues")
+
+
+def unique_match(matches: set[str], location: str, description: str) -> str:
     if not matches:
         return NEW_FINDING
     if len(matches) > 1:
         issues = ", ".join(sorted(matches))
-        raise TriageError(
-            f"{AGGREGATOR_DIRECTORY}/{entry_hash} matches multiple issues: {issues}"
-        )
+        raise TriageError(f"{location} matches multiple {description}: {issues}")
     return next(iter(matches))
 
 

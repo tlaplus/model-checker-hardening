@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import static io.github.tlaplus.hardening.common.Cleanup.suppressIOException;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.FileTrees;
@@ -61,7 +62,7 @@ final class WorkerLaunch {
             listener = new ServerSocket();
             listener.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 1);
         } catch (IOException exception) {
-            deleteAfterFailure(temporaryDirectory, exception);
+            suppressIOException(exception, () -> FileTrees.deleteRecursively(temporaryDirectory));
             throw new WorkflowException(
                     "cannot create " + description + " protocol listener", exception);
         }
@@ -72,8 +73,8 @@ final class WorkerLaunch {
             process = new ProcessBuilder(command(spec, temporaryDirectory, listener, token))
                     .start();
         } catch (IOException exception) {
-            closeListener(listener, exception);
-            deleteAfterFailure(temporaryDirectory, exception);
+            suppressIOException(exception, listener::close);
+            suppressIOException(exception, () -> FileTrees.deleteRecursively(temporaryDirectory));
             throw new WorkflowException("cannot start " + description, exception);
         }
 
@@ -101,24 +102,15 @@ final class WorkerLaunch {
         final Socket socket;
         try {
             socket = WorkerChannel.await(listener::accept, timeout);
-        } catch (TimeoutException exception) {
-            closeListener(listener, exception);
-            throw abandon(
-                    process, output, description + " did not connect within " + timeout, exception);
-        } catch (ExecutionException exception) {
-            closeListener(listener, exception);
-            throw abandon(
-                    process, output, description + " failed during startup", exception.getCause());
-        } catch (InterruptedException exception) {
-            closeListener(listener, exception);
-            terminate(process);
-            output.close();
-            throw exception;
+        } catch (TimeoutException | ExecutionException | InterruptedException exception) {
+            suppressIOException(exception, listener::close);
+            throw startupFailure(process, output, exception, description,
+                    description + " did not connect within " + timeout);
         }
         try {
             listener.close();
         } catch (IOException exception) {
-            closeSocket(socket, exception);
+            suppressIOException(exception, socket::close);
             throw abandon(
                     process,
                     output,
@@ -130,7 +122,7 @@ final class WorkerLaunch {
         try {
             channel = WorkerChannel.open(socket);
         } catch (IOException exception) {
-            closeSocket(socket, exception);
+            suppressIOException(exception, socket::close);
             throw abandon(
                     process,
                     output,
@@ -145,20 +137,25 @@ final class WorkerLaunch {
                         process, output, description + " protocol handshake failed", null);
             }
             return new Launched(process, channel, output);
-        } catch (TimeoutException exception) {
+        } catch (TimeoutException | ExecutionException | InterruptedException exception) {
             channel.close();
-            throw abandon(
-                    process, output, description + " did not start within " + timeout, exception);
-        } catch (ExecutionException exception) {
-            channel.close();
-            throw abandon(
-                    process, output, description + " failed during startup", exception.getCause());
-        } catch (InterruptedException exception) {
-            channel.close();
+            throw startupFailure(process, output, exception, description,
+                    description + " did not start within " + timeout);
+        }
+    }
+
+    /** Both startup waits retire the child identically, but keep their phase-specific timeout. */
+    private static WorkflowException startupFailure(
+            Process process, WorkerOutput output, Exception failure, String description, String timeout)
+            throws InterruptedException {
+        if (failure instanceof InterruptedException interrupted) {
             terminate(process);
             output.close();
-            throw exception;
+            throw interrupted;
         }
+        return abandon(process, output,
+                failure instanceof TimeoutException ? timeout : description + " failed during startup",
+                failure instanceof ExecutionException execution ? execution.getCause() : failure);
     }
 
     /** Releases a worker that never became usable and reports why, with everything it printed. */
@@ -201,24 +198,17 @@ final class WorkerLaunch {
         if (!process.isAlive()) {
             return;
         }
-        process.destroy();
-        try {
-            if (!process.waitFor(
-                    PROCESS_TERMINATION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly();
-                process.waitFor(
-                        PROCESS_TERMINATION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-            }
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            process.destroyForcibly();
-        }
+        stop(process, false);
     }
 
     /** Waits for a child that was asked to stop, escalating if it does not. */
     static void awaitStop(Process process) {
+        stop(process, true);
+    }
+
+    private static void stop(Process process, boolean graceful) {
         try {
-            if (!process.waitFor(
+            if (!graceful || !process.waitFor(
                     PROCESS_TERMINATION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
                 process.destroy();
             }
@@ -234,27 +224,4 @@ final class WorkerLaunch {
         }
     }
 
-    private static void closeListener(ServerSocket listener, Throwable failure) {
-        try {
-            listener.close();
-        } catch (IOException closeException) {
-            failure.addSuppressed(closeException);
-        }
-    }
-
-    private static void closeSocket(Socket socket, Throwable failure) {
-        try {
-            socket.close();
-        } catch (IOException closeException) {
-            failure.addSuppressed(closeException);
-        }
-    }
-
-    private static void deleteAfterFailure(Path directory, Throwable failure) {
-        try {
-            FileTrees.deleteRecursively(directory);
-        } catch (IOException cleanupException) {
-            failure.addSuppressed(cleanupException);
-        }
-    }
 }

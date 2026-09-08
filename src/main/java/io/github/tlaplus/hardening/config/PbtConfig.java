@@ -15,22 +15,16 @@ public record PbtConfig(
     public PbtConfig {
         Preconditions.requireNonnegative(maximumInputBytes, "maximumInputBytes");
         Preconditions.requirePositive(richnessCohorts, "richnessCohorts");
-        if (!Double.isFinite(richnessNestingBase) || richnessNestingBase < 1.0) {
-            throw new IllegalArgumentException(
-                    "richnessNestingBase must be finite and at least 1");
-        }
-        if (!Double.isFinite(richnessThresholdBase) || richnessThresholdBase <= 1.0) {
-            throw new IllegalArgumentException(
-                    "richnessThresholdBase must be finite and greater than 1");
-        }
+        Preconditions.require(Double.isFinite(richnessNestingBase) && richnessNestingBase >= 1.0,
+                "richnessNestingBase must be finite and at least 1");
+        Preconditions.require(Double.isFinite(richnessThresholdBase) && richnessThresholdBase > 1.0,
+                "richnessThresholdBase must be finite and greater than 1");
 
         var previous = 0.0;
         for (var cohort = 1; cohort < richnessCohorts; cohort++) {
             var threshold = StrictMath.pow(richnessThresholdBase, cohort - 1);
-            if (!Double.isFinite(threshold) || threshold <= previous) {
-                throw new IllegalArgumentException(
-                        "richness thresholds must be finite and strictly increasing");
-            }
+            Preconditions.require(Double.isFinite(threshold) && threshold > previous,
+                    "richness thresholds must be finite and strictly increasing");
             previous = threshold;
         }
     }
@@ -46,10 +40,8 @@ public record PbtConfig(
 
     /** Returns the minimum collection-richness score accepted by {@code cohort}. */
     public double richnessThreshold(int cohort) {
-        if (cohort < 0 || cohort >= richnessCohorts) {
-            throw new IllegalArgumentException(
-                    "cohort must be in the range 0.." + (richnessCohorts - 1));
-        }
+        Preconditions.require(cohort >= 0 && cohort < richnessCohorts,
+                "cohort must be in the range 0.." + (richnessCohorts - 1));
         return cohort == 0 ? 0.0 : StrictMath.pow(richnessThresholdBase, cohort - 1);
     }
 

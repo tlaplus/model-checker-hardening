@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.Cleanup;
 import io.github.tlaplus.hardening.common.FileTrees;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,11 +24,7 @@ public final class StageScratch implements AutoCloseable {
             var runDirectory = Files.createTempDirectory(parentDirectory, "run-");
             return new StageScratch(parentDirectory, runDirectory);
         } catch (IOException exception) {
-            try {
-                FileTrees.deleteRecursively(parentDirectory);
-            } catch (IOException cleanupException) {
-                exception.addSuppressed(cleanupException);
-            }
+            Cleanup.suppressIOException(exception, () -> FileTrees.deleteRecursively(parentDirectory));
             throw exception;
         }
     }

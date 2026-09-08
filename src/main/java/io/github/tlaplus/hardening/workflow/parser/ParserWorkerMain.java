@@ -1,13 +1,11 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
-import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
-import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -83,11 +81,7 @@ public final class ParserWorkerMain {
                         new ToolResult(StageOutcome.FAIL, diagnostic);
             };
         } catch (Exception | StackOverflowError exception) {
-            return new ToolResult(
-                    StageOutcome.CRASH,
-                    WorkerDiagnostics.append(
-                            diagnostics.toString(StandardCharsets.UTF_8),
-                            Diagnostics.stackTrace(exception)));
+            return ToolResult.crash(exception, diagnostics.toString(StandardCharsets.UTF_8));
         }
     }
 }

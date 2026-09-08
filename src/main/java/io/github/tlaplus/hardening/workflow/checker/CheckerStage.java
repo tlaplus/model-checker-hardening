@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.checker;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
@@ -41,12 +42,8 @@ public final class CheckerStage implements WorkflowStage {
             WorkQueue<Path> input,
             WorkQueue<Path> output) {
         this.backend = Objects.requireNonNull(backend, "backend");
-        if (backend.workerCount() <= 0) {
-            throw new IllegalArgumentException("workerCount must be positive");
-        }
-        if (backend.cpuPermits() <= 0) {
-            throw new IllegalArgumentException("cpuPermits must be positive");
-        }
+        Preconditions.requirePositive(backend.workerCount(), "workerCount");
+        Preconditions.requirePositive(backend.cpuPermits(), "cpuPermits");
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");

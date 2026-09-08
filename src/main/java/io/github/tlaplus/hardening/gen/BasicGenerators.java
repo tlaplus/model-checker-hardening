@@ -1,9 +1,12 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 /** Factory methods for basic generators that compose through a shared {@link Draw}. */
 public final class BasicGenerators {
@@ -38,9 +41,7 @@ public final class BasicGenerators {
      * @throws IllegalArgumentException if {@code minimum > maximum}
      */
     public static Generator<Long> oneLong(long minimum, long maximum) {
-        if (minimum > maximum) {
-            throw new IllegalArgumentException("minimum must not exceed maximum");
-        }
+        Preconditions.require(minimum <= maximum, "minimum must not exceed maximum");
         return draw -> draw.drawLong(minimum, maximum);
     }
 
@@ -60,9 +61,7 @@ public final class BasicGenerators {
      */
     public static <T> Generator<T> oneOf(List<? extends Generator<? extends T>> alternatives) {
         Objects.requireNonNull(alternatives, "alternatives");
-        if (alternatives.isEmpty()) {
-            throw new IllegalArgumentException("alternatives must not be empty");
-        }
+        Preconditions.require(!alternatives.isEmpty(), "alternatives must not be empty");
         var copy = List.copyOf(alternatives);
         return draw -> draw.draw(draw.choose(copy));
     }
@@ -89,21 +88,8 @@ public final class BasicGenerators {
     public static <T> Generator<List<T>> listOf(
             Generator<? extends T> elements, int minimumSize, int maximumSize) {
         Objects.requireNonNull(elements, "elements");
-        if (minimumSize < 0 || minimumSize > maximumSize) {
-            throw new IllegalArgumentException(
-                    "expected 0 <= minimumSize <= maximumSize");
-        }
-
-        return draw -> {
-            var result = new ArrayList<T>(minimumSize);
-            for (var index = 0; index < minimumSize; index++) {
-                result.add(draw.draw(elements));
-            }
-            while (result.size() < maximumSize && draw.drawBoolean()) {
-                result.add(draw.draw(elements));
-            }
-            return List.copyOf(result);
-        };
+        return collect(minimumSize, maximumSize, () -> new ArrayList<T>(minimumSize),
+                (draw, result) -> result.add(draw.draw(elements))).map(List::copyOf);
     }
 
     /**
@@ -122,20 +108,21 @@ public final class BasicGenerators {
      * @throws IllegalArgumentException unless {@code 0 <= minimumSize <= maximumSize}
      */
     public static Generator<byte[]> byteArray(int minimumSize, int maximumSize) {
-        if (minimumSize < 0 || minimumSize > maximumSize) {
-            throw new IllegalArgumentException(
-                    "expected 0 <= minimumSize <= maximumSize");
-        }
+        return collect(minimumSize, maximumSize, () -> new ByteArrayOutputStream(minimumSize),
+                (draw, result) -> result.write(draw.drawByte())).map(ByteArrayOutputStream::toByteArray);
+    }
 
+    /** Builds a fresh accumulator with mandatory elements followed by continuation-marked ones. */
+    private static <T> Generator<T> collect(
+            int minimumSize, int maximumSize, Supplier<T> accumulator, BiConsumer<Draw, T> element) {
+        Preconditions.require(minimumSize >= 0 && minimumSize <= maximumSize,
+                "expected 0 <= minimumSize <= maximumSize");
         return draw -> {
-            var result = new ByteArrayOutputStream(minimumSize);
-            for (var index = 0; index < minimumSize; index++) {
-                result.write(draw.drawByte());
+            var result = accumulator.get();
+            for (var index = 0; index < maximumSize && (index < minimumSize || draw.drawBoolean()); index++) {
+                element.accept(draw, result);
             }
-            while (result.size() < maximumSize && draw.drawBoolean()) {
-                result.write(draw.drawByte());
-            }
-            return result.toByteArray();
+            return result;
         };
     }
 

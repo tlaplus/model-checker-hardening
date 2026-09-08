@@ -2,34 +2,17 @@ package io.github.tlaplus.hardening.workflow.parser;
 
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
-import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
-import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.List;
 
-/** Parent-side handle for one persistent isolated SANY JVM. */
-final class ParserProcess implements AutoCloseable {
-    private final IsolatedWorkerProcess worker;
+/** Starts one persistent isolated SANY JVM; the common process handle owns requests and closing. */
+final class ParserProcess {
+    private ParserProcess() {}
 
-    private ParserProcess(IsolatedWorkerProcess worker) {
-        this.worker = worker;
-    }
-
-    static ParserProcess start(Path scratchDirectory, Duration timeout)
+    static IsolatedWorkerProcess start(Path scratchDirectory, Duration timeout)
             throws WorkflowException, InterruptedException {
-        return new ParserProcess(IsolatedWorkerProcess.start(
-                new WorkerSpec(scratchDirectory, timeout, ParserWorkerMain.class, "parser worker")));
-    }
-
-    ToolResult parse(ToolInput source, Duration timeout)
-            throws WorkflowException, InterruptedException {
-        return worker.request(source, timeout);
-    }
-
-    @Override
-    public void close() {
-        worker.close();
+        return IsolatedWorkerProcess.start(
+                new WorkerSpec(scratchDirectory, timeout, ParserWorkerMain.class, "parser worker"));
     }
 }

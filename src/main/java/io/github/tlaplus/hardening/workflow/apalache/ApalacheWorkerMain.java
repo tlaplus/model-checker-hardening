@@ -1,14 +1,11 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
-import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
-import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
-import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
@@ -100,10 +97,7 @@ public final class ApalacheWorkerMain {
                 return ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text());
             } catch (Exception | StackOverflowError exception) {
                 diagnosticStream.flush();
-                return new ToolResult(
-                        StageOutcome.CRASH,
-                        WorkerDiagnostics.append(
-                                diagnostics.text(), Diagnostics.stackTrace(exception)));
+                return ToolResult.crash(exception, diagnostics.text());
             } finally {
                 System.setOut(processError);
                 System.setErr(processError);

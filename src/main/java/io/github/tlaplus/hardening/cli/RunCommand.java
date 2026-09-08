@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -98,19 +97,11 @@ final class RunCommand implements Callable<Integer> {
             return CommandLine.ExitCode.OK;
         } catch (IOException | ConfigException | CorpusException | WorkflowException exception) {
             closeProgress(progress);
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: cannot run workflow in '%s': %s%n",
-                            corpus, Diagnostics.message(exception));
+            CommandDiagnostic.print(spec.commandLine().getErr(), "cannot run workflow in", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         } catch (RuntimeException | StackOverflowError exception) {
             closeProgress(progress);
-            spec.commandLine()
-                    .getErr()
-                    .printf(
-                            "fuzztla: workflow failed in '%s': %s%n",
-                            corpus, Diagnostics.message(exception));
+            CommandDiagnostic.print(spec.commandLine().getErr(), "workflow failed in", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         } finally {
             closeProgress(progress);

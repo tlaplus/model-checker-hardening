@@ -9,15 +9,15 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /** One configured operator kind; its type scheme comes from the immutable prepared library. */
 public record CustomExpressionKind(OperatorId id) implements ExpressionKind {
+    private static final Categories CATEGORIES = new Categories(ExpressionCategory.OPERATOR);
+
     public CustomExpressionKind { Objects.requireNonNull(id, "id"); }
     @Override public String name() { return id.toString(); }
     @Override public String configName() { return name(); }
-    @Override public ExpressionCategory category() { return ExpressionCategory.OPERATOR; }
-    @Override public Set<ExpressionCategory> requiredCategories() { return Set.of(category()); }
+    @Override public Categories categories() { return CATEGORIES; }
     @Override public boolean isTypeApplicable(IrType type) { return !(type instanceof OperatorType); }
 
     @Override

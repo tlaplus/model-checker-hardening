@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.checker;
 
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -16,19 +17,13 @@ public record CheckerFailure(CheckerFailureCode code, Optional<String> detail) {
         Objects.requireNonNull(code, "code");
         Objects.requireNonNull(detail, "detail");
         detail.ifPresent(value -> {
-            if (value.isBlank()) {
-                throw new IllegalArgumentException("checker failure detail must not be blank");
-            }
-            if (value.codePoints().anyMatch(CheckerFailure::isLineSeparator)) {
-                throw new IllegalArgumentException(
-                        "checker failure detail must be a single line");
-            }
-            if (value.codePointCount(0, value.length()) > MAXIMUM_DETAIL_CHARACTERS) {
-                throw new IllegalArgumentException(
-                        "checker failure detail must not exceed "
-                                + MAXIMUM_DETAIL_CHARACTERS
-                                + " characters");
-            }
+            Preconditions.require(!value.isBlank(), "checker failure detail must not be blank");
+            Preconditions.require(value.codePoints().noneMatch(CheckerFailure::isLineSeparator),
+                    "checker failure detail must be a single line");
+            Preconditions.require(value.codePointCount(0, value.length()) <= MAXIMUM_DETAIL_CHARACTERS,
+                    "checker failure detail must not exceed "
+                            + MAXIMUM_DETAIL_CHARACTERS
+                            + " characters");
         });
     }
 

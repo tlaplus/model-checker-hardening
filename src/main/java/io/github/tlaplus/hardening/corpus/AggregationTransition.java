@@ -119,11 +119,7 @@ final class AggregationTransition {
             var branch = source.orElseThrow();
             CorpusEntries.requireSameParserOutput(name, aggregate, branch.entry());
             CorpusEntries.requireMissingStage(branch.entry(), CorpusStage.AGGREGATOR);
-            for (var otherChecker : CorpusStage.checkerBranches()) {
-                if (otherChecker != checker) {
-                    CorpusEntries.requireMissingStage(branch.entry(), otherChecker);
-                }
-            }
+            CorpusEntries.requireMissingOtherCheckerStages(checker, branch.entry());
             var metadata = aggregate.envelope().stage(checker).orElseThrow();
             if (!metadata.equals(branch.entry().envelope().stage(checker).orElseThrow())) {
                 throw new CorpusException(
@@ -188,11 +184,7 @@ final class AggregationTransition {
         for (var branch : branches) {
             CorpusEntries.requireStageVerdict(
                     branch.entry(), CorpusStage.PARSER, CorpusVerdict.PASS);
-            for (var checker : CorpusStage.checkerBranches()) {
-                if (checker != branch.stage()) {
-                    CorpusEntries.requireMissingStage(branch.entry(), checker);
-                }
-            }
+            CorpusEntries.requireMissingOtherCheckerStages(branch.stage(), branch.entry());
             if (reference == null) {
                 reference = branch.entry();
             } else {
