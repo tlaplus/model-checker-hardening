@@ -48,9 +48,14 @@ entry requires a known code; other checker verdicts forbid it. There is no
 migration or compatibility path for failed entries written before this decision.
 
 A failure may also store `stages.<checker>.detail`. TLC derives it from the first
-meaningful diagnostic line beginning with `Error:`, removes that prefix,
-normalizes whitespace, and limits the result to 80 Unicode code points. Longer
-text uses the first 79 code points followed by `…`. Apalache uses its first
+meaningful diagnostic block beginning with `Error:`. TLC frequently reports the
+failure it reached inside a message about how it reached it, so that block is
+first stripped of its wrappers -- an invariant evaluation, a generic exception,
+and a Java module override -- and the detail is the first line of what remains.
+The prefix is removed, whitespace is normalized, and the result is limited to 80
+Unicode code points. Longer text uses the first 79 code points followed by `…`.
+Corpora written before this unwrapping store the wrapper line instead; triage
+signatures must accept both, and a stored detail is never rewritten. Apalache uses its first
 timestamped error line and removes the source location and log timestamp before
 applying the same normalization and limit. The detail is optional,
 human-readable, and non-semantic. Offline triage tooling may use conservative

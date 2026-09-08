@@ -20,6 +20,9 @@ Inv == TRUE
 ```
 
 TLC reports `TLC_INTEGER_TOO_BIG`; Apalache accepts the value. Corpus3 also
-contains three exponentiations that overflow TLC's integer representation; they
-produce the same capability difference. This is a known
+contains three exponentiations that overflow TLC's integer representation, and
+corpus8 adds a multiplication (`Overflow when computing -657264081*84`); they
+produce the same capability difference. The overflow is reported for whichever
+operator computes the out-of-range result, so the triage signature matches the
+`Overflow when computing` prefix rather than one operator. This is a known
 TLC capability limit, confirmed by the corpus.

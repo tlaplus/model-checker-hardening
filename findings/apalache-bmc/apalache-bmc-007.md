@@ -60,6 +60,48 @@ EXITCODE: ERROR (12)
 the result is constant-level it declines the invariant with error 2230 rather
 than checking it.
 
+## Reached through a set filter
+
+The defect is not confined to the predefined set written directly. Filtering it
+first behaves the same way, with Apalache 0.62.2:
+
+```tla
+---- MODULE IsFiniteSetFilter ----
+EXTENDS Integers, FiniteSets
+
+VARIABLE
+\* @type: Int;
+step
+
+Init == step = 0
+Next == step' = step + 1
+Inv == IsFiniteSet({x \in Int : step >= step})
+Bound == step <= 5
+====
+```
+
+```text
+State 5: state invariant 0 holds.
+The outcome is: NoError
+EXITCODE: OK
+```
+
+`Inv == ~IsFiniteSet({x \in Int : step >= step})` again reports a counterexample
+for the assertion that does hold. TLC does not answer either way: it declines
+the operand as one whose finiteness it cannot decide.
+
+```text
+Error: Attempted to apply the operator overridden by the Java method
+public static tlc2.value.IBoolValue tlc2.module.FiniteSets.IsFiniteSet(tlc2.value.impl.Value),
+but it produced the following error:
+Attempted to check if expression of form {x \in S : p(x)} is a finite set, but cannot check if S:
+Int
+is finite.
+```
+
+Corpus8 contains two aggregator deviations of this shape, both TLC-fail and
+Apalache-pass, with `Nat` in one and `Int` in the other.
+
 ## Expected behavior
 
 `Int` and `Nat` are infinite, so `IsFiniteSet` applied to either must evaluate

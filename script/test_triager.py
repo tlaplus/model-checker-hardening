@@ -88,6 +88,110 @@ class AggregatorClassificationTest(unittest.TestCase):
                     ),
                 )
 
+    def test_classifies_corpus8_residual_details(self) -> None:
+        """Details replayed from corpus8's NEW aggregator rows.
+
+        Each is stored exactly as the corpus holds it: TLC's first "Error:" line,
+        stripped to one line and cut to 80 characters.
+        """
+        cases = (
+            (
+                "In evaluation, the identifier step is either undefined or not an operator.",
+                "apalache-printer-008.md",
+            ),
+            (
+                "TLC expected a boolean value, but did not find one. line 31, col 3 to line 186,…",
+                "apalache-printer-008.md",
+            ),
+            (
+                "Attempted to check equality of integer 0 with non-integer:",
+                "apalache-printer-008.md",
+            ),
+            (
+                "Attempted to apply the operator DOMAIN to a non-function",
+                "apalache-printer-008.md",
+            ),
+            (
+                "Overflow when computing -657264081*84",
+                "integer-outside-tlc-range.md",
+            ),
+            (
+                "Attempted to compare overridden value Seq({<<[field5 |-> FALSE, field6 |-> {}],…",
+                "finite-set-containing-infinite-set.md",
+            ),
+        )
+        for detail, issue in cases:
+            with self.subTest(detail=detail):
+                self.assertEqual(
+                    issue,
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail), HASH_A
+                    ),
+                )
+
+    def test_set_valued_invariant_is_printer_corruption(self) -> None:
+        """Code 150 splits by value: FALSE is a TLC restriction, a set is corruption."""
+        cases = (
+            ("The invariant of Inv is equal to FALSE", "constant-false-invariant.md"),
+            ("The invariant of Inv is equal to {}", "apalache-printer-008.md"),
+            (
+                'The invariant of Inv is equal to {"default_OF_MODEL"} \\cup TRUE',
+                "apalache-printer-008.md",
+            ),
+        )
+        for detail, issue in cases:
+            with self.subTest(detail=detail):
+                self.assertEqual(
+                    issue,
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail, code=150), HASH_A
+                    ),
+                )
+
+    def test_classifies_details_stored_as_the_innermost_failure(self) -> None:
+        """Root causes TLC reports inside a wrapper.
+
+        A corpus written before `TlcFailureDetail` unwrapped those wrappers stores
+        the wrapper instead; see test_truncated_wrapper_details_stay_new.
+        """
+        cases = (
+            (
+                "Cannot cast tlc2.value.impl.BoolValue to tlc2.value.impl.IntValue",
+                "apalache-printer-008.md",
+            ),
+            (
+                "In computing next states, TLC encountered a CASE with no conditions true.",
+                "case-without-matching-arm.md",
+            ),
+            (
+                "Attempted to check if expression of form {x \\in S : p(x)} is a finite set, but c…",
+                "apalache-bmc-007.md",
+            ),
+        )
+        for detail, issue in cases:
+            with self.subTest(detail=detail):
+                self.assertEqual(
+                    issue,
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail), HASH_A
+                    ),
+                )
+
+    def test_truncated_wrapper_details_stay_new(self) -> None:
+        """TLC reports a wrapper first, so the stored line cannot identify a class."""
+        for detail in (
+            "Evaluating invariant Inv failed.",
+            "TLC threw an unexpected exception.",
+            "Attempted to apply the operator overridden by the Java method",
+        ):
+            with self.subTest(detail=detail):
+                self.assertEqual(
+                    triager.NEW_FINDING,
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail), HASH_A
+                    ),
+                )
+
     def test_other_checker_pass_and_counterexample_classify_alike(self) -> None:
         for other_verdict in triager.OTHER_CHECKER_COMPLETED:
             with self.subTest(other_verdict=other_verdict):

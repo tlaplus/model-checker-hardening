@@ -371,6 +371,15 @@ SIGNATURES = (
 
 # These signatures intentionally use only diagnostics that uniquely identify a
 # documented class. Generic infinite-set and malformed-operand messages remain NEW.
+#
+# An aggregator entry stores one line, not a transcript: the checker keeps the
+# first "Error:" line and truncates it to CheckerFailure.MAXIMUM_DETAIL_CHARACTERS
+# (80) with an ellipsis. An alternative here must therefore match a single
+# truncated line -- a multi-pattern all_of() can never match -- and must be
+# anchored at the start so a cut tail cannot defeat it. TLC frequently reports a
+# wrapper first ("Evaluating invariant Inv failed.", "TLC threw an unexpected
+# exception.", "Attempted to apply the operator overridden by the Java method"),
+# so the root cause is not in the stored line at all and those groups stay NEW.
 AGGREGATOR_SIGNATURES = (
     AggregatorSignature(
         "function-application-outside-domain.md",
@@ -397,7 +406,10 @@ AGGREGATOR_SIGNATURES = (
         "case-without-matching-arm.md",
         Checker.TLC,
         75,
-        (all_of(r"^Attempted to evaluate a CASE with no conditions true\.$"),),
+        (
+            all_of(r"^Attempted to evaluate a CASE with no conditions true\.$"),
+            all_of(r"^In computing next states, TLC encountered a CASE with no conditions true\.$"),
+        ),
     ),
     AggregatorSignature(
         "subseq-outside-domain.md",
@@ -423,7 +435,9 @@ AGGREGATOR_SIGNATURES = (
         75,
         (
             all_of(r"^TLC can't handle a number this big\.$"),
-            all_of(r"^Overflow when computing -?\d+\^\d+$"),
+            # Any operator whose result leaves TLC's integer range reports this;
+            # corpus8 adds a multiplication to corpus3's exponentiations.
+            all_of(r"^Overflow when computing "),
         ),
     ),
     AggregatorSignature(
@@ -487,7 +501,9 @@ AGGREGATOR_SIGNATURES = (
         Checker.TLC,
         75,
         (
-            all_of(r"^Attempted to compare (?:the set|overridden value) .+ with (?:the value|non-overridden value):$"),
+            # Truncation drops the "with <value>:" tail whenever the compared
+            # value is long, so match only the prefix TLC always emits.
+            all_of(r"^Attempted to compare (?:the set|overridden value) "),
             all_of(r"^Attempted to check equality of the set .+ with the value:$"),
         ),
     ),
@@ -543,13 +559,45 @@ AGGREGATOR_SIGNATURES = (
             all_of(r"^Attempted to apply the operator ~ to a non-boolean$"),
             all_of(r"^Evaluating an expression of the form t \\o s when s is not a sequence:$"),
             all_of(r"^Attempted to check if the value:$"),
+            # A LET body that absorbed a conjunct leaves a state variable
+            # unassigned, so TLC evaluates an identifier the IR always binds.
+            all_of(r"^In evaluation, the identifier \w+ is either undefined or not an operator\."),
+            all_of(r"^TLC expected a boolean value, but did not find one"),
+            all_of(r"^Attempted to check equality of integer -?\d+ with non-integer:"),
+            all_of(r"^Attempted to apply the operator DOMAIN to a non-function"),
+            # A TLC module override refusing an operand of the wrong Java value
+            # class. Reachable only once the detail stores the innermost
+            # failure: before that, the override wrapper was the stored line.
+            all_of(r"^Cannot cast tlc2\.value\.\S+ to tlc2\.value\.\S+$"),
         ),
+    ),
+    AggregatorSignature(
+        # Inv is Bool in the IR, so a set-valued invariant is printed source that
+        # no longer denotes the tree. A constant FALSE invariant is the separate,
+        # legitimate TLC restriction below and must not match here.
+        "apalache-printer-008.md",
+        Checker.TLC,
+        150,
+        (all_of(r"^The invariant of Inv is equal to (?!FALSE$)"),),
     ),
     AggregatorSignature(
         "constant-false-invariant.md",
         Checker.TLC,
         150,
         (all_of(r"^The invariant of Inv is equal to FALSE$"),),
+    ),
+    AggregatorSignature(
+        # TLC declines an operand whose finiteness it cannot decide; Apalache
+        # answers TRUE for the same set. Reachable once the detail stores the
+        # innermost failure, since TLC reports this inside the override wrapper.
+        "apalache-bmc-007.md",
+        Checker.TLC,
+        75,
+        (
+            all_of(
+                r"^Attempted to check if expression of form \{x \\in S : p\(x\)\} is a finite set"
+            ),
+        ),
     ),
     AggregatorSignature(
         "non-enumerable-initial-assignment.md",

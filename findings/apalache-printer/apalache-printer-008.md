@@ -122,6 +122,36 @@ both impossible arithmetic operands, which are further instances of source
 corruption, and ordinary finite-set capability failures. The stored detail does
 not distinguish them, so the triager conservatively leaves the group unlabelled.
 
+Corpus8 pins that split. All 1,046 of its unclassified aggregator deviations
+were replayed against the bundled TLC, and 523 are this defect. 504 report a
+module override refusing an operand the IR cannot produce:
+
+| Override | Count | Reported error |
+|---|---:|---|
+| `Integers.Minus` | 93 | `Cannot cast tlc2.value.impl.BoolValue to tlc2.value.impl.IntValue` |
+| `Integers.Mod` | 88 | same |
+| `Integers.Plus` | 83 | same |
+| `Integers.Expt` | 80 | same |
+| `Integers.Divide` | 77 | same |
+| `Integers.Times` | 73 | same |
+| `Integers.Neg` | 8 | same |
+| `Integers.DotDot` | 2 | `IntervalValue` or `SetEnumValue` operand |
+
+The remaining 19 show the same corruption through other symptoms: 11 leave a
+state variable unbound (`In evaluation, the identifier step is either undefined
+or not an operator`), 3 put a non-Boolean where TLC requires a Boolean, and one
+each compares an integer with a set, applies `DOMAIN` to a non-function, and
+gives `Inv` a set value (`The invariant of Inv is equal to {}`). None of these
+operands can arise from a tree the type-checking builder accepted, so each is a
+mismatch between the printed source and the IR. The triager now classifies these
+symptoms directly; the truncated `overridden by the Java method` prefix stays
+unlabelled because it also covers ordinary capability failures.
+
+Corpus8 also shows the reach beyond failure verdicts: of its 47 unclassified
+deviations in which both checkers completed and disagreed on the invariant, 34
+render a `LET` as an undelimited operand, so those disagreements describe
+different specifications rather than different checkers.
+
 The enrichment in the disagreement bucket follows from the two checkers reading
 different artifacts: Apalache consumes the typed IR JSON and sees the intended
 tree, while the parser and TLC consume this text and see the corrupted one. A

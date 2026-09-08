@@ -157,3 +157,80 @@ they have no diagnostic detail, and the current envelope reader intentionally
 rejects that encoding. The final entry retains only `Cannot decide if element:`.
 These entries need original full diagnostics or replay with their historical
 checker and generator revisions before they can support another classification.
+
+## corpus8 residuals
+
+The triager left 1,046 of corpus8's 279,870 aggregator deviations (0.37%) as
+`NEW`. Every one was replayed against the bundled TLC through the same module
+and configuration the workflow uses, so the full diagnostic is available rather
+than the stored line. The replays establish no new finding and no new
+conformance mismatch: every entry falls into a class this directory or
+`findings/` already documents.
+
+999 of the 1,046 are TLC-fail deviations. 523 are printer corruption rather than
+a checker difference, and the remaining 476 are documented conformance classes
+whose root cause is not in the stored line:
+
+| Count | Replayed root cause | Class |
+|---:|---|---|
+| 523 | runtime type errors on a type-checked IR | [`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md) |
+| 200 | unmatched `CASE` | [case-without-matching-arm](case-without-matching-arm.md) |
+| 148 | `CHOOSE` without a witness | [choose-without-witness](choose-without-witness.md) |
+| 98 | function applied outside its domain | [function-application-outside-domain](function-application-outside-domain.md) |
+| 11 | `Head(<<>>)` | [head-of-empty-sequence](head-of-empty-sequence.md) |
+| 6 | integer outside TLC's range | [integer-outside-tlc-range](integer-outside-tlc-range.md) |
+| 3 | infinite-domain quantification | [quantification-over-infinite-set](quantification-over-infinite-set.md) |
+| 2 | `IsFiniteSet` of a filter over `Int` or `Nat` | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md#reached-through-a-set-filter) |
+| 2 | `0^0` | [zero-power-zero-tlc-fails](zero-power-zero-tlc-fails.md) |
+| 2 | comparing an overridden value with a finite set | [finite-set-containing-infinite-set](finite-set-containing-infinite-set.md) |
+| 1 each | infinite-set difference, division by zero, negative exponent, `UNION` with an infinite member | the corresponding rows above |
+
+The 523 printer-corruption entries are the same defect the corpus1 section
+describes, now pinned rather than estimated. 504 report a TLC module override
+refusing an impossible operand: `Cannot cast tlc2.value.impl.BoolValue to
+tlc2.value.impl.IntValue` inside `Integers.Minus` (93), `Mod` (88), `Plus` (83),
+`Expt` (80), `Divide` (77), `Times` (73), `Neg` (8) and `DotDot` (2), plus five
+interval and two set operands. The other 19 are the same corruption seen through
+a different symptom: an unbound state variable (11), a non-Boolean where TLC
+needs a Boolean (3), an integer compared with a set (1), `DOMAIN` of a
+non-function (1), a set-valued `Inv` (1), and two reported through a generic
+exception. The IR is built through a type-checking builder, so none of these
+operands can come from the tree Apalache checked.
+
+156 of the 999 arrive inside `TLC threw an unexpected exception` with the real
+diagnostic quoted in a `java.lang.RuntimeException`: function-domain errors
+(57), `CHOOSE` without a witness (53), unmatched `CASE` (38), non-enumerable
+quantifier bounds (3) and others. That wrapper is the open finding
+[`tlc-001`](../findings/TLC/tlc-001.md); it changes how the failure is reported,
+not what failed.
+
+The other 47 entries are deviations in which both checkers completed and
+disagreed on the invariant: 30 TLC-counterexample/Apalache-pass and 17
+TLC-pass/Apalache-counterexample. They carry no failure detail at all, so no
+diagnostic signature can reach them. 34 of the 47 render a `LET` as an
+undelimited operand and are therefore printer artifacts rather than conformance
+results. Each of the remaining 13 contains at least one documented cause: a
+bounded `CHOOSE`, which Apalache encodes as a nondeterministic symbolic choice;
+`IsFiniteSet` over `Int` or `Nat`, which is
+[`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md); or an
+empty-domain function set, which is
+[`apalache-bmc-002`](../findings/apalache-bmc/apalache-bmc-002.md) and makes
+Apalache's initial predicate vacuous.
+
+Signatures added from these replays reclassify 19 corpus8 entries and 25
+corpus7 entries. The rest stayed `NEW` for a structural reason rather than an
+unknown cause: `TlcFailureDetail` stored TLC's *first* `Error:` line, and for
+980 of them that line is a wrapper -- `Attempted to apply the operator
+overridden by the Java method` (508), `Evaluating invariant Inv failed.` (316),
+`TLC threw an unexpected exception.` (156) -- whose root cause is on a later
+line. `TlcFailureDetail` now strips those wrappers and stores the first line of
+the failure they report, within the same 80-character limit; the mean stored
+detail grows from 43 to 57 characters and the corpus does not grow measurably,
+because each entry is one file and already occupies a filesystem block.
+
+Replaying corpus8's 1,046 residuals through the new extraction and the current
+catalog classifies all 999 TLC-fail entries. The 47 both-completed deviations
+remain out of reach at any detail length: a completed checker stores no detail. This applies to corpora recorded from now on. corpus7
+and corpus8 keep the wrapper encoding, and their labels above come from the
+replay rather than from their stored details. Storing the innermost diagnostic instead would let the
+triager classify them without a replay.
