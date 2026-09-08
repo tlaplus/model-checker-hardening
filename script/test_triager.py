@@ -315,6 +315,14 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.AGGREGATOR_SIGNATURES = original
 
 
+class UniqueMatchTest(unittest.TestCase):
+    def test_unique_match_preserves_ambiguity_wording_and_sorting(self):
+        self.assertEqual("NEW", triager.unique_match(set(), "path", "issues"))
+        self.assertEqual("a.md", triager.unique_match({"a.md"}, "path", "issues"))
+        with self.assertRaisesRegex(triager.TriageError, "path matches multiple findings: a.md, b.md"):
+            triager.unique_match({"b.md", "a.md"}, "path", "findings")
+
+
 class AggregatorDirectoryTest(unittest.TestCase):
     def write_entry(self, directory: Path, name: str, document: object) -> Path:
         path = directory / name
