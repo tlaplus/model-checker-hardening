@@ -30,9 +30,12 @@ import java.util.stream.Collectors;
  * @param initPredicate the initial-state predicate
  * @param nextAction the next-state action
  * @param invariant the state invariant
- * @param boundPredicate the state constraint that stops exploration
+ * @param boundPredicate the state constraint that stops exploration, {@code step <= stepBound - 1}
  * @param stepBound transitions to explore from an initial state, which {@code boundPredicate}
- *     expresses as a constraint for a checker that has no length parameter
+ *     expresses as a constraint for a checker that has no length parameter. The constraint
+ *     names one less: a checker applies it after evaluating the invariant on a successor
+ *     state, so {@code step <= stepBound - 1} and a length of {@code stepBound} admit the
+ *     same states
  */
 public record GeneratedSpec(
         List<TlaVarDecl> variables,

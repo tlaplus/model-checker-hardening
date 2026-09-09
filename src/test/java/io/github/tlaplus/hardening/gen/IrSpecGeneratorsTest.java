@@ -28,7 +28,10 @@ class IrSpecGeneratorsTest {
         // Even the empty input yields an invariant over the state rather than a constant: the
         // Boolean terminal rotates over the visible bindings before the closed FALSE.
         assertEquals("var0", print(spec.invariant()));
-        assertEquals("step <= 5", print(spec.boundPredicate()));
+        // The constraint names one less than the step bound: a checker driven by it evaluates
+        // the invariant on the successor state it then discards, so `step <= 4` and an
+        // exploration length of 5 admit the same states. See ModuleLimits.DEFAULT_MAXIMUM_STEPS.
+        assertEquals("step <= 4", print(spec.boundPredicate()));
         assertEquals(ModuleLimits.DEFAULT_MAXIMUM_STEPS, spec.stepBound());
     }
 
@@ -277,6 +280,27 @@ class IrSpecGeneratorsTest {
             checked++;
         }
         assertTrue(checked > 100, "too few inputs were admitted to be conclusive: " + checked);
+    }
+
+    @Test
+    void theStateConstraintNamesOneLessThanTheStepBound() {
+        // The two bounds must admit the same states. A checker driven by the constraint
+        // evaluates the invariant on a successor state before the constraint discards it,
+        // so a constraint of `step <= n` covers 0..n+1 while a length of n covers 0..n.
+        // Without the offset an invariant that first fails one step past the bound is a
+        // counterexample for one checker and a pass for the other.
+        for (var steps : List.of(0, 1, 5, 9)) {
+            var config = IrGenerationConfig.defaults()
+                    .withModuleLimits(new ModuleLimits(
+                            1, 0, new ActionLimits(3, 3, 0, 3), steps));
+            var spec = IrGenerators.specs(config).generate(new byte[0]);
+
+            assertEquals(steps, spec.stepBound());
+            assertEquals(
+                    STEP + " <= " + (steps - 1),
+                    print(spec.boundPredicate()),
+                    "constraint does not match step bound " + steps);
+        }
     }
 
     private GeneratedSpec generate(byte[] input) {

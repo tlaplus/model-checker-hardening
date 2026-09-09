@@ -126,10 +126,14 @@ public final class IrSpecGeneratorEngine {
                 context.withBindings(stateScope, actions.nextAction(depth,
                         new VisibleActionOperators(actionOperators))));
 
+        // One less than the step bound. A checker driven by the constraint evaluates the
+        // invariant on a successor state before the constraint discards it, so a constraint
+        // of `step <= n` covers states 0..n+1 while an exploration length of n covers 0..n.
+        // Subtracting one makes both bounds admit exactly the same states.
         var boundPredicate = context.builder().le(
                 context.builder().name(step.name(), PrimitiveType.INT.toTlaType()),
                 context.builder().integer(
-                        BigInteger.valueOf(config.modules().maximumSteps())));
+                        BigInteger.valueOf(config.modules().maximumSteps() - 1L)));
         return new GeneratedSpec(
                 declarations,
                 generatedOperators,

@@ -509,7 +509,7 @@ properties of the input — no byte string can violate them.
 5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
 6. **Next-state action.** A terminated non-empty disjunction of actions.
-7. **Bound predicate.** `step <= maximumSteps`.
+7. **Bound predicate.** `step <= maximumSteps - 1`; see [9.3](#93-bounding-exploration).
 
 `GeneratedSpec.operators` stores auxiliary and action variants of the sealed
 `GeneratedOperator` abstraction in one declaration-order list. Declaration-only
@@ -616,6 +616,15 @@ The step counter serves both. `GeneratedSpec.stepBound` reaches Apalache as
 configuration names as its `CONSTRAINT`. The expression wrapper defines `Bound`
 as `TRUE` and asks for zero transitions, so one configuration file serves both
 kinds.
+
+The two bounds must admit the same states, or a verdict difference records a
+bound difference rather than a checker difference. They are not symmetric: a
+checker evaluates the invariant on a successor state before the constraint
+discards it, so `step <= n` covers states `0..n+1` while a length of `n` covers
+`0..n`. The constraint therefore names `maximumSteps - 1` while `stepBound`
+stays `maximumSteps`. `IrSpecGeneratorsTest` pins the relation across step
+bounds, including `0`, where the constraint is `step <= -1` and both checkers
+still examine the initial state.
 
 ## 10. Extension rules
 
