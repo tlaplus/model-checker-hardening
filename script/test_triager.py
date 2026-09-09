@@ -297,6 +297,69 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
         )
 
+    def test_classifies_module_overflow_as_unmapped_exit_status(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "TLC error code 2178 mapped to exit status 255",
+                "Error: Evaluating invariant Inv failed.",
+                "Overflow when computing -57^6",
+            )
+        )
+        self.assertEqual(
+            "tlc-002.md",
+            triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
+        )
+
+    def test_set_map_and_set_filter_are_separate_findings(self) -> None:
+        set_map = "\n".join(
+            (
+                "scala.NotImplementedError: A set map over PowSet[Set(Str)] is not implemented",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.support.MapBase."
+                "findSetCellAndElemType$1(MapBase.scala:48)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.SetMapRule.apply(SetMapRule.scala:29)",
+            )
+        )
+        set_filter = "\n".join(
+            (
+                "scala.NotImplementedError: A set filter over PowSet[Set(Str)] is not implemented",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.SetFilterRule.apply(SetFilterRule.scala:32)",
+            )
+        )
+        self.assertEqual(
+            "apalache-bmc-014.md",
+            triager.classify(triager.CrashKind.APALACHE, set_map, HASH_A),
+        )
+        self.assertEqual(
+            "apalache-bmc-001.md",
+            triager.classify(triager.CrashKind.APALACHE, set_filter, HASH_A),
+        )
+
+    def test_classifies_truncated_and_new_overridden_value_details(self) -> None:
+        results = {
+            triager.Checker.TLC: triager.CheckerResult(
+                "fail", 75,
+                "Attempted to compute the number of elements in the overridden "
+                "value Seq({FALSE}\u2026"),
+            triager.Checker.APALACHE: triager.CheckerResult("counterexample", None, None),
+        }
+        self.assertEqual(
+            "function-over-infinite-domain.md", triager.classify_aggregator(results, HASH_A))
+        results[triager.Checker.TLC] = triager.CheckerResult(
+            "fail", 75,
+            "Attempted to compute the number of elements in the overridden value STRING.")
+        results[triager.Checker.APALACHE] = triager.CheckerResult("pass", None, None)
+        self.assertEqual(
+            "string-set-tlc-fails.md", triager.classify_aggregator(results, HASH_A))
+
+    def test_classifies_undecidable_membership_over_nat(self) -> None:
+        results = {
+            triager.Checker.TLC: triager.CheckerResult(
+                "fail", 75, "Cannot decide if element:"),
+            triager.Checker.APALACHE: triager.CheckerResult("pass", None, None),
+        }
+        self.assertEqual(
+            "filter-over-infinite-set.md", triager.classify_aggregator(results, HASH_A))
+
     def test_reports_ambiguous_matches(self) -> None:
         duplicate = triager.AggregatorSignature(
             "duplicate.md",

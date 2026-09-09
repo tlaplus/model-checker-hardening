@@ -22,6 +22,7 @@ Apalache crash outcomes for crash-derived rows. Rows marked
 `Aggregator (corpus6)` row uses corpus6's 8,644 aggregator deviations. Rows
 marked `Aggregator (corpus3)` use corpus3's 435,265 aggregator deviations. The
 `Apalache crash (corpus6)` row uses its 61 Apalache crash-classified results.
+Rows marked `Aggregator (corpus9)` use corpus9's 250,189 aggregator deviations.
 Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
@@ -47,6 +48,8 @@ to 100%.
 | Aggregator | 0.03% | 🔴 Fail | 🟢 Pass | Filtering `Nat` | [MWE](filter-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Function over an infinite domain | [MWE](function-over-infinite-domain.md#representative-mwe) | TLC representation limit |
 | Aggregator (corpus4) | 0.02% | 🔴 Fail | 🟢 Pass | Finite set containing `Nat` | [MWE](finite-set-containing-infinite-set.md#representative-mwe) | TLC representation limit |
+| Aggregator (corpus9) | <0.01% | 🔴 Fail | 🟢 Pass | TLC cannot enumerate `STRING` | [MWE](string-set-tlc-fails.md#representative-mwe) | TLC representation limit |
+| Aggregator (corpus9) | <0.01% | 🔴 Fail | 🟢 Pass | Membership against a filter over `Nat` | [MWE](filter-over-infinite-set.md#membership-against-the-filter) | TLC enumeration limit |
 | Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | Intersection of infinite sets | [MWE](intersection-of-infinite-sets.md#representative-mwe) | TLC enumeration limit |
 | Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | Cartesian product with an infinite set | [MWE](cartesian-product-with-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator (corpus3) | <0.01% | 🔴 Fail | 🟢 Pass | Function set with an infinite component | [MWE](function-set-over-infinite-set.md#representative-mwe) | TLC representation limit |
@@ -64,6 +67,8 @@ to 100%.
 | Aggregator | 1.00% | 🟢 Pass | 🔴 Fail | Unsupported `STRING` | [MWE](string-set-unsupported.md#representative-mwe) | Apalache capability limit |
 | Aggregator (corpus6) | 0.01% | Counterexample | 🟢 Pass | Division with a negative divisor | [MWE](division-negative-divisor.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-008.md) |
 | Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
+| Aggregator (corpus9) | <0.01% | 🟢 Pass | Counterexample | `CHOOSE` with several witnesses | [MWE](choose-multiple-witnesses.md#representative-mwe) | Known semantic difference |
+| Aggregator (corpus9) | <0.01% | Counterexample | 🟢 Pass | `DOMAIN` of an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
 | Apalache crash | 0.16% | Supported | Input error | Nonconstant integer range | [MWE](nonconstant-integer-range.md#representative-mwe) | Known Apalache limitation |
 | Apalache crash (corpus6) | 6.56% | 🟢 Pass | Input error | Apalache reaches a negative power | [MWE](negative-power-apalache-fails.md#representative-mwe) | Evaluation order |
 | Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-001.md) |
@@ -234,3 +239,80 @@ remain out of reach at any detail length: a completed checker stores no detail. 
 and corpus8 keep the wrapper encoding, and their labels above come from the
 replay rather than from their stored details. Storing the innermost diagnostic instead would let the
 triager classify them without a replay.
+
+## corpus9 residuals
+
+corpus9 is the first session generated with custom operators, at commit
+`0861dfb`. The triager left 40 of its 250,189 aggregator deviations (0.02%) as
+`NEW`. Every one was decoded with the generator revision that produced the
+corpus, and the printed source, the typed IR, and both checkers were replayed.
+
+Because the workflow gives TLC `PrettyWriter` source and gives Apalache typed IR
+JSON, the first question for each entry is whether the two tools were given the
+same expression. Parsing the printed source back to IR with `apalache parse` and
+comparing it to the workflow IR — modulo type annotations, source locations,
+labels, and n-ary conjunction shape — answers it mechanically. 33 of the 40
+differ: the printed `Inv` does not denote the tree Apalache checked. That is
+[`apalache-printer-007`](../findings/apalache-printer/apalache-printer-007.md)
+and [`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md),
+now pinned per entry rather than estimated as in the corpus1 section.
+
+A structural difference does not by itself prove the deviation is an artifact:
+one entry's absorbed operand (`LET ... IN X >= var0` for
+`(LET ... IN X) >= var0`) is semantics-preserving. Four of the 33 have an
+identified cause and are counted with their class below; the remaining 29 cannot
+be read as conformance results while the writer is unfixed.
+
+The 7 entries whose printed source does denote the IR are genuine results:
+
+| Count | Cause | Class |
+|---:|---|---|
+| 3 | `~IsFiniteSet(Int)` and `~IsFiniteSet(Nat)` as the whole invariant | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
+| 1 | `~([{} -> {}] \subseteq {})` | [`apalache-bmc-002`](../findings/apalache-bmc/apalache-bmc-002.md) |
+| 1 | membership in `DOMAIN [i \in Nat \|-> ...]` | [`apalache-bmc-015`](../findings/apalache-bmc/apalache-bmc-015.md) |
+| 1 | a bounded `CHOOSE` with several witnesses | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | the step-bound mismatch described below | neither checker |
+
+Three of the 33 carry a TLC failure detail and are now reachable by signature:
+cardinality of an overridden `Seq(S)`
+([function-over-infinite-domain](function-over-infinite-domain.md), previously
+missed because the stored line is truncated before its closing period),
+cardinality of `STRING` ([string-set-tlc-fails](string-set-tlc-fails.md)), and a
+membership test against a filter over `Nat`
+([filter-over-infinite-set](filter-over-infinite-set.md)). The other 37 entries
+are deviations in which both checkers completed, so they store no detail and no
+diagnostic signature can reach them; they stay `NEW`, as the corpus8 section
+explains.
+
+### The step bound was not the same bound for both checkers
+
+Two corpus9 deviations were produced by the workflow rather than by either
+checker. A generated module carried `Bound == step <= N` as TLC's state
+constraint while Apalache was given `--length=N`, and the two are not
+equivalent: TLC evaluates the invariant on a successor state before the
+constraint discards it, so it checked states with `step` in `0..N+1` while
+Apalache checked `0..N`. An invariant that first fails at `step = N + 1` was a
+TLC counterexample and an Apalache pass:
+
+```tla
+---- MODULE StepBound ----
+EXTENDS Integers
+VARIABLE
+\* @type: Int;
+step
+Init == step = 0
+Next == step' = step + 1
+Inv == 6 /= step
+Bound == step <= 5
+====
+```
+
+TLC reports `Invariant Inv is violated` with a seven-state trace ending at
+`step = 6`; Apalache with `--length=5` reports `NoError`.
+
+The generator now emits `step <= maximumSteps - 1`, which makes the two bounds
+admit the same states; the module above becomes `Bound == step <= 4` and both
+checkers pass it. Verified for step bounds 0, 1 and 5 against invariants that
+first fail at each step from 0 to 7. Corpora recorded before this change keep
+the wider constraint, so their deviations at exactly one step past the bound are
+artifacts.

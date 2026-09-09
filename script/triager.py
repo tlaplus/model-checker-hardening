@@ -148,7 +148,9 @@ SIGNATURES = (
             all_of(r"^TLC error code 2180 mapped to exit status 255$", r"Error: 0\^0 is undefined\."),
             all_of(r"^TLC error code 2179 mapped to exit status 255$", r"Error: The second argument of \\div is 0\."),
             all_of(r"^TLC error code 2169 mapped to exit status 255$",
-                   r"Error: The second argument of % should be a positive number")),
+                   r"Error: The second argument of % should be a positive number"),
+            all_of(r"^TLC error code 2178 mapped to exit status 255$",
+                   r"Overflow when computing ")),
     finding("tlc-003.md", CrashKind.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
@@ -163,6 +165,12 @@ SIGNATURES = (
     finding("apalache-bmc-001.md", CrashKind.APALACHE,
             all_of(r"scala\.NotImplementedError: A set filter over .+ is not implemented",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetFilterRule\.apply")),
+    # The rule frame is what separates this from apalache-bmc-001: both report
+    # NotImplementedError over the same symbolic-set representations, but from
+    # SetMapRule and SetFilterRule respectively, and they are separate fixes.
+    finding("apalache-bmc-014.md", CrashKind.APALACHE,
+            all_of(r"scala\.NotImplementedError: A set map over .+ is not implemented",
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetMapRule\.apply")),
     finding("apalache-bmc-003.md", CrashKind.APALACHE,
             apalache_error(r"checker error: Unexpected equality test over types")),
     finding("apalache-bmc-004.md", CrashKind.APALACHE,
@@ -255,7 +263,14 @@ AGGREGATOR_SIGNATURES = (
             r"^Attempted to enumerate S \\cup T when S:$"),
     failure("function-over-infinite-domain.md", Checker.TLC,
             r"^Attempted to enumerate a set of the form \[D -> R\],but the domain D:$",
-            r"^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\(.+\))\.$"),
+            # Truncation cuts the tail whenever the overridden value prints long,
+            # so anchor on the value name and not on the closing period.
+            r"^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\()"),
+    failure("string-set-tlc-fails.md", Checker.TLC,
+            r"^Attempted to compute the number of elements in the overridden value STRING"),
+    # A membership test against a filter over Nat whose predicate raises. TLC
+    # reports neither the enumeration limit nor the underlying error.
+    failure("filter-over-infinite-set.md", Checker.TLC, r"^Cannot decide if element:$"),
     failure("quantification-over-infinite-set.md", Checker.TLC,
             r"^TLC encountered (?:the |a )non-enumerable quantifier bound$"),
     failure("finite-set-containing-infinite-set.md", Checker.TLC,
