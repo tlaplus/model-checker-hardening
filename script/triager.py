@@ -200,7 +200,7 @@ SIGNATURES = (
             all_of(r"java\.util\.NoSuchElementException: key not found: \$C\$\d+",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.Binding\.apply",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetInRule\.apply",
-                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FoldSetRule\.")),
+                   r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.Fold(?:Set|Seq)Rule\.")),
     finding("apalache-cli-001.md", CrashKind.APALACHE,
             apalache_error(r"Input error \(see the manual\): Cardinality expected a finite set, found: (?:InfSet|FinFunSet|PowSet)\["),
             apalache_error(r"Input error \(see the manual\): Expected a constant integer range in \[ \.\. \]"),

@@ -7,8 +7,9 @@ labels: [apalache]
 
 ## Summary
 
-`FoldSetRule` substitutes the fold accumulator into the combinator body as a
-raw arena cell (`NameEx("$C$<n>")`). When the body then tests that cell for
+`FoldSetRule` and `FoldSeqRule` substitute the fold accumulator into the
+combinator body as a raw arena cell (`NameEx("$C$<n>")`). When the body then
+tests that cell for
 membership in a syntactic singleton set literal, `SetInRule` takes its
 `x \in {y}` fast path and looks the cell name up in the symbolic binding with
 `state.binding(name)`. Arena-cell names are not binding keys, so the lookup
@@ -28,6 +29,11 @@ pinned build is Apalache 0.62.2, build `f0dec98`, released 2026-08-26, which
 still crashes. Found in one `corpus7` input. See the
 [`569471e2...` input](../../corpus7/02apa-crash/569471e2774b2e45f67dfc7d2123129f9a29c8ffac0161cd754d655f0ef50824.cbor)
 and its [stacktrace](../../corpus7/02apa-crash/569471e2774b2e45f67dfc7d2123129f9a29c8ffac0161cd754d655f0ef50824.stacktrace).
+
+The `corpus10` run found one more instance, reaching `SetInRule` from
+`ApaFoldSeqLeft` instead of `ApaFoldSet`: see the
+[`4d61fa71...` input](../../corpus10/02apa-crash/4d61fa71a196b13e8aab05768a62183ab1014e7680869180cfae17ebceb9539d.cbor)
+and its [stacktrace](../../corpus10/02apa-crash/4d61fa71a196b13e8aab05768a62183ab1014e7680869180cfae17ebceb9539d.stacktrace).
 
 ## Reproduction
 
@@ -70,22 +76,25 @@ java.util.NoSuchElementException: key not found: $C$0
 
 Issue #3479 reproduces the same crash through `IfThenElseRule`
 (`Count(acc, i) == IF i \in {1} THEN acc + 1 ELSE acc`); this corpus instance
-reaches `SetInRule` through `NegRule`. Both are the same defect in the
-`SetInRule` fast path, and PR #3480 guards that path rather than a single
-caller.
+reaches `SetInRule` through `NegRule`. The `corpus10` instance arrives on a
+third path, `FoldSeqRule.binOp` for `ApaFoldSeqLeft`, again below `NegRule`.
+All are the same defect in the `SetInRule` fast path, and PR #3480 guards that
+path rather than any single caller.
 
 ## Expected behavior
 
 `SetInRule` should handle a left operand that is already an arena cell instead
 of assuming a bound-variable name. A fold whose combinator only refers to its
-own parameters must evaluate without an internal crash.
+own parameters must evaluate without an internal crash, over sets and over
+sequences alike.
 
 ## Impact
 
 A small, well-typed `ApaFoldSet` expression crashes the bounded checker with an
 internal `NoSuchElementException` and a spurious "report an issue" request. Any
-folded combinator that performs a set-membership test on its accumulator or
-element against a singleton set literal is affected in the pinned build.
+`ApaFoldSet` or `ApaFoldSeqLeft` combinator that performs a set-membership test
+on its accumulator or element against a singleton set literal is affected in the
+pinned build.
 
 ## Resolution
 

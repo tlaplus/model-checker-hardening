@@ -297,6 +297,22 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
         )
 
+    def test_classifies_foldseq_accumulator_membership(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "java.util.NoSuchElementException: key not found: $C$0",
+                "\tat at.forsyte.apalache.tla.bmcmt.Binding.apply(Binding.scala:11)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.SetInRule.apply(SetInRule.scala:40)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.NegRule.apply(NegRule.scala:27)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.FoldSeqRule.binOp$1(FoldSeqRule.scala:72)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.FoldSeqRule.apply(FoldSeqRule.scala:76)",
+            )
+        )
+        self.assertEqual(
+            "apalache-bmc-013.md",
+            triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
     def test_classifies_module_overflow_as_unmapped_exit_status(self) -> None:
         diagnostic = "\n".join(
             (
