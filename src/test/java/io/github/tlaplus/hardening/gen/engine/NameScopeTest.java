@@ -13,10 +13,10 @@ class NameScopeTest {
     @Test
     void nestedScopesAreTypedShadowAwareAndRestored() {
         var scope = new NameScope();
-        var outer = new ScopedName("value", PrimitiveType.BOOL);
+        var outer = ScopedName.binder("value", PrimitiveType.BOOL);
         var inner = List.of(
-                new ScopedName("inner", PrimitiveType.BOOL),
-                new ScopedName("value", PrimitiveType.INT));
+                ScopedName.binder("inner", PrimitiveType.BOOL),
+                ScopedName.binder("value", PrimitiveType.INT));
 
         scope.withBinding(outer, () -> {
             assertEquals(List.of(outer), scope.matching(PrimitiveType.BOOL));
@@ -37,7 +37,7 @@ class NameScopeTest {
         var scope = new NameScope();
 
         assertThrows(IllegalStateException.class, () -> scope.withBinding(
-                new ScopedName("temporary", PrimitiveType.BOOL),
+                ScopedName.binder("temporary", PrimitiveType.BOOL),
                 () -> {
                     throw new IllegalStateException("failure");
                 }));
@@ -49,7 +49,7 @@ class NameScopeTest {
     void bindingChoiceIsDeferredAndDoesNotInventAFreshAlternative() {
         var scopedContext = context();
         var scopedDraw = new Draw(new byte[] {99});
-        var binding = new ScopedName("bound", PrimitiveType.BOOL);
+        var binding = ScopedName.binder("bound", PrimitiveType.BOOL);
         var choice = scopedContext.chooseBinding(PrimitiveType.BOOL);
 
         scopedDraw.draw(scopedContext.withBinding(binding, bodyDraw -> {
@@ -64,8 +64,8 @@ class NameScopeTest {
     @Test
     void nameChoiceCanReachEveryCompatibleCandidate() {
         var bindings = List.of(
-                new ScopedName("first", PrimitiveType.BOOL),
-                new ScopedName("second", PrimitiveType.BOOL));
+                ScopedName.binder("first", PrimitiveType.BOOL),
+                ScopedName.binder("second", PrimitiveType.BOOL));
 
         assertEquals("first", chooseFrom(bindings, 0));
         assertEquals("second", chooseFrom(bindings, 1));
@@ -87,7 +87,7 @@ class NameScopeTest {
     @Test
     void scopedGeneratorsAreDeferredAndRestoreScopeAfterFailure() {
         var context = context();
-        var binding = new ScopedName("bound", PrimitiveType.BOOL);
+        var binding = ScopedName.binder("bound", PrimitiveType.BOOL);
         var scoped = context.withBinding(binding, draw -> {
             assertEquals(binding, draw.draw(context.chooseBinding(PrimitiveType.BOOL)));
             throw new IllegalStateException("failure");
@@ -107,13 +107,53 @@ class NameScopeTest {
     }
 
     @Test
+    void onlyBindersBecomeLabelParametersAndADefinitionBoundaryClearsThem() {
+        var scope = new NameScope();
+        var binder = ScopedName.binder("bound", PrimitiveType.BOOL);
+        var definition = ScopedName.definition("Local", PrimitiveType.BOOL);
+        var variable = ScopedName.stateVariable("var", PrimitiveType.BOOL);
+
+        assertEquals(List.of(), scope.labelParameters());
+        scope.withBindings(List.of(binder, definition, variable), () -> {
+            assertEquals(List.of("bound"), scope.labelParameters());
+            // A nested definition body sees the binder but may not name it in a label.
+            scope.withDefinitionBoundary(() -> {
+                assertEquals(List.of(), scope.labelParameters());
+                assertEquals(
+                        List.of(binder, definition, variable),
+                        scope.matching(PrimitiveType.BOOL));
+                var inner = ScopedName.binder("inner", PrimitiveType.INT);
+                return scope.withBinding(inner, () -> {
+                    assertEquals(List.of("inner"), scope.labelParameters());
+                    return null;
+                });
+            });
+            assertEquals(List.of("bound"), scope.labelParameters());
+            return null;
+        });
+        assertEquals(List.of(), scope.labelParameters());
+    }
+
+    @Test
+    void aShadowedBinderIsNamedOnceAsALabelParameter() {
+        var scope = new NameScope();
+        var outer = ScopedName.binder("shared", PrimitiveType.BOOL);
+        var inner = ScopedName.binder("shared", PrimitiveType.INT);
+
+        scope.withBinding(outer, () -> scope.withBinding(inner, () -> {
+            assertEquals(List.of("shared"), scope.labelParameters());
+            return null;
+        }));
+    }
+
+    @Test
     void specializedQueriesRespectRolesTypesAndShadowing() {
         var scope = new NameScope();
         var state = ScopedName.stateVariable("shared", PrimitiveType.INT);
         var operatorType = new OperatorType(
                 List.of(PrimitiveType.INT), PrimitiveType.BOOL);
-        var operator = new ScopedName("Predicate", operatorType);
-        var shadow = new ScopedName("shared", PrimitiveType.BOOL);
+        var operator = ScopedName.definition("Predicate", operatorType);
+        var shadow = ScopedName.binder("shared", PrimitiveType.BOOL);
 
         scope.withBindings(List.of(state, operator), () -> {
             assertEquals(List.of(state), scope.stateVariables());

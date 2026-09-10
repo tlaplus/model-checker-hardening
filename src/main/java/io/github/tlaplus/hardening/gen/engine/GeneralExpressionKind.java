@@ -49,6 +49,9 @@ public enum GeneralExpressionKind implements ExpressionKind {
      * is visible, because that is the case where it contributes a name. It is applicable to every
      * type, so weighting its closed-constant case would shrink every expression instead of
      * biasing towards the surrounding context.
+     *
+     * <p>{@code LABEL} withdraws inside an {@code EXCEPT} replacement, where SANY rejects every
+     * label; see {@link GenerationContext#withinExceptReplacement}.
      */
     @Override
     public int selectionWeight(GenerationContext context, IrType type) {
@@ -60,6 +63,9 @@ public enum GeneralExpressionKind implements ExpressionKind {
             case OPERATOR_APPLICATION -> context.hasOperatorReturning(type)
                     ? config.weightOf(this)
                     : 0;
+            case LABEL -> context.isWithinExceptReplacement()
+                    ? 0
+                    : config.weightOf(this);
             case TERMINAL -> context.hasBinding(type)
                     ? config.weightOf(this)
                     : ExpressionKind.DEFAULT_WEIGHT;

@@ -51,7 +51,8 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
                     yield builder().except(
                             draw.draw(expression(type, nextDepth)),
                             draw.draw(expression(functionType.argument(), nextDepth)),
-                            draw.draw(expression(functionType.result(), nextDepth)));
+                            draw.draw(context.withinExceptReplacement(
+                                    expression(functionType.result(), nextDepth))));
                 }
                 case EXCEPT_MANY ->
                     draw.draw(exceptMany((FunctionType) type, remainingDepth));
@@ -72,13 +73,22 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a lambda generator whose body sees every typed parameter. */
+    /**
+     * Returns a lambda generator whose body sees every typed parameter.
+     *
+     * <p>The parameters are definition parameters rather than binders, and the body is a
+     * definition body, because {@code PrettyWriterWithAnnotations} renders a lambda as a named
+     * {@code LET} definition. A label in the body must therefore declare neither the lambda's own
+     * parameters nor a binder enclosing the lambda; SANY rejects either as an extra parameter.
+     */
     Generator<TlaEx> lambda(OperatorType type, int remainingDepth) {
         return draw -> {
-            var parameters = context.parameters("parameter", type.arguments());
+            var parameters = context.definitionParameters("parameter", type.arguments());
             var lambdaName = context.fresh("Lambda");
             var body = draw.draw(context.withBindings(
-                    parameters.bindings(), expression(type.result(), remainingDepth - 1)));
+                    parameters.bindings(),
+                    context.withDefinitionBoundary(
+                            expression(type.result(), remainingDepth - 1))));
             return builder().lambda(lambdaName, body, parameters.declarations());
         };
     }
@@ -99,8 +109,8 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
                     updateDraw -> new ExceptUpdate<>(
                             updateDraw.draw(expression(
                                     type.argument(), remainingDepth - 1)),
-                            updateDraw.draw(expression(
-                                    type.result(), remainingDepth - 1))),
+                            updateDraw.draw(context.withinExceptReplacement(
+                                    expression(type.result(), remainingDepth - 1)))),
                     1,
                     context.config().expressions().maximumCollectionSize()));
             return builder().exceptMany(

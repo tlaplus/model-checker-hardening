@@ -45,8 +45,8 @@ class GeneralExprGenFactoryTest {
     @Test
     void terminalsRotateOverVisibleBindingsAndThenTheClosedTerminal() {
         var fixture = fixture();
-        var outer = new ScopedName("outer", PrimitiveType.INT);
-        var inner = new ScopedName("inner", PrimitiveType.INT);
+        var outer = ScopedName.binder("outer", PrimitiveType.INT);
+        var inner = ScopedName.binder("inner", PrimitiveType.INT);
         var draw = new Draw(new byte[] {99});
 
         var printed = draw.draw(fixture.context().withBinding(
@@ -77,7 +77,7 @@ class GeneralExprGenFactoryTest {
     @Test
     void siblingTerminalsOfOneTypeDiffer() {
         var fixture = fixture();
-        var only = new ScopedName("bound", PrimitiveType.INT);
+        var only = ScopedName.binder("bound", PrimitiveType.INT);
 
         var printed = new Draw(new byte[0]).draw(fixture.context().withBinding(
                 only,
@@ -92,8 +92,8 @@ class GeneralExprGenFactoryTest {
     @Test
     void rotationsOfDifferentTypesAreIndependent() {
         var fixture = fixture();
-        var number = new ScopedName("number", PrimitiveType.INT);
-        var text = new ScopedName("text", PrimitiveType.STRING);
+        var number = ScopedName.binder("number", PrimitiveType.INT);
+        var text = ScopedName.binder("text", PrimitiveType.STRING);
 
         var printed = new Draw(new byte[0]).draw(fixture.context().withBindings(
                 List.of(number, text),
@@ -108,8 +108,8 @@ class GeneralExprGenFactoryTest {
     @Test
     void terminalsIgnoreBindingsOfOtherTypesAndOperatorBindings() {
         var fixture = fixture();
-        var otherType = new ScopedName("text", PrimitiveType.STRING);
-        var operator = new ScopedName(
+        var otherType = ScopedName.binder("text", PrimitiveType.STRING);
+        var operator = ScopedName.definition(
                 "Op", new OperatorType(List.of(), PrimitiveType.INT));
 
         var printed = new Draw(new byte[0]).draw(fixture.context().withBindings(
