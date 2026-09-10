@@ -301,6 +301,10 @@ AGGREGATOR_SIGNATURES = (
             # A LET body that absorbed a conjunct leaves a state variable
             # unassigned, so TLC evaluates an identifier the IR always binds.
             r"^In evaluation, the identifier \w+ is either undefined or not an operator\.",
+            # The same absorption inside Next: every generated action primes
+            # every variable, so an unprimed one means the source lost a
+            # conjunct that the IR still has.
+            r"^Successor state is not completely specified by action ",
             r"^TLC expected a boolean value, but did not find one",
             r"^Attempted to check equality of integer -?\d+ with non-integer:",
             r"^Attempted to apply the operator DOMAIN to a non-function",
@@ -319,9 +323,14 @@ AGGREGATOR_SIGNATURES = (
     # answers TRUE for the same set. Reachable once the detail stores the
     # innermost failure, since TLC reports this inside the override wrapper.
     failure("apalache-bmc-007.md", Checker.TLC,
-            r"^Attempted to check if expression of form \{x \\in S : p\(x\)\} is a finite set"),
+            r"^Attempted to check if expression of form \{x \\in S : p\(x\)\} is a finite set",
+            # The same operand reached as a set expression rather than a filter,
+            # for example "Nat \\cap Int" or "{0} \\cup Int \\ Nat".
+            r"^Attempted to check if the set "),
     failure("non-enumerable-initial-assignment.md", Checker.TLC,
-            r"^In computing initial states, the right side of \\IN is not enumerable\.$"),
+            r"^In computing initial states, the right side of \\IN is not enumerable\.$",
+            # The same enumeration limit reached from the next-state action.
+            r"^In computing next states, the right side of \\IN is not enumerable\.$"),
     failure("modulo-by-zero-apalache-fails.md", Checker.APALACHE,
             r"^Input error \(see the manual\): Mod by zero at "),
     failure("division-by-zero-apalache-fails.md", Checker.APALACHE,

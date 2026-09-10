@@ -313,6 +313,39 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
         )
 
+    def test_classifies_corpus10_residual_details(self) -> None:
+        """Details replayed from corpus10's NEW aggregator rows.
+
+        Each is stored exactly as the corpus holds it: TLC's first "Error:"
+        line, stripped to one line and cut to 80 characters.
+        """
+        cases = (
+            (
+                "In computing next states, the right side of \\IN is not enumerable.",
+                "non-enumerable-initial-assignment.md",
+            ),
+            (
+                "Attempted to check if the set Nat \\cap Intis finite.",
+                "apalache-bmc-007.md",
+            ),
+            (
+                "Attempted to check if the set {0} \\cup Int \\ Natis finite.",
+                "apalache-bmc-007.md",
+            ),
+            (
+                "Successor state is not completely specified by action Next of the next-state re\u2026",
+                "apalache-printer-008.md",
+            ),
+        )
+        for detail, issue in cases:
+            with self.subTest(detail=detail):
+                self.assertEqual(
+                    issue,
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail), HASH_A
+                    ),
+                )
+
     def test_classifies_module_overflow_as_unmapped_exit_status(self) -> None:
         diagnostic = "\n".join(
             (

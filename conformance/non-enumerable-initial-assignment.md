@@ -45,3 +45,35 @@ Apalache reports `The outcome is: NoError` and exits `OK`.
 
 Unlike most rows in this catalogue, the MWE reproduces both sides directly: the
 deviation does not depend on a surrounding expression's evaluation path.
+
+## Reached through the next-state action
+
+The same limit is reached when the membership constrains a primed variable. TLC
+reports it as the next-state analogue of the diagnostic above, and the class is
+otherwise identical.
+
+```tla
+---- MODULE NonEnumerableNextAssignment ----
+EXTENDS Integers
+VARIABLE
+\* @type: Int;
+var0
+VARIABLE
+\* @type: Int;
+step
+Init == var0 = 0 /\ step = 0
+Next == var0' \in Nat /\ step' = step + 1
+Inv == step >= 0
+Bound == step <= 5
+====
+```
+
+TLC computes the initial state and then fails:
+
+```text
+Error: In computing next states, the right side of \IN is not enumerable.
+line 10, col 9 to line 10, col 21 of module NonEnumerableNextAssignment
+```
+
+Apalache reports `The outcome is: NoError` and exits `OK`. One `corpus10`
+aggregator deviation has this shape.

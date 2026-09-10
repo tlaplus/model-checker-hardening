@@ -23,7 +23,8 @@ Apalache crash outcomes for crash-derived rows. Rows marked
 marked `Aggregator (corpus3)` use corpus3's 435,265 aggregator deviations. The
 `Apalache crash (corpus6)` row uses its 61 Apalache crash-classified results.
 Rows marked `Aggregator (corpus9)` use corpus9's 250,189 aggregator deviations.
-Percentages are rounded to two decimal places, so table rows may not sum exactly
+Rows marked `Aggregator (corpus10)` use corpus10's 257,852 aggregator
+deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
 | Origin | Share | TLC | Apalache | Short title | Representative example | Assessment |
@@ -69,6 +70,8 @@ to 100%.
 | Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
 | Aggregator (corpus9) | <0.01% | 🟢 Pass | Counterexample | `CHOOSE` with several witnesses | [MWE](choose-multiple-witnesses.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus9) | <0.01% | Counterexample | 🟢 Pass | `DOMAIN` of an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
+| Aggregator (corpus10) | <0.01% | Counterexample | 🟢 Pass | Union with `Int` or `Nat` | [Finding](../findings/apalache-bmc/apalache-bmc-016.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-016.md) |
+| Aggregator (corpus10) | <0.01% | 🔴 Fail | 🟢 Pass | Non-enumerable next-state assignment | [MWE](non-enumerable-initial-assignment.md#reached-through-the-next-state-action) | TLC enumeration limit |
 | Apalache crash | 0.16% | Supported | Input error | Nonconstant integer range | [MWE](nonconstant-integer-range.md#representative-mwe) | Known Apalache limitation |
 | Apalache crash (corpus6) | 6.56% | 🟢 Pass | Input error | Apalache reaches a negative power | [MWE](negative-power-apalache-fails.md#representative-mwe) | Evaluation order |
 | Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-001.md) |
@@ -316,3 +319,59 @@ checkers pass it. Verified for step bounds 0, 1 and 5 against invariants that
 first fail at each step from 0 to 7. Corpora recorded before this change keep
 the wider constraint, so their deviations at exactly one step past the bound are
 artifacts.
+
+## corpus10 residuals
+
+The triager left 46 of corpus10's 257,852 aggregator deviations (0.02%) as
+`NEW`. corpus10 is the first session generated after the step-bound fix
+described above, so no residual is the one-step artifact corpus9 had.
+
+Each entry was checked the way the corpus9 section describes: the printed source
+was parsed back to IR with `apalache parse` and compared with the workflow IR,
+modulo type annotations, source locations, labels, n-ary conjunction shape,
+where a `LET` binding sits relative to the expression that uses it, and a
+negative integer literal reparsed as unary minus. 10 of the 46 differ, always in
+the same way -- the `LET` the writer synthesizes for a lambda argument absorbed
+the operator that followed it, so a conjunct or an argument the IR has is missing
+from the parsed tree. Those are
+[`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md)
+and not conformance results.
+
+The other 36 print what Apalache checked. Every one contains at least one
+documented cause. Where several are present, the entry is counted once, under
+the union row if it has one, then the `IsFiniteSet` row, then the `CHOOSE` row:
+
+| Count | Cause | Class |
+|---:|---|---|
+| 15 | `IsFiniteSet` over an infinite set expression | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
+| 8 | a function set whose domain is empty | [`apalache-bmc-002`](../findings/apalache-bmc/apalache-bmc-002.md) |
+| 7 | a bounded `CHOOSE`, which Apalache encodes as a nondeterministic symbolic choice | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 6 | an invariant that unites a finite set with `Int` or `Nat` | [`apalache-bmc-016`](../findings/apalache-bmc/apalache-bmc-016.md) |
+
+Six of the eight empty-domain function sets are empty by construction, for
+example `[{x \in S : FALSE} -> {}]`. The other two are empty only in the
+reachable states -- one domain is a set map over a variable that `Init` sets to
+`{}` and `Next` leaves unchanged -- and were confirmed by reading the module
+rather than by folding the expression.
+
+The last group is new. `S \union Nat` and `S \union Int` evaluate to `S`, with
+no warning, so membership, equality, `Cardinality`, `IsFiniteSet` and bounded
+quantification over the union all answer as if the infinite operand were empty.
+It is wrong in both directions and appears in the corpus that way: four entries
+are a TLC counterexample against an Apalache pass, one is the reverse, and one
+is a TLC finiteness failure against an Apalache counterexample.
+[`apalache-bmc-016`](../findings/apalache-bmc/apalache-bmc-016.md) records it.
+
+Four of the 46 carry a TLC failure detail and are now reachable by signature: a
+membership whose right side is not enumerable, reached from the next-state
+action instead of the initial predicate
+([non-enumerable-initial-assignment](non-enumerable-initial-assignment.md#reached-through-the-next-state-action));
+two `IsFiniteSet` operands written as set expressions rather than filters,
+`Nat \cap Int` and `{0} \cup Int \ Nat`
+([`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md)); and one
+`Successor state is not completely specified by action Next`, which the IR
+comparison confirms is the lambda-`LET` absorbing a conjunct of `Next`, the
+next-state analogue of the unassigned-variable symptom
+[`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md)
+already lists. The remaining 42 are deviations in which both checkers completed,
+so they store no detail and stay `NEW`, as the corpus8 section explains.
