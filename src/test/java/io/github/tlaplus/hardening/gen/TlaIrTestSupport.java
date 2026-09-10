@@ -10,6 +10,8 @@ import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
+import at.forsyte.apalache.tla.lir.values.TlaStr;
+import at.forsyte.apalache.tla.lir.ValEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -234,6 +236,86 @@ public final class TlaIrTestSupport {
 
     public static List<String> variableNames(GeneratedSpec spec) {
         return spec.variables().stream().map(TlaVarDecl::name).toList();
+    }
+
+    /**
+     * Asserts that every label declares exactly the formal parameters TLA+ requires of it.
+     *
+     * <p>A label's parameters must be the identifiers introduced by expression-level binders whose
+     * scope contains it, as a set: SANY rejects a missing one with "must contain formal parameter"
+     * and an extra one with "declares extra parameter(s)". Order is irrelevant.
+     *
+     * <p>Three constructs end a label's scope, because each is a definition in the TLA+ source
+     * SANY sees: a {@code LET} declaration body, a lambda (which the Apalache writer renders as a
+     * named {@code LET} definition, so it reaches SANY as a {@link LetInEx} here too), and a label
+     * itself, whose own parameters become definition parameters inside its body.
+     */
+    public static void assertLabelParameters(TlaEx expression) {
+        assertLabelParameters(expression, List.of());
+    }
+
+    private static void assertLabelParameters(TlaEx expression, List<String> binders) {
+        switch (expression) {
+            case LetInEx letIn -> {
+                // Each declaration is its own definition, so its body starts a new label scope.
+                list(letIn.decls())
+                        .forEach(declaration -> assertLabelParameters(declaration.body(), List.of()));
+                assertLabelParameters(letIn.body(), binders);
+            }
+            case OperEx operator -> {
+                var arguments = list(operator.args());
+                switch (operator.oper().name()) {
+                    // (body, name, parameter...)
+                    case "LABEL" -> {
+                        var declared = arguments.stream().skip(2)
+                                .map(TlaIrTestSupport::literalName).collect(Collectors.toSet());
+                        assertEquals(
+                                Set.copyOf(binders),
+                                declared,
+                                "label parameters do not match the binders in scope: "
+                                        + print(expression));
+                        assertLabelParameters(arguments.getFirst(), List.of());
+                    }
+                    // (bound, domain, body); the domain is outside the bound name's scope.
+                    case "FORALL3", "EXISTS3", "CHOOSE3", "SET_FILTER" -> {
+                        assertLabelParameters(arguments.get(1), binders);
+                        assertLabelParameters(
+                                arguments.get(2), extended(binders, arguments.getFirst()));
+                    }
+                    // (bound, body)
+                    case "FORALL2", "EXISTS2", "CHOOSE2" ->
+                        assertLabelParameters(
+                                arguments.get(1), extended(binders, arguments.getFirst()));
+                    // (body, bound, domain, ...); every domain is outside every bound name's scope.
+                    case "FUN_CTOR", "SET_MAP" -> {
+                        var bodyBinders = new ArrayList<>(binders);
+                        for (var index = 1; index + 1 < arguments.size(); index += 2) {
+                            bodyBinders = new ArrayList<>(extended(bodyBinders, arguments.get(index)));
+                            assertLabelParameters(arguments.get(index + 1), binders);
+                        }
+                        assertLabelParameters(arguments.getFirst(), bodyBinders);
+                    }
+                    default -> arguments.forEach(
+                            argument -> assertLabelParameters(argument, binders));
+                }
+            }
+            default -> { }
+        }
+    }
+
+    /** Adds a bound name, or every component of a bound tuple pattern, to the enclosing binders. */
+    private static List<String> extended(List<String> binders, TlaEx bound) {
+        var extended = new ArrayList<>(names(bound));
+        extended.addAll(binders);
+        return List.copyOf(extended);
+    }
+
+    /** Returns the text of a label name or parameter, which the IR carries as a string literal. */
+    private static String literalName(TlaEx expression) {
+        if (expression instanceof ValEx value && value.value() instanceof TlaStr text) {
+            return text.value();
+        }
+        throw new AssertionError("expected a string literal, found " + print(expression));
     }
 
     public static String print(TlaEx expression) {

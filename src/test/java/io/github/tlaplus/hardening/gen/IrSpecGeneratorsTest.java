@@ -303,6 +303,13 @@ class IrSpecGeneratorsTest {
         }
     }
 
+    /** Every declaration is its own label scope: a module has no binder in scope at its top. */
+    private void assertLabelParameters(GeneratedSpec spec) {
+        spec.operators().stream().map(GeneratedOperator::declaration)
+                .forEach(operator -> TlaIrTestSupport.assertLabelParameters(operator.body()));
+        spec.generated().forEach(TlaIrTestSupport::assertLabelParameters);
+    }
+
     private GeneratedSpec generate(byte[] input) {
         return IrGenerators.specs(IrGenerationConfig.defaults()).generate(input);
     }
@@ -313,7 +320,9 @@ class IrSpecGeneratorsTest {
 
     private void assertBuildsOrRejects(IrGenerationConfig config, byte[] input) {
         try {
-            assertFalse(render(IrGenerators.specs(config).generate(input)).isEmpty());
+            var spec = IrGenerators.specs(config).generate(input);
+            assertFalse(render(spec).isEmpty());
+            assertLabelParameters(spec);
         } catch (InputRejectedException expected) {
             // Some forms intentionally reject when the current scope cannot satisfy them.
         } catch (RuntimeException failure) {

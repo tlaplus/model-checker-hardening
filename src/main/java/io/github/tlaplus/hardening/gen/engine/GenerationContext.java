@@ -26,6 +26,7 @@ final class GenerationContext {
     private final NameScope scope = new NameScope();
     private final Map<IrType, Integer> terminalRotation = new HashMap<>();
     private int nameCount;
+    private int exceptReplacementDepth;
     private int fieldCount;
     private int nodeCount;
 
@@ -48,20 +49,35 @@ final class GenerationContext {
         return prefix + nameCount++;
     }
 
-    /** Creates a fresh typed binding without changing the current scope. */
+    /**
+     * Creates a fresh binder without changing the current scope.
+     *
+     * <p>A binder is what a quantifier, {@code CHOOSE}, function or set construct introduces, and
+     * is therefore a formal parameter of any label generated inside its body.
+     */
     ScopedName freshBinding(String prefix, IrType type) {
-        return new ScopedName(fresh(prefix), type);
+        return ScopedName.binder(fresh(prefix), type);
+    }
+
+    /** Creates a fresh definition name without changing the current scope. */
+    ScopedName freshDefinition(String prefix, IrType type) {
+        return ScopedName.definition(fresh(prefix), type);
     }
 
     /** A definition's fresh bindings and the corresponding typed builder parameters. */
     record Parameters(List<ScopedName> bindings, TypedParameter[] declarations) {}
 
-    /** Allocates parameters in signature order without changing lexical scope. */
-    Parameters parameters(String prefix, List<IrType> types) {
+    /**
+     * Allocates definition parameters in signature order without changing lexical scope.
+     *
+     * <p>A definition's formal parameter is not a binder: a label in the definition body must not
+     * declare it, and declaring it is rejected as an extra parameter.
+     */
+    Parameters definitionParameters(String prefix, List<IrType> types) {
         var bindings = new ArrayList<ScopedName>();
         var declarations = new ArrayList<TypedParameter>();
         for (var type : types) {
-            var binding = freshBinding(prefix, type);
+            var binding = freshDefinition(prefix, type);
             bindings.add(binding);
             declarations.add(builder.param(binding.name(), type.toTlaType()));
         }
@@ -126,6 +142,45 @@ final class GenerationContext {
     <T> Generator<T> withBinding(
             ScopedName binding, Generator<? extends T> body) {
         return draw -> scope.withBinding(binding, () -> draw.draw(body));
+    }
+
+    /**
+     * Returns a generator that runs its body as a nested definition body, which starts a new
+     * label scope while leaving lexical visibility unchanged.
+     */
+    <T> Generator<T> withDefinitionBoundary(Generator<? extends T> body) {
+        Objects.requireNonNull(body, "body");
+        return draw -> scope.withDefinitionBoundary(() -> draw.draw(body));
+    }
+
+    /**
+     * Returns a generator that runs its body as an {@code EXCEPT} replacement expression.
+     *
+     * <p>SANY rejects a label anywhere inside a replacement with "Labels inside EXCEPT clauses
+     * are not yet implemented", recorded as {@code findings/SANY/sany-002.md}. Generating one
+     * only rediscovers that restriction at the cost of the whole module, so the label form
+     * withdraws while this holds. An index or the updated function itself is unaffected.
+     */
+    <T> Generator<T> withinExceptReplacement(Generator<? extends T> body) {
+        Objects.requireNonNull(body, "body");
+        return draw -> {
+            exceptReplacementDepth++;
+            try {
+                return draw.draw(body);
+            } finally {
+                exceptReplacementDepth--;
+            }
+        };
+    }
+
+    /** Reports whether generation is inside an {@code EXCEPT} replacement expression. */
+    boolean isWithinExceptReplacement() {
+        return exceptReplacementDepth > 0;
+    }
+
+    /** Returns the formal parameters a label generated at this point must declare. */
+    List<String> labelParameters() {
+        return scope.labelParameters();
     }
 
     /** Returns a generator that runs its body with multiple additional lexical bindings. */

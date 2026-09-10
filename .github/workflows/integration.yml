@@ -53,6 +53,8 @@ jobs:
             corpus/02apa-crash \
             -type f -name '*.cbor' | wc -l)
           test "$logical_entries" -eq 100
+          # The generator must produce modules SANY accepts. A parser failure means it does not.
+          test "$(find corpus/01parser-fail -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/00-inputs -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/01parser-pass -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/02tlc-inputs -type f -name '*.cbor' | wc -l)" -eq 0

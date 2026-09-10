@@ -23,12 +23,12 @@ class ScopedExprGenFactoryTest {
         var scopedBooleanName = applicableIndex(
                 PrimitiveType.BOOL,
                 GeneralExpressionKind.NAME,
-                new ScopedName("bound", PrimitiveType.BOOL));
+                ScopedName.binder("bound", PrimitiveType.BOOL));
         var localOperatorType = new OperatorType(List.of(), PrimitiveType.BOOL);
         var scopedOperatorApplication = applicableIndex(
                 PrimitiveType.BOOL,
                 GeneralExpressionKind.OPERATOR_APPLICATION,
-                new ScopedName("LocalOp", localOperatorType));
+                ScopedName.definition("LocalOp", localOperatorType));
         var scenarios = List.of(
                 new Scenario(
                         PrimitiveType.BOOL,
@@ -131,7 +131,7 @@ class ScopedExprGenFactoryTest {
         assertFalse(expressionFactory.isApplicable(
                 GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.BOOL));
 
-        var value = new ScopedName("value", PrimitiveType.BOOL);
+        var value = ScopedName.binder("value", PrimitiveType.BOOL);
         new Draw(new byte[0]).draw(context.withBinding(value, ignored -> {
             assertTrue(expressionFactory.isApplicable(
                     GeneralExpressionKind.NAME, PrimitiveType.BOOL));
@@ -142,7 +142,7 @@ class ScopedExprGenFactoryTest {
 
         var operatorType = new OperatorType(
                 List.of(PrimitiveType.INT), PrimitiveType.BOOL);
-        var operator = new ScopedName("Predicate", operatorType);
+        var operator = ScopedName.definition("Predicate", operatorType);
         new Draw(new byte[0]).draw(context.withBinding(operator, ignored -> {
             assertTrue(expressionFactory.isApplicable(
                     GeneralExpressionKind.NAME, operatorType));
@@ -169,7 +169,7 @@ class ScopedExprGenFactoryTest {
                 () -> new Draw(new byte[0]).draw(
                         missingFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1)));
 
-        var ordinary = new ScopedName("ordinary", PrimitiveType.INT);
+        var ordinary = ScopedName.binder("ordinary", PrimitiveType.INT);
         assertThrows(
                 InputRejectedException.class,
                 () -> new Draw(new byte[0]).draw(missingContext.withBinding(

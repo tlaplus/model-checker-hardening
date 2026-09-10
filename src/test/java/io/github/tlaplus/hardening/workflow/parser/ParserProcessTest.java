@@ -98,14 +98,21 @@ class ParserProcessTest {
     }
 
     @Test
-    void generatedModulesResolveEveryNameTheyUse(@TempDir Path directory) throws Exception {
-        // The generator promises that a module names only what it declares. SANY is the
-        // authority on that, so it is checked here rather than restated in a unit test.
+    void everyGeneratedModuleParses(@TempDir Path directory) throws Exception {
+        // The generator promises a module that names only what it declares and that SANY
+        // accepts. SANY is the authority on both, so this is checked here rather than
+        // restated in a unit test.
         //
-        // Not every generated module parses, and that is not a module-level defect: the
-        // expression decoder can place a label under a binder without mentioning it, or inside
-        // an EXCEPT, both of which SANY rejects. Those failures occur at the same rate for
-        // expression inputs, so what is asserted here is that nothing else fails.
+        // This assertion is deliberately unconditional. It once tolerated two label failures
+        // -- a label under a binder without mentioning it, and a label inside an EXCEPT -- and
+        // that tolerance hid a defect that rejected 58% of a module-kind corpus at the parser.
+        // Nothing about a generated module may fail to parse.
+        // Only the shipped configuration is asserted here. Enabling the unbound category as
+        // well reaches shapes where PrettyWriter prints an undelimited CHOOSE or CASE as a CASE
+        // arm body, so the source parses to a different tree than the IR and a later arm ends up
+        // inside the CHOOSE's scope. That is a printer defect, not a generator one, and the
+        // generator's own contract is asserted on the IR by IrSpecGeneratorsTest across every
+        // category filter.
         var generator = IrGenerators.specs(IrGenerationConfig.defaults());
         var random = new Random(0x5a4eL);
         var scratch = Files.createDirectory(directory.resolve("scratch"));
@@ -125,24 +132,16 @@ class ParserProcessTest {
                 }
                 generated++;
                 var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
-                if (result.outcome() == StageOutcome.PASS) {
-                    parsed++;
-                    continue;
-                }
-                assertTrue(
-                        isKnownLabelLimitation(result.diagnostic()),
+                assertEquals(
+                        StageOutcome.PASS,
+                        result.outcome(),
                         result.diagnostic() + "\n" + source);
+                parsed++;
             }
         }
 
         assertTrue(generated > 20, "too few modules were generated to be conclusive: " + generated);
-        assertTrue(parsed > generated / 2, "only " + parsed + " of " + generated + " parsed");
-    }
-
-    /** Reports whether a parser failure is one of the two label limitations of the decoder. */
-    private boolean isKnownLabelLimitation(String diagnostic) {
-        return diagnostic.contains("must contain formal parameter")
-                || diagnostic.contains("Labels inside EXCEPT clauses are not yet implemented");
+        assertEquals(generated, parsed);
     }
 
     private String validSource() {

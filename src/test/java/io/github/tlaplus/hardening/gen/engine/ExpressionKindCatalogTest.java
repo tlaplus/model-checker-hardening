@@ -473,7 +473,7 @@ class ExpressionKindCatalogTest {
         assertEquals(
                 0, expressionFactory.selectionWeight(GeneralExpressionKind.NAME, setOfBool));
         new Draw(new byte[0]).draw(context.withBinding(
-                new ScopedName("bound", setOfBool),
+                ScopedName.binder("bound", setOfBool),
                 ignored -> {
                     assertEquals(
                             8,
@@ -501,7 +501,7 @@ class ExpressionKindCatalogTest {
                         GeneralExpressionKind.TERMINAL, PrimitiveType.BOOL));
 
         new Draw(new byte[0]).draw(context.withBinding(
-                new ScopedName("bound", PrimitiveType.BOOL),
+                ScopedName.binder("bound", PrimitiveType.BOOL),
                 ignored -> {
                     assertEquals(
                             4,

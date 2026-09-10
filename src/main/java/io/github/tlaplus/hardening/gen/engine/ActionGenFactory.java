@@ -51,12 +51,12 @@ final class ActionGenFactory extends AbstractExprGenFactory {
                 }
                 var argumentTypes = draw.draw(BasicGenerators.listOf(typeFactory.valueType(),
                         0, context.config().expressions().maximumCollectionSize()));
-                var parameters = context.parameters("actionArg", argumentTypes);
+                var parameters = context.definitionParameters("actionArg", argumentTypes);
                 var name = context.fresh("Act");
                 var visiblePrefix = new VisibleActionOperators(operators);
                 var body = draw.draw(context.withBindings(parameters.bindings(),
-                        context.withFreshNodeBudget(shapes.shape(
-                                request(effect, expressionDepth), visiblePrefix).map(shapes::conjoin))));
+                        context.withDefinitionBoundary(context.withFreshNodeBudget(shapes.shape(
+                                request(effect, expressionDepth), visiblePrefix).map(shapes::conjoin)))));
                 var declaration = builder().decl(name, body, parameters.declarations());
                 var generated = new GeneratedActionOperator(declaration,
                         new ActionEffect(effect.stream().map(ScopedName::name).toList()));
@@ -91,7 +91,12 @@ final class ActionGenFactory extends AbstractExprGenFactory {
                 .map(disjuncts -> builder().or(BuilderArrays.expressions(disjuncts)));
     }
 
-    /** Bounds belong to the enclosing scope; parameters are visible only inside the action. */
+    /**
+     * Parameters nest outermost-first, so each bound sits inside the scope of the parameters
+     * drawn before it and a label there must declare them. Drawing the bound in that scope keeps
+     * the generated tree's lexical structure the same as the rendered source's. A parameter is
+     * still not in scope in its own bound.
+     */
     private Generator<TlaEx> action(int expressionDepth, VisibleActionOperators visible) {
         return draw -> {
             var parameters = new ArrayList<Binding>();
@@ -101,9 +106,11 @@ final class ActionGenFactory extends AbstractExprGenFactory {
                     ? 0 : context.config().modules().actions().maximumActionParameters();
             while (parameters.size() < maximumParameters && draw.drawBoolean()) {
                 var type = draw.draw(typeFactory.valueType());
+                var enclosing = parameters.stream().map(Binding::name).toList();
                 var parameter = freshBinding("actionParam", type);
                 parameters.add(parameter);
-                bounds.add(draw.draw(expression(new SetType(type), expressionDepth - 1)));
+                bounds.add(draw.draw(context.withBindings(
+                        enclosing, expression(new SetType(type), expressionDepth - 1))));
             }
             var body = context.withBindings(parameters.stream().map(Binding::name).toList(),
                     actionBody(expressionDepth, visible));

@@ -134,7 +134,9 @@ class IrGeneratorsTest {
 
     private void assertBuildsOrRejects(IrGenerationConfig config, byte[] input) {
         try {
-            assertFalse(print(IrGenerators.expressions(config).generate(input)).isEmpty());
+            var expression = IrGenerators.expressions(config).generate(input);
+            assertFalse(print(expression).isEmpty());
+            TlaIrTestSupport.assertLabelParameters(expression);
         } catch (InputRejectedException expected) {
             // Some forms intentionally reject when the current scope cannot satisfy them.
         } catch (RuntimeException failure) {

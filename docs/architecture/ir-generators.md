@@ -82,7 +82,7 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `TypeInstantiation`, `ImportedTypes` | Plan bounded type-variable instantiations and convert concrete imported types to private generator types. |
 | `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory; builds custom applications itself, caching one type plan per operator and requested type. |
 | `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
-| `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration. |
+| `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration, and the binders a label must declare. |
 | `BuilderArrays` | Adapts typed lists to Apalache's generic varargs APIs. |
 
 ## 3. Generation protocol
@@ -433,10 +433,17 @@ exceptional completion. Lookup resolves shadowing by name before filtering by
 type or semantic role. Consequently, an inner binding hides an outer binding
 even when their types differ.
 
-A `ScopedName` records its exact `IrType` and one of two roles: ordinary bound
-name or state variable. General name expressions select only exact type matches.
+A `ScopedName` records its exact `IrType` and one of three roles: a binder, a
+definition name or formal parameter, or a state variable. General name
+expressions select only exact type matches, and the role does not narrow them.
 Operator application selects a visible `OperatorType` with the requested result
-type, then generates arguments from its declared signature.
+type, then generates arguments from its declared signature. The role exists
+because TLA+ labels distinguish these cases; section 8.1 gives the rule.
+
+Alongside the visible bindings, `NameScope` keeps the binders that a label
+generated at the current point must declare. `withDefinitionBoundary` empties
+that second list for the duration of a nested definition body while leaving
+lexical visibility untouched, and restores it the same way.
 
 Applicability is partly dynamic. `NAME` and operator application are excluded
 from selection when no compatible binding exists. When the `action` category is
@@ -463,10 +470,52 @@ variant access may still receive values for which evaluation is partial.
 
 A generated module carries two further guarantees, stated in section 9: its
 initial-state predicate constrains every declared variable, and every disjunct
-of its next-state action accounts for every declared variable exactly once. It
-does not guarantee that the module parses. The expression decoder can place a
-label under a binder without mentioning it, or inside an `EXCEPT`, both of which
-SANY rejects; those failures occur at the same rate for expression inputs.
+of its next-state action accounts for every declared variable exactly once.
+
+Under the shipped configuration a generated module also parses.
+`ParserProcessTest` asserts this against SANY without exception. The one known
+way to break it is not a decoder defect: `PrettyWriter` renders an undelimited
+`CHOOSE` or `CASE` as a `CASE` arm body, so a later arm is absorbed into the
+`CHOOSE`'s scope and SANY reads a different tree than the IR. That shape is
+reachable once the `unbound` category is enabled.
+
+### 8.1. Label formal parameters
+
+TLA+ requires an expression label to declare exactly the identifiers introduced
+by expression-level binders whose scope contains it. SANY reports a missing one
+as "must contain formal parameter" and an extra one as "declares extra
+parameter(s)"; the order of the list is irrelevant. Emitting labels without
+parameters rejected 58% of a module-kind corpus at the parser, so this is a
+decoder obligation rather than a caller's.
+
+`ScopedNameKind` records which of the three roles a visible name has, and only
+`BINDER` contributes a label parameter. A quantifier, `CHOOSE`, function
+constructor, set filter and set map introduce binders. A definition's name and
+its formal parameters do not, and neither does a declared state variable.
+
+Three constructs end a label's scope, because each is a definition in the source
+SANY sees:
+
+- a `LET` declaration body,
+- a lambda body, since `PrettyWriterWithAnnotations` renders a lambda as a named
+  `LET` definition and the builder already produces one,
+- a label's own body, whose parameters become that definition's parameters.
+
+`NameScope` therefore keeps the visible binders in a second list that
+`withDefinitionBoundary` empties for the duration of a nested definition body,
+leaving lexical visibility untouched: such a body may still refer to an
+enclosing binder even though a label in it may not name one.
+
+A bound name's domain is outside that name's scope, so a label there declares
+nothing for it. Where several binders nest, each domain does sit inside the
+scope of the binders drawn before it, and the generator draws it there, so that
+the tree's lexical structure matches the rendered source's.
+
+Labels withdraw inside an `EXCEPT` replacement expression, at any depth. SANY
+rejects every label there with "Labels inside EXCEPT clauses are not yet
+implemented", recorded as `findings/SANY/sany-002.md`, so generating one only
+rediscovers a filed restriction at the cost of the whole module. An index and
+the updated function itself are unaffected.
 
 `InputRejectedException` denotes an expected dead end for the current bytes,
 such as decoding an operator type at the expression root or selecting a

@@ -9,6 +9,7 @@ import io.vavr.Function3;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.apalache_mc.tla.jir.ExpressionPair;
 
 /** Constructs terminal and type-polymorphic expression generators. */
@@ -36,8 +37,17 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
                         draw.draw(expression(type, nextDepth)),
                         draw.draw(expression(type, nextDepth)));
-                case LABEL -> builder().label(
-                        draw.draw(expression(type, nextDepth)), context.fresh("label"));
+                // The parameters are read before the body is drawn: a binder introduced inside
+                // the labeled expression is not in scope at the label and must not be declared.
+                // A label is itself a definition, so its body starts a new label scope: a nested
+                // label declares only the binders introduced between the two.
+                case LABEL -> {
+                    var parameters = labelArguments(context.fresh("label"));
+                    yield builder().label(
+                            draw.draw(context.withDefinitionBoundary(
+                                    expression(type, nextDepth))),
+                            parameters);
+                }
                 // CHOOSE predicates see their bound name, but the domain does not.
                 case BOUNDED_CHOOSE -> draw.draw(bounded(
                         "bound", type, PrimitiveType.BOOL, nextDepth, builder()::choose));
@@ -152,15 +162,25 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
+    /**
+     * Returns the {@code label} builder arguments: the label name followed by the formal
+     * parameters TLA+ requires, which are exactly the binders whose scope contains the label.
+     */
+    private String[] labelArguments(String name) {
+        return Stream.concat(Stream.of(name), context.labelParameters().stream())
+                .toArray(String[]::new);
+    }
+
     /** Returns a generator of a LET whose body sees its local nullary operator. */
     private Generator<TlaEx> letExpression(
             IrType resultType, int remainingDepth) {
         return draw -> {
             var operatorType = new OperatorType(List.of(), resultType);
-            var binding = context.freshBinding("LocalOp", operatorType);
+            var binding = context.freshDefinition("LocalOp", operatorType);
             var declaration = builder().decl(
                     binding.name(),
-                    draw.draw(expression(resultType, remainingDepth - 1)));
+                    draw.draw(context.withDefinitionBoundary(
+                            expression(resultType, remainingDepth - 1))));
             var body = draw.draw(context.withBinding(
                     binding, expression(resultType, remainingDepth - 1)));
             return builder().letIn(body, declaration);

@@ -172,18 +172,19 @@ public final class IrSpecGeneratorEngine {
                 var result = draw.draw(typeFactory.valueType());
                 var type = new OperatorType(arguments, result);
 
-                var parameters = context.parameters("parameter", arguments);
+                var parameters = context.definitionParameters("parameter", arguments);
                 var bindings = new ArrayList<ScopedName>(visible);
                 bindings.addAll(parameters.bindings());
 
                 var name = context.fresh("Op");
                 var body = draw.draw(context.withBindings(
                         bindings,
-                        context.withFreshNodeBudget(expressionFactory.mkGen(
-                                result, config.expressions().maximumExpressionDepth()))));
+                        context.withDefinitionBoundary(context.withFreshNodeBudget(
+                                expressionFactory.mkGen(
+                                        result, config.expressions().maximumExpressionDepth())))));
                 var declaration = context.builder()
                         .decl(name, body, parameters.declarations());
-                var binding = new ScopedName(name, type);
+                var binding = ScopedName.definition(name, type);
                 visible.add(binding);
                 defined.add(new DefinedOperator(binding, new GeneratedOperator.Auxiliary(declaration)));
             }
