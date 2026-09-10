@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
@@ -114,9 +115,12 @@ class GeneratedNestedActionShapesTest {
                 continue;
             }
             var next = spec.nextAction();
-            if (withOr.size() < (wanted + 1) / 2 && disjuncts(next).stream().anyMatch(action -> containsOperator(action, "OR"))) {
+            if (withOr.size() < (wanted + 1) / 2
+                    && disjuncts(next).stream()
+                            .anyMatch(action -> containsOperator(action, TlaOperators.OR))) {
                 withOr.add(spec);
-            } else if (withIte.size() < wanted / 2 && containsOperator(next, "IF_THEN_ELSE")) {
+            } else if (withIte.size() < wanted / 2
+                    && containsOperator(next, TlaOperators.IF_THEN_ELSE)) {
                 withIte.add(spec);
             }
         }

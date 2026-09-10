@@ -9,9 +9,12 @@ import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.nio.file.Path;
 import java.util.*;
+import org.apalache_mc.tla.jir.NamedType;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaModules;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import static io.github.tlaplus.hardening.common.ScalaCollections.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CustomOperatorsTest {
@@ -52,36 +55,38 @@ class CustomOperatorsTest {
         for (var type : List.of(PrimitiveType.INT, PrimitiveType.BOOL,
                 new SetType(PrimitiveType.STRING))) {
             var expression = (OperEx) call("Wrapped", type);
-            assertEquals(type.toTlaType(), LibraryTypes.type(expression.typeTag()));
-            assertEquals(type.toTlaType(), LibraryTypes.type(expression.args().apply(1).typeTag()));
+            assertEquals(type.toTlaType(), TlaTypes.typeOf(expression));
+            assertEquals(type.toTlaType(), TlaTypes.typeOf(TlaExpressions.arguments(expression).get(1)));
         }
         var singleton = call("Singleton", new SetType(PrimitiveType.INT));
-        assertEquals(new SetType(PrimitiveType.INT).toTlaType(), LibraryTypes.type(singleton.typeTag()));
+        assertEquals(new SetType(PrimitiveType.INT).toTlaType(), TlaTypes.typeOf(singleton));
         assertFalse(kind("Singleton").isConfiguredApplicable(config, PrimitiveType.INT));
     }
 
     @Test
     void argumentOnlyVariablesAreDrawnOnceAndInStructuralOrder() {
         var contains = (OperEx) call("Contains", PrimitiveType.BOOL, (byte) 0, (byte) 1);
-        assertEquals(new SetType(PrimitiveType.INT).toTlaType(), LibraryTypes.type(contains.args().apply(1).typeTag()));
-        assertEquals(PrimitiveType.INT.toTlaType(), LibraryTypes.type(contains.args().apply(2).typeTag()));
+        var arguments = TlaExpressions.arguments(contains);
+        assertEquals(new SetType(PrimitiveType.INT).toTlaType(), TlaTypes.typeOf(arguments.get(1)));
+        assertEquals(PrimitiveType.INT.toTlaType(), TlaTypes.typeOf(arguments.get(2)));
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
         var plan = kind("First").plan(config, PrimitiveType.INT).orElseThrow();
         var draw = new Draw(new byte[] {0, 2, 91});
         var signature = (OperT1) draw.draw(plan.generator(context, types));
-        assertEquals(List.of(PrimitiveType.INT.toTlaType(), PrimitiveType.STRING.toTlaType()), list(signature.args()));
+        assertEquals(List.of(PrimitiveType.INT.toTlaType(), PrimitiveType.STRING.toTlaType()),
+                TlaTypes.operatorArguments(signature));
         assertEquals(1, draw.remaining());
     }
 
     @Test
     void nullaryOperatorsAndRowsInstantiateToConcreteTypes() {
         var empty = (OperEx) call("Empty", new SetType(PrimitiveType.STRING));
-        assertEquals(1, empty.args().size());
+        assertEquals(1, TlaExpressions.arguments(empty).size());
         var recordCall = (OperEx) call("ReadValue", PrimitiveType.INT);
-        var record = (RecRowT1) LibraryTypes.type(recordCall.args().apply(1).typeTag());
-        assertTrue(record.row().other().isEmpty());
-        assertEquals(PrimitiveType.INT.toTlaType(), record.row().fieldTypes().apply("value"));
+        var record = (RecRowT1) TlaTypes.typeOf(TlaExpressions.arguments(recordCall).get(1));
+        assertTrue(TlaTypes.rowTail(record.row()).isEmpty());
+        assertEquals(PrimitiveType.INT.toTlaType(), TlaTypes.rowFields(record.row()).get("value"));
     }
 
     @Test
@@ -90,50 +95,52 @@ class CustomOperatorsTest {
         var types = new IrTypeGenFactory(context);
         var signature = (OperT1) kind("ReadValue").plan(config, PrimitiveType.INT).orElseThrow()
                 .generator(context, types).generate(new byte[] {1, 0, 2, 0});
-        var row = ((RecRowT1) signature.args().head()).row();
-        assertTrue(row.other().isEmpty());
-        assertEquals(2, row.fieldTypes().size());
-        assertEquals(PrimitiveType.INT.toTlaType(), row.fieldTypes().apply("value"));
+        var row = ((RecRowT1) TlaTypes.operatorArguments(signature).getFirst()).row();
+        assertTrue(TlaTypes.rowTail(row).isEmpty());
+        assertEquals(2, TlaTypes.rowFields(row).size());
+        assertEquals(PrimitiveType.INT.toTlaType(), TlaTypes.rowFields(row).get("value"));
     }
 
     @Test
     void variantRowsAndSharedRowConstraintsAreInstantiatedConsistently() {
-        var payload = new VarT1(15);
-        var rowVariable = new VarT1(29);
-        var variant = new VariantT1(RowT1$.MODULE$.apply(rowVariable,
-                seq(List.of(new scala.Tuple2<String, TlaType1>("Some", payload)))));
-        var signature = new OperT1(seq(List.of(variant)), PrimitiveType.BOOL.toTlaType());
+        var payload = TlaTypes.typeVariable(15);
+        var rowVariable = TlaTypes.typeVariable(29);
+        var variant = TlaTypes.variant(rowVariable, new NamedType("Some", payload));
+        var signature = TlaTypes.operator(PrimitiveType.BOOL.toTlaType(), variant);
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
         var plan = TypeInstantiation.plan(signature, config, 3).orElseThrow();
         var concrete = (OperT1) plan.generator(context, types).generate(new byte[] {0, 1, 1, 0, 2, 0});
-        var row = ((VariantT1) concrete.args().head()).row();
-        assertTrue(concrete.isMono());
-        assertEquals(PrimitiveType.INT.toTlaType(), row.fieldTypes().apply("Some"));
-        assertEquals(2, row.fieldTypes().size());
+        var row = ((VariantT1) TlaTypes.operatorArguments(concrete).getFirst()).row();
+        assertTrue(TlaTypes.usedVariables(concrete).isEmpty());
+        assertEquals(PrimitiveType.INT.toTlaType(), TlaTypes.rowFields(row).get("Some"));
+        assertEquals(2, TlaTypes.rowFields(row).size());
 
-        var left = new RecRowT1(RowT1$.MODULE$.apply(rowVariable,
-                seq(List.of(new scala.Tuple2<String, TlaType1>("field0", PrimitiveType.INT.toTlaType())))));
-        var right = new RecRowT1(RowT1$.MODULE$.apply(rowVariable,
-                seq(List.of(new scala.Tuple2<String, TlaType1>("field1", PrimitiveType.BOOL.toTlaType())))));
-        var both = new OperT1(seq(List.of(left, right)), PrimitiveType.BOOL.toTlaType());
+        var left = TlaTypes.rowRecord(rowVariable,
+                new NamedType("field0", PrimitiveType.INT.toTlaType()));
+        var right = TlaTypes.rowRecord(rowVariable,
+                new NamedType("field1", PrimitiveType.BOOL.toTlaType()));
+        var both = TlaTypes.operator(PrimitiveType.BOOL.toTlaType(), left, right);
         context = new GenerationContext(config);
         types = new IrTypeGenFactory(context);
         var shared = (OperT1) TypeInstantiation.plan(both, config, 3)
                 .orElseThrow().generator(context, types).generate(new byte[] {1, 0, 0, 0});
-        for (var argument : list(shared.args())) {
-            var fields = ((RecRowT1) argument).row().fieldTypes();
+        for (var argument : TlaTypes.operatorArguments(shared)) {
+            var fields = TlaTypes.rowFields(((RecRowT1) argument).row());
             assertEquals(2, fields.size());
-            assertTrue(fields.contains("field2"), fields.toString());
+            assertTrue(fields.containsKey("field2"), fields.toString());
         }
     }
 
     @Test
     void typeVariableNumberingIsNotDrawOrderAndBoundsApplyToEveryOccurrence() {
-        var variable = new VarT1(300);
-        var signature = new OperT1(seq(List.of(variable, new SetT1(variable))), PrimitiveType.BOOL.toTlaType());
+        var variable = TlaTypes.typeVariable(300);
+        var signature = TlaTypes.operator(
+                PrimitiveType.BOOL.toTlaType(), variable, TlaTypes.set(variable));
         var canonical = TypeInstantiation.canonical(signature);
-        assertEquals(new OperT1(seq(List.of(new VarT1(0), new SetT1(new VarT1(0)))), PrimitiveType.BOOL.toTlaType()), canonical);
+        var canonicalVariable = TlaTypes.typeVariable(0);
+        assertEquals(TlaTypes.operator(PrimitiveType.BOOL.toTlaType(),
+                canonicalVariable, TlaTypes.set(canonicalVariable)), canonical);
         var limits = new ExpressionLimits(1, 4, 8, 2, 4, 4);
         var bounded = config.withExpressionLimits(limits);
         var context = new GenerationContext(bounded);
@@ -141,9 +148,10 @@ class CustomOperatorsTest {
         var plan = TypeInstantiation.plan(canonical, bounded, 1).orElseThrow();
         assertEquals(0, plan.variables().getFirst().depth());
         var concrete = (OperT1) plan.generator(context, types).generate(new byte[] {(byte) 255});
-        for (var argument : list(concrete.args())) assertTrue(depth(argument) <= 1);
+        for (var argument : TlaTypes.operatorArguments(concrete)) assertTrue(depth(argument) <= 1);
         assertTrue(TypeInstantiation.plan(canonical, bounded, 0).isEmpty());
-        assertTrue(TypeInstantiation.plan(new SetT1(new SetT1(new VarT1(0))), bounded, 1).isEmpty());
+        assertTrue(TypeInstantiation.plan(
+                TlaTypes.set(TlaTypes.set(TlaTypes.typeVariable(0))), bounded, 1).isEmpty());
     }
 
     @Test
@@ -157,7 +165,7 @@ class CustomOperatorsTest {
         var result = draw.draw(factory.mkGen(bool, 1));
         assertInstanceOf(OperEx.class, result);
         assertEquals(config.library().get(kind("Wrapped").id()).name(),
-                ((NameEx) ((OperEx) result).args().head()).name());
+                ((NameEx) TlaExpressions.arguments((OperEx) result).getFirst()).name());
         assertEquals(1, draw.remaining());
         var exhausted = factory.mkGen(bool, 1).generate(new byte[0]);
         assertInstanceOf(ValEx.class, exhausted);
@@ -167,12 +175,16 @@ class CustomOperatorsTest {
     void filteringAndFeasibilityAreByteFree() {
         var ignored = config.ignoring(ExpressionCategory.SET);
         assertFalse(kind("Contains").isConfiguredApplicable(ignored, PrimitiveType.BOOL));
-        assertFalse(kind("Wrapped").isConfiguredApplicable(config.ignoring(ExpressionCategory.OPERATOR), PrimitiveType.BOOL));
+        assertFalse(kind("Wrapped").isConfiguredApplicable(
+                config.ignoring(ExpressionCategory.OPERATOR), PrimitiveType.BOOL));
         var context = new GenerationContext(config);
         var draw = new Draw(new byte[] {11, 22});
-        for (int i = 0; i < 10; i++) assertTrue(kind("Wrapped").plan(config, PrimitiveType.BOOL).isPresent());
+        for (int i = 0; i < 10; i++) {
+            assertTrue(kind("Wrapped").plan(config, PrimitiveType.BOOL).isPresent());
+        }
         assertEquals(2, draw.remaining());
-        assertEquals(PrimitiveType.BOOL.toTlaType(), LibraryTypes.type(call("Wrapped", PrimitiveType.BOOL).typeTag()));
+        assertEquals(PrimitiveType.BOOL.toTlaType(),
+                TlaTypes.typeOf(call("Wrapped", PrimitiveType.BOOL)));
     }
 
     @Test
@@ -194,7 +206,8 @@ class CustomOperatorsTest {
             weights.put(new CustomExpressionKind(id), 64);
             declarations.add(builder.decl(id.operator(), builder.bool(true)));
         }
-        var library = OperatorLibrary.fromModules(Map.of("Many", new TlaModule("Many", seq(declarations))), selected);
+        var module = TlaModules.create("Many", declarations);
+        var library = OperatorLibrary.fromModules(Map.of("Many", module), selected);
         var oversized = config.withLibrary(library).withFormWeights(weights);
         assertThrows(IllegalArgumentException.class, () -> IrGenerators.expressions(oversized));
     }
@@ -202,11 +215,12 @@ class CustomOperatorsTest {
     @Test
     void outputsLinkOnlyUsedDefinitionsAndDoNotScoreTheirBodies() {
         var expression = call("Wrapped", PrimitiveType.INT);
-        var artifact = io.github.tlaplus.hardening.workflow.spec.SpecArtifact.fromExpression(expression, config.library());
+        var artifact = io.github.tlaplus.hardening.workflow.spec.SpecArtifact.fromExpression(
+                expression, config.library());
         assertEquals(List.of(expression), artifact.generated());
         assertInstanceOf(LetInEx.class, artifact.standaloneExpression().orElseThrow());
         // One helper, one selected definition, one variable, and four skeleton operators.
-        assertEquals(7, artifact.module().declarations().size());
+        assertEquals(7, TlaModules.declarations(artifact.module()).size());
         var source = SpecText.render(artifact.module());
         assertFalse(source.contains("EXTENDS PolyOps"));
         assertEquals(source, SpecText.render(io.github.tlaplus.hardening.workflow.spec.SpecArtifact
@@ -219,7 +233,7 @@ class CustomOperatorsTest {
         var first = config.library().declarationsFor(List.of(expression));
         var second = config.library().declarationsFor(List.of(expression));
         assertNotEquals(first.getFirst().ID(), second.getFirst().ID());
-        first.getFirst().body_$eq(call("Empty", new SetType(PrimitiveType.INT)));
+        assertNotEquals(first.getFirst().body().ID(), second.getFirst().body().ID());
         assertEquals(second.getFirst().body().toString(),
                 config.library().declarationsFor(List.of(expression)).getFirst().body().toString());
     }
@@ -246,11 +260,11 @@ class CustomOperatorsTest {
     }
 
     /** Nesting depth of an instantiated type; row wrappers do not add a level. */
-    private static int depth(at.forsyte.apalache.tla.lir.TlaType1 type) {
+    private static int depth(TlaType1 type) {
         var children = LibraryTypes.children(type);
-        boolean row = type instanceof at.forsyte.apalache.tla.lir.RowT1;
+        boolean row = type instanceof RowT1;
         if (children.isEmpty()) return row ? -1 : 0;
-        return children.stream().mapToInt(CustomOperatorsTest::depth).max().orElse(0) + (row ? 0 : 1);
+        return children.stream().mapToInt(CustomOperatorsTest::depth).max().orElse(0)
+                + (row ? 0 : 1);
     }
-
 }

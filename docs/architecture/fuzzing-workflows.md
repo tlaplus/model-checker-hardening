@@ -46,14 +46,15 @@ fixed single-state module; a `module` entry decodes to a whole module's
 declarations. Either way the stage receives one assembled module and the
 exploration depth it asks for.
 
-The parser and TLC consume a TLA+ module rendered with
-`PrettyWriterWithAnnotations`. Apalache instead consumes its typed IR JSON
-format, which preserves the type tag on every expression and avoids inferring
-types again from lossy source syntax. The pinned Apalache JSON reader cannot
-decode `LABEL`; the Apalache renderer therefore replaces each label with its
-first operand before serialization. Labels are semantically transparent to the
-model checker, and the parser and TLC retain the original labeled expression.
-This normalization is temporary; [the JSON label finding][] tracks its removal.
+The parser and TLC consume a TLA+ module rendered through Apalache's Java I/O
+facade. Apalache instead consumes its typed IR JSON format through the same
+facade, which preserves the type tag on every expression and avoids inferring
+types again from lossy source syntax. The checker renderer continues to replace
+each `LABEL` with its first operand before serialization. Labels are semantically
+transparent to the model checker, and the parser and TLC retain the original
+labeled expression. The pinned snapshot can decode labels, but this compatibility
+normalization remains in place so the facade migration does not also change
+checker inputs; [the JSON label finding][] tracks its eventual removal.
 
 In the figure below, the outer boxes are the stages of the pipeline, while the inner boxes are directories in the
 corpus. The names of the directories reflect the status of each input within the stage.
@@ -168,8 +169,8 @@ removed on completion or failure. No Maven importer/typechecker dependency is
 introduced. With no selected modules, preparation does not inspect paths or launch
 a process.
 
-The direct typed-IR JSON reader loads output of at most 64 MiB. The builder-backed
-reader is deliberately not used: in the pinned dependency it incorrectly
+The Java I/O facade's direct typed-IR JSON reader loads output of at most 64 MiB.
+Its builder-backed alternative is deliberately not used: it incorrectly
 reconstructs a polymorphic empty set as a set of sets. Library validation then
 checks supported types, dependency closure, first-order signatures and state-free
 syntax. Preparation errors stop the invocation; they are not input rejections or

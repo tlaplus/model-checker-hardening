@@ -4,15 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.io.lir.PrettyWriter;
-import at.forsyte.apalache.io.lir.TextLayout;
-import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -255,12 +251,7 @@ class ScopedExprGenFactoryTest {
     }
 
     private String print(TlaEx expression) {
-        var buffer = new StringWriter();
-        var printWriter = new PrintWriter(buffer);
-        new PrettyWriter(printWriter, new TextLayout(80, 2), new TlaDeclAnnotator())
-                .write(expression);
-        printWriter.flush();
-        return buffer.toString();
+        return TlaIrTestSupport.print(expression);
     }
 
     private record Scenario(IrType type, byte[] input, String name) {}

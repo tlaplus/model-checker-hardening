@@ -1,12 +1,14 @@
 package io.github.tlaplus.hardening.gen.library;
 
 import at.forsyte.apalache.tla.lir.*;
-import io.github.tlaplus.hardening.common.TlaExpressions;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.UnaryOperator;
-import static io.github.tlaplus.hardening.common.ScalaCollections.*;
+import org.apalache_mc.tla.jir.TlaDeclarations;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaModules;
+import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Immutable prepared library. Mutable Apalache declarations never escape without a fresh copy. */
 public final class OperatorLibrary {
@@ -70,7 +72,7 @@ public final class OperatorLibrary {
 
     private static Map<String, TlaOperDecl> index(TlaModule module) {
         var result = new LinkedHashMap<String, TlaOperDecl>();
-        for (var declaration : list(module.declarations())) {
+        for (var declaration : TlaModules.declarations(module)) {
             if (declaration instanceof TlaAssumeDecl) {
                 throw new IllegalArgumentException("ASSUME is not supported in custom module " + module.name());
             }
@@ -105,9 +107,9 @@ public final class OperatorLibrary {
     }
 
     private static OperT1 signature(TlaOperDecl declaration) {
-        if (!(LibraryTypes.type(declaration.typeTag()) instanceof OperT1 signature)
-                || signature.args().size() != declaration.formalParams().size()
-                || list(declaration.formalParams()).stream().anyMatch(p -> p.arity() != 0)) {
+        if (!(TlaTypes.typeOf(declaration) instanceof OperT1 signature)
+                || TlaDeclarations.parameters(declaration).stream()
+                        .anyMatch(parameter -> parameter.type() instanceof OperT1)) {
             throw new IllegalArgumentException("expected a first-order signature for " + declaration.name());
         }
         LibraryTypes.children(signature).forEach(OperatorLibrary::requireValueType);
@@ -147,21 +149,20 @@ public final class OperatorLibrary {
             if (node instanceof NameEx name) closure(name.name(), definitions, needed);
         }));
         return definitions.entrySet().stream().filter(entry -> needed.contains(entry.getKey()))
-                .map(entry -> TlaExpressions.copy(entry.getValue().declaration()))
+                .map(entry -> TlaDeclarations.deepCopy(entry.getValue().declaration()))
                 .toList();
     }
 
     /** A closed standalone expression, without copying library bodies into richness scoring. */
     public TlaEx close(TlaEx expression) {
         var declarations = declarationsFor(List.of(expression));
-        return declarations.isEmpty() ? expression
-                : new LetInEx(expression, seq(declarations), expression.typeTag());
+        return declarations.isEmpty() ? expression : TlaExpressions.letIn(expression, declarations);
     }
 
     public TlaModule link(TlaModule module, List<TlaEx> generated) {
         var declarations = new ArrayList<TlaDecl>(declarationsFor(generated));
         if (declarations.isEmpty()) return module;
-        declarations.addAll(list(module.declarations()));
-        return new TlaModule(module.name(), seq(declarations));
+        declarations.addAll(TlaModules.declarations(module));
+        return TlaModules.create(module.name(), declarations);
     }
 }

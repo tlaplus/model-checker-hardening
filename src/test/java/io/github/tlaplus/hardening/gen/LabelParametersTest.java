@@ -4,11 +4,11 @@ import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.assertLabelParame
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.tla.lir.IntT1$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import java.util.Random;
 import java.util.regex.Pattern;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.apalache_mc.tla.jir.TypedParameter;
 import org.junit.jupiter.api.Test;
 
@@ -78,12 +78,12 @@ class LabelParametersTest {
                 "Lambda",
                 label(builder.integer(1), "lab"),
                 new TypedParameter[] {
-                    builder.param("accumulator", IntT1$.MODULE$),
-                    builder.param("element", IntT1$.MODULE$),
+                    builder.param("accumulator", TlaTypes.INT),
+                    builder.param("element", TlaTypes.INT),
                 });
         var fold = builder.foldSet(lambda, builder.integer(0), builder.enumSet(builder.integer(1)));
 
-        assertLabelParameters(forall("y", builder.eql(fold, builder.name("y", IntT1$.MODULE$))));
+        assertLabelParameters(forall("y", builder.eql(fold, builder.name("y", TlaTypes.INT))));
     }
 
     @Test
@@ -121,11 +121,11 @@ class LabelParametersTest {
 
     private TlaEx forall(String bound, TlaEx body) {
         return builder.forall(
-                builder.name(bound, IntT1$.MODULE$), builder.enumSet(builder.integer(1)), body);
+                builder.name(bound, TlaTypes.INT), builder.enumSet(builder.integer(1)), body);
     }
 
     private TlaEx equalsOne(String name) {
-        return builder.eql(builder.name(name, IntT1$.MODULE$), builder.integer(1));
+        return builder.eql(builder.name(name, TlaTypes.INT), builder.integer(1));
     }
 
     private TlaEx label(TlaEx body, String name, String... parameters) {

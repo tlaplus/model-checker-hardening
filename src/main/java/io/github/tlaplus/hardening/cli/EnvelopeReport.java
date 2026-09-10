@@ -1,14 +1,12 @@
 package io.github.tlaplus.hardening.cli;
 
-import at.forsyte.apalache.io.lir.PrettyWriter;
-import at.forsyte.apalache.io.lir.TextLayout;
-import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
+import org.apalache_mc.tla.jio.TlaText;
 
 /**
  * Renders a decoded corpus envelope and its expression as plain text.
@@ -20,20 +18,13 @@ import java.time.Duration;
 final class EnvelopeReport {
     private static final int EXPRESSION_WIDTH = 80;
     private static final int EXPRESSION_INDENT = 2;
+    private static final TlaText TLA_TEXT = new TlaText(EXPRESSION_WIDTH, EXPRESSION_INDENT);
 
     private EnvelopeReport() {}
 
     /** Renders one expression as TLA+, with no surrounding envelope fields. */
     static String expression(TlaEx expression) {
-        var buffer = new StringWriter();
-        var printWriter = new PrintWriter(buffer);
-        var writer = new PrettyWriter(
-                printWriter,
-                new TextLayout(EXPRESSION_WIDTH, EXPRESSION_INDENT),
-                new TlaDeclAnnotator());
-        writer.write(expression);
-        printWriter.flush();
-        return buffer.toString();
+        return TLA_TEXT.render(writer -> TLA_TEXT.write(expression, writer));
     }
 
     /**

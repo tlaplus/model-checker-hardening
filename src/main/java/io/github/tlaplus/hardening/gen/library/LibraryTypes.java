@@ -2,44 +2,30 @@ package io.github.tlaplus.hardening.gen.library;
 
 import at.forsyte.apalache.tla.lir.*;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import static io.github.tlaplus.hardening.common.ScalaCollections.*;
+import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Structural inspection of imported type terms, including row variables. */
 public final class LibraryTypes {
     private LibraryTypes() {}
 
-    public static TlaType1 type(TypeTag tag) {
-        return TlaType1$.MODULE$.fromTypeTag(tag);
-    }
-
     /** Children in deterministic structural order (record and variant fields are sorted by name). */
     public static List<TlaType1> children(TlaType1 type) {
         return switch (type) {
-            case SetT1 set -> List.of(set.elem());
-            case SeqT1 sequence -> List.of(sequence.elem());
-            case FunT1 function -> List.of(function.arg(), function.res());
-            case TupT1 tuple -> list(tuple.elems());
-            case OperT1 operator -> {
-                var types = new ArrayList<>(list(operator.args()));
-                types.add(operator.res());
-                yield List.copyOf(types);
-            }
-            case RecRowT1 record -> List.of(record.row());
-            case VariantT1 variant -> List.of(variant.row());
-            case RowT1 row -> {
-                var types = new ArrayList<TlaType1>(map(row.fieldTypes()).values());
-                if (row.other().isDefined()) types.add(row.other().get());
-                yield List.copyOf(types);
-            }
+            case SetT1 ignored -> TlaTypes.children(type);
+            case SeqT1 ignored -> TlaTypes.children(type);
+            case FunT1 ignored -> TlaTypes.children(type);
+            case TupT1 ignored -> TlaTypes.children(type);
+            case OperT1 ignored -> TlaTypes.children(type);
+            case RecRowT1 ignored -> TlaTypes.children(type);
+            case VariantT1 ignored -> TlaTypes.children(type);
+            case RowT1 ignored -> TlaTypes.children(type);
             case VarT1 ignored -> List.of();
             case ConstT1 ignored -> List.of();
             default -> {
-                if (!type.equals(BoolT1$.MODULE$) && !type.equals(IntT1$.MODULE$)
-                        && !type.equals(StrT1$.MODULE$)) {
+                if (type != TlaTypes.BOOL && type != TlaTypes.INT && type != TlaTypes.STRING) {
                     throw new IllegalArgumentException("unsupported custom operator type: " + type);
                 }
                 yield List.of();

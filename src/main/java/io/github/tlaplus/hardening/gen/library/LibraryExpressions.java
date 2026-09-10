@@ -7,9 +7,10 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import io.github.tlaplus.hardening.common.TlaExpressions;
 import java.util.function.UnaryOperator;
-import static io.github.tlaplus.hardening.common.ScalaCollections.*;
+import org.apalache_mc.tla.jir.TlaDeclarations;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Lexical dependency analysis and injective name rewriting of library IR. */
 final class LibraryExpressions {
@@ -29,15 +30,15 @@ final class LibraryExpressions {
         if (declaration.isRecursive()) {
             throw new IllegalArgumentException("recursive custom operator: " + declaration.name());
         }
-        categories.addAll(LibraryTypes.categories(LibraryTypes.type(declaration.typeTag())));
+        categories.addAll(LibraryTypes.categories(TlaTypes.typeOf(declaration)));
         var scope = new HashSet<>(bound);
-        list(declaration.formalParams()).forEach(parameter -> scope.add(parameter.name()));
+        TlaDeclarations.parameters(declaration).forEach(parameter -> scope.add(parameter.name()));
         inspect(declaration.body(), scope, free, categories);
     }
 
     private static void inspect(TlaEx expression, Set<String> bound,
             Set<String> free, Set<ExpressionCategory> categories) {
-        categories.addAll(LibraryTypes.categories(LibraryTypes.type(expression.typeTag())));
+        categories.addAll(LibraryTypes.categories(TlaTypes.typeOf(expression)));
         switch (expression) {
             case NameEx name -> {
                 if (!bound.contains(name.name())) free.add(name.name());
@@ -48,14 +49,15 @@ final class LibraryExpressions {
             case LetInEx let -> {
                 categories.add(ExpressionCategory.OPERATOR);
                 var scope = new HashSet<>(bound);
-                list(let.decls()).forEach(declaration -> scope.add(declaration.name()));
-                list(let.decls()).forEach(declaration -> inspectDeclaration(declaration, scope, free, categories));
+                var declarations = TlaExpressions.localDeclarations(let);
+                declarations.forEach(declaration -> scope.add(declaration.name()));
+                declarations.forEach(declaration -> inspectDeclaration(declaration, scope, free, categories));
                 inspect(let.body(), scope, free, categories);
             }
             case OperEx operator -> {
                 var syntax = LibrarySyntax.of(operator.oper());
                 categories.addAll(syntax.categories);
-                var args = list(operator.args());
+                var args = TlaExpressions.arguments(operator);
                 var scope = new HashSet<>(bound);
                 switch (syntax.binding) {
                     case NONE -> args.forEach(arg -> inspect(arg, bound, free, categories));
@@ -80,25 +82,26 @@ final class LibraryExpressions {
     }
 
     private static void addBindings(TlaEx expression, Set<String> scope, Set<ExpressionCategory> categories) {
-        categories.addAll(LibraryTypes.categories(LibraryTypes.type(expression.typeTag())));
+        categories.addAll(LibraryTypes.categories(TlaTypes.typeOf(expression)));
         if (expression instanceof NameEx name) scope.add(name.name());
         else if (expression instanceof OperEx tuple && LibrarySyntax.of(tuple.oper()) == LibrarySyntax.TUPLE_VALUE) {
             categories.add(ExpressionCategory.TUPLE);
-            list(tuple.args()).forEach(arg -> addBindings(arg, scope, categories));
+            TlaExpressions.arguments(tuple).forEach(arg -> addBindings(arg, scope, categories));
         } else throw new IllegalArgumentException("unsupported binding: " + expression);
     }
 
     /** Rewrites every spelling injectively, including binders, preserving shadowing. */
     static TlaOperDecl rename(TlaOperDecl declaration, UnaryOperator<String> names) {
-        return header(TlaExpressions.rewrite(declaration, node -> renamed(node, names)), names);
+        return header(TlaDeclarations.rewrite(declaration, node -> renamed(node, names)), names);
     }
 
     /** Renames one already-rebuilt node, rejecting any shape the importer does not support. */
     private static TlaEx renamed(TlaEx expression, UnaryOperator<String> names) {
         return switch (expression) {
-            case NameEx name -> new NameEx(names.apply(name.name()), name.typeTag());
-            case LetInEx let -> new LetInEx(let.body(), seq(list(let.decls()).stream()
-                    .map(declaration -> header(declaration, names)).toList()), let.typeTag());
+            case NameEx name -> TlaExpressions.withName(name, names.apply(name.name()));
+            case LetInEx let -> TlaExpressions.withLocalDeclarations(let,
+                    TlaExpressions.localDeclarations(let).stream()
+                            .map(declaration -> header(declaration, names)).toList());
             case ValEx ignored -> expression;
             case OperEx ignored -> expression;
             default -> throw new IllegalArgumentException("unsupported imported expression: " + expression);
@@ -107,11 +110,8 @@ final class LibraryExpressions {
 
     /** Renames a declaration's own spellings; the walk has already rewritten its body. */
     private static TlaOperDecl header(TlaOperDecl declaration, UnaryOperator<String> names) {
-        var params = list(declaration.formalParams()).stream()
-                .map(p -> new OperParam(names.apply(p.name()), p.arity())).toList();
-        var result = new TlaOperDecl(names.apply(declaration.name()), seq(params).toList(),
-                declaration.body(), declaration.typeTag());
-        result.isRecursive_$eq(declaration.isRecursive());
-        return result;
+        var parameters = TlaDeclarations.parameters(declaration).stream()
+                .map(parameter -> names.apply(parameter.name())).toList();
+        return TlaDeclarations.withHeader(declaration, names.apply(declaration.name()), parameters);
     }
 }

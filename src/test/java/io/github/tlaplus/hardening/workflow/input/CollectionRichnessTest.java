@@ -2,10 +2,10 @@ package io.github.tlaplus.hardening.workflow.input;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import at.forsyte.apalache.tla.lir.IntT1$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
 class CollectionRichnessTest {
@@ -14,7 +14,7 @@ class CollectionRichnessTest {
 
     @Test
     void scoresEmptyAndFlatCollectionLiterals() {
-        assertEquals(0.0, score(builder.emptySet(IntT1$.MODULE$), 2.0));
+        assertEquals(0.0, score(builder.emptySet(TlaTypes.INT), 2.0));
         assertEquals(
                 3.0,
                 score(builder.enumSet(

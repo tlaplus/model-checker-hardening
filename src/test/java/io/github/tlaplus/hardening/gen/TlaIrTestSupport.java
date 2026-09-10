@@ -2,36 +2,36 @@ package io.github.tlaplus.hardening.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import at.forsyte.apalache.io.lir.PrettyWriter;
-import at.forsyte.apalache.io.lir.TextLayout;
-import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
-import at.forsyte.apalache.tla.lir.values.TlaStr;
-import at.forsyte.apalache.tla.lir.ValEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import at.forsyte.apalache.tla.lir.ValEx;
+import at.forsyte.apalache.tla.lir.oper.TlaOper;
+import at.forsyte.apalache.tla.lir.values.TlaStr;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import static io.github.tlaplus.hardening.common.ScalaCollections.list;
-import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
+import org.apalache_mc.tla.jio.TlaText;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 
 /** IR traversal and recursive action-accounting assertions shared by generator tests. */
 public final class TlaIrTestSupport {
+    private static final TlaText TEXT = new TlaText(120, 2);
+
     private TlaIrTestSupport() {}
 
     /** Returns the top-level disjuncts of the next-state action. */
     public static List<TlaEx> disjuncts(TlaEx nextAction) {
-        if (nextAction instanceof OperEx operator && operator.oper().name().equals("OR")) {
-            return list(operator.args()).stream().toList();
+        if (nextAction instanceof OperEx operator && operator.oper() == TlaOperators.OR) {
+            return TlaExpressions.arguments(operator);
         }
         return List.of(nextAction);
     }
@@ -66,31 +66,35 @@ public final class TlaIrTestSupport {
         if (!(expression instanceof OperEx operator)) {
             return List.of();
         }
-        var arguments = list(operator.args());
-        return switch (operator.oper().name()) {
-            case "EQ", "SET_IN" -> {
+        var arguments = TlaExpressions.arguments(operator);
+        return switch (operator.oper()) {
+            case TlaOper candidate
+                    when candidate == TlaOperators.EQ || candidate == TlaOperators.SET_IN -> {
                 var assigned = primedName(arguments.getFirst());
                 yield assigned != null && declared.contains(assigned)
                         ? List.of(assigned)
                         : List.of();
             }
-            case "UNCHANGED" ->
+            case TlaOper candidate when candidate == TlaOperators.UNCHANGED ->
                 names(arguments.getFirst()).stream().filter(declared::contains).toList();
-            case "AND" -> {
+            case TlaOper candidate when candidate == TlaOperators.AND -> {
                 var settled = new ArrayList<String>();
                 arguments.forEach(argument ->
                         settled.addAll(collectAssignedVars(argument, declared, actionOperators)));
                 yield settled;
             }
-            case "OR" -> branchAssignedVars(arguments, declared, actionOperators);
-            case "IF_THEN_ELSE" ->
+            case TlaOper candidate when candidate == TlaOperators.OR ->
+                branchAssignedVars(arguments, declared, actionOperators);
+            case TlaOper candidate when candidate == TlaOperators.IF_THEN_ELSE ->
                 branchAssignedVars(
                         List.of(arguments.get(1), arguments.get(2)), declared, actionOperators);
-            case "EXISTS3" -> collectAssignedVars(arguments.get(2), declared, actionOperators);
-            case "OPER_APP" -> {
+            case TlaOper candidate when candidate == TlaOperators.EXISTS3 ->
+                collectAssignedVars(arguments.get(2), declared, actionOperators);
+            case TlaOper candidate when candidate == TlaOperators.OPER_APP -> {
                 var applied = arguments.getFirst();
                 yield applied instanceof NameEx name && actionOperators.containsKey(name.name())
-                        ? collectAssignedVars(actionOperators.get(name.name()), declared, actionOperators)
+                        ? collectAssignedVars(
+                                actionOperators.get(name.name()), declared, actionOperators)
                         : List.of();
             }
             default -> List.of();
@@ -124,45 +128,53 @@ public final class TlaIrTestSupport {
 
     /** Reports whether {@code expression} applies any operator named in {@code names}. */
     public static boolean appliesAny(TlaEx expression, Set<String> names) {
-        return walk(expression).anyMatch(node -> node instanceof OperEx operator
-                && operator.oper().name().equals("OPER_APP")
-                && operator.args().head() instanceof NameEx name && names.contains(name.name()));
+        var found = new AtomicBoolean();
+        TlaExpressions.forEach(expression, node -> {
+            if (node instanceof OperEx operator
+                    && operator.oper() == TlaOperators.OPER_APP
+                    && TlaExpressions.arguments(operator).getFirst() instanceof NameEx name
+                    && names.contains(name.name())) {
+                found.set(true);
+            }
+        });
+        return found.get();
     }
 
-    /** Reports whether {@code expression} contains an application of the named operator. */
-    public static boolean containsOperator(TlaEx expression, String name) {
-        return walk(expression).anyMatch(node -> node instanceof OperEx operator
-                && operator.oper().name().equals(name));
-    }
-
-    private static java.util.stream.Stream<TlaEx> walk(TlaEx expression) {
-        var children = switch (expression) {
-            case OperEx operator -> list(operator.args()).stream();
-            case LetInEx let -> java.util.stream.Stream.concat(java.util.stream.Stream.of(let.body()),
-                    list(let.decls()).stream().map(TlaOperDecl::body));
-            default -> java.util.stream.Stream.<TlaEx>empty();
-        };
-        return java.util.stream.Stream.concat(java.util.stream.Stream.of(expression),
-                children.flatMap(TlaIrTestSupport::walk));
+    /** Reports whether {@code expression} contains an application of the supplied operator. */
+    public static boolean containsOperator(TlaEx expression, TlaOper operation) {
+        var found = new AtomicBoolean();
+        TlaExpressions.forEach(expression, node -> {
+            if (node instanceof OperEx operator && operator.oper() == operation) {
+                found.set(true);
+            }
+        });
+        return found.get();
     }
 
     /** Whether every path assigns a requested variable, rather than merely leaving it UNCHANGED. */
     public static boolean guaranteesAssignment(TlaEx expression, Set<String> variables,
                                                Map<String, TlaEx> operators) {
         if (!(expression instanceof OperEx operator)) return false;
-        var args = list(operator.args());
-        return switch (operator.oper().name()) {
-            case "EQ", "SET_IN" -> {
+        var args = TlaExpressions.arguments(operator);
+        return switch (operator.oper()) {
+            case TlaOper candidate
+                    when candidate == TlaOperators.EQ || candidate == TlaOperators.SET_IN -> {
                 var name = primedName(args.getFirst());
                 yield name != null && variables.contains(name);
             }
-            case "AND" -> args.stream().anyMatch(arg -> guaranteesAssignment(arg, variables, operators));
-            case "OR" -> args.stream().allMatch(arg -> guaranteesAssignment(arg, variables, operators));
-            case "IF_THEN_ELSE" -> args.subList(1, 3).stream()
-                    .allMatch(arg -> guaranteesAssignment(arg, variables, operators));
-            case "EXISTS3" -> guaranteesAssignment(args.get(2), variables, operators);
-            case "OPER_APP" -> args.getFirst() instanceof NameEx name && operators.containsKey(name.name())
-                    && guaranteesAssignment(operators.get(name.name()), variables, operators);
+            case TlaOper candidate when candidate == TlaOperators.AND ->
+                args.stream().anyMatch(arg -> guaranteesAssignment(arg, variables, operators));
+            case TlaOper candidate when candidate == TlaOperators.OR ->
+                args.stream().allMatch(arg -> guaranteesAssignment(arg, variables, operators));
+            case TlaOper candidate when candidate == TlaOperators.IF_THEN_ELSE ->
+                args.subList(1, 3).stream()
+                        .allMatch(arg -> guaranteesAssignment(arg, variables, operators));
+            case TlaOper candidate when candidate == TlaOperators.EXISTS3 ->
+                guaranteesAssignment(args.get(2), variables, operators);
+            case TlaOper candidate when candidate == TlaOperators.OPER_APP ->
+                args.getFirst() instanceof NameEx name
+                        && operators.containsKey(name.name())
+                        && guaranteesAssignment(operators.get(name.name()), variables, operators);
             default -> false;
         };
     }
@@ -170,8 +182,8 @@ public final class TlaIrTestSupport {
     /** Returns the name a PRIME wraps, or {@code null} when the expression is not primed. */
     private static String primedName(TlaEx expression) {
         if (expression instanceof OperEx operator
-                && operator.oper().name().equals("PRIME")
-                && operator.args().head() instanceof NameEx name) {
+                && operator.oper() == TlaOperators.PRIME
+                && TlaExpressions.arguments(operator).getFirst() instanceof NameEx name) {
             return name.name();
         }
         return null;
@@ -182,8 +194,8 @@ public final class TlaIrTestSupport {
         if (expression instanceof NameEx name) {
             return List.of(name.name());
         }
-        if (expression instanceof OperEx operator && operator.oper().name().equals("TUPLE")) {
-            return list(operator.args()).stream()
+        if (expression instanceof OperEx operator && operator.oper() == TlaOperators.TUPLE) {
+            return TlaExpressions.arguments(operator).stream()
                     .flatMap(argument -> names(argument).stream())
                     .toList();
         }
@@ -191,7 +203,7 @@ public final class TlaIrTestSupport {
     }
 
     public static boolean containsPrime(TlaEx expression) {
-        return containsOperator(expression, "PRIME");
+        return containsOperator(expression, TlaOperators.PRIME);
     }
 
     /**
@@ -211,7 +223,7 @@ public final class TlaIrTestSupport {
         }
         if (expression instanceof LetInEx letIn) {
             collectFreeReads(letIn.body(), variables, reads, false);
-            list(letIn.decls())
+            TlaExpressions.localDeclarations(letIn)
                     .forEach(declaration ->
                             collectFreeReads(declaration.body(), variables, reads, false));
             return;
@@ -219,15 +231,15 @@ public final class TlaIrTestSupport {
         if (!(expression instanceof OperEx operator)) {
             return;
         }
-        var arguments = list(operator.args());
-        if (skipConjunctHeads && operator.oper().name().equals("AND")) {
+        var arguments = TlaExpressions.arguments(operator);
+        if (skipConjunctHeads && operator.oper() == TlaOperators.AND) {
             arguments.forEach(
                     argument -> collectFreeReads(argument, variables, reads, true));
             return;
         }
         if (skipConjunctHeads
-                && (operator.oper().name().equals("EQ")
-                        || operator.oper().name().equals("SET_IN"))) {
+                && (operator.oper() == TlaOperators.EQ
+                        || operator.oper() == TlaOperators.SET_IN)) {
             collectFreeReads(arguments.get(1), variables, reads, false);
             return;
         }
@@ -258,48 +270,52 @@ public final class TlaIrTestSupport {
         switch (expression) {
             case LetInEx letIn -> {
                 // Each declaration is its own definition, so its body starts a new label scope.
-                list(letIn.decls())
+                TlaExpressions.localDeclarations(letIn)
                         .forEach(declaration -> assertLabelParameters(declaration.body(), List.of()));
                 assertLabelParameters(letIn.body(), binders);
             }
-            case OperEx operator -> {
-                var arguments = list(operator.args());
-                switch (operator.oper().name()) {
-                    // (body, name, parameter...)
-                    case "LABEL" -> {
-                        var declared = arguments.stream().skip(2)
-                                .map(TlaIrTestSupport::literalName).collect(Collectors.toSet());
-                        assertEquals(
-                                Set.copyOf(binders),
-                                declared,
-                                "label parameters do not match the binders in scope: "
-                                        + print(expression));
-                        assertLabelParameters(arguments.getFirst(), List.of());
-                    }
-                    // (bound, domain, body); the domain is outside the bound name's scope.
-                    case "FORALL3", "EXISTS3", "CHOOSE3", "SET_FILTER" -> {
-                        assertLabelParameters(arguments.get(1), binders);
-                        assertLabelParameters(
-                                arguments.get(2), extended(binders, arguments.getFirst()));
-                    }
-                    // (bound, body)
-                    case "FORALL2", "EXISTS2", "CHOOSE2" ->
-                        assertLabelParameters(
-                                arguments.get(1), extended(binders, arguments.getFirst()));
-                    // (body, bound, domain, ...); every domain is outside every bound name's scope.
-                    case "FUN_CTOR", "SET_MAP" -> {
-                        var bodyBinders = new ArrayList<>(binders);
-                        for (var index = 1; index + 1 < arguments.size(); index += 2) {
-                            bodyBinders = new ArrayList<>(extended(bodyBinders, arguments.get(index)));
-                            assertLabelParameters(arguments.get(index + 1), binders);
-                        }
-                        assertLabelParameters(arguments.getFirst(), bodyBinders);
-                    }
-                    default -> arguments.forEach(
-                            argument -> assertLabelParameters(argument, binders));
-                }
-            }
+            case OperEx operator -> assertOperatorLabelParameters(operator, binders);
             default -> { }
+        }
+    }
+
+    private static void assertOperatorLabelParameters(OperEx operator, List<String> binders) {
+        var arguments = TlaExpressions.arguments(operator);
+        switch (operator.oper()) {
+            case TlaOper candidate when candidate == TlaOperators.LABEL -> {
+                var declared = arguments.stream().skip(2)
+                        .map(TlaIrTestSupport::literalName).collect(Collectors.toSet());
+                assertEquals(
+                        Set.copyOf(binders),
+                        declared,
+                        "label parameters do not match the binders in scope: " + print(operator));
+                assertLabelParameters(arguments.getFirst(), List.of());
+            }
+            case TlaOper candidate when candidate == TlaOperators.FORALL3
+                    || candidate == TlaOperators.EXISTS3
+                    || candidate == TlaOperators.CHOOSE3
+                    || candidate == TlaOperators.SET_FILTER -> {
+                // (bound, domain, body); the domain is outside the bound name's scope.
+                assertLabelParameters(arguments.get(1), binders);
+                assertLabelParameters(arguments.get(2), extended(binders, arguments.getFirst()));
+            }
+            case TlaOper candidate when candidate == TlaOperators.FORALL2
+                    || candidate == TlaOperators.EXISTS2
+                    || candidate == TlaOperators.CHOOSE2 ->
+                // (bound, body)
+                assertLabelParameters(
+                        arguments.get(1), extended(binders, arguments.getFirst()));
+            case TlaOper candidate when candidate == TlaOperators.FUN_CTOR
+                    || candidate == TlaOperators.SET_MAP -> {
+                // (body, bound, domain, ...); every domain is outside every bound name's scope.
+                var bodyBinders = new ArrayList<>(binders);
+                for (var index = 1; index + 1 < arguments.size(); index += 2) {
+                    bodyBinders = new ArrayList<>(extended(bodyBinders, arguments.get(index)));
+                    assertLabelParameters(arguments.get(index + 1), binders);
+                }
+                assertLabelParameters(arguments.getFirst(), bodyBinders);
+            }
+            default -> arguments.forEach(argument -> assertLabelParameters(argument, binders));
         }
     }
 
@@ -319,11 +335,6 @@ public final class TlaIrTestSupport {
     }
 
     public static String print(TlaEx expression) {
-        var buffer = new StringWriter();
-        var printWriter = new PrintWriter(buffer);
-        new PrettyWriter(printWriter, new TextLayout(120, 2), new TlaDeclAnnotator())
-                .write(expression);
-        printWriter.flush();
-        return buffer.toString().strip();
+        return TEXT.render(writer -> TEXT.write(expression, writer)).strip();
     }
 }

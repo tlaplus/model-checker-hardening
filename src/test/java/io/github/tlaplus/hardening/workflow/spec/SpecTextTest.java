@@ -3,10 +3,10 @@ package io.github.tlaplus.hardening.workflow.spec;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.tla.lir.IntT1$;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
 class SpecTextTest {
@@ -23,7 +23,7 @@ class SpecTextTest {
         // them as identifiers, so a writer that passed them through verbatim would emit
         // lab("y") :: ... , which SANY rejects.
         var builder = new TlaTypedScopeUncheckedBuilder();
-        var bound = builder.name("y", IntT1$.MODULE$);
+        var bound = builder.name("y", TlaTypes.INT);
         var labeled = builder.label(builder.eql(bound, builder.integer(1)), "lab", "y");
         var module = FuzzInputModule.create(
                 builder.forall(bound, builder.enumSet(builder.integer(1)), labeled));

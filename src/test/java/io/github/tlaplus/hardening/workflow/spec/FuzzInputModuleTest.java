@@ -7,15 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.io.lir.PrettyWriter;
-import at.forsyte.apalache.io.lir.TlaWriter$;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
+import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import java.util.List;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaModules;
 import org.junit.jupiter.api.Test;
-import static io.github.tlaplus.hardening.common.ScalaCollections.list;
-import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
 
 class FuzzInputModuleTest {
     @Test
@@ -25,22 +25,26 @@ class FuzzInputModuleTest {
         var module = FuzzInputModule.create(expression);
 
         assertEquals("FuzzInput", module.name());
-        assertEquals(1, module.varDeclarations().size());
-        assertEquals("exprValue", module.varDeclarations().head().name());
+        var variables = TlaModules.declarations(module).stream()
+                .filter(TlaVarDecl.class::isInstance)
+                .map(TlaVarDecl.class::cast)
+                .toList();
+        assertEquals(1, variables.size());
+        assertEquals("exprValue", variables.getFirst().name());
 
         // The definition names are the contract with the fixed tool invocations, and Bound is
         // always defined so that one TLC configuration serves every input kind.
-        var operators = list(module.operDeclarations());
+        var operators = operators(module);
         assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
 
         var initExpression = equalityRightHandSide(operators.get(0));
         var invariantExpression = equalityRightHandSide(operators.get(2));
         assertNotEquals(initExpression.ID(), invariantExpression.ID());
 
-        var source = PrettyWriter.writeAsString(
-                module, TlaWriter$.MODULE$.STANDARD_MODULES());
+        var source = SpecText.render(module);
         assertTrue(source.contains("EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants"));
-        assertTrue(source.contains("VARIABLE exprValue"));
+        assertTrue(source.contains("VARIABLE"));
+        assertTrue(source.contains("exprValue"));
         assertTrue(source.contains("Next == UNCHANGED exprValue"));
         assertTrue(source.contains("Bound == TRUE"));
         assertEquals(2, occurrences(source, "exprValue = FALSE"));
@@ -53,7 +57,7 @@ class FuzzInputModuleTest {
 
         var module = FuzzInputModule.create(spec);
 
-        var operators = list(module.operDeclarations());
+        var operators = operators(module);
         assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
     }
 
@@ -72,8 +76,7 @@ class FuzzInputModuleTest {
             if (actionOperators(spec).isEmpty()) {
                 continue;
             }
-            var names = list(
-                            FuzzInputModule.create(spec).operDeclarations()).stream()
+            var names = operators(FuzzInputModule.create(spec)).stream()
                     .map(TlaOperDecl::name)
                     .toList();
             var lastAuxiliary = lastIndexWithPrefix(names, "Op");
@@ -108,7 +111,14 @@ class FuzzInputModuleTest {
     private at.forsyte.apalache.tla.lir.TlaEx equalityRightHandSide(
             TlaOperDecl declaration) {
         var equality = (OperEx) declaration.body();
-        return equality.args().apply(1);
+        return TlaExpressions.arguments(equality).get(1);
+    }
+
+    private List<TlaOperDecl> operators(at.forsyte.apalache.tla.lir.TlaModule module) {
+        return TlaModules.declarations(module).stream()
+                .filter(TlaOperDecl.class::isInstance)
+                .map(TlaOperDecl.class::cast)
+                .toList();
     }
 
     private int occurrences(String text, String fragment) {

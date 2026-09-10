@@ -3,8 +3,11 @@ package io.github.tlaplus.hardening.workflow.input;
 import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.oper.TlaOper;
 import java.util.List;
 import java.util.Objects;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 
 /** Scores the explicit collection literals contained in generated TLA+ expressions. */
 final class CollectionRichness {
@@ -48,20 +51,16 @@ final class CollectionRichness {
                             literalSize, StrictMath.pow(nestingBase, collectionLevel))
                     : 0.0;
             var childLevel = collectionLevel + (isCollection ? 1 : 0);
-            var arguments = operator.args().iterator();
-            while (arguments.hasNext()) {
-                total = addSaturated(
-                        total, score(arguments.next(), nestingBase, childLevel));
+            for (var argument : TlaExpressions.arguments(operator)) {
+                total = addSaturated(total, score(argument, nestingBase, childLevel));
             }
             return total;
         }
         if (expression instanceof LetInEx letIn) {
             var total = score(letIn.body(), nestingBase, collectionLevel);
-            var declarations = letIn.decls().iterator();
-            while (declarations.hasNext()) {
+            for (var declaration : TlaExpressions.localDeclarations(letIn)) {
                 total = addSaturated(
-                        total,
-                        score(declarations.next().body(), nestingBase, collectionLevel));
+                        total, score(declaration.body(), nestingBase, collectionLevel));
             }
             return total;
         }
@@ -69,9 +68,11 @@ final class CollectionRichness {
     }
 
     private static int literalSize(OperEx operator) {
-        return switch (operator.oper().name()) {
-            case "SET_ENUM", "TUPLE" -> operator.args().size();
-            case "RECORD" -> operator.args().size() / 2;
+        var argumentCount = TlaExpressions.arguments(operator).size();
+        return switch (operator.oper()) {
+            case TlaOper candidate when candidate == TlaOperators.SET_ENUM
+                    || candidate == TlaOperators.TUPLE -> argumentCount;
+            case TlaOper candidate when candidate == TlaOperators.RECORD -> argumentCount / 2;
             default -> -1;
         };
     }

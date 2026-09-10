@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.tla.lir.BoolT1$;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
@@ -37,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
@@ -104,7 +104,7 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 0);
         var expression = new TlaTypedScopeUncheckedBuilder()
-                .name("missing", BoolT1$.MODULE$);
+                .name("missing", TlaTypes.BOOL);
         Generator<TlaEx> generator = _ -> expression;
         var input = new byte[] {1};
         corpus.store(InputKind.EXPRESSION, input);
@@ -213,7 +213,7 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(5, 5, 0, 16);
         var unbound = new TlaTypedScopeUncheckedBuilder()
-                .name("missing", BoolT1$.MODULE$);
+                .name("missing", TlaTypes.BOOL);
         Generator<TlaEx> generator = _ -> unbound;
         var runner = runner(config, generator);
         for (var candidate = 0; candidate < 5; candidate++) {
@@ -276,7 +276,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
         var unbound = new TlaTypedScopeUncheckedBuilder()
-                .name("missing", BoolT1$.MODULE$);
+                .name("missing", TlaTypes.BOOL);
         Generator<TlaEx> generator = _ -> unbound;
         corpus.store(InputKind.EXPRESSION, new byte[] {0});
         corpus.store(InputKind.EXPRESSION, new byte[] {1});
