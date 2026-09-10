@@ -474,10 +474,11 @@ of its next-state action accounts for every declared variable exactly once.
 
 Under the shipped configuration a generated module also parses.
 `ParserProcessTest` asserts this against SANY without exception. The one known
-way to break it is not a decoder defect: `PrettyWriter` renders an undelimited
-`CHOOSE` or `CASE` as a `CASE` arm body, so a later arm is absorbed into the
-`CHOOSE`'s scope and SANY reads a different tree than the IR. That shape is
-reachable once the `unbound` category is enabled.
+way to break it is not a decoder defect:
+[`apalache-printer-009`](../../findings/apalache-printer/apalache-printer-009.md)
+renders a nested `CASE` as a `CASE` arm body without delimiters, so a later arm
+is absorbed into an enclosing `CHOOSE`'s scope and SANY reads a different tree
+than the IR. That shape is reachable once the `unbound` category is enabled.
 
 ### 8.1. Label formal parameters
 

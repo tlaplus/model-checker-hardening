@@ -108,11 +108,11 @@ class ParserProcessTest {
         // that tolerance hid a defect that rejected 58% of a module-kind corpus at the parser.
         // Nothing about a generated module may fail to parse.
         // Only the shipped configuration is asserted here. Enabling the unbound category as
-        // well reaches shapes where PrettyWriter prints an undelimited CHOOSE or CASE as a CASE
-        // arm body, so the source parses to a different tree than the IR and a later arm ends up
-        // inside the CHOOSE's scope. That is a printer defect, not a generator one, and the
-        // generator's own contract is asserted on the IR by IrSpecGeneratorsTest across every
-        // category filter.
+        // well reaches the shape of findings/apalache-printer/apalache-printer-009.md, where
+        // PrettyWriter prints a nested CASE as a CASE arm body without delimiters, so the source
+        // parses to a different tree than the IR and a later arm ends up inside a CHOOSE's
+        // scope. That is a printer defect, not a generator one, and the generator's own contract
+        // is asserted on the IR by IrSpecGeneratorsTest across every category filter.
         var generator = IrGenerators.specs(IrGenerationConfig.defaults());
         var random = new Random(0x5a4eL);
         var scratch = Files.createDirectory(directory.resolve("scratch"));
