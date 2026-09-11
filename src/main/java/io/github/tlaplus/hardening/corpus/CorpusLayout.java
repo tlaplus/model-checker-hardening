@@ -1,15 +1,17 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.Digests;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import io.github.tlaplus.hardening.common.Digests;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -50,6 +52,57 @@ final class CorpusLayout {
         return paths.get(corpusPath);
     }
 
+    /**
+     * Creates every required directory and writes the configuration file, refusing to replace an
+     * existing configuration. {@code root} names the corpus in diagnostics as the caller spelled it.
+     */
+    void initialize(Path root, String configuration) throws IOException, CorpusException {
+        var corpusRoot = resolve(CorpusPath.ROOT);
+        var config = resolve(CorpusPath.CONFIG);
+        if (Files.exists(corpusRoot, NO_FOLLOW_LINKS)
+                && !Files.isDirectory(corpusRoot, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("corpus path is not a directory: " + root);
+        }
+        if (Files.exists(config, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("configuration already exists: " + config);
+        }
+        var directories = requiredDirectories();
+        for (var directory : directories) {
+            if (Files.exists(directory, NO_FOLLOW_LINKS)
+                    && !Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
+                throw new CorpusException("workflow path is not a directory: " + directory);
+            }
+        }
+        for (var directory : directories) {
+            Files.createDirectories(directory);
+        }
+        Files.writeString(
+                config,
+                configuration,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.WRITE);
+    }
+
+    /**
+     * Checks that the configuration file and every required directory exist, without scanning
+     * entries. {@code root} names the corpus in diagnostics as the caller spelled it.
+     */
+    void requireInitialized(Path root) throws CorpusException {
+        if (!Files.isDirectory(resolve(CorpusPath.ROOT), NO_FOLLOW_LINKS)) {
+            throw new CorpusException("corpus directory does not exist: " + root);
+        }
+        var config = resolve(CorpusPath.CONFIG);
+        if (!Files.isRegularFile(config, NO_FOLLOW_LINKS)) {
+            throw new CorpusException("configuration file does not exist: " + config);
+        }
+        for (var directory : requiredDirectories()) {
+            if (!Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
+                throw new CorpusException("workflow directory does not exist: " + directory);
+            }
+        }
+    }
+
     /** Returns every directory that a valid corpus must contain. */
     List<Path> requiredDirectories() {
         var result = new ArrayList<Path>();
@@ -61,14 +114,35 @@ final class CorpusLayout {
         return result;
     }
 
-    /** Rejects a path that exists but is not a directory. */
-    void requireAbsentOrDirectory(List<Path> directories) throws CorpusException {
-        for (var directory : directories) {
-            if (Files.exists(directory, NO_FOLLOW_LINKS)
-                    && !Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
-                throw new CorpusException("workflow path is not a directory: " + directory);
+    /**
+     * Reads a file the corpus creates on first use, or returns empty before then.
+     *
+     * @param description names the file when the path exists but is not a regular file
+     */
+    Optional<byte[]> readIfPresent(CorpusPath corpusPath, String description)
+            throws IOException, CorpusException {
+        var path = resolve(corpusPath);
+        if (Files.notExists(path, NO_FOLLOW_LINKS)) {
+            return Optional.empty();
+        }
+        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+            throw new CorpusException(description + " is not a regular file: " + path);
+        }
+        return Optional.of(Files.readAllBytes(path));
+    }
+
+    /** Lists the entries of one directory in name order, rejecting any foreign file name. */
+    static List<Path> entryPaths(Path directory) throws IOException, CorpusException {
+        var entries = new ArrayList<Path>();
+        try (var paths = Files.list(directory)) {
+            for (var path : paths.sorted().toList()) {
+                if (!ENTRY_FILE_NAME.matcher(path.getFileName().toString()).matches()) {
+                    throw new CorpusException("invalid corpus entry name: " + path);
+                }
+                entries.add(path);
             }
         }
+        return entries;
     }
 
     /** Returns the file name an entry with this payload has in every stage directory. */

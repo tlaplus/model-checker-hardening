@@ -35,20 +35,6 @@ final class CorpusEntries {
     /** One decoded corpus entry, kept with the bytes it was decoded from. */
     record Entry(Path path, byte[] encoded, CorpusEnvelope envelope) {}
 
-    /** Lists the entries of one directory in name order, rejecting any foreign file name. */
-    List<Path> entryPaths(Path directory) throws IOException, CorpusException {
-        var entries = new ArrayList<Path>();
-        try (var paths = Files.list(directory)) {
-            for (var path : paths.sorted().toList()) {
-                if (!ENTRY_FILE_NAME.matcher(path.getFileName().toString()).matches()) {
-                    throw new CorpusException("invalid corpus entry name: " + path);
-                }
-                entries.add(path);
-            }
-        }
-        return entries;
-    }
-
     /**
      * Lists the entries of a crash directory, collecting the entry names that own a stack-trace
      * sidecar into {@code crashEntries}.

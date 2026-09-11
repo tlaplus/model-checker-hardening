@@ -11,7 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 /**
  * Admits generated payloads to the input stage and preserves the ones that broke the generator.
@@ -73,6 +76,34 @@ final class CorpusEntryStore {
                 "known-defect-",
                 CorpusInputCodec.encode(new CorpusInput(kind, payload), generation));
         return StoreResult.ADDED;
+    }
+
+    /**
+     * Counts the quarantined entries by primary known-defect signature, so that a run continues
+     * each per-signature cap where the previous run stopped.
+     */
+    Map<String, Long> knownDefectSamples() throws IOException, CorpusException {
+        var directory = layout.resolve(CorpusPath.KNOWN_DEFECTS);
+        if (Files.notExists(directory, NO_FOLLOW_LINKS)) {
+            return Map.of();
+        }
+        var counts = new TreeMap<String, Long>();
+        for (var path : CorpusLayout.entryPaths(directory)) {
+            final CorpusEnvelope envelope;
+            try {
+                envelope = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(path));
+            } catch (CorpusFormatException exception) {
+                throw new CorpusException(
+                        "invalid quarantined entry '" + path + "': " + Diagnostics.message(exception),
+                        exception);
+            }
+            var primary = envelope.generation()
+                    .flatMap(GenerationMetadata::primaryKnownDefect)
+                    .orElseThrow(() -> new CorpusException(
+                            "quarantined entry names no known-defect signature: " + path));
+            counts.merge(primary, 1L, Long::sum);
+        }
+        return Collections.unmodifiableMap(counts);
     }
 
     /**

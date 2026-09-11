@@ -8,7 +8,6 @@ import io.github.tlaplus.hardening.corpus.CorpusEntries.Entry;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -20,43 +19,32 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Brings a corpus to a consistent state at the start of a locked workflow run, then reports what it
- * holds.
+ * The second pass of startup recovery: validates every entry of a corpus in which no transition is
+ * half-finished, and reports what it holds.
  *
- * <p>Recovery runs in two passes. The first finishes the durable transitions an interrupted run
- * left behind: an entry whose stage metadata is committed but which never reached its result
- * directory is moved there, and a parser pass that was not fully fanned out is copied to both
- * checker branches. The second pass validates every remaining entry and counts it, so a returned
- * {@link CorpusInventory} describes a corpus in which no transition is half-finished.
+ * <p>{@link TransitionRecovery} runs first. This pass lets {@link AggregationRecovery} finish its
+ * source deletions, then checks that every entry sits in the directory its stage metadata implies,
+ * that the two checker copies of a parser pass agree, and that crash entries and their stack traces
+ * pair up.
  *
  * <p>Nothing is published until the whole corpus has passed validation: any inconsistency is
  * reported as a {@link CorpusException} instead of being repaired silently.
  */
-final class CorpusRecovery {
+final class InventoryScan {
     private final CorpusLayout layout;
     private final CorpusEntries entries;
-    private final StageTransition transitions;
     private final AggregationRecovery aggregationRecovery;
 
-    CorpusRecovery(
-            CorpusLayout layout,
-            CorpusEntries entries,
-            StageTransition transitions,
-            AggregationRecovery aggregationRecovery) {
+    InventoryScan(
+            CorpusLayout layout, CorpusEntries entries, AggregationRecovery aggregationRecovery) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.entries = Objects.requireNonNull(entries, "entries");
-        this.transitions = Objects.requireNonNull(transitions, "transitions");
         this.aggregationRecovery =
                 Objects.requireNonNull(aggregationRecovery, "aggregationRecovery");
     }
 
-    /** Recovers durable transitions and returns a validated snapshot of the corpus. */
-    CorpusInventory recover() throws IOException, CorpusException {
-        // Finish durable transitions before inspecting the steady-state directories.
-        for (var stage : CorpusStage.inputStages()) {
-            recoverTransitions(stage);
-        }
-        fanOutParserPasses();
+    /** Validates the corpus and returns what each stage holds. */
+    CorpusInventory scan() throws IOException, CorpusException {
         var aggregateResults = aggregationRecovery.recoverAndValidate();
 
         var logicalNames = new HashSet<String>();
@@ -64,7 +52,7 @@ final class CorpusRecovery {
         var parserResults = new VerdictTally();
 
         // Validate inputs that are still waiting for the parser.
-        for (var path : entries.entryPaths(layout.resolve(CorpusPath.INPUT))) {
+        for (var path : CorpusLayout.entryPaths(layout.resolve(CorpusPath.INPUT))) {
             var entry = entries.verify(path);
             for (var stage : CorpusStage.values()) {
                 CorpusEntries.requireMissingStage(entry, stage);
@@ -74,7 +62,7 @@ final class CorpusRecovery {
         }
 
         // Parser passes must be fanned out; only failures and crashes remain here.
-        if (!entries.entryPaths(layout.resolve(CorpusPath.PARSER_PASS)).isEmpty()) {
+        if (!CorpusLayout.entryPaths(layout.resolve(CorpusPath.PARSER_PASS)).isEmpty()) {
             throw new CorpusException(
                     "parser pass directory was not drained during checker fan-out");
         }
@@ -145,44 +133,6 @@ final class CorpusRecovery {
         return new CorpusInventory(stages);
     }
 
-    /**
-     * Moves entries whose stage metadata was committed before an interruption into the result
-     * directory their verdict names, completing the crash sidecar on the way.
-     */
-    private void recoverTransitions(CorpusStage stage) throws IOException, CorpusException {
-        for (var path : entries.entryPaths(layout.resolve(stage.input()))) {
-            var entry = entries.verify(path);
-            var recorded = entry.envelope().stage(stage);
-            if (recorded.isEmpty()) {
-                continue;
-            }
-            var verdict = recorded.orElseThrow().verdict();
-            if (!stage.resultVerdicts().contains(verdict)) {
-                throw new CorpusException(
-                        stage.displayName() + " cannot record " + verdict.encodedName());
-            }
-            var destination =
-                    layout.resolve(stage.result(verdict)).resolve(entry.path().getFileName());
-            if (Files.exists(destination, NO_FOLLOW_LINKS)) {
-                throw new CorpusException(
-                        "cannot recover duplicate "
-                                + stage.metadataName()
-                                + " entry: "
-                                + destination);
-            }
-            if (verdict == CorpusVerdict.CRASH) {
-                transitions.recoverCrashReport(entry.path(), stage);
-            }
-            Files.move(entry.path(), destination, StandardCopyOption.ATOMIC_MOVE);
-        }
-    }
-
-    private void fanOutParserPasses() throws IOException, CorpusException {
-        for (var path : entries.entryPaths(layout.resolve(CorpusPath.PARSER_PASS))) {
-            transitions.fanOutParserPass(path);
-        }
-    }
-
     /** Validates one result directory and reports how many entries it holds. */
     private long visitResultEntries(
             CorpusStage stage,
@@ -196,7 +146,7 @@ final class CorpusRecovery {
             paths = entries.entryPathsAndReports(
                     directory, entriesWithReports, stage.displayName());
         } else {
-            paths = entries.entryPaths(directory);
+            paths = CorpusLayout.entryPaths(directory);
         }
 
         long count = 0;
@@ -220,7 +170,7 @@ final class CorpusRecovery {
         var resultEntries = new HashMap<String, Entry>();
         var resultCounts = new VerdictTally();
 
-        for (var path : entries.entryPaths(layout.resolve(checker.input()))) {
+        for (var path : CorpusLayout.entryPaths(layout.resolve(checker.input()))) {
             var entry = entries.verify(path);
             CorpusEntries.requireStageVerdict(
                     entry, CorpusStage.PARSER, CorpusVerdict.PASS);
