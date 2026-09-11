@@ -139,14 +139,9 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 InputAdmission.withoutKnownDefects(config(1)),
-                InputKind.EXPRESSION,
-                2,
-                0,
+                new GenerationPlan(InputKind.EXPRESSION, 99, 2, 0, 1),
                 new StageEnvironment(corpus, decoders(acceptOnce), new CpuBudget(1), control),
-                99,
-                1,
-                queue,
-                new Semaphore(2),
+                new InputHandoff(queue, new Semaphore(2)),
                 metrics(0));
 
         stage.start();
@@ -173,14 +168,9 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 InputAdmission.withoutKnownDefects(config(8)),
-                InputKind.EXPRESSION,
-                1,
-                0,
+                new GenerationPlan(InputKind.EXPRESSION, 42, 1, 0, 1),
                 new StageEnvironment(corpus, decoders(overflow), new CpuBudget(1), control),
-                42,
-                1,
-                queue,
-                new Semaphore(1),
+                new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
 
         stage.start();
@@ -283,14 +273,9 @@ class PbtStageTest {
         var target = 12;
         var stage = new PbtStage(
                 InputAdmission.withoutKnownDefects(config(32)),
-                InputKind.EXPRESSION,
-                target,
-                0,
+                new GenerationPlan(InputKind.EXPRESSION, 42, target, 0, 4),
                 new StageEnvironment(corpus, decoders(observed), new CpuBudget(2), control),
-                42,
-                4,
-                queue,
-                new Semaphore(target),
+                new InputHandoff(queue, new Semaphore(target)),
                 metrics(0));
 
         stage.start();
@@ -335,14 +320,9 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 InputAdmission.withoutKnownDefects(config(32)),
-                InputKind.EXPRESSION,
-                20,
-                0,
+                new GenerationPlan(InputKind.EXPRESSION, 42, 20, 0, 4),
                 new StageEnvironment(corpus, decoders(oneWorkerCrashes), new CpuBudget(4), control),
-                42,
-                4,
-                queue,
-                new Semaphore(20),
+                new InputHandoff(queue, new Semaphore(20)),
                 metrics(0));
 
         stage.start();
@@ -377,14 +357,9 @@ class PbtStageTest {
                         config(16),
                         KnownDefectDatabase.load(List.of(database)),
                         KnownDefectQuarantine.open(corpus, 2)),
-                InputKind.EXPRESSION,
-                1,
-                0,
+                new GenerationPlan(InputKind.EXPRESSION, 7, 1, 0, 1),
                 new StageEnvironment(corpus, decoders(defectsThenClean), new CpuBudget(1), control),
-                7,
-                1,
-                queue,
-                new Semaphore(1),
+                new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
 
         stage.start();
@@ -434,14 +409,9 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
                 InputAdmission.withoutKnownDefects(config),
-                InputKind.EXPRESSION,
-                target,
-                0,
+                new GenerationPlan(InputKind.EXPRESSION, seed, target, 0, 1),
                 new StageEnvironment(corpus, decoders(generator), new CpuBudget(1), control),
-                seed,
-                1,
-                queue,
-                new Semaphore(target),
+                new InputHandoff(queue, new Semaphore(target)),
                 metrics(0));
         stage.start();
         stage.await();
