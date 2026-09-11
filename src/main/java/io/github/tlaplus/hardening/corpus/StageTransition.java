@@ -18,7 +18,7 @@ import java.util.Objects;
  * updated envelope is committed onto the source path second, and only then do the sidecar and the
  * entry move into the result directory. A failure before the metadata commit leaves the entry
  * untouched and discards the staged sidecar; a failure after it leaves work that {@link
- * CorpusRecovery} completes on the next run.
+ * TransitionRecovery} completes on the next run.
  */
 final class StageTransition {
     private final CorpusLayout layout;
