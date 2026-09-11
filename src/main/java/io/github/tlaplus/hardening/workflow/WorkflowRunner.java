@@ -12,8 +12,7 @@ import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
-import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
-import io.github.tlaplus.hardening.workflow.checker.CheckerStage;
+import io.github.tlaplus.hardening.workflow.checker.CheckerRouting;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -32,8 +31,11 @@ import io.github.tlaplus.hardening.workflow.input.InputAdmission;
 import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
-import io.github.tlaplus.hardening.workflow.parser.ParserStage;
+import io.github.tlaplus.hardening.workflow.parser.ParserBackend;
+import io.github.tlaplus.hardening.workflow.parser.ParserRouting;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
+import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
+import io.github.tlaplus.hardening.workflow.tool.ToolStage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -188,27 +190,32 @@ public final class WorkflowRunner {
                 queues.get(CorpusStage.AGGREGATOR),
                 checkerCapacities);
 
-        var parser = new ParserStage(
-                config.workflow().parser(),
-                maximumCpus,
-                initial.resultEntries(CorpusStage.PARSER),
+        var parser = new ToolStage(
+                new ParserBackend(
+                        config.workflow().parser(),
+                        maximumCpus,
+                        scratch.directory(CorpusStage.PARSER)),
+                new ParserRouting(
+                        new OccupancyGate(
+                                initial.resultEntries(CorpusStage.PARSER),
+                                config.workflow().maximumEntries(CorpusStage.PARSER)),
+                        checkerQueues(queues),
+                        inputCapacity),
                 counters.get(CorpusStage.PARSER),
                 environment,
-                scratch.directory(CorpusStage.PARSER),
-                queues.get(CorpusStage.PARSER),
-                checkerQueues(queues),
-                inputCapacity);
-        var checkers = new EnumMap<CorpusStage, CheckerStage>(CorpusStage.class);
+                queues.get(CorpusStage.PARSER));
+        var checkers = new EnumMap<CorpusStage, ToolStage>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
             checkers.put(
                     checker,
-                    new CheckerStage(
+                    new ToolStage(
                             checkerBackend(checker, maximumCpus, scratch, apalacheJar),
-                            checkerCapacities.get(checker),
+                            new CheckerRouting(
+                                    checkerCapacities.get(checker),
+                                    queues.get(CorpusStage.AGGREGATOR)),
                             counters.get(checker),
                             environment,
-                            queues.get(checker),
-                            queues.get(CorpusStage.AGGREGATOR)));
+                            queues.get(checker)));
         }
         var admission = new InputAdmission(
                 config.pbt(),
@@ -299,7 +306,7 @@ public final class WorkflowRunner {
     }
 
     /** Returns the checker backend of one stage, configured for this invocation. */
-    private CheckerBackend checkerBackend(
+    private ToolBackend checkerBackend(
             CorpusStage stage, int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
         return CheckerBackends.create(
                 stage,

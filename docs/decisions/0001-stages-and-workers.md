@@ -51,7 +51,11 @@ A workflow invocation runs five implemented stages concurrently:
 The implementation mirrors these responsibilities in `workflow.input`,
 `workflow.parser`, `workflow.tlc`, `workflow.apalache`, and
 `workflow.aggregator`. The
-`workflow.checker` package owns orchestration shared by TLC and Apalache. Shared
+`workflow.tool` package owns the stage loop shared by the parser, TLC, and
+Apalache: a `ToolBackend` names the tool and its process lifecycle, and a
+`StageRouting` names the entries a stage owns, when it reserves result capacity,
+and where its results go. `workflow.checker` holds the routing shared by the two
+model checkers, and `workflow.parser` the parser's fan-out routing. Shared
 scheduling and lifecycle machinery lives in `workflow.execution`, which also owns
 the machinery every stage reuses: the queue and CPU-budget job loop, the
 per-verdict counters, the result-capacity gate, the worker failure guard, and the

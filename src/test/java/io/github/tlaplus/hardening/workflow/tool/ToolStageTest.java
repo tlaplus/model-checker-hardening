@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.workflow.checker;
+package io.github.tlaplus.hardening.workflow.tool;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -13,6 +13,7 @@ import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.workflow.checker.CheckerRouting;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
@@ -26,15 +27,13 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class CheckerStageTest {
+class ToolStageTest {
     @Test
     void replacesAWorkerAfterACrashAndClosesTheReplacement(@TempDir Path directory)
             throws Exception {
@@ -59,13 +58,12 @@ class CheckerStageTest {
         var output = new WorkQueue<Path>();
         var control = new WorkflowControl(input, output);
         var initial = StageVerdictSummary.empty();
-        var stage = new CheckerStage(
+        var stage = new ToolStage(
                 backend,
-                new OccupancyGate(0, 2),
+                new CheckerRouting(new OccupancyGate(0, 2), output),
                 new StageCounters(initial, new ElapsedTimeAccumulator()),
                 new StageEnvironment(corpus, decoders, new CpuBudget(1), control),
-                input,
-                output);
+                input);
         try {
             stage.start();
             stage.await();
@@ -78,12 +76,13 @@ class CheckerStageTest {
         assertEquals(2, backend.renders.get());
         assertEquals(1, stage.summary().count(CorpusVerdict.PASS));
         assertEquals(1, stage.summary().count(CorpusVerdict.CRASH));
+        assertEquals(2, output.size());
         var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
         assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
         assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH));
     }
 
-    private static final class RestartingBackend implements CheckerBackend {
+    private static final class RestartingBackend implements ToolBackend {
         private final AtomicInteger starts = new AtomicInteger();
         private final AtomicInteger closes = new AtomicInteger();
         private final AtomicInteger renders = new AtomicInteger();
@@ -112,9 +111,9 @@ class CheckerStageTest {
         }
 
         @Override
-        public CheckerWorker startWorker() {
+        public ToolWorker startWorker() {
             var ordinal = starts.getAndIncrement();
-            return new CheckerWorker() {
+            return new ToolWorker() {
                 @Override
                 public ToolResult check(ToolInput input) {
                     assertEquals("backend-specific input", input.text());
@@ -128,11 +127,6 @@ class CheckerStageTest {
                     closes.incrementAndGet();
                 }
             };
-        }
-
-        @Override
-        public Optional<String> failureDetail(String diagnostic) {
-            return Optional.empty();
         }
     }
 }

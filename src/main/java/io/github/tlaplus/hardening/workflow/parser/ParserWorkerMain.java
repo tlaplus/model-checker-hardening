@@ -6,12 +6,10 @@ import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
-import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import tla2sany.drivers.SANY;
 import tla2sany.drivers.SanySettings;
 import tla2sany.modanalyzer.SpecObj;
@@ -31,8 +29,7 @@ public final class ParserWorkerMain {
     private static void run() throws Exception {
         var connection = ToolWorkerConnection.connect();
         System.setOut(System.err);
-        StandardModuleResources.require(
-                ParserWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
+        StandardModuleResources.requireBundled(ParserWorkerMain.class);
 
         var temporaryDirectory = Files.createTempDirectory("fuzztla-sany-");
         var specification =
@@ -45,13 +42,7 @@ public final class ParserWorkerMain {
                     connection,
                     ToolWorkerRuntime.Lifetime.UNTIL_CRASH,
                     source -> {
-                        Files.writeString(
-                                specification,
-                                source.text(),
-                                StandardCharsets.UTF_8,
-                                StandardOpenOption.CREATE,
-                                StandardOpenOption.TRUNCATE_EXISTING,
-                                StandardOpenOption.WRITE);
+                        ToolWorkerRuntime.writeInput(specification, source);
                         return parse(specification, resolver);
                     });
         } finally {
@@ -63,7 +54,7 @@ public final class ParserWorkerMain {
 
     private static ToolResult parse(
             Path specification, SimpleFilenameToStream resolver) {
-        var diagnostics = new ByteArrayOutputStream();
+        var diagnostics = ToolWorkerRuntime.diagnosticBuffer("SANY");
         try (var stream = new PrintStream(diagnostics, true, StandardCharsets.UTF_8)) {
             var output = new SimpleSanyOutput(stream, LogLevel.INFO);
             var specObj = new SpecObj(specification.toString(), resolver);
@@ -72,7 +63,7 @@ public final class ParserWorkerMain {
                     specification.toString(),
                     output,
                     SanySettings.defaultSettings());
-            var diagnostic = diagnostics.toString(StandardCharsets.UTF_8);
+            var diagnostic = diagnostics.text();
             return switch (exitCode) {
                 case OK -> new ToolResult(StageOutcome.PASS, diagnostic);
                 case SYNTAX_PARSING_FAILURE,
@@ -81,7 +72,7 @@ public final class ParserWorkerMain {
                         new ToolResult(StageOutcome.FAIL, diagnostic);
             };
         } catch (Exception | StackOverflowError exception) {
-            return ToolResult.crash(exception, diagnostics.toString(StandardCharsets.UTF_8));
+            return ToolResult.crash(exception, diagnostics.text());
         }
     }
 }
