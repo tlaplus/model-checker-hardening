@@ -27,6 +27,7 @@ import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +37,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.common.Digests;
+import io.github.tlaplus.hardening.common.FileTrees;
 
 class MainTest {
     @Test
@@ -107,9 +110,13 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains(corpus.toString()));
         assertEquals("", result.err());
+        // The temporary corpus lies outside the project, so init names the database absolutely.
+        var database = KnownDefectDatabase.SHIPPED.toAbsolutePath().normalize();
+        var configFile = corpus.resolve(CorpusPath.CONFIG.relativePath());
         assertEquals(
-                FuzzTlaConfig.defaults(),
-                TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath())));
+                FuzzTlaConfig.defaults().withKnownDefects(List.of(database)),
+                TomlConfig.read(configFile));
+        assertTrue(Files.readString(configFile).contains("known_defects = [\"" + database + "\"]"));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.INPUT.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_PASS.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_FAIL.relativePath())));
@@ -122,6 +129,23 @@ class MainTest {
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_PASS.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_FAIL.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_CRASH.relativePath())));
+    }
+
+    @Test
+    void namesTheShippedDatabaseRelativeToACorpusInsideTheProject() throws Exception {
+        var parent = Files.createTempDirectory(Path.of("target").toAbsolutePath(), "init");
+        try {
+            var corpus = parent.resolve("corpus");
+
+            assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+
+            var relative = corpus.relativize(KnownDefectDatabase.SHIPPED.toAbsolutePath().normalize());
+            assertTrue(relative.startsWith(".."));
+            assertTrue(Files.readString(corpus.resolve(CorpusPath.CONFIG.relativePath()))
+                    .contains("known_defects = [\"" + relative + "\"]"));
+        } finally {
+            FileTrees.deleteRecursively(parent);
+        }
     }
 
     @Test

@@ -9,6 +9,7 @@ reports as `Mod by zero`, and the set `STRING`, which Apalache does not support.
 When a signature database is configured, the input stage checks every candidate
 against it. Matching candidates go to a quarantine directory instead of the
 parser, so SANY, TLC and Apalache spend no time rediscovering filed defects.
+A corpus created by `fuzztla init` consults the [shipped database](#7-shipped-database).
 Without a database, every candidate is admitted as before.
 
 ## 1. Enabling signatures
@@ -27,6 +28,12 @@ known_defect_samples = 100
 - `known_defects` lists database files. Relative paths resolve against the
   directory that contains `config.toml`. Several databases are concatenated in
   the listed order. The empty list turns the feature off.
+
+  `fuzztla init` lists the repository's `signatures/known-defects.toml`. For a
+  corpus inside the repository the path is relative; the example above is what
+  it writes for a corpus in the repository root. For a corpus elsewhere the
+  path is absolute. If `init` cannot find the database, it writes the empty
+  list and says so on standard error.
 - `known_defect_samples` caps how many matching candidates are stored per
   signature. Further matches are counted but not stored.
 

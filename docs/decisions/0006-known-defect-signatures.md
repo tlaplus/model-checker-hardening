@@ -67,8 +67,9 @@ format and the pattern language. This section records the design decisions.
 ### Database
 
 `[workflow.inputs] known_defects` lists database files. Relative paths resolve
-against the configuration file's directory. The default is the empty list,
-which disables the feature. Databases are concatenated in the listed order.
+against the configuration file's directory. The empty list disables the
+feature. `fuzztla init` enables the shipped database (see *Default database*).
+Databases are concatenated in the listed order.
 Each is a TOML file with one `[[signature]]` table per signature, which has:
 
 - `id`: a stable name, unique across all configured databases;
@@ -79,6 +80,30 @@ Each is a TOML file with one `[[signature]]` table per signature, which has:
 The workflow reads the databases once, when a run starts. An invalid database
 stops the run before the corpus is locked. Stored entries are not re-checked
 when a database changes.
+
+### Default database
+
+*Revision.* This section revises the original decision, under which the
+default was the empty list.
+
+`fuzztla init` writes `known_defects` naming the repository's
+`signatures/known-defects.toml`:
+- for a corpus inside the repository, relative to the corpus, for example
+  `["../signatures/known-defects.toml"]` for a corpus in the repository root,
+  so that the corpus keeps working when the repository moves;
+- for a corpus elsewhere, as an absolute path.
+
+`init` needs the project directory to find the database:
+- `bin/fuzztla` runs a snapshot of the JAR from a temporary directory, so it
+  passes the project directory as the system property `fuzztla.home`.
+- Without the property, the JAR runs in place as `target/fuzztla.jar`, and the
+  project is the parent of the JAR's directory.
+- If no database is found there, `init` writes the empty list and says so on
+  standard error.
+
+`FuzzTlaConfig.defaults()` still configures no database: only the command knows
+where the repository is. Existing corpora keep the setting their
+`config.toml` records.
 
 ### Pattern language
 

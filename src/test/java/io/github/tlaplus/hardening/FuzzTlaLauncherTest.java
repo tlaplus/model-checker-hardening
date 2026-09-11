@@ -33,6 +33,7 @@ class FuzzTlaLauncherTest {
         var packagedApalacheJar = target.resolve("apalache.jar");
         Files.writeString(packagedApalacheJar, "apalache-original", StandardCharsets.UTF_8);
 
+        var observedHome = directory.resolve("observed-home");
         var observedJar = directory.resolve("observed-jar");
         var observedApalacheJar = directory.resolve("observed-apalache-jar");
         var ready = directory.resolve("ready");
@@ -43,14 +44,15 @@ class FuzzTlaLauncherTest {
                 """
                 #!/bin/sh
                 set -eu
-                printf '%s\n' "$2" > "$OBSERVED_JAR"
-                runtime_dir=$(dirname "$2")
+                printf '%s\n' "$1" > "$OBSERVED_HOME"
+                printf '%s\n' "$3" > "$OBSERVED_JAR"
+                runtime_dir=$(dirname "$3")
                 printf '%s\n' "$runtime_dir/apalache.jar" > "$OBSERVED_APALACHE_JAR"
                 : > "$READY_FILE"
                 while [ ! -f "$PROCEED_FILE" ]; do
                     sleep 0.01
                 done
-                cat "$2"
+                cat "$3"
                 printf '|'
                 cat "$runtime_dir/apalache.jar"
                 exit 23
@@ -63,6 +65,7 @@ class FuzzTlaLauncherTest {
         environment.put(
                 "PATH", fakeBin + System.getProperty("path.separator") + environment.get("PATH"));
         environment.put("TMPDIR", runtime.toString());
+        environment.put("OBSERVED_HOME", observedHome.toString());
         environment.put("OBSERVED_JAR", observedJar.toString());
         environment.put("OBSERVED_APALACHE_JAR", observedApalacheJar.toString());
         environment.put("READY_FILE", ready.toString());
@@ -88,6 +91,9 @@ class FuzzTlaLauncherTest {
                 "original|apalache-original",
                 new String(
                         process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+        assertEquals(
+                "-Dfuzztla.home=" + project.toRealPath(),
+                Files.readString(observedHome, StandardCharsets.UTF_8).strip());
         var snapshot = Path.of(Files.readString(observedJar, StandardCharsets.UTF_8).strip());
         assertTrue(snapshot.startsWith(runtime));
         assertFalse(snapshot.equals(packagedJar));

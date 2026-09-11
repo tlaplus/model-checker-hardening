@@ -45,8 +45,10 @@ admitted to `00-inputs`. It is stored in `00-known-defects` while its primary
 signature has fewer than `known_defect_samples` stored entries, and only counted
 otherwise. The check runs after the richness threshold and the request-frame
 limit and draws no randomness, so with no database the admitted stream is
-unchanged. The [manual][known-defect manual] specifies the database format and
-the pattern language.
+unchanged. `fuzztla init` lists the repository's `signatures/known-defects.toml`,
+so a new corpus consults it unless its configuration says `known_defects = []`.
+The [manual][known-defect manual] specifies the database format and the pattern
+language.
 
 Every tool stage regenerates the same closed, typed IR from the stored bytes and
 the invocation's immutable prepared operator library.

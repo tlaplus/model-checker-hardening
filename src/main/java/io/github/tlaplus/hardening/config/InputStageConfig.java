@@ -30,6 +30,11 @@ public record InputStageConfig(int maximumEntries, List<Path> knownDefects, int 
         return new InputStageConfig(maximumEntries, List.of(), DEFAULT_KNOWN_DEFECT_SAMPLES);
     }
 
+    /** Returns these limits consulting the given known-defect databases instead. */
+    public InputStageConfig withKnownDefects(List<Path> databases) {
+        return new InputStageConfig(maximumEntries, databases, knownDefectSamples);
+    }
+
     /** Resolves the database paths against the directory of the file they were read from. */
     InputStageConfig relativeTo(Path directory) {
         return new InputStageConfig(

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 
 /** Checks the database the repository ships, {@code signatures/known-defects.toml}. */
 class ShippedKnownDefectsTest {
-    private static final Path DATABASE = Path.of("signatures", "known-defects.toml");
+    private static final Path DATABASE = KnownDefectDatabase.SHIPPED;
 
     private final TlaTypedScopeUncheckedBuilder builder = new TlaTypedScopeUncheckedBuilder();
 

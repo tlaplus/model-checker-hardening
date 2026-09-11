@@ -15,6 +15,9 @@ import java.util.Objects;
  * is a deterministic function of the module and the database.
  */
 public final class KnownDefectDatabase {
+    /** The database the repository ships, relative to the project directory. */
+    public static final Path SHIPPED = Path.of("signatures", "known-defects.toml");
+
     private static final KnownDefectDatabase EMPTY = new KnownDefectDatabase(List.of());
 
     private final List<KnownDefect> signatures;
