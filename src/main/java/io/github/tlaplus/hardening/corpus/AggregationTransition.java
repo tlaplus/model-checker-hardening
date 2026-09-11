@@ -79,12 +79,7 @@ final class AggregationTransition {
         try {
             merged = CorpusEnvelopeCodec.mergeWithStageMetadata(
                     branches.stream().map(branch -> branch.entry().encoded()).toList(),
-                    new StageMetadata(
-                            CorpusStage.AGGREGATOR.metadataName(),
-                            result.verdict(),
-                            result.startTime(),
-                            result.endTime(),
-                            result.failure()));
+                    result.metadata(CorpusStage.AGGREGATOR));
         } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "cannot merge checker results for "
