@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
-import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
@@ -13,13 +12,11 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import scala.Console$;
 
 /** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
 public final class ApalacheWorkerMain {
-    private static final int MAXIMUM_OUTPUT_BYTES = 1024 * 1024 - 128;
     private static final String SPECIFICATION_FILE = FuzzInputModule.MODULE_NAME + ".json";
     private static final String TOOL_CLASS = "at.forsyte.apalache.tla.Tool";
 
@@ -49,12 +46,7 @@ public final class ApalacheWorkerMain {
                             var jobDirectory =
                                     Files.createTempDirectory(workerDirectory, "job-");
                             var specification = jobDirectory.resolve(SPECIFICATION_FILE);
-                            Files.writeString(
-                                    specification,
-                                    source.text(),
-                                    StandardCharsets.UTF_8,
-                                    StandardOpenOption.CREATE_NEW,
-                                    StandardOpenOption.WRITE);
+                            ToolWorkerRuntime.writeInput(specification, source);
                             var result =
                                     check(
                                             toolRun,
@@ -83,8 +75,7 @@ public final class ApalacheWorkerMain {
             Path specification,
             int length,
             PrintStream processError) {
-        var diagnostics =
-                new BoundedTextOutputStream(MAXIMUM_OUTPUT_BYTES, "Apalache output");
+        var diagnostics = ToolWorkerRuntime.diagnosticBuffer("Apalache");
         try (var diagnosticStream = new PrintStream(
                 diagnostics, true, StandardCharsets.UTF_8)) {
             System.setOut(diagnosticStream);

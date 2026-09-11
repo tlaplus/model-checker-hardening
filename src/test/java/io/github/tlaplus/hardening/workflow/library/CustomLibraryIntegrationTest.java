@@ -8,7 +8,7 @@ import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
-import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
+import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.parser.ParserWorkerMain;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
@@ -70,7 +70,7 @@ class CustomLibraryIntegrationTest {
             assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic());
         }
         var settings = new CheckerStageConfig(10, 30, 512, 1);
-        var backends = List.<CheckerBackend>of(
+        var backends = List.<ToolBackend>of(
                 new TlcCheckerBackend(settings, 1, Files.createDirectory(directory.resolve("tlc"))),
                 new ApalacheCheckerBackend(settings, ApalacheDistribution.locate(),
                         Files.createDirectory(directory.resolve("apalache"))));

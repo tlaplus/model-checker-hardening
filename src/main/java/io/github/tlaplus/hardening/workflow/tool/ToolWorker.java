@@ -1,12 +1,12 @@
-package io.github.tlaplus.hardening.workflow.checker;
+package io.github.tlaplus.hardening.workflow.tool;
 
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 
-/** Worker-local model-checker state used for one or more sequential inputs. */
+/** Worker-local tool state used for one or more sequential inputs. */
 @FunctionalInterface
-public interface CheckerWorker extends AutoCloseable {
+public interface ToolWorker extends AutoCloseable {
     ToolResult check(ToolInput input) throws WorkflowException, InterruptedException;
 
     @Override
