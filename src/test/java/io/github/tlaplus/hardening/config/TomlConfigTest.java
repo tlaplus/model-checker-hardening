@@ -187,6 +187,29 @@ class TomlConfigTest {
     }
 
     @Test
+    void resolvesKnownDefectDatabasesAgainstTheConfigDirectory(@TempDir Path directory)
+            throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+
+        var config = readConfig(
+                directory,
+                rendered.replace(
+                                "known_defects = []",
+                                "known_defects = [\"../signatures/db.toml\", \"local.toml\"]")
+                        .replace("known_defect_samples = 100", "known_defect_samples = 7"));
+        var negative = assertInvalid(
+                directory, rendered.replace("known_defect_samples = 100", "known_defect_samples = -1"));
+
+        assertEquals(
+                List.of(
+                        directory.resolve("../signatures/db.toml").toAbsolutePath().normalize(),
+                        directory.resolve("local.toml").toAbsolutePath().normalize()),
+                config.workflow().inputs().knownDefects());
+        assertEquals(7, config.workflow().inputs().knownDefectSamples());
+        assertTrue(negative.getMessage().contains("knownDefectSamples must be nonnegative"));
+    }
+
+    @Test
     void reportsMalformedToml(@TempDir Path directory) throws Exception {
         var failure = assertInvalid(directory, "[generator\n");
 

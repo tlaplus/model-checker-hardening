@@ -42,8 +42,7 @@ public record OperatorLibraryConfig(List<Path> classpath, List<Module> modules) 
     }
 
     public OperatorLibraryConfig relativeTo(Path directory) {
-        return new OperatorLibraryConfig(classpath.stream()
-                .map(path -> directory.resolve(path).toAbsolutePath().normalize()).toList(), modules);
+        return new OperatorLibraryConfig(ConfigPaths.relativeTo(classpath, directory), modules);
     }
 
     public static OperatorLibraryConfig empty() {

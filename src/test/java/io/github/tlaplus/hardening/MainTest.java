@@ -11,7 +11,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
-import io.github.tlaplus.hardening.config.StageConfig;
+import io.github.tlaplus.hardening.config.InputStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -27,6 +27,7 @@ import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +37,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.common.Digests;
+import io.github.tlaplus.hardening.common.FileTrees;
 
 class MainTest {
     @Test
@@ -107,9 +110,13 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains(corpus.toString()));
         assertEquals("", result.err());
+        // The temporary corpus lies outside the project, so init names the database absolutely.
+        var database = KnownDefectDatabase.SHIPPED.toAbsolutePath().normalize();
+        var configFile = corpus.resolve(CorpusPath.CONFIG.relativePath());
         assertEquals(
-                FuzzTlaConfig.defaults(),
-                TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath())));
+                FuzzTlaConfig.defaults().withKnownDefects(List.of(database)),
+                TomlConfig.read(configFile));
+        assertTrue(Files.readString(configFile).contains("known_defects = [\"" + database + "\"]"));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.INPUT.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_PASS.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_FAIL.relativePath())));
@@ -122,6 +129,23 @@ class MainTest {
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_PASS.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_FAIL.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.APALACHE_CRASH.relativePath())));
+    }
+
+    @Test
+    void namesTheShippedDatabaseRelativeToACorpusInsideTheProject() throws Exception {
+        var parent = Files.createTempDirectory(Path.of("target").toAbsolutePath(), "init");
+        try {
+            var corpus = parent.resolve("corpus");
+
+            assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+
+            var relative = corpus.relativize(KnownDefectDatabase.SHIPPED.toAbsolutePath().normalize());
+            assertTrue(relative.startsWith(".."));
+            assertTrue(Files.readString(corpus.resolve(CorpusPath.CONFIG.relativePath()))
+                    .contains("known_defects = [\"" + relative + "\"]"));
+        } finally {
+            FileTrees.deleteRecursively(parent);
+        }
     }
 
     @Test
@@ -496,6 +520,66 @@ class MainTest {
     }
 
     @Test
+    void printsTheKnownDefectsOfAQuarantinedEntry(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("quarantined.cbor");
+        Files.write(
+                input,
+                CorpusInputCodec.encode(
+                        new CorpusInput(InputKind.EXPRESSION, new byte[0]),
+                        new GenerationMetadata(6, 12.5, java.util.List.of("string-set"))));
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(),
+                        "kind: expr",
+                        "gen:",
+                        "  cohort: 6",
+                        "  richness: 12.5",
+                        "  knownDefects: string-set",
+                        "input:",
+                        "  FALSE",
+                        ""),
+                result.out());
+    }
+
+    @Test
+    void printsTheKnownDefectSignaturesAnEntryMatches(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
+        var database = Files.writeString(directory.resolve("known-defects.toml"), """
+                [[signature]]
+                id = "false-literal"
+                references = ["none"]
+                description = "The literal FALSE."
+                match = ['FALSE']
+                """);
+
+        var matched = execute("print", "--known-defects", database.toString(), input.toString());
+        var combined = execute(
+                "print", "--spec", "--known-defects", database.toString(), input.toString());
+        var missing = execute(
+                "print", "--known-defects", directory.resolve("missing.toml").toString(), input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, matched.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(),
+                        "false-literal: The literal FALSE.",
+                        "  reference: none",
+                        "  matched:",
+                        "    FALSE",
+                        ""),
+                matched.out());
+        assertEquals(CommandLine.ExitCode.USAGE, combined.exitCode());
+        assertTrue(combined.err().contains("--known-defects cannot be combined with an output mode"));
+        assertEquals(CommandLine.ExitCode.SOFTWARE, missing.exitCode());
+        assertTrue(missing.err().contains("cannot read known-defect database"));
+    }
+
+    @Test
     void printsZeroEnvelopeDuration(@TempDir Path directory) throws Exception {
         var input = directory.resolve("metadata.cbor");
         var timestamp = Instant.parse("2026-08-13T14:26:07Z");
@@ -688,7 +772,7 @@ class MainTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         entries,
-                        new StageConfig(entries),
+                        InputStageConfig.of(entries),
                         new ParserStageConfig(entries, 10),
                         Map.of(
                                 CorpusStage.TLC,

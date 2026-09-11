@@ -10,7 +10,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
-import io.github.tlaplus.hardening.config.StageConfig;
+import io.github.tlaplus.hardening.config.InputStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -267,7 +267,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         2,
-                        new StageConfig(2),
+                        InputStageConfig.of(2),
                         new ParserStageConfig(2, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -335,7 +335,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         2,
-                        new StageConfig(2),
+                        InputStageConfig.of(2),
                         new ParserStageConfig(2, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -360,7 +360,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         0,
-                        new StageConfig(0),
+                        InputStageConfig.of(0),
                         new ParserStageConfig(0, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -386,7 +386,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         0,
-                        new StageConfig(0),
+                        InputStageConfig.of(0),
                         new ParserStageConfig(0, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -412,7 +412,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         1,
-                        new StageConfig(1),
+                        InputStageConfig.of(1),
                         new ParserStageConfig(1, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -454,7 +454,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         1,
-                        new StageConfig(1),
+                        InputStageConfig.of(1),
                         new ParserStageConfig(1, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -497,7 +497,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         2,
-                        new StageConfig(2),
+                        InputStageConfig.of(2),
                         new ParserStageConfig(2, 10),
                         Map.of(
                                 CorpusStage.TLC,
@@ -526,7 +526,8 @@ class WorkflowRunnerTest {
         assertEquals(1, summary.corpus().pendingEntries(CorpusStage.TLC));
     }
 
-    private WorkflowRunner runner(FuzzTlaConfig config, Generator<TlaEx> expressions) {
+    private WorkflowRunner runner(FuzzTlaConfig config, Generator<TlaEx> expressions)
+            throws WorkflowException {
         return new WorkflowRunner(
                 config,
                 SpecDecoders.of(config.generator()).replacingExpressions(expressions));
@@ -539,7 +540,7 @@ class WorkflowRunnerTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         total,
-                        new StageConfig(inputs),
+                        InputStageConfig.of(inputs),
                         new ParserStageConfig(parser, 10),
                         Map.of(
                                 CorpusStage.TLC,

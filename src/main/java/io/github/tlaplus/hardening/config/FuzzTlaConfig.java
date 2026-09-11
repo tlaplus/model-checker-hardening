@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -38,12 +40,27 @@ public record FuzzTlaConfig(
         }
     }
 
-    /** Returns the configuration written by {@code fuzztla init}. */
+    /**
+     * Returns the default configuration, which consults no known-defect database. {@code fuzztla
+     * init} writes it with the repository's shipped database enabled, because only the command
+     * knows where the repository is.
+     */
     public static FuzzTlaConfig defaults() {
         return new FuzzTlaConfig(
                 InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
                 WorkflowConfig.defaults(),
                 PbtConfig.defaults(), OperatorLibraryConfig.empty());
+    }
+
+    /** Returns this configuration with the input stage consulting the given known-defect databases. */
+    public FuzzTlaConfig withKnownDefects(List<Path> databases) {
+        var inputs = workflow.inputs().withKnownDefects(databases);
+        return new FuzzTlaConfig(
+                generatedKind,
+                generator,
+                new WorkflowConfig(workflow.maximumEntries(), inputs, workflow.parser(), workflow.checkers()),
+                pbt,
+                libraries);
     }
 }

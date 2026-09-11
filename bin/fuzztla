@@ -41,4 +41,6 @@ trap cleanup EXIT
 # rebuilding target/fuzztla.jar cannot corrupt the class path of this invocation.
 cp "$jar" "$runtime_jar"
 cp "$apalache_jar" "$runtime_apalache_jar"
-java -jar "$runtime_jar" "$@"
+# The snapshot lives outside the project, so name the project for the files that
+# stay in it, such as the known-defect database that 'fuzztla init' enables.
+java "-Dfuzztla.home=$project_dir" -jar "$runtime_jar" "$@"

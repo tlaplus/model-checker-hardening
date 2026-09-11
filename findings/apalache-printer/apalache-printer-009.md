@@ -92,7 +92,9 @@ checkers are not checking the same specification and any resulting conformance
 deviation is an artifact rather than a difference between the checkers.
 
 It is also the one shape that keeps FuzzTLA's guarantee that every generated
-module parses from holding once the `unbound` category is enabled: a label
-correctly generated outside a binder's scope is reported as missing that
+module parses from holding, even under the shipped generator configuration: a
+label correctly generated outside a binder's scope is reported as missing that
 binder's name, because the source SANY reads is not the tree the generator
-built.
+built. A 100-entry `fuzztla run --how=pbt --seed=7921605275006395529` produces
+one such entry, whose IR has a `CASE ... OTHER` arm whose value is a `CHOOSE`
+with a `CASE` body.

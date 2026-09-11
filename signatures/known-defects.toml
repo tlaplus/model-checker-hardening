@@ -1,0 +1,37 @@
+# Known-defect signatures shipped with FuzzTLA.
+#
+# Each signature matches IR shapes that the referenced tool rejects when it reaches them, so a
+# candidate whose evaluated code contains one is quarantined instead of checked. Whether a tool
+# reaches a shape can depend on its evaluation order; docs/manual/known-defect-signatures.md
+# records each signature's measured recall and precision, the format, and the pattern language.
+# References are relative to this file.
+
+[[signature]]
+id = "modulo-by-literal-zero"
+references = ["../conformance/modulo-by-zero-apalache-fails.md"]
+description = "Apalache preprocessing reports Mod by zero for a literal-zero modulus, even in a branch TLC never evaluates."
+match = ['(MOD _ 0)']
+
+[[signature]]
+id = "division-by-literal-zero"
+references = ["../conformance/division-by-zero-apalache-fails.md"]
+description = "Apalache preprocessing reports Division by zero for a literal-zero divisor, even in a branch TLC never evaluates."
+match = ['(DIV _ 0)']
+
+[[signature]]
+id = "zero-power-zero"
+references = ["../conformance/zero-power-zero-apalache-fails.md"]
+description = "Apalache preprocessing reports 0 ^ 0 as undefined, even in a branch TLC never evaluates."
+match = ['(POW 0 0)']
+
+[[signature]]
+id = "sequence-set"
+references = ["../conformance/sequence-set-unsupported.md"]
+description = "Apalache reports Seq(S) as unsupported when it reaches it."
+match = ['(Sequences!Seq _)']
+
+[[signature]]
+id = "string-set"
+references = ["../conformance/string-set-unsupported.md"]
+description = "Apalache reports the predefined set STRING as unsupported when it reaches it."
+match = ['STRING']

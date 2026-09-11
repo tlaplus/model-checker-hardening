@@ -14,6 +14,9 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.GenerationMetadata;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import java.util.List;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -135,7 +138,7 @@ class PbtStageTest {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
-                config(1),
+                InputAdmission.withoutKnownDefects(config(1)),
                 InputKind.EXPRESSION,
                 2,
                 0,
@@ -169,7 +172,7 @@ class PbtStageTest {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
-                config(8),
+                InputAdmission.withoutKnownDefects(config(8)),
                 InputKind.EXPRESSION,
                 1,
                 0,
@@ -279,7 +282,7 @@ class PbtStageTest {
         var control = new WorkflowControl(queue);
         var target = 12;
         var stage = new PbtStage(
-                config(32),
+                InputAdmission.withoutKnownDefects(config(32)),
                 InputKind.EXPRESSION,
                 target,
                 0,
@@ -331,7 +334,7 @@ class PbtStageTest {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
-                config(32),
+                InputAdmission.withoutKnownDefects(config(32)),
                 InputKind.EXPRESSION,
                 20,
                 0,
@@ -355,6 +358,61 @@ class PbtStageTest {
     }
 
     @Test
+    void quarantinesKnownDefectsUpToTheSampleCapAndCountsTheRest(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var database = Files.writeString(directory.resolve("known-defects.toml"), """
+                [[signature]]
+                id = "sequence-from-zero"
+                references = ["none"]
+                description = "A sequence literal that starts with zero."
+                match = ['(TUPLE 0 ...)']
+                """);
+        var calls = new AtomicInteger();
+        Generator<TlaEx> defectsThenClean = _ -> calls.getAndIncrement() < 5 ? RICH : EMPTY;
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var stage = new PbtStage(
+                new InputAdmission(
+                        config(16),
+                        KnownDefectDatabase.load(List.of(database)),
+                        KnownDefectQuarantine.open(corpus, 2)),
+                InputKind.EXPRESSION,
+                1,
+                0,
+                new StageEnvironment(corpus, decoders(defectsThenClean), new CpuBudget(1), control),
+                7,
+                1,
+                queue,
+                new Semaphore(1),
+                metrics(0));
+
+        stage.start();
+        stage.await();
+
+        assertFalse(control.hasFailed());
+        assertEquals(1, stage.summary().generated());
+        assertEquals(Map.of("sequence-from-zero", 5L), stage.summary().aggregate().knownDefects());
+        assertEquals(Map.of("sequence-from-zero", 2L), corpus.knownDefectSamples());
+        assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
+        try (var quarantined = Files.list(corpus.resolve(CorpusPath.KNOWN_DEFECTS))) {
+            for (var path : quarantined.toList()) {
+                var generation = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(path))
+                        .generation()
+                        .orElseThrow();
+                assertEquals(List.of("sequence-from-zero"), generation.knownDefects());
+            }
+        }
+        // A later run continues the cap where this one stopped.
+        assertEquals(
+                KnownDefectQuarantine.Outcome.DISCARDED,
+                KnownDefectQuarantine.open(corpus, 2).record(
+                        InputKind.EXPRESSION,
+                        new byte[] {1, 2, 3},
+                        new GenerationMetadata(0, 0.0, List.of("sequence-from-zero"))));
+    }
+
+    @Test
     void derivesStableDistinctWorkerSeeds() {
         var first = PbtStage.workerSeeds(1234, 8);
         var second = PbtStage.workerSeeds(1234, 8);
@@ -375,7 +433,7 @@ class PbtStageTest {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = new PbtStage(
-                config,
+                InputAdmission.withoutKnownDefects(config),
                 InputKind.EXPRESSION,
                 target,
                 0,

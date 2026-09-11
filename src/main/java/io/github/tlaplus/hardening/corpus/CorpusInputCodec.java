@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.corpus;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,6 +24,7 @@ public final class CorpusInputCodec {
     static final String STAGES_FIELD = "stages";
     static final String COHORT_FIELD = "cohort";
     static final String RICHNESS_FIELD = "richness";
+    static final String KNOWN_DEFECTS_FIELD = "knownDefects";
 
     private CorpusInputCodec() {}
 
@@ -126,28 +128,38 @@ public final class CorpusInputCodec {
             throws IOException {
         Integer cohort = null;
         Double richness = null;
+        List<String> knownDefects = List.of();
         CborReader.Field field;
         while ((field = reader.nextField(path)) != null) {
             switch (field.name()) {
                 case COHORT_FIELD -> cohort = reader.intValue(field);
                 case RICHNESS_FIELD -> richness = reader.doubleValue(field);
+                case KNOWN_DEFECTS_FIELD -> knownDefects = reader.texts(field);
                 default -> reader.skipValue();
             }
         }
         try {
             return new GenerationMetadata(
                     CborReader.required(cohort, path + "." + COHORT_FIELD),
-                    CborReader.required(richness, path + "." + RICHNESS_FIELD));
+                    CborReader.required(richness, path + "." + RICHNESS_FIELD),
+                    knownDefects);
         } catch (IllegalArgumentException exception) {
             throw CborReader.malformed(
                     "invalid gen metadata: " + Diagnostics.message(exception));
         }
     }
 
-    /** Returns the admission-time PBT metadata as the {@code gen} submap. */
+    /**
+     * Returns the admission-time PBT metadata as the {@code gen} submap. Only a quarantined entry
+     * has known-defect signatures, so an admitted entry omits the field.
+     */
     private static CborMapWriter generationMetadata(GenerationMetadata metadata) {
-        return new CborMapWriter()
+        var result = new CborMapWriter()
                 .number(COHORT_FIELD, metadata.cohort())
                 .number(RICHNESS_FIELD, metadata.richness());
+        if (!metadata.knownDefects().isEmpty()) {
+            result.texts(KNOWN_DEFECTS_FIELD, metadata.knownDefects());
+        }
+        return result;
     }
 }

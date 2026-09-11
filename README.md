@@ -98,8 +98,12 @@ corpus/
 └── 03aggregator-fail/
 ```
 
-The initialized configuration below assumes eight available processors. The
-Apalache worker count is computed from the processors visible to the JVM.
+The initialized configuration below assumes eight available processors and a
+corpus in the repository root. The Apalache worker count is computed from the
+processors visible to the JVM. `known_defects` names the repository's
+[known-defect signatures](docs/manual/known-defect-signatures.md), relative to
+a corpus inside the repository and absolute otherwise; set it to `[]` to admit
+every candidate.
 
 ```toml
 [generator]
@@ -121,6 +125,11 @@ max_entries = 1000
 [workflow.inputs]
 # Maximum current occupancy of 00-inputs.
 max_entries = 1000
+# Known-defect signature databases, relative to this config file.
+# A candidate that matches a signature goes to 00-known-defects; [] admits every candidate.
+known_defects = ["../signatures/known-defects.toml"]
+# Quarantined entries kept per signature in 00-known-defects; further matches are only counted.
+known_defect_samples = 100
 
 [workflow.parser]
 # Maximum combined occupancy of the parser result directories.

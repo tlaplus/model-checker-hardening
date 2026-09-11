@@ -14,7 +14,7 @@ import java.util.Objects;
  */
 public record WorkflowConfig(
         int maximumEntries,
-        StageConfig inputs,
+        InputStageConfig inputs,
         ParserStageConfig parser,
         Map<CorpusStage, CheckerStageConfig> checkers) {
     public WorkflowConfig {
@@ -42,7 +42,7 @@ public record WorkflowConfig(
     public static WorkflowConfig defaults() {
         return new WorkflowConfig(
                 1_000,
-                StageConfig.defaults(),
+                InputStageConfig.defaults(),
                 ParserStageConfig.defaults(),
                 Map.of(
                         CorpusStage.TLC, CheckerStageConfig.tlcDefaults(),

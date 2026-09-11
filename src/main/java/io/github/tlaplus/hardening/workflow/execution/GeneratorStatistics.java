@@ -5,6 +5,8 @@ import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -20,6 +22,7 @@ public final class GeneratorStatistics {
     private final LongAdder rejected = new LongAdder();
     private final LongAdder richnessRejected = new LongAdder();
     private final LongAdder duplicates = new LongAdder();
+    private final ConcurrentHashMap<String, LongAdder> knownDefects = new ConcurrentHashMap<>();
     private long generated;
     private GeneratorAggregate.Richness richness;
 
@@ -32,6 +35,7 @@ public final class GeneratorStatistics {
         rejected.add(aggregate.rejected());
         richnessRejected.add(aggregate.richnessRejected());
         duplicates.add(aggregate.duplicates());
+        aggregate.knownDefects().forEach((signature, count) -> knownDefect(signature).add(count));
         generated = initialEntries;
         richness = aggregate.richness();
     }
@@ -57,6 +61,15 @@ public final class GeneratorStatistics {
         duplicates.increment();
     }
 
+    /** Records a candidate that matched known-defect signatures, under its primary signature. */
+    public void recordKnownDefect(String signature) {
+        knownDefect(Objects.requireNonNull(signature, "signature")).increment();
+    }
+
+    private LongAdder knownDefect(String signature) {
+        return knownDefects.computeIfAbsent(signature, _ -> new LongAdder());
+    }
+
     /** Records one admitted input and folds its richness into the running aggregate. */
     public synchronized void recordAdmission(double value) {
         var nextRichness = richness.include(value);
@@ -71,7 +84,9 @@ public final class GeneratorStatistics {
 
     /** Returns an immutable reading with a consistent richness aggregate. */
     public synchronized GeneratorAggregate snapshot() {
+        var knownDefectCounts = new TreeMap<String, Long>();
+        knownDefects.forEach((signature, count) -> knownDefectCounts.put(signature, count.sum()));
         return new GeneratorAggregate(attempts.sum(), rejected.sum(), richnessRejected.sum(),
-                duplicates.sum(), richness);
+                duplicates.sum(), knownDefectCounts, richness);
     }
 }

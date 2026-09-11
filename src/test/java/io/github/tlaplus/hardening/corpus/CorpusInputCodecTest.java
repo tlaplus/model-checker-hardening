@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CorpusInputCodecTest {
@@ -42,6 +43,44 @@ class CorpusInputCodecTest {
         assertTrue(!tree.has("generation"));
         assertEquals(7, tree.path("gen").path("cohort").intValue());
         assertEquals(18.5, tree.path("gen").path("richness").doubleValue());
+    }
+
+    @Test
+    void recordsKnownDefectsOnlyForAQuarantinedInput() throws Exception {
+        var corpusInput = new CorpusInput(InputKind.MODULE, new byte[] {1});
+        var quarantined = new GenerationMetadata(1, 2.0, List.of("string-set", "sequence-set"));
+
+        var admitted = CorpusInputCodec.encode(corpusInput, new GenerationMetadata(1, 2.0));
+        var encoded = CorpusInputCodec.encode(corpusInput, quarantined);
+
+        assertTrue(!new ObjectMapper(FACTORY).readTree(admitted).path("gen").has("knownDefects"));
+        assertEquals(quarantined, CorpusEnvelopeCodec.decodeEnvelope(encoded).generation().orElseThrow());
+        assertEquals(
+                "string-set",
+                new ObjectMapper(FACTORY).readTree(encoded).path("gen").path("knownDefects").get(0).textValue());
+        assertEquals("string-set", quarantined.primaryKnownDefect().orElseThrow());
+    }
+
+    @Test
+    void rejectsKnownDefectsThatAreNotTextStrings() throws Exception {
+        var numeric = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("cohort", 1);
+            generator.writeNumberField("richness", 2.0);
+            generator.writeArrayFieldStart("knownDefects");
+            generator.writeNumber(1);
+            generator.writeEndArray();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertEquals(
+                "field 'gen.knownDefects' must be an array of text strings",
+                assertThrows(CorpusFormatException.class, () -> CorpusInputCodec.decode(numeric))
+                        .getMessage());
     }
 
     @Test

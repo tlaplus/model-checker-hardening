@@ -472,13 +472,16 @@ A generated module carries two further guarantees, stated in section 9: its
 initial-state predicate constrains every declared variable, and every disjunct
 of its next-state action accounts for every declared variable exactly once.
 
-Under the shipped configuration a generated module also parses.
-`ParserProcessTest` asserts this against SANY without exception. The one known
-way to break it is not a decoder defect:
+A generated module is also meant to parse. `ParserProcessTest` asserts this
+against SANY, without exception, on a fixed sample under the shipped
+configuration. The one known way to break it is not a decoder defect:
 [`apalache-printer-009`](../../findings/apalache-printer/apalache-printer-009.md)
 renders a nested `CASE` as a `CASE` arm body without delimiters, so a later arm
 is absorbed into an enclosing `CHOOSE`'s scope and SANY reads a different tree
-than the IR. That shape is reachable once the `unbound` category is enabled.
+than the IR. That shape is reachable under the shipped configuration: a
+100-entry `fuzztla run --how=pbt --seed=7921605275006395529` produces one such
+entry. Until `PrettyWriter` delimits the nested `CASE`, such an entry fails the
+parser. The integration workflow therefore accepts parser failures.
 
 ### 8.1. Label formal parameters
 

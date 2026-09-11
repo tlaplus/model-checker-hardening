@@ -15,7 +15,7 @@ class WorkflowConfigTest {
         assertEquals(
                 new WorkflowConfig(
                         1_000,
-                        new StageConfig(1_000),
+                        InputStageConfig.of(1_000),
                         new ParserStageConfig(1_000, 30),
                         Map.of(
                                 CorpusStage.TLC,
@@ -34,7 +34,7 @@ class WorkflowConfigTest {
 
     @Test
     void rejectsInvalidCapacitiesAndTimeouts() {
-        assertThrows(IllegalArgumentException.class, () -> new StageConfig(-1));
+        assertThrows(IllegalArgumentException.class, () -> InputStageConfig.of(-1));
         assertThrows(IllegalArgumentException.class, () -> new ParserStageConfig(1, 0));
         assertThrows(IllegalArgumentException.class, () -> new CheckerStageConfig(1, 0, 512, 1));
         assertThrows(IllegalArgumentException.class, () -> new CheckerStageConfig(1, 30, 0, 1));
@@ -46,7 +46,7 @@ class WorkflowConfigTest {
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
-                        new StageConfig(2),
+                        InputStageConfig.of(2),
                         new ParserStageConfig(1, 30),
                         Map.of(
                                 CorpusStage.TLC,
@@ -57,7 +57,7 @@ class WorkflowConfigTest {
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
-                        new StageConfig(1),
+                        InputStageConfig.of(1),
                         new ParserStageConfig(2, 30),
                         Map.of(
                                 CorpusStage.TLC,
@@ -68,7 +68,7 @@ class WorkflowConfigTest {
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
-                        new StageConfig(1),
+                        InputStageConfig.of(1),
                         new ParserStageConfig(1, 30),
                         Map.of(
                                 CorpusStage.TLC,
@@ -79,7 +79,7 @@ class WorkflowConfigTest {
                 IllegalArgumentException.class,
                 () -> new WorkflowConfig(
                         1,
-                        new StageConfig(1),
+                        InputStageConfig.of(1),
                         new ParserStageConfig(1, 30),
                         Map.of(
                                 CorpusStage.TLC,
@@ -97,7 +97,7 @@ class WorkflowConfigTest {
                 IrGenerationConfig.defaults(),
                         new WorkflowConfig(
                                 2,
-                                new StageConfig(2),
+                                InputStageConfig.of(2),
                                 new ParserStageConfig(2, 30),
                                 Map.of(
                                         CorpusStage.TLC,

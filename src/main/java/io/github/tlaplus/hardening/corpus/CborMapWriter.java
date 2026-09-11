@@ -66,6 +66,18 @@ final class CborMapWriter {
         return field(name, generator -> generator.writeBinary(value));
     }
 
+    /** Appends a field holding a definite-length array of text strings. */
+    CborMapWriter texts(String name, List<String> values) {
+        var copy = List.copyOf(Objects.requireNonNull(values, "values"));
+        return field(name, generator -> {
+            generator.writeStartArray(copy, copy.size());
+            for (var value : copy) {
+                generator.writeString(value);
+            }
+            generator.writeEndArray();
+        });
+    }
+
     /**
      * Appends a field holding an epoch-based date/time, tagged per RFC 8949 section 3.4.2. A CBOR
      * tag does not survive in a parsed tree, so a timestamp written here keeps its tag while one

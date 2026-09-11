@@ -1,20 +1,46 @@
 package io.github.tlaplus.hardening.common;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
-/** Immutable generation counters shared by persisted statistics and invocation summaries. */
+/**
+ * Immutable generation counters shared by persisted statistics and invocation summaries.
+ *
+ * <p>{@code knownDefects} counts the candidates that matched a known-defect signature, keyed by
+ * primary signature id, whether they were quarantined or discarded past the per-signature cap.
+ */
 public record GeneratorAggregate(long attempts, long rejected, long richnessRejected,
-                                 long duplicates, Richness richness) {
+                                 long duplicates, Map<String, Long> knownDefects,
+                                 Richness richness) {
     public GeneratorAggregate {
         Preconditions.requireNonnegative(attempts, "attempts");
         Preconditions.requireNonnegative(rejected, "rejected");
         Preconditions.requireNonnegative(richnessRejected, "richnessRejected");
         Preconditions.requireNonnegative(duplicates, "duplicates");
+        Objects.requireNonNull(knownDefects, "knownDefects");
+        for (var entry : knownDefects.entrySet()) {
+            Preconditions.require(!entry.getKey().isBlank(), "known-defect ids must not be blank");
+            Preconditions.requireNonnegative(entry.getValue(), "known-defect count");
+        }
+        knownDefects = Collections.unmodifiableSortedMap(new TreeMap<>(knownDefects));
         Objects.requireNonNull(richness, "richness");
+    }
+
+    /** Returns counters from before any candidate matched a known-defect signature. */
+    public GeneratorAggregate(long attempts, long rejected, long richnessRejected,
+                              long duplicates, Richness richness) {
+        this(attempts, rejected, richnessRejected, duplicates, Map.of(), richness);
     }
 
     public static GeneratorAggregate empty() {
         return new GeneratorAggregate(0, 0, 0, 0, Richness.empty());
+    }
+
+    /** Returns how many candidates matched any known-defect signature. */
+    public long knownDefectRejections() {
+        return knownDefects.values().stream().mapToLong(Long::longValue).sum();
     }
 
     /** Collection richness over admitted samples, not over all attempted inputs. */

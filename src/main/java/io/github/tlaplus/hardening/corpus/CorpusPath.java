@@ -7,6 +7,11 @@ public enum CorpusPath {
     ROOT("", Kind.DIRECTORY, Presence.REQUIRED, Contents.NONE),
     CONFIG("config.toml", Kind.FILE, Presence.REQUIRED, Contents.NONE),
     INPUT("00-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    /**
+     * Candidates that matched a known-defect signature. It belongs to no stage and counts towards
+     * no capacity, but its entries keep their digest identity, so regenerating one is a duplicate.
+     */
+    KNOWN_DEFECTS("00-known-defects", Kind.DIRECTORY, Presence.LAZY, Contents.ENTRIES),
     PARSER_PASS("01parser-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     PARSER_FAIL("01parser-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     PARSER_CRASH("01parser-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),

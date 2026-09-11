@@ -59,7 +59,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<InputKind> INPUT_KIND = new ConfigValueType<>(
             ConfigValueType::readInputKind, kind -> quote(kind.encodedName()));
 
-    static final ConfigValueType<List<Path>> CLASSPATH = new ConfigValueType<>(
+    static final ConfigValueType<List<Path>> PATHS = new ConfigValueType<>(
             (table, path, key) -> strings(array(table, path, key), path).stream()
                     .map(Path::of).toList(),
             paths -> formatList(paths.stream().map(Path::toString).toList()));

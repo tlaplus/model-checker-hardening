@@ -11,8 +11,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /**
  * Owns the on-disk layout and integrity checks for one FuzzTLA corpus.
@@ -178,7 +181,7 @@ public final class CorpusDirectory {
     /** Whether any stage directory contains an input; does not decode or recover entries. */
     public synchronized boolean hasStoredInputs() throws IOException {
         for (var path : CorpusPath.values()) {
-            if (!path.storesEntries()) continue;
+            if (!path.storesEntries() || Files.notExists(resolve(path), NO_FOLLOW_LINKS)) continue;
             try (var entries = Files.list(resolve(path))) {
                 if (entries.anyMatch(entry -> entry.getFileName().toString().endsWith(CorpusLayout.ENTRY_EXTENSION))) return true;
             }
@@ -239,6 +242,44 @@ public final class CorpusDirectory {
             InputKind kind, byte[] input, GenerationMetadata generation)
             throws IOException, CorpusException {
         return store.store(kind, input, Objects.requireNonNull(generation, "generation"));
+    }
+
+    /**
+     * Stores a candidate that matched known-defect signatures in {@code 00-known-defects}, where no
+     * stage processes it.
+     */
+    public synchronized StoreResult quarantine(
+            InputKind kind, byte[] input, GenerationMetadata generation)
+            throws IOException, CorpusException {
+        return store.quarantine(kind, input, generation);
+    }
+
+    /**
+     * Counts the quarantined entries by primary known-defect signature, so that a run continues
+     * each per-signature cap where the previous run stopped.
+     */
+    public synchronized Map<String, Long> knownDefectSamples() throws IOException, CorpusException {
+        var directory = resolve(CorpusPath.KNOWN_DEFECTS);
+        if (Files.notExists(directory, NO_FOLLOW_LINKS)) {
+            return Map.of();
+        }
+        var counts = new TreeMap<String, Long>();
+        for (var path : entries(CorpusEntryValidator.NONE).entryPaths(directory)) {
+            final CorpusEnvelope envelope;
+            try {
+                envelope = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(path));
+            } catch (CorpusFormatException exception) {
+                throw new CorpusException(
+                        "invalid quarantined entry '" + path + "': " + Diagnostics.message(exception),
+                        exception);
+            }
+            var primary = envelope.generation()
+                    .flatMap(GenerationMetadata::primaryKnownDefect)
+                    .orElseThrow(() -> new CorpusException(
+                            "quarantined entry names no known-defect signature: " + path));
+            counts.merge(primary, 1L, Long::sum);
+        }
+        return Collections.unmodifiableMap(counts);
     }
 
     /** Preserves an input and stack trace for an unexpected generator failure. */
