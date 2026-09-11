@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.workflow.checker;
+package io.github.tlaplus.hardening.workflow.tool;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * Checker-specific behavior injected into the shared checker stage.
+ * Tool-specific behavior injected into the shared {@link ToolStage}.
  *
  * <p>An implementation chooses one of two worker lifecycles, and the stage supports both:
  *
@@ -17,28 +17,35 @@ import java.util.function.Function;
  *       single check, so process state cannot leak between inputs at the cost of one JVM startup
  *       each. TLC works this way.
  *   <li><em>One child process per worker.</em> {@link #startWorker()} returns a worker that serves
- *       many inputs sequentially until a crash retires it, amortizing JVM startup. Apalache works
- *       this way.
+ *       many inputs sequentially until a crash retires it, amortizing JVM startup. The parser and
+ *       Apalache work this way.
  * </ul>
  *
  * <p>The stage calls {@link #startWorker()} again after every crash verdict, so a one-shot worker
  * simply reports a crash on every failure and a persistent one is replaced only when it dies.
  */
-public interface CheckerBackend {
-    /** Returns the corpus stage this checker records its verdicts under. */
+public interface ToolBackend {
+    /** Returns the corpus stage this tool records its verdicts under. */
     CorpusStage stage();
 
     int workerCount();
 
+    /** Returns the CPU permits one input occupies while this tool runs. */
     int cpuPermits();
 
-    /** Returns this checker's representation of an assembled module. */
+    /** Returns this tool's representation of an assembled module. */
     default Function<TlaModule, String> renderer() {
         return SpecText::render;
     }
 
     /** Returns a worker for the next input, per the lifecycle documented on this interface. */
-    CheckerWorker startWorker() throws WorkflowException, InterruptedException;
+    ToolWorker startWorker() throws WorkflowException, InterruptedException;
 
-    Optional<String> failureDetail(String diagnostic);
+    /**
+     * Returns the non-semantic detail of a classified failure. A tool that does not classify its
+     * failures has none.
+     */
+    default Optional<String> failureDetail(String diagnostic) {
+        return Optional.empty();
+    }
 }

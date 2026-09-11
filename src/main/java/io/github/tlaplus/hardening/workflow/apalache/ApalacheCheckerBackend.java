@@ -4,15 +4,15 @@ import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
-import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
+import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
+import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
-/** Adapts persistent Apalache tool workers to the shared checker stage. */
-public final class ApalacheCheckerBackend implements CheckerBackend {
+/** Adapts persistent Apalache tool workers to the shared tool stage. */
+public final class ApalacheCheckerBackend implements ToolBackend {
     private final CheckerStageConfig config;
     private final Path releaseJar;
     private final Path scratchDirectory;
@@ -45,7 +45,7 @@ public final class ApalacheCheckerBackend implements CheckerBackend {
     }
 
     @Override
-    public CheckerWorker startWorker() throws WorkflowException, InterruptedException {
+    public ToolWorker startWorker() throws WorkflowException, InterruptedException {
         return ApalacheProcess.start(releaseJar, scratchDirectory, config, config.timeout());
     }
 

@@ -2,28 +2,21 @@ package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
+import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
+import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
-import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
-import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
-/** Parent-side handle for one persistent isolated Apalache JVM. */
-final class ApalacheProcess implements CheckerWorker {
-    private final Duration timeout;
-    private final IsolatedWorkerProcess worker;
+/** Starts one persistent isolated Apalache JVM, which serves inputs until a crash retires it. */
+final class ApalacheProcess {
+    private ApalacheProcess() {}
 
-    private ApalacheProcess(Duration timeout, IsolatedWorkerProcess worker) {
-        this.timeout = timeout;
-        this.worker = worker;
-    }
-
-    static ApalacheProcess start(
+    static ToolWorker start(
             Path releaseJar,
             Path scratchDirectory,
             CheckerStageConfig config,
@@ -32,27 +25,13 @@ final class ApalacheProcess implements CheckerWorker {
         Objects.requireNonNull(releaseJar, "releaseJar");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(timeout, "timeout");
-        var arguments = List.of(
-                JavaLaunch.maximumHeap(config.maximumHeapMegabytes()),
-                "-XX:+ExitOnOutOfMemoryError",
-                "-XX:-UsePerfData");
-        var worker = IsolatedWorkerProcess.start(new WorkerSpec(
+        var process = IsolatedWorkerProcess.start(new WorkerSpec(
                 scratchDirectory,
                 timeout,
                 ApalacheWorkerMain.class,
                 List.of(releaseJar),
-                arguments,
+                JavaLaunch.boundedHeap(config.maximumHeapMegabytes(), "-XX:-UsePerfData"),
                 "Apalache worker"));
-        return new ApalacheProcess(timeout, worker);
-    }
-
-    @Override
-    public ToolResult check(ToolInput input) throws WorkflowException, InterruptedException {
-        return worker.request(input, timeout);
-    }
-
-    @Override
-    public void close() {
-        worker.close();
+        return new ProcessToolWorker(process, timeout);
     }
 }
