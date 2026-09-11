@@ -149,6 +149,8 @@ SIGNATURES = (
             all_of(r"^TLC error code 2179 mapped to exit status 255$", r"Error: The second argument of \\div is 0\."),
             all_of(r"^TLC error code 2169 mapped to exit status 255$",
                    r"Error: The second argument of % should be a positive number"),
+            all_of(r"^TLC error code 2169 mapped to exit status 255$",
+                   r"Error: The second argument of \^ should be a natural number"),
             all_of(r"^TLC error code 2178 mapped to exit status 255$",
                    r"Overflow when computing ")),
     finding("tlc-003.md", CrashKind.TLC,
