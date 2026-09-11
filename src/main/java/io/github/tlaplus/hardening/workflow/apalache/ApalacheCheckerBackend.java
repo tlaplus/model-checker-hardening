@@ -2,11 +2,11 @@ package io.github.tlaplus.hardening.workflow.apalache;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -25,18 +25,8 @@ public final class ApalacheCheckerBackend implements CheckerBackend {
     }
 
     @Override
-    public String name() {
-        return "apalache";
-    }
-
-    @Override
-    public String displayName() {
-        return "Apalache";
-    }
-
-    @Override
-    public int maximumEntries() {
-        return config.maximumEntries();
+    public CorpusStage stage() {
+        return CorpusStage.APALACHE;
     }
 
     @Override
@@ -54,13 +44,9 @@ public final class ApalacheCheckerBackend implements CheckerBackend {
         return ApalacheIrJson::render;
     }
 
-    private Duration timeout() {
-        return Duration.ofSeconds(config.timeoutSeconds());
-    }
-
     @Override
     public CheckerWorker startWorker() throws WorkflowException, InterruptedException {
-        return ApalacheProcess.start(releaseJar, scratchDirectory, config, timeout());
+        return ApalacheProcess.start(releaseJar, scratchDirectory, config, config.timeout());
     }
 
     @Override

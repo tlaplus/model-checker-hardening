@@ -113,25 +113,7 @@ final class ConfigSchema {
             Key<Integer> maximumHeapMegabytes,
             Key<Integer> workers) {}
 
-    /**
-     * The checker documentation that genuinely differs between checkers, because their worker
-     * lifecycles differ: TLC runs one child per input, Apalache one persistent child per worker.
-     */
-    private record CheckerDocumentation(String heap, List<String> workers) {}
-
     private static final String WORKFLOW_PATH = "workflow";
-    private static final Map<CorpusStage, CheckerDocumentation> CHECKER_DOCUMENTATION = Map.of(
-            CorpusStage.TLC,
-            new CheckerDocumentation(
-                    "Maximum heap allocated to each isolated TLC JVM.",
-                    List.of("Number of TLC model-checking workers in each isolated JVM.")),
-            CorpusStage.APALACHE,
-            new CheckerDocumentation(
-                    "Maximum heap allocated to each persistent Apalache worker JVM.",
-                    List.of(
-                            "Number of concurrent FuzzTLA Apalache workers.",
-                            "Initialized to half the available processors, rounded down"
-                                    + " (at least one).")));
 
     private static final ConfigTableBuilder<FuzzTlaConfig> GENERATOR =
             new ConfigTableBuilder<>("generator", Function.identity());
@@ -248,18 +230,15 @@ final class ConfigSchema {
     private static Map<CorpusStage, CheckerKeys> checkerKeys() {
         var keys = new EnumMap<CorpusStage, CheckerKeys>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {
-            var documentation = CHECKER_DOCUMENTATION.get(stage);
-            if (documentation == null) {
-                throw new IllegalStateException(
-                        "no configuration documentation for checker " + stage);
-            }
+            var profile = CheckerProfile.of(stage);
             var table = new ConfigTableBuilder<>(stagePath(stage), config -> config.workflow().checker(stage));
             keys.put(stage, new CheckerKeys(
                     table.integer("max_entries", CheckerStageConfig::maximumEntries, resultDirectoryDocumentation(stage)),
                     table.integer("timeout_sec", CheckerStageConfig::timeoutSeconds,
                             "Wall-clock limit for checking one generated specification."),
-                    table.integer("max_heap_mb", CheckerStageConfig::maximumHeapMegabytes, documentation.heap()),
-                    table.integer("workers", CheckerStageConfig::workers, documentation.workers().toArray(String[]::new))));
+                    table.integer("max_heap_mb", CheckerStageConfig::maximumHeapMegabytes, profile.heapDocumentation()),
+                    table.integer("workers", CheckerStageConfig::workers,
+                            profile.workersDocumentation().toArray(String[]::new))));
             CHECKER_TABLES.put(stage, table.build());
         }
         return Map.copyOf(keys);

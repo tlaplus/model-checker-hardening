@@ -6,46 +6,21 @@ import io.github.tlaplus.hardening.common.Preconditions;
  * Capacity and resource limits for one model-checker stage.
  *
  * <p>TLC and Apalache take the same four settings and differ only in their defaults, so both are
- * configured by this record and told apart by the {@code CorpusStage} they are keyed by.
+ * configured by this record and told apart by the {@code CorpusStage} they are keyed by. The
+ * per-checker defaults live on {@link CheckerProfile}.
  */
 public record CheckerStageConfig(
         int maximumEntries,
         int timeoutSeconds,
         int maximumHeapMegabytes,
-        int workers) {
+        int workers) implements StageLimits {
     public static final int DEFAULT_TIMEOUT_SECONDS = 30;
     public static final int DEFAULT_MAXIMUM_ENTRIES = 1_000;
-    public static final int DEFAULT_TLC_MAXIMUM_HEAP_MEGABYTES = 512;
-    public static final int DEFAULT_APALACHE_MAXIMUM_HEAP_MEGABYTES = 1_024;
-
-    /** TLC runs its own workers inside one JVM, so one FuzzTLA invocation is the default. */
-    public static final int DEFAULT_TLC_WORKERS = 1;
-
-    /** Apalache runs one input per worker JVM, so it defaults to half the visible processors. */
-    public static final int DEFAULT_APALACHE_WORKERS =
-            Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
 
     public CheckerStageConfig {
         Preconditions.requireNonnegative(maximumEntries, "maximumEntries");
         Preconditions.requirePositive(timeoutSeconds, "timeoutSeconds");
         Preconditions.requirePositive(maximumHeapMegabytes, "maximumHeapMegabytes");
         Preconditions.requirePositive(workers, "workers");
-    }
-
-    public static CheckerStageConfig tlcDefaults() {
-        return defaults(DEFAULT_TLC_MAXIMUM_HEAP_MEGABYTES, DEFAULT_TLC_WORKERS);
-    }
-
-    public static CheckerStageConfig apalacheDefaults() {
-        return defaults(
-                DEFAULT_APALACHE_MAXIMUM_HEAP_MEGABYTES, DEFAULT_APALACHE_WORKERS);
-    }
-
-    private static CheckerStageConfig defaults(int maximumHeapMegabytes, int workers) {
-        return new CheckerStageConfig(
-                DEFAULT_MAXIMUM_ENTRIES,
-                DEFAULT_TIMEOUT_SECONDS,
-                maximumHeapMegabytes,
-                workers);
     }
 }

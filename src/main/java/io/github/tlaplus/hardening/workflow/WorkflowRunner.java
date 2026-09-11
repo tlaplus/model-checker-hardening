@@ -10,7 +10,6 @@ import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
@@ -35,7 +34,6 @@ import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
-import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -303,16 +301,10 @@ public final class WorkflowRunner {
     /** Returns the checker backend of one stage, configured for this invocation. */
     private CheckerBackend checkerBackend(
             CorpusStage stage, int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
-        var checkerConfig = config.workflow().checker(stage);
-        return switch (stage) {
-            case TLC -> new TlcCheckerBackend(
-                    checkerConfig,
-                    maximumCpus / checkerConfig.workers(),
-                    scratch.directory(CorpusStage.TLC));
-            case APALACHE -> new ApalacheCheckerBackend(
-                    checkerConfig, apalacheJar, scratch.directory(CorpusStage.APALACHE));
-            default -> throw new AssertionError("unreachable stage: " + stage);
-        };
+        return CheckerBackends.create(
+                stage,
+                config.workflow().checker(stage),
+                new CheckerBackends.Resources(maximumCpus, scratch, apalacheJar));
     }
 
     /** Returns what one stage has produced according to an inventory of the corpus. */
