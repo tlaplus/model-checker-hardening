@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import scala.Console$;
 
 /** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
 public final class ApalacheWorkerMain {
@@ -36,6 +37,7 @@ public final class ApalacheWorkerMain {
                     .toAbsolutePath()
                     .normalize();
             System.setProperty("user.home", workerDirectory.toString());
+            setScalaConsole(processError);
             var toolRun = resolveToolRun();
             var cleanupPending = new ArrayList<Path>();
 
@@ -53,8 +55,13 @@ public final class ApalacheWorkerMain {
                                     StandardCharsets.UTF_8,
                                     StandardOpenOption.CREATE_NEW,
                                     StandardOpenOption.WRITE);
-                            var result = check(
-                                    toolRun, jobDirectory, specification, source.length());
+                            var result =
+                                    check(
+                                            toolRun,
+                                            jobDirectory,
+                                            specification,
+                                            source.length(),
+                                            processError);
 
                             // Tool.run resets Logback at the beginning of every invocation.
                             // Once the current invocation returns, files retained by the
@@ -74,32 +81,40 @@ public final class ApalacheWorkerMain {
             Method toolRun,
             Path jobDirectory,
             Path specification,
-            int length) {
+            int length,
+            PrintStream processError) {
         var diagnostics =
                 new BoundedTextOutputStream(MAXIMUM_OUTPUT_BYTES, "Apalache output");
         try (var diagnosticStream = new PrintStream(
                 diagnostics, true, StandardCharsets.UTF_8)) {
+            System.setOut(diagnosticStream);
+            System.setErr(diagnosticStream);
+            setScalaConsole(diagnosticStream);
             try {
                 var exitStatus = (int) toolRun.invoke(
-                        null,
-                        arguments(jobDirectory, specification, length),
-                        diagnosticStream,
-                        diagnosticStream);
+                        null, (Object) arguments(jobDirectory, specification, length));
                 diagnosticStream.flush();
                 return ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text());
             } catch (Exception | StackOverflowError exception) {
                 diagnosticStream.flush();
                 return ToolResult.crash(exception, diagnostics.text());
+            } finally {
+                System.setOut(processError);
+                System.setErr(processError);
+                setScalaConsole(processError);
             }
         }
     }
 
+    private static void setScalaConsole(PrintStream stream) {
+        Console$.MODULE$.setOutDirect(stream);
+        Console$.MODULE$.setErrDirect(stream);
+    }
+
     private static Method resolveToolRun() throws ReflectiveOperationException {
-        var method = Class.forName(TOOL_CLASS)
-                .getMethod("run", String[].class, PrintStream.class, PrintStream.class);
+        var method = Class.forName(TOOL_CLASS).getMethod("run", String[].class);
         if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != int.class) {
-            throw new NoSuchMethodException(
-                    TOOL_CLASS + ".run(String[], PrintStream, PrintStream) must return int");
+            throw new NoSuchMethodException(TOOL_CLASS + ".run(String[]) must return int");
         }
         return method;
     }
