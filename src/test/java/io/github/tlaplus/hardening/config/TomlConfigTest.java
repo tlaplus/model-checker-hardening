@@ -27,7 +27,7 @@ class TomlConfigTest {
             // Only Apalache's worker default is host-dependent. WorkflowConfigTest pins its
             // CPU-count formula; all other defaults and formatting remain fixed byte-for-byte.
             var expected = new String(fixture.readAllBytes(), UTF_8).replace(
-                    "${APALACHE_WORKERS}", Integer.toString(CheckerStageConfig.DEFAULT_APALACHE_WORKERS));
+                    "${APALACHE_WORKERS}", Integer.toString(CheckerProfile.APALACHE.defaults().workers()));
             assertArrayEquals(expected.getBytes(UTF_8),
                     TomlConfig.render(FuzzTlaConfig.defaults()).getBytes(UTF_8));
         }
@@ -62,7 +62,7 @@ class TomlConfigTest {
                         + "# Number of concurrent FuzzTLA Apalache workers.\n"
                         + "# Initialized to half the available processors, rounded down (at least one).\n"
                         + "workers = "
-                        + CheckerStageConfig.DEFAULT_APALACHE_WORKERS));
+                        + CheckerProfile.APALACHE.defaults().workers()));
         assertTrue(Files.readString(path).contains("richness_cohorts = 10"));
         assertTrue(Files.readString(path).contains("richness_nesting_base = 2.0"));
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));

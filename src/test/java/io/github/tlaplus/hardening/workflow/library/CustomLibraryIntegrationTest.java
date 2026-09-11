@@ -77,7 +77,7 @@ class CustomLibraryIntegrationTest {
         for (var backend : backends) {
             try (var worker = backend.startWorker()) {
                 var result = worker.check(new ToolInput(backend.renderer().apply(artifact.module()), 0));
-                assertEquals(StageOutcome.PASS, result.outcome(), backend.name() + ": " + result.diagnostic());
+                assertEquals(StageOutcome.PASS, result.outcome(), backend.stage().displayName() + ": " + result.diagnostic());
             }
         }
     }

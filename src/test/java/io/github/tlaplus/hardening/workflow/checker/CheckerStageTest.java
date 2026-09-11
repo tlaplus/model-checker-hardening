@@ -61,7 +61,7 @@ class CheckerStageTest {
         var initial = StageVerdictSummary.empty();
         var stage = new CheckerStage(
                 backend,
-                new OccupancyGate(0, backend.maximumEntries()),
+                new OccupancyGate(0, 2),
                 new StageCounters(initial, new ElapsedTimeAccumulator()),
                 new StageEnvironment(corpus, decoders, new CpuBudget(1), control),
                 input,
@@ -89,18 +89,8 @@ class CheckerStageTest {
         private final AtomicInteger renders = new AtomicInteger();
 
         @Override
-        public String name() {
-            return "tlc";
-        }
-
-        @Override
-        public String displayName() {
-            return "TLC";
-        }
-
-        @Override
-        public int maximumEntries() {
-            return 2;
+        public CorpusStage stage() {
+            return CorpusStage.TLC;
         }
 
         @Override

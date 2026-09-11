@@ -25,11 +25,11 @@ class WorkflowConfigTest {
                                 1_000,
                                 30,
                                 1_024,
-                                CheckerStageConfig.DEFAULT_APALACHE_WORKERS))),
+                                CheckerProfile.APALACHE.defaults().workers()))),
                 WorkflowConfig.defaults());
         assertEquals(
                 Math.max(1, Runtime.getRuntime().availableProcessors() / 2),
-                CheckerStageConfig.DEFAULT_APALACHE_WORKERS);
+                CheckerProfile.APALACHE.defaults().workers());
     }
 
     @Test
@@ -86,6 +86,25 @@ class WorkflowConfigTest {
                                 new CheckerStageConfig(1, 30, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 30, 512, 1))));
+    }
+
+    @Test
+    void everyCheckerBranchHasExactlyOneProfile() {
+        for (var stage : CorpusStage.checkerBranches()) {
+            assertEquals(stage, CheckerProfile.of(stage).stage());
+        }
+        assertEquals(CorpusStage.checkerBranches().size(), CheckerProfile.values().length);
+        assertThrows(IllegalArgumentException.class, () -> CheckerProfile.of(CorpusStage.PARSER));
+    }
+
+    @Test
+    void exposesTheLimitsOfEveryConfiguredStage() {
+        var config = WorkflowConfig.defaults();
+        assertEquals(config.parser(), config.limits(CorpusStage.PARSER));
+        for (var stage : CorpusStage.checkerBranches()) {
+            assertEquals(config.checker(stage), config.limits(stage));
+        }
+        assertThrows(IllegalArgumentException.class, () -> config.limits(CorpusStage.AGGREGATOR));
     }
 
     @Test
