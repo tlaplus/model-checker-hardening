@@ -39,6 +39,7 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.ROOT, Path.of("")),
                 Map.entry(CorpusPath.CONFIG, Path.of("config.toml")),
                 Map.entry(CorpusPath.INPUT, Path.of("00-inputs")),
+                Map.entry(CorpusPath.KNOWN_DEFECTS, Path.of("00-known-defects")),
                 Map.entry(CorpusPath.PARSER_PASS, Path.of("01parser-pass")),
                 Map.entry(CorpusPath.PARSER_FAIL, Path.of("01parser-fail")),
                 Map.entry(CorpusPath.PARSER_CRASH, Path.of("01parser-crash")),
@@ -116,6 +117,33 @@ class CorpusDirectoryTest {
                 generation,
                 CorpusEnvelopeCodec.decodeEnvelope(encoded).generation().orElseThrow());
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
+    }
+
+    @Test
+    void quarantinesKnownDefectsOutsideEveryStage(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var input = new byte[] {4, 2};
+        var generation = new GenerationMetadata(1, 2.0, List.of("string-set", "sequence-set"));
+
+        assertFalse(Files.exists(corpus.resolve(CorpusPath.KNOWN_DEFECTS)));
+        assertFalse(corpus.hasStoredInputs());
+        assertEquals(Map.of(), corpus.knownDefectSamples());
+
+        assertEquals(StoreResult.ADDED, corpus.quarantine(InputKind.MODULE, input, generation));
+        assertEquals(StoreResult.DUPLICATE, corpus.quarantine(InputKind.MODULE, input, generation));
+        assertEquals(StoreResult.DUPLICATE, corpus.store(InputKind.MODULE, input));
+
+        var path = corpus.resolve(CorpusPath.KNOWN_DEFECTS).resolve(hash(input) + ".cbor");
+        assertEquals(
+                generation,
+                CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(path)).generation().orElseThrow());
+        assertTrue(corpus.hasStoredInputs());
+        assertEquals(Map.of("string-set", 1L), corpus.knownDefectSamples());
+        assertEquals(0, corpus.recoverAndValidate(ACCEPT).totalEntries());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> corpus.quarantine(InputKind.MODULE, new byte[] {5}, new GenerationMetadata(1, 2.0)));
     }
 
     @Test

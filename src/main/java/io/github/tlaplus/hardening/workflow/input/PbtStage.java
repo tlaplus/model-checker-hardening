@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.workflow.input;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
-import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
@@ -17,7 +16,6 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
-import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.SplittableRandom;
@@ -29,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class PbtStage implements WorkflowStage {
     private static final long MAXIMUM_ATTEMPTS_PER_ENTRY = 10_000;
 
-    private final PbtConfig config;
+    private final InputAdmission admission;
     private final InputKind kind;
     private final Generator<SpecArtifact> decoder;
     private final long initialEntries;
@@ -44,7 +42,7 @@ public final class PbtStage implements WorkflowStage {
     private final WorkerGroup workers = new WorkerGroup("fuzztla-pbt-");
 
     public PbtStage(
-            PbtConfig config,
+            InputAdmission admission,
             InputKind kind,
             long maximumEntries,
             long initialEntries,
@@ -54,7 +52,7 @@ public final class PbtStage implements WorkflowStage {
             WorkQueue<Path> output,
             Semaphore inputCapacity,
             GeneratorStatistics statistics) {
-        this.config = Objects.requireNonNull(config, "config");
+        this.admission = Objects.requireNonNull(admission, "admission");
         this.kind = Objects.requireNonNull(kind, "kind");
         Preconditions.requireNonnegative(initialEntries, "initialEntries");
         this.initialEntries = initialEntries;
@@ -117,9 +115,11 @@ public final class PbtStage implements WorkflowStage {
             if (target >= missingEntries) {
                 return;
             }
-            var cohort = cohortRandom.nextInt(config.richnessCohorts());
-            var threshold = config.richnessThreshold(cohort);
+            var pbt = admission.pbt();
+            var cohort = cohortRandom.nextInt(pbt.richnessCohorts());
+            var threshold = pbt.richnessThreshold(cohort);
             long entryAttempts = 0;
+            long entryKnownDefects = 0;
             var bestRichness = 0.0;
 
             while (!environment.control().shouldStop()) {
@@ -138,7 +138,10 @@ public final class PbtStage implements WorkflowStage {
                                     + ") within "
                                     + MAXIMUM_ATTEMPTS_PER_ENTRY
                                     + " attempts; best richness was "
-                                    + bestRichness);
+                                    + bestRichness
+                                    + "; "
+                                    + entryKnownDefects
+                                    + " candidates matched known-defect signatures");
                 }
                 if (!acquireInputCapacity()) {
                     return;
@@ -161,13 +164,13 @@ public final class PbtStage implements WorkflowStage {
                             statistics.recordAttempt();
                             entryAttempts++;
                             var length = InputLengthSampler.sample(
-                                    inputRandom, config.maximumInputBytes());
+                                    inputRandom, pbt.maximumInputBytes());
                             input = new byte[length];
                             inputRandom.nextBytes(input);
                             try {
                                 artifact = decoder.generate(input);
                                 richness = CollectionRichness.score(
-                                        artifact.generated(), config.richnessNestingBase());
+                                        artifact.generated(), pbt.richnessNestingBase());
                             } catch (InputRejectedException exception) {
                                 statistics.recordRejection();
                                 continue;
@@ -185,17 +188,28 @@ public final class PbtStage implements WorkflowStage {
                         }
 
                         bestRichness = Math.max(bestRichness, richness);
-                        if (richness < threshold) {
-                            statistics.recordRichnessRejection();
-                            continue;
-                        }
-
-                        // A module that renders past the worker request frame cannot reach the
-                        // parser or checkers; reject it here rather than store an entry they can
-                        // only crash on.
-                        if (!SpecText.withinWorkerProtocolLimit(artifact.module())) {
-                            statistics.recordRejection();
-                            continue;
+                        switch (admission.decide(artifact, richness, threshold)) {
+                            case InputAdmission.Decision.BelowRichnessThreshold _ -> {
+                                statistics.recordRichnessRejection();
+                                continue;
+                            }
+                            case InputAdmission.Decision.ExceedsRequestFrame _ -> {
+                                statistics.recordRejection();
+                                continue;
+                            }
+                            case InputAdmission.Decision.KnownDefect defect -> {
+                                entryKnownDefects++;
+                                statistics.recordKnownDefect(defect.primary());
+                                admission.quarantine(
+                                        kind,
+                                        input,
+                                        new GenerationMetadata(
+                                                cohort, richness, defect.signatures()));
+                                continue;
+                            }
+                            case InputAdmission.Decision.Admitted _ -> {
+                                // Stored below.
+                            }
                         }
 
                         var stored = environment.corpus()

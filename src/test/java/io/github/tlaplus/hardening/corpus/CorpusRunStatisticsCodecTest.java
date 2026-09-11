@@ -43,6 +43,21 @@ class CorpusRunStatisticsCodecTest {
                 CorpusRunStatisticsCodec.encode(STATISTICS)));
     }
 
+    /** The historical fixture above has no known-defect counts; they read back as none. */
+    @Test
+    void roundTripsKnownDefectCountsBySignature() throws Exception {
+        var statistics = new CorpusRunStatistics(
+                1,
+                2,
+                Map.of(),
+                new GeneratorAggregate(
+                        7, 8, 9, 10, Map.of("string-set", 3L, "sequence-set", 4L), Richness.empty()));
+
+        assertEquals(statistics, CorpusRunStatisticsCodec.decode(
+                CorpusRunStatisticsCodec.encode(statistics)));
+        assertEquals(Map.of(), STATISTICS.generator().knownDefects());
+    }
+
     @Test
     void readsZeroBeforeTheFirstSaveAndAtomicallyReplacesStatistics(@TempDir Path directory)
             throws Exception {

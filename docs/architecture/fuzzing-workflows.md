@@ -14,6 +14,7 @@ described below are implemented. The quality gate, mutator, and final test-suite
 stages remain proposals. [ADR 0001][] records the stage and worker execution
 model. [ADR 0002][] records the property-based input admission policy.
 [ADR 0005][] records the separate model-checker counterexample verdict.
+[ADR 0006][] records the known-defect admission filter.
 
 ### 1.1. General architecture
 
@@ -35,6 +36,17 @@ a stored score depend on the skeleton rather than on the input. Admission also
 rejects a candidate whose assembled module renders to more TLA<sup>+</sup> source
 than one worker request frame holds, so no stored entry can only be crashed on by
 the parser and TLC.
+
+**Implemented architectural extension.** Admission ends with the known-defect
+signatures listed in `[workflow.inputs] known_defects` ([ADR 0006][]). A
+signature is a pattern over the IR of the code the tools evaluate, matching a
+shape that a tool is documented to reject. A matching candidate is not
+admitted to `00-inputs`. It is stored in `00-known-defects` while its primary
+signature has fewer than `known_defect_samples` stored entries, and only counted
+otherwise. The check runs after the richness threshold and the request-frame
+limit and draws no randomness, so with no database the admitted stream is
+unchanged. The [manual][known-defect manual] specifies the database format and
+the pattern language.
 
 Every tool stage regenerates the same closed, typed IR from the stored bytes and
 the invocation's immutable prepared operator library.
@@ -64,6 +76,7 @@ flowchart LR
     subgraph inputs["Generated inputs"]
         direction TB
         inp["00-inputs"]
+        known["00-known-defects"]
     end
 
     subgraph parse["Parser"]
@@ -341,6 +354,14 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    failing input to a stage directory. It persists across workflow invocations
    and does not count towards capacity limits.
 
+ - `00-known-defects/<sha256>.cbor` holds candidates that matched a known-defect
+   signature. The directory is created on first use and belongs to no stage: no
+   queue reads it, recovery does not inventory it, and it counts towards no
+   capacity limit. Its entries keep their digest identity, so generating one
+   again yields a duplicate. Each entry lists the matching signature ids in
+   `gen.knownDefects`. A run counts the directory's entries by primary signature
+   at startup and keeps at most `known_defect_samples` per signature.
+
  - `.workflow-stats.cbor` stores cumulative elapsed time and generator
    aggregates that cannot be reconstructed cheaply or exactly from corpus
    entries. The runner reads it after corpus validation and atomically replaces
@@ -356,6 +377,8 @@ richness statistics cover `richnessSamples` admissions recorded since the
 aggregate was first created. `elapsedNs.stages` is keyed by stage metadata name.
 A stage the reader does not know is ignored, and a stage the document omits
 contributes zero, so adding or removing a stage needs no migration.
+`generator.knownDefects` maps a primary signature id to the number of candidates
+that matched it, stored or not; it is omitted while no candidate has matched.
 
 ```cbor
 {
@@ -374,6 +397,7 @@ contributes zero, so adding or removing a stage needs no migration.
     "rejected": 0,
     "richnessRejected": 0,
     "duplicates": 0,
+    "knownDefects": { "modulo-by-literal-zero": 0 },
     "richnessSamples": 0,
     "minimumRichness": 0.0,
     "maximumRichness": 0.0,
@@ -394,6 +418,22 @@ score in the compact `"gen"` field:
     "gen": {
       "cohort": 7,
       "richness": 18.0
+    }
+}
+```
+
+A quarantined entry in `00-known-defects` also lists, under `knownDefects`, the
+known-defect signatures it matched in database order; the first is its primary
+signature. Admitted entries omit the field.
+
+```cbor
+{
+    "kind": "module",
+    "input": h'0123af',
+    "gen": {
+      "cohort": 3,
+      "richness": 4.0,
+      "knownDefects": ["modulo-by-literal-zero", "string-set"]
     }
 }
 ```
@@ -461,4 +501,6 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0002]: ../decisions/0002-pbt-richness-score.md
 [ADR 0003]: ../decisions/0003-checker-failure-codes.md
 [ADR 0005]: ../decisions/0005-counterexample-verdict.md
+[ADR 0006]: ../decisions/0006-known-defect-signatures.md
+[known-defect manual]: ../manual/known-defect-signatures.md
 [the JSON label finding]: ../../findings/apalache-json/apalache-json-001.md

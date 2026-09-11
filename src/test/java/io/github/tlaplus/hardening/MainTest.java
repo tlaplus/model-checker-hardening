@@ -11,7 +11,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
-import io.github.tlaplus.hardening.config.StageConfig;
+import io.github.tlaplus.hardening.config.InputStageConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -496,6 +496,66 @@ class MainTest {
     }
 
     @Test
+    void printsTheKnownDefectsOfAQuarantinedEntry(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("quarantined.cbor");
+        Files.write(
+                input,
+                CorpusInputCodec.encode(
+                        new CorpusInput(InputKind.EXPRESSION, new byte[0]),
+                        new GenerationMetadata(6, 12.5, java.util.List.of("string-set"))));
+
+        var result = execute("print", "--envelope", input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(),
+                        "kind: expr",
+                        "gen:",
+                        "  cohort: 6",
+                        "  richness: 12.5",
+                        "  knownDefects: string-set",
+                        "input:",
+                        "  FALSE",
+                        ""),
+                result.out());
+    }
+
+    @Test
+    void printsTheKnownDefectSignaturesAnEntryMatches(@TempDir Path directory) throws Exception {
+        var input = directory.resolve("empty.cbor");
+        Files.write(input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, new byte[0])));
+        var database = Files.writeString(directory.resolve("known-defects.toml"), """
+                [[signature]]
+                id = "false-literal"
+                references = ["none"]
+                description = "The literal FALSE."
+                match = ['FALSE']
+                """);
+
+        var matched = execute("print", "--known-defects", database.toString(), input.toString());
+        var combined = execute(
+                "print", "--spec", "--known-defects", database.toString(), input.toString());
+        var missing = execute(
+                "print", "--known-defects", directory.resolve("missing.toml").toString(), input.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, matched.exitCode());
+        assertEquals(
+                String.join(
+                        System.lineSeparator(),
+                        "false-literal: The literal FALSE.",
+                        "  reference: none",
+                        "  matched:",
+                        "    FALSE",
+                        ""),
+                matched.out());
+        assertEquals(CommandLine.ExitCode.USAGE, combined.exitCode());
+        assertTrue(combined.err().contains("--known-defects cannot be combined with an output mode"));
+        assertEquals(CommandLine.ExitCode.SOFTWARE, missing.exitCode());
+        assertTrue(missing.err().contains("cannot read known-defect database"));
+    }
+
+    @Test
     void printsZeroEnvelopeDuration(@TempDir Path directory) throws Exception {
         var input = directory.resolve("metadata.cbor");
         var timestamp = Instant.parse("2026-08-13T14:26:07Z");
@@ -688,7 +748,7 @@ class MainTest {
                 IrGenerationConfig.defaults(),
                 new WorkflowConfig(
                         entries,
-                        new StageConfig(entries),
+                        InputStageConfig.of(entries),
                         new ParserStageConfig(entries, 10),
                         Map.of(
                                 CorpusStage.TLC,

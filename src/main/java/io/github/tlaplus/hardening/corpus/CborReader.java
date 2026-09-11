@@ -8,8 +8,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -111,6 +113,20 @@ final class CborReader implements AutoCloseable {
     String text(Field field) throws IOException {
         requireToken(field, JsonToken.VALUE_STRING, "a text string");
         return parser.getText();
+    }
+
+    /** Reads an array whose elements are all text strings. */
+    List<String> texts(Field field) throws IOException {
+        requireToken(field, JsonToken.START_ARRAY, "an array of text strings");
+        var result = new ArrayList<String>();
+        JsonToken element;
+        while ((element = parser.nextToken()) != JsonToken.END_ARRAY) {
+            if (element != JsonToken.VALUE_STRING) {
+                throw malformed("field '" + field.path() + "' must be an array of text strings");
+            }
+            result.add(parser.getText());
+        }
+        return List.copyOf(result);
     }
 
     byte[] binary(Field field) throws IOException {

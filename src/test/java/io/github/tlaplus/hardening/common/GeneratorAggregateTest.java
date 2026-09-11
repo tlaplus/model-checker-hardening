@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.common;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.tlaplus.hardening.common.GeneratorAggregate.Richness;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class GeneratorAggregateTest {
@@ -16,6 +18,19 @@ class GeneratorAggregateTest {
         }
         assertThrows(NullPointerException.class, () -> new GeneratorAggregate(0, 0, 0, 0, null));
         assertThrows(IllegalArgumentException.class, () -> new Richness(-1, 0, 0, 0));
+    }
+
+    @Test
+    void countsKnownDefectsBySignatureInIdOrder() {
+        var aggregate = new GeneratorAggregate(0, 0, 0, 0, Map.of("b", 2L, "a", 3L), Richness.empty());
+
+        assertEquals(List.of("a", "b"), List.copyOf(aggregate.knownDefects().keySet()));
+        assertEquals(5, aggregate.knownDefectRejections());
+        assertEquals(0, GeneratorAggregate.empty().knownDefectRejections());
+        assertThrows(IllegalArgumentException.class,
+                () -> new GeneratorAggregate(0, 0, 0, 0, Map.of("a", -1L), Richness.empty()));
+        assertThrows(IllegalArgumentException.class,
+                () -> new GeneratorAggregate(0, 0, 0, 0, Map.of(" ", 1L), Richness.empty()));
     }
 
     @Test

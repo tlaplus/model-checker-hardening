@@ -43,6 +43,9 @@ public final class FuzzInputModule {
      */
     public static final String BOUND = "Bound";
 
+    /** Every definition some tool evaluates directly; everything else is reached through them. */
+    public static final List<String> ENTRY_POINTS = List.of(INIT, NEXT, INV, BOUND);
+
     private static final String VARIABLE_NAME = "exprValue";
 
     private FuzzInputModule() {}

@@ -41,6 +41,10 @@ final class EnvelopeReport {
                 writer.printf("gen:%n");
                 writer.printf("  cohort: %d%n", generation.cohort());
                 writer.printf("  richness: %s%n", generation.richness());
+                if (!generation.knownDefects().isEmpty()) {
+                    writer.printf(
+                            "  knownDefects: %s%n", String.join(", ", generation.knownDefects()));
+                }
             });
             if (!envelope.stages().isEmpty()) {
                 writer.printf("stages:%n");

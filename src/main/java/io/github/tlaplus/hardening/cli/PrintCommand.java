@@ -11,12 +11,16 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -46,6 +50,13 @@ final class PrintCommand implements Callable<Integer> {
     @ArgGroup(exclusive = true, multiplicity = "0..1")
     private OutputMode outputMode;
 
+    @Option(
+            names = "--known-defects",
+            paramLabel = "FILE",
+            description = "Report the signatures of this known-defect database that match the"
+                    + " input. Repeatable; relative to the current directory.")
+    private List<Path> knownDefects = List.of();
+
     @Parameters(index = "0", paramLabel = "FILE", description = "CBOR corpus input.")
     private Path input;
 
@@ -53,6 +64,19 @@ final class PrintCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        if (!knownDefects.isEmpty() && outputMode != null) {
+            spec.commandLine().getErr().printf(
+                    "fuzztla: --known-defects cannot be combined with an output mode%n");
+            return CommandLine.ExitCode.USAGE;
+        }
+        final KnownDefectDatabase database;
+        try {
+            database = KnownDefectDatabase.load(knownDefects);
+        } catch (KnownDefectDatabaseException exception) {
+            spec.commandLine().getErr().printf("fuzztla: %s%n", exception.getMessage());
+            return CommandLine.ExitCode.SOFTWARE;
+        }
+
         final FuzzTlaConfig config;
         final CorpusDirectory corpusDirectory;
         if (corpus == null) {
@@ -97,6 +121,11 @@ final class PrintCommand implements Callable<Integer> {
                         corpusDirectory, decoders.libraryManifest(), false);
             }
             var artifact = decoders.decode(corpusInput);
+            if (!knownDefects.isEmpty()) {
+                print(KnownDefectReport.render(
+                        database.matches(artifact.module(), FuzzInputModule.ENTRY_POINTS)));
+                return CommandLine.ExitCode.OK;
+            }
             var rendered = DecodedInputRenderer.render(artifact, renderMode());
             // Every rendering can be reported inside its envelope, so the wrapping is decided
             // once here rather than in each branch.

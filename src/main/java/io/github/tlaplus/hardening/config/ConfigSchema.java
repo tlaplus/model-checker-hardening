@@ -139,7 +139,7 @@ final class ConfigSchema {
             GENERATOR.project(FuzzTlaConfig::generator);
     private static final ConfigTableBuilder<WorkflowConfig> WORKFLOW =
             new ConfigTableBuilder<>(WORKFLOW_PATH, FuzzTlaConfig::workflow);
-    private static final ConfigTableBuilder<StageConfig> INPUTS =
+    private static final ConfigTableBuilder<InputStageConfig> INPUTS =
             new ConfigTableBuilder<>(WORKFLOW_PATH + ".inputs", config -> config.workflow().inputs());
     private static final ConfigTableBuilder<ParserStageConfig> PARSER =
             new ConfigTableBuilder<>(stagePath(CorpusStage.PARSER), config -> config.workflow().parser());
@@ -162,7 +162,7 @@ final class ConfigSchema {
             "A form with weight N is N times as likely as an unweighted form applicable"
                     + " to the same request.");
     static final Key<List<Path>> CLASSPATH = GENERATOR.key(
-            "classpath", ConfigValueType.CLASSPATH, config -> config.libraries().classpath(),
+            "classpath", ConfigValueType.PATHS, config -> config.libraries().classpath(),
             "Ordered TLA+ source directories or JARs, relative to this config file.");
     static final Key<List<OperatorLibraryConfig.Module>> CUSTOM_OPERATORS = GENERATOR.key(
             "custom_operators", ConfigValueType.MODULES, config -> config.libraries().modules(),
@@ -171,7 +171,16 @@ final class ConfigSchema {
             "max_entries", WorkflowConfig::maximumEntries,
             "Maximum number of unique entries across every workflow directory.");
     static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.integer(
-            "max_entries", StageConfig::maximumEntries, "Maximum current occupancy of 00-inputs.");
+            "max_entries", InputStageConfig::maximumEntries, "Maximum current occupancy of 00-inputs.");
+    static final Key<List<Path>> KNOWN_DEFECTS = INPUTS.key(
+            "known_defects", ConfigValueType.PATHS, InputStageConfig::knownDefects,
+            "Known-defect signature databases, relative to this config file.",
+            "A candidate that matches a signature goes to 00-known-defects; [] admits every"
+                    + " candidate.");
+    static final Key<Integer> KNOWN_DEFECT_SAMPLES = INPUTS.integer(
+            "known_defect_samples", InputStageConfig::knownDefectSamples,
+            "Quarantined entries kept per signature in 00-known-defects; further matches are"
+                    + " only counted.");
     static final Key<Integer> PARSER_MAXIMUM_ENTRIES = PARSER.integer(
             "max_entries", ParserStageConfig::maximumEntries, resultDirectoryDocumentation(CorpusStage.PARSER));
     static final Key<Integer> PARSER_TIMEOUT_SECONDS = PARSER.integer(

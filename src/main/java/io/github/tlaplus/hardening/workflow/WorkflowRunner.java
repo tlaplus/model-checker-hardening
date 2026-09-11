@@ -27,6 +27,10 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
+import io.github.tlaplus.hardening.workflow.input.InputAdmission;
+import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
 import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.parser.ParserStage;
@@ -49,14 +53,22 @@ public final class WorkflowRunner {
 
     private final FuzzTlaConfig config;
     private final SpecDecoders decoders;
+    private final KnownDefectDatabase knownDefects;
 
     public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
         this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
     }
 
-    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) {
+    /** Reads the configured known-defect databases before any corpus is locked. */
+    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
         this.config = Objects.requireNonNull(config, "config");
         this.decoders = Objects.requireNonNull(decoders, "decoders");
+        try {
+            knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
+        } catch (KnownDefectDatabaseException exception) {
+            throw new WorkflowException(
+                    "invalid known-defect database: " + exception.getMessage(), exception);
+        }
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
@@ -200,8 +212,12 @@ public final class WorkflowRunner {
                             queues.get(checker),
                             queues.get(CorpusStage.AGGREGATOR)));
         }
-        var pbt = new PbtStage(
+        var admission = new InputAdmission(
                 config.pbt(),
+                knownDefects,
+                KnownDefectQuarantine.open(corpus, config.workflow().inputs().knownDefectSamples()));
+        var pbt = new PbtStage(
+                admission,
                 config.generatedKind(),
                 config.workflow().maximumEntries(),
                 initial.totalEntries(),

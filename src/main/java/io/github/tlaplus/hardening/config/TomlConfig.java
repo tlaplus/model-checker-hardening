@@ -105,7 +105,11 @@ public final class TomlConfig {
         }
         var workflowConfig = new WorkflowConfig(
                 ConfigSchema.WORKFLOW_MAXIMUM_ENTRIES.read(tables),
-                new StageConfig(ConfigSchema.INPUTS_MAXIMUM_ENTRIES.read(tables)),
+                new InputStageConfig(
+                        ConfigSchema.INPUTS_MAXIMUM_ENTRIES.read(tables),
+                        ConfigSchema.KNOWN_DEFECTS.read(tables),
+                        ConfigSchema.KNOWN_DEFECT_SAMPLES.read(tables))
+                        .relativeTo(directory),
                 new ParserStageConfig(
                         ConfigSchema.PARSER_MAXIMUM_ENTRIES.read(tables),
                         ConfigSchema.PARSER_TIMEOUT_SECONDS.read(tables)),
