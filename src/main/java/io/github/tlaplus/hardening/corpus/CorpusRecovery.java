@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.ToLongFunction;
 
 /**
  * Brings a corpus to a consistent state at the start of a locked workflow run, then reports what it
@@ -62,7 +61,7 @@ final class CorpusRecovery {
 
         var logicalNames = new HashSet<String>();
         var inputs = new ArrayList<Path>();
-        var parserResultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+        var parserResults = new VerdictTally();
 
         // Validate inputs that are still waiting for the parser.
         for (var path : entries.entryPaths(layout.resolve(CorpusPath.INPUT))) {
@@ -93,7 +92,7 @@ final class CorpusRecovery {
                         }
                         addLogicalName(logicalNames, entry.path().getFileName().toString());
                     });
-            parserResultCounts.put(verdict, count);
+            parserResults.add(verdict, count);
         }
 
         for (var name : aggregateResults.entries().keySet()) {
@@ -116,14 +115,12 @@ final class CorpusRecovery {
                 CorpusStage.PARSER,
                 new CorpusInventory.StageEntries(
                         inputs,
-                        counts(
-                                CorpusStage.PARSER,
+                        StageEntryCounts.from(
+                                CorpusStage.PARSER.resultVerdicts(),
                                 verdict -> verdict == CorpusVerdict.PASS
                                         ? parserPass
-                                        : parserResultCounts.get(verdict)),
-                        parserResultCounts.values().stream()
-                                .mapToLong(Long::longValue)
-                                .sum()));
+                                        : parserResults.count(verdict)),
+                        parserResults.total()));
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = checkerBranches.get(checker);
             var downstream = aggregateResults.upstreamCounts().get(checker);
@@ -131,19 +128,19 @@ final class CorpusRecovery {
                     checker,
                     new CorpusInventory.StageEntries(
                             branch.inputs(),
-                            counts(
-                                    checker,
-                                    verdict -> branch.resultCount(verdict)
-                                            + downstream.get(verdict)),
-                            branch.resultOccupancy()));
+                            StageEntryCounts.from(
+                                    checker.resultVerdicts(),
+                                    verdict -> branch.resultCounts().count(verdict)
+                                            + downstream.count(verdict)),
+                            branch.resultCounts().processed()));
         }
         stages.put(
                 CorpusStage.AGGREGATOR,
                 new CorpusInventory.StageEntries(
                         aggregationCandidates,
-                        counts(
-                                CorpusStage.AGGREGATOR,
-                                aggregateResults::resultCount),
+                        StageEntryCounts.from(
+                                CorpusStage.AGGREGATOR.resultVerdicts(),
+                                aggregateResults.resultCounts()::count),
                         aggregateResults.entries().size()));
         return new CorpusInventory(stages);
     }
@@ -221,7 +218,7 @@ final class CorpusRecovery {
         var inputs = new ArrayList<Path>();
         var branchEntries = new HashMap<String, Entry>();
         var resultEntries = new HashMap<String, Entry>();
-        var resultCounts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+        var resultCounts = new VerdictTally();
 
         for (var path : entries.entryPaths(layout.resolve(checker.input()))) {
             var entry = entries.verify(path);
@@ -243,9 +240,9 @@ final class CorpusRecovery {
                         addCheckerBranchEntry(checker, branchEntries, entry);
                         resultEntries.put(entry.path().getFileName().toString(), entry);
                     });
-            resultCounts.put(verdict, count);
+            resultCounts.add(verdict, count);
         }
-        return new CheckerBranch(inputs, branchEntries, resultEntries, resultCounts);
+        return new CheckerBranch(inputs, branchEntries, resultEntries, resultCounts.snapshot());
     }
 
     /** Returns one notification per checker pair that is already ready to aggregate. */
@@ -329,11 +326,12 @@ final class CorpusRecovery {
             Path directory, Set<String> entriesWithReports, String displayName)
             throws CorpusException {
         for (var name : entriesWithReports) {
-            if (!Files.isRegularFile(directory.resolve(name), NO_FOLLOW_LINKS)) {
+            var entry = directory.resolve(name);
+            if (!Files.isRegularFile(entry, NO_FOLLOW_LINKS)) {
                 throw new CorpusException(
                         displayName
                                 + " crash report has no matching corpus entry: "
-                                + directory.resolve(name.replace(".cbor", ".stacktrace")));
+                                + directory.resolve(CorpusLayout.crashReportName(entry)));
             }
         }
         try (var paths = Files.list(directory)) {
@@ -357,35 +355,17 @@ final class CorpusRecovery {
         }
     }
 
-    private static StageEntryCounts counts(
-            CorpusStage stage, ToLongFunction<CorpusVerdict> counter) {
-        var counts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
-        for (var verdict : stage.resultVerdicts()) {
-            counts.put(verdict, counter.applyAsLong(verdict));
-        }
-        return new StageEntryCounts(counts);
-    }
-
     /** The pending inputs and completed results of one checker branch. */
     private record CheckerBranch(
             List<Path> inputs,
             Map<String, Entry> entries,
             Map<String, Entry> results,
-            EnumMap<CorpusVerdict, Long> resultCounts) {
+            StageEntryCounts resultCounts) {
         private CheckerBranch {
             inputs = List.copyOf(inputs);
             entries = Map.copyOf(entries);
             results = Map.copyOf(results);
-            resultCounts = new EnumMap<>(resultCounts);
-        }
-
-        long resultCount(CorpusVerdict verdict) {
-            return resultCounts.get(verdict);
-        }
-
-        long resultOccupancy() {
-            return resultCounts.values().stream().mapToLong(Long::longValue).sum();
+            Objects.requireNonNull(resultCounts, "resultCounts");
         }
     }
-
 }

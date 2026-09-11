@@ -66,7 +66,7 @@ final class CorpusEntries {
                         throw new CorpusException(
                                 displayName + " crash report is not a regular file: " + path);
                     }
-                    crashEntries.add(reportMatcher.group(1) + ".cbor");
+                    crashEntries.add(CorpusLayout.entryNameForDigest(reportMatcher.group(1)));
                 } else if (ENTRY_FILE_NAME.matcher(name).matches()) {
                     entries.add(path);
                 } else {

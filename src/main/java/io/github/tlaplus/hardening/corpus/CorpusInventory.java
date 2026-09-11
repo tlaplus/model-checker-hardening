@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
 import java.nio.file.Path;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,20 +26,16 @@ public record CorpusInventory(Map<CorpusStage, StageEntries> stages) {
     }
 
     public CorpusInventory {
-        Objects.requireNonNull(stages, "stages");
-        var copy = new EnumMap<CorpusStage, StageEntries>(CorpusStage.class);
-        copy.putAll(stages);
+        stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "inventory");
         for (var stage : CorpusStage.values()) {
-            Preconditions.require(copy.containsKey(stage), "inventory is missing stage " + stage);
             var supported = stage.resultVerdicts();
             for (var verdict : CorpusVerdict.values()) {
                 Preconditions.require(supported.contains(verdict)
-                                || copy.get(stage).counts().count(verdict) == 0,
+                                || stages.get(stage).counts().count(verdict) == 0,
                         stage + " inventory counts unsupported " + verdict.encodedName()
                                 + " verdicts");
             }
         }
-        stages = Map.copyOf(copy);
 
         // A parser pass exists once per checker branch, so each branch accounts for all of them.
         var parserPasses = stages.get(CorpusStage.PARSER)

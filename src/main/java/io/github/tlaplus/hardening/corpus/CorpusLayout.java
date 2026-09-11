@@ -73,12 +73,22 @@ final class CorpusLayout {
 
     /** Returns the file name an entry with this payload has in every stage directory. */
     static String entryFileName(byte[] input) {
-        return digest(input) + ENTRY_EXTENSION;
+        return entryNameForDigest(digest(input));
     }
 
     /** Returns the lowercase hexadecimal digest that identifies a payload. */
     static String digest(byte[] input) {
         return Digests.digest(input);
+    }
+
+    /** Returns the file name of the entry whose payload has this digest. */
+    static String entryNameForDigest(String digest) {
+        return digest + ENTRY_EXTENSION;
+    }
+
+    /** Returns the file name of the crash report beside the entry whose payload has this digest. */
+    static String crashReportNameForDigest(String digest) {
+        return digest + CRASH_REPORT_EXTENSION;
     }
 
     /** Returns the crash-report name beside an entry, rejecting a non-entry name. */
@@ -87,7 +97,7 @@ final class CorpusLayout {
         if (!matcher.matches()) {
             throw new CorpusException("invalid corpus entry name: " + entry);
         }
-        return matcher.group(1) + CRASH_REPORT_EXTENSION;
+        return crashReportNameForDigest(matcher.group(1));
     }
 
     /** Returns the work-directory path where a stage stages a crash report before committing it. */

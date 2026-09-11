@@ -1,7 +1,8 @@
 package io.github.tlaplus.hardening.workflow.aggregator;
 
-import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
@@ -14,7 +15,6 @@ import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -41,13 +41,14 @@ public final class AggregatorStage implements WorkflowStage {
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");
-        var capacities = new EnumMap<CorpusStage, OccupancyGate>(CorpusStage.class);
-        capacities.putAll(Objects.requireNonNull(checkerCapacities, "checkerCapacities"));
-        if (!capacities.keySet().equals(java.util.Set.copyOf(CorpusStage.checkerBranches()))) {
-            throw new IllegalArgumentException(
-                    "checkerCapacities must name every checker branch exactly once");
-        }
-        this.checkerCapacities = Map.copyOf(capacities);
+        this.checkerCapacities = EnumMaps.requireKeys(
+                CorpusStage.class,
+                checkerCapacities,
+                CorpusStage.checkerBranches(),
+                "checkerCapacities");
+        Preconditions.require(
+                this.checkerCapacities.size() == CorpusStage.checkerBranches().size(),
+                "checkerCapacities must name only checker branches");
         recoveredRemaining = new AtomicInteger(Math.toIntExact(recoveredCandidates));
         recoveredDrained = new CountDownLatch(recoveredCandidates == 0 ? 0 : 1);
         jobs = new StageJobLoop<>(

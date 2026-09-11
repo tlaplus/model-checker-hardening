@@ -1,12 +1,12 @@
 package io.github.tlaplus.hardening.workflow;
 
-import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.time.Duration;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -20,13 +20,7 @@ public record WorkflowRunSummary(
     public WorkflowRunSummary {
         Objects.requireNonNull(stopReason, "stopReason");
         Objects.requireNonNull(generator, "generator");
-        Objects.requireNonNull(stages, "stages");
-        for (var stage : CorpusStage.values()) {
-            Preconditions.require(stages.containsKey(stage), "stages is missing stage " + stage);
-        }
-        var copy = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
-        copy.putAll(stages);
-        stages = Map.copyOf(copy);
+        stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "stages");
         Objects.requireNonNull(corpus, "corpus");
         Objects.requireNonNull(totalElapsed, "totalElapsed");
         Preconditions.require(!totalElapsed.isNegative(), "total elapsed time must be nonnegative");

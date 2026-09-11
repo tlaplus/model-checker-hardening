@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.corpus;
 
-import static io.github.tlaplus.hardening.corpus.CorpusLayout.CRASH_REPORT_EXTENSION;
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
@@ -120,8 +119,8 @@ final class CorpusEntryStore {
 
         var digest = CorpusLayout.digest(payload);
         var crashDirectory = layout.resolve(CorpusPath.GENERATOR_CRASH);
-        var candidate = crashDirectory.resolve(digest + ".cbor");
-        var report = crashDirectory.resolve(digest + CRASH_REPORT_EXTENSION);
+        var candidate = crashDirectory.resolve(CorpusLayout.entryNameForDigest(digest));
+        var report = crashDirectory.resolve(CorpusLayout.crashReportNameForDigest(digest));
         layout.replaceAtomically(
                 candidate,
                 "generator-crash-",
