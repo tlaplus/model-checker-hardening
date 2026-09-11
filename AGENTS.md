@@ -55,8 +55,10 @@ arithmetic is unavoidable, cover it with a round-trip test.
 enum ordinals are part of a stored format or wire encoding, a comment is not
 enough; add a test that fails on reorder.
 
-**Keep the layering.** Dependencies run `checker`, `gen` → `config` → `corpus` →
-`workflow` → `cli`. No upward imports. Validation and parsing policy do not belong
+**Keep the layering.** Dependencies run `checker`, `gen` → `corpus` → `config` →
+`workflow` → `cli`, with `common` a leaf every package may import. No upward
+imports. `config` keys its stage tables by `corpus.CorpusStage`
+([ADR 0004](docs/decisions/0004-stage-identity.md)). Validation and parsing policy do not belong
 in the storage layer; storage returns bytes and lets the caller interpret them.
 
 **Keep CLI classes thin.** Rendering and formatting live in testable types that do
