@@ -78,6 +78,35 @@ Three further invariants isolate the cause, each with `--length=5`:
 Apalache therefore builds the constructor with an empty domain rather than
 rejecting it, and both checkers agree once the domain is finite.
 
+## Reached through application, not only `DOMAIN`
+
+The empty substitution is not confined to `DOMAIN` queries. Applying the
+function is enough, because an argument that is outside the substituted empty
+domain leaves the result unconstrained. Apalache reports a counterexample for
+the trivially true invariant
+
+```tla
+Inv == [arg1 \in Nat |-> TRUE][step]
+```
+
+while TLC proves it, and passes the false invariant
+
+```tla
+Inv == ([arg1 \in Nat |-> arg1 >= 0][step]) <=> FALSE
+```
+
+while TLC reports the violation at the initial state. Both were checked with
+`Init == step = 0`, `Next == step' = step + 1`, `--length=5` and Apalache 0.62.2.
+
+The `corpus12` run contains two aggregator deviations with this cause, both TLC
+counterexample and Apalache pass. One applies the function,
+[`88a63748...`](../../corpus12/03aggregator-fail/88a637486cbbbf5fa44eaadcb521013a6a008f8f4b06dbc0281c93ba941a1ee8.cbor),
+whose invariant reduces to `([arg1 \in Nat |-> arg1 >= 0][0]) <=> FALSE`. The
+other asks whether the domain is finite,
+[`5776c336...`](../../corpus12/03aggregator-fail/5776c336c7c77f3085d0a5db064edf18da04056735e6bb699b7caf964f6481f8.cbor),
+whose invariant reduces to `IsFiniteSet(DOMAIN [arg7 \in Int |-> ...])`:
+Apalache substitutes the empty domain and answers `TRUE`, TLC answers `FALSE`.
+
 ## Expected behavior
 
 Reject a function constructed over an infinite domain through Apalache's

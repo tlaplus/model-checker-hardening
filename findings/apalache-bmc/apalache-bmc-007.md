@@ -102,6 +102,17 @@ is finite.
 Corpus8 contains two aggregator deviations of this shape, both TLC-fail and
 Apalache-pass, with `Nat` in one and `Int` in the other.
 
+## The dual direction, observed in a corpus
+
+Until `corpus12` the dual case -- Apalache reporting a counterexample for the
+true assertion `~IsFiniteSet(Int)` -- had been produced only by hand. `corpus12`
+contains one aggregator deviation of that shape, where TLC passed and Apalache
+returned a counterexample. Its invariant reduces to
+`(IsFiniteSet(Int) \/ FALSE) => FALSE`, that is `~IsFiniteSet(Int)`, which TLC
+proves and Apalache refutes. See the
+[`a3418701...` input](../../corpus12/03aggregator-fail/a3418701ba4d12943ac91aa990485fccea9ac5414db9417d8b5a17b67f0ee896.cbor).
+Reproduced with Apalache 0.62.2.
+
 ## Expected behavior
 
 `Int` and `Nat` are infinite, so `IsFiniteSet` applied to either must evaluate
