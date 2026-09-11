@@ -19,24 +19,44 @@ import java.util.Optional;
  * checked by the transition layer through {@link CorpusStage}.
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public record StageMetadata(
-        String stage,
-        CorpusVerdict verdict,
-        Instant startTime,
-        Instant endTime,
-        Optional<CheckerFailure> failure) {
+public record StageMetadata(String stage, StageRecord record) {
     public StageMetadata {
-        Preconditions.require(!Objects.requireNonNull(stage, "stage").isBlank(), "stage must not be blank");
-        Objects.requireNonNull(verdict, "verdict");
-        Objects.requireNonNull(startTime, "startTime");
-        Objects.requireNonNull(endTime, "endTime");
-        Objects.requireNonNull(failure, "failure");
-        Preconditions.require(!endTime.isBefore(startTime), "endTime must not precede startTime");
-        Preconditions.require(failure.isEmpty() || verdict == CorpusVerdict.FAIL,
-                "checker failure metadata requires the fail verdict");
+        requireStage(stage);
+        Objects.requireNonNull(record, "record");
+    }
+
+    public StageMetadata(
+            String stage,
+            CorpusVerdict verdict,
+            Instant startTime,
+            Instant endTime,
+            Optional<CheckerFailure> failure) {
+        this(requireStage(stage), new StageRecord(verdict, startTime, endTime, failure));
     }
 
     public StageMetadata(String stage, CorpusVerdict verdict, Instant startTime, Instant endTime) {
         this(stage, verdict, startTime, endTime, Optional.empty());
+    }
+
+    public CorpusVerdict verdict() {
+        return record.verdict();
+    }
+
+    public Instant startTime() {
+        return record.startTime();
+    }
+
+    public Instant endTime() {
+        return record.endTime();
+    }
+
+    public Optional<CheckerFailure> failure() {
+        return record.failure();
+    }
+
+    /** Checks the stage name before the record, so a blank name is reported first. */
+    private static String requireStage(String stage) {
+        Preconditions.require(!Objects.requireNonNull(stage, "stage").isBlank(), "stage must not be blank");
+        return stage;
     }
 }
