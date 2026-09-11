@@ -1,11 +1,11 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
-import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.checker.CheckerWorker;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -24,18 +24,8 @@ public final class TlcCheckerBackend implements CheckerBackend {
     }
 
     @Override
-    public String name() {
-        return "tlc";
-    }
-
-    @Override
-    public String displayName() {
-        return "TLC";
-    }
-
-    @Override
-    public int maximumEntries() {
-        return config.maximumEntries();
+    public CorpusStage stage() {
+        return CorpusStage.TLC;
     }
 
     @Override
@@ -48,13 +38,9 @@ public final class TlcCheckerBackend implements CheckerBackend {
         return config.workers();
     }
 
-    private Duration timeout() {
-        return Duration.ofSeconds(config.timeoutSeconds());
-    }
-
     @Override
     public CheckerWorker startWorker() {
-        return source -> TlcProcess.check(scratchDirectory, source, config, timeout());
+        return source -> TlcProcess.check(scratchDirectory, source, config, config.timeout());
     }
 
     @Override

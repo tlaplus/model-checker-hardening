@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -25,23 +26,21 @@ public record WorkflowConfig(
                 CorpusStage.class, checkers, CorpusStage.checkerBranches(), "checkers");
 
         requireWithinTotal(inputs.maximumEntries(), maximumEntries, "workflow.inputs");
-        requireWithinTotal(parser.maximumEntries(), maximumEntries, "workflow.parser");
-        for (var entry : checkers.entrySet()) {
+        for (var stage : CorpusStage.capacityLimitedStages()) {
             requireWithinTotal(
-                    entry.getValue().maximumEntries(),
+                    limits(stage, parser, checkers).maximumEntries(),
                     maximumEntries,
-                    "workflow." + entry.getKey().metadataName());
+                    "workflow." + stage.metadataName());
         }
     }
 
     public static WorkflowConfig defaults() {
+        var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
+        for (var profile : CheckerProfile.values()) {
+            checkers.put(profile.stage(), profile.defaults());
+        }
         return new WorkflowConfig(
-                1_000,
-                InputStageConfig.defaults(),
-                ParserStageConfig.defaults(),
-                Map.of(
-                        CorpusStage.TLC, CheckerStageConfig.tlcDefaults(),
-                        CorpusStage.APALACHE, CheckerStageConfig.apalacheDefaults()));
+                1_000, InputStageConfig.defaults(), ParserStageConfig.defaults(), checkers);
     }
 
     /** Returns the limits of one checker stage. */
@@ -51,11 +50,26 @@ public record WorkflowConfig(
         return checker;
     }
 
+    /** Returns the limits of one stage that has a configuration table. */
+    public StageLimits limits(CorpusStage stage) {
+        return limits(stage, parser, checkers);
+    }
+
     /** Returns the result-directory occupancy limit of one stage. */
     public int maximumEntries(CorpusStage stage) {
-        return stage == CorpusStage.PARSER
-                ? parser.maximumEntries()
-                : checker(stage).maximumEntries();
+        return limits(stage).maximumEntries();
+    }
+
+    private static StageLimits limits(
+            CorpusStage stage,
+            ParserStageConfig parser,
+            Map<CorpusStage, CheckerStageConfig> checkers) {
+        if (Objects.requireNonNull(stage, "stage") == CorpusStage.PARSER) {
+            return parser;
+        }
+        var checker = checkers.get(stage);
+        Preconditions.require(checker != null, stage + " has no configured limits");
+        return checker;
     }
 
     private static void requireWithinTotal(int stageEntries, int maximumEntries, String table) {

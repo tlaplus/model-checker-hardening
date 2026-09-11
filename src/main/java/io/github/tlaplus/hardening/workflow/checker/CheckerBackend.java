@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.checker;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.util.Optional;
@@ -24,11 +25,8 @@ import java.util.function.Function;
  * simply reports a crash on every failure and a persistent one is replaced only when it dies.
  */
 public interface CheckerBackend {
-    String name();
-
-    String displayName();
-
-    int maximumEntries();
+    /** Returns the corpus stage this checker records its verdicts under. */
+    CorpusStage stage();
 
     int workerCount();
 
