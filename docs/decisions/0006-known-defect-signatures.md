@@ -156,8 +156,7 @@ A matching candidate is stored in `00-known-defects/<sha256>.cbor`:
 `.workflow-stats.cbor` gains `generator.knownDefects`, a map from primary
 signature id to the number of matching candidates, stored or discarded. It is
 omitted while no candidate has matched, so a run without signatures writes the
-document it wrote before. The run table prints the total and the per-signature
-counts.
+document it wrote before. The run table prints only the total.
 
 `fuzztla print --known-defects FILE` reports the signatures that match one
 stored entry and the subexpression each one matched. It is the tool for

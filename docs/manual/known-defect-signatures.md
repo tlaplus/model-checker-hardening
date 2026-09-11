@@ -228,9 +228,9 @@ request-frame limit. A matching candidate is not admitted to `00-inputs`:
   `fuzztla print --corpus DIR --spec 00-known-defects/<sha256>.cbor`.
 - **Cleanup.** You may delete the directory between runs. The per-signature
   caps then start again from zero.
-- **Counts.** The run table reports the number of known-defect rejections, in
-  total and per signature. `.workflow-stats.cbor` accumulates the same counts
-  across runs, keyed by primary signature:
+- **Counts.** The run table reports the total number of known-defect
+  rejections. `.workflow-stats.cbor` accumulates the counts across runs, keyed
+  by primary signature:
 
   ```cbor
   "generator": {

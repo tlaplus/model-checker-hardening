@@ -102,7 +102,6 @@ final class RunTable {
         printCounter(writer, generator.richnessRejected(), "richness rejected");
         printCounter(writer, generator.duplicates(), "duplicate inputs");
         printCounter(writer, generator.knownDefectRejections(), "known defects");
-        generator.knownDefects().forEach((signature, count) -> printCounter(writer, count, "  " + signature));
     }
 
     private static void printRichness(PrintWriter writer, long samples, double value, String label) {
