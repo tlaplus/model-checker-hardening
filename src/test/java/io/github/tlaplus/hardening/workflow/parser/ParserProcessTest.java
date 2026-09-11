@@ -3,8 +3,6 @@ package io.github.tlaplus.hardening.workflow.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.io.lir.PrettyWriter;
-import at.forsyte.apalache.io.lir.TlaWriter$;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
@@ -147,8 +145,7 @@ class ParserProcessTest {
     private String validSource() {
         var expression = IrGenerators.expressions().generate(new byte[0]);
         var module = FuzzInputModule.create(expression);
-        return PrettyWriter.writeAsString(
-                module, TlaWriter$.MODULE$.STANDARD_MODULES());
+        return SpecText.render(module);
     }
 
 }

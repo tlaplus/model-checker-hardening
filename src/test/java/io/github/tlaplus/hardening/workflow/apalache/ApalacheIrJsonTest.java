@@ -1,19 +1,15 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.io.json.DefaultTagJsonReader;
-import at.forsyte.apalache.io.json.ujsonimpl.UJsonRepresentation;
-import at.forsyte.apalache.io.json.ujsonimpl.UJsonToTlaViaBuilder;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import org.apalache_mc.tla.jio.TlaJson;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
-import scala.Option;
-import ujson.Readable;
-import ujson.package$;
 
 class ApalacheIrJsonTest {
     @Test
@@ -41,18 +37,13 @@ class ApalacheIrJsonTest {
     }
 
     @Test
-    void roundTripsThroughTheCheckedJsonReader() {
+    void roundTripsThroughTheJavaJsonReader() {
         var builder = new TlaTypedScopeUncheckedBuilder();
         var expression = builder.tuple(
                 builder.integer(0),
                 builder.label(builder.bool(false), "label0"));
         var json = ApalacheIrJson.render(FuzzInputModule.create(expression));
-        var value = package$.MODULE$.read(Readable.fromString(json), false);
-        var decoder = new UJsonToTlaViaBuilder(
-                Option.empty(), DefaultTagJsonReader::apply);
 
-        var decoded = decoder.fromSingleModule(new UJsonRepresentation(value));
-
-        assertTrue(decoded.isSuccess(), decoded.toString());
+        assertDoesNotThrow(() -> TlaJson.readModule(json));
     }
 }

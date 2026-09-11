@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
-import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 
 class GeneratedSpecTest {
     private final TlaTypedScopeUncheckedBuilder builder = new TlaTypedScopeUncheckedBuilder();
@@ -47,7 +47,7 @@ class GeneratedSpecTest {
     private GeneratedSpec spec(List<GeneratedOperator> operators) {
         var predicate = builder.bool(true);
         return new GeneratedSpec(List.of(TlaDeclarations.variable("x",
-                        LibraryTypes.type(predicate.typeTag()))),
+                        TlaTypes.typeOf(predicate))),
                 operators, predicate, predicate, predicate, predicate, 0);
     }
 }

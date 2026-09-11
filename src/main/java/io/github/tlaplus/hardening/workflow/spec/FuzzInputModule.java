@@ -3,17 +3,15 @@ package io.github.tlaplus.hardening.workflow.spec;
 import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
-import at.forsyte.apalache.tla.lir.transformations.impl.IdleTracker;
-import at.forsyte.apalache.tla.lir.transformations.standard.DeepCopy;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.apalache_mc.tla.jir.TlaDeclarations;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaModules;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
-import static io.github.tlaplus.hardening.common.ScalaCollections.list;
-import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
-import io.github.tlaplus.hardening.gen.library.LibraryTypes;
+import org.apalache_mc.tla.jir.TlaTypes;
 
 /**
  * Assembles the module checked by the parser and model-checker stages.
@@ -57,10 +55,10 @@ public final class FuzzInputModule {
         Objects.requireNonNull(expression, "expression");
 
         var builder = new TlaTypedScopeUncheckedBuilder();
-        var expressionType = LibraryTypes.type(expression.typeTag());
+        var expressionType = TlaTypes.typeOf(expression);
         var exprValue = TlaDeclarations.variable(VARIABLE_NAME, expressionType);
         // Apalache requires unique node identities, and the expression appears twice.
-        var expressionCopy = new DeepCopy(new IdleTracker()).deepCopyEx(expression);
+        var expressionCopy = TlaExpressions.deepCopy(expression);
 
         var init = builder.eql(builder.varDeclAsNameEx(exprValue), expression);
         var next = builder.unchanged(builder.varDeclAsNameEx(exprValue));
@@ -99,7 +97,6 @@ public final class FuzzInputModule {
         declarations.add(builder.decl(NEXT, next));
         declarations.add(builder.decl(INV, invariant));
         declarations.add(builder.decl(BOUND, bound));
-        return new TlaModule(
-                MODULE_NAME, seq(declarations));
+        return TlaModules.create(MODULE_NAME, declarations);
     }
 }

@@ -1,7 +1,5 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import static io.github.tlaplus.hardening.common.ScalaCollections.list;
-
 import at.forsyte.apalache.tla.lir.OperT1;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -9,6 +7,7 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Factory for deferred, type-directed expression generators within one generation run. */
 final class IrExprGenFactory {
@@ -163,7 +162,7 @@ final class IrExprGenFactory {
             var plan = plans.computeIfAbsent(new Instantiation(kind, type),
                     request -> request.kind().plan(context.config(), request.type()).orElseThrow());
             var signature = (OperT1) draw.draw(plan.generator(context, typeFactory));
-            var arguments = list(signature.args()).stream()
+            var arguments = TlaTypes.operatorArguments(signature).stream()
                     .map(argument -> draw.draw(mkGen(ImportedTypes.from(argument), remainingDepth - 1)))
                     .toArray(TlaEx[]::new);
             var name = context.config().library().get(kind.id()).name();

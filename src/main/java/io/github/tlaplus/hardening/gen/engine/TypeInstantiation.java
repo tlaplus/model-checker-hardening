@@ -1,14 +1,13 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.*;
-import at.forsyte.apalache.tla.types.EqClass;
-import at.forsyte.apalache.tla.types.Substitution;
-import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.library.LibraryTypes;
 import java.util.*;
-import scala.Tuple2;
-import static io.github.tlaplus.hardening.common.ScalaCollections.*;
+import org.apalache_mc.tla.jir.NamedType;
+import org.apalache_mc.tla.jir.TlaTypeSubstitution;
+import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Byte-free feasibility analysis followed by bounded, deferred completion of a type term. */
 record TypeInstantiation(TlaType1 template, List<Variable> variables) {
@@ -65,11 +64,12 @@ record TypeInstantiation(TlaType1 template, List<Variable> variables) {
             return true;
         }
         if (type instanceof RowT1 row) {
-            var fields = map(row.fieldTypes());
+            var fields = TlaTypes.rowFields(row);
             if (fields.size() > width) return false;
             if (!fields.values().stream().allMatch(t -> inspect(t, width, depth, variables))) return false;
-            if (row.other().isDefined()) {
-                var id = row.other().get().no();
+            var tail = TlaTypes.rowTail(row);
+            if (tail.isPresent()) {
+                var id = tail.orElseThrow().no();
                 var bounds = new RowBounds(fields.isEmpty() ? 1 : 0, width - fields.size(), fields.keySet());
                 variables.merge(id, new Variable(id, depth, Optional.of(bounds)), Variable::intersect);
             } else if (fields.isEmpty()) {
@@ -78,7 +78,10 @@ record TypeInstantiation(TlaType1 template, List<Variable> variables) {
             }
             return true;
         }
-        if (type instanceof TupT1 tuple && (tuple.elems().isEmpty() || tuple.elems().size() > width)) return false;
+        if (type instanceof TupT1 tuple) {
+            var elements = TlaTypes.tupleElements(tuple);
+            if (elements.isEmpty() || elements.size() > width) return false;
+        }
         return LibraryTypes.children(type).stream().allMatch(t -> inspect(t, width, depth - 1, variables));
     }
 
@@ -91,35 +94,30 @@ record TypeInstantiation(TlaType1 template, List<Variable> variables) {
                     continue;
                 }
                 var bounds = variable.row().orElseThrow();
-                var fields = new ArrayList<Tuple2<String, TlaType1>>();
+                var fields = new ArrayList<NamedType>();
                 while (fields.size() < bounds.maximumFields()
                         && (fields.size() < bounds.minimumFields() || draw.drawBoolean())) {
                     String name;
                     do { name = context.freshField(); } while (bounds.forbiddenFields().contains(name));
                     var type = draw.draw(types.valueType(variable.depth())).toTlaType();
-                    fields.add(new Tuple2<>(name, type));
+                    fields.add(new NamedType(name, type));
                 }
-                assigned.put(variable.id(), RowT1$.MODULE$.apply(seq(fields)));
+                assigned.put(variable.id(), TlaTypes.row(fields.toArray(NamedType[]::new)));
             }
-            return substitution(assigned).subRec(template);
+            return TlaTypeSubstitution.of(assigned).applyFully(template);
         };
-    }
-
-    static Substitution substitution(Map<Integer, TlaType1> assigned) {
-        return Substitution.apply(seq(assigned.entrySet().stream()
-                .map(entry -> new Tuple2<>(EqClass.apply(entry.getKey()), entry.getValue())).toList()));
     }
 
     /** Alpha-normalization uses simultaneous substitution, not transitive substitution. */
     static TlaType1 canonical(TlaType1 type) {
         var variables = new LinkedHashMap<Integer, TlaType1>();
         gather(type, variables);
-        return substitution(variables).sub(type)._1();
+        return TlaTypeSubstitution.of(variables).applyOnce(type);
     }
 
     private static void gather(TlaType1 type, Map<Integer, TlaType1> variables) {
         if (type instanceof VarT1 variable) {
-            variables.computeIfAbsent(variable.no(), ignored -> new VarT1(variables.size()));
+            variables.computeIfAbsent(variable.no(), ignored -> TlaTypes.typeVariable(variables.size()));
         } else LibraryTypes.children(type).forEach(child -> gather(child, variables));
     }
 }

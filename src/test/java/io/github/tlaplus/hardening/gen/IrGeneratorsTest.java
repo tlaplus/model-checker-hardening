@@ -4,13 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import at.forsyte.apalache.io.lir.PrettyWriter;
-import at.forsyte.apalache.io.lir.TextLayout;
-import at.forsyte.apalache.io.lir.TlaDeclAnnotator;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Set;
@@ -147,11 +142,6 @@ class IrGeneratorsTest {
     }
 
     private String print(TlaEx expression) {
-        var buffer = new StringWriter();
-        var printWriter = new PrintWriter(buffer);
-        new PrettyWriter(printWriter, new TextLayout(80, 2), new TlaDeclAnnotator())
-                .write(expression);
-        printWriter.flush();
-        return buffer.toString();
+        return TlaIrTestSupport.print(expression);
     }
 }

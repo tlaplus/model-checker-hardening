@@ -79,12 +79,7 @@
     </dependency>
     <dependency>
       <groupId>org.apalache-mc</groupId>
-      <artifactId>tla-ir-java</artifactId>
-      <version>${apalache.facade.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apalache-mc</groupId>
-      <artifactId>tla-io_2.13</artifactId>
+      <artifactId>tla-io-java</artifactId>
       <version>${apalache.facade.version}</version>
     </dependency>
     <dependency>

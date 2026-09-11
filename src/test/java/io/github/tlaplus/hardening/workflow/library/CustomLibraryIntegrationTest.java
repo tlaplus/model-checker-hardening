@@ -84,7 +84,7 @@ class CustomLibraryIntegrationTest {
 
     private static TlaEx call(OperatorLibrary library, OperatorId id, TlaType1 result, TlaEx... args) {
         var types = java.util.Arrays.stream(args)
-                .map(arg -> at.forsyte.apalache.tla.lir.TlaType1$.MODULE$.fromTypeTag(arg.typeTag()))
+                .map(TlaTypes::typeOf)
                 .toArray(TlaType1[]::new);
         return BUILDER.operApply(BUILDER.name(library.get(id).name(),
                 TlaTypes.operator(result, types)), args);

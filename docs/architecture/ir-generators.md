@@ -765,8 +765,8 @@ and may contain open record or variant rows; real, legacy record and sparse-tupl
 types are unsupported.
 
 For a requested concrete result type, a custom kind alpha-normalizes its type
-scheme and uses Apalache's published `TypeUnifier` and `Substitution` APIs to
-match its result. The unified result must equal the requested type, not merely a
+scheme and uses the Java facade's `TlaTypeUnifier` and `TlaTypeSubstitution` APIs
+to match its result. The unified result must equal the requested type, not merely a
 compatible widening. A byte-free feasibility pass checks exclusions, type depth,
 collection width and every occurrence of each residual type variable. A selected
 call then draws each unresolved value type once. Row variables draw bounded rows,

@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
 
 class IrSpecGeneratorsTest {
@@ -158,8 +159,8 @@ class IrSpecGeneratorsTest {
                         declared,
                         new LinkedHashSet<>(collectAssignedVars(disjunct, declared, actionOps)),
                         "nested disjunct does not account for every variable: " + print(disjunct));
-                sawDisjunction |= containsOperator(disjunct, "OR");
-                sawConditional |= containsOperator(disjunct, "IF_THEN_ELSE");
+                sawDisjunction |= containsOperator(disjunct, TlaOperators.OR);
+                sawConditional |= containsOperator(disjunct, TlaOperators.IF_THEN_ELSE);
             }
             checked++;
         }

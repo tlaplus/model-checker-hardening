@@ -4,9 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import at.forsyte.apalache.io.json.ujsonimpl.TlaToUJson$;
 import at.forsyte.apalache.tla.lir.TlaDecl;
-import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
@@ -20,12 +18,11 @@ import java.util.List;
 import java.util.Optional;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaDeclarations;
+import org.apalache_mc.tla.jir.TlaModules;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import static io.github.tlaplus.hardening.common.ScalaCollections.list;
-import static io.github.tlaplus.hardening.common.ScalaCollections.seq;
 
 class ApalacheProcessTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
@@ -164,8 +161,7 @@ class ApalacheProcessTest {
                 : builder.neql(name, value);
         var inv = builder.decl("Inv", invariant);
         var declarations = List.<TlaDecl>of(variable, init, next, inv);
-        var module = new TlaModule(
-                "FuzzInput", seq(declarations));
-        return TlaToUJson$.MODULE$.apply(module).render(2, false);
+        var module = TlaModules.create("FuzzInput", declarations);
+        return ApalacheIrJson.render(module);
     }
 }
