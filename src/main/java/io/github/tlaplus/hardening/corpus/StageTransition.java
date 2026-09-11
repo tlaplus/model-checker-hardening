@@ -65,14 +65,7 @@ final class StageTransition {
         // Prepare the updated envelope before committing either artifact.
         final byte[] updated;
         try {
-            updated = CorpusEnvelopeCodec.withStageMetadata(
-                    encoded,
-                    new StageMetadata(
-                            stage.metadataName(),
-                            verdict,
-                            result.startTime(),
-                            result.endTime(),
-                            result.failure()));
+            updated = CorpusEnvelopeCodec.withStageMetadata(encoded, result.metadata(stage));
         } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "invalid CBOR corpus entry: " + source + ": " + Diagnostics.message(exception),
