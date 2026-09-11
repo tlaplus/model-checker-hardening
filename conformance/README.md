@@ -24,7 +24,8 @@ marked `Aggregator (corpus3)` use corpus3's 435,265 aggregator deviations. The
 `Apalache crash (corpus6)` row uses its 61 Apalache crash-classified results.
 Rows marked `Aggregator (corpus9)` use corpus9's 250,189 aggregator deviations.
 Rows marked `Aggregator (corpus10)` use corpus10's 257,852 aggregator
-deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
+deviations. Rows marked `Aggregator (corpus12)` use corpus12's 50,545
+aggregator deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
 | Origin | Share | TLC | Apalache | Short title | Representative example | Assessment |
@@ -71,6 +72,10 @@ to 100%.
 | Aggregator (corpus9) | <0.01% | 🟢 Pass | Counterexample | `CHOOSE` with several witnesses | [MWE](choose-multiple-witnesses.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus9) | <0.01% | Counterexample | 🟢 Pass | `DOMAIN` of an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
 | Aggregator (corpus10) | <0.01% | Counterexample | 🟢 Pass | Union with `Int` or `Nat` | [Finding](../findings/apalache-bmc/apalache-bmc-016.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-016.md) |
+| Aggregator (corpus12) | <0.01% | 🟢 Pass | Counterexample | `IsFiniteSet` of `Int` or `Nat`, negated | [Finding](../findings/apalache-bmc/apalache-bmc-007.md#the-dual-direction-observed-in-a-corpus) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-007.md) |
+| Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | `CASE` with several true guards | [MWE](case-multiple-true-guards.md#representative-mwe) | Known semantic difference |
+| Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | Computed empty function-set domain | [Finding](../findings/apalache-bmc/apalache-bmc-017.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-017.md) |
+| Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | Applying an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reached-through-application-not-only-domain) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
 | Aggregator (corpus10) | <0.01% | 🔴 Fail | 🟢 Pass | Non-enumerable next-state assignment | [MWE](non-enumerable-initial-assignment.md#reached-through-the-next-state-action) | TLC enumeration limit |
 | Apalache crash | 0.16% | Supported | Input error | Nonconstant integer range | [MWE](nonconstant-integer-range.md#representative-mwe) | Known Apalache limitation |
 | Apalache crash (corpus6) | 6.56% | 🟢 Pass | Input error | Apalache reaches a negative power | [MWE](negative-power-apalache-fails.md#representative-mwe) | Evaluation order |
