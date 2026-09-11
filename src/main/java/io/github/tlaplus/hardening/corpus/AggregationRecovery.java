@@ -26,12 +26,11 @@ final class AggregationRecovery {
     /** Finishes source deletion, validates aggregate semantics, and returns durable counts. */
     Results recoverAndValidate() throws IOException, CorpusException {
         var aggregateEntries = new HashMap<String, Entry>();
-        var resultCounts = zeroVerdictCounts();
+        var resultCounts = new VerdictTally();
         var residualSources = new ArrayList<Path>();
-        var upstreamCounts = new EnumMap<CorpusStage, EnumMap<CorpusVerdict, Long>>(
-                CorpusStage.class);
+        var upstreamCounts = new EnumMap<CorpusStage, VerdictTally>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
-            upstreamCounts.put(checker, zeroVerdictCounts());
+            upstreamCounts.put(checker, new VerdictTally());
         }
 
         for (var verdict : CorpusStage.AGGREGATOR.resultVerdicts()) {
@@ -52,43 +51,27 @@ final class AggregationRecovery {
                 residualSources.addAll(
                         transition.residualSources(entry, verdict, aggregation));
                 aggregation.checkerVerdicts().forEach((checker, checkerVerdict) ->
-                        increment(upstreamCounts.get(checker), checkerVerdict));
-                increment(resultCounts, verdict);
+                        upstreamCounts.get(checker).increment(checkerVerdict));
+                resultCounts.increment(verdict);
             }
         }
         for (var source : residualSources) {
             Files.delete(source);
         }
-        return new Results(aggregateEntries, resultCounts, upstreamCounts);
-    }
-
-    private static EnumMap<CorpusVerdict, Long> zeroVerdictCounts() {
-        var counts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
-        for (var verdict : CorpusVerdict.values()) {
-            counts.put(verdict, 0L);
-        }
-        return counts;
-    }
-
-    private static void increment(EnumMap<CorpusVerdict, Long> counts, CorpusVerdict verdict) {
-        counts.merge(verdict, 1L, Long::sum);
+        var upstream = new EnumMap<CorpusStage, StageEntryCounts>(CorpusStage.class);
+        upstreamCounts.forEach((checker, tally) -> upstream.put(checker, tally.snapshot()));
+        return new Results(aggregateEntries, resultCounts.snapshot(), upstream);
     }
 
     /** Aggregate entries and the verdict history they encode for upstream checker stages. */
     record Results(
             Map<String, Entry> entries,
-            EnumMap<CorpusVerdict, Long> resultCounts,
-            EnumMap<CorpusStage, EnumMap<CorpusVerdict, Long>> upstreamCounts) {
+            StageEntryCounts resultCounts,
+            Map<CorpusStage, StageEntryCounts> upstreamCounts) {
         Results {
             entries = Map.copyOf(entries);
-            resultCounts = new EnumMap<>(resultCounts);
-            var copy = new EnumMap<CorpusStage, EnumMap<CorpusVerdict, Long>>(CorpusStage.class);
-            upstreamCounts.forEach((stage, counts) -> copy.put(stage, new EnumMap<>(counts)));
-            upstreamCounts = copy;
-        }
-
-        long resultCount(CorpusVerdict verdict) {
-            return resultCounts.get(verdict);
+            Objects.requireNonNull(resultCounts, "resultCounts");
+            upstreamCounts = Map.copyOf(upstreamCounts);
         }
     }
 }

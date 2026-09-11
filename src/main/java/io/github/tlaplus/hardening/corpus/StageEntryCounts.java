@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.corpus;
 
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.ToLongFunction;
 
 /** How many entries one stage has produced under each verdict. */
 public record StageEntryCounts(Map<CorpusVerdict, Long> verdicts) {
@@ -22,6 +24,17 @@ public record StageEntryCounts(Map<CorpusVerdict, Long> verdicts) {
     /** Returns the counts of a stage that has produced no verdict yet. */
     public static StageEntryCounts empty() {
         return new StageEntryCounts(Map.of());
+    }
+
+    /** Returns the counts of {@code verdicts}, each read from {@code counter}; others are zero. */
+    public static StageEntryCounts from(
+            Collection<CorpusVerdict> verdicts, ToLongFunction<CorpusVerdict> counter) {
+        Objects.requireNonNull(counter, "counter");
+        var counts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
+        for (var verdict : verdicts) {
+            counts.put(verdict, counter.applyAsLong(verdict));
+        }
+        return new StageEntryCounts(counts);
     }
 
     public long count(CorpusVerdict verdict) {

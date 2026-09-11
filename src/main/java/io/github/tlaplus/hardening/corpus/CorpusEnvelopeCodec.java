@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -30,6 +31,10 @@ public final class CorpusEnvelopeCodec {
     private static final String DETAIL_FIELD = "detail";
     private static final String START_TIME_FIELD = "startTime";
     private static final String END_TIME_FIELD = "endTime";
+
+    /** Every field this build writes into a stage's metadata; any other field is preserved. */
+    private static final Set<String> STAGE_METADATA_FIELDS =
+            Set.of(VERDICT_FIELD, CODE_FIELD, DETAIL_FIELD, START_TIME_FIELD, END_TIME_FIELD);
 
     private CorpusEnvelopeCodec() {}
 
@@ -293,19 +298,11 @@ public final class CorpusEnvelopeCodec {
         map.epoch(END_TIME_FIELD, metadata.endTime());
         if (previous != null) {
             for (Map.Entry<String, JsonNode> field : previous.properties()) {
-                if (!isStageMetadataField(field.getKey())) {
+                if (!STAGE_METADATA_FIELDS.contains(field.getKey())) {
                     map.tree(field.getKey(), field.getValue());
                 }
             }
         }
         return map;
-    }
-
-    private static boolean isStageMetadataField(String field) {
-        return VERDICT_FIELD.equals(field)
-                || CODE_FIELD.equals(field)
-                || DETAIL_FIELD.equals(field)
-                || START_TIME_FIELD.equals(field)
-                || END_TIME_FIELD.equals(field);
     }
 }

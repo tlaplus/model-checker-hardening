@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -21,13 +21,8 @@ public record WorkflowConfig(
         Preconditions.requireNonnegative(maximumEntries, "maximumEntries");
         Objects.requireNonNull(inputs, "inputs");
         Objects.requireNonNull(parser, "parser");
-        Objects.requireNonNull(checkers, "checkers");
-        var copy = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
-        copy.putAll(checkers);
-        for (var checker : CorpusStage.checkerBranches()) {
-            Preconditions.require(copy.containsKey(checker), "checkers is missing stage " + checker);
-        }
-        checkers = Map.copyOf(copy);
+        checkers = EnumMaps.requireKeys(
+                CorpusStage.class, checkers, CorpusStage.checkerBranches(), "checkers");
 
         requireWithinTotal(inputs.maximumEntries(), maximumEntries, "workflow.inputs");
         requireWithinTotal(parser.maximumEntries(), maximumEntries, "workflow.parser");
