@@ -25,6 +25,7 @@ marked `Aggregator (corpus3)` use corpus3's 435,265 aggregator deviations. The
 Rows marked `Aggregator (corpus9)` use corpus9's 250,189 aggregator deviations.
 Rows marked `Aggregator (corpus10)` use corpus10's 257,852 aggregator
 deviations. Rows marked `Aggregator (corpus12)` use corpus12's 50,545
+aggregator deviations. Rows marked `Aggregator (corpus14)` use corpus14's 62,487
 aggregator deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
@@ -77,6 +78,8 @@ to 100%.
 | Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | Computed empty function-set domain | [Finding](../findings/apalache-bmc/apalache-bmc-017.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-017.md) |
 | Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | Applying an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reached-through-application-not-only-domain) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
 | Aggregator (corpus10) | <0.01% | 🔴 Fail | 🟢 Pass | Non-enumerable next-state assignment | [MWE](non-enumerable-initial-assignment.md#reached-through-the-next-state-action) | TLC enumeration limit |
+| Aggregator (corpus14) | <0.01% | 🔴 Fail | Varies | Membership test with `Int` or `Nat` as the element | [MWE](infinite-set-as-membership-element.md#representative-mwe) | TLC representation limit |
+| Aggregator (corpus14) | <0.01% | Counterexample | 🟢 Pass | Empty-range function set in an invariant | [Finding](../findings/apalache-bmc/apalache-bmc-017.md#reached-through-the-invariant-and-through-a-let-wrapped-domain) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-017.md) |
 | Apalache crash | 0.16% | Supported | Input error | Nonconstant integer range | [MWE](nonconstant-integer-range.md#representative-mwe) | Known Apalache limitation |
 | Apalache crash (corpus6) | 6.56% | 🟢 Pass | Input error | Apalache reaches a negative power | [MWE](negative-power-apalache-fails.md#representative-mwe) | Evaluation order |
 | Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-001.md) |
@@ -380,3 +383,45 @@ next-state analogue of the unassigned-variable symptom
 [`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md)
 already lists. The remaining 42 are deviations in which both checkers completed,
 so they store no detail and stay `NEW`, as the corpus8 section explains.
+
+## corpus14 residuals
+
+The triager left 11 of corpus14's 62,487 aggregator deviations (0.02%) as `NEW`.
+Each was re-checked by printing the entry's TLA+ source and typed IR and running
+TLC and Apalache 0.62.2 on them directly.
+
+Two entries do not reproduce. They were produced before the build the rest of the
+session used, and the current build gives them different verdicts:
+`769669983...c108b` now passes both checkers, and `c5b3cad1...e78b5` moves from
+a TLC counterexample against an Apalache pass to a TLC
+[`Head` of an empty sequence](head-of-empty-sequence.md) failure against an
+Apalache counterexample. Every entry recorded from 17:27Z onward reproduces
+exactly. A session that spans a rebuild should not be read as one population.
+
+The other nine print what both checkers saw, and every one has a documented
+cause:
+
+| Count | Cause | Class |
+|---:|---|---|
+| 3 | `IsFiniteSet` of `Int` or `Nat`, in the direction where Apalache refutes the true assertion | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
+| 2 | a bounded `CHOOSE` whose predicate has several witnesses | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 2 | a function set with an empty range and a computed empty domain | [`apalache-bmc-017`](../findings/apalache-bmc/apalache-bmc-017.md) |
+| 2 | `Nat` or `Int` as the element of a membership test | [infinite-set-as-membership-element](infinite-set-as-membership-element.md) |
+
+The `apalache-bmc-017` pair is what the new table row above records. One reaches
+the defect from the invariant rather than the initial predicate, which is the
+first observation of that direction; the other adds a `LET` whose body is the
+literal `{}` to the known list of non-literal empty domains.
+
+The membership pair is the only group that carries a TLC failure detail, and it
+is now reachable by signature. Its message,
+`Attempted to check if the non-enumerable value`, names the element rather than
+the set, so none of the
+[finite set containing `Nat`](finite-set-containing-infinite-set.md)
+alternatives matched it.
+
+The remaining seven are deviations in which both checkers completed, so they
+store no detail and stay `NEW`, as the corpus8 section explains. That is the
+shape of this residual: `IsFiniteSet`, `CHOOSE` and the function-set defect are
+all wrong-answer deviations with no diagnostic on either side, and no aggregator
+signature can ever retire them.
