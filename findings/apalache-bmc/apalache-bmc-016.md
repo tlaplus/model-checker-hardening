@@ -40,6 +40,15 @@ operand is the one case Apalache answers correctly -- `step \in Nat \union {}`
 holds -- so the module below uses `{1}`, which is the shortest form that
 exposes the defect.
 
+The `corpus14` run adds one more, again a TLC counterexample against an Apalache
+pass. Its invariant is `step \notin ({f \in {} : var1} \union Nat)`, where the
+filter is empty, so the union is `Nat` and `step` is in it for every reachable
+state. TLC reports the violation; Apalache answers the membership as if `Nat`
+were empty and passes. See the
+[`76966998...c108b.cbor` input](../../corpus14/03aggregator-fail/769669983a0d82373fb6e77fd5027c9e0fcd30dbc63f028caba2d4f4608c108b.cbor).
+Note that the empty operand here is a *computed* empty set on the left of the
+union, which does not shield the defect the way a literal `{}` on the right does.
+
 ## Reproduction
 
 Save this module as `UnionWithNat.tla`:

@@ -123,6 +123,17 @@ class AggregatorClassificationTest(unittest.TestCase):
                 "Attempted to check if the non-enumerable value",
                 "infinite-set-as-membership-element.md",
             ),
+            # TLC wraps these two variants at different points, so the stored
+            # first line is what separates the classes. A regression that
+            # merges them files the enumeration limit as a missing witness.
+            (
+                "Attempted to compute the value of an expression of form",
+                "choose-without-witness.md",
+            ),
+            (
+                "Attempted to compute the value of an expression of",
+                "choose-over-infinite-set.md",
+            ),
         )
         for detail, issue in cases:
             with self.subTest(detail=detail):

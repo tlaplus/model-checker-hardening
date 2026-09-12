@@ -387,26 +387,18 @@ so they store no detail and stay `NEW`, as the corpus8 section explains.
 ## corpus14 residuals
 
 The triager left 11 of corpus14's 62,487 aggregator deviations (0.02%) as `NEW`.
-Each was re-checked by printing the entry's TLA+ source and typed IR and running
-TLC and Apalache 0.62.2 on them directly.
-
-Two entries do not reproduce. They were produced before the build the rest of the
-session used, and the current build gives them different verdicts:
-`769669983...c108b` now passes both checkers, and `c5b3cad1...e78b5` moves from
-a TLC counterexample against an Apalache pass to a TLC
-[`Head` of an empty sequence](head-of-empty-sequence.md) failure against an
-Apalache counterexample. Every entry recorded from 17:27Z onward reproduces
-exactly. A session that spans a rebuild should not be read as one population.
-
-The other nine print what both checkers saw, and every one has a documented
-cause:
+Each was re-checked by printing the entry's TLA+ source and typed IR with
+`fuzztla print --corpus corpus14` and running TLC and Apalache 0.62.2 on them
+directly. All 11 reproduce the verdict pair the envelope records, and every one
+has a documented cause:
 
 | Count | Cause | Class |
 |---:|---|---|
-| 3 | `IsFiniteSet` of `Int` or `Nat`, in the direction where Apalache refutes the true assertion | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
+| 4 | `IsFiniteSet` of `Int` or `Nat`, or of a set expression that evaluates to one | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
 | 2 | a bounded `CHOOSE` whose predicate has several witnesses | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
 | 2 | a function set with an empty range and a computed empty domain | [`apalache-bmc-017`](../findings/apalache-bmc/apalache-bmc-017.md) |
 | 2 | `Nat` or `Int` as the element of a membership test | [infinite-set-as-membership-element](infinite-set-as-membership-element.md) |
+| 1 | an invariant that unites a finite set with `Nat` | [`apalache-bmc-016`](../findings/apalache-bmc/apalache-bmc-016.md) |
 
 The `apalache-bmc-017` pair is what the new table row above records. One reaches
 the defect from the invariant rather than the initial predicate, which is the
@@ -420,8 +412,68 @@ the set, so none of the
 [finite set containing `Nat`](finite-set-containing-infinite-set.md)
 alternatives matched it.
 
-The remaining seven are deviations in which both checkers completed, so they
+The remaining nine are deviations in which both checkers completed, so they
 store no detail and stay `NEW`, as the corpus8 section explains. That is the
-shape of this residual: `IsFiniteSet`, `CHOOSE` and the function-set defect are
-all wrong-answer deviations with no diagnostic on either side, and no aggregator
-signature can ever retire them.
+shape of this residual: `IsFiniteSet`, `CHOOSE`, the union defect and the
+function-set defect are all wrong-answer deviations with no diagnostic on either
+side, and no aggregator signature can ever retire them.
+
+## Auditing the classified entries
+
+corpus14's 62,478 classified deviations were audited two ways. Every row
+re-derives from its stored envelope, so the CSV matches the catalog it claims.
+89 entries sampled across all 24 TLC-failing classes were re-run, and each
+reproduced its stored diagnostic exactly, so the recorded failures are real and
+the stored detail is a faithful root-cause line rather than a wrapper.
+
+The classification itself needed one fix. An aggregator entry stores one line,
+TLC line-wraps its messages, and several distinct messages share a first line,
+so a first-line signature can merge classes silently. Extracting TLC's message
+constants from `tla2tools` shows two such prefixes among the signatures:
+
+| Stored first line | TLC messages sharing it |
+|---|---|
+| `Attempted to compute the value of an expression of[ form]` | no-witness `CHOOSE`, non-enumerable `CHOOSE` bound, N-tuples `CHOOSE`, `SUBSET` of a non-enumerable set |
+| `In applying the function` | argument not in the domain, argument does not match the formal parameter (three arities) |
+
+The first was realized. TLC wraps the non-enumerable-bound variant one word
+earlier, so `...of an expression of` without `form` is always
+[`CHOOSE` over `Int` or `Nat`](choose-over-infinite-set.md) and never a missing
+witness. 69 corpus14 entries had been filed as
+[`CHOOSE` without a witness](choose-without-witness.md); the signature now
+separates them, and 20 re-runs confirmed the split. The `...of form` spelling
+stays ambiguous in principle, but 40 sampled entries were all the no-witness
+`CHOOSE`.
+
+The second is latent: 40 sampled `In applying the function` entries were all the
+domain variant.
+
+The two crash reports were audited the same way and needed no change. Every row
+of `02apa-crash-triage.csv` (1,524) and `02tlc-crash-triage.csv` (163)
+re-derives from its stored stacktrace, no entry matches more than one finding
+signature, and neither report contains a `NEW`. 19 Apalache crashes sampled
+across all seven classes were re-run and reproduced their diagnosis and their
+classification. Crash signatures do not suffer the aggregator's one-line limit:
+they match the whole stored diagnostic, so a shared message prefix cannot merge
+classes there.
+
+Two crash classes are deliberate groupings rather than single causes --
+[`apalache-cli-001`](../findings/apalache-cli/apalache-cli-001.md) and
+[`tlc-002`](../findings/TLC/tlc-002.md) each collect the diagnoses that exit
+under a generic status, which is the defect they record. corpus14's instances
+are added to both tables.
+
+956 of the 1,524 Apalache crash outcomes (62.7%) are worker timeouts at the
+30-second stage limit rather than tool diagnoses. They carry no Apalache output
+beyond JVM warnings, none matches a signature, and the `TIMEOUT` bucket keeps
+them out of `NEW`. They establish no conformance difference, but they are the
+majority of this stage's budget.
+
+## Reproducing a corpus entry
+
+`fuzztla print` renders an entry with the generator settings it is given, so
+`--corpus <dir>` is required to reproduce what the workflow checked. Without it
+the defaults apply and an entry that declares action operators prints a module
+missing them, which parses and checks but is not the input the corpus recorded.
+Three corpus14 entries were first mis-triaged that way: the truncated modules
+made two deviations disappear and changed the diagnostic of a third.

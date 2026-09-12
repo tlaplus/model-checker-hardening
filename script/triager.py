@@ -235,8 +235,17 @@ SIGNATURES = (
 AGGREGATOR_SIGNATURES = (
     failure("function-application-outside-domain.md", Checker.TLC,
             r"^In applying the function$", r"^Attempted to apply function:$"),
+    # Four TLC messages open with this prefix, and TLC line-wraps them at
+    # different points, so the stored first line separates only one of them:
+    # "...of an expression of" is always "form CHOOSE x \in S: P, but S was not
+    # enumerable", a different conformance class. The "...of form" spelling is
+    # shared by the no-witness CHOOSE, the N-tuples CHOOSE, and SUBSET over a
+    # non-enumerable set; 40 sampled corpus14 entries were all the first, so it
+    # stays here, but a reruns check is the only way to split it further.
     failure("choose-without-witness.md", Checker.TLC,
-            r"^Attempted to compute the value of an expression of(?: form)?$"),
+            r"^Attempted to compute the value of an expression of form$"),
+    failure("choose-over-infinite-set.md", Checker.TLC,
+            r"^Attempted to compute the value of an expression of$"),
     failure("head-of-empty-sequence.md", Checker.TLC,
             r"^Attempted to apply Head to the empty sequence\.$"),
     failure("case-without-matching-arm.md", Checker.TLC,
