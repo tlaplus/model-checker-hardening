@@ -280,6 +280,11 @@ AGGREGATOR_SIGNATURES = (
             # value is long, so match only the prefix TLC always emits.
             r"^Attempted to compare (?:the set|overridden value) ",
             r"^Attempted to check equality of the set .+ with the value:$"),
+    # The same operand reached as the element of a membership test rather than
+    # as a value being compared. TLC names the element, not the set, so the
+    # finite-set-containing-infinite-set alternatives above cannot match.
+    failure("infinite-set-as-membership-element.md", Checker.TLC,
+            r"^Attempted to check if the non-enumerable value$"),
     failure("cardinality-of-infinite-set.md", Checker.TLC,
             r"^Attempted to compute cardinality of the value$"),
     failure("difference-with-infinite-set.md", Checker.TLC,

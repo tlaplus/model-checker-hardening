@@ -119,6 +119,10 @@ class AggregatorClassificationTest(unittest.TestCase):
                 "Attempted to compare overridden value Seq({<<[field5 |-> FALSE, field6 |-> {}],…",
                 "finite-set-containing-infinite-set.md",
             ),
+            (
+                "Attempted to check if the non-enumerable value",
+                "infinite-set-as-membership-element.md",
+            ),
         )
         for detail, issue in cases:
             with self.subTest(detail=detail):
