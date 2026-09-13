@@ -93,12 +93,26 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a function-definition generator whose body sees its bounded argument. */
+    /**
+     * Returns a function-definition generator whose body sees its bounded arguments.
+     *
+     * <p>A function of a tuple of two or more components may bind one name per component, as in
+     * {@code [x \in S, y \in T |-> e]}, which TLA+ defines over {@code S \X T}; one Boolean,
+     * spent only for such a type, chooses that form over a single tuple-valued name.
+     */
     private Generator<TlaEx> functionDefinition(
             FunctionType type, int remainingDepth) {
-        return bounded("arg", type.argument(), type.result(), remainingDepth - 1,
-                (variable, domain, body) -> builder().funDef(
-                        body, BuilderArrays.pairs(List.of(new ExpressionPair<>(variable, domain)))));
+        return draw -> {
+            if (type.argument() instanceof TupleType(List<IrType> components)
+                    && components.size() >= 2
+                    && draw.drawBoolean()) {
+                return draw.draw(boundedTogether("arg", components, type.result(), remainingDepth - 1,
+                        builder()::funDef));
+            }
+            return draw.draw(bounded("arg", type.argument(), type.result(), remainingDepth - 1,
+                    (variable, domain, body) -> builder().funDef(
+                            body, BuilderArrays.pairs(List.of(new ExpressionPair<>(variable, domain))))));
+        };
     }
 
     /** Returns a function-update generator containing a terminated update collection. */

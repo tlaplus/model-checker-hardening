@@ -142,6 +142,44 @@ class DrawTest {
     }
 
     @Test
+    void aSliceCoversTheNextBytesAndAdvancesItsParent() {
+        var draw = new Draw(new byte[] {1, 2, 3, 4, 5});
+        assertEquals(1, draw.drawByte());
+
+        var slice = draw.slice(2);
+
+        assertEquals(2, slice.remaining());
+        assertEquals(2, draw.remaining());
+        assertEquals(4, draw.drawByte());
+        assertEquals(2, slice.drawByte());
+        assertEquals(3, slice.drawByte());
+        assertTrue(slice.isEmpty());
+    }
+
+    @Test
+    void anExhaustedSliceReturnsDefaultsWithoutReadingPastItsRange() {
+        var draw = new Draw(new byte[] {7, 9});
+        var slice = draw.slice(1);
+
+        assertEquals(7, slice.drawByte());
+        assertEquals(0, slice.drawByte());
+        assertFalse(slice.drawBoolean());
+        assertEquals(0, slice.remaining());
+        assertEquals(9, draw.drawByte());
+    }
+
+    @Test
+    void slicesAreClampedToTheRemainingBytes() {
+        var draw = new Draw(new byte[] {1, 2, 3});
+
+        assertEquals(0, draw.slice(0).remaining());
+        assertEquals(3, draw.slice(10).remaining());
+        assertTrue(draw.isEmpty());
+        assertEquals(0, draw.slice(4).remaining());
+        assertThrows(IllegalArgumentException.class, () -> draw.slice(-1));
+    }
+
+    @Test
     void collectionsUseContinuationMarkersInsteadOfSizes() {
         var draw = new Draw(new byte[] {1, 10, 1, 11, 0, 99});
 

@@ -23,6 +23,7 @@ final class IrExprGenFactory {
     private final SetExprGenFactory setFactory;
     private final SequenceExprGenFactory sequenceFactory;
     private final OtherExprGenFactory otherFactory;
+    private final ApplicativeExprGenFactory applicativeFactory;
     private final List<ExpressionKind> catalog;
     private final Map<Instantiation, TypeInstantiation> plans = new HashMap<>();
 
@@ -39,6 +40,7 @@ final class IrExprGenFactory {
         integerFactory = new IntegerExprGenFactory(context, typeFactory, this);
         setFactory = new SetExprGenFactory(context, typeFactory, this);
         sequenceFactory = new SequenceExprGenFactory(context, typeFactory, this);
+        applicativeFactory = new ApplicativeExprGenFactory(context, typeFactory, this);
     }
 
     /**
@@ -105,6 +107,14 @@ final class IrExprGenFactory {
         };
     }
 
+    /**
+     * Returns the byte-free terminal of a type that never names a binding of that exact type, for
+     * a caller that must not reproduce a name it already has.
+     */
+    Generator<TlaEx> closedTerminal(IrType type) {
+        return generalFactory.closedTerminal(type);
+    }
+
     /** Reports whether a form is enabled and its type and scope requirements are satisfied. */
     boolean isApplicable(ExpressionKind kind, IrType type) {
         return typeApplicableForms(type).contains(kind)
@@ -148,6 +158,8 @@ final class IrExprGenFactory {
                 sequenceFactory.mkGen(sequence, (SequenceType) type, remainingDepth);
             case OtherExpressionKind other ->
                 otherFactory.mkGen(other, type, remainingDepth);
+            case ApplicativeExpressionKind applicative ->
+                applicativeFactory.mkGen(applicative, type, remainingDepth);
             case CustomExpressionKind custom -> custom(custom, type, remainingDepth);
         };
     }

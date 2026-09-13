@@ -16,6 +16,7 @@ public sealed interface ExpressionKind
                 SetExpressionKind,
                 SequenceExpressionKind,
                 OtherExpressionKind,
+                ApplicativeExpressionKind,
                 CustomExpressionKind {
     /** Slots a form occupies when its weight is not configured. */
     int DEFAULT_WEIGHT = 1;

@@ -94,8 +94,11 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns the closed terminal for a type, ignoring the current lexical scope. */
-    private Generator<TlaEx> closedTerminal(IrType type) {
+    /**
+     * Returns the byte-free terminal for a type that ignores the bindings of that type in scope.
+     * Components of a composite type still rotate over bindings of their own types.
+     */
+    Generator<TlaEx> closedTerminal(IrType type) {
         return draw -> switch (type) {
             case PrimitiveType primitive -> switch (primitive) {
                 case BOOL -> builder().bool(false);

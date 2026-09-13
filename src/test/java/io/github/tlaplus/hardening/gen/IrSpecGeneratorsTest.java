@@ -17,6 +17,10 @@ import org.junit.jupiter.api.Test;
 
 class IrSpecGeneratorsTest {
     private static final String STEP = "step";
+    /** Measured at 0 of 1000 modules when introduced; a required leaf repairs `v' = v`. */
+    private static final double STUTTERING_BOUND = 0.05;
+    /** Measured at 91 of 505 modules defining an action operator when introduced. */
+    private static final double APPLYING_BOUND = 0.12;
 
     @Test
     void emptyInputProducesASingleVariableModuleWithACompleteAction() {
@@ -135,10 +139,51 @@ class IrSpecGeneratorsTest {
     }
 
     @Test
+    void propertyBasedInputsDecodeToActionsThatChangeState() {
+        // Before each module body had its own section, a property-based corpus's invariant used up
+        // the median 218-byte input: two thirds of its modules stuttered in every Next disjunct,
+        // and Next applied an action operator in one module in a hundred. Lengths here are
+        // log-uniform, like the workflow's samples.
+        var random = new Random(0x5ec7105L);
+        var modules = 0;
+        var stuttering = 0;
+        var defining = 0;
+        var applying = 0;
+        for (var sample = 0; sample < 1000; sample++) {
+            var bits = 4 + random.nextInt(8);
+            var input = new byte[(1 << bits) + random.nextInt(1 << bits)];
+            random.nextBytes(input);
+            final GeneratedSpec spec;
+            try {
+                spec = generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            modules++;
+            var operators = actionOperatorBodies(spec);
+            if (!changesState(spec.nextAction(), operators, STEP)) {
+                stuttering++;
+            }
+            if (!operators.isEmpty()) {
+                defining++;
+                if (appliesAny(spec.nextAction(), operators.keySet())) {
+                    applying++;
+                }
+            }
+        }
+        var stutteringShare = (double) stuttering / modules;
+        var applyingShare = (double) applying / defining;
+        assertTrue(modules > 500, "too few inputs were admitted to be conclusive: " + modules);
+        assertTrue(stutteringShare < STUTTERING_BOUND,
+                "modules whose Next only stutters: " + stuttering + " of " + modules);
+        assertTrue(applyingShare > APPLYING_BOUND,
+                "modules applying a defined action operator in Next: " + applying + " of " + defining);
+    }
+
+    @Test
     void nestedActionShapesAppearAndRemainComplete() {
-        // The next-state action is drawn after the invariant, the auxiliary operators, and Init, so
-        // a short input is exhausted before the action shape and always decodes to a flat leaf.
-        // Larger inputs leave the bytes a nested disjunction or IF-THEN-ELSE needs.
+        // Larger inputs give the next-state action's section the bytes a nested disjunction or
+        // IF-THEN-ELSE needs; a short section decodes to a flat leaf.
         var random = new Random(0xACC0DEL);
         var sawDisjunction = false;
         var sawConditional = false;
