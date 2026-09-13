@@ -5,8 +5,8 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
-import io.github.tlaplus.hardening.workflow.checker.CheckerBackend;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
@@ -28,7 +28,7 @@ final class CheckerBackends {
 
     @FunctionalInterface
     private interface Factory {
-        CheckerBackend create(CheckerStageConfig config, Resources resources);
+        ToolBackend create(CheckerStageConfig config, Resources resources);
     }
 
     private static final Map<CorpusStage, Factory> FACTORIES = Map.of(
@@ -53,7 +53,7 @@ final class CheckerBackends {
     private CheckerBackends() {}
 
     /** Returns the backend of one checker stage, configured for this invocation. */
-    static CheckerBackend create(CorpusStage stage, CheckerStageConfig config, Resources resources) {
+    static ToolBackend create(CorpusStage stage, CheckerStageConfig config, Resources resources) {
         var factory = FACTORIES.get(Objects.requireNonNull(stage, "stage"));
         Preconditions.require(factory != null, stage + " is not a checker stage");
         return factory.create(Objects.requireNonNull(config, "config"), resources);

@@ -2,12 +2,12 @@ package io.github.tlaplus.hardening.workflow.tlc;
 
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -32,8 +32,7 @@ public final class TlcWorkerMain {
     private static void run() throws Exception {
         var connection = ToolWorkerConnection.connect();
         System.setOut(System.err);
-        StandardModuleResources.require(
-                TlcWorkerMain.class, "Integers.tla", "Apalache.tla", "Variants.tla");
+        StandardModuleResources.requireBundled(TlcWorkerMain.class);
         requireRuntimeDependencies();
 
         var temporaryDirectory = Files.createTempDirectory("fuzztla-tlc-");
@@ -49,7 +48,7 @@ public final class TlcWorkerMain {
                 StandardOpenOption.CREATE_NEW,
                 StandardOpenOption.WRITE);
 
-        var diagnostics = new ByteArrayOutputStream();
+        var diagnostics = ToolWorkerRuntime.diagnosticBuffer("TLC");
         try (connection;
                 var diagnosticStream = new PrintStream(
                         diagnostics, true, StandardCharsets.UTF_8)) {
@@ -80,13 +79,7 @@ public final class TlcWorkerMain {
                     connection,
                     ToolWorkerRuntime.Lifetime.ONE_INPUT,
                     source -> {
-                        Files.writeString(
-                                specification,
-                                source.text(),
-                                StandardCharsets.UTF_8,
-                                StandardOpenOption.CREATE,
-                                StandardOpenOption.TRUNCATE_EXISTING,
-                                StandardOpenOption.WRITE);
+                        ToolWorkerRuntime.writeInput(specification, source);
                         return check(tlc, diagnostics);
                     });
         }
@@ -106,18 +99,16 @@ public final class TlcWorkerMain {
     }
 
     /** Checks the written specification and classifies whatever TLC reports. */
-    private static ToolResult check(TLC tlc, ByteArrayOutputStream diagnostics) {
+    private static ToolResult check(TLC tlc, BoundedTextOutputStream diagnostics) {
         try {
             var errorCode = tlc.process();
             var exitStatus = EC.ExitStatus.errorConstantToExitStatus(errorCode);
             var summary =
                     "TLC error code " + errorCode + " mapped to exit status " + exitStatus;
             return TlcOutcomeClassifier.classifyErrorCode(
-                    errorCode,
-                    WorkerDiagnostics.append(
-                            summary, diagnostics.toString(StandardCharsets.UTF_8)));
+                    errorCode, WorkerDiagnostics.append(summary, diagnostics.text()));
         } catch (Exception | StackOverflowError exception) {
-            return ToolResult.crash(exception, diagnostics.toString(StandardCharsets.UTF_8));
+            return ToolResult.crash(exception, diagnostics.text());
         }
     }
 

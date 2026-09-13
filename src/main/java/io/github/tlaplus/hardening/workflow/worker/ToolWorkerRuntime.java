@@ -1,18 +1,27 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
 import io.github.tlaplus.hardening.common.ThrowingRunnable;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
 /**
  * The part of a child worker that is the same for every tool: report an escaped failure by exiting
- * non-zero, announce itself to the parent, and serve inputs until the parent stops asking.
+ * non-zero, announce itself to the parent, serve inputs until the parent stops asking, write each
+ * input where the tool reads it, and keep a bounded record of what the tool printed.
  *
  * <p>Each worker main keeps its own setup, because what a tool needs before its first input differs
  * — a module resolver, a fixed configuration file, a redirected Scala console. It calls {@link
  * #serve} once that setup is done.
  */
 public final class ToolWorkerRuntime {
+    /** Tool output kept for one input, leaving room in a result frame for the truncation marker. */
+    private static final int MAXIMUM_DIAGNOSTIC_BYTES = ToolWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES - 128;
+
     private ToolWorkerRuntime() {}
 
     /** How many inputs one worker process serves. */
@@ -71,5 +80,24 @@ public final class ToolWorkerRuntime {
                 return;
             }
         }
+    }
+
+    /** Writes the rendered specification of one input, replacing the previous input's file. */
+    public static void writeInput(Path specification, ToolInput source) throws IOException {
+        Files.writeString(
+                specification,
+                source.text(),
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE);
+    }
+
+    /**
+     * Returns a buffer that keeps what a tool prints for one input, up to what one result frame
+     * carries, and marks a truncation with {@code tool}'s name.
+     */
+    public static BoundedTextOutputStream diagnosticBuffer(String tool) {
+        return new BoundedTextOutputStream(MAXIMUM_DIAGNOSTIC_BYTES, tool + " output");
     }
 }

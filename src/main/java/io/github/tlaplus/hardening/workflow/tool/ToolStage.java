@@ -1,12 +1,8 @@
-package io.github.tlaplus.hardening.workflow.checker;
+package io.github.tlaplus.hardening.workflow.tool;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.common.Preconditions;
-import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.StageResult;
-import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
-import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageJobLoop;
@@ -17,51 +13,55 @@ import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
-import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Common queue, capacity, scheduling, and corpus logic for model-checker stages. */
-public final class CheckerStage implements WorkflowStage {
-    private final CheckerBackend backend;
+/**
+ * One stage that runs an external tool over corpus entries: the parser, TLC, or Apalache.
+ *
+ * <p>Its workers claim queued entries under the shared CPU budget, regenerate and render each
+ * input, run it through the backend's tool, and record the verdict. The {@link ToolBackend} says
+ * which tool runs and how its processes live; the {@link StageRouting} says which entries the stage
+ * owns, how it bounds its result directories, and where its results go.
+ */
+public final class ToolStage implements WorkflowStage {
+    private final ToolBackend backend;
+    private final StageRouting routing;
     private final StageEnvironment environment;
     private final StageCounters counters;
-    private final OccupancyGate resultCapacity;
     private final StageJobLoop<Path> jobs;
     private final WorkQueue<Path> input;
-    private final WorkQueue<Path> output;
     private final GeneratedInputPreparation inputPreparation;
     private final WorkerGroup workers;
 
-    public CheckerStage(
-            CheckerBackend backend,
-            OccupancyGate resultCapacity,
+    public ToolStage(
+            ToolBackend backend,
+            StageRouting routing,
             StageCounters counters,
             StageEnvironment environment,
-            WorkQueue<Path> input,
-            WorkQueue<Path> output) {
+            WorkQueue<Path> input) {
         this.backend = Objects.requireNonNull(backend, "backend");
         Preconditions.requirePositive(backend.workerCount(), "workerCount");
         Preconditions.requirePositive(backend.cpuPermits(), "cpuPermits");
-        this.environment = Objects.requireNonNull(environment, "environment");
+        this.routing = Objects.requireNonNull(routing, "routing");
         this.counters = Objects.requireNonNull(counters, "counters");
+        this.environment = Objects.requireNonNull(environment, "environment");
         this.input = Objects.requireNonNull(input, "input");
-        this.output = Objects.requireNonNull(output, "output");
+        var stage = backend.stage();
         inputPreparation = new GeneratedInputPreparation(
-                backend.stage().displayName(),
+                stage.displayName(),
                 environment.corpus(),
                 environment.decoders(),
                 backend.renderer());
-        this.resultCapacity = Objects.requireNonNull(resultCapacity, "resultCapacity");
         jobs = new StageJobLoop<>(
                 input,
                 environment.cpuBudget(),
-                CpuBudget.Priority.CHECKER,
+                routing.priority(),
                 backend.cpuPermits(),
                 counters,
                 environment.control());
-        workers = new WorkerGroup("fuzztla-" + backend.stage().metadataName() + "-");
+        workers = new WorkerGroup("fuzztla-" + stage.metadataName() + "-");
     }
 
     @Override
@@ -71,7 +71,7 @@ public final class CheckerStage implements WorkflowStage {
 
     @Override
     public void start() {
-        workers.start(backend.workerCount(), _ -> this::runWorker);
+        workers.start(backend.workerCount(), _ -> this::runWorker, routing::closeOutputs);
     }
 
     @Override
@@ -86,6 +86,7 @@ public final class CheckerStage implements WorkflowStage {
     @Override
     public void close() {
         input.close();
+        routing.closeOutputs();
         workers.close();
     }
 
@@ -95,65 +96,60 @@ public final class CheckerStage implements WorkflowStage {
                 backend.stage().displayName() + " worker",
                 () -> {
                     try (var worker = new Worker()) {
-                        jobs.run(worker::check);
+                        jobs.run(worker::process);
                     }
                 });
     }
 
     /**
-     * One checker worker. A backend either starts a fresh child process per input or keeps one
-     * until it crashes; either way this worker retires its checker after a crash verdict and lets
-     * the backend supply a replacement for the next input.
+     * One stage worker. A backend either starts a fresh child process per input or keeps one until
+     * it crashes; either way this worker retires its tool after a crash verdict and lets the
+     * backend supply a replacement for the next input.
      */
     private final class Worker implements AutoCloseable {
-        private CheckerWorker checker;
+        private ToolWorker tool;
 
-        private void check(Path path) throws Exception {
-            if (!resultCapacity.reserve()) {
+        private void process(Path path) throws Exception {
+            if (!routing.reserveBeforeRun()) {
                 environment.control().capacityReached();
                 return;
             }
             var corpus = environment.corpus();
             var startTime = Instant.now();
-            var checkerInput = inputPreparation.prepare(path, corpus.readCheckerInput(path));
-            if (checker == null) {
-                checker = backend.startWorker();
+            var source = inputPreparation.prepare(path, routing.read(corpus, path));
+            if (tool == null) {
+                tool = backend.startWorker();
             }
-            var result = checker.check(checkerInput);
+            var result = tool.check(source);
             if (result.outcome() == StageOutcome.CRASH) {
-                checker.close();
-                checker = null;
+                tool.close();
+                tool = null;
             }
-            record(corpus, path, startTime, result);
+            var verdict = result.outcome().corpusVerdict();
+            if (!routing.reserveFor(verdict)) {
+                environment.control().capacityReached();
+                return;
+            }
+            var failure = result.failureCode()
+                    .map(code -> new CheckerFailure(code, backend.failureDetail(result.diagnostic())));
+            var destination = routing.complete(
+                    corpus,
+                    path,
+                    new StageResult(
+                            verdict,
+                            startTime,
+                            StageResult.endedNow(startTime),
+                            failure,
+                            result.diagnostic()));
+            counters.record(verdict);
+            routing.forward(corpus, destination, verdict);
         }
 
         @Override
         public void close() {
-            if (checker != null) {
-                checker.close();
+            if (tool != null) {
+                tool.close();
             }
         }
-    }
-
-    private void record(
-            CorpusDirectory corpus, Path path, Instant startTime, ToolResult result)
-            throws Exception {
-        var failure = result.failureCode()
-                .map(code -> new CheckerFailure(code, backend.failureDetail(result.diagnostic())));
-        if (result.outcome() == StageOutcome.FAIL && failure.isEmpty()) {
-            throw new WorkflowException(
-                    backend.stage().displayName()
-                            + " worker returned a failure without a classification");
-        }
-        var destination = corpus.completeChecker(
-                path,
-                new StageResult(
-                        result.outcome().corpusVerdict(),
-                        startTime,
-                        StageResult.endedNow(startTime),
-                        failure,
-                        result.diagnostic()));
-        counters.record(result.outcome().corpusVerdict());
-        output.submit(destination);
     }
 }

@@ -1,22 +1,22 @@
-package io.github.tlaplus.hardening.workflow.tlc;
+package io.github.tlaplus.hardening.workflow.parser;
 
 import io.github.tlaplus.hardening.common.Preconditions;
-import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.Optional;
 
-/** Adapts fresh isolated TLC invocations to the shared tool stage. */
-public final class TlcCheckerBackend implements ToolBackend {
-    private final CheckerStageConfig config;
+/** Runs SANY in persistent isolated JVMs, one per stage worker, each replaced after a crash. */
+public final class ParserBackend implements ToolBackend {
+    private final ParserStageConfig config;
     private final int workerCount;
     private final Path scratchDirectory;
 
-    public TlcCheckerBackend(
-            CheckerStageConfig config, int workerCount, Path scratchDirectory) {
+    public ParserBackend(ParserStageConfig config, int workerCount, Path scratchDirectory) {
         this.config = Objects.requireNonNull(config, "config");
         Preconditions.requirePositive(workerCount, "workerCount");
         this.workerCount = workerCount;
@@ -25,7 +25,7 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public CorpusStage stage() {
-        return CorpusStage.TLC;
+        return CorpusStage.PARSER;
     }
 
     @Override
@@ -35,16 +35,12 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public int cpuPermits() {
-        return config.workers();
+        return 1;
     }
 
     @Override
-    public ToolWorker startWorker() {
-        return source -> TlcProcess.check(scratchDirectory, source, config, config.timeout());
-    }
-
-    @Override
-    public Optional<String> failureDetail(String diagnostic) {
-        return TlcFailureDetail.extract(diagnostic);
+    public ToolWorker startWorker() throws WorkflowException, InterruptedException {
+        return new ProcessToolWorker(
+                ParserProcess.start(scratchDirectory, config.timeout()), config.timeout());
     }
 }
