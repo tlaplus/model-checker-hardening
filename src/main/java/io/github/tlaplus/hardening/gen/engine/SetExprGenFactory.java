@@ -1,9 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
-import java.util.List;
-import org.apalache_mc.tla.jir.ExpressionPair;
 
 /** Constructs set-valued expression generators. */
 final class SetExprGenFactory extends AbstractExprGenFactory {
@@ -71,13 +70,14 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
                 remainingDepth - 1, builder()::filter);
     }
 
-    /** Returns a set-map generator from a generated source type. */
+    /** Returns a set-map generator over a terminated, non-empty list of generated source types. */
     private Generator<TlaEx> map(
             IrType resultElementType, int remainingDepth) {
-        return typeFactory.valueType().flatMap(sourceType -> bounded(
-                "mapped", sourceType, resultElementType, remainingDepth - 1,
-                (variable, source, body) -> builder().map(
-                        body, BuilderArrays.pairs(List.of(new ExpressionPair<>(variable, source))))));
+        return BasicGenerators.listOf(typeFactory.valueType(), 1,
+                        context.config().expressions().maximumCollectionSize())
+                .flatMap(sourceTypes -> boundedTogether(
+                        "mapped", sourceTypes, resultElementType, remainingDepth - 1,
+                        builder()::map));
     }
 
     /**

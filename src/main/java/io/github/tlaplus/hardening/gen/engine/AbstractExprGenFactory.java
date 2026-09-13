@@ -4,8 +4,12 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.vavr.Function3;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
@@ -77,6 +81,28 @@ abstract class AbstractExprGenFactory {
             var binding = freshBinding(prefix, variableType);
             var domain = draw.draw(expression(new SetType(variableType), depth));
             return operation.apply(binding.variable(), domain, draw.draw(scopedBody(binding, bodyType, depth)));
+        };
+    }
+
+    /**
+     * Draws a construct that binds several names at once, as in {@code [x \in S, y \in T |-> e]}
+     * or {@code {e : x \in S, y \in T}}. Unlike nested binders, every domain lies outside the scope
+     * of all the construct's names, so all domains are drawn before any name enters scope, and
+     * the body sees them all.
+     */
+    protected final Generator<TlaEx> boundedTogether(
+            String prefix, List<IrType> variableTypes, IrType bodyType, int depth,
+            BiFunction<TlaEx, ExpressionPair<TlaEx>[], TlaEx> operation) {
+        return draw -> {
+            var bindings = variableTypes.stream().map(type -> freshBinding(prefix, type)).toList();
+            var pairs = new ArrayList<ExpressionPair<TlaEx>>();
+            for (var binding : bindings) {
+                pairs.add(new ExpressionPair<>(binding.variable(),
+                        draw.draw(expression(new SetType(binding.name().type()), depth))));
+            }
+            var body = draw.draw(context.withBindings(
+                    bindings.stream().map(Binding::name).toList(), expression(bodyType, depth)));
+            return operation.apply(body, BuilderArrays.pairs(pairs));
         };
     }
 

@@ -551,7 +551,13 @@ enclosing binder even though a label in it may not name one.
 A bound name's domain is outside that name's scope, so a label there declares
 nothing for it. Where several binders nest, each domain does sit inside the
 scope of the binders drawn before it, and the generator draws it there, so that
-the tree's lexical structure matches the rendered source's.
+the tree's lexical structure matches the rendered source's. One construct that
+binds several names, `[x \in S, y \in T |-> e]` or `{e : x \in S, y \in T}`,
+is different: every domain lies outside all of its names, so the generator draws
+all domains before any of them enters scope, and only the body declares them.
+A set map binds a terminated, non-empty list of names; a function constructor
+whose argument is a tuple of two or more components spends one Boolean choosing
+between one name per component and a single tuple-valued name.
 
 Labels withdraw inside an `EXCEPT` replacement expression, at any depth. SANY
 rejects every label there with "Labels inside EXCEPT clauses are not yet
@@ -756,7 +762,8 @@ Changes to this subsystem should preserve the following rules:
    form says the current scope cannot supply what it needs.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
-   `scopedBody`, which restrict the extended scope to the construct's body. Create
+   `scopedBody`, which restrict the extended scope to the construct's body, or
+   with `boundedTogether` for a construct that binds several names at once. Create
    the binding before any operand that must be drawn ahead of the body: creating
    it consumes no bytes.
 5. Use `AbstractExprGenFactory.operands` for a collection of same-typed operands,
