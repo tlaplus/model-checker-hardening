@@ -8,52 +8,37 @@ import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
-import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
-import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
-import io.github.tlaplus.hardening.workflow.checker.CheckerRouting;
-import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
-import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
-import io.github.tlaplus.hardening.workflow.execution.StageCounters;
-import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
-import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
-import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
-import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
-import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
-import io.github.tlaplus.hardening.workflow.input.InputAdmission;
-import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
-import io.github.tlaplus.hardening.workflow.input.PbtStage;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
-import io.github.tlaplus.hardening.workflow.parser.ParserBackend;
-import io.github.tlaplus.hardening.workflow.parser.ParserRouting;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
-import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
-import io.github.tlaplus.hardening.workflow.tool.ToolStage;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-/** Runs generation, parsing, TLC, Apalache, and conformance aggregation under one CPU budget. */
+/**
+ * Runs generation, parsing, TLC, Apalache, and conformance aggregation under one CPU budget.
+ *
+ * <p>This class owns one invocation's life cycle: it checks the limits, locks and recovers the
+ * corpus, runs the {@link StageGraph}, reports progress, and saves the statistics on exit.
+ */
 public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 
-    private final FuzzTlaConfig config;
-    private final SpecDecoders decoders;
-    private final KnownDefectDatabase knownDefects;
+    private final StageGraph.Setup setup;
+    private final OccupancyLimits limits;
 
     public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
         this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
@@ -61,14 +46,16 @@ public final class WorkflowRunner {
 
     /** Reads the configured known-defect databases before any corpus is locked. */
     WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
-        this.config = Objects.requireNonNull(config, "config");
-        this.decoders = Objects.requireNonNull(decoders, "decoders");
+        Objects.requireNonNull(config, "config");
+        final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
         } catch (KnownDefectDatabaseException exception) {
             throw new WorkflowException(
                     "invalid known-defect database: " + exception.getMessage(), exception);
         }
+        setup = new StageGraph.Setup(config, decoders, knownDefects);
+        limits = new OccupancyLimits(config.workflow());
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
@@ -104,241 +91,74 @@ public final class WorkflowRunner {
         invocationElapsed.start();
         Objects.requireNonNull(corpus, "corpus");
         Preconditions.requireNonnegative(seed, "seed");
-        var availableCpus = Runtime.getRuntime().availableProcessors();
-        if (maximumCpus <= 0 || maximumCpus > availableCpus) {
-            throw new IllegalArgumentException(
-                    "maximumCpus must be in the range 1.." + availableCpus);
-        }
-        for (var checker : CorpusStage.checkerBranches()) {
-            if (config.workflow().checker(checker).workers() > maximumCpus) {
-                throw new WorkflowException(
-                        "workflow."
-                                + checker.metadataName()
-                                + ".workers must not exceed run --max-cpus");
-            }
-        }
-        var apalacheJar = ApalacheDistribution.locate();
+        limits.requireCpus(maximumCpus);
+        var invocation = new StageGraph.Invocation(
+                corpus, seed, maximumCpus, ApalacheDistribution.locate());
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
-            LibraryManifest.verify(
-                    corpus, decoders.libraryManifest(), true);
+            LibraryManifest.verify(corpus, setup.decoders().libraryManifest(), true);
             var initial = corpus.recoverAndValidate(entryValidator());
-            validateOccupancy(initial);
+            limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
-            var statistics = new StatisticsOnExit(corpus, metrics, invocationElapsed);
+            var statistics = new RunStatisticsOnExit(corpus, metrics, invocationElapsed);
             StageRunResult result;
-            try (statistics) {
-                try (var scratch = corpus.createScratch()) {
-                    result = runStages(
-                            corpus,
-                            seed,
-                            maximumCpus,
-                            scratch,
-                            apalacheJar,
-                            initial,
-                            metrics,
-                            invocationElapsed,
-                            progressListener);
-                }
+            try (statistics; var scratch = corpus.createScratch()) {
+                result = runStages(
+                        invocation,
+                        new StageGraph.Startup(initial, metrics, scratch),
+                        invocationElapsed,
+                        progressListener);
             }
             return result.summary(statistics.totalElapsed());
         }
     }
 
     private StageRunResult runStages(
-            CorpusDirectory corpus,
-            long seed,
-            int maximumCpus,
-            StageScratchSet scratch,
-            Path apalacheJar,
-            CorpusInventory initial,
-            WorkflowMetrics metrics,
+            StageGraph.Invocation invocation,
+            StageGraph.Startup startup,
             ElapsedTimeAccumulator invocationElapsed,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
-        var queues = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
-        var counters = new EnumMap<CorpusStage, StageCounters>(CorpusStage.class);
-        for (var stage : CorpusStage.values()) {
-            var queue = new WorkQueue<Path>();
-            initial.pending(stage).forEach(queue::submit);
-            queues.put(stage, queue);
-            counters.put(
-                    stage,
-                    new StageCounters(summary(initial, stage, metrics), metrics.clocks().of(stage)));
+        var graph = new StageGraph(setup, invocation, startup);
+        if (limits.exhausted(startup.initial())) {
+            graph.control().capacityReached();
         }
-        var control = new WorkflowControl(queues.values().toArray(WorkQueue<?>[]::new));
-        var inputCapacity = new Semaphore(
-                config.workflow().inputs().maximumEntries()
-                        - Math.toIntExact(initial.pendingEntries(CorpusStage.PARSER)),
-                true);
-        var cpuBudget = new CpuBudget(maximumCpus);
-        var environment = new StageEnvironment(corpus, decoders, cpuBudget, control);
-
-        var checkerCapacities = new EnumMap<CorpusStage, OccupancyGate>(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
-            checkerCapacities.put(
-                    checker,
-                    new OccupancyGate(
-                            initial.resultEntries(checker),
-                            config.workflow().maximumEntries(checker)));
-        }
-
-        var aggregator = new AggregatorStage(
-                initial.pendingEntries(CorpusStage.AGGREGATOR),
-                counters.get(CorpusStage.AGGREGATOR),
-                environment,
-                queues.get(CorpusStage.AGGREGATOR),
-                checkerCapacities);
-
-        var parser = new ToolStage(
-                new ParserBackend(
-                        config.workflow().parser(),
-                        maximumCpus,
-                        scratch.directory(CorpusStage.PARSER)),
-                new ParserRouting(
-                        new OccupancyGate(
-                                initial.resultEntries(CorpusStage.PARSER),
-                                config.workflow().maximumEntries(CorpusStage.PARSER)),
-                        checkerQueues(queues),
-                        inputCapacity),
-                counters.get(CorpusStage.PARSER),
-                environment,
-                queues.get(CorpusStage.PARSER));
-        var checkers = new EnumMap<CorpusStage, ToolStage>(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
-            checkers.put(
-                    checker,
-                    new ToolStage(
-                            checkerBackend(checker, maximumCpus, scratch, apalacheJar),
-                            new CheckerRouting(
-                                    checkerCapacities.get(checker),
-                                    queues.get(CorpusStage.AGGREGATOR)),
-                            counters.get(checker),
-                            environment,
-                            queues.get(checker)));
-        }
-        var admission = new InputAdmission(
-                config.pbt(),
-                knownDefects,
-                KnownDefectQuarantine.open(corpus, config.workflow().inputs().knownDefectSamples()));
-        var pbt = new PbtStage(
-                admission,
-                config.generatedKind(),
-                config.workflow().maximumEntries(),
-                initial.totalEntries(),
-                environment,
-                seed,
-                maximumCpus,
-                queues.get(CorpusStage.PARSER),
-                inputCapacity,
-                metrics.generator());
-        var stages = new ArrayList<WorkflowStage>();
-        stages.add(pbt);
-        stages.add(parser);
-        stages.addAll(checkers.values());
-        stages.add(aggregator);
-        var progressPhase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
-
-        if (capacityIsAlreadyExhausted(initial)) {
-            control.capacityReached();
-        }
-
+        var metrics = startup.metrics();
+        var phase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
         try (var progress = progressListener == null
                 ? null
                 : WorkflowProgressMonitor.start(
                         PROGRESS_UPDATE_INTERVAL,
                         () -> progressSnapshot(
-                                progressPhase.get(),
-                                queues,
-                                counters,
-                                seed,
-                                metrics,
-                                invocationElapsed),
+                                phase.get(), graph, invocation.seed(), metrics, invocationElapsed),
                         progressListener)) {
-            try {
-                // Drain recovered fan-in before checkers inspect their current result capacity.
-                aggregator.start();
-                aggregator.awaitRecovered();
-                throwIfFailed(control);
-                // Downstream stages start first so they can drain a recovered backlog immediately.
-                for (var stage : checkers.values()) {
-                    stage.start();
-                }
-                parser.start();
-                pbt.start();
-                pbt.await();
-                parser.await();
-                for (var stage : checkers.values()) {
-                    stage.await();
-                }
-                queues.get(CorpusStage.AGGREGATOR).close();
-                aggregator.await();
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                control.fail(exception);
-            } finally {
-                stages.forEach(WorkflowStage::close);
-            }
-
-            throwIfFailed(control);
-            progressPhase.set(WorkflowProgress.Phase.FINALIZING);
-            var result = corpus.recoverAndValidate(entryValidator());
-            var stopReason = control.state() == WorkflowControl.State.CAPACITY_REACHED
+            graph.run();
+            graph.throwIfFailed();
+            phase.set(WorkflowProgress.Phase.FINALIZING);
+            var result = invocation.corpus().recoverAndValidate(entryValidator());
+            var stopReason = graph.control().state() == WorkflowControl.State.CAPACITY_REACHED
                     ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
                     : WorkflowRunSummary.StopReason.COMPLETED;
             var finalSummaries = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
             for (var stage : CorpusStage.values()) {
-                finalSummaries.put(stage, summary(result, stage, metrics));
+                finalSummaries.put(stage, StageGraph.summary(result, stage, metrics));
             }
             return new StageRunResult(
-                    stopReason, metrics.generator().summary(seed), finalSummaries, result);
+                    stopReason, metrics.generator().summary(invocation.seed()), finalSummaries, result);
         }
-    }
-
-    /** Returns the queue each checker branch takes its work from. */
-    private static Map<CorpusStage, WorkQueue<Path>> checkerQueues(
-            Map<CorpusStage, WorkQueue<Path>> queues) {
-        var result = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
-            result.put(checker, queues.get(checker));
-        }
-        return result;
-    }
-
-    /** Returns the checker backend of one stage, configured for this invocation. */
-    private ToolBackend checkerBackend(
-            CorpusStage stage, int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
-        return CheckerBackends.create(
-                stage,
-                config.workflow().checker(stage),
-                new CheckerBackends.Resources(maximumCpus, scratch, apalacheJar));
-    }
-
-    /** Returns what one stage has produced according to an inventory of the corpus. */
-    private static StageVerdictSummary summary(
-            CorpusInventory inventory, CorpusStage stage, WorkflowMetrics metrics) {
-        return new StageVerdictSummary(
-                inventory.counts(stage), metrics.clocks().of(stage).elapsed());
     }
 
     private static WorkflowProgress progressSnapshot(
             WorkflowProgress.Phase phase,
-            Map<CorpusStage, WorkQueue<Path>> queues,
-            Map<CorpusStage, StageCounters> counters,
+            StageGraph graph,
             long seed,
             WorkflowMetrics metrics,
             ElapsedTimeAccumulator invocationElapsed) {
         var generatorSummary = metrics.generator().summary(seed);
-        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
-        var backlog = new EnumMap<CorpusStage, Long>(CorpusStage.class);
-        for (var stage : CorpusStage.values()) {
-            stages.put(stage, counters.get(stage).summary());
-            backlog.put(stage, (long) queues.get(stage).size());
-        }
+        var stages = graph.summaries();
         var corpusEntries = generatorSummary.generated();
-        for (var stage : CorpusStage.values()) {
-            backlog.merge(stage, corpusEntries, Math::min);
-        }
+        var backlog = graph.backlog();
+        backlog.replaceAll((stage, pending) -> Math.min(pending, corpusEntries));
         return new WorkflowProgress(
                 phase,
                 generatorSummary,
@@ -355,7 +175,7 @@ public final class WorkflowRunner {
     private CorpusEntryValidator entryValidator() {
         return (entry, input) -> {
             try {
-                decoders.decode(input);
+                setup.decoders().decode(input);
             } catch (InputRejectedException exception) {
                 throw new CorpusException(
                         "corpus entry is rejected: "
@@ -367,56 +187,6 @@ public final class WorkflowRunner {
         };
     }
 
-    /**
-     * Reports whether the run can make no progress at all: a checker still has queued inputs it has
-     * no capacity for, or the corpus is below its target but no input slot is available.
-     */
-    private boolean capacityIsAlreadyExhausted(CorpusInventory initial) {
-        var aggregationCanReleaseCapacity = initial.pendingEntries(CorpusStage.AGGREGATOR) > 0;
-        for (var checker : CorpusStage.checkerBranches()) {
-            if (initial.resultEntries(checker) >= config.workflow().maximumEntries(checker)
-                    && initial.pendingEntries(checker) > 0
-                    && !aggregationCanReleaseCapacity) {
-                return true;
-            }
-        }
-        return config.workflow().inputs().maximumEntries() == 0
-                && initial.totalEntries() < config.workflow().maximumEntries();
-    }
-
-    private static void throwIfFailed(WorkflowControl control) throws WorkflowException {
-        if (!control.hasFailed()) {
-            return;
-        }
-        var failure = control.failure();
-        if (failure instanceof WorkflowException workflowException) {
-            throw workflowException;
-        }
-        throw new WorkflowException(
-                "workflow stage failed: " + Diagnostics.message(failure), failure);
-    }
-
-    /** Rejects a corpus that already exceeds any configured limit. */
-    private void validateOccupancy(CorpusInventory inventory) throws WorkflowException {
-        if (inventory.totalEntries() > config.workflow().maximumEntries()) {
-            throw new WorkflowException(
-                    "corpus contains more entries than workflow.max_entries");
-        }
-        if (inventory.pendingEntries(CorpusStage.PARSER)
-                > config.workflow().inputs().maximumEntries()) {
-            throw new WorkflowException("00-inputs exceeds workflow.inputs.max_entries");
-        }
-        for (var stage : CorpusStage.capacityLimitedStages()) {
-            if (inventory.resultEntries(stage) > config.workflow().maximumEntries(stage)) {
-                throw new WorkflowException(
-                        stage.displayName()
-                                + " result directories exceed workflow."
-                                + stage.metadataName()
-                                + ".max_entries");
-            }
-        }
-    }
-
     private record StageRunResult(
             WorkflowRunSummary.StopReason stopReason,
             GeneratorSummary generator,
@@ -424,46 +194,6 @@ public final class WorkflowRunner {
             CorpusInventory corpus) {
         WorkflowRunSummary summary(Duration totalElapsed) {
             return new WorkflowRunSummary(stopReason, generator, stages, corpus, totalElapsed);
-        }
-    }
-
-    /** Stops the invocation clock and saves its aggregate while the corpus lock is still held. */
-    private static final class StatisticsOnExit implements AutoCloseable {
-        private final CorpusDirectory corpus;
-        private final WorkflowMetrics metrics;
-        private final ElapsedTimeAccumulator invocationElapsed;
-
-        private Duration totalElapsed;
-
-        private StatisticsOnExit(
-                CorpusDirectory corpus,
-                WorkflowMetrics metrics,
-                ElapsedTimeAccumulator invocationElapsed) {
-            this.corpus = corpus;
-            this.metrics = metrics;
-            this.invocationElapsed = invocationElapsed;
-        }
-
-        @Override
-        public void close() throws IOException {
-            var interrupted = Thread.interrupted();
-            try {
-                invocationElapsed.stop();
-                var currentInvocation = invocationElapsed.elapsed();
-                totalElapsed = metrics.totalElapsed(currentInvocation);
-                corpus.writeRunStatistics(metrics.snapshot(currentInvocation));
-            } finally {
-                if (interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-
-        private Duration totalElapsed() {
-            if (totalElapsed == null) {
-                throw new IllegalStateException("workflow statistics have not been saved");
-            }
-            return totalElapsed;
         }
     }
 }
