@@ -1,11 +1,11 @@
 package io.github.tlaplus.hardening.workflow;
 
-import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.time.Duration;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -25,8 +25,8 @@ public record WorkflowProgress(
     public WorkflowProgress {
         Objects.requireNonNull(phase, "phase");
         Objects.requireNonNull(generator, "generator");
-        stages = copyOf(stages, "stages");
-        backlog = copyOf(backlog, "backlog");
+        stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "stages");
+        backlog = EnumMaps.requireAllKeys(CorpusStage.class, backlog, "backlog");
         Objects.requireNonNull(totalElapsed, "totalElapsed");
         Preconditions.require(corpusEntries >= 0, "workflow progress counters must be nonnegative");
         for (var pending : backlog.values()) {
@@ -44,16 +44,6 @@ public record WorkflowProgress(
     /** Returns how many inputs currently wait for one stage. */
     public long backlog(CorpusStage stage) {
         return backlog.get(Objects.requireNonNull(stage, "stage"));
-    }
-
-    private static <T> Map<CorpusStage, T> copyOf(Map<CorpusStage, T> values, String name) {
-        Objects.requireNonNull(values, name);
-        for (var stage : CorpusStage.values()) {
-            Preconditions.require(values.containsKey(stage), name + " is missing stage " + stage);
-        }
-        var copy = new EnumMap<CorpusStage, T>(CorpusStage.class);
-        copy.putAll(values);
-        return Map.copyOf(copy);
     }
 
     /** The externally visible phase of a workflow invocation. */

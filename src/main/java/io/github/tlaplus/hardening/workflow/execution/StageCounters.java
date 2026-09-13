@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.execution;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageEntryCounts;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -36,11 +37,9 @@ public final class StageCounters {
 
     /** Returns the stage's cumulative counters and elapsed time. */
     public StageVerdictSummary summary() {
-        var counts = new EnumMap<CorpusVerdict, Long>(CorpusVerdict.class);
-        for (var verdict : CorpusVerdict.values()) {
-            counts.put(verdict, count(verdict));
-        }
-        return new StageVerdictSummary(new StageEntryCounts(counts), elapsed.elapsed());
+        return new StageVerdictSummary(
+                StageEntryCounts.from(EnumSet.allOf(CorpusVerdict.class), this::count),
+                elapsed.elapsed());
     }
 
     /** Returns the accumulator that times this stage's active jobs. */
