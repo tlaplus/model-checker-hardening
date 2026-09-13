@@ -49,7 +49,7 @@ public final class CheckerStage implements WorkflowStage {
         this.input = Objects.requireNonNull(input, "input");
         this.output = Objects.requireNonNull(output, "output");
         inputPreparation = new GeneratedInputPreparation(
-                backend.displayName(),
+                backend.stage().displayName(),
                 environment.corpus(),
                 environment.decoders(),
                 backend.renderer());
@@ -61,12 +61,12 @@ public final class CheckerStage implements WorkflowStage {
                 backend.cpuPermits(),
                 counters,
                 environment.control());
-        workers = new WorkerGroup("fuzztla-" + backend.name() + "-");
+        workers = new WorkerGroup("fuzztla-" + backend.stage().metadataName() + "-");
     }
 
     @Override
     public String name() {
-        return backend.name();
+        return backend.stage().metadataName();
     }
 
     @Override
@@ -92,7 +92,7 @@ public final class CheckerStage implements WorkflowStage {
     private void runWorker() {
         StageWorker.run(
                 environment.control(),
-                backend.displayName() + " worker",
+                backend.stage().displayName() + " worker",
                 () -> {
                     try (var worker = new Worker()) {
                         jobs.run(worker::check);
@@ -142,7 +142,8 @@ public final class CheckerStage implements WorkflowStage {
                 .map(code -> new CheckerFailure(code, backend.failureDetail(result.diagnostic())));
         if (result.outcome() == StageOutcome.FAIL && failure.isEmpty()) {
             throw new WorkflowException(
-                    backend.displayName() + " worker returned a failure without a classification");
+                    backend.stage().displayName()
+                            + " worker returned a failure without a classification");
         }
         var destination = corpus.completeChecker(
                 path,
