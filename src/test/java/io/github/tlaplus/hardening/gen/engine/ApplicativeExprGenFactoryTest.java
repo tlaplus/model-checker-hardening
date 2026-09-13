@@ -1,18 +1,20 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.containsOperator;
+import static io.github.tlaplus.hardening.gen.engine.FormDecodingTestSupport.assertForm;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.OperEx;
-import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
@@ -138,20 +140,5 @@ class ApplicativeExprGenFactoryTest {
             assertFalse(containsOperator(arguments.getLast(), TlaOperators.LABEL), print(update));
         }
         assertTrue(labelled, "no label was generated outside a replacement, so the check is vacuous");
-    }
-
-    private void assertForm(String expected, ApplicativeExpressionKind kind, IrType type,
-                            List<ScopedName> bindings, int depth, int... input) {
-        var bytes = new byte[input.length];
-        for (var index = 0; index < input.length; index++) {
-            bytes[index] = (byte) input[index];
-        }
-        // A fresh run per vector: terminal rotation is run state and would otherwise carry over.
-        var run = new GenerationContext(IrGenerationConfig.defaults());
-        var runExpressions = new IrExprGenFactory(run, new IrTypeGenFactory(run));
-        var draw = new Draw(bytes);
-        TlaEx expression = draw.draw(run.withBindings(bindings, runExpressions.mkGen(kind, type, depth)));
-        assertEquals(expected, print(expression));
-        assertEquals(1, draw.remaining(), () -> "unexpected consumption for " + expected);
     }
 }

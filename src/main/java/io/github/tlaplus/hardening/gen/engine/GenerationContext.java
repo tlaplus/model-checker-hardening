@@ -3,8 +3,11 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+
 import java.util.ArrayList;
+
 import org.apalache_mc.tla.jir.TypedParameter;
+
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
 /**
@@ -36,17 +40,23 @@ final class GenerationContext {
         this.config = config;
     }
 
-    /** Returns the settings for this generation run. */
+    /**
+     * Returns the settings for this generation run.
+     */
     IrGenerationConfig config() {
         return config;
     }
 
-    /** Returns the type-safe builder shared by all expression generator factories. */
+    /**
+     * Returns the type-safe builder shared by all expression generator factories.
+     */
     TlaTypedScopeUncheckedBuilder builder() {
         return builder;
     }
 
-    /** Returns a fresh identifier using the supplied prefix. */
+    /**
+     * Returns a fresh identifier using the supplied prefix.
+     */
     String fresh(String prefix) {
         return prefix + nameCount++;
     }
@@ -61,13 +71,18 @@ final class GenerationContext {
         return ScopedName.binder(fresh(prefix), type);
     }
 
-    /** Creates a fresh definition name without changing the current scope. */
+    /**
+     * Creates a fresh definition name without changing the current scope.
+     */
     ScopedName freshDefinition(String prefix, IrType type) {
         return ScopedName.definition(fresh(prefix), type);
     }
 
-    /** A definition's fresh bindings and the corresponding typed builder parameters. */
-    record Parameters(List<ScopedName> bindings, TypedParameter[] declarations) {}
+    /**
+     * A definition's fresh bindings and the corresponding typed builder parameters.
+     */
+    record Parameters(List<ScopedName> bindings, TypedParameter[] declarations) {
+    }
 
     /**
      * Allocates definition parameters in signature order without changing lexical scope.
@@ -86,7 +101,9 @@ final class GenerationContext {
         return new Parameters(List.copyOf(bindings), declarations.toArray(TypedParameter[]::new));
     }
 
-    /** Reports whether an exactly typed binding is currently visible. */
+    /**
+     * Reports whether an exactly typed binding is currently visible.
+     */
     boolean hasBinding(IrType type) {
         return !scope.matching(type).isEmpty();
     }
@@ -122,8 +139,9 @@ final class GenerationContext {
      * once in first-reached order, innermost binding first. An operator binding contributes the
      * types in its signature but not its own type, which is not a value.
      *
-     * <p>A form that reads a component of a record, tuple or sequence can draw that value's type
-     * from here, so that the expression it then requests is one a visible name can supply.
+     * <p>A form that reads a value, such as a record field, a function application or a variant
+     * payload, can draw that value's type from here, so that the expression it then requests is
+     * one a visible name can supply.
      */
     List<IrType> reachableTypes() {
         var reached = new LinkedHashSet<IrType>();
@@ -139,30 +157,40 @@ final class GenerationContext {
         }
     }
 
-    /** Selects an exactly typed visible binding without inventing a free name. */
+    /**
+     * Selects an exactly typed visible binding without inventing a free name.
+     */
     Generator<ScopedName> chooseBinding(IrType type) {
         return chooseScoped(
                 () -> scope.matching(type), "no binding of type " + type + " is in scope");
     }
 
-    /** Reports whether a visible operator returns the requested type. */
+    /**
+     * Reports whether a visible operator returns the requested type.
+     */
     boolean hasOperatorReturning(IrType resultType) {
         return !scope.operatorsReturning(resultType).isEmpty();
     }
 
-    /** Selects a visible operator whose result has the requested type. */
+    /**
+     * Selects a visible operator whose result has the requested type.
+     */
     Generator<ScopedName> chooseOperatorReturning(IrType resultType) {
         return chooseScoped(
                 () -> scope.operatorsReturning(resultType),
                 "no operator returning " + resultType + " is in scope");
     }
 
-    /** Selects a declared state variable or rejects when the scope contains none. */
+    /**
+     * Selects a declared state variable or rejects when the scope contains none.
+     */
     Generator<ScopedName> chooseStateVariable() {
         return chooseScoped(scope::stateVariables, "no state variable is in scope");
     }
 
-    /** Returns a generator that runs its body with one additional lexical binding. */
+    /**
+     * Returns a generator that runs its body with one additional lexical binding.
+     */
     <T> Generator<T> withBinding(
             ScopedName binding, Generator<? extends T> body) {
         return draw -> scope.withBinding(binding, () -> draw.draw(body));
@@ -197,17 +225,23 @@ final class GenerationContext {
         };
     }
 
-    /** Reports whether generation is inside an {@code EXCEPT} replacement expression. */
+    /**
+     * Reports whether generation is inside an {@code EXCEPT} replacement expression.
+     */
     boolean isWithinExceptReplacement() {
         return exceptReplacementDepth > 0;
     }
 
-    /** Returns the formal parameters a label generated at this point must declare. */
+    /**
+     * Returns the formal parameters a label generated at this point must declare.
+     */
     List<String> labelParameters() {
         return scope.labelParameters();
     }
 
-    /** Returns a generator that runs its body with multiple additional lexical bindings. */
+    /**
+     * Returns a generator that runs its body with multiple additional lexical bindings.
+     */
     <T> Generator<T> withBindings(
             List<? extends ScopedName> bindings,
             Generator<? extends T> body) {
@@ -237,22 +271,30 @@ final class GenerationContext {
         };
     }
 
-    /** Reports whether another expression request fits in the current node budget, consuming it. */
+    /**
+     * Reports whether another expression request fits in the current node budget, consuming it.
+     */
     boolean consumeNode() {
         return nodeCount++ < config.expressions().maximumNodes();
     }
 
-    /** Returns a fresh record-field identifier. */
+    /**
+     * Returns a fresh record-field identifier.
+     */
     String freshField() {
         return "field" + fieldCount++;
     }
 
-    /** Returns a fresh variant-tag identifier from the shared field supply. */
+    /**
+     * Returns a fresh variant-tag identifier from the shared field supply.
+     */
     String freshTag() {
         return "Tag" + fieldCount++;
     }
 
-    /** Defers candidate lookup until the generator runs inside its intended lexical scope. */
+    /**
+     * Defers candidate lookup until the generator runs inside its intended lexical scope.
+     */
     private Generator<ScopedName> chooseScoped(
             Supplier<List<ScopedName>> candidates, String missingMessage) {
         return draw -> {

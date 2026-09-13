@@ -164,10 +164,7 @@ public final class IrSpecGeneratorEngine {
             var visible = new ArrayList<ScopedName>();
             var maximum = config.modules().maximumAuxiliaryOperators();
             while (defined.size() < maximum && draw.drawBoolean()) {
-                var arguments = draw.draw(BasicGenerators.listOf(
-                        typeFactory.valueType(),
-                        0,
-                        config.expressions().maximumCollectionSize()));
+                var arguments = draw.draw(typeFactory.parameterTypes());
                 var result = draw.draw(typeFactory.valueType());
                 var type = new OperatorType(arguments, result);
 

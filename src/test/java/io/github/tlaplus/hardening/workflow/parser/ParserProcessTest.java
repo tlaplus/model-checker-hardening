@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.workflow.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
@@ -13,6 +15,7 @@ import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -141,6 +144,26 @@ class ParserProcessTest {
 
         assertTrue(generated > 20, "too few modules were generated to be conclusive: " + generated);
         assertEquals(generated, parsed);
+    }
+
+    @Test
+    void generatedHigherOrderDefinitionsAndVariantReadsParse(@TempDir Path directory) throws Exception {
+        // A lambda passed as an operator argument is a LET in the IR, which TLA+ does not allow as
+        // an argument; PrettyWriter hoists it. A module that passes an operator must still parse.
+        var samples = new ArrayList<GeneratedSpec>();
+        samples.addAll(GeneratedSpecSamples.collect(IrGenerationConfig.defaults(), 0x40E7L, 4000, 8,
+                GeneratedSpecSamples::passesOperatorArgument));
+        samples.addAll(GeneratedSpecSamples.collect(IrGenerationConfig.defaults(), 0x7A61L, 4000, 8,
+                GeneratedSpecSamples::readsVariantName));
+        assertEquals(16, samples.size(), "too few modules with the shapes were generated");
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+            for (var spec : samples) {
+                var source = SpecText.render(FuzzInputModule.create(spec));
+                var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
+                assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic() + "\n" + source);
+            }
+        }
     }
 
     private String validSource() {

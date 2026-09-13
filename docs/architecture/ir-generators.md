@@ -78,7 +78,7 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `VisibleActionOperators` | Immutable effect index over an explicit declaration-order operator prefix, preserving candidate order. |
 | `ModuleSection` | Divides a module input into the contiguous byte sections its top-level bodies decode from. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
-| `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
+| `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction, including the scope-directed type of a read and definition signatures. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
 | `ExpressionKindCatalog` | Standard catalog followed by configured custom kinds, in byte-decoder order. |
 | `CustomExpressionKind` | Matches an exported type scheme against a requested result type. |
@@ -218,8 +218,15 @@ operator-typed root does not reinterpret byte strings that already select value
 types. A decoded `OperatorType` root raises `InputRejectedException` before
 expression construction because TLA+ operators are not values. The method
 `valueType()` excludes operator types and is used for operands and collection
-elements. Lambdas remain available where a construct explicitly requires an
-operator argument, such as a fold. Nested type generation carries a
+elements. The method `parameterTypes()` draws a definition's signature: a
+terminated, possibly empty list whose elements are value types or, while the
+`operator` category is enabled, first-order operator types with at least one
+argument, such as the type of `F(_, _)`. `LET` declarations, auxiliary operators
+and action operators all draw their signatures there, so each may be
+higher-order. An operator type is therefore requested wherever an operator
+parameter receives its argument, as well as where a construct itself requires
+one, such as a fold; `LAMBDA`, a visible operator of that exact type through
+`NAME`, and the lambda terminal supply it. Nested type generation carries a
 remaining-depth budget. At zero, it selects only enabled primitive or
 model-value types. Tuples, records, and variants use terminated nonempty
 component lists; operator argument lists may be empty.
@@ -249,8 +256,31 @@ Expression kinds are grouped by construction responsibility:
   `ApplicativeType`, which carries the facts that differ between the three, with
   one of those operations. Functions keep their own forms in the families above.
 
+`IrTypeGenFactory` also makes the type choices of the read forms (section 7),
+which consult lexical scope as well as the type catalog. A `LET` declares a terminated, non-empty list of local operators.
+Each draws its parameter types and then one Boolean: even keeps the `LET`'s own
+type as its result, odd draws a value type. Its body sees its parameters and the
+declarations before it, but not itself, so no declaration is recursive; the
+`LET` body sees them all.
+
 The grouping is an implementation decomposition, not a TLA<sup>+</sup> language
 taxonomy.
+
+**Operators not generated.** The decoder emits no form for the following, which
+the modules a generated specification extends define:
+
+- `SelectSeq`, `FunAsSeq` and recursive function definitions exist in the
+  Apalache IR, but `TlaTypedScopeUncheckedBuilder` exposes no method for them.
+- TLC's `:>` and `@@` are definitions in `TLC.tla`, not IR operators.
+- `RECURSIVE` operators, which Apalache does not support.
+- The builder supports these `Apalache.tla` operators, but they are not
+  generated. `Guess` is nondeterministic in Apalache and a `CHOOSE` in TLC, and
+  `Gen` erases to an ill-typed `{}` under TLC, so either would report a verdict
+  difference that is not a defect. `Skolem`, `ConstCardinality` and `SetAsFun`
+  are sound only under preconditions the decoder does not establish: an
+  existential or cardinality bound in a position Apalache honors, and a set of
+  pairs with distinct keys. `MkSeq`, `Repeat`, `Expand` and `:=` carry no such
+  obstacle.
 
 Every expression kind has one primary `ExpressionCategory`:
 
@@ -352,8 +382,8 @@ the closed terminal. Otherwise every `IrType` has a closed terminal expression:
 `FALSE`, zero, the empty string, empty sets and sequences, componentwise terminal
 tuples and records, an empty-domain function, and a lambda for an operator type.
 Operator types always take the lambda terminal, because an operator name is not a
-value. An empty input therefore selects Boolean as its root type and produces
-`FALSE`.
+value; a visible operator reaches an operator argument through `NAME` instead. An
+empty input therefore selects Boolean as its root type and produces `FALSE`.
 
 Using a visible name matters because terminals are the most common leaf: with a
 closed-constant-only terminal, a starved lambda body, quantifier body, or
@@ -463,20 +493,54 @@ A `ScopedName` records its exact `IrType` and one of three roles: a binder, a
 definition name or formal parameter, or a state variable. General name
 expressions select only exact type matches, and the role does not narrow them.
 Operator application selects a visible `OperatorType` with the requested result
-type, then generates arguments from its declared signature. The role exists
-because TLA+ labels distinguish these cases; section 8.1 gives the rule.
+type, then generates arguments from its declared signature. An operator
+parameter is such a binding inside its definition's body, and an argument of
+operator type is drawn like any other, so it is a `LAMBDA` or the name of a
+visible operator of exactly that type. The IR represents a lambda as a `LET`
+whose body names its declaration, which TLA+ does not accept as an argument;
+`PrettyWriter` hoists that declaration in front of the application. The role
+exists because TLA+ labels distinguish these cases; section 8.1 gives the rule.
 
-A read or domain of a record, tuple or sequence first chooses the type of the
-value it applies. After one Boolean, spent in either case, an odd marker selects
-among the types of that kind reachable from the visible bindings — their types
-and, recursively, their component types, in first-reached order — that hold the
-requested component; an even marker, or no such type, draws a fresh type around
-the requested component. Record field names are fresh for every drawn record
-type, so a fresh type would almost never be the type of a visible name, and a
-read of it would almost always project a literal built on the spot. The applied
-value is then drawn at that type like any other operand, so `NAME` and terminal
-rotation can supply a state variable, a parameter or a bound name. A sequence index is an arbitrary integer expression and, like `Head`, may
-lie outside the sequence's domain.
+A form that reads a value first chooses the value's type. The reads are the
+access and domain forms of records, tuples and sequences, function application
+and function `DOMAIN`, and the variant tag, accessors and filter. After one
+Boolean, spent in either case, an odd marker selects among the reachable types
+that suit the read; an even marker, or no such type, draws a fresh one. The
+reachable types are those of the visible bindings and, recursively, their
+component types, in first-reached order. The suitable and fresh types are:
+
+| Read | Suitable reachable type | Fresh type |
+| --- | --- | --- |
+| Record, tuple or sequence access | one of that kind holding the requested component | the requested component among drawn ones |
+| Record, tuple or sequence domain | any of that kind | a drawn component among drawn ones |
+| Function application | a function with the requested result | a drawn argument type |
+| Function `DOMAIN` | a function with the requested argument | a drawn result type |
+| `VariantGetUnsafe`, `VariantGetOrElse`, `VariantFilter` | a variant with a tag carrying the requested payload | fresh tags, the payload among drawn alternatives |
+| `VariantTag` | any variant | fresh tags over drawn alternatives |
+
+Record field names and variant tags are fresh for every drawn type, so a fresh
+record or variant would never be the type of a visible name, and a read of it
+would always eliminate a literal built on the spot; a drawn function type matches
+a visible one only by chance. Where several record fields, tuple positions or
+variant tags hold the requested type, a choice selects among them. The read value
+is then drawn at that type like any other operand, so `NAME` and terminal rotation
+can supply a state variable, a parameter or a bound name. A sequence index is an
+arbitrary integer expression and, like `Head`, may lie outside the sequence's
+domain; a variant read at a tag the value does not carry is likewise partial.
+
+**Decoder deviation (reads from scope and higher-order definitions).** Function
+application, function `DOMAIN` and the four variant forms used to draw the read
+type fresh; a variant read drew a single-tag variant, which no binding could
+have, so a variant-typed state variable was never inspected. They now spend the
+Boolean and the choices above. A `LET` used to declare one nullary operator of
+its own type, and every signature drew only value parameters, so no generated
+expression passed an operator and the selectable `LAMBDA` form was unreachable.
+This reinterprets every stored input, of either kind, that reaches these forms,
+and every stored `module` input whose auxiliary or action section declares an
+operator. The change makes these reads of names reachable, not common: over 5,000
+module inputs under the default configuration, 0.15% of variant reads and 0.11%
+of function applications apply a name, against none before, while record and
+tuple reads, which already chose their type this way, measure about 0.2%.
 
 Alongside the visible bindings, `NameScope` keeps the binders that a label
 generated at the current point must declare. `withDefinitionBoundary` empties
@@ -595,15 +659,18 @@ Each numbered body below except the bound predicate decodes from the
 1. **Variables.** A terminated non-empty list of value types, named `var0`
    onward, each entering the scope with the `STATE_VARIABLE` role. An `Int`
    step counter named `step` is appended unconditionally.
-2. **Auxiliary operators.** A terminated list of definitions named `Op<N>`.
-   Each body sees the definitions before it and its own parameters, but no
-   state variable, so definitions are acyclic and in declaration order.
+2. **Auxiliary operators.** A terminated list of definitions named `Op<N>`,
+   each with a signature from `parameterTypes()` (section 5), so a parameter may
+   be an operator. Each body sees the definitions before it and its own
+   parameters, but no state variable, so definitions are acyclic and in
+   declaration order.
 3. **Invariant.** One Boolean expression over the variables, which may apply
    the auxiliary operators.
 4. **Action operators.** A terminated list of definitions named `Act<N>`. Each
    body is a recursive action shape (section 9.2) over a chosen non-empty subset
    of the declared variables — its *effect* — drawn with the state variables, the
-   auxiliary operators, and the earlier action operators in scope. Unlike an
+   auxiliary operators, the earlier action operators and its parameters in scope;
+   its signature, too, comes from `parameterTypes()`. Unlike an
    auxiliary operator it reads current state and primes, so it is applicable only
    in `Next`, never in `Init` or `Inv`. A later operator may apply an earlier
    one; none mentions `step`. `ActionGenFactory` assembles these definitions using
@@ -793,6 +860,11 @@ Changes to this subsystem should preserve the following rules:
     the rest of the request beside it; the completeness check resolves a call by
     recursing into the applied body, so the effect must stay exact and the
     operators must stay acyclic in declaration order.
+13. Choose the type of a value that a form reads with
+    `IrTypeGenFactory.readType`, which offers the types reachable from
+    scope, rather than drawing it fresh: a type with fresh field names or tags
+    never matches a visible name. Draw a new definition's signature with
+    `IrTypeGenFactory.parameterTypes`.
 
 Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog

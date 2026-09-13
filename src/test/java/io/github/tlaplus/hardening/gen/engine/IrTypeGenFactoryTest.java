@@ -71,6 +71,45 @@ class IrTypeGenFactoryTest {
         }
     }
 
+    @Test
+    void anOperatorRootKeepsItsArgumentFreeDecoding() {
+        // Operator last among the eleven kinds, an empty argument list, a Boolean result.
+        var draw = new Draw(new byte[] {10, 0, 0, 99});
+        assertEquals(new OperatorType(List.of(), PrimitiveType.BOOL), draw.draw(factory().anyType()));
+        assertEquals(1, draw.remaining());
+    }
+
+    @Test
+    void anOperatorParameterTakesAtLeastOneArgument() {
+        // One parameter of operator kind: its mandatory Boolean argument, the argument-list
+        // marker, an integer result, then the parameter-list marker.
+        var draw = new Draw(new byte[] {1, 10, 0, 0, 1, 0, 99});
+        assertEquals(
+                List.of(new OperatorType(List.of(PrimitiveType.BOOL), PrimitiveType.INT)),
+                draw.draw(factory().parameterTypes()));
+        assertEquals(1, draw.remaining());
+
+        var factory = factory();
+        for (var value = 0; value < 256; value++) {
+            var input = new byte[] {1, (byte) value, 1, 2, 0, 3, 0, 0};
+            for (var type : new Draw(input).draw(factory.parameterTypes())) {
+                assertTrue(!(type instanceof OperatorType operator) || !operator.arguments().isEmpty(),
+                        () -> "nullary operator parameter " + type);
+            }
+        }
+    }
+
+    @Test
+    void parametersAreValuesWhileOperatorsAreIgnored() {
+        var factory = factoryIgnoring(ExpressionCategory.OPERATOR);
+        for (var value = 0; value < 256; value++) {
+            var input = new byte[] {1, (byte) value, 1, 2, 0, 3, 0, 0};
+            for (var type : new Draw(input).draw(factory.parameterTypes())) {
+                assertFalse(type instanceof OperatorType, () -> "operator parameter " + type);
+            }
+        }
+    }
+
     /** Creates a type-generator factory with fresh per-test run state. */
     private IrTypeGenFactory factory() {
         return new IrTypeGenFactory(new GenerationContext(IrGenerationConfig.defaults()));

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -18,12 +19,14 @@ import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -56,25 +59,12 @@ class GeneratedNestedActionShapesTest {
         // CALL kind can apply one wherever it is drawn.
         var config = IrGenerationConfig.defaults()
                 .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5));
-        var generator = IrGenerators.specs(config);
-        var random = new Random(0xA9701CL);
-        var samples = new ArrayList<GeneratedSpec>();
-        for (var sample = 0; sample < 6000 && samples.size() < 6; sample++) {
-            var input = new byte[512 + random.nextInt(1536)];
-            random.nextBytes(input);
-            final GeneratedSpec spec;
-            try {
-                spec = generator.generate(input);
-            } catch (InputRejectedException rejected) {
-                continue;
-            }
+        var samples = GeneratedSpecSamples.collect(config, 0xA9701CL, 6000, 6, spec -> {
             var names = actionOperators(spec).stream()
                     .map(operator -> operator.declaration().name())
                     .collect(java.util.stream.Collectors.toSet());
-            if (!names.isEmpty() && appliesAny(spec.nextAction(), names)) {
-                samples.add(spec);
-            }
-        }
+            return !names.isEmpty() && appliesAny(spec.nextAction(), names);
+        });
         assertTrue(
                 samples.size() >= 4,
                 "too few modules applied an action operator in Next: " + samples.size());
@@ -99,7 +89,9 @@ class GeneratedNestedActionShapesTest {
         }
     }
 
-    /** Generates modules until {@code wanted} of them nest a disjunction and IF-THEN-ELSE in Next. */
+    /**
+     * Generates modules until {@code wanted} of them nest a disjunction and IF-THEN-ELSE in Next.
+     */
     private List<GeneratedSpec> collectNestedShapeModules(int wanted) {
         var generator = IrGenerators.specs(IrGenerationConfig.defaults());
         var random = new Random(0x5EA9EL);
@@ -117,7 +109,7 @@ class GeneratedNestedActionShapesTest {
             var next = spec.nextAction();
             if (withOr.size() < (wanted + 1) / 2
                     && disjuncts(next).stream()
-                            .anyMatch(action -> containsOperator(action, TlaOperators.OR))) {
+                    .anyMatch(action -> containsOperator(action, TlaOperators.OR))) {
                 withOr.add(spec);
             } else if (withIte.size() < wanted / 2
                     && containsOperator(next, TlaOperators.IF_THEN_ELSE)) {

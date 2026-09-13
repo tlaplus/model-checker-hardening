@@ -1,13 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.engine.ApplicativeExpressionKind.ApplicativeType;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Predicate;
-import java.util.stream.IntStream;
 
 /** Constructs reads, updates and domains of records, tuples and sequences. */
 final class ApplicativeExprGenFactory extends AbstractExprGenFactory {
@@ -31,15 +26,11 @@ final class ApplicativeExprGenFactory extends AbstractExprGenFactory {
     /** Draws a type holding the requested component, then which such component to read. */
     private Generator<TlaEx> access(ApplicativeType applicative, IrType component, int remainingDepth) {
         return draw -> {
-            var applied = draw.draw(appliedType(
-                    applicative,
-                    candidate -> candidate.components().contains(component),
+            var applied = draw.draw(typeFactory.readType(
+                    candidate -> applicative.isInstance(candidate)
+                            && candidate.components().contains(component),
                     containing(applicative, component)));
-            var positions = IntStream.range(0, applied.components().size())
-                    .filter(position -> applied.components().get(position).equals(component))
-                    .boxed()
-                    .toList();
-            var position = draw.choose(positions);
+            int position = draw.draw(typeFactory.positionOf(applied, component));
             var source = draw.draw(expression(applied, remainingDepth - 1));
             var index = draw.draw(index(applicative, applied, position, remainingDepth));
             return builder().funApply(source, index);
@@ -62,56 +53,19 @@ final class ApplicativeExprGenFactory extends AbstractExprGenFactory {
     /** Draws any type of the requested kind and takes the domain of a value of it. */
     private Generator<TlaEx> domain(ApplicativeType applicative, int remainingDepth) {
         return draw -> {
-            var applied = draw.draw(appliedType(
-                    applicative,
-                    candidate -> true,
-                    componentType().flatMap(component -> containing(applicative, component))));
+            var applied = draw.draw(typeFactory.readType(
+                    applicative::isInstance,
+                    typeFactory.componentType().flatMap(component -> containing(applicative, component))));
             return builder().domain(draw.draw(expression(applied, remainingDepth - 1)));
-        };
-    }
-
-    /**
-     * Chooses the type of the applied value: after one Boolean, spent whatever follows, either a
-     * type reachable from the bindings in scope or a fresh one.
-     *
-     * <p>Record field names are fresh for every drawn record type, so a fresh type is almost never
-     * the type of a visible name, and the expression then requested for it is almost always a
-     * literal built on the spot. A reachable type is one that a name, or a read of a name, can
-     * supply.
-     */
-    private Generator<IrType> appliedType(
-            ApplicativeType applicative, Predicate<IrType> accepts, Generator<IrType> fresh) {
-        return draw -> {
-            var fromScope = draw.drawBoolean();
-            var candidates = context.reachableTypes().stream()
-                    .filter(applicative::isInstance)
-                    .filter(accepts)
-                    .filter(typeFactory::isEnabled)
-                    .toList();
-            return fromScope && !candidates.isEmpty()
-                    ? draw.choose(candidates)
-                    : draw.draw(fresh);
         };
     }
 
     /** Draws the other components of a fresh type and where the required one sits among them. */
     private Generator<IrType> containing(ApplicativeType applicative, IrType component) {
-        return draw -> {
-            var others = draw.draw(BasicGenerators.listOf(
-                    componentType(),
-                    0,
-                    applicative.maximumOtherComponents(
-                            context.config().expressions().maximumCollectionSize())));
-            var components = new ArrayList<IrType>(others);
-            components.add((int) draw.drawLong(0, others.size()), component);
-            return applicative.of(List.copyOf(components), context);
-        };
-    }
-
-    /** A component type one level below the configured type depth, like a drawn record's. */
-    private Generator<IrType> componentType() {
-        return typeFactory.valueType(
-                Math.max(0, context.config().expressions().maximumTypeDepth() - 1));
+        return typeFactory.containing(
+                component,
+                applicative.maximumOtherComponents(context.config().expressions().maximumCollectionSize()),
+                components -> applicative.of(components, context));
     }
 
     /** Returns a record's field name or a tuple's position, or draws a sequence index. */

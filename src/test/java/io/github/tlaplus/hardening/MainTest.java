@@ -1,51 +1,31 @@
 package io.github.tlaplus.hardening;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
-import io.github.tlaplus.hardening.config.CheckerStageConfig;
-import io.github.tlaplus.hardening.config.FuzzTlaConfig;
-import io.github.tlaplus.hardening.config.ParserStageConfig;
-import io.github.tlaplus.hardening.config.PbtConfig;
-import io.github.tlaplus.hardening.config.InputStageConfig;
-import io.github.tlaplus.hardening.config.TomlConfig;
-import io.github.tlaplus.hardening.config.WorkflowConfig;
-import io.github.tlaplus.hardening.corpus.CorpusDirectory;
-import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
-import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
-import io.github.tlaplus.hardening.corpus.CorpusInput;
-import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
-import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.corpus.CorpusVerdict;
-import io.github.tlaplus.hardening.corpus.CorpusStage;
-import io.github.tlaplus.hardening.corpus.GenerationMetadata;
-import io.github.tlaplus.hardening.corpus.StageMetadata;
+import io.github.tlaplus.hardening.common.Digests;
+import io.github.tlaplus.hardening.common.FileTrees;
+import io.github.tlaplus.hardening.config.*;
+import io.github.tlaplus.hardening.corpus.*;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
-import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import picocli.CommandLine;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import picocli.CommandLine;
-import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
-import io.github.tlaplus.hardening.common.Digests;
-import io.github.tlaplus.hardening.common.FileTrees;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class MainTest {
     @Test
@@ -600,7 +580,7 @@ class MainTest {
     void indentsEveryLineOfMultilineEnvelopeInput(@TempDir Path directory) throws Exception {
         var input = directory.resolve("multiline.cbor");
         var generatorInput = Base64.getDecoder()
-                .decode("LNehJNvsP7MYvY+AwsbJ/oNuCdm3JRQxvq0=");
+                .decode("oWlbu/lcICTmLYuLehhsmLirN+8aGYYJ7mQ=");
         Files.write(
                 input, CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, generatorInput)));
 

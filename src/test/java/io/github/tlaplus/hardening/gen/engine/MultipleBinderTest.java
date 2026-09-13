@@ -1,20 +1,20 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.containsOperator;
-import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.print;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import at.forsyte.apalache.tla.lir.OperEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.containsOperator;
+import static io.github.tlaplus.hardening.gen.engine.FormDecodingTestSupport.assertForm;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Function constructors and set maps that bind several names in one construct. */
 class MultipleBinderTest {
@@ -24,24 +24,25 @@ class MultipleBinderTest {
     @Test
     void aFunctionOfATupleMayBindOneNamePerComponent() {
         assertForm("[ arg0 \\in {}, arg1 \\in {} |-> arg0 ]",
-                OtherExpressionKind.FUNCTION_DEFINITION, PAIR_FUNCTION, 1, 42);
+                OtherExpressionKind.FUNCTION_DEFINITION, PAIR_FUNCTION, List.of(), 1, 1, 42);
         assertForm("[ arg0 \\in {} |-> FALSE ]",
-                OtherExpressionKind.FUNCTION_DEFINITION, PAIR_FUNCTION, 0, 42);
+                OtherExpressionKind.FUNCTION_DEFINITION, PAIR_FUNCTION, List.of(), 1, 0, 42);
     }
 
     @Test
     void aFunctionOfAnythingElseSpendsNoMarkerOnTheChoice() {
         assertForm("[ arg0 \\in {} |-> arg0 ]", OtherExpressionKind.FUNCTION_DEFINITION,
-                new FunctionType(PrimitiveType.BOOL, PrimitiveType.BOOL), 42);
+                new FunctionType(PrimitiveType.BOOL, PrimitiveType.BOOL), List.of(), 1, 42);
         assertForm("[ arg0 \\in {} |-> FALSE ]", OtherExpressionKind.FUNCTION_DEFINITION,
-                new FunctionType(new TupleType(List.of(PrimitiveType.INT)), PrimitiveType.BOOL), 42);
+                new FunctionType(new TupleType(List.of(PrimitiveType.INT)), PrimitiveType.BOOL),
+                List.of(), 1, 42);
     }
 
     @Test
     void aSetMapBindsATerminatedListOfNames() {
         // Source types Boolean then integer, then the terminating marker.
         assertForm("{ mapped0: mapped0 \\in {}, mapped1 \\in {} }",
-                SetExpressionKind.SET_MAP, new SetType(PrimitiveType.BOOL), 0, 1, 1, 0, 42);
+                SetExpressionKind.SET_MAP, new SetType(PrimitiveType.BOOL), List.of(), 1, 0, 1, 1, 0, 42);
     }
 
     @Test
@@ -64,17 +65,5 @@ class MultipleBinderTest {
             }
         }
         assertTrue(multiple > 0, "no labelled body of a multiple-binder set map was generated");
-    }
-
-    private void assertForm(String expected, ExpressionKind kind, IrType type, int... input) {
-        var bytes = new byte[input.length];
-        for (var index = 0; index < input.length; index++) {
-            bytes[index] = (byte) input[index];
-        }
-        var context = new GenerationContext(IrGenerationConfig.defaults());
-        var expressions = new IrExprGenFactory(context, new IrTypeGenFactory(context));
-        var draw = new Draw(bytes);
-        assertEquals(expected, print(draw.draw(expressions.mkGen(kind, type, 1))));
-        assertEquals(1, draw.remaining(), () -> "unexpected consumption for " + expected);
     }
 }

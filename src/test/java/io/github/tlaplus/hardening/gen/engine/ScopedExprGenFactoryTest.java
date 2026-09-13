@@ -20,11 +20,6 @@ class ScopedExprGenFactoryTest {
                 PrimitiveType.BOOL,
                 GeneralExpressionKind.NAME,
                 ScopedName.binder("bound", PrimitiveType.BOOL));
-        var localOperatorType = new OperatorType(List.of(), PrimitiveType.BOOL);
-        var scopedOperatorApplication = applicableIndex(
-                PrimitiveType.BOOL,
-                GeneralExpressionKind.OPERATOR_APPLICATION,
-                ScopedName.definition("LocalOp", localOperatorType));
         var scenarios = List.of(
                 new Scenario(
                         PrimitiveType.BOOL,
@@ -98,15 +93,7 @@ class ScopedExprGenFactoryTest {
                                 OtherExpressionKind.LAMBDA,
                                 scopedBooleanName,
                                 0),
-                        "parameter0"),
-                new Scenario(
-                        PrimitiveType.BOOL,
-                        input(
-                                PrimitiveType.BOOL,
-                                GeneralExpressionKind.LET,
-                                0,
-                                scopedOperatorApplication),
-                        "LocalOp0"));
+                        "parameter0"));
 
         for (var scenario : scenarios) {
             var printed = generateAndPrint(scenario.type(), scenario.input());

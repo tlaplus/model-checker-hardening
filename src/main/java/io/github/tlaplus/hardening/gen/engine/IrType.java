@@ -170,6 +170,9 @@ record RecordType(List<Field> fields) implements IrType {
     }
 }
 
+/** A variant type with one of its tags selected, such as the tag whose payload a read extracts. */
+record TaggedVariant(VariantType type, String tag) {}
+
 /** Variant type. */
 record VariantType(List<Field> fields) implements IrType {
     VariantType {
