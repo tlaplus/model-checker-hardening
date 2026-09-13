@@ -144,6 +144,21 @@ class AggregatorClassificationTest(unittest.TestCase):
                     ),
                 )
 
+    def test_sequence_index_out_of_bounds_is_application_outside_domain(self) -> None:
+        """TLC reports an out-of-range sequence or tuple index as a tuple access."""
+        for detail in (
+            "Attempted to access index 0 of tuple",
+            "Attempted to access index 3 of tuple",
+            "Attempted to access index -2 of tuple",
+        ):
+            with self.subTest(detail=detail):
+                self.assertEqual(
+                    "function-application-outside-domain.md",
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail), HASH_A
+                    ),
+                )
+
     def test_set_valued_invariant_is_printer_corruption(self) -> None:
         """Code 150 splits by value: FALSE is a TLC restriction, a set is corruption."""
         cases = (

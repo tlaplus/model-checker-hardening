@@ -237,7 +237,10 @@ SIGNATURES = (
 # so the root cause is not in the stored line at all and those groups stay NEW.
 AGGREGATOR_SIGNATURES = (
     failure("function-application-outside-domain.md", Checker.TLC,
-            r"^In applying the function$", r"^Attempted to apply function:$"),
+            r"^In applying the function$", r"^Attempted to apply function:$",
+            # TLC stores sequences and tuples as tuple values, so indexing one
+            # outside 1..Len reports this instead; corpus17 adds direct reads.
+            r"^Attempted to access index -?\d+ of tuple$"),
     # Four TLC messages open with this prefix, and TLC line-wraps them at
     # different points, so the stored first line separates only one of them:
     # "...of an expression of" is always "form CHOOSE x \in S: P, but S was not
