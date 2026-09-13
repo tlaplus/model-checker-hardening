@@ -328,6 +328,23 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
         )
 
+    def test_classifies_empty_codomain_pick(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "java.lang.RuntimeException: The set $C$8 is statically empty. "
+                "Pick should not be called on that.",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.support.CherryPick.pick(CherryPick.scala:81)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.support.CherryPick."
+                "$anonfun$pickFunFromFunSet$6(CherryPick.scala:998)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rules.support.CherryPick."
+                "pickFunFromFunSet(CherryPick.scala:997)",
+            )
+        )
+        self.assertEqual(
+            "apalache-bmc-018.md",
+            triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
     def test_classifies_corpus10_residual_details(self) -> None:
         """Details replayed from corpus10's NEW aggregator rows.
 
