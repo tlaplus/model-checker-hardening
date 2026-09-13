@@ -5,17 +5,11 @@ import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.OverlappingFileLockException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
 
 /**
  * Owns the on-disk layout and integrity checks for one FuzzTLA corpus.
@@ -26,7 +20,7 @@ import java.util.TreeMap;
  * <p><strong>Initialization</strong>
  *
  * <ol>
- *   <li>Call {@link #initialize(Path)} once to create the required layout and default
+ *   <li>Call {@link #initialize(Path, String)} once to create the required layout and write the
  *       configuration.
  * </ol>
  *
@@ -59,10 +53,11 @@ import java.util.TreeMap;
  * separate aggregate and are never reconstructed from per-entry stage timestamps.
  *
  * <p>This class is the only entry point to the corpus. It serializes every mutation it performs,
- * and delegates to {@link CorpusLayout} for paths and file writes, {@link CorpusEntries} for
- * reading and validating entries, {@link CorpusEntryStore} for admitting generated inputs, {@link
- * StageTransition} for moving an entry between stage directories, and {@link CorpusRecovery} for
- * startup recovery and inventory.
+ * and delegates to {@link CorpusLayout} for paths, layout checks, and file writes, {@link
+ * CorpusLock} for locking, {@link CorpusEntries} for reading and validating entries, {@link
+ * CorpusEntryStore} for admitting generated inputs, {@link StageTransition} for moving an entry
+ * between stage directories, and {@link TransitionRecovery} and {@link InventoryScan} for startup
+ * recovery and inventory.
  */
 public final class CorpusDirectory {
     public static final String CRASH_REPORT_EXTENSION = CorpusLayout.CRASH_REPORT_EXTENSION;
@@ -89,26 +84,7 @@ public final class CorpusDirectory {
         Objects.requireNonNull(root, "root");
         Objects.requireNonNull(configuration, "configuration");
         var corpus = new CorpusDirectory(root);
-        var corpusRoot = corpus.resolve(CorpusPath.ROOT);
-        var config = corpus.resolve(CorpusPath.CONFIG);
-        if (Files.exists(corpusRoot, NO_FOLLOW_LINKS)
-                && !Files.isDirectory(corpusRoot, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("corpus path is not a directory: " + root);
-        }
-        if (Files.exists(config, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("configuration already exists: " + config);
-        }
-        corpus.layout.requireAbsentOrDirectory(corpus.layout.requiredDirectories());
-
-        for (var directory : corpus.layout.requiredDirectories()) {
-            Files.createDirectories(directory);
-        }
-        Files.writeString(
-                config,
-                configuration,
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE_NEW,
-                StandardOpenOption.WRITE);
+        corpus.layout.initialize(root, configuration);
         return corpus;
     }
 
@@ -116,38 +92,24 @@ public final class CorpusDirectory {
     public static CorpusDirectory openExisting(Path root) throws CorpusException {
         Objects.requireNonNull(root, "root");
         var corpus = new CorpusDirectory(root);
-        var corpusRoot = corpus.resolve(CorpusPath.ROOT);
-        var config = corpus.resolve(CorpusPath.CONFIG);
-        if (!Files.isDirectory(corpusRoot, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("corpus directory does not exist: " + root);
-        }
-        if (!Files.isRegularFile(config, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("configuration file does not exist: " + config);
-        }
-        for (var directory : corpus.layout.requiredDirectories()) {
-            if (!Files.isDirectory(directory, NO_FOLLOW_LINKS)) {
-                throw new CorpusException("workflow directory does not exist: " + directory);
-            }
-        }
+        corpus.layout.requireInitialized(root);
         return corpus;
     }
 
     /** Reads cumulative workflow statistics, or returns zero statistics before the first save. */
     public synchronized CorpusRunStatistics readRunStatistics()
             throws IOException, CorpusException {
-        var path = resolve(CorpusPath.WORKFLOW_STATISTICS);
-        if (Files.notExists(path, NO_FOLLOW_LINKS)) {
+        var encoded =
+                layout.readIfPresent(CorpusPath.WORKFLOW_STATISTICS, "workflow statistics path");
+        if (encoded.isEmpty()) {
             return CorpusRunStatistics.empty();
         }
-        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("workflow statistics path is not a regular file: " + path);
-        }
         try {
-            return CorpusRunStatisticsCodec.decode(Files.readAllBytes(path));
+            return CorpusRunStatisticsCodec.decode(encoded.orElseThrow());
         } catch (CorpusFormatException exception) {
             throw new CorpusException(
                     "invalid workflow statistics file '"
-                            + path
+                            + resolve(CorpusPath.WORKFLOW_STATISTICS)
                             + "': "
                             + Diagnostics.message(exception),
                     exception);
@@ -165,12 +127,7 @@ public final class CorpusDirectory {
 
     /** Reads opaque external-library replay metadata; its interpretation belongs to the workflow. */
     public synchronized Optional<byte[]> readLibraryManifest() throws IOException, CorpusException {
-        var path = resolve(CorpusPath.LIBRARY_MANIFEST);
-        if (Files.notExists(path, NO_FOLLOW_LINKS)) return Optional.empty();
-        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("library manifest is not a regular file: " + path);
-        }
-        return Optional.of(Files.readAllBytes(path));
+        return layout.readIfPresent(CorpusPath.LIBRARY_MANIFEST, "library manifest");
     }
 
     /** Writes opaque replay metadata atomically. The caller must hold the corpus lock. */
@@ -181,9 +138,14 @@ public final class CorpusDirectory {
     /** Whether any stage directory contains an input; does not decode or recover entries. */
     public synchronized boolean hasStoredInputs() throws IOException {
         for (var path : CorpusPath.values()) {
-            if (!path.storesEntries() || Files.notExists(resolve(path), NO_FOLLOW_LINKS)) continue;
+            if (!path.storesEntries() || Files.notExists(resolve(path), NO_FOLLOW_LINKS)) {
+                continue;
+            }
             try (var entries = Files.list(resolve(path))) {
-                if (entries.anyMatch(entry -> entry.getFileName().toString().endsWith(CorpusLayout.ENTRY_EXTENSION))) return true;
+                if (entries.anyMatch(entry ->
+                        entry.getFileName().toString().endsWith(CorpusLayout.ENTRY_EXTENSION))) {
+                    return true;
+                }
             }
         }
         return false;
@@ -191,25 +153,7 @@ public final class CorpusDirectory {
 
     /** Acquires the process-wide exclusive lock for this corpus. */
     public CorpusLock acquireExclusiveLock() throws IOException, CorpusException {
-        var channel = FileChannel.open(
-                resolve(CorpusPath.LOCK), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-        try {
-            var lock = channel.tryLock();
-            if (lock == null) {
-                channel.close();
-                throw new CorpusException(
-                        "corpus is already in use: " + resolve(CorpusPath.ROOT));
-            }
-            return new CorpusLock(channel, lock);
-        } catch (OverlappingFileLockException exception) {
-            channel.close();
-            throw new CorpusException(
-                    "corpus is already locked by this process: " + resolve(CorpusPath.ROOT),
-                    exception);
-        } catch (IOException | RuntimeException exception) {
-            channel.close();
-            throw exception;
-        }
+        return CorpusLock.acquire(resolve(CorpusPath.LOCK), resolve(CorpusPath.ROOT));
     }
 
     /** Creates the stage-owned transient storage for one locked workflow invocation. */
@@ -225,10 +169,10 @@ public final class CorpusDirectory {
             throws IOException, CorpusException {
         Objects.requireNonNull(validator, "validator");
         var validatedEntries = entries(validator);
+        new TransitionRecovery(layout, validatedEntries, transitions).recover();
         var aggregationRecovery =
                 new AggregationRecovery(layout, validatedEntries, aggregations);
-        return new CorpusRecovery(layout, validatedEntries, transitions, aggregationRecovery)
-                .recover();
+        return new InventoryScan(layout, validatedEntries, aggregationRecovery).scan();
     }
 
     /** Stores an input of the given kind under its payload digest in {@code 00-inputs}. */
@@ -259,27 +203,7 @@ public final class CorpusDirectory {
      * each per-signature cap where the previous run stopped.
      */
     public synchronized Map<String, Long> knownDefectSamples() throws IOException, CorpusException {
-        var directory = resolve(CorpusPath.KNOWN_DEFECTS);
-        if (Files.notExists(directory, NO_FOLLOW_LINKS)) {
-            return Map.of();
-        }
-        var counts = new TreeMap<String, Long>();
-        for (var path : entries(CorpusEntryValidator.NONE).entryPaths(directory)) {
-            final CorpusEnvelope envelope;
-            try {
-                envelope = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(path));
-            } catch (CorpusFormatException exception) {
-                throw new CorpusException(
-                        "invalid quarantined entry '" + path + "': " + Diagnostics.message(exception),
-                        exception);
-            }
-            var primary = envelope.generation()
-                    .flatMap(GenerationMetadata::primaryKnownDefect)
-                    .orElseThrow(() -> new CorpusException(
-                            "quarantined entry names no known-defect signature: " + path));
-            counts.merge(primary, 1L, Long::sum);
-        }
-        return Collections.unmodifiableMap(counts);
+        return store.knownDefectSamples();
     }
 
     /** Preserves an input and stack trace for an unexpected generator failure. */

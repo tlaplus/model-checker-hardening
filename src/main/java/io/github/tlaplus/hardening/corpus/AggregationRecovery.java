@@ -34,7 +34,7 @@ final class AggregationRecovery {
         }
 
         for (var verdict : CorpusStage.AGGREGATOR.resultVerdicts()) {
-            for (var path : entries.entryPaths(
+            for (var path : CorpusLayout.entryPaths(
                     layout.resolve(CorpusStage.AGGREGATOR.result(verdict)))) {
                 var entry = entries.verify(path);
                 var aggregation = new AggregationInput(
