@@ -23,6 +23,7 @@ final class IrExprGenFactory {
     private final SetExprGenFactory setFactory;
     private final SequenceExprGenFactory sequenceFactory;
     private final OtherExprGenFactory otherFactory;
+    private final ApplicativeExprGenFactory applicativeFactory;
     private final List<ExpressionKind> catalog;
     private final Map<Instantiation, TypeInstantiation> plans = new HashMap<>();
 
@@ -39,6 +40,7 @@ final class IrExprGenFactory {
         integerFactory = new IntegerExprGenFactory(context, typeFactory, this);
         setFactory = new SetExprGenFactory(context, typeFactory, this);
         sequenceFactory = new SequenceExprGenFactory(context, typeFactory, this);
+        applicativeFactory = new ApplicativeExprGenFactory(context, typeFactory, this);
     }
 
     /**
@@ -156,6 +158,8 @@ final class IrExprGenFactory {
                 sequenceFactory.mkGen(sequence, (SequenceType) type, remainingDepth);
             case OtherExpressionKind other ->
                 otherFactory.mkGen(other, type, remainingDepth);
+            case ApplicativeExpressionKind applicative ->
+                applicativeFactory.mkGen(applicative, type, remainingDepth);
             case CustomExpressionKind custom -> custom(custom, type, remainingDepth);
         };
     }

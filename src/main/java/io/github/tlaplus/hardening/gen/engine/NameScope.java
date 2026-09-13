@@ -61,6 +61,11 @@ final class NameScope {
                 && operatorType.result().equals(resultType));
     }
 
+    /** Returns every visible name, shadowing resolved, innermost scope first. */
+    List<ScopedName> visible() {
+        return matching(binding -> true);
+    }
+
     /** Returns visible declared state variables, innermost scope first. */
     List<ScopedName> stateVariables() {
         return matching(binding -> binding.kind() == ScopedNameKind.STATE_VARIABLE);

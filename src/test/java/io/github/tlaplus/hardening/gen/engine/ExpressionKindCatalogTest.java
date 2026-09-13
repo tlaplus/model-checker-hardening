@@ -137,7 +137,10 @@ class ExpressionKindCatalogTest {
                                     SequenceExpressionKind.APPEND,
                                     SequenceExpressionKind.CONCATENATE,
                                     SequenceExpressionKind.TAIL,
-                                    SequenceExpressionKind.SUBSEQUENCE)),
+                                    SequenceExpressionKind.SUBSEQUENCE,
+                                    ApplicativeExpressionKind.SEQUENCE_ACCESS,
+                                    ApplicativeExpressionKind.SEQUENCE_EXCEPT,
+                                    ApplicativeExpressionKind.SEQUENCE_DOMAIN)),
                     Map.entry(
                             ExpressionCategory.FUNCTION,
                             kinds(
@@ -156,12 +159,18 @@ class ExpressionKindCatalogTest {
                             ExpressionCategory.TUPLE,
                             kinds(
                                     SetExpressionKind.CARTESIAN_PRODUCT,
-                                    OtherExpressionKind.TUPLE_LITERAL)),
+                                    OtherExpressionKind.TUPLE_LITERAL,
+                                    ApplicativeExpressionKind.TUPLE_ACCESS,
+                                    ApplicativeExpressionKind.TUPLE_EXCEPT,
+                                    ApplicativeExpressionKind.TUPLE_DOMAIN)),
                     Map.entry(
                             ExpressionCategory.RECORD,
                             kinds(
                                     SetExpressionKind.RECORD_SET,
-                                    OtherExpressionKind.RECORD_LITERAL)),
+                                    OtherExpressionKind.RECORD_LITERAL,
+                                    ApplicativeExpressionKind.RECORD_ACCESS,
+                                    ApplicativeExpressionKind.RECORD_EXCEPT,
+                                    ApplicativeExpressionKind.RECORD_DOMAIN)),
                     Map.entry(
                             ExpressionCategory.VARIANT,
                             kinds(
@@ -239,6 +248,15 @@ class ExpressionKindCatalogTest {
                             Set.of(ExpressionCategory.SET)),
                     Map.entry(
                             OtherExpressionKind.EXCEPT_MANY,
+                            Set.of(ExpressionCategory.SET)),
+                    Map.entry(
+                            ApplicativeExpressionKind.RECORD_DOMAIN,
+                            Set.of(ExpressionCategory.SET)),
+                    Map.entry(
+                            ApplicativeExpressionKind.TUPLE_DOMAIN,
+                            Set.of(ExpressionCategory.SET)),
+                    Map.entry(
+                            ApplicativeExpressionKind.SEQUENCE_DOMAIN,
                             Set.of(ExpressionCategory.SET)));
 
     /**
@@ -343,7 +361,16 @@ class ExpressionKindCatalogTest {
                     OtherExpressionKind.TUPLE_LITERAL,
                     OtherExpressionKind.RECORD_LITERAL,
                     OtherExpressionKind.VARIANT_LITERAL,
-                    OtherExpressionKind.LAMBDA);
+                    OtherExpressionKind.LAMBDA,
+                    ApplicativeExpressionKind.RECORD_ACCESS,
+                    ApplicativeExpressionKind.TUPLE_ACCESS,
+                    ApplicativeExpressionKind.SEQUENCE_ACCESS,
+                    ApplicativeExpressionKind.RECORD_EXCEPT,
+                    ApplicativeExpressionKind.TUPLE_EXCEPT,
+                    ApplicativeExpressionKind.SEQUENCE_EXCEPT,
+                    ApplicativeExpressionKind.RECORD_DOMAIN,
+                    ApplicativeExpressionKind.TUPLE_DOMAIN,
+                    ApplicativeExpressionKind.SEQUENCE_DOMAIN);
 
     @Test
     void catalogOrderIsTheStoredByteEncoding() {
@@ -357,7 +384,8 @@ class ExpressionKindCatalogTest {
                 + IntegerExpressionKind.values().length
                 + SetExpressionKind.values().length
                 + SequenceExpressionKind.values().length
-                + OtherExpressionKind.values().length;
+                + OtherExpressionKind.values().length
+                + ApplicativeExpressionKind.values().length;
 
         assertEquals(expectedSize, ExpressionKindCatalog.all().size());
         assertEquals(expectedSize, new HashSet<>(ExpressionKindCatalog.all()).size());
@@ -419,6 +447,25 @@ class ExpressionKindCatalogTest {
                 GeneralExpressionKind.FOLD_SET, PrimitiveType.BOOL));
         assertTrue(noSets.isApplicable(
                 GeneralExpressionKind.FOLD_SEQUENCE, PrimitiveType.BOOL));
+
+        var setOfStrings = new SetType(PrimitiveType.STRING);
+        var setOfIntegers = new SetType(PrimitiveType.INT);
+        assertTrue(defaults.isApplicable(ApplicativeExpressionKind.RECORD_ACCESS, PrimitiveType.BOOL));
+        assertTrue(defaults.isApplicable(ApplicativeExpressionKind.RECORD_DOMAIN, setOfStrings));
+        assertFalse(defaults.isApplicable(ApplicativeExpressionKind.RECORD_DOMAIN, setOfIntegers));
+        assertTrue(defaults.isApplicable(ApplicativeExpressionKind.TUPLE_DOMAIN, setOfIntegers));
+        assertTrue(defaults.isApplicable(ApplicativeExpressionKind.TUPLE_EXCEPT,
+                new TupleType(List.of(PrimitiveType.BOOL))));
+        assertFalse(defaults.isApplicable(ApplicativeExpressionKind.TUPLE_EXCEPT,
+                new SequenceType(PrimitiveType.BOOL)));
+        assertFalse(defaults.isApplicable(ApplicativeExpressionKind.SEQUENCE_ACCESS,
+                new OperatorType(List.of(), PrimitiveType.BOOL)));
+        assertFalse(noSets.isApplicable(ApplicativeExpressionKind.SEQUENCE_DOMAIN, setOfIntegers));
+        assertTrue(noSets.isApplicable(ApplicativeExpressionKind.SEQUENCE_ACCESS, PrimitiveType.BOOL));
+
+        var noRecords = expressionFactory(configIgnoring(Set.of(ExpressionCategory.RECORD)));
+        assertFalse(noRecords.isApplicable(ApplicativeExpressionKind.RECORD_ACCESS, PrimitiveType.BOOL));
+        assertTrue(noRecords.isApplicable(ApplicativeExpressionKind.TUPLE_ACCESS, PrimitiveType.BOOL));
 
         var noOperators = expressionFactory(configIgnoring(Set.of(ExpressionCategory.OPERATOR)));
         assertFalse(noOperators.isApplicable(

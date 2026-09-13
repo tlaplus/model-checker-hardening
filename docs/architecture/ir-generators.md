@@ -84,7 +84,7 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `CustomExpressionKind` | Matches an exported type scheme against a requested result type. |
 | `TypeInstantiation`, `ImportedTypes` | Plan bounded type-variable instantiations and convert concrete imported types to private generator types. |
 | `IrExprGenFactory` | Filters applicable forms, selects one, enforces expression budgets, and dispatches to a family factory; builds custom applications itself, caching one type plan per operator and requested type. |
-| `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, and remaining typed forms. |
+| `*ExprGenFactory` | Construct general, Boolean, integer, set, sequence, applicative, and remaining typed forms. |
 | `NameScope` | Tracks typed lexical bindings with shadowing and exception-safe restoration, and the binders a label must declare. |
 | `BuilderArrays` | Adapts typed lists to Apalache's generic varargs APIs. |
 
@@ -243,6 +243,11 @@ Expression kinds are grouped by construction responsibility:
 - `SequenceExprGenFactory` handles sequence literals and sequence operators.
 - `OtherExprGenFactory` handles strings, model values, functions, updates,
   tuples, records, variants, and lambdas.
+- `ApplicativeExprGenFactory` handles reads, `EXCEPT` updates and domains of
+  records, tuples and sequences, the values TLA+ applies like functions and that
+  Apalache's builder calls applicative. Each `ApplicativeExpressionKind` pairs an
+  `ApplicativeType`, which carries the facts that differ between the three, with
+  one of those operations. Functions keep their own forms in the families above.
 
 The grouping is an implementation decomposition, not a TLA<sup>+</sup> language
 taxonomy.
@@ -265,11 +270,11 @@ Every expression kind has one primary `ExpressionCategory`:
 | `set` | Membership, subset tests, set literals, ordinary set operations, comprehensions, powerset, and intervals |
 | `finite_set` | `Cardinality` and `IsFiniteSet` |
 | `universe` | The predefined `BOOLEAN`, `STRING`, `Int`, and `Nat` sets |
-| `sequence` | Sequence literals, operations, length, head, and sequence sets |
+| `sequence` | Sequence literals, operations, length, head, indexing, updates, domains, and sequence sets |
 | `function` | Function application, construction, updates, function sets, and domains |
 | `fold` | Set and sequence folds |
-| `tuple` | Tuple literals and Cartesian products |
-| `record` | Record literals and record sets |
+| `tuple` | Tuple literals, projections, updates, domains, and Cartesian products |
+| `record` | Record literals, field reads, updates, domains, and record sets |
 | `variant` | Variant literals, tags, accessors, and filtering |
 | `model` | Model values and parsed model values |
 
@@ -460,6 +465,18 @@ expressions select only exact type matches, and the role does not narrow them.
 Operator application selects a visible `OperatorType` with the requested result
 type, then generates arguments from its declared signature. The role exists
 because TLA+ labels distinguish these cases; section 8.1 gives the rule.
+
+A read or domain of a record, tuple or sequence first chooses the type of the
+value it applies. After one Boolean, spent in either case, an odd marker selects
+among the types of that kind reachable from the visible bindings — their types
+and, recursively, their component types, in first-reached order — that hold the
+requested component; an even marker, or no such type, draws a fresh type around
+the requested component. Record field names are fresh for every drawn record
+type, so a fresh type would almost never be the type of a visible name, and a
+read of it would almost always project a literal built on the spot. The applied
+value is then drawn at that type like any other operand, so `NAME` and terminal
+rotation can supply a state variable, a parameter or a bound name. A sequence index is an arbitrary integer expression and, like `Head`, may
+lie outside the sequence's domain.
 
 Alongside the visible bindings, `NameScope` keeps the binders that a label
 generated at the current point must declare. `withDefinitionBoundary` empties

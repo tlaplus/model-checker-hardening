@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaType1;
+import java.util.ArrayList;
 import java.util.List;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -19,6 +20,11 @@ sealed interface IrType
     TlaType1 toTlaType();
 
     String prefix();
+
+    /** Returns the immediate component types, in declaration order; none for an atomic type. */
+    default List<IrType> components() {
+        return List.of();
+    }
 }
 
 /** Primitive expression result types. */
@@ -62,6 +68,11 @@ record ConstantType(String name) implements IrType {
 /** Set type. */
 record SetType(IrType element) implements IrType {
     @Override
+    public List<IrType> components() {
+        return List.of(element);
+    }
+
+    @Override
     public TlaType1 toTlaType() {
         return TlaTypes.set(element.toTlaType());
     }
@@ -75,6 +86,11 @@ record SetType(IrType element) implements IrType {
 /** Sequence type. */
 record SequenceType(IrType element) implements IrType {
     @Override
+    public List<IrType> components() {
+        return List.of(element);
+    }
+
+    @Override
     public TlaType1 toTlaType() {
         return TlaTypes.sequence(element.toTlaType());
     }
@@ -87,6 +103,11 @@ record SequenceType(IrType element) implements IrType {
 
 /** Function type. */
 record FunctionType(IrType argument, IrType result) implements IrType {
+    @Override
+    public List<IrType> components() {
+        return List.of(argument, result);
+    }
+
     @Override
     public TlaType1 toTlaType() {
         return TlaTypes.function(argument.toTlaType(), result.toTlaType());
@@ -102,6 +123,11 @@ record FunctionType(IrType argument, IrType result) implements IrType {
 record TupleType(List<IrType> elements) implements IrType {
     TupleType {
         elements = List.copyOf(elements);
+    }
+
+    @Override
+    public List<IrType> components() {
+        return elements;
     }
 
     @Override
@@ -127,6 +153,11 @@ record RecordType(List<Field> fields) implements IrType {
     }
 
     @Override
+    public List<IrType> components() {
+        return fields.stream().map(Field::type).toList();
+    }
+
+    @Override
     public TlaType1 toTlaType() {
         return TlaTypes.rowRecord(fields.stream()
                 .map(field -> new NamedType(field.name(), field.type().toTlaType()))
@@ -146,6 +177,11 @@ record VariantType(List<Field> fields) implements IrType {
     }
 
     @Override
+    public List<IrType> components() {
+        return fields.stream().map(Field::type).toList();
+    }
+
+    @Override
     public TlaType1 toTlaType() {
         return TlaTypes.variant(fields.stream()
                 .map(field -> new NamedType(field.name(), field.type().toTlaType()))
@@ -162,6 +198,14 @@ record VariantType(List<Field> fields) implements IrType {
 record OperatorType(List<IrType> arguments, IrType result) implements IrType {
     OperatorType {
         arguments = List.copyOf(arguments);
+    }
+
+    /** Returns the argument types followed by the result type. */
+    @Override
+    public List<IrType> components() {
+        var result = new ArrayList<IrType>(arguments);
+        result.add(this.result);
+        return List.copyOf(result);
     }
 
     @Override

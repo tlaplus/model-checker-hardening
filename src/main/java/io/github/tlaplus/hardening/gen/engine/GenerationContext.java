@@ -6,10 +6,12 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.ArrayList;
 import org.apalache_mc.tla.jir.TypedParameter;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
@@ -113,6 +115,28 @@ final class GenerationContext {
         var position = terminalRotation.merge(type, 1, Integer::sum) - 1;
         var choice = Math.floorMod(position, visible.size() + 1);
         return choice == visible.size() ? Optional.empty() : Optional.of(visible.get(choice));
+    }
+
+    /**
+     * Returns the value types of the visible bindings and, recursively, of their components, each
+     * once in first-reached order, innermost binding first. An operator binding contributes the
+     * types in its signature but not its own type, which is not a value.
+     *
+     * <p>A form that reads a component of a record, tuple or sequence can draw that value's type
+     * from here, so that the expression it then requests is one a visible name can supply.
+     */
+    List<IrType> reachableTypes() {
+        var reached = new LinkedHashSet<IrType>();
+        for (var binding : scope.visible()) {
+            reach(binding.type(), reached);
+        }
+        return List.copyOf(reached);
+    }
+
+    private static void reach(IrType type, Set<IrType> reached) {
+        if (type instanceof OperatorType || reached.add(type)) {
+            type.components().forEach(component -> reach(component, reached));
+        }
     }
 
     /** Selects an exactly typed visible binding without inventing a free name. */
