@@ -14,6 +14,10 @@ import java.util.Objects;
  * same values. The input array is retained rather than copied and therefore must not be mutated
  * while it is being consumed.
  *
+ * <p>The one exception to a single shared cursor is {@link #slice(int)}: a caller that decodes
+ * independent parts of one value may give each part a contiguous range of the input, so that one
+ * part running out of bytes, or a mutation inside one part, leaves the others undisturbed.
+ *
  * <p>This model resembles Rust's {@code arbitrary::Arbitrary} and {@code Unstructured}, commonly
  * used with cargo-fuzz: both turn a fixed byte sequence into structured values by advancing a
  * shared cursor. It also resembles the function passed to a Hypothesis composite strategy: nested
@@ -32,6 +36,7 @@ public final class Draw {
     private static final int MAXIMUM_INDEX_BYTES = 4;
 
     private final byte[] input;
+    private final int limit;
     private int cursor;
 
     /**
@@ -43,7 +48,13 @@ public final class Draw {
      * @throws NullPointerException if {@code input} is {@code null}
      */
     public Draw(byte[] input) {
-        this.input = Objects.requireNonNull(input, "input");
+        this(Objects.requireNonNull(input, "input"), 0, input.length);
+    }
+
+    private Draw(byte[] input, int start, int limit) {
+        this.input = input;
+        this.cursor = start;
+        this.limit = limit;
     }
 
     /**
@@ -51,12 +62,29 @@ public final class Draw {
      * values returned after exhaustion do not affect this number.
      */
     public int remaining() {
-        return input.length - cursor;
+        return limit - cursor;
     }
 
     /** Returns whether the cursor has consumed every supplied byte. */
     public boolean isEmpty() {
-        return cursor == input.length;
+        return cursor == limit;
+    }
+
+    /**
+     * Returns an independent cursor over the next {@code length} bytes and advances this cursor
+     * past them. When fewer bytes remain, the slice covers exactly those that do.
+     *
+     * <p>The slice shares the input array rather than copying it. It observes the same exhaustion
+     * protocol as any cursor: once its own range is consumed, it returns zero defaults, and it can
+     * never read a byte that belongs to this cursor or to another slice.
+     *
+     * @throws IllegalArgumentException if {@code length} is negative
+     */
+    public Draw slice(int length) {
+        Preconditions.requireNonnegative(length, "length");
+        var start = cursor;
+        cursor = start + Math.min(length, remaining());
+        return new Draw(input, start, cursor);
     }
 
     /**

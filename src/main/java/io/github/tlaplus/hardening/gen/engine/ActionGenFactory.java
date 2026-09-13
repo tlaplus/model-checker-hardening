@@ -122,13 +122,19 @@ final class ActionGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Guards are a terminated list; they and the unconditional step update sit outside the shape. */
+    /**
+     * Guards are a terminated list; they and the unconditional step update sit outside the shape.
+     * The shape is drawn before the guards it follows in the conjunction: guards are ordinary
+     * predicates that a short section can do without, whereas a shape drawn from exhausted bytes
+     * is always a leaf and never applies an action operator.
+     */
     private Generator<TlaEx> actionBody(int expressionDepth, VisibleActionOperators visible) {
         return draw -> {
+            var shape = draw.draw(shapes.shape(request(variables, expressionDepth), visible));
             var conjuncts = new ArrayList<TlaEx>(draw.draw(BasicGenerators.listOf(
                     expression(PrimitiveType.BOOL, expressionDepth - 1),
                     0, context.config().expressions().maximumCollectionSize())));
-            conjuncts.addAll(draw.draw(shapes.shape(request(variables, expressionDepth), visible)));
+            conjuncts.addAll(shape);
             conjuncts.add(builder().primeEq(shapes.nameOf(step),
                     builder().plus(shapes.nameOf(step), builder().integer(BigInteger.ONE))));
             return builder().and(BuilderArrays.expressions(conjuncts));

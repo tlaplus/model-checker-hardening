@@ -58,7 +58,11 @@ public final class IrSpecGeneratorEngine {
     }
 
     /**
-     * Generates the declarations of one module from the current position of {@code draw}.
+     * Generates the declarations of one module from the remaining bytes of {@code draw}.
+     *
+     * <p>The remaining input is divided among the {@link ModuleSection}s, and each body is drawn
+     * from its own section, so this consumes every remaining byte. A body that runs out of bytes
+     * falls back to terminals without affecting what any other body decodes.
      *
      * @param draw cursor supplying every generation choice
      * @throws NullPointerException if {@code draw} is {@code null}
@@ -67,12 +71,13 @@ public final class IrSpecGeneratorEngine {
      */
     public GeneratedSpec generate(Draw draw) {
         Objects.requireNonNull(draw, "draw");
+        var sections = ModuleSection.split(draw);
         var context = new GenerationContext(config);
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
         var depth = config.expressions().maximumExpressionDepth();
 
-        var variableTypes = draw.draw(BasicGenerators.listOf(
+        var variableTypes = sections.get(ModuleSection.VARIABLES).draw(BasicGenerators.listOf(
                 typeFactory.valueType(), 1, config.modules().maximumVariables()));
         var variables = new ArrayList<ScopedName>();
         var declarations = new ArrayList<TlaVarDecl>();
@@ -89,30 +94,24 @@ public final class IrSpecGeneratorEngine {
         var actions = new ActionGenFactory(
                 context, typeFactory, expressionFactory, variables, step);
 
-        // The invariant is drawn first among the bodies, because it is the one that degrades
-        // worst when the cursor runs out: a starved definition or action is still a legal one,
-        // whereas a starved Boolean decodes to the closed terminal FALSE, and a constantly false
-        // invariant is violated by every initial state, which no checker explores past. Drawing
-        // it first took that shape from 69% of property-based inputs to 17%. The price is that
-        // it cannot apply the auxiliary definitions, which are not yet drawn; Init and Next
-        // still can.
-        var variableScope = new ArrayList<ScopedName>(variables);
-        variableScope.add(step);
-        var invariant = draw.draw(context.withBindings(
-                variableScope,
-                context.withFreshNodeBudget(
-                        expressionFactory.mkGen(PrimitiveType.BOOL, depth))));
-
-        var operators = draw.draw(auxiliaryOperators(context, typeFactory, expressionFactory));
+        var operators = sections.get(ModuleSection.AUXILIARY_OPERATORS)
+                .draw(auxiliaryOperators(context, typeFactory, expressionFactory));
         var operatorNames = operators.stream().map(DefinedOperator::binding).toList();
         var stateScope = new ArrayList<ScopedName>(operatorNames);
         stateScope.addAll(variables);
         stateScope.add(step);
 
+        // Each body owns its bytes, so the invariant no longer has to be drawn first to avoid
+        // decoding from an exhausted cursor, and it may apply the auxiliary definitions.
+        var invariant = sections.get(ModuleSection.INVARIANT).draw(context.withBindings(
+                stateScope,
+                context.withFreshNodeBudget(
+                        expressionFactory.mkGen(PrimitiveType.BOOL, depth))));
+
         // Action operators read current state and prime, so they are drawn with the state
         // variables in scope. Only Next receives the completed visibility index;
         // Init and the invariant never see action operators.
-        var actionOperators = draw.draw(context.withBindings(
+        var actionOperators = sections.get(ModuleSection.ACTION_OPERATORS).draw(context.withBindings(
                 stateScope, actions.actionOperators(depth)));
         var generatedOperators = new ArrayList<GeneratedOperator>();
         operators.forEach(operator -> generatedOperators.add(operator.generated()));
@@ -120,9 +119,9 @@ public final class IrSpecGeneratorEngine {
 
         // Init sees the operators but not the variables: a conjunct that read another variable
         // would depend on an evaluation order the predicate does not fix.
-        var initPredicate = draw.draw(context.withBindings(
+        var initPredicate = sections.get(ModuleSection.INIT).draw(context.withBindings(
                 operatorNames, context.withFreshNodeBudget(actions.initPredicate(depth))));
-        var nextAction = draw.draw(
+        var nextAction = sections.get(ModuleSection.NEXT).draw(
                 context.withBindings(stateScope, actions.nextAction(depth,
                         new VisibleActionOperators(actionOperators))));
 

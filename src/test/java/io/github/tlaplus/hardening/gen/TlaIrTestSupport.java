@@ -140,6 +140,36 @@ public final class TlaIrTestSupport {
         return found.get();
     }
 
+    /**
+     * Reports whether some path of an action can give a variable other than {@code ignored} a next
+     * value that is not syntactically its current one: a membership, or an equality whose right
+     * side is not the variable's own name. Applied action operators are followed into their bodies.
+     */
+    public static boolean changesState(TlaEx action, Map<String, TlaEx> operators, String ignored) {
+        var found = new AtomicBoolean();
+        TlaExpressions.forEach(action, node -> {
+            if (!(node instanceof OperEx operator)) {
+                return;
+            }
+            var arguments = TlaExpressions.arguments(operator);
+            if (operator.oper() == TlaOperators.SET_IN || operator.oper() == TlaOperators.EQ) {
+                var assigned = primedName(arguments.getFirst());
+                var identity = operator.oper() == TlaOperators.EQ
+                        && arguments.get(1) instanceof NameEx value
+                        && value.name().equals(assigned);
+                if (assigned != null && !assigned.equals(ignored) && !identity) {
+                    found.set(true);
+                }
+            } else if (operator.oper() == TlaOperators.OPER_APP
+                    && arguments.getFirst() instanceof NameEx name
+                    && operators.containsKey(name.name())
+                    && changesState(operators.get(name.name()), operators, ignored)) {
+                found.set(true);
+            }
+        });
+        return found.get();
+    }
+
     /** Reports whether {@code expression} contains an application of the supplied operator. */
     public static boolean containsOperator(TlaEx expression, TlaOper operation) {
         var found = new AtomicBoolean();

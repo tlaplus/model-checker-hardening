@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -31,8 +32,12 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
         }
     }
 
-    /** Fixed decoder order, pinned together with marker consumption by ActionGenFactoryTest. */
-    enum ShapeKind { LEAF, CONJUNCTION, DISJUNCTION, ITE, CALL }
+    /**
+     * Fixed decoder order, pinned together with marker consumption by ActionGenFactoryTest. The
+     * markers are geometric, so a call comes second: last, it was drawn for one shape in sixteen,
+     * and generated action operators were almost never applied.
+     */
+    enum ShapeKind { LEAF, CALL, CONJUNCTION, DISJUNCTION, ITE }
 
     private static final List<ShapeKind> KINDS = List.of(ShapeKind.values());
 
@@ -53,9 +58,11 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
     /**
      * Accounts for the requested effect exactly once. Conjunctions partition the effect and
      * propagate the assignment obligation only down their spine; alternatives propagate it to
-     * both branches. Leaves repair an empty required assignment without spending another byte.
-     * Callees already satisfy the obligation. Depth, budget and exhaustion fall back to a leaf
-     * before reading kind markers; unusable decoded kinds fall back after reading them.
+     * both branches. Leaves repair an empty or purely stuttering required assignment without
+     * spending another byte. Callees already satisfy the obligation, so a call to an operator whose
+     * effect covers only part of the request shapes the remainder as optional. Depth, budget and
+     * exhaustion fall back to a leaf before reading kind markers; unusable decoded kinds fall back
+     * after reading them.
      */
     Generator<List<TlaEx>> shape(Request request, VisibleActionOperators visible) {
         return draw -> {
@@ -64,6 +71,11 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
             }
             return switch (drawShapeKind(draw)) {
                 case LEAF -> leaf(draw, request);
+                case CALL -> {
+                    var candidates = visible.within(request.variables());
+                    yield candidates.isEmpty() ? leaf(draw, request)
+                            : call(draw, draw.choose(candidates), request, visible);
+                }
                 case CONJUNCTION -> request.variables().size() < 2
                         ? leaf(draw, request) : conjunction(draw, request, visible);
                 case DISJUNCTION -> {
@@ -77,21 +89,31 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
                     var whenFalse = conjoin(draw.draw(shape(request.descend(), visible)));
                     yield List.of(builder().ite(predicate, whenTrue, whenFalse));
                 }
-                case CALL -> {
-                    var matching = visible.matching(request.variables());
-                    yield matching.isEmpty() ? leaf(draw, request)
-                            : call(draw, draw.choose(matching), request.expressionDepth());
-                }
             };
         };
     }
 
-    private List<TlaEx> call(Draw draw, VisibleActionOperators.Operator operator, int expressionDepth) {
+    /**
+     * Applies an action operator and shapes the requested variables outside its effect. The two
+     * parts are disjoint and together cover the request, so the account stays exact.
+     */
+    private List<TlaEx> call(Draw draw, VisibleActionOperators.Operator operator, Request request,
+                             VisibleActionOperators visible) {
         var arguments = operator.type().arguments().stream()
-                .map(type -> draw.draw(expression(type, expressionDepth - 1)))
+                .map(type -> draw.draw(expression(type, request.expressionDepth() - 1)))
                 .toArray(TlaEx[]::new);
-        return List.of(builder().operApply(builder().name(
+        var conjuncts = new ArrayList<TlaEx>();
+        conjuncts.add(builder().operApply(builder().name(
                 operator.generated().declaration().name(), operator.type().toTlaType()), arguments));
+        var effect = operator.generated().effect().variables();
+        var rest = request.variables().stream()
+                .filter(variable -> !effect.contains(variable.name()))
+                .toList();
+        if (!rest.isEmpty()) {
+            conjuncts.addAll(draw.draw(shape(
+                    request.descend(rest, AssignmentRequirement.OPTIONAL), visible)));
+        }
+        return conjuncts;
     }
 
     private List<TlaEx> leaf(Draw draw, Request request) {
@@ -100,12 +122,25 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
         for (var variable : request.variables()) {
             (draw.drawBoolean() ? assigned : unchanged).add(variable);
         }
-        if (request.requirement() == AssignmentRequirement.REQUIRED && assigned.isEmpty()) {
+        var required = request.requirement() == AssignmentRequirement.REQUIRED;
+        if (required && assigned.isEmpty()) {
             assigned.add(unchanged.removeFirst());
         }
-        var conjuncts = new ArrayList<TlaEx>();
+        var assignments = new ArrayList<Assignment>();
         for (var variable : assigned) {
-            conjuncts.add(draw.draw(assignment(variable, request.expressionDepth())));
+            assignments.add(draw.draw(assignment(variable, request.expressionDepth())));
+        }
+        if (required && assignments.stream().allMatch(Assignment::stutters)) {
+            // A terminal rotating over the visible bindings names the assigned variable itself as
+            // often as not, and `v' = v` would make this required path a stuttering step. The
+            // closed terminal cannot name it, and costs no byte.
+            var first = assignments.getFirst();
+            assignments.set(0, new Assignment(first.variable(), false,
+                    draw.draw(expressionFactory.closedTerminal(first.variable().type()))));
+        }
+        var conjuncts = new ArrayList<TlaEx>();
+        for (var assignment : assignments) {
+            conjuncts.add(conjunct(assignment));
         }
         if (!unchanged.isEmpty()) {
             conjuncts.add(builder().unchanged(unchangedTarget(unchanged)));
@@ -137,15 +172,29 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
                 : builder().and(BuilderArrays.expressions(conjuncts));
     }
 
-    private Generator<TlaEx> assignment(ScopedName variable, int expressionDepth) {
+    /** A decoded next value for one variable: a membership set, or an exact value. */
+    private record Assignment(ScopedName variable, boolean membership, TlaEx value) {
+        /** Whether this is syntactically {@code v' = v}. */
+        boolean stutters() {
+            return !membership && value instanceof NameEx name && name.name().equals(variable.name());
+        }
+    }
+
+    private Generator<Assignment> assignment(ScopedName variable, int expressionDepth) {
         return draw -> {
             var type = variable.type();
             if (nondeterministic(draw, type)) {
-                return builder().in(builder().prime(nameOf(variable)),
+                return new Assignment(variable, true,
                         draw.draw(expression(new SetType(type), expressionDepth - 1)));
             }
-            return builder().primeEq(nameOf(variable), draw.draw(expression(type, expressionDepth - 1)));
+            return new Assignment(variable, false, draw.draw(expression(type, expressionDepth - 1)));
         };
+    }
+
+    private TlaEx conjunct(Assignment assignment) {
+        return assignment.membership()
+                ? builder().in(builder().prime(nameOf(assignment.variable())), assignment.value())
+                : builder().primeEq(nameOf(assignment.variable()), assignment.value());
     }
 
     /** Always spends one marker, including when the configuration excludes sets. */

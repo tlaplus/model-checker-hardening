@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -14,6 +15,11 @@ public final class ActionEffect {
         if (variables.isEmpty() || key.size() != variables.size()) {
             throw new IllegalArgumentException("an action effect requires distinct variables and is nonempty");
         }
+    }
+
+    /** Reports whether every variable of this effect is among {@code candidates}. */
+    public boolean isWithin(Collection<String> candidates) {
+        return Set.copyOf(candidates).containsAll(key);
     }
 
     public List<String> variables() {

@@ -105,6 +105,14 @@ final class IrExprGenFactory {
         };
     }
 
+    /**
+     * Returns the byte-free terminal of a type that never names a binding of that exact type, for
+     * a caller that must not reproduce a name it already has.
+     */
+    Generator<TlaEx> closedTerminal(IrType type) {
+        return generalFactory.closedTerminal(type);
+    }
+
     /** Reports whether a form is enabled and its type and scope requirements are satisfied. */
     boolean isApplicable(ExpressionKind kind, IrType type) {
         return typeApplicableForms(type).contains(kind)

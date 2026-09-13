@@ -37,7 +37,9 @@ The design has six primary requirements:
 
 1. The same configuration and bytes produce the same IR or rejection.
 2. Exhausted input produces small defaults instead of failing.
-3. Local byte mutations should not unnecessarily perturb later decoding.
+3. Local byte mutations should not unnecessarily perturb later decoding; in a
+   module, a mutation inside one top-level body's section does not shift the
+   bytes any other body decodes.
 4. Successful generation returns a value-typed expression accepted by Apalache's
    type-safe, scope-unchecked builder; a generated module additionally
    determines its initial states and every successor state completely.
@@ -74,6 +76,7 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | `ActionGenFactory` | Assembles Init, action definitions, bounded parameters, guards, Next disjuncts and the unconditional step update. |
 | `ActionShapeGenFactory` | Decodes recursive shapes, partitions effects, builds assignments and `UNCHANGED`, and applies explicitly visible action operators. |
 | `VisibleActionOperators` | Immutable effect index over an explicit declaration-order operator prefix, preserving candidate order. |
+| `ModuleSection` | Divides a module input into the contiguous byte sections its top-level bodies decode from. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
@@ -143,7 +146,24 @@ composition without hidden cursors or random sources.
 ## 4. Byte decoding
 
 All nested generators share one mutable `Draw`. The cursor is neither copied nor
-reset during composition. A generator may leave an unused suffix.
+reset during composition. An expression generator may leave an unused suffix.
+
+The one exception is a module's top-level bodies (section 9.1). `ModuleSection`
+divides the whole input into contiguous sections by fixed weights, and each body
+decodes from its own `Draw.slice`, so a module consumes every byte. Each section
+receives the floor of its proportional share; the last also receives the
+remainder. The layout order and weights are part of the byte encoding and
+`ModuleSectionTest` pins them. Sectioning isolates bytes, not generator state:
+fresh-name counters and terminal rotation still run through the whole module in
+draw order.
+
+**Decoder deviation (sectioned module input).** This revises the earlier
+protocol, in which one cursor ran through every module body in turn. Measured over
+a 200,000-entry property-based corpus whose median input was 218 bytes, the
+invariant, drawn first, consumed the input before `Init` and `Next` were
+reached: two thirds of the modules had a `Next` whose every disjunct only
+stuttered, and `Next` applied an action operator in one module in a hundred. The
+change reinterprets every stored `module` input.
 
 The primitive mappings are:
 
@@ -313,7 +333,8 @@ a generator. The expression entry point scopes one budget around its whole run.
 Module generation scopes one per top-level body and per action disjunct: a
 budget spanning several independent bodies would let an early one decide how
 much is left for a later one, and a large `Init` would starve `Inv` into a
-constant.
+constant. Byte sections (section 4) make the same separation for the input
+itself.
 
 Within one action disjunct the recursive action shape (section 9.2) also
 consumes this counter and observes `maximumActionDepth`. It falls back to a leaf
@@ -478,9 +499,9 @@ configuration. The one known way to break it is not a decoder defect:
 [`apalache-printer-009`](../../findings/apalache-printer/apalache-printer-009.md)
 renders a nested `CASE` as a `CASE` arm body without delimiters, so a later arm
 is absorbed into an enclosing `CHOOSE`'s scope and SANY reads a different tree
-than the IR. That shape is reachable under the shipped configuration: a
-100-entry `fuzztla run --how=pbt --seed=7921605275006395529` produces one such
-entry. Until `PrettyWriter` delimits the nested `CASE`, such an entry fails the
+than the IR. That shape is reachable under the shipped configuration: before
+module inputs were sectioned, a 100-entry
+`fuzztla run --how=pbt --seed=7921605275006395529` produced one such entry. Until `PrettyWriter` delimits the nested `CASE`, such an entry fails the
 parser. The integration workflow therefore accepts parser failures.
 
 ### 8.1. Label formal parameters
@@ -544,13 +565,18 @@ properties of the input — no byte string can violate them.
 
 ### 9.1. Declaration order
 
+Each numbered body below except the bound predicate decodes from the
+`ModuleSection` of the same name, in this order; the section weights are
+`1, 2, 3, 3, 2, 5` in the order listed.
+
 1. **Variables.** A terminated non-empty list of value types, named `var0`
    onward, each entering the scope with the `STATE_VARIABLE` role. An `Int`
    step counter named `step` is appended unconditionally.
-2. **Invariant.** One Boolean expression over the variables.
-3. **Auxiliary operators.** A terminated list of definitions named `Op<N>`.
+2. **Auxiliary operators.** A terminated list of definitions named `Op<N>`.
    Each body sees the definitions before it and its own parameters, but no
    state variable, so definitions are acyclic and in declaration order.
+3. **Invariant.** One Boolean expression over the variables, which may apply
+   the auxiliary operators.
 4. **Action operators.** A terminated list of definitions named `Act<N>`. Each
    body is a recursive action shape (section 9.2) over a chosen non-empty subset
    of the declared variables — its *effect* — drawn with the state variables, the
@@ -572,13 +598,13 @@ retains distinct variable names in declaration order and has set-style identity;
 established by construction and checked by tests, not a second production analyzer.
 Internal scope decorators reference the canonical operator and add only its signature.
 
-The invariant is drawn first among the bodies because it degrades worst when
-the cursor runs out. A starved definition or action is still a legal one,
-whereas a starved Boolean decodes to the closed terminal `FALSE`, and a
-constantly false invariant is violated by every initial state, statically
-rejected by TLC, and checks nothing. Drawing it first took that shape from 69%
-of property-based inputs to 17%. The price is that the invariant cannot apply
-the definitions, which are not yet drawn; `Init` and `Next` still can.
+Before sections, the invariant was drawn first among the bodies, because a
+starved Boolean decodes to the closed terminal `FALSE`, which every initial state
+violates. That order let the invariant starve every later body instead, and kept
+it from applying the auxiliary definitions. With sections, no body's bytes depend
+on another's, so the invariant follows the definitions it may apply. The weights
+favour `Next`, whose shape and assignments need the most choices, and the
+invariant and action operators after it.
 
 Auxiliary definitions are closed over their parameters for a related reason: one
 that read a state variable could not be applied in `Init`, where no variable has
@@ -600,35 +626,49 @@ predicate does not fix.
 - a recursive *action shape* over the declared variables (below); and
 - `step' = step + 1`.
 
+The parameters are drawn first, then the shape, then the guards, although the
+guards precede the shape in the conjunction. A guard drawn from a short section is
+merely absent, whereas a shape drawn from exhausted bytes is always a leaf and
+never applies an action operator.
+
 `ActionShapeGenFactory` constructs the recursive shape. Operator generation passes
 an immutable index of the already generated prefix to each body, and Next receives
 the completed index explicitly. The factory owns no mutable operator registry;
 creating or running another factory method cannot change a shape's visibility.
-Matching uses `ActionEffect` identity and retains declaration order among candidates.
+A call's candidates are the operators whose `ActionEffect` lies within the
+requested variables, in declaration order.
 
 The step advance and the guard sit outside the shape, so the shape's only job is
 to account for its variables exactly once, however deeply it nests. Define the
 *effect* of a shape as the set of variables it accounts for. The shape draws one
-of five kinds, bounded by `maximumActionDepth` and biased towards the leaf:
+of five kinds, in this decoder order, bounded by `maximumActionDepth` and biased
+towards the leaf:
 
 - **leaf** — partition the variables into an assigned subset and the rest; emit
   `v' = e` or `v' \in S` per assigned variable and one `UNCHANGED` (a tuple when
   more than one) over the rest; effect is all of them;
+- **call** — apply a visible action operator whose effect lies within the
+  variables requested here, drawing its arguments from its signature, and shape
+  the requested variables outside that effect recursively as an optional group
+  conjoined with the call; effect is the request;
 - **conjunction** — split the variables into two non-empty groups and shape each
   recursively; the two conjunct lists are spliced flat; effect is the union;
 - **disjunction** — two arms, each shaping the *same* variables recursively;
 - **IF-THEN-ELSE** — an ordinary current-state Boolean predicate and two
-  branches, each shaping the same variables recursively;
-- **call** — apply a visible action operator whose effect is exactly the
-  variables requested here, drawing its arguments from its signature; effect is
-  that operator's effect.
+  branches, each shaping the same variables recursively.
+
+The markers are geometric, so the call comes second. Last in that order, it was
+decoded for one shape in sixteen.
 
 Recursion falls back to a leaf at zero depth, a spent node budget, or exhausted
-input, and a call falls back to a leaf when no operator's effect matches. The
-leaf on the conjunction spine assigns at least one of its variables, so no
-complete branch is a pure stuttering step that the checkers explore without
-learning anything; that fallback is byte-free, so it stays out of the encoding. A
-non-spine conjunction group may be left entirely `UNCHANGED`.
+input, and a call falls back to a leaf when no operator's effect lies within the
+request. The leaf on the conjunction spine assigns at least one of its variables,
+so no complete branch is a pure stuttering step that the checkers explore without
+learning anything. When every assignment of that leaf decodes to the syntactic
+identity `v' = v` — terminal rotation names the assigned variable itself as often
+as not — the first one takes the type's closed terminal instead. Both repairs are
+byte-free, so they stay out of the encoding. A non-spine conjunction group, and
+the remainder beside a call, may be left entirely `UNCHANGED`.
 
 The invariant a test can check is that in every disjunct the conjunctive spine —
 with each nested disjunction and IF-THEN-ELSE collapsed to the variable set its
@@ -717,17 +757,18 @@ Changes to this subsystem should preserve the following rules:
    and module generation must keep excluding the `action` and `temporal`
    categories from its subexpressions — the IF-THEN-ELSE predicate included — or
    a disjunct's account of the declared variables stops being checkable.
-10. Give a new module-level body a node budget of its own with
-    `GenerationContext.withFreshNodeBudget`, and place it in the draw order by
-    how badly it degrades when starved.
+10. Give a new module-level body a `ModuleSection` and a node budget of its own
+    with `GenerationContext.withFreshNodeBudget`. Adding or reweighting a
+    section reinterprets every stored module input and fails `ModuleSectionTest`.
 11. Request a set type only where one is available. A configuration that ignores
     the `set` category disables set types entirely, so a form that needs one
     must either fall back or consume no bytes deciding not to.
 12. Generate an action operator's body with the action shape over its effect
-    subset, and record the effect. A call site applies an operator only where the
-    requested variable set equals a visible operator's effect; the completeness
-    check resolves a call by recursing into the applied body, so the effect must
-    stay exact and the operators must stay acyclic in declaration order.
+    subset, and record the effect. A call site applies an operator only where a
+    visible operator's effect lies within the requested variable set, and shapes
+    the rest of the request beside it; the completeness check resolves a call by
+    recursing into the applied body, so the effect must stay exact and the
+    operators must stay acyclic in declaration order.
 
 Tests should cover category completeness and dependencies, filtered type
 generation, byte consumption, exhaustion behavior, deferred execution, catalog
