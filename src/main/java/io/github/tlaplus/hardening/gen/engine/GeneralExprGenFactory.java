@@ -2,17 +2,23 @@ package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.ConstT1;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.vavr.Function3;
+
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
+
 import org.apalache_mc.tla.jir.ExpressionPair;
 
-/** Constructs terminal and type-polymorphic expression generators. */
+/**
+ * Constructs terminal and type-polymorphic expression generators.
+ */
 final class GeneralExprGenFactory extends AbstractExprGenFactory {
     private final OtherExprGenFactory otherFactory;
 
@@ -25,7 +31,9 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         this.otherFactory = otherFactory;
     }
 
-    /** Returns a generator for the selected general form. */
+    /**
+     * Returns a generator for the selected general form.
+     */
     Generator<TlaEx> mkGen(
             GeneralExpressionKind kind, IrType type, int remainingDepth) {
         return draw -> {
@@ -54,20 +62,16 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 case UNBOUNDED_CHOOSE -> draw.draw(unbounded(
                         "chosen", type, PrimitiveType.BOOL, nextDepth, builder()::choose));
                 case CASE -> draw.draw(caseExpression(type, remainingDepth));
-                case OPERATOR_APPLICATION ->
-                    draw.draw(operatorApplication(type, remainingDepth));
+                case OPERATOR_APPLICATION -> draw.draw(operatorApplication(type, remainingDepth));
                 case LET -> draw.draw(letExpression(type, remainingDepth));
                 case PRIME -> builder().prime(draw.draw(expression(type, nextDepth)));
-                case FUNCTION_APPLICATION ->
-                    draw.draw(functionApplication(type, remainingDepth));
+                case FUNCTION_APPLICATION -> draw.draw(functionApplication(type, remainingDepth));
                 case FOLD_SET -> draw.draw(fold(type, remainingDepth, SetType::new, builder()::foldSet));
                 case FOLD_SEQUENCE -> draw.draw(fold(type, remainingDepth, SequenceType::new, builder()::foldSeq));
                 case HEAD -> builder().head(
                         draw.draw(expression(new SequenceType(type), nextDepth)));
-                case VARIANT_GET_OR_ELSE ->
-                    draw.draw(variantGetOrElse(type, remainingDepth));
-                case VARIANT_GET_UNSAFE ->
-                    draw.draw(variantGetUnsafe(type, remainingDepth));
+                case VARIANT_GET_OR_ELSE -> draw.draw(variantGetOrElse(type, remainingDepth));
+                case VARIANT_GET_UNSAFE -> draw.draw(variantGetUnsafe(type, remainingDepth));
             };
         };
     }
@@ -105,8 +109,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 case INT -> builder().integer(BigInteger.ZERO);
                 case STRING -> builder().str("");
             };
-            case ConstantType constantType ->
-                builder().constant("default", (ConstT1) constantType.toTlaType());
+            case ConstantType constantType -> builder().constant("default", (ConstT1) constantType.toTlaType());
             case SetType(IrType element) -> builder().emptySet(element.toTlaType());
             case SequenceType(IrType element) -> builder().emptySeq(element.toTlaType());
             case FunctionType functionType -> {
@@ -132,7 +135,9 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of a CASE expression with a terminated branch collection. */
+    /**
+     * Returns a generator of a CASE expression with a terminated branch collection.
+     */
     private Generator<TlaEx> caseExpression(IrType type, int remainingDepth) {
         return draw -> {
             var branches = draw.draw(BasicGenerators.listOf(
@@ -151,7 +156,9 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of an application with a generated operator signature. */
+    /**
+     * Returns a generator of an application with a generated operator signature.
+     */
     private Generator<TlaEx> operatorApplication(
             IrType resultType, int remainingDepth) {
         return draw -> {
@@ -174,36 +181,65 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 .toArray(String[]::new);
     }
 
-    /** Returns a generator of a LET whose body sees its local nullary operator. */
+    /**
+     * Returns a generator of a LET with a terminated, non-empty list of local operators, whose body
+     * sees all of them.
+     *
+     * <p>Each declaration draws its parameter types, which may include operator parameters, and
+     * then one Boolean: even keeps the LET's own type as its result, odd draws a value type. Its
+     * body sees its parameters and the declarations before it, but not itself, so no declaration
+     * is recursive.
+     */
     private Generator<TlaEx> letExpression(
             IrType resultType, int remainingDepth) {
         return draw -> {
-            var operatorType = new OperatorType(List.of(), resultType);
-            var binding = context.freshDefinition("LocalOp", operatorType);
-            var declaration = builder().decl(
-                    binding.name(),
-                    draw.draw(context.withDefinitionBoundary(
-                            expression(resultType, remainingDepth - 1))));
-            var body = draw.draw(context.withBinding(
-                    binding, expression(resultType, remainingDepth - 1)));
-            return builder().letIn(body, declaration);
+            var bindings = new ArrayList<ScopedName>();
+            var declarations = draw.draw(BasicGenerators.listOf(
+                    declarationDraw -> {
+                        var parameterTypes = declarationDraw.draw(typeFactory.parameterTypes());
+                        var declaredResult = declarationDraw.drawBoolean()
+                                ? declarationDraw.draw(typeFactory.valueType())
+                                : resultType;
+                        var parameters = context.definitionParameters("parameter", parameterTypes);
+                        var binding = context.freshDefinition(
+                                "LocalOp", new OperatorType(parameterTypes, declaredResult));
+                        var visible = new ArrayList<ScopedName>(bindings);
+                        visible.addAll(parameters.bindings());
+                        var body = declarationDraw.draw(context.withBindings(
+                                visible,
+                                context.withDefinitionBoundary(
+                                        expression(declaredResult, remainingDepth - 1))));
+                        bindings.add(binding);
+                        return builder().decl(binding.name(), body, parameters.declarations());
+                    },
+                    1,
+                    context.config().expressions().maximumCollectionSize()));
+            var body = draw.draw(context.withBindings(
+                    bindings, expression(resultType, remainingDepth - 1)));
+            return builder().letIn(body, declarations.toArray(TlaOperDecl[]::new));
         };
     }
 
-    /** Returns a generator of a function application with a generated argument type. */
+    /**
+     * Returns a generator of a function application whose function type comes from scope or has a
+     * drawn argument type.
+     */
     private Generator<TlaEx> functionApplication(
             IrType resultType, int remainingDepth) {
         return draw -> {
-            var argumentType = draw.draw(typeFactory.valueType());
+            var type = (FunctionType) draw.draw(typeFactory.readType(
+                    candidate -> candidate instanceof FunctionType function
+                            && function.result().equals(resultType),
+                    typeFactory.valueType().map(argument -> new FunctionType(argument, resultType))));
             return builder().funApply(
-                    draw.draw(expression(
-                            new FunctionType(argumentType, resultType),
-                            remainingDepth - 1)),
-                    draw.draw(expression(argumentType, remainingDepth - 1)));
+                    draw.draw(expression(type, remainingDepth - 1)),
+                    draw.draw(expression(type.argument(), remainingDepth - 1)));
         };
     }
 
-    /** Draws a set or sequence fold's lambda, initial value and collection in that order. */
+    /**
+     * Draws a set or sequence fold's lambda, initial value and collection in that order.
+     */
     private Generator<TlaEx> fold(
             IrType resultType, int remainingDepth, Function<IrType, IrType> collection,
             Function3<TlaEx, TlaEx, TlaEx, TlaEx> operation) {
@@ -217,31 +253,35 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator of a variant access with a fallback value. */
+    /**
+     * Returns a generator of a variant access with a fallback value.
+     */
     private Generator<TlaEx> variantGetOrElse(
             IrType resultType, int remainingDepth) {
         return draw -> {
-            var type = typeFactory.singleVariant(resultType);
-            var tag = type.fields().getFirst().name();
+            var read = draw.draw(typeFactory.variantCarrying(resultType));
             return builder().variantGetOrElse(
-                    tag,
-                    draw.draw(expression(type, remainingDepth - 1)),
+                    read.tag(),
+                    draw.draw(expression(read.type(), remainingDepth - 1)),
                     draw.draw(expression(resultType, remainingDepth - 1)));
         };
     }
 
-    /** Returns a generator of an unchecked-at-runtime variant payload access. */
+    /**
+     * Returns a generator of an unchecked-at-runtime variant payload access.
+     */
     private Generator<TlaEx> variantGetUnsafe(
             IrType resultType, int remainingDepth) {
         return draw -> {
-            var type = typeFactory.singleVariant(resultType);
-            var tag = type.fields().getFirst().name();
+            var read = draw.draw(typeFactory.variantCarrying(resultType));
             return builder().variantGetUnsafe(
-                    tag, draw.draw(expression(type, remainingDepth - 1)));
+                    read.tag(), draw.draw(expression(read.type(), remainingDepth - 1)));
         };
     }
 
-    /** Returns a generator of an exactly typed scoped name. */
+    /**
+     * Returns a generator of an exactly typed scoped name.
+     */
     private Generator<TlaEx> name(IrType type) {
         return draw -> {
             var binding = draw.draw(context.chooseBinding(type));

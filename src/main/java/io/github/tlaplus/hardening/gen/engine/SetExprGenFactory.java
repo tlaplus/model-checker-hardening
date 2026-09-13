@@ -56,9 +56,11 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
                 case VARIANT_FILTER ->
                     draw.draw(variantFilter(type.element(), remainingDepth));
                 case DOMAIN -> {
-                    var resultType = draw.draw(typeFactory.valueType());
-                    yield builder().domain(draw.draw(expression(
-                            new FunctionType(type.element(), resultType), nextDepth)));
+                    var function = draw.draw(typeFactory.readType(
+                            candidate -> candidate instanceof FunctionType functionType
+                                    && functionType.argument().equals(type.element()),
+                            typeFactory.valueType().map(result -> new FunctionType(type.element(), result))));
+                    yield builder().domain(draw.draw(expression(function, nextDepth)));
                 }
             };
         };
@@ -103,12 +105,11 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     private Generator<TlaEx> variantFilter(
             IrType resultElement, int remainingDepth) {
         return draw -> {
-            var variantType = typeFactory.singleVariant(resultElement);
-            var tag = variantType.fields().getFirst().name();
+            var read = draw.draw(typeFactory.variantCarrying(resultElement));
             return builder().variantFilter(
-                    tag,
+                    read.tag(),
                     draw.draw(expression(
-                            new SetType(variantType), remainingDepth - 1)));
+                            new SetType(read.type()), remainingDepth - 1)));
         };
     }
 }

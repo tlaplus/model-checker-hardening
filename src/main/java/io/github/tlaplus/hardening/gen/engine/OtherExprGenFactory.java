@@ -5,9 +5,10 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
-import java.util.List;
 import org.apalache_mc.tla.jir.ExceptUpdate;
 import org.apalache_mc.tla.jir.ExpressionPair;
+
+import java.util.List;
 
 /** Constructs expression generators not covered by the dedicated form families. */
 final class OtherExprGenFactory extends AbstractExprGenFactory {
@@ -28,12 +29,8 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
             var nextDepth = remainingDepth - 1;
             return switch (kind) {
                 case STRING_LITERAL -> builder().str(draw.draw(stringLiteral()));
-                case VARIANT_TAG -> {
-                    var payloadType = draw.draw(typeFactory.valueType());
-                    var variantType = typeFactory.singleVariant(payloadType);
-                    yield builder().variantTag(
-                            draw.draw(expression(variantType, nextDepth)));
-                }
+                case VARIANT_TAG -> builder().variantTag(
+                        draw.draw(expression(draw.draw(typeFactory.anyVariant()), nextDepth)));
                 case MODEL_VALUE -> {
                     var constantType = (ConstantType) type;
                     yield builder().constant(

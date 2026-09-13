@@ -49,8 +49,7 @@ final class ActionGenFactory extends AbstractExprGenFactory {
                 if (effect.isEmpty()) {
                     effect.add(variables.getFirst());
                 }
-                var argumentTypes = draw.draw(BasicGenerators.listOf(typeFactory.valueType(),
-                        0, context.config().expressions().maximumCollectionSize()));
+                var argumentTypes = draw.draw(typeFactory.parameterTypes());
                 var parameters = context.definitionParameters("actionArg", argumentTypes);
                 var name = context.fresh("Act");
                 var visiblePrefix = new VisibleActionOperators(operators);
