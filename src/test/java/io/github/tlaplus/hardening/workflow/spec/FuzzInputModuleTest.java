@@ -18,6 +18,9 @@ import org.apalache_mc.tla.jir.TlaModules;
 import org.junit.jupiter.api.Test;
 
 class FuzzInputModuleTest {
+    /** The fixed entry points every assembled module ends with. */
+    private static final int ENTRY_POINTS = 3;
+
     @Test
     void constructsOneStateVariableAndCopiesTheExpressionIntoInitAndInv() {
         var expression = IrGenerators.expressions().generate(new byte[0]);
@@ -32,10 +35,9 @@ class FuzzInputModuleTest {
         assertEquals(1, variables.size());
         assertEquals("exprValue", variables.getFirst().name());
 
-        // The definition names are the contract with the fixed tool invocations, and Bound is
-        // always defined so that one TLC configuration serves every input kind.
+        // The definition names are the contract with the fixed tool invocations.
         var operators = operators(module);
-        assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
+        assertEntryPointOrder(operators.subList(operators.size() - ENTRY_POINTS, operators.size()));
 
         var initExpression = equalityRightHandSide(operators.get(0));
         var invariantExpression = equalityRightHandSide(operators.get(2));
@@ -46,7 +48,6 @@ class FuzzInputModuleTest {
         assertTrue(source.contains("VARIABLE"));
         assertTrue(source.contains("exprValue"));
         assertTrue(source.contains("Next == UNCHANGED exprValue"));
-        assertTrue(source.contains("Bound == TRUE"));
         assertEquals(2, occurrences(source, "exprValue = FALSE"));
         assertFalse(source.contains("GeneratedExpression"));
     }
@@ -58,7 +59,21 @@ class FuzzInputModuleTest {
         var module = FuzzInputModule.create(spec);
 
         var operators = operators(module);
-        assertEntryPointOrder(operators.subList(operators.size() - 4, operators.size()));
+        assertEntryPointOrder(operators.subList(operators.size() - ENTRY_POINTS, operators.size()));
+    }
+
+    @Test
+    void closesAGeneratedNextStateActionWithAStutteringDisjunctOverEveryVariable() {
+        var spec = IrGenerators.specs(IrGenerationConfig.defaults()).generate(new byte[0]);
+
+        var next = operators(FuzzInputModule.create(spec)).stream()
+                .filter(operator -> operator.name().equals(FuzzInputModule.NEXT))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(
+                "((step < 5 /\\ var0' = FALSE /\\ step' = step + 1)) \\/ UNCHANGED (<<var0, step>>)",
+                io.github.tlaplus.hardening.gen.TlaIrTestSupport.print(next.body()));
     }
 
     @Test
@@ -101,11 +116,9 @@ class FuzzInputModuleTest {
 
     private void assertEntryPointOrder(
             java.util.List<TlaOperDecl> entryPoints) {
-        assertEquals(4, entryPoints.size());
-        assertEquals(FuzzInputModule.INIT, entryPoints.get(0).name());
-        assertEquals(FuzzInputModule.NEXT, entryPoints.get(1).name());
-        assertEquals(FuzzInputModule.INV, entryPoints.get(2).name());
-        assertEquals(FuzzInputModule.BOUND, entryPoints.get(3).name());
+        assertEquals(
+                List.of(FuzzInputModule.INIT, FuzzInputModule.NEXT, FuzzInputModule.INV),
+                entryPoints.stream().map(TlaOperDecl::name).toList());
     }
 
     private at.forsyte.apalache.tla.lir.TlaEx equalityRightHandSide(

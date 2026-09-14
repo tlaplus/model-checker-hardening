@@ -140,7 +140,7 @@ cardinality of any set of sequences.
 
 - **Evaluated code.** A pattern is tried at every subexpression of the code the
   tools evaluate:
-  - `Init`, `Next`, `Inv` and `Bound`;
+  - `Init`, `Next` and `Inv`;
   - every top-level definition they reference, such as generated operators and
     linked custom-library definitions;
   - every `LET` definition and lambda inside that code, referenced or not.

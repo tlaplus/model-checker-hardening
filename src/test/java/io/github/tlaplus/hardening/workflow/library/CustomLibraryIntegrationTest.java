@@ -57,7 +57,7 @@ class CustomLibraryIntegrationTest {
         var state = TlaDeclarations.variable("state", TlaTypes.BOOL);
         var spec = new GeneratedSpec(List.of(state), List.of(),
                 BUILDER.eql(BUILDER.varDeclAsNameEx(state), BUILDER.bool(true)),
-                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, BUILDER.bool(true), 0);
+                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, 0);
         assertAllTools(SpecArtifact.fromGeneratedSpec(spec, library), directory);
     }
 
