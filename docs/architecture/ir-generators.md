@@ -242,7 +242,8 @@ Expression kinds are grouped by construction responsibility:
 - `GeneralExprGenFactory` handles terminals, names, conditionals, `CHOOSE`,
   `CASE`, applications, `LET`, prime, folds, sequence head, and variant access.
 - `BooleanExprGenFactory` handles propositional, relational, quantified, action,
-  temporal, and fairness expressions.
+  temporal, and fairness expressions, and the `TemporalActionExpressionKind`
+  family: `[]<><<A>>_v` and `<>[][A]_v`.
 - `IntegerExprGenFactory` handles integer literals, arithmetic, cardinality, and
   sequence length.
 - `SetExprGenFactory` handles set literals and operators, comprehensions,
@@ -287,9 +288,9 @@ Every expression kind has one primary `ExpressionCategory`:
 | Category | Expression forms |
 | --- | --- |
 | `action` | Prime, prime-equality, and `UNCHANGED` |
-| `temporal` | Stuttering and non-stuttering actions, `ENABLED`, temporal connectives, and weak and strong fairness |
+| `temporal` | Stuttering and non-stuttering actions, `ENABLED`, `[]`, `<>`, `~>`, `[]<><<A>>_v`, `<>[][A]_v`, and weak and strong fairness |
 | `unbound` | Unbounded `CHOOSE`, universal quantification, and existential quantification |
-| `exotic` | Temporal quantification and action composition (`\cdot`) |
+| `exotic` | Temporal quantification, action composition (`\cdot`), and `-+->` |
 | `core` | Terminal construction, scoped names, and Boolean, integer, and string literals |
 | `control` | `IF` and `CASE` |
 | `label` | Expression labels |
@@ -548,13 +549,52 @@ that second list for the duration of a nested definition body while leaving
 lexical visibility untouched, and restores it the same way.
 
 Applicability is partly dynamic. `NAME` and operator application are excluded
-from selection when no compatible binding exists. When the `action` category is
-enabled, `PRIME_EQUAL` is selectable but rejects if no state variable is in
-scope. The expression entry point declares no state variables, so such an input
-raises `InputRejectedException`. Module generation declares them, but excludes
-the `action` category from every subexpression for the reason given in section
-10, so `PRIME_EQUAL` is unreachable there as well; the action-generation components
-prime names directly instead.
+from selection when no compatible binding exists, and `PRIME_EQUAL` when no state
+variable is in scope.
+
+### 7.1. Levels
+
+Categories say which forms a corpus may use; levels say where a form may occur.
+[ADR 0007](../decisions/0007-levels-and-temporal-properties.md) records the
+design and the TLC and Apalache measurements it rests on.
+
+Every `ExpressionKind` declares the `Level` of the formula it builds: `STATE`
+(the default, including `ENABLED`), `ACTION` (prime, `PRIME_EQUAL`, `UNCHANGED`,
+`[A]_v`, `<<A>>_v`, `\cdot`), `TEMPORAL` (`[]`, `<>`, `~>`, `-+->`, `\EE`, `\AA`),
+or `ACTION_TEMPORAL` (`WF`, `SF`, `[]<><<A>>_v`, `<>[][A]_v`). `GenerationContext`
+keeps a `LevelContext` as a dynamic ceiling, restored on exit like the
+`EXCEPT`-replacement flag, and `IrExprGenFactory` gives a form weight zero unless
+the current context admits its level. Like the scope, the context is consulted on
+every draw rather than cached with type applicability.
+
+| `LevelContext` | Admits | Used for |
+| --- | --- | --- |
+| `STATE` | `STATE` | every body a module or the expression entry point draws |
+| `ACTION` | `STATE`, `ACTION` | the action of `ENABLED`, `[A]_v`, `<<A>>_v`, fairness and the action-temporal forms |
+| `TEMPORAL` | `STATE`, `TEMPORAL`, `ACTION_TEMPORAL` | none yet; ADR 0007 proposes it for a module's property |
+| `ACTION_FREE_TEMPORAL` | `STATE`, `TEMPORAL` | operands of `[]`, `<>`, `~>` and `-+->` |
+
+Operands inherit the context by three rules:
+
+- `AbstractExprGenFactory.expression` draws an ordinary operand in
+  `LevelContext.valueOperand()`: a temporal context becomes `STATE`, and `ACTION`
+  stays `ACTION`, so `x' + 1` remains reachable. Quantifier bodies, predicates,
+  domains and values are all ordinary operands.
+- `transparent` keeps the context. Only `~`, `/\`, `\/`, `=>`, the branches of
+  `IF`, the body of `LET` and labels use it. TLC cannot handle a temporal formula
+  under `<=>` or in a `CASE` arm, and Apalache crashes on a quantifier over one.
+- `atLevel` names the context explicitly: `STATE` for the operand of prime and
+  `UNCHANGED`, for subscripts, for `LET` declaration and lambda bodies and for
+  operator arguments, so every name in scope is state-level; `ACTION` for the
+  action of the subscripted and fairness forms and of `ENABLED`;
+  `ACTION_FREE_TEMPORAL` for the operands of `[]`, `<>`, `~>` and `-+->`. TLC
+  checks an action inside a temporal formula only in `[]<>A` and `<>[]A` separated
+  from the top of the formula by Boolean connectives alone.
+
+`[][A]_v` is not an expression form: both checkers accept it only as a top-level
+conjunct of a property. Every body of a module and the expression entry point
+starts in `STATE`, which is what keeps priming out of every ordinary
+subexpression whatever the ignore list.
 
 ## 8. Correctness and failure semantics
 
@@ -769,11 +809,16 @@ branches account for the same set. What makes it checkable is that the accountin
 is assembled here, over the declaration list, and that the effect of every action
 operator is recorded. This is why only `ActionGenFactory` (the step update) and
 `ActionShapeGenFactory` (recursive bodies) prime names or build `UNCHANGED`,
-and why module generation excludes the `action`, `temporal` and
-`exotic` categories from every subexpression — the IF-THEN-ELSE predicate
-included — whatever the corpus configured: a prime reached through an expression
-form could sit under a negation or a quantifier, where it accounts for nothing.
-Every value a module expression produces therefore reads the current state only.
+and why every module subexpression — the IF-THEN-ELSE predicate included — is
+drawn in the `STATE` context (section 7.1) whatever the corpus configured: a prime
+reached through an expression form could sit under a negation or a quantifier,
+where it accounts for nothing. Every value a module expression produces therefore
+reads the current state only.
+
+**Decoder deviation (levels, ADR 0007).** Module generation used to ignore the
+`action`, `temporal` and `exotic` categories in every subexpression whatever the
+corpus configured; the `STATE` context now does that job. Stored inputs decode as
+before under the default ignore list.
 
 **Historical decoder deviation (introduction of nested actions).** This weakened the previous invariant — "each declared variable
 appears exactly once on a flat conjunctive spine" — to the recursive form above,
@@ -819,15 +864,19 @@ Changes to this subsystem should preserve the following rules:
    is the byte encoding, and `ExpressionKindCatalogTest` pins the whole order, so
    inserting or reordering a constant reinterprets every stored corpus input and
    fails that test.
-2. State result-type constraints in `isTypeApplicable` and dynamic scope
-   constraints and weight in `selectionWeight`, both on the kind itself.
+2. State result-type constraints in `isTypeApplicable`, the level in `level`,
+   and dynamic scope constraints and weight in `selectionWeight`, all on the kind
+   itself.
    `IrExprGenFactory` asks the kind; it never names a form. The
    `isConfiguredApplicable` hook combines static applicability with the immutable
    configuration; custom kinds use it to match their library signatures. Only
    `selectionWeight` may consult mutable lexical state, because only it is
    re-evaluated on every draw — the rest of applicability is cached per type. A weight of zero is how a
    form says the current scope cannot supply what it needs.
-3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
+3. Generate every operand through `expression(requiredType, remainingDepth - 1)`,
+   which lowers a temporal context to `STATE`. Use `transparent` only for an
+   operand through which both checkers accept a temporal formula, and `atLevel`
+   for an operand whose level the form fixes (section 7.1).
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
    `scopedBody`, which restrict the extended scope to the construct's body, or
    with `boundedTogether` for a construct that binds several names at once. Create
@@ -843,10 +892,8 @@ Changes to this subsystem should preserve the following rules:
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
 9. Keep the step prime in `ActionGenFactory` and recursive priming and `UNCHANGED`
-   in `ActionShapeGenFactory`, including action-operator bodies. No ordinary
-   module subexpression may prime a name,
-   and module generation must keep excluding the `action` and `temporal`
-   categories from its subexpressions — the IF-THEN-ELSE predicate included — or
+   in `ActionShapeGenFactory`, including action-operator bodies. Draw every module
+   subexpression in the `STATE` context — the IF-THEN-ELSE predicate included — or
    a disjunct's account of the declared variables stops being checkable.
 10. Give a new module-level body a `ModuleSection` and a node budget of its own
     with `GenerationContext.withFreshNodeBudget`. Adding or reweighting a

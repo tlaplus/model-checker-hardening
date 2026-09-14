@@ -77,6 +77,9 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
      * definition body, because {@code PrettyWriterWithAnnotations} renders a lambda as a named
      * {@code LET} definition. A label in the body must therefore declare neither the lambda's own
      * parameters nor a binder enclosing the lambda; SANY rejects either as an extra parameter.
+     *
+     * <p>The body is drawn at state level, like a {@code LET} declaration body, so the lambda is a
+     * valid argument wherever an operator of its type is.
      */
     Generator<TlaEx> lambda(OperatorType type, int remainingDepth) {
         return draw -> {
@@ -85,7 +88,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
             var body = draw.draw(context.withBindings(
                     parameters.bindings(),
                     context.withDefinitionBoundary(
-                            expression(type.result(), remainingDepth - 1))));
+                            atLevel(LevelContext.STATE, type.result(), remainingDepth - 1))));
             return builder().lambda(lambdaName, body, parameters.declarations());
         };
     }

@@ -80,7 +80,7 @@ final class IrExprGenFactory {
             var applicableCount = 0;
             ExpressionKind onlyApplicable = null;
             for (var kind : candidates) {
-                var weight = kind.selectionWeight(context, type);
+                var weight = admittedWeight(kind, type);
                 if (weight > 0) {
                     slotTotal += weight;
                     applicableCount++;
@@ -97,7 +97,7 @@ final class IrExprGenFactory {
 
             var selected = draw.drawIndex(slotTotal, SELECTION_BYTES);
             for (var kind : candidates) {
-                var weight = kind.selectionWeight(context, type);
+                var weight = admittedWeight(kind, type);
                 if (selected < weight) {
                     return draw.draw(mkGen(kind, type, remainingDepth));
                 }
@@ -115,15 +115,25 @@ final class IrExprGenFactory {
         return generalFactory.closedTerminal(type);
     }
 
-    /** Reports whether a form is enabled and its type and scope requirements are satisfied. */
+    /** Reports whether a form is enabled and its type, scope and level requirements are satisfied. */
     boolean isApplicable(ExpressionKind kind, IrType type) {
-        return typeApplicableForms(type).contains(kind)
-                && kind.selectionWeight(context, type) > 0;
+        return selectionWeight(kind, type) > 0;
     }
 
     /** Returns the selection slots a form occupies for a type, or zero when it cannot be used. */
     int selectionWeight(ExpressionKind kind, IrType type) {
         return typeApplicableForms(type).contains(kind)
+                ? admittedWeight(kind, type)
+                : 0;
+    }
+
+    /**
+     * Returns a type-applicable form's weight in the current scope, or zero when the current
+     * level context does not admit the form's level. Like the weight, the level context changes
+     * between draws, so it is checked on every draw rather than cached with type applicability.
+     */
+    private int admittedWeight(ExpressionKind kind, IrType type) {
+        return context.level().admits(kind.level())
                 ? kind.selectionWeight(context, type)
                 : 0;
     }
@@ -160,6 +170,7 @@ final class IrExprGenFactory {
                 otherFactory.mkGen(other, type, remainingDepth);
             case ApplicativeExpressionKind applicative ->
                 applicativeFactory.mkGen(applicative, type, remainingDepth);
+            case TemporalActionExpressionKind temporal -> booleanFactory.mkGen(temporal, remainingDepth);
             case CustomExpressionKind custom -> custom(custom, type, remainingDepth);
         };
     }
@@ -175,7 +186,8 @@ final class IrExprGenFactory {
                     request -> request.kind().plan(context.config(), request.type()).orElseThrow());
             var signature = (OperT1) draw.draw(plan.generator(context, typeFactory));
             var arguments = TlaTypes.operatorArguments(signature).stream()
-                    .map(argument -> draw.draw(mkGen(ImportedTypes.from(argument), remainingDepth - 1)))
+                    .map(argument -> draw.draw(context.withLevel(LevelContext.STATE,
+                            mkGen(ImportedTypes.from(argument), remainingDepth - 1))))
                     .toArray(TlaEx[]::new);
             var name = context.config().library().get(kind.id()).name();
             return context.builder().operApply(context.builder().name(name, signature), arguments);

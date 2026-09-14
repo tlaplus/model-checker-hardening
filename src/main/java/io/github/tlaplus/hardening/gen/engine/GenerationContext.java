@@ -31,6 +31,7 @@ final class GenerationContext {
             new TlaTypedScopeUncheckedBuilder();
     private final NameScope scope = new NameScope();
     private final Map<IrType, Integer> terminalRotation = new HashMap<>();
+    private LevelContext level = LevelContext.STATE;
     private int nameCount;
     private int exceptReplacementDepth;
     private int fieldCount;
@@ -230,6 +231,47 @@ final class GenerationContext {
      */
     boolean isWithinExceptReplacement() {
         return exceptReplacementDepth > 0;
+    }
+
+    /**
+     * Returns the levels an expression drawn at this point may produce.
+     */
+    LevelContext level() {
+        return level;
+    }
+
+    /**
+     * Returns a generator that runs its body in the supplied level context and restores the
+     * previous one afterwards, including on an exceptional exit.
+     */
+    <T> Generator<T> withLevel(LevelContext bodyLevel, Generator<? extends T> body) {
+        Objects.requireNonNull(bodyLevel, "bodyLevel");
+        Objects.requireNonNull(body, "body");
+        return draw -> {
+            var previous = level;
+            level = bodyLevel;
+            try {
+                return draw.draw(body);
+            } finally {
+                level = previous;
+            }
+        };
+    }
+
+    /**
+     * Returns a generator that runs its body as an ordinary operand of the form being drawn, in
+     * the context {@link LevelContext#valueOperand()} derives from the one current when it runs.
+     */
+    <T> Generator<T> asValueOperand(Generator<? extends T> body) {
+        Objects.requireNonNull(body, "body");
+        return draw -> draw.draw(withLevel(level.valueOperand(), body));
+    }
+
+    /**
+     * Reports whether a declared state variable is visible.
+     */
+    boolean hasStateVariable() {
+        return !scope.stateVariables().isEmpty();
     }
 
     /**

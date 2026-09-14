@@ -4,7 +4,6 @@ import java.math.BigInteger;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
-import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -22,11 +21,11 @@ import org.apalache_mc.tla.jir.TlaDeclarations;
  * creates its own builder, scope, counters, and name supply, so one engine may be reused and
  * invoked concurrently with distinct cursors.
  *
- * <p>Everything it draws below the declaration level comes from the ordinary expression factory,
- * with the action and temporal categories excluded whatever the caller configured. Priming and
- * {@code UNCHANGED} are constructed by {@link ActionGenFactory} over the declared variables, which
- * is what lets a generated action account for every variable exactly once; a prime reached through
- * an expression form could sit under a negation or a quantifier and would not.
+ * <p>Everything it draws below the declaration level comes from the ordinary expression factory in
+ * the state-level context, whatever the caller configured. Priming and {@code UNCHANGED} are
+ * constructed by {@link ActionGenFactory} over the declared variables, which is what lets a
+ * generated action account for every variable exactly once; a prime reached through an expression
+ * form could sit under a negation or a quantifier and would not.
  */
 public final class IrSpecGeneratorEngine {
     /**
@@ -46,13 +45,9 @@ public final class IrSpecGeneratorEngine {
      *     one index can address
      */
     public IrSpecGeneratorEngine(IrGenerationConfig config) {
-        Objects.requireNonNull(config, "config");
-        // The module layer owns every action and temporal construct, so the subexpression decoder
-        // never produces one, however the corpus configured its ignore list.
-        this.config = config.ignoring(
-                ExpressionCategory.ACTION,
-                ExpressionCategory.TEMPORAL,
-                ExpressionCategory.EXOTIC);
+        // Every body is drawn in the state-level context unless the module layer names another,
+        // so no ordinary subexpression primes a name or is temporal, whatever the ignore list.
+        this.config = Objects.requireNonNull(config, "config");
         ExpressionKindCatalog.requireAddressableSlots(this.config);
         CustomExpressionKind.requireUsableLibrary(this.config);
     }
