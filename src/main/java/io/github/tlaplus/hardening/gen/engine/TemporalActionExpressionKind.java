@@ -3,18 +3,19 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 
 /**
- * Temporal formulas built around an action, in the only nested forms both checkers accept.
+ * The temporal formulas over an action that <em>Specifying Systems</em> defines: an action occurs in
+ * a temporal formula only through them and through fairness.
  *
- * <p>TLC rejects an action inside a temporal formula unless it has one of these forms, and a
- * standalone {@code <<A>>_v} or a nested {@code [][A]_v} is rejected with "Temporal formulas
- * containing actions must be of forms <>[]A or []<>A". The family comes last in the catalog, so
- * adding it did not shift the selection index of any earlier form.
+ * <p>{@code [A]_v} and {@code <<A>>_v} alone are actions, and {@code []A} for an action {@code A}
+ * is not a formula, so these forms apply {@code []} and {@code <>} to the subscripted action as one
+ * construct. The family comes last in the catalog, so adding it did not shift the selection index
+ * of any earlier form.
  */
 public enum TemporalActionExpressionKind implements ExpressionKind {
-    /** {@code []<><<A>>_v}: the action occurs infinitely often. */
-    INFINITELY_OFTEN_ACTION,
-    /** {@code <>[][A]_v}: eventually every step satisfies the action or leaves v unchanged. */
-    EVENTUALLY_ALWAYS_ACTION;
+    /** {@code [][A]_v}: every step satisfies the action or leaves v unchanged. */
+    ALWAYS_ACTION,
+    /** {@code <><<A>>_v}: some step satisfies the action and changes v. */
+    EVENTUALLY_ACTION;
 
     private static final Categories CATEGORIES = new Categories(ExpressionCategory.TEMPORAL);
 
@@ -25,7 +26,7 @@ public enum TemporalActionExpressionKind implements ExpressionKind {
 
     @Override
     public Level level() {
-        return Level.ACTION_TEMPORAL;
+        return Level.TEMPORAL;
     }
 
     @Override

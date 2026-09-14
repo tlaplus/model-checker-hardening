@@ -356,7 +356,7 @@ class IrSpecGeneratorsTest {
         var primedGuards = 0;
         var properties = 0;
         var fairness = 0;
-        var constraints = 0;
+        var subscriptedActions = 0;
         for (var sample = 0; sample < 600; sample++) {
             var input = new byte[128 + random.nextInt(1024)];
             random.nextBytes(input);
@@ -385,10 +385,10 @@ class IrSpecGeneratorsTest {
                     var property = spec.property().get();
                     properties++;
                     fairness += property.fairness().size();
-                    constraints += property.actionConstraints().size();
-                    assertCheckableTemporal(property.formula(), true);
+                    subscriptedActions += containsOperator(property.formula(), TlaOperators.STUTTER)
+                            || containsOperator(property.formula(), TlaOperators.NO_STUTTER) ? 1 : 0;
+                    assertFalse(level(property.formula()) == IrLevel.ACTION, print(property.formula()));
                     property.fairness().forEach(condition -> assertEquals(IrLevel.TEMPORAL, level(condition)));
-                    property.actionConstraints().forEach(constraint -> assertEquals(IrLevel.TEMPORAL, level(constraint)));
                 }
             } catch (AssertionError failure) {
                 throw new AssertionError(
@@ -400,7 +400,7 @@ class IrSpecGeneratorsTest {
         assertTrue(primedGuards > 0, "no post-assignment guard read a primed variable");
         assertTrue(properties > modules / 4, "modules with a property: " + properties + " of " + modules);
         assertTrue(fairness > 0, "no property had fairness");
-        assertTrue(constraints > 0, "no property had an action constraint");
+        assertTrue(subscriptedActions > 0, "no property applied [] or <> to a subscripted action");
     }
 
     /** Every declaration is its own label scope: a module has no binder in scope at its top. */

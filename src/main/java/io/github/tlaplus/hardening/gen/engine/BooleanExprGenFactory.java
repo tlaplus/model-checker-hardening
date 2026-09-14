@@ -20,9 +20,7 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                 case BOOLEAN_LITERAL -> builder().bool(draw.drawBoolean());
                 case EQUAL -> draw.draw(equal(remainingDepth, false));
                 case NOT_EQUAL -> draw.draw(equal(remainingDepth, true));
-                // These connectives pass a temporal context through to their operands. <=> does not:
-                // TLC cannot handle an equivalence between temporal formulas,
-                // https://github.com/tlaplus/tlaplus/issues/1029.
+                // The Boolean connectives pass a temporal context through to their operands.
                 case NOT -> builder().not(
                         draw.draw(sameLevel(PrimitiveType.BOOL, nextDepth)));
                 case AND -> builder().and(
@@ -31,7 +29,8 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                         draw.draw(operands(sameLevel(PrimitiveType.BOOL, nextDepth))));
                 case IMPLIES -> draw.draw(binary(
                         sameLevel(PrimitiveType.BOOL, nextDepth), builder()::implies));
-                case EQUIVALENT -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::equiv));
+                case EQUIVALENT -> draw.draw(binary(
+                        sameLevel(PrimitiveType.BOOL, nextDepth), builder()::equiv));
                 case FORALL_BOUNDED ->
                     draw.draw(quantifier(true, true, remainingDepth));
                 case EXISTS_BOUNDED ->
@@ -70,10 +69,10 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                         atLevel(LevelContext.STATE, draw.draw(typeFactory.valueType()), nextDepth)));
                 case ACTION_THEN -> draw.draw(binary(
                         atLevel(LevelContext.ACTION, PrimitiveType.BOOL, nextDepth), builder()::actionThen));
-                case ALWAYS -> builder().always(draw.draw(actionFreeTemporal(nextDepth)));
-                case EVENTUALLY -> builder().eventually(draw.draw(actionFreeTemporal(nextDepth)));
-                case LEADS_TO -> draw.draw(binary(actionFreeTemporal(nextDepth), builder()::leadsTo));
-                case GUARANTEES -> draw.draw(binary(actionFreeTemporal(nextDepth), builder()::guarantees));
+                case ALWAYS -> builder().always(draw.draw(sameLevel(PrimitiveType.BOOL, nextDepth)));
+                case EVENTUALLY -> builder().eventually(draw.draw(sameLevel(PrimitiveType.BOOL, nextDepth)));
+                case LEADS_TO -> draw.draw(binary(sameLevel(PrimitiveType.BOOL, nextDepth), builder()::leadsTo));
+                case GUARANTEES -> draw.draw(binary(sameLevel(PrimitiveType.BOOL, nextDepth), builder()::guarantees));
                 case WEAK_FAIR -> draw.draw(fairness(false, remainingDepth));
                 case STRONG_FAIR -> draw.draw(fairness(true, remainingDepth));
                 case TEMPORAL_EXISTS ->
@@ -84,24 +83,14 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator for the selected temporal formula built around an action. */
+    /** Returns a generator for the selected temporal formula over an action. */
     Generator<TlaEx> mkGen(TemporalActionExpressionKind kind, int remainingDepth) {
         return switch (kind) {
-            case INFINITELY_OFTEN_ACTION -> subscripted(remainingDepth, (action, subscript) ->
-                    builder().always(builder().eventually(builder().noStutter(action, subscript))));
-            case EVENTUALLY_ALWAYS_ACTION -> subscripted(remainingDepth, (action, subscript) ->
-                    builder().eventually(builder().always(builder().stutter(action, subscript))));
+            case ALWAYS_ACTION -> subscripted(remainingDepth, (action, subscript) ->
+                    builder().always(builder().stutter(action, subscript)));
+            case EVENTUALLY_ACTION -> subscripted(remainingDepth, (action, subscript) ->
+                    builder().eventually(builder().noStutter(action, subscript)));
         };
-    }
-
-    /**
-     * Returns an operand of {@code []}, {@code <>}, {@code ~>} or {@code -+->}, which may be temporal
-     * but contain no action. TLC checks an action only in {@code []<>A} and {@code <>[]A}, and only
-     * when a Boolean connective, not another temporal operator, surrounds it: it rejects
-     * {@code <>[]<>A}, {@code []<>[]A}, {@code []~WF_v(A)} and {@code <>SF_v(A)}.
-     */
-    private Generator<TlaEx> actionFreeTemporal(int depth) {
-        return atLevel(LevelContext.ACTION_FREE_TEMPORAL, PrimitiveType.BOOL, depth);
     }
 
     /** Returns a generator of equality or inequality over a generated value type. */
@@ -114,13 +103,14 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a quantifier generator with an arbitrary scoped predicate. */
+    /** Returns a quantifier generator whose scoped predicate keeps the quantifier's level. */
     private Generator<TlaEx> quantifier(
             boolean universal, boolean bounded, int remainingDepth) {
+        var body = sameLevel(PrimitiveType.BOOL, remainingDepth - 1);
         return typeFactory.valueType().flatMap(type -> bounded
-                ? bounded("q", type, PrimitiveType.BOOL, remainingDepth - 1,
+                ? bounded("q", type, remainingDepth - 1, body,
                         universal ? builder()::forall : builder()::exists)
-                : unbounded("q", type, PrimitiveType.BOOL, remainingDepth - 1,
+                : unbounded("q", type, body,
                         universal ? builder()::forall : builder()::exists));
     }
 
@@ -134,11 +124,12 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a temporal quantifier generator with an arbitrary scoped predicate. */
+    /** Returns a temporal quantifier generator whose scoped predicate keeps the temporal level. */
     private Generator<TlaEx> temporalQuantifier(
             boolean existential, int remainingDepth) {
+        var body = sameLevel(PrimitiveType.BOOL, remainingDepth - 1);
         return typeFactory.valueType().flatMap(type -> unbounded(
-                "temporal", type, PrimitiveType.BOOL, remainingDepth - 1,
+                "temporal", type, body,
                 existential ? builder()::temporalExists : builder()::temporalForAll));
     }
 

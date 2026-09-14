@@ -13,24 +13,16 @@ import java.util.stream.Stream;
  * checks the implication from fairness to the property. See ADR 0007.
  *
  * @param fairness weak and strong fairness conditions, conjoined in this order
- * @param actionConstraints the {@code [][A]_v} conjuncts, which both checkers accept only at the
- *     top level of a property
- * @param formula the temporal formula conjoined after the action constraints
+ * @param formula the temporal formula
  */
-public record TemporalProperty(List<TlaEx> fairness, List<TlaEx> actionConstraints, TlaEx formula) {
+public record TemporalProperty(List<TlaEx> fairness, TlaEx formula) {
     public TemporalProperty {
         fairness = List.copyOf(Objects.requireNonNull(fairness, "fairness"));
-        actionConstraints = List.copyOf(Objects.requireNonNull(actionConstraints, "actionConstraints"));
         Objects.requireNonNull(formula, "formula");
     }
 
-    /** Returns the property's conjuncts: the action constraints, then the formula. */
-    public List<TlaEx> conjuncts() {
-        return Stream.concat(actionConstraints.stream(), Stream.of(formula)).toList();
-    }
-
-    /** Returns every generated expression: the fairness conditions and then the conjuncts. */
+    /** Returns every generated expression: the fairness conditions and then the formula. */
     public List<TlaEx> generated() {
-        return Stream.concat(fairness.stream(), conjuncts().stream()).toList();
+        return Stream.concat(fairness.stream(), Stream.of(formula)).toList();
     }
 }

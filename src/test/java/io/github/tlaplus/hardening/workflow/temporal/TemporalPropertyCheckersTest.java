@@ -123,7 +123,7 @@ class TemporalPropertyCheckersTest {
     private static GeneratedSpec module(List<TlaEx> fairness, TlaEx formula) {
         var init = BUILDER.and(BUILDER.eql(x(), integer(0)), BUILDER.eql(step(), integer(0)));
         return new GeneratedSpec(List.of(X, STEP), List.of(), init, increment(), BUILDER.bool(true),
-                Optional.of(new TemporalProperty(fairness, List.of(), formula)), STEPS);
+                Optional.of(new TemporalProperty(fairness, formula)), STEPS);
     }
 
     private static TlaEx increment() {

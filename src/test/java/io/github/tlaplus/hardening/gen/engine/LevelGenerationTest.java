@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.assertCheckableTemporal;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.containsOperator;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.level;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,19 +43,31 @@ class LevelGenerationTest {
     }
 
     @Test
-    void aTemporalContextNestsActionsOnlyWhereBothCheckersAcceptThem() {
+    void aTemporalContextNestsTemporalFormulasAsTlaPlusAllows() {
+        // level() fails on an action outside [][A]_v, <><<A>>_v and fairness, and on an action
+        // mixed with a temporal formula; SANY is the authority, checked by ParserProcessTest.
         var samples = generate(LevelContext.TEMPORAL, 0x7e3900L);
-        samples.forEach(expression -> assertCheckableTemporal(expression, true));
-        assertTrue(samples.stream().anyMatch(expression -> containsOperator(expression, TlaOperators.LEADS_TO)));
+        samples.forEach(expression -> assertNotEquals(IrLevel.ACTION, level(expression)));
+        for (var nesting : List.of(TlaOperators.EQUIV, TlaOperators.FORALL3, TlaOperators.LEADS_TO,
+                TlaOperators.GLOBALLY)) {
+            assertTrue(samples.stream().anyMatch(expression -> containsTemporalUnder(expression, nesting)),
+                    "no temporal formula under " + nesting.name());
+        }
         assertTrue(samples.stream().anyMatch(expression -> containsOperator(expression, TlaOperators.STUTTER)));
-        assertTrue(samples.stream().anyMatch(expression -> containsOperator(expression, TlaOperators.WEAK_FAIRNESS)));
+        assertTrue(samples.stream().anyMatch(expression -> containsOperator(expression, TlaOperators.NO_STUTTER)));
     }
 
-    @Test
-    void anActionFreeTemporalContextContainsNoAction() {
-        var samples = generate(LevelContext.ACTION_FREE_TEMPORAL, 0xf4eeL);
-        samples.forEach(expression -> assertCheckableTemporal(expression, false));
-        assertTrue(samples.stream().anyMatch(expression -> level(expression) == IrLevel.TEMPORAL));
+    /** Reports whether an application of {@code operator} in the expression has a temporal operand. */
+    private static boolean containsTemporalUnder(TlaEx expression, at.forsyte.apalache.tla.lir.oper.TlaOper operator) {
+        var found = new java.util.concurrent.atomic.AtomicBoolean();
+        org.apalache_mc.tla.jir.TlaExpressions.forEach(expression, node -> {
+            if (node instanceof at.forsyte.apalache.tla.lir.OperEx application && application.oper() == operator
+                    && org.apalache_mc.tla.jir.TlaExpressions.arguments(application).stream()
+                            .anyMatch(argument -> level(argument) == IrLevel.TEMPORAL)) {
+                found.set(true);
+            }
+        });
+        return found.get();
     }
 
     private static List<TlaEx> generate(LevelContext level, long seed) {

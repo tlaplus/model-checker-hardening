@@ -11,8 +11,8 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pins the level tables of ADR 0007. Each row was measured against TLC and Apalache, so a change
- * here is a change of what generated modules ask the checkers.
+ * Pins the level tables of ADR 0007, which follow the TLA+ level rules as SANY checks them. A
+ * change here is a change of what generated modules ask the checkers.
  */
 class LevelContextTest {
     @Test
@@ -20,8 +20,7 @@ class LevelContextTest {
         var expected = Map.of(
                 LevelContext.STATE, EnumSet.of(Level.STATE),
                 LevelContext.ACTION, EnumSet.of(Level.STATE, Level.ACTION),
-                LevelContext.TEMPORAL, EnumSet.of(Level.STATE, Level.TEMPORAL, Level.ACTION_TEMPORAL),
-                LevelContext.ACTION_FREE_TEMPORAL, EnumSet.of(Level.STATE, Level.TEMPORAL));
+                LevelContext.TEMPORAL, EnumSet.of(Level.STATE, Level.TEMPORAL));
         for (var context : LevelContext.values()) {
             var admitted = EnumSet.noneOf(Level.class);
             for (var level : Level.values()) {
@@ -38,7 +37,6 @@ class LevelContextTest {
         assertEquals(LevelContext.STATE, LevelContext.STATE.valueOperand());
         assertEquals(LevelContext.ACTION, LevelContext.ACTION.valueOperand());
         assertEquals(LevelContext.STATE, LevelContext.TEMPORAL.valueOperand());
-        assertEquals(LevelContext.STATE, LevelContext.ACTION_FREE_TEMPORAL.valueOperand());
     }
 
     @Test

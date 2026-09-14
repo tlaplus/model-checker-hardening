@@ -96,7 +96,7 @@ public final class FuzzInputModule {
         spec.operators().forEach(operator -> declarations.add(operator.declaration()));
         var next = builder.or(spec.nextAction(), builder.unchanged(variablesTuple(builder, spec.variables())));
         var fairness = spec.property().map(TemporalProperty::fairness).orElse(List.of());
-        var property = spec.property().map(TemporalProperty::conjuncts).orElse(List.of());
+        var property = spec.property().map(temporal -> List.of(temporal.formula())).orElse(List.of());
         return assemble(declarations, spec.variables(),
                 new Skeleton(spec.initPredicate(), next, spec.invariant(), fairness, property));
     }
