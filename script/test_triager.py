@@ -443,6 +443,22 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
         )
 
+    def test_classifies_next_state_cardinality_as_unmapped_exit_status(self) -> None:
+        """corpus19 662f7598: Cardinality(Int) in Next exits under 2181."""
+        diagnostic = "\n".join(
+            (
+                "TLC error code 2181 mapped to exit status 255",
+                "Finished computing initial states: 1 distinct state generated.",
+                "Error: Attempted to compute cardinality of the value",
+                "Int",
+                "Error: The behavior up to this point is:",
+            )
+        )
+        self.assertEqual(
+            "tlc-002.md",
+            triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
+        )
+
     def test_classifies_invariant_error_with_foreign_call_stack(self) -> None:
         """corpus18 fabd5358: the message is the invariant's, the code is Head's."""
         diagnostic = "\n".join(
