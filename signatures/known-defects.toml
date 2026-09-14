@@ -35,3 +35,82 @@ id = "string-set"
 references = ["../conformance/string-set-unsupported.md"]
 description = "Apalache reports the predefined set STRING as unsupported when it reaches it."
 match = ['STRING']
+
+[[signature]]
+id = "tlc-temporal-equivalence"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC reports that it cannot handle a temporal formula under <=> (tlaplus/tlaplus#1029)."
+match = [
+  '(& (EQUIV ...) (.. (GLOBALLY ...)))',
+  '(& (EQUIV ...) (.. (EVENTUALLY ...)))',
+  '(& (EQUIV ...) (.. (LEADS_TO ...)))',
+  '(& (EQUIV ...) (.. (GUARANTEES ...)))',
+  '(& (EQUIV ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EQUIV ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (EQUIV ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (EQUIV ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "tlc-temporal-case"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC reports that it cannot handle a temporal formula in a CASE arm."
+match = [
+  '(& (CASE ...) (.. (GLOBALLY ...)))',
+  '(& (CASE ...) (.. (EVENTUALLY ...)))',
+  '(& (CASE ...) (.. (LEADS_TO ...)))',
+  '(& (CASE ...) (.. (GUARANTEES ...)))',
+  '(& (CASE ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (CASE ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (CASE ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (CASE ...) (.. (TEMPORAL_FORALL ...)))',
+  '(& (CASE_OTHER ...) (.. (GLOBALLY ...)))',
+  '(& (CASE_OTHER ...) (.. (EVENTUALLY ...)))',
+  '(& (CASE_OTHER ...) (.. (LEADS_TO ...)))',
+  '(& (CASE_OTHER ...) (.. (GUARANTEES ...)))',
+  '(& (CASE_OTHER ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (CASE_OTHER ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (CASE_OTHER ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (CASE_OTHER ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "tlc-temporal-unbounded-quantifier"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC reports that it cannot handle a temporal formula under an unbounded quantifier."
+match = [
+  '(& (FORALL2 ...) (.. (GLOBALLY ...)))',
+  '(& (FORALL2 ...) (.. (EVENTUALLY ...)))',
+  '(& (FORALL2 ...) (.. (LEADS_TO ...)))',
+  '(& (FORALL2 ...) (.. (GUARANTEES ...)))',
+  '(& (FORALL2 ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (FORALL2 ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (FORALL2 ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (FORALL2 ...) (.. (TEMPORAL_FORALL ...)))',
+  '(& (EXISTS2 ...) (.. (GLOBALLY ...)))',
+  '(& (EXISTS2 ...) (.. (EVENTUALLY ...)))',
+  '(& (EXISTS2 ...) (.. (LEADS_TO ...)))',
+  '(& (EXISTS2 ...) (.. (GUARANTEES ...)))',
+  '(& (EXISTS2 ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EXISTS2 ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (EXISTS2 ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (EXISTS2 ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "tlc-eventually-action"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects <><<A>>_v, accepting actions in temporal formulas only as <>[]A or []<>A; also matches []<><<A>>_v, which TLC checks."
+match = [
+  '(EVENTUALLY (NO_STUTTER ...))',
+]
+
+[[signature]]
+id = "tlc-always-action-under-temporal"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects [][A]_v under <>, ~> or [], accepting actions in temporal formulas only as <>[]A or []<>A."
+match = [
+  '(& (EVENTUALLY ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(& (LEADS_TO ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(GLOBALLY (.. (GLOBALLY (STUTTER ...))))',
+]

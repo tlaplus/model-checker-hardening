@@ -1,7 +1,7 @@
 package io.github.tlaplus.hardening.workflow.temporal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
@@ -14,8 +14,10 @@ import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
@@ -40,7 +42,8 @@ import org.junit.jupiter.api.io.TempDir;
  * <p>The hand-built modules pin the semantics ADR 0007 rests on: the stuttering disjunct makes
  * Apalache see the behaviors TLC sees, the extra unrolling step lets Apalache find a lasso that
  * closes at the step bound, and fairness makes Apalache fail rather than disagree. The generated
- * modules are a regression net for the nesting rules: neither checker may crash on them.
+ * modules are a regression net for the known-defect signatures: TLC may not reject the temporal
+ * formula of a generated module that no shipped signature quarantines.
  */
 class TemporalPropertyCheckersTest {
     private static final TlaTypedScopeUncheckedBuilder BUILDER = new TlaTypedScopeUncheckedBuilder();
@@ -88,17 +91,31 @@ class TemporalPropertyCheckersTest {
     }
 
     @Test
-    void neitherCheckerCrashesOnGeneratedProperties(@TempDir Path directory) throws Exception {
-        var config = IrGenerationConfig.defaults()
-                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC));
-        var samples = GeneratedSpecSamples.collect(config, 0x7e39F1L, 400, 6,
-                spec -> spec.property().isPresent());
-        assertEquals(6, samples.size(), "too few modules with a property were generated");
+    void tlcAcceptsTheTemporalFormulaOfEveryUnquarantinedGeneratedProperty(@TempDir Path directory)
+            throws Exception {
+        var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of(ExpressionCategory.EXOTIC));
+        var database = KnownDefectDatabase.load(List.of(KnownDefectDatabase.SHIPPED));
+        var quarantined = new int[1];
+        var samples = GeneratedSpecSamples.collect(config, 0x7e39F1L, 2000, 12, spec -> {
+            if (spec.property().isEmpty()) {
+                return false;
+            }
+            var module = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty()).module();
+            if (!database.matches(module, FuzzInputModule.ENTRY_POINTS).isEmpty()) {
+                quarantined[0]++;
+                return false;
+            }
+            return true;
+        });
+        assertEquals(12, samples.size(), "too few unquarantined modules with a property were generated");
+        assertTrue(quarantined[0] > 0, "no generated property matched a temporal signature");
 
-        for (var index = 0; index < samples.size(); index++) {
-            var results = checkBoth(Files.createDirectory(directory.resolve("sample" + index)), samples.get(index));
-            assertNotEquals(StageOutcome.CRASH, results.tlc().outcome(), results.tlc().diagnostic());
-            assertNotEquals(StageOutcome.CRASH, results.apalache().outcome(), results.apalache().diagnostic());
+        var tlc = new TlcCheckerBackend(SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")));
+        for (var spec : samples) {
+            var result = check(tlc, SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty()));
+            assertFalse(result.diagnostic().contains("TLC cannot handle the temporal formula"), result.diagnostic());
+            assertFalse(result.diagnostic().contains("Temporal formulas containing actions must be of forms"),
+                    result.diagnostic());
         }
     }
 

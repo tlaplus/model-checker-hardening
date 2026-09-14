@@ -105,14 +105,22 @@ measurements establish five facts:
 
 ### Levels
 
+*Revision.* The first version of this decision generated only the nestings that
+both TLC and Apalache check (fact 3): it lowered quantifier bodies, `<=>` and
+`CASE` to state level, barred actions under `[]`, `<>` and `~>`, and generated
+`[]<><<A>>_v`, `<>[][A]_v` and top-level `[][A]_v` as dedicated forms. That bound
+the decoder to one checker's limitations and hid them from the corpus. Generation
+now follows the level rules of *Specifying Systems* as SANY checks them, and the
+shapes a checker cannot handle are quarantined by known-defect signatures
+([Checker restrictions](#checker-restrictions)).
+
 Every expression kind declares the level of the formula it builds:
 
 | `Level` | Kinds |
 | --- | --- |
 | `STATE` | every kind not listed below, including `ENABLED` |
 | `ACTION` | `PRIME`, `PRIME_EQUAL`, `UNCHANGED`, `STUTTER` (`[A]_v`), `NO_STUTTER` (`<<A>>_v`), `ACTION_THEN` |
-| `TEMPORAL` | `ALWAYS`, `EVENTUALLY`, `LEADS_TO`, `GUARANTEES`, `TEMPORAL_EXISTS`, `TEMPORAL_FORALL` |
-| `ACTION_TEMPORAL` | `WEAK_FAIR`, `STRONG_FAIR`, and the new `INFINITELY_OFTEN_ACTION` (`[]<><<A>>_v`) and `EVENTUALLY_ALWAYS_ACTION` (`<>[][A]_v`) |
+| `TEMPORAL` | `ALWAYS`, `EVENTUALLY`, `LEADS_TO`, `GUARANTEES`, `WEAK_FAIR`, `STRONG_FAIR`, `TEMPORAL_EXISTS`, `TEMPORAL_FORALL`, and the `TemporalActionExpressionKind` forms `ALWAYS_ACTION` (`[][A]_v`) and `EVENTUALLY_ACTION` (`<><<A>>_v`) |
 
 Every expression request is drawn in a `LevelContext`. The context is a dynamic
 ceiling kept in `GenerationContext`, which restores it on exit like
@@ -123,42 +131,41 @@ check.
 
 | `LevelContext` | Admits | Used for |
 | --- | --- | --- |
-| `STATE` (default) | `STATE` | `Init`, `Inv`, auxiliary and action operators, shape predicates and assignments, existing guards, fairness subscripts |
-| `ACTION` | `STATE`, `ACTION` | post-assignment guards, the operand of `ENABLED`, the action of `[A]_v`, `WF`, `SF` and the new kinds, top-level `[][A]_v` |
-| `TEMPORAL` | `STATE`, `TEMPORAL`, `ACTION_TEMPORAL` | the property formula |
-| `ACTION_FREE_TEMPORAL` | `STATE`, `TEMPORAL` | operands of `[]`, `<>`, `~>` and `-+->` |
+| `STATE` (default) | `STATE` | `Init`, `Inv`, auxiliary and action operators, shape predicates and assignments, guards, subscripts |
+| `ACTION` | `STATE`, `ACTION` | post-assignment guards, the operand of `ENABLED`, the action of `[A]_v`, `<<A>>_v`, `WF`, `SF`, `[][A]_v` and `<><<A>>_v` |
+| `TEMPORAL` | `STATE`, `TEMPORAL` | the property formula |
 
-Operands inherit a context by the following rules:
+`TEMPORAL` admits no action: in TLA<sup>+</sup> an action occurs in a temporal
+formula only inside `[][A]_v`, `<><<A>>_v`, `WF_v(A)` or `SF_v(A)`, which draw it in
+`ACTION`. Operands inherit a context by these rules:
 
-- **Transparent forms keep the context:** `NOT`, `AND`, `OR`, `IMPLIES`, the
-  branches of `IF`, the body of `LET`, and `LABEL`. `EQUIVALENT` and `CASE` lower
-  their operands (fact 3).
-- **Level-changing forms set it explicitly:**
-  - `PRIME`, `UNCHANGED`: `STATE`.
-  - `ENABLED`: `ACTION`.
-  - `[]`, `<>`, `~>`, `-+->`: `ACTION_FREE_TEMPORAL`.
-  - `[A]_v`, `<<A>>_v`, `WF`, `SF` and the two new kinds: `ACTION` for the
-    action and `STATE` for the subscript.
-- **Every other operand is lowered:** a temporal context becomes `STATE`, and
-  `ACTION` stays `ACTION`, so `x' + 1` remains reachable. Lowering is the
-  default in `AbstractExprGenFactory.expression`, so a new form is safe unless
-  it opts in to transparency.
+- **`sameLevel` keeps the context** for the operands through which TLA<sup>+</sup>
+  passes a temporal formula: `~`, `/\`, `\/`, `=>`, `<=>`, the branches of `IF`,
+  the arms of `CASE`, the body of `LET`, labels, the bodies of `\A`, `\E`, `\EE`
+  and `\AA`, and the operands of `[]`, `<>`, `~>` and `-+->`.
+- **`atLevel` sets it explicitly:** `STATE` for the operands of prime and
+  `UNCHANGED`, for subscripts, for `LET` declaration and lambda bodies and for
+  operator arguments, so every name in scope is state-level; `ACTION` for the
+  operand of `ENABLED` and the action of the subscripted and fairness forms.
+- **`expression` lowers every other operand:** a temporal context becomes
+  `STATE`, and `ACTION` stays `ACTION`, so `x' + 1` remains reachable. This covers
+  values, predicates, domains, `CHOOSE` and set-filter bodies and function
+  bodies. SANY rejects a temporal operand of `=`, of a tuple, of a set filter and
+  of `CHOOSE`; it accepts a temporal `IF` condition and function body, but neither
+  is a meaningful formula, so neither is generated.
 
-These rules also cover:
-
-- **Quantifier bodies:** they are lowered. TLA<sup>+</sup> allows a temporal
-  body, but Apalache crashes on one (fact 3).
-- **LET definitions, lambda bodies and operator arguments:** they are drawn in
-  `STATE`, so every name in scope has state level and can be used in any
-  context.
+SANY confirmed each of these rules on hand-written modules, and the parser
+stage accepted every module of an 800-module smoke corpus generated with every
+category but `unbound` enabled.
 
 Consequences for the catalog:
 
-- **`GUARANTEES` (`-+->`)** moves from category `temporal` to `exotic`. Its
-  catalog position does not change (fact 4).
-- **The two new kinds** form a new family, `TemporalActionExpressionKind`,
-  appended after `ApplicativeExpressionKind`, so the existing selection indices
-  keep their meaning. They belong to category `temporal`.
+- **`GUARANTEES` (`-+->`)** belongs to category `exotic`, with `\cdot`, `\EE`
+  and `\AA`. Its catalog position does not change. Specifications rarely use
+  these forms, so the defaults keep ignoring them and no signature covers them.
+- **`TemporalActionExpressionKind`** is appended after `ApplicativeExpressionKind`,
+  so the existing selection indices keep their meaning. It belongs to category
+  `temporal`.
 - **`PRIME_EQUAL`** has weight zero when no state variable is in scope, instead
   of rejecting the input.
 - **`IrSpecGeneratorEngine`** stops overriding the ignore list. The `STATE`
@@ -178,7 +185,7 @@ Next == \/ step < MaxSteps /\ guards /\ shape /\ step' = step + 1 /\ postGuards
 Inv == ...                                   \* unchanged
 Fairness == /\ WF_v(A) /\ SF_v(A) ...        \* TRUE when there are none
 Spec == Init /\ [][Next]_<<var0, ..., step>> /\ Fairness
-Prop == /\ [][A]_v /\ ... /\ formula         \* TRUE without a property
+Prop == formula                              \* TRUE without a property
 Liveness == Fairness => Prop
 ```
 
@@ -205,14 +212,38 @@ Liveness == Fairness => Prop
   2. one formula in context `TEMPORAL`, first so that a short section still
      decodes one;
   3. a terminated list of at most `max_fairness` fairness conditions, each
-     `WF` or `SF` chosen by one Boolean;
-  4. a terminated list of top-level `[][A]_v` conjuncts.
+     `WF` or `SF` chosen by one Boolean.
+
+  The first version also decoded a list of top-level `[][A]_v` conjuncts. With
+  `[][A]_v` an ordinary form of the formula, the list was removed.
 
   `PropertyGenFactory` owns this section. `GeneratedSpec` gains
   `Optional<TemporalProperty>`, and `generated()` includes its expressions, so
   richness scoring and signature matching see them.
 - **Expression wrapper.** It defines `Fairness == TRUE` and `Prop == TRUE`,
   and asks for no temporal check.
+
+### Checker restrictions
+
+Generated modules include temporal formulas that SANY accepts and TLC cannot
+check. TLC's liveness translation has no case for a temporal formula under `<=>`
+([tlaplus/tlaplus#1029][tlc-1029]), in a `CASE` arm, under an unbounded
+quantifier, or under a bounded quantifier whose domain depends on the state, and
+after normalization it accepts actions only as `<>[]A` and `[]<>A`. Each failure
+exits 255 and would be recorded as a crash.
+
+Rather than restrict generation, the shipped known-defect database
+([ADR 0006][]) quarantines these shapes. The signatures need patterns that find a
+temporal operator anywhere below another operator, so ADR 0006's pattern language
+gained a descendant pattern `(.. p)` and a conjunction `(& p ...)`. Five signatures
+were measured on a 1600-module smoke corpus with every category but `exotic`
+enabled. Together they match all 13 "cannot handle" and all 16 "must be of forms"
+crashes, and none of their matches passed in TLC or produced a counterexample. The
+[conformance document][tlc-limits] lists each shape, its Apalache behavior and its
+precision, including three shapes without a signature because they did not occur.
+
+`TemporalPropertyCheckersTest` pins the contract: TLC rejects the temporal formula
+of no generated module that the shipped database leaves unquarantined.
 
 ### Checker invocation
 
@@ -288,17 +319,17 @@ Liveness == Fairness => Prop
 - **Documents revised.** [ir-generators.md][ir] (§5, §7.1, §9.1–9.4 and rules 2,
   3 and 9), [fuzzing-workflows.md][fw], ADR 0006's list of evaluated roots and its
   manual, and three conformance documents with triager signatures.
-- **Unexercised features.** Some TLA<sup>+</sup> features stay out of generated
-  modules: quantifiers, `<=>` and `CASE` over temporal formulas, `[][A]_v` below
-  the top level, actions under `[]`, `<>` and `~>`, and every `exotic` form. They
-  are excluded because the checkers crash on them (facts 3 and 4). A future ADR
-  can revisit this if the crashes should be reported as findings.
+- **Unexercised features.** The generator produces every nesting SANY accepts
+  except a temporal `IF` condition or function body. Inputs with a shape a checker
+  cannot handle are generated and then quarantined by signatures, so the
+  quarantine directory records how often each shape occurs.
 
 [ADR 0006]: 0006-known-defect-signatures.md
 [fairness]: ../../conformance/fairness-apalache-unsupported.md
 [constant-property]: ../../conformance/constant-property-tlc-rejects.md
 [enabled]: ../../conformance/enabled-apalache-unsupported.md
 [tlc-1029]: https://github.com/tlaplus/tlaplus/issues/1029
+[tlc-limits]: ../../conformance/tlc-temporal-formula-limits.md
 [ir]: ../architecture/ir-generators.md
 [ir-9-2]: ../architecture/ir-generators.md#92-action-shape
 [fw]: ../architecture/fuzzing-workflows.md

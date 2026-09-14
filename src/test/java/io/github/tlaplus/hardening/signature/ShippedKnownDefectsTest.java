@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.TlaModules;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -51,7 +52,21 @@ class ShippedKnownDefectsTest {
                         builder.seqSet(builder.enumSet(builder.integer(1))),
                         builder.enumSet(builder.seq(builder.integer(1)))),
                 "string-set",
-                List.of(builder.stringSet(), builder.enumSet(builder.str("a"))));
+                List.of(builder.stringSet(), builder.enumSet(builder.str("a"))),
+                "tlc-temporal-equivalence",
+                List.of(builder.equiv(flag(), eventuallyFlag()), builder.equiv(flag(), flag())),
+                "tlc-temporal-case",
+                List.of(builder.caseSplit(new ExpressionPair<>(flag(), eventuallyFlag())),
+                        builder.caseSplit(new ExpressionPair<>(flag(), flag()))),
+                "tlc-temporal-unbounded-quantifier",
+                List.of(builder.exists(bound(), eventuallyFlag()),
+                        builder.exists(bound(), builder.booleanSet(), eventuallyFlag())),
+                "tlc-eventually-action",
+                List.of(builder.eventually(builder.noStutter(action(), flag())),
+                        builder.always(builder.stutter(action(), flag()))),
+                "tlc-always-action-under-temporal",
+                List.of(builder.eventually(builder.always(builder.stutter(action(), flag()))),
+                        builder.always(builder.stutter(action(), flag()))));
 
         assertEquals(
                 cases.keySet(),
@@ -61,6 +76,22 @@ class ShippedKnownDefectsTest {
             assertEquals(List.of(signature.id()), ids(database, module(shapes.get(0))), signature.id());
             assertEquals(List.of(), ids(database, module(shapes.get(1))), signature.id());
         }
+    }
+
+    private TlaEx flag() {
+        return builder.name("flag", TlaTypes.BOOL);
+    }
+
+    private TlaEx eventuallyFlag() {
+        return builder.eventually(flag());
+    }
+
+    private TlaEx bound() {
+        return builder.name("k", TlaTypes.BOOL);
+    }
+
+    private TlaEx action() {
+        return builder.primeEq(flag(), builder.bool(true));
     }
 
     private TlaModule module(TlaEx expression) {

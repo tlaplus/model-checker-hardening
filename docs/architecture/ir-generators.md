@@ -556,14 +556,16 @@ variable is in scope.
 ### 7.1. Levels
 
 Categories say which forms a corpus may use; levels say where a form may occur.
+Levels follow *Specifying Systems* as SANY checks them; the shapes TLC or Apalache
+cannot handle are left to known-defect signatures.
 [ADR 0007](../decisions/0007-levels-and-temporal-properties.md) records the
-design and the TLC and Apalache measurements it rests on.
+design, its revision, and the checker measurements behind the signatures.
 
 Every `ExpressionKind` declares the `Level` of the formula it builds: `STATE`
 (the default, including `ENABLED`), `ACTION` (prime, `PRIME_EQUAL`, `UNCHANGED`,
-`[A]_v`, `<<A>>_v`, `\cdot`), `TEMPORAL` (`[]`, `<>`, `~>`, `-+->`, `\EE`, `\AA`),
-or `ACTION_TEMPORAL` (`WF`, `SF`, `[]<><<A>>_v`, `<>[][A]_v`). `GenerationContext`
-keeps a `LevelContext` as a dynamic ceiling, restored on exit like the
+`[A]_v`, `<<A>>_v`, `\cdot`), or `TEMPORAL` (`[]`, `<>`, `~>`, `-+->`, `WF`, `SF`,
+`\EE`, `\AA`, `[][A]_v`, `<><<A>>_v`). `GenerationContext` keeps a
+`LevelContext` as a dynamic ceiling, restored on exit like the
 `EXCEPT`-replacement flag, and `IrExprGenFactory` gives a form weight zero unless
 the current context admits its level. Like the scope, the context is consulted on
 every draw rather than cached with type applicability.
@@ -571,32 +573,31 @@ every draw rather than cached with type applicability.
 | `LevelContext` | Admits | Used for |
 | --- | --- | --- |
 | `STATE` | `STATE` | every body not listed below |
-| `ACTION` | `STATE`, `ACTION` | post-assignment guards; the action of `ENABLED`, `[A]_v`, `<<A>>_v`, fairness and the action-temporal forms |
-| `TEMPORAL` | `STATE`, `TEMPORAL`, `ACTION_TEMPORAL` | the property formula |
-| `ACTION_FREE_TEMPORAL` | `STATE`, `TEMPORAL` | operands of `[]`, `<>`, `~>` and `-+->` |
+| `ACTION` | `STATE`, `ACTION` | post-assignment guards; the operand of `ENABLED` and the action of `[A]_v`, `<<A>>_v`, `[][A]_v`, `<><<A>>_v` and fairness |
+| `TEMPORAL` | `STATE`, `TEMPORAL` | the property formula |
 
-Operands inherit the context by three rules:
+`TEMPORAL` admits no action, because an action occurs in a temporal formula only
+inside `[][A]_v`, `<><<A>>_v`, `WF_v(A)` and `SF_v(A)`. Operands inherit the
+context by three rules:
 
 - `AbstractExprGenFactory.expression` draws an ordinary operand in
   `LevelContext.valueOperand()`: a temporal context becomes `STATE`, and `ACTION`
-  stays `ACTION`, so `x' + 1` remains reachable. Quantifier bodies, predicates,
-  domains and values are all ordinary operands.
-- `sameLevel` keeps the context. Only `~`, `/\`, `\/`, `=>`, the branches of
-  `IF`, the body of `LET` and labels use it. TLC cannot handle a temporal formula
-  under `<=>` ([tlaplus/tlaplus#1029](https://github.com/tlaplus/tlaplus/issues/1029)) or in a `CASE` arm, and Apalache
-  crashes on a quantifier over one.
+  stays `ACTION`, so `x' + 1` remains reachable. Predicates, domains, values, and
+  the bodies of `CHOOSE`, set filters and functions are ordinary operands.
+- `sameLevel` keeps the context for the operands through which TLA<sup>+</sup>
+  passes a temporal formula: `~`, `/\`, `\/`, `=>`, `<=>`, the branches of `IF`,
+  the arms of `CASE`, the body of `LET`, labels, the bodies of `\A`, `\E`, `\EE`
+  and `\AA`, and the operands of `[]`, `<>`, `~>` and `-+->`.
 - `atLevel` names the context explicitly: `STATE` for the operand of prime and
   `UNCHANGED`, for subscripts, for `LET` declaration and lambda bodies and for
   operator arguments, so every name in scope is state-level; `ACTION` for the
-  action of the subscripted and fairness forms and of `ENABLED`;
-  `ACTION_FREE_TEMPORAL` for the operands of `[]`, `<>`, `~>` and `-+->`. TLC
-  checks an action inside a temporal formula only in `[]<>A` and `<>[]A` separated
-  from the top of the formula by Boolean connectives alone.
+  action of the subscripted and fairness forms and of `ENABLED`.
 
-`[][A]_v` is not an expression form: both checkers accept it only as a top-level
-conjunct of a property, so `PropertyGenFactory` draws it (section 9.4). Every
-body of a module and the expression entry point starts in `STATE`, which is what
-keeps priming out of every ordinary subexpression whatever the ignore list.
+SANY rejects a temporal operand of `=`, of a tuple, of a set filter and of
+`CHOOSE`. It accepts a temporal `IF` condition and function body, which are not
+meaningful formulas and are not generated. Every body of a module and the
+expression entry point starts in `STATE`, which is what keeps priming out of
+every ordinary subexpression whatever the ignore list.
 
 ## 8. Correctness and failure semantics
 
@@ -880,13 +881,13 @@ across step bounds, including `0`.
 With the `temporal` category enabled, `PropertyGenFactory` decodes the property
 section over the state scope: one Boolean marker and, when it is odd, the formula
 in the `TEMPORAL` context, a terminated list of at most `maximumFairnessConditions`
-fairness conditions (a Boolean chooses `SF` over `WF`), and a terminated list of
-`[][A]_v` conjuncts. The formula comes first, so a short section still decodes
+fairness conditions (a Boolean chooses `SF` over `WF`). The formula comes first,
+so a short section still decodes
 one, and each part has a node budget of its own. `GeneratedSpec.property` holds
 them as a `TemporalProperty`.
 
 `FuzzInputModule` assembles `Fairness`, `Spec == Init /\ [][Next]_vars /\ Fairness`,
-`Prop` as the conjunction of the `[][A]_v` conjuncts and the formula, and
+`Prop` as the formula, and
 `Liveness == Fairness => Prop`; each is `TRUE`-based when absent, and the
 expression wrapper defines them too. TLC checks `SPECIFICATION Spec` with
 `PROPERTY Prop`; Apalache, which supports no fairness, checks `--temporal=Liveness`.
@@ -912,8 +913,9 @@ Changes to this subsystem should preserve the following rules:
    form says the current scope cannot supply what it needs.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`,
    which lowers a temporal context to `STATE`. Use `sameLevel` only for an
-   operand through which both checkers accept a temporal formula, and `atLevel`
-   for an operand whose level the form fixes (section 7.1).
+   operand through which TLA<sup>+</sup> passes a temporal formula, and `atLevel`
+   for an operand whose level the form fixes (section 7.1). Do not narrow a rule
+   for a checker's limitation; add a known-defect signature instead.
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
    `scopedBody`, which restrict the extended scope to the construct's body, or
    with `boundedTogether` for a construct that binds several names at once. Create

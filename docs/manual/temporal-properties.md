@@ -6,8 +6,9 @@
 
 A `module` corpus can generate primed guards in `Next`, a temporal property
 checked by both model checkers, and fairness conditions in the specification.
-Generation respects TLA<sup>+</sup> levels, so SANY accepts every such module.
-The generated properties use only the forms that both TLC and Apalache accept.
+Generation follows the TLA<sup>+</sup> level rules of *Specifying Systems*, so
+SANY accepts every such module. Shapes that TLC cannot check are generated too,
+and the shipped known-defect signatures quarantine them (section 5).
 
 ## 1. Enabling the operators
 
@@ -25,8 +26,8 @@ ignore = ["unbound", "exotic"]
 | Category | Enables |
 | --- | --- |
 | `action` | Post-assignment guards that read primed variables, the operand of `ENABLED`, and the actions inside `[A]_v`, `<<A>>_v`, `WF` and `SF`. |
-| `temporal` | The property section and `ENABLED`: `[]`, `<>`, `~>`, `[]<><<A>>_v`, `<>[][A]_v`, top-level `[][A]_v`, `WF` and `SF`. `ENABLED` may also occur in `Init`, `Inv`, definitions and guards. |
-| `exotic` | `-+->`, `\EE`, `\AA` and `\cdot`. Keep it ignored: TLC and Apalache both crash on these forms. |
+| `temporal` | The property section and `ENABLED`: `[]`, `<>`, `~>`, `[][A]_v`, `<><<A>>_v`, `WF` and `SF`. `ENABLED` may also occur in `Init`, `Inv`, definitions and guards. |
+| `exotic` | `-+->`, `\EE`, `\AA` and `\cdot`. Keep it ignored: specifications rarely use these forms, and TLC and Apalache both crash on them. No signature quarantines them. |
 
 Enabling `action` without `temporal` adds post-assignment guards but no
 property. `max_fairness = 0` generates properties without fairness conditions in
@@ -46,7 +47,7 @@ Next == \/ step < 5 /\ guards /\ assignments /\ step' = step + 1 /\ postGuards
 Inv == ...
 Fairness == WF_<<var0>>(var0' > var0)                          \* TRUE if none
 Spec == Init /\ [][Next]_<<var0, var1, step>> /\ Fairness
-Prop == [][var1' # var1]_var1 /\ (<>(var0 = 2) => []<><<var1' = 0>>_var1)
+Prop == [][var1' # var1]_var1 /\ \A q \in {1, 2} : (<>(var0 = q) ~> [](var1 = 0))
 Liveness == Fairness => Prop
 ```
 
@@ -56,13 +57,10 @@ Liveness == Fairness => Prop
   state constraint. No state beyond `step = max_steps` is reachable and every
   state may stutter, so both checkers see the same finite graph and the same
   infinite behaviors.
-- **The property** is optional. It is a conjunction of top-level `[][A]_v`
-  conjuncts and one temporal formula. Inside that formula, an action appears
-  only as `[]<><<A>>_v`, `<>[][A]_v`, `WF` or `SF`, and only below `~`, `/\`,
-  `\/`, `=>`, `IF` branches and `LET` bodies. A temporal formula never occurs
-  under a quantifier, `<=>` or `CASE`. These are the nestings TLC and Apalache
-  both check; the others crash one of them. TLC's limitation for `<=>` is
-  [tlaplus/tlaplus#1029](https://github.com/tlaplus/tlaplus/issues/1029).
+- **The property** is optional. It is one temporal formula, nested as TLA<sup>+</sup>
+  allows: through the Boolean connectives including `<=>`, `IF` branches, `CASE`
+  arms, `LET` bodies, quantifier bodies, `[]`, `<>` and `~>`. An action appears
+  only inside `[][A]_v`, `<><<A>>_v`, `WF` or `SF`.
 
 `fuzztla print` renders the whole module, including `Spec`, `Prop` and
 `Liveness`. The printer parenthesizes `[]([Next]_(vars))`; SANY, TLC and
@@ -90,6 +88,18 @@ implication.
 
 A property that makes the parser stage fail with a level error is a decoder
 defect, not a SANY finding. Report it against the generator.
+
+## 5. Shapes TLC cannot check
+
+TLC cannot check some well-formed temporal formulas: a temporal formula under
+`<=>`, in a `CASE` arm or under an unbounded quantifier, and `<><<A>>_v` or a
+`[][A]_v` nested under another temporal operator. The shipped known-defect
+database quarantines modules with these shapes, so they land in
+`00-known-defects` with the signature id instead of crashing TLC. Keep
+`known_defects` pointing at `signatures/known-defects.toml`; without it, expect
+roughly 2% of generated modules to crash TLC. The
+[conformance document](../../conformance/tlc-temporal-formula-limits.md) lists
+each shape with a reproduction.
 
 Checking a property adds one transition to Apalache's unrolling and doubles its
 state variables. Expect Apalache time per module to rise when `temporal` is

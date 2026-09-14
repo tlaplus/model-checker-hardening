@@ -112,11 +112,21 @@ argument.
 | `(OPER p1 … pn)` | An application of `OPER` to exactly `n` arguments that match `p1 … pn` in order. | `(Sequences!Seq _)` |
 | `(OPER p1 … pk ...)` | An application of `OPER` to at least `k` arguments, the first `k` matching `p1 … pk`. | `(SET_ENUM 0 ...)` |
 | `(: p "T")` | An expression that matches `p` and whose type matches `T`. | `(: _ "Set(Str)")` |
+| `(.. p)` | An expression that matches `p`, or that has a subexpression matching `p` at any depth. | `(EQUIV (.. (GLOBALLY _)) _)` |
+| `(& p1 … pn)` | An expression that matches every `p1 … pn`. | `(& (CASE ...) (.. (GLOBALLY _)))` |
 
 An identifier consists of letters, digits, `_`, `!` and `$`, and does not
 start with a digit. In head position it names an operator, which must exist;
 anywhere else it names a variable, parameter or definition. The words `_`,
-`TRUE`, `FALSE`, `STRING`, `Int`, `Nat` and `BOOLEAN` are reserved.
+`TRUE`, `FALSE`, `STRING`, `Int`, `Nat` and `BOOLEAN` are reserved, and `..`
+and `&` are reserved as heads.
+
+`(.. p)` searches operator arguments and the declarations and body of a `LET`,
+skipping labels. It does not follow a name to the definition it refers to: a
+temporal operator inside a referenced definition is matched where that
+definition is walked, not through the reference. Combine `&` with `..` to
+constrain an operator whose relevant argument position varies, such as a `CASE`
+arm.
 
 ### 3.3. Types
 
@@ -151,6 +161,8 @@ cardinality of any set of sequences.
   not carry from one alternative to another.
 - **Metavariables.** Two occurrences of `?x` must match structurally equal
   expressions. Type annotations are not compared; use a type constraint for that.
+  Inside `(.. p)`, the first subexpression in pre-order that matches `p`
+  determines the bindings; the parts of `(& p1 … pn)` bind from left to right.
 - **Arity.** An application matches only its exact argument count unless the
   pattern ends in `...`.
 - **Labels.** Labels are skipped, just as `print --apalache-ir` omits them. A
@@ -279,3 +291,24 @@ corpus12's Apalache time.
 | `sequence-set` | `(Sequences!Seq _)` | [Apalache does not support `Seq(S)`](../../conformance/sequence-set-unsupported.md) | 100% | 82.5% |
 | `string-set` | `STRING` | [Apalache does not support `STRING`](../../conformance/string-set-unsupported.md) | 100% | 82.0% |
 | `zero-power-zero` | `(POW 0 0)` | [Apalache reaches `0 ^ 0`](../../conformance/zero-power-zero-apalache-fails.md) | 79.9% | 78.9% |
+
+The database also holds signatures for temporal formulas that TLC cannot check
+([TLC temporal formula limits](../../conformance/tlc-temporal-formula-limits.md)).
+Here `T` stands for any temporal operator: `GLOBALLY`, `EVENTUALLY`, `LEADS_TO`,
+`WEAK_FAIRNESS`, `STRONG_FAIRNESS`, and the exotic `GUARANTEES`, `TEMPORAL_EXISTS`
+and `TEMPORAL_FORALL`; each such signature lists one alternative per operator.
+They were measured on a 1600-module smoke corpus generated with every category
+but `exotic` enabled. Recall is the share of TLC crashes with the diagnostic
+that the temporal signatures together match; precision is the share of a
+signature's matches on which TLC crashed with it.
+
+| Id | Match | TLC diagnostic | Recall | Precision |
+| --- | --- | --- | ---: | ---: |
+| `tlc-temporal-equivalence` | `(& (EQUIV ...) (.. (T ...)))` | cannot handle | 13 of 13, together | 6 of 6 |
+| `tlc-temporal-case` | `(& (CASE ...) (.. (T ...)))`, and `CASE_OTHER` | cannot handle | | 1 of 1 |
+| `tlc-temporal-unbounded-quantifier` | `(& (FORALL2 ...) (.. (T ...)))`, and `EXISTS2` | cannot handle | | 7 of 7 |
+| `tlc-eventually-action` | `(EVENTUALLY (NO_STUTTER ...))` | must be of forms | 16 of 16, together | 16 of 17 |
+| `tlc-always-action-under-temporal` | `[][A]_v` under `EVENTUALLY`, `LEADS_TO` or `GLOBALLY` | must be of forms | | 2 of 2 |
+
+`tlc-eventually-action` also matches `[]<><<A>>_v`, which TLC checks; its
+seventeenth match failed an evaluation before TLC reached the property.

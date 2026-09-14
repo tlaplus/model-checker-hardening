@@ -119,7 +119,19 @@ The wildcard `_` matches any expression. A metavariable `?x` matches any
 expression, but all occurrences of it must match equal expressions. A trailing
 `...` matches any remaining arguments. A type constraint `(: p "T")` also
 requires the expression's type to match `T`. `T` is written in Apalache's type
-syntax, and its type variables act as wildcards. In-process `TlaOper.name()`
+syntax, and its type variables act as wildcards.
+
+*Revision.* The original pattern language matched fixed structure only. TLC's
+temporal restrictions ([ADR 0007](0007-levels-and-temporal-properties.md)) depend
+on a temporal operator anywhere below another operator, possibly in a variable
+argument position, so two forms were added. A descendant pattern `(.. p)`
+matches an expression that `p` matches, or that has such a subexpression, searching
+operator arguments and `LET` declarations and bodies but not references. A
+conjunction `(& p1 ... pn)` matches an expression every part matches. A
+descendant attempt matches against a copy of the bindings and keeps it only on
+success, so matching still needs no backtracking across alternatives.
+
+In-process `TlaOper.name()`
 equals the JSON `oper` field, so a pattern names the same operator a user sees
 in the printed IR. Unknown operator names are load errors, so a typo cannot
 produce a signature that silently never matches.
@@ -186,6 +198,12 @@ The repository ships `signatures/known-defects.toml` with these signatures:
 | `zero-power-zero` | `(POW 0 0)` | [`0 ^ 0`][pow] |
 | `sequence-set` | `(Sequences!Seq _)` | [`Seq`][seq] |
 | `string-set` | `STRING` | [`STRING`][string] |
+
+[ADR 0007](0007-levels-and-temporal-properties.md) adds five TLC signatures for
+temporal formulas TLC cannot check, referencing
+[TLC temporal formula limits](../../conformance/tlc-temporal-formula-limits.md).
+They were measured on a 1600-module smoke corpus rather than corpus12, which has
+no temporal properties.
 
 ### Measured precision
 
