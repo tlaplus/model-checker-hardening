@@ -39,6 +39,13 @@ class PatternParserTest {
         assertEquals(
                 new IrPattern.Typed(wildcard, TypePattern.parse("Set(a)")),
                 PatternParser.parse("(: _ \"Set(a)\")"));
+        assertEquals(
+                new IrPattern.Descendant(new IrPattern.Application(TlaOperators.GLOBALLY, List.of(wildcard), false)),
+                PatternParser.parse("(.. (GLOBALLY _))"));
+        assertEquals(
+                new IrPattern.Conjunction(List.of(
+                        new IrPattern.Application(TlaOperators.CASE, List.of(), true), zero)),
+                PatternParser.parse("(& (CASE ...) 0)"));
     }
 
     @Test
@@ -58,6 +65,10 @@ class PatternParserTest {
         assertError("(: _ \"Set(\")", 6, "malformed type");
         assertError("(: _ \"Int\" _)", 1, "a type constraint takes one pattern and one type");
         assertError("a+b", 1, "unexpected 'a+b'");
+        assertError("(..)", 1, "a descendant pattern takes one pattern");
+        assertError("(.. _ _)", 1, "a descendant pattern takes one pattern");
+        assertError("(&)", 1, "a conjunction takes at least one pattern");
+        assertError("(& _", 1, "missing ')'");
     }
 
     private static void assertError(String pattern, int column, String message) {
