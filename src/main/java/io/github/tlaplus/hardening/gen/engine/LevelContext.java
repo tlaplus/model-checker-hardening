@@ -8,25 +8,23 @@ import java.util.Set;
  * ceiling while a body is drawn.
  *
  * <p>A form whose {@link Level} the context does not admit is not selectable. An ordinary operand
- * is drawn in {@link #valueOperand()}; the forms that TLA+ and both checkers allow to pass a
- * temporal context through, such as the Boolean connectives, draw their operands in the same
- * context instead, and the level-changing forms name the context of each operand explicitly.
- * ADR 0007 records the checker measurements behind these tables.
+ * is drawn in {@link #valueOperand()}; the forms through which TLA+ passes a temporal formula, such
+ * as the Boolean connectives and quantifier bodies, draw their operands in the same context
+ * instead, and the level-changing forms name the context of each operand explicitly. The rules
+ * are those of <em>Specifying Systems</em> as SANY checks them; the shapes a model checker cannot
+ * handle are rejected by known-defect signatures, not here (ADR 0007).
  */
 enum LevelContext {
     /** Constant and state-level expressions. The default for every body. */
     STATE(Level.STATE),
     /** Expressions that may prime variables. */
     ACTION(Level.STATE, Level.ACTION),
-    /** A temporal property formula. */
-    TEMPORAL(Level.STATE, Level.TEMPORAL, Level.ACTION_TEMPORAL),
     /**
-     * A temporal formula that may not contain an action, as under {@code []}, {@code <>} and
-     * {@code ~>}. TLC checks an action inside a temporal formula only when Boolean connectives alone
-     * separate it from the top of the formula, and Apalache fails its assignment analysis on an
-     * action under {@code ~>}.
+     * A temporal formula. It admits no action: an action occurs in a temporal formula only inside
+     * {@code [][A]_v}, {@code <><<A>>_v}, {@code WF_v(A)} or {@code SF_v(A)}, which draw it in
+     * {@link #ACTION}.
      */
-    ACTION_FREE_TEMPORAL(Level.STATE, Level.TEMPORAL);
+    TEMPORAL(Level.STATE, Level.TEMPORAL);
 
     private final Set<Level> admitted;
 
@@ -42,9 +40,11 @@ enum LevelContext {
     /**
      * Returns the context of an operand that is not a Boolean passed on at the form's own level.
      *
-     * <p>Such an operand is a value, a quantifier body, a predicate or a domain. None of them may be
-     * temporal: TLA+ forbids it for values, and Apalache crashes on a quantifier over a temporal
-     * body. A primed value stays admissible in an action context, as in {@code x' + 1}.
+     * <p>Such an operand is a value, a predicate, a domain, a set or function body, or a
+     * {@code CHOOSE} body. None of them may be temporal: SANY rejects a temporal operand of
+     * {@code =}, of a tuple, of a set filter and of {@code CHOOSE}, and accepts a temporal function
+     * body or {@code IF} condition although neither is a meaningful formula. A primed value stays
+     * admissible in an action context, as in {@code x' + 1}.
      */
     LevelContext valueOperand() {
         return this == ACTION ? ACTION : STATE;

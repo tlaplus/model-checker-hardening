@@ -35,8 +35,8 @@ class ExpressionKindCatalogTest {
                                     BooleanExpressionKind.LEADS_TO,
                                     BooleanExpressionKind.WEAK_FAIR,
                                     BooleanExpressionKind.STRONG_FAIR,
-                                    TemporalActionExpressionKind.INFINITELY_OFTEN_ACTION,
-                                    TemporalActionExpressionKind.EVENTUALLY_ALWAYS_ACTION)),
+                                    TemporalActionExpressionKind.ALWAYS_ACTION,
+                                    TemporalActionExpressionKind.EVENTUALLY_ACTION)),
                     Map.entry(
                             ExpressionCategory.UNBOUND,
                             kinds(
@@ -373,8 +373,8 @@ class ExpressionKindCatalogTest {
                     ApplicativeExpressionKind.RECORD_DOMAIN,
                     ApplicativeExpressionKind.TUPLE_DOMAIN,
                     ApplicativeExpressionKind.SEQUENCE_DOMAIN,
-                    TemporalActionExpressionKind.INFINITELY_OFTEN_ACTION,
-                    TemporalActionExpressionKind.EVENTUALLY_ALWAYS_ACTION);
+                    TemporalActionExpressionKind.ALWAYS_ACTION,
+                    TemporalActionExpressionKind.EVENTUALLY_ACTION);
 
     @Test
     void catalogOrderIsTheStoredByteEncoding() {
@@ -451,13 +451,10 @@ class ExpressionKindCatalogTest {
             assertTrue(allEnabled.isApplicable(
                     BooleanExpressionKind.TEMPORAL_EXISTS, PrimitiveType.BOOL));
             assertTrue(allEnabled.isApplicable(
-                    TemporalActionExpressionKind.INFINITELY_OFTEN_ACTION, PrimitiveType.BOOL));
+                    TemporalActionExpressionKind.ALWAYS_ACTION, PrimitiveType.BOOL));
+            assertTrue(allEnabled.isApplicable(BooleanExpressionKind.WEAK_FAIR, PrimitiveType.BOOL));
             assertFalse(allEnabled.isApplicable(GeneralExpressionKind.PRIME, PrimitiveType.BOOL));
-            return null;
-        }));
-        new Draw(new byte[0]).draw(allEnabledContext.withLevel(LevelContext.ACTION_FREE_TEMPORAL, ignored -> {
-            assertTrue(allEnabled.isApplicable(BooleanExpressionKind.ALWAYS, PrimitiveType.BOOL));
-            assertFalse(allEnabled.isApplicable(BooleanExpressionKind.WEAK_FAIR, PrimitiveType.BOOL));
+            assertFalse(allEnabled.isApplicable(BooleanExpressionKind.STUTTER, PrimitiveType.BOOL));
             return null;
         }));
 

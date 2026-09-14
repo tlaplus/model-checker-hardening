@@ -10,8 +10,9 @@ import java.util.Objects;
 /**
  * The metavariables and type variables one pattern alternative has bound so far.
  *
- * <p>Matching needs no backtracking, so a failed attempt simply discards its bindings: every
- * attempt to match an alternative at one expression starts from a fresh instance.
+ * <p>An attempt to match an alternative at one expression starts from a fresh instance, and a failed
+ * attempt discards its bindings. A descendant pattern tries several subexpressions in turn, so it
+ * matches each against a {@link #copy()} and {@link #adopt(Bindings) adopts} the first that succeeds.
  */
 final class Bindings {
     private final Map<String, TlaEx> expressions = new HashMap<>();
@@ -25,6 +26,22 @@ final class Bindings {
         var bound = expressions.putIfAbsent(
                 Objects.requireNonNull(name, "name"), Objects.requireNonNull(expression, "expression"));
         return bound == null || bound.equals(expression);
+    }
+
+    /** Returns independent bindings with the same entries, for an attempt that may fail. */
+    Bindings copy() {
+        var result = new Bindings();
+        result.expressions.putAll(expressions);
+        result.types.putAll(types);
+        return result;
+    }
+
+    /** Replaces these bindings with those of a successful attempt made on a {@link #copy()}. */
+    void adopt(Bindings attempt) {
+        expressions.clear();
+        expressions.putAll(attempt.expressions);
+        types.clear();
+        types.putAll(attempt.types);
     }
 
     /** Binds a type variable, or checks an existing binding. */

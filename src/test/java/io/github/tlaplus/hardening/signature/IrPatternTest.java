@@ -54,6 +54,34 @@ class IrPatternTest {
     }
 
     @Test
+    void matchesADescendantAtAnyDepthIncludingLetDeclarations() throws Exception {
+        var x = builder.name("x", TlaTypes.INT);
+        var always = builder.always(builder.eql(x, builder.integer(1)));
+        var nested = builder.equiv(builder.not(always), builder.bool(true));
+        assertTrue(matches("(.. (GLOBALLY _))", nested));
+        assertTrue(matches("(EQUIV (.. (GLOBALLY _)) _)", nested));
+        assertFalse(matches("(EQUIV _ (.. (GLOBALLY _)))", nested));
+        assertTrue(matches("(.. (EQUIV ...))", nested));
+
+        var declaration = builder.decl("F", builder.label(always, "lab"));
+        var let = builder.letIn(builder.bool(true), declaration);
+        assertTrue(matches("(.. (GLOBALLY _))", let));
+        assertFalse(matches("(.. (EVENTUALLY _))", let));
+    }
+
+    @Test
+    void conjoinsPatternsAtOneExpressionAndBacktracksDescendantBindings() throws Exception {
+        var one = builder.integer(1);
+        var two = builder.integer(2);
+        var sum = builder.plus(builder.plus(one, two), builder.plus(two, two));
+        assertTrue(matches("(& (PLUS ...) (.. (PLUS ?x ?x)))", sum));
+        assertFalse(matches("(& (MINUS ...) (.. (PLUS ?x ?x)))", sum));
+        // The descendant binds ?x to 2 only after the attempt at (1 + 2) + (2 + 2) and at 1 + 2 failed.
+        assertTrue(matches("(& (.. (PLUS ?x ?x)) (.. (PLUS _ ?x)))", sum));
+        assertFalse(matches("(& (.. (PLUS ?x ?x)) (.. (PLUS ?x 1)))", sum));
+    }
+
+    @Test
     void requiresEveryOccurrenceOfAMetavariableToMatchEqualExpressions() throws Exception {
         var x = builder.name("x", TlaTypes.INT);
         assertTrue(matches("(EQ ?x ?x)", builder.eql(x, builder.name("x", TlaTypes.INT))));

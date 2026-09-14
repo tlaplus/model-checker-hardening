@@ -64,6 +64,41 @@ class AggregatorClassificationTest(unittest.TestCase):
         )
         self.assertEqual("division-by-zero-apalache-fails.md", actual)
 
+    def test_classifies_tlc_constant_property_restrictions(self) -> None:
+        cases = (
+            ("The property of Prop is equal to FALSE", 150),
+            ("The spec is trivially false because FALSE is false.", 150),
+            ("Temporal formula is a tautology (its negation is unsatisfiable).", 75),
+        )
+        for detail, code in cases:
+            for other in ("pass", "counterexample"):
+                with self.subTest(detail=detail, other=other):
+                    self.assertEqual(
+                        "constant-property-tlc-rejects.md",
+                        triager.classify_aggregator(
+                            results(triager.Checker.TLC, detail, other_verdict=other, code=code),
+                            HASH_A,
+                        ),
+                    )
+
+    def test_classifies_apalache_temporal_limitations(self) -> None:
+        cases = (
+            ("<unknown>: unsupported expression: ENABLED (step < 5)", "enabled-apalache-unsupported.md"),
+            (
+                "scala.NotImplementedError: Handling fairness is not supported yet!",
+                "fairness-apalache-unsupported.md",
+            ),
+        )
+        for detail, issue in cases:
+            for other in ("pass", "counterexample"):
+                with self.subTest(issue=issue, other=other):
+                    self.assertEqual(
+                        issue,
+                        triager.classify_aggregator(
+                            results(triager.Checker.APALACHE, detail, other_verdict=other), HASH_A
+                        ),
+                    )
+
     def test_classifies_new_conformance_and_printer_groups(self) -> None:
         cases = (
             (

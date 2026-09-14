@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.signature;
 
+import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.ValEx;
 import at.forsyte.apalache.tla.lir.oper.TlaOper;
 import at.forsyte.apalache.tla.lir.values.TlaBool;
@@ -11,6 +13,7 @@ import at.forsyte.apalache.tla.lir.values.TlaStr;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 
@@ -125,6 +128,60 @@ sealed interface IrPattern {
             }
             for (var index = 0; index < arguments.size(); index++) {
                 if (!arguments.get(index).matches(IrTree.unlabeled(actual.get(index)), bindings)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    /**
+     * {@code (.. p)}: an expression that matches {@code pattern} itself or has a subexpression that
+     * does. The search follows operator arguments and {@code LET} bodies and declarations, skipping
+     * labels, but not references to other definitions. Subexpressions are tried in pre-order, and
+     * the first that matches determines the bindings.
+     */
+    record Descendant(IrPattern pattern) implements IrPattern {
+        public Descendant {
+            Objects.requireNonNull(pattern, "pattern");
+        }
+
+        @Override
+        public boolean matches(TlaEx expression, Bindings bindings) {
+            var attempt = bindings.copy();
+            if (pattern.matches(expression, attempt)) {
+                bindings.adopt(attempt);
+                return true;
+            }
+            var children = switch (expression) {
+                case OperEx application -> TlaExpressions.arguments(application);
+                case LetInEx letIn -> Stream.concat(
+                        TlaExpressions.localDeclarations(letIn).stream().map(TlaOperDecl::body),
+                        Stream.of(letIn.body())).toList();
+                default -> List.<TlaEx>of();
+            };
+            for (var child : children) {
+                if (matches(IrTree.unlabeled(child), bindings)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /** {@code (& p1 ... pn)}: an expression that matches every pattern, binding left to right. */
+    record Conjunction(List<IrPattern> patterns) implements IrPattern {
+        public Conjunction {
+            patterns = List.copyOf(patterns);
+            if (patterns.isEmpty()) {
+                throw new IllegalArgumentException("a conjunction takes at least one pattern");
+            }
+        }
+
+        @Override
+        public boolean matches(TlaEx expression, Bindings bindings) {
+            for (var pattern : patterns) {
+                if (!pattern.matches(expression, bindings)) {
                     return false;
                 }
             }

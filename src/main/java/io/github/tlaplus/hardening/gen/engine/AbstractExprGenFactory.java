@@ -48,10 +48,13 @@ abstract class AbstractExprGenFactory {
     /**
      * Returns a generator of an operand drawn in the same level context as the form itself.
      *
-     * <p>Only the forms through which a temporal formula may pass use it: {@code ~}, {@code /\},
-     * {@code \/} and {@code =>}, the branches of {@code IF}, the body of {@code LET}, and labels. TLC
-     * cannot handle a temporal formula under {@code <=>}
-     * (<a href="https://github.com/tlaplus/tlaplus/issues/1029">tlaplus/tlaplus#1029</a>) or in a {@code CASE} arm.
+     * <p>Only the forms through which TLA+ passes a temporal formula use it: {@code ~}, {@code /\},
+     * {@code \/}, {@code =>}, {@code <=>}, the branches of {@code IF}, the arms of {@code CASE}, the
+     * body of {@code LET}, labels, the bodies of {@code \A} and {@code \E}, and the operands of
+     * {@code []}, {@code <>}, {@code ~>} and {@code -+->}. TLC cannot handle some of these shapes,
+     * such as a temporal formula under {@code <=>}
+     * (<a href="https://github.com/tlaplus/tlaplus/issues/1029">tlaplus/tlaplus#1029</a>); the
+     * known-defect signatures reject those inputs instead.
      */
     protected final Generator<TlaEx> sameLevel(
             IrType type, int remainingDepth) {
@@ -110,30 +113,40 @@ abstract class AbstractExprGenFactory {
         return new Binding(name, builder().name(name.name(), type.toTlaType()));
     }
 
-    /** Returns a generator of an expression drawn with {@code binding} in lexical scope. */
-    protected final Generator<TlaEx> scopedBody(
-            Binding binding, IrType bodyType, int bodyDepth) {
-        return context.withBinding(binding.name(), expression(bodyType, bodyDepth));
-    }
-
-    /** Draws an unbounded construct, extending lexical scope only around its body. */
+    /** Draws an unbounded construct whose body is an ordinary operand. */
     protected final Generator<TlaEx> unbounded(
             String prefix, IrType variableType, IrType bodyType, int depth,
             BinaryOperator<TlaEx> operation) {
+        return unbounded(prefix, variableType, expression(bodyType, depth), operation);
+    }
+
+    /** Draws an unbounded construct, extending lexical scope only around the supplied body. */
+    protected final Generator<TlaEx> unbounded(
+            String prefix, IrType variableType, Generator<TlaEx> body, BinaryOperator<TlaEx> operation) {
         return draw -> {
             var binding = freshBinding(prefix, variableType);
-            return operation.apply(binding.variable(), draw.draw(scopedBody(binding, bodyType, depth)));
+            return operation.apply(binding.variable(), draw.draw(context.withBinding(binding.name(), body)));
         };
     }
 
-    /** Allocates the binder before drawing its domain; only the body sees that binding. */
+    /** Draws a bounded construct whose body is an ordinary operand. */
     protected final Generator<TlaEx> bounded(
             String prefix, IrType variableType, IrType bodyType, int depth,
             Function3<TlaEx, TlaEx, TlaEx, TlaEx> operation) {
+        return bounded(prefix, variableType, depth, expression(bodyType, depth), operation);
+    }
+
+    /**
+     * Allocates the binder before drawing its domain, an ordinary operand of the given depth; only
+     * the supplied body sees that binding.
+     */
+    protected final Generator<TlaEx> bounded(
+            String prefix, IrType variableType, int domainDepth, Generator<TlaEx> body,
+            Function3<TlaEx, TlaEx, TlaEx, TlaEx> operation) {
         return draw -> {
             var binding = freshBinding(prefix, variableType);
-            var domain = draw.draw(expression(new SetType(variableType), depth));
-            return operation.apply(binding.variable(), domain, draw.draw(scopedBody(binding, bodyType, depth)));
+            var domain = draw.draw(expression(new SetType(variableType), domainDepth));
+            return operation.apply(binding.variable(), domain, draw.draw(context.withBinding(binding.name(), body)));
         };
     }
 

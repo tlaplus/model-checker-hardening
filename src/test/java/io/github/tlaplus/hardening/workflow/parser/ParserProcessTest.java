@@ -154,8 +154,8 @@ class ParserProcessTest {
         // operator, or an action mixed with a temporal formula fails here. With the action and
         // temporal categories enabled, post-assignment guards and properties must still parse.
         var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND));
-        var samples = GeneratedSpecSamples.collect(config, 0x1e7e15L, 400, 24, spec -> spec.property().isPresent());
-        assertEquals(24, samples.size(), "too few modules with a property were generated");
+        var samples = GeneratedSpecSamples.collect(config, 0x1e7e15L, 1600, 96, spec -> spec.property().isPresent());
+        assertEquals(96, samples.size(), "too few modules with a property were generated");
         var scratch = Files.createDirectory(directory.resolve("scratch"));
         try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
             for (var spec : samples) {

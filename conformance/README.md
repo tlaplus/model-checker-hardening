@@ -68,6 +68,10 @@ to 100%.
 | Aggregator | 1.92% | 🟢 Pass | 🔴 Fail | Unsupported `Seq(S)` | [MWE](sequence-set-unsupported.md#representative-mwe) | Known Apalache limitation |
 | Aggregator | 1.15% | 🟢 Pass | 🔴 Fail | Apalache reaches `0^0` | [MWE](zero-power-zero-apalache-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 1.00% | 🟢 Pass | 🔴 Fail | Unsupported `STRING` | [MWE](string-set-unsupported.md#representative-mwe) | Apalache capability limit |
+| Smoke corpus ([ADR 0007](../docs/decisions/0007-levels-and-temporal-properties.md)) | 4.17% | 🔴 Fail | 🟢 Pass | Constant `FALSE` or tautological property | [MWE](constant-property-tlc-rejects.md#representative-mwe) | TLC restriction |
+| Smoke corpus ([ADR 0007](../docs/decisions/0007-levels-and-temporal-properties.md)) | quarantined | 💥 Crash | 🟢 Pass | Temporal formulas TLC cannot check | [MWE](tlc-temporal-formula-limits.md#representative-mwe) | TLC capability limit |
+| Design ([ADR 0007](../docs/decisions/0007-levels-and-temporal-properties.md)) | not measured | 🟢 Pass | 🔴 Fail | Unsupported `ENABLED` | [MWE](enabled-apalache-unsupported.md#representative-mwe) | Known Apalache limitation |
+| Design ([ADR 0007](../docs/decisions/0007-levels-and-temporal-properties.md)) | not measured | 🟢 Pass | 🔴 Fail | Unsupported fairness | [MWE](fairness-apalache-unsupported.md#representative-mwe) | Known Apalache limitation |
 | Aggregator (corpus6) | 0.01% | Counterexample | 🟢 Pass | Division with a negative divisor | [MWE](division-negative-divisor.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-008.md) |
 | Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
 | Aggregator (corpus9) | <0.01% | 🟢 Pass | Counterexample | `CHOOSE` with several witnesses | [MWE](choose-multiple-witnesses.md#representative-mwe) | Known semantic difference |

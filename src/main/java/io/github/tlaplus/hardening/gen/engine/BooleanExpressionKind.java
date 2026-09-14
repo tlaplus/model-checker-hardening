@@ -35,8 +35,8 @@ public enum BooleanExpressionKind implements ExpressionKind {
     LEADS_TO(Level.TEMPORAL, ExpressionCategory.TEMPORAL),
     // Neither TLC nor Apalache checks -+->, so it is exotic although it is a temporal operator.
     GUARANTEES(Level.TEMPORAL, ExpressionCategory.EXOTIC),
-    WEAK_FAIR(Level.ACTION_TEMPORAL, ExpressionCategory.TEMPORAL),
-    STRONG_FAIR(Level.ACTION_TEMPORAL, ExpressionCategory.TEMPORAL),
+    WEAK_FAIR(Level.TEMPORAL, ExpressionCategory.TEMPORAL),
+    STRONG_FAIR(Level.TEMPORAL, ExpressionCategory.TEMPORAL),
     TEMPORAL_EXISTS(Level.TEMPORAL, ExpressionCategory.EXOTIC),
     TEMPORAL_FORALL(Level.TEMPORAL, ExpressionCategory.EXOTIC);
 

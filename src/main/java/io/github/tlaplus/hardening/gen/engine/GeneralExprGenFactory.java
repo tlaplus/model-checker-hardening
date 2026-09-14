@@ -144,12 +144,12 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                     branchDraw -> new ExpressionPair<>(
                             branchDraw.draw(expression(
                                     PrimitiveType.BOOL, remainingDepth - 1)),
-                            branchDraw.draw(expression(type, remainingDepth - 1))),
+                            branchDraw.draw(sameLevel(type, remainingDepth - 1))),
                     1,
                     context.config().expressions().maximumCollectionSize()));
             if (draw.drawBoolean()) {
                 return builder().caseOther(
-                        draw.draw(expression(type, remainingDepth - 1)),
+                        draw.draw(sameLevel(type, remainingDepth - 1)),
                         BuilderArrays.pairs(branches));
             }
             return builder().caseSplit(BuilderArrays.pairs(branches));
