@@ -1,13 +1,16 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** The section layout is part of the module byte encoding, so its order and weights are pinned. */
@@ -19,10 +22,11 @@ class ModuleSectionTest {
 
         assertEquals(
                 Map.of("VARIABLES", 1, "AUXILIARY_OPERATORS", 2, "INVARIANT", 3,
-                        "ACTION_OPERATORS", 3, "INIT", 2, "NEXT", 5),
+                        "ACTION_OPERATORS", 3, "INIT", 2, "NEXT", 5, "PROPERTY", 3),
                 layout);
         assertEquals(
-                List.of("VARIABLES", "AUXILIARY_OPERATORS", "INVARIANT", "ACTION_OPERATORS", "INIT", "NEXT"),
+                List.of("VARIABLES", "AUXILIARY_OPERATORS", "INVARIANT", "ACTION_OPERATORS", "INIT", "NEXT",
+                        "PROPERTY"),
                 List.copyOf(layout.keySet()));
     }
 
@@ -34,32 +38,48 @@ class ModuleSectionTest {
         }
         var draw = new Draw(input);
 
-        var sections = ModuleSection.split(draw);
+        var sections = ModuleSection.split(draw, IrGenerationConfig.defaults());
 
         assertTrue(draw.isEmpty());
-        var expectedLengths = List.of(10, 20, 30, 30, 20, 50);
+        // The defaults ignore the temporal category, so the property section is absent and the
+        // other sections keep the layout they had before it existed.
+        var expectedLengths = List.of(10, 20, 30, 30, 20, 50, 0);
         var offset = 0;
         for (var section : ModuleSection.values()) {
             var slice = sections.get(section);
             var length = expectedLengths.get(section.ordinal());
             assertEquals(length, slice.remaining(), section.name());
-            assertEquals(offset, slice.drawByte(), section.name());
+            if (length > 0) {
+                assertEquals(offset, slice.drawByte(), section.name());
+            }
             offset += length;
         }
     }
 
     @Test
     void theLastSectionTakesTheRoundingRemainder() {
-        var sections = ModuleSection.split(new Draw(new byte[17]));
+        var sections = ModuleSection.split(new Draw(new byte[17]), IrGenerationConfig.defaults());
 
         var lengths = Arrays.stream(ModuleSection.values()).map(section -> sections.get(section).remaining()).toList();
 
-        assertEquals(List.of(1, 2, 3, 3, 2, 6), lengths);
+        assertEquals(List.of(1, 2, 3, 3, 2, 6, 0), lengths);
+    }
+
+    @Test
+    void theTemporalCategoryAddsThePropertySectionWithItsShare() {
+        var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of());
+        var sections = ModuleSection.split(new Draw(new byte[190]), config);
+
+        var lengths = Arrays.stream(ModuleSection.values()).map(section -> sections.get(section).remaining()).toList();
+
+        assertEquals(List.of(10, 20, 30, 30, 20, 50, 30), lengths);
+        assertTrue(ModuleSection.PROPERTY.isPresent(config));
+        assertFalse(ModuleSection.PROPERTY.isPresent(IrGenerationConfig.defaults()));
     }
 
     @Test
     void anEmptyInputGivesEverySectionAnEmptyCursor() {
-        var sections = ModuleSection.split(new Draw(new byte[0]));
+        var sections = ModuleSection.split(new Draw(new byte[0]), IrGenerationConfig.defaults());
 
         for (var section : ModuleSection.values()) {
             assertTrue(sections.get(section).isEmpty(), section.name());

@@ -24,31 +24,58 @@ public enum BooleanExpressionKind implements ExpressionKind {
     NOT_IN(ExpressionCategory.SET),
     SUBSET_EQUAL(ExpressionCategory.SET),
     IS_FINITE_SET(ExpressionCategory.FINITE_SET, ExpressionCategory.SET),
-    PRIME_EQUAL(ExpressionCategory.ACTION),
-    STUTTER(ExpressionCategory.TEMPORAL),
-    NO_STUTTER(ExpressionCategory.TEMPORAL),
+    PRIME_EQUAL(Level.ACTION, ExpressionCategory.ACTION),
+    STUTTER(Level.ACTION, ExpressionCategory.TEMPORAL),
+    NO_STUTTER(Level.ACTION, ExpressionCategory.TEMPORAL),
     ENABLED(ExpressionCategory.TEMPORAL),
-    UNCHANGED(ExpressionCategory.ACTION),
-    ACTION_THEN(ExpressionCategory.EXOTIC),
-    ALWAYS(ExpressionCategory.TEMPORAL),
-    EVENTUALLY(ExpressionCategory.TEMPORAL),
-    LEADS_TO(ExpressionCategory.TEMPORAL),
-    GUARANTEES(ExpressionCategory.TEMPORAL),
-    WEAK_FAIR(ExpressionCategory.TEMPORAL),
-    STRONG_FAIR(ExpressionCategory.TEMPORAL),
-    TEMPORAL_EXISTS(ExpressionCategory.EXOTIC),
-    TEMPORAL_FORALL(ExpressionCategory.EXOTIC);
+    UNCHANGED(Level.ACTION, ExpressionCategory.ACTION),
+    ACTION_THEN(Level.ACTION, ExpressionCategory.EXOTIC),
+    ALWAYS(Level.TEMPORAL, ExpressionCategory.TEMPORAL),
+    EVENTUALLY(Level.TEMPORAL, ExpressionCategory.TEMPORAL),
+    LEADS_TO(Level.TEMPORAL, ExpressionCategory.TEMPORAL),
+    // Neither TLC nor Apalache checks -+->, so it is exotic although it is a temporal operator.
+    GUARANTEES(Level.TEMPORAL, ExpressionCategory.EXOTIC),
+    WEAK_FAIR(Level.ACTION_TEMPORAL, ExpressionCategory.TEMPORAL),
+    STRONG_FAIR(Level.ACTION_TEMPORAL, ExpressionCategory.TEMPORAL),
+    TEMPORAL_EXISTS(Level.TEMPORAL, ExpressionCategory.EXOTIC),
+    TEMPORAL_FORALL(Level.TEMPORAL, ExpressionCategory.EXOTIC);
 
+    private final Level level;
     private final Categories categories;
 
     BooleanExpressionKind(
             ExpressionCategory category, ExpressionCategory... dependencies) {
+        this(Level.STATE, category, dependencies);
+    }
+
+    BooleanExpressionKind(
+            Level level, ExpressionCategory category, ExpressionCategory... dependencies) {
+        this.level = level;
         categories = new Categories(category, dependencies);
     }
 
     @Override
     public boolean isTypeApplicable(IrType type) {
         return type == PrimitiveType.BOOL;
+    }
+
+    @Override
+    public Level level() {
+        return level;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@code PRIME_EQUAL} primes a declared state variable, so it withdraws where none is
+     * visible, as in the expression entry point.
+     */
+    @Override
+    public int selectionWeight(GenerationContext context, IrType type) {
+        if (this == PRIME_EQUAL && !context.hasStateVariable()) {
+            return 0;
+        }
+        return context.config().weightOf(this);
     }
 
     @Override

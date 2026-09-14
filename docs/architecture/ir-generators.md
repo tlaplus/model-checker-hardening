@@ -242,7 +242,8 @@ Expression kinds are grouped by construction responsibility:
 - `GeneralExprGenFactory` handles terminals, names, conditionals, `CHOOSE`,
   `CASE`, applications, `LET`, prime, folds, sequence head, and variant access.
 - `BooleanExprGenFactory` handles propositional, relational, quantified, action,
-  temporal, and fairness expressions.
+  temporal, and fairness expressions, and the `TemporalActionExpressionKind`
+  family: `[]<><<A>>_v` and `<>[][A]_v`.
 - `IntegerExprGenFactory` handles integer literals, arithmetic, cardinality, and
   sequence length.
 - `SetExprGenFactory` handles set literals and operators, comprehensions,
@@ -287,9 +288,9 @@ Every expression kind has one primary `ExpressionCategory`:
 | Category | Expression forms |
 | --- | --- |
 | `action` | Prime, prime-equality, and `UNCHANGED` |
-| `temporal` | Stuttering and non-stuttering actions, `ENABLED`, temporal connectives, and weak and strong fairness |
+| `temporal` | Stuttering and non-stuttering actions, `ENABLED`, `[]`, `<>`, `~>`, `[]<><<A>>_v`, `<>[][A]_v`, and weak and strong fairness |
 | `unbound` | Unbounded `CHOOSE`, universal quantification, and existential quantification |
-| `exotic` | Temporal quantification and action composition (`\cdot`) |
+| `exotic` | Temporal quantification, action composition (`\cdot`), and `-+->` |
 | `core` | Terminal construction, scoped names, and Boolean, integer, and string literals |
 | `control` | `IF` and `CASE` |
 | `label` | Expression labels |
@@ -460,6 +461,7 @@ value for the four action-specific limits. TOML keys and defaults are unchanged:
 | `maximumActionParameters` | 2 | Maximum bounded existential parameters of one action. |
 | `maximumActionDepth` | 3 | Maximum nesting of disjunction, conjunction, and IF-THEN-ELSE within one action disjunct; 0 keeps each disjunct a flat conjunction. |
 | `maximumSteps` | 5 | Transitions explored from an initial state. |
+| `maximumFairnessConditions` | 2 | Maximum weak and strong fairness conditions of a property. |
 
 Selection weights default to one, except:
 
@@ -548,13 +550,53 @@ that second list for the duration of a nested definition body while leaving
 lexical visibility untouched, and restores it the same way.
 
 Applicability is partly dynamic. `NAME` and operator application are excluded
-from selection when no compatible binding exists. When the `action` category is
-enabled, `PRIME_EQUAL` is selectable but rejects if no state variable is in
-scope. The expression entry point declares no state variables, so such an input
-raises `InputRejectedException`. Module generation declares them, but excludes
-the `action` category from every subexpression for the reason given in section
-10, so `PRIME_EQUAL` is unreachable there as well; the action-generation components
-prime names directly instead.
+from selection when no compatible binding exists, and `PRIME_EQUAL` when no state
+variable is in scope.
+
+### 7.1. Levels
+
+Categories say which forms a corpus may use; levels say where a form may occur.
+[ADR 0007](../decisions/0007-levels-and-temporal-properties.md) records the
+design and the TLC and Apalache measurements it rests on.
+
+Every `ExpressionKind` declares the `Level` of the formula it builds: `STATE`
+(the default, including `ENABLED`), `ACTION` (prime, `PRIME_EQUAL`, `UNCHANGED`,
+`[A]_v`, `<<A>>_v`, `\cdot`), `TEMPORAL` (`[]`, `<>`, `~>`, `-+->`, `\EE`, `\AA`),
+or `ACTION_TEMPORAL` (`WF`, `SF`, `[]<><<A>>_v`, `<>[][A]_v`). `GenerationContext`
+keeps a `LevelContext` as a dynamic ceiling, restored on exit like the
+`EXCEPT`-replacement flag, and `IrExprGenFactory` gives a form weight zero unless
+the current context admits its level. Like the scope, the context is consulted on
+every draw rather than cached with type applicability.
+
+| `LevelContext` | Admits | Used for |
+| --- | --- | --- |
+| `STATE` | `STATE` | every body not listed below |
+| `ACTION` | `STATE`, `ACTION` | post-assignment guards; the action of `ENABLED`, `[A]_v`, `<<A>>_v`, fairness and the action-temporal forms |
+| `TEMPORAL` | `STATE`, `TEMPORAL`, `ACTION_TEMPORAL` | the property formula |
+| `ACTION_FREE_TEMPORAL` | `STATE`, `TEMPORAL` | operands of `[]`, `<>`, `~>` and `-+->` |
+
+Operands inherit the context by three rules:
+
+- `AbstractExprGenFactory.expression` draws an ordinary operand in
+  `LevelContext.valueOperand()`: a temporal context becomes `STATE`, and `ACTION`
+  stays `ACTION`, so `x' + 1` remains reachable. Quantifier bodies, predicates,
+  domains and values are all ordinary operands.
+- `sameLevel` keeps the context. Only `~`, `/\`, `\/`, `=>`, the branches of
+  `IF`, the body of `LET` and labels use it. TLC cannot handle a temporal formula
+  under `<=>` ([tlaplus/tlaplus#1029](https://github.com/tlaplus/tlaplus/issues/1029)) or in a `CASE` arm, and Apalache
+  crashes on a quantifier over one.
+- `atLevel` names the context explicitly: `STATE` for the operand of prime and
+  `UNCHANGED`, for subscripts, for `LET` declaration and lambda bodies and for
+  operator arguments, so every name in scope is state-level; `ACTION` for the
+  action of the subscripted and fairness forms and of `ENABLED`;
+  `ACTION_FREE_TEMPORAL` for the operands of `[]`, `<>`, `~>` and `-+->`. TLC
+  checks an action inside a temporal formula only in `[]<>A` and `<>[]A` separated
+  from the top of the formula by Boolean connectives alone.
+
+`[][A]_v` is not an expression form: both checkers accept it only as a top-level
+conjunct of a property, so `PropertyGenFactory` draws it (section 9.4). Every
+body of a module and the expression entry point starts in `STATE`, which is what
+keeps priming out of every ordinary subexpression whatever the ignore list.
 
 ## 8. Correctness and failure semantics
 
@@ -652,9 +694,11 @@ properties of the input — no byte string can violate them.
 
 ### 9.1. Declaration order
 
-Each numbered body below except the bound predicate decodes from the
-`ModuleSection` of the same name, in this order; the section weights are
-`1, 2, 3, 3, 2, 5` in the order listed.
+Each numbered body below decodes from the `ModuleSection` of the same name, in
+this order; the section weights are `1, 2, 3, 3, 2, 5, 3` in the order listed. The
+property section is present only when the `temporal` category is enabled; an
+absent section receives no bytes, so the other sections keep the layout they had
+before it existed.
 
 1. **Variables.** A terminated non-empty list of value types, named `var0`
    onward, each entering the scope with the `STATE_VARIABLE` role. An `Int`
@@ -678,7 +722,8 @@ Each numbered body below except the bound predicate decodes from the
 5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
 6. **Next-state action.** A terminated non-empty disjunction of actions.
-7. **Bound predicate.** `step <= maximumSteps - 1`; see [9.3](#93-bounding-exploration).
+7. **Property.** An optional temporal property with fairness; see
+   [9.4](#94-temporal-property).
 
 `GeneratedSpec.operators` stores auxiliary and action variants of the sealed
 `GeneratedOperator` abstraction in one declaration-order list. Declaration-only
@@ -712,14 +757,21 @@ predicate does not fix.
 
 - zero or more bounded existential parameters, whose bound sets belong to the
   enclosing scope and whose names are visible to everything inside;
-- an optional guard, an ordinary Boolean state predicate;
-- a recursive *action shape* over the declared variables (below); and
-- `step' = step + 1`.
+- the byte-free step guard `step < maximumSteps` (section 9.3);
+- optional guards, ordinary Boolean state predicates;
+- a recursive *action shape* over the declared variables (below);
+- `step' = step + 1`; and
+- optional *post-assignment guards*, Boolean expressions drawn in the `ACTION`
+  context (section 7.1), which may read primed variables.
 
-The parameters are drawn first, then the shape, then the guards, although the
-guards precede the shape in the conjunction. A guard drawn from a short section is
-merely absent, whereas a shape drawn from exhausted bytes is always a leaf and
-never applies an action operator.
+The parameters are drawn first, then the shape, then the guards and the
+post-assignment guards, although the guards precede the shape in the conjunction.
+A guard drawn from a short section is merely absent, whereas a shape drawn from
+exhausted bytes is always a leaf and never applies an action operator. The
+post-assignment guards follow the step update, where the shape has determined
+every primed variable on every path, so TLC's left-to-right evaluation and
+Apalache's assignment analysis both see the assignments first. With the `action`
+category ignored their list is empty and spends no marker.
 
 `ActionShapeGenFactory` constructs the recursive shape. Operator generation passes
 an immutable index of the already generated prefix to each body, and Next receives
@@ -760,7 +812,8 @@ as not — the first one takes the type's closed terminal instead. Both repairs 
 byte-free, so they stay out of the encoding. A non-spine conjunction group, and
 the remainder beside a call, may be left entirely `UNCHANGED`.
 
-The invariant a test can check is that in every disjunct the conjunctive spine —
+The invariant a test can check is that in every disjunct the conjunctive spine,
+cut after the step update —
 with each nested disjunction and IF-THEN-ELSE collapsed to the variable set its
 arms share, and each call resolved to its operator's effect by recursing into the
 applied body — accounts for each declared variable exactly once (primed on the
@@ -768,12 +821,19 @@ left of an assignment, or inside an `UNCHANGED`), and that sibling arms and
 branches account for the same set. What makes it checkable is that the accounting
 is assembled here, over the declaration list, and that the effect of every action
 operator is recorded. This is why only `ActionGenFactory` (the step update) and
-`ActionShapeGenFactory` (recursive bodies) prime names or build `UNCHANGED`,
-and why module generation excludes the `action`, `temporal` and
-`exotic` categories from every subexpression — the IF-THEN-ELSE predicate
-included — whatever the corpus configured: a prime reached through an expression
-form could sit under a negation or a quantifier, where it accounts for nothing.
-Every value a module expression produces therefore reads the current state only.
+`ActionShapeGenFactory` (recursive bodies) prime names or build `UNCHANGED` on the
+spine, and why every module subexpression before the step update — the
+IF-THEN-ELSE predicate included — is drawn in the `STATE` context: a prime reached
+through an expression form could sit under a negation or a quantifier, where it
+accounts for nothing. The step update is a fixed conjunct, which is how a reader
+of the IR tells the spine from the post-assignment guards.
+
+**Decoder deviation (levels, ADR 0007).** Module generation used to ignore the
+`action`, `temporal` and `exotic` categories in every subexpression whatever the
+corpus configured; the `STATE` context now does that job. Each disjunct gained the
+step guard and, with `action` enabled, the post-assignment guards. With the
+default ignore list the guards spend no byte, so stored `module` inputs decode to
+the same shapes plus the step guard; with `action` enabled they reinterpret.
 
 **Historical decoder deviation (introduction of nested actions).** This weakened the previous invariant — "each declared variable
 appears exactly once on a flat conjunctive spine" — to the recursive form above,
@@ -792,22 +852,44 @@ above. Declaration order, category exclusions and generated behavior are unchang
 
 ### 9.3. Bounding exploration
 
-A generated action can run forever, and the two checkers bound exploration
-differently: Apalache takes an unrolling length, TLC takes a state constraint.
-The step counter serves both. `GeneratedSpec.stepBound` reaches Apalache as
-`--length`, and `boundPredicate` becomes the `Bound` definition that TLC's
-configuration names as its `CONSTRAINT`. The expression wrapper defines `Bound`
-as `TRUE` and asks for zero transitions, so one configuration file serves both
-kinds.
+A generated action can run forever, and the checkers must explore the same
+states and the same infinite behaviors, or a verdict difference records a bound
+difference rather than a checker difference. Every generated disjunct is guarded
+by `step < maximumSteps` and advances `step`, and `FuzzInputModule` closes the
+next-state action with a stuttering disjunct over every variable:
+`Next == nextAction \/ UNCHANGED <<var0, ..., step>>`. The reachable states are
+those within `maximumSteps` transitions, and TLC needs no state constraint.
 
-The two bounds must admit the same states, or a verdict difference records a
-bound difference rather than a checker difference. They are not symmetric: a
-checker evaluates the invariant on a successor state before the constraint
-discards it, so `step <= n` covers states `0..n+1` while a length of `n` covers
-`0..n`. The constraint therefore names `maximumSteps - 1` while `stepBound`
-stays `maximumSteps`. `IrSpecGeneratorsTest` pins the relation across step
-bounds, including `0`, where the constraint is `step <= -1` and both checkers
-still examine the initial state.
+The stuttering disjunct matters for properties: TLC adds stuttering steps of its
+own, Apalache does not, and without the disjunct Apalache reports
+`ExecutionsTooShort` where TLC reports a violation of `<>P`. Because `step` only
+increases, every cycle is a stuttering self-loop, so every lasso fits in
+`maximumSteps + 1` transitions. `GeneratedSpec.stepBound` travels in a
+`CheckRequest`, whose `unrollingLength` is the bound for an invariant and one more
+when a property is checked. The expression wrapper asks for zero transitions.
+
+**Decoder deviation (closed bounding, ADR 0007).** Earlier modules had no step
+guard; `GeneratedSpec.boundPredicate` became a `Bound` definition that TLC named
+as its `CONSTRAINT`, as `step <= maximumSteps - 1` to compensate for TLC evaluating
+the invariant on a successor state before discarding it. The guard makes that
+offset unnecessary and removes `Bound`. `IrSpecGeneratorsTest` pins the guard
+across step bounds, including `0`.
+
+### 9.4. Temporal property
+
+With the `temporal` category enabled, `PropertyGenFactory` decodes the property
+section over the state scope: one Boolean marker and, when it is odd, the formula
+in the `TEMPORAL` context, a terminated list of at most `maximumFairnessConditions`
+fairness conditions (a Boolean chooses `SF` over `WF`), and a terminated list of
+`[][A]_v` conjuncts. The formula comes first, so a short section still decodes
+one, and each part has a node budget of its own. `GeneratedSpec.property` holds
+them as a `TemporalProperty`.
+
+`FuzzInputModule` assembles `Fairness`, `Spec == Init /\ [][Next]_vars /\ Fairness`,
+`Prop` as the conjunction of the `[][A]_v` conjuncts and the formula, and
+`Liveness == Fairness => Prop`; each is `TRUE`-based when absent, and the
+expression wrapper defines them too. TLC checks `SPECIFICATION Spec` with
+`PROPERTY Prop`; Apalache, which supports no fairness, checks `--temporal=Liveness`.
 
 ## 10. Extension rules
 
@@ -819,15 +901,19 @@ Changes to this subsystem should preserve the following rules:
    is the byte encoding, and `ExpressionKindCatalogTest` pins the whole order, so
    inserting or reordering a constant reinterprets every stored corpus input and
    fails that test.
-2. State result-type constraints in `isTypeApplicable` and dynamic scope
-   constraints and weight in `selectionWeight`, both on the kind itself.
+2. State result-type constraints in `isTypeApplicable`, the level in `level`,
+   and dynamic scope constraints and weight in `selectionWeight`, all on the kind
+   itself.
    `IrExprGenFactory` asks the kind; it never names a form. The
    `isConfiguredApplicable` hook combines static applicability with the immutable
    configuration; custom kinds use it to match their library signatures. Only
    `selectionWeight` may consult mutable lexical state, because only it is
    re-evaluated on every draw — the rest of applicability is cached per type. A weight of zero is how a
    form says the current scope cannot supply what it needs.
-3. Generate every operand through `expression(requiredType, remainingDepth - 1)`.
+3. Generate every operand through `expression(requiredType, remainingDepth - 1)`,
+   which lowers a temporal context to `STATE`. Use `sameLevel` only for an
+   operand through which both checkers accept a temporal formula, and `atLevel`
+   for an operand whose level the form fixes (section 7.1).
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and
    `scopedBody`, which restrict the extended scope to the construct's body, or
    with `boundedTogether` for a construct that binds several names at once. Create
@@ -843,11 +929,10 @@ Changes to this subsystem should preserve the following rules:
 8. Reserve `InputRejectedException` for expected input rejection. Let defects
    propagate.
 9. Keep the step prime in `ActionGenFactory` and recursive priming and `UNCHANGED`
-   in `ActionShapeGenFactory`, including action-operator bodies. No ordinary
-   module subexpression may prime a name,
-   and module generation must keep excluding the `action` and `temporal`
-   categories from its subexpressions — the IF-THEN-ELSE predicate included — or
-   a disjunct's account of the declared variables stops being checkable.
+   in `ActionShapeGenFactory`, including action-operator bodies. Draw every module
+   subexpression before the step update in the `STATE` context — the IF-THEN-ELSE
+   predicate included — or a disjunct's account of the declared variables stops
+   being checkable. Only post-assignment guards and the property leave it.
 10. Give a new module-level body a `ModuleSection` and a node budget of its own
     with `GenerationContext.withFreshNodeBudget`. Adding or reweighting a
     section reinterprets every stored module input and fails `ModuleSectionTest`.
@@ -874,7 +959,9 @@ generation they should additionally cover assignment completeness per disjunct
 across the recursive action shape — that sibling disjunction arms and IF branches
 account for the same variables, that the spine accounts for each declared
 variable exactly once, and that each action-operator body accounts for its
-declared effect — the absence of primes outside the action, and that auxiliary
+declared effect — the absence of primes outside the action and its
+post-assignment guards, the level of every body and of generated properties, that
+SANY accepts modules with the `action` and `temporal` categories enabled, and that auxiliary
 definitions and the initial-state predicate read no state variable. A catalog
 change must retain the fixed-width upper bound, update the pinned catalog order,
 and explicitly revise the decoding protocol.

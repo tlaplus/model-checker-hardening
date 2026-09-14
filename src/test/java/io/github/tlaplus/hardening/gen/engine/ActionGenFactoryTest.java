@@ -109,7 +109,7 @@ class ActionGenFactoryTest {
         var next = factory.nextAction(0, VisibleActionOperators.EMPTY);
         bytes(1, 1, 1, 0, 0, 0, 0, 0, 0).draw(factory.actionOperators(0));
         var draw = bytes(0, 1, 0, 0, 0, 0, 0, 0, 42);
-        assertEquals("(x' = FALSE /\\ UNCHANGED y /\\ step' = step + 1)", print(draw.draw(next)));
+        assertEquals("(step < 5/\\ x' = FALSE/\\ UNCHANGED y/\\ step' = step + 1)", print(draw.draw(next)));
         assertEquals(1, draw.remaining());
     }
 
@@ -117,8 +117,23 @@ class ActionGenFactoryTest {
     void theShapeIsDrawnBeforeTheGuardsThatPrecedeIt() {
         // Parameters, then the shape (leaf assigning x), then one guard, then the end markers.
         var draw = bytes(0, 0, 1, 0, 0, 1, 0, 0, 42);
-        assertEquals("(FALSE/\\ x' = FALSE/\\ UNCHANGED y/\\ step' = step + 1)",
+        assertEquals("(step < 5/\\ FALSE/\\ x' = FALSE/\\ UNCHANGED y/\\ step' = step + 1)",
                 print(draw.draw(factory.nextAction(0, VisibleActionOperators.EMPTY))));
+        assertEquals(1, draw.remaining());
+    }
+
+    @Test
+    void postAssignmentGuardsFollowTheStepUpdateAndSpendMarkersOnlyWithTheActionCategory() {
+        var actionContext = new GenerationContext(
+                IrGenerationConfig.defaults().withIgnoredCategories(java.util.Set.of()));
+        var actionTypes = new IrTypeGenFactory(actionContext);
+        var actionFactory = new ActionGenFactory(actionContext, actionTypes,
+                new IrExprGenFactory(actionContext, actionTypes), variables,
+                ScopedName.stateVariable("step", PrimitiveType.INT));
+        // Parameters, the leaf assigning x, no guard, one post-assignment guard, then the end markers.
+        var draw = bytes(0, 0, 1, 0, 0, 0, 1, 0, 0, 42);
+        assertEquals("(step < 5/\\ x' = FALSE/\\ UNCHANGED y/\\ step' = step + 1/\\ FALSE)",
+                print(draw.draw(actionFactory.nextAction(0, VisibleActionOperators.EMPTY))));
         assertEquals(1, draw.remaining());
     }
 

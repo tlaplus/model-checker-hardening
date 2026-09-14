@@ -219,8 +219,8 @@ class CustomOperatorsTest {
                 expression, config.library());
         assertEquals(List.of(expression), artifact.generated());
         assertInstanceOf(LetInEx.class, artifact.standaloneExpression().orElseThrow());
-        // One helper, one selected definition, one variable, and four skeleton operators.
-        assertEquals(7, TlaModules.declarations(artifact.module()).size());
+        // One helper, one selected definition, one variable, and seven skeleton operators.
+        assertEquals(10, TlaModules.declarations(artifact.module()).size());
         var source = SpecText.render(artifact.module());
         assertFalse(source.contains("EXTENDS PolyOps"));
         assertEquals(source, SpecText.render(io.github.tlaplus.hardening.workflow.spec.SpecArtifact

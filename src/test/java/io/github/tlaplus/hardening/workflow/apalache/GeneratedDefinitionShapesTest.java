@@ -47,7 +47,7 @@ class GeneratedDefinitionShapesTest {
         try (var worker = ApalacheProcess.start(ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
             for (var spec : samples) {
                 var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
-                var result = worker.check(new ToolInput(ApalacheIrJson.render(artifact.module()), artifact.length()));
+                var result = worker.check(new ToolInput(ApalacheIrJson.render(artifact.module()), artifact.request()));
                 assertNotEquals(StageOutcome.CRASH, result.outcome(), result.diagnostic());
                 assertNotEquals(Optional.of(CheckerFailureCode.TYPECHECK), result.failureCode(), result.diagnostic());
             }

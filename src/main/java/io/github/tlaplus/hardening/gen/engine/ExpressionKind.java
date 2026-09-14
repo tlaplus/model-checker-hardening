@@ -17,6 +17,7 @@ public sealed interface ExpressionKind
                 SequenceExpressionKind,
                 OtherExpressionKind,
                 ApplicativeExpressionKind,
+                TemporalActionExpressionKind,
                 CustomExpressionKind {
     /** Slots a form occupies when its weight is not configured. */
     int DEFAULT_WEIGHT = 1;
@@ -37,6 +38,14 @@ public sealed interface ExpressionKind
 
     /** Reports whether this form can produce the requested type, independent of lexical scope. */
     boolean isTypeApplicable(IrType type);
+
+    /**
+     * Returns the level of the formula this form builds. A form is selectable only in a
+     * {@link LevelContext} that admits it.
+     */
+    default Level level() {
+        return Level.STATE;
+    }
 
     /**
      * Returns how many selection slots this form occupies for the requested type, or zero when the

@@ -41,12 +41,6 @@ public final class TlcWorkerMain {
         var configuration =
                 temporaryDirectory.resolve(FuzzInputModule.MODULE_NAME + ".cfg");
         var metadata = temporaryDirectory.resolve("states");
-        Files.writeString(
-                configuration,
-                configurationText(),
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE_NEW,
-                StandardOpenOption.WRITE);
 
         var diagnostics = ToolWorkerRuntime.diagnosticBuffer("TLC");
         try (connection;
@@ -80,22 +74,17 @@ public final class TlcWorkerMain {
                     ToolWorkerRuntime.Lifetime.ONE_INPUT,
                     source -> {
                         ToolWorkerRuntime.writeInput(specification, source);
+                        // TLC reads the configuration when it processes the input, not when it
+                        // accepts its parameters, so the file can follow the request.
+                        Files.writeString(
+                                configuration,
+                                TlcConfiguration.text(source.request()),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE_NEW,
+                                StandardOpenOption.WRITE);
                         return check(tlc, diagnostics);
                     });
         }
-    }
-
-    /**
-     * Returns the fixed configuration naming the module's entry points.
-     *
-     * <p>The state constraint is what bounds TLC: an assembled module defines it, so naming it
-     * here unconditionally lets one configuration serve every input kind.
-     */
-    private static String configurationText() {
-        return "INIT " + FuzzInputModule.INIT + "\n"
-                + "NEXT " + FuzzInputModule.NEXT + "\n"
-                + "INVARIANT " + FuzzInputModule.INV + "\n"
-                + "CONSTRAINT " + FuzzInputModule.BOUND + "\n";
     }
 
     /** Checks the written specification and classifies whatever TLC reports. */

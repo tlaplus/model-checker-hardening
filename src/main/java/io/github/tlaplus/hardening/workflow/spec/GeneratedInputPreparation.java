@@ -39,7 +39,7 @@ public final class GeneratedInputPreparation {
         Objects.requireNonNull(input, "input");
         try {
             var artifact = decoders.decode(input);
-            return new ToolInput(renderer.apply(artifact.module()), artifact.length());
+            return new ToolInput(renderer.apply(artifact.module()), artifact.request());
         } catch (RuntimeException | StackOverflowError failure) {
             throw new WorkflowException(recordCrash(path, input, failure), failure);
         }

@@ -35,6 +35,11 @@ public enum GeneralExpressionKind implements ExpressionKind {
     }
 
     @Override
+    public Level level() {
+        return this == PRIME ? Level.ACTION : Level.STATE;
+    }
+
+    @Override
     public boolean isTypeApplicable(IrType type) {
         return switch (this) {
             case TERMINAL, NAME -> true;

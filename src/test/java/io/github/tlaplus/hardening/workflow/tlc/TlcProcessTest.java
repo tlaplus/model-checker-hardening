@@ -20,7 +20,7 @@ class TlcProcessTest {
     private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 10, 256, 1);
 
     @Test
-    void checksTheFixedInitNextAndInvariantConfiguration(@TempDir Path directory)
+    void checksTheSpecificationAgainstTheInvariant(@TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
@@ -148,7 +148,10 @@ class TlcProcessTest {
                 Init == exprValue = FALSE
                 Next == UNCHANGED exprValue
                 Inv == %s
-                Bound == TRUE
+                Fairness == TRUE
+                Spec == Init /\\ [][Next]_exprValue /\\ Fairness
+                Prop == TRUE
+                Liveness == Fairness => Prop
                 ====
                 """.formatted(invariant);
     }
@@ -161,7 +164,10 @@ class TlcProcessTest {
                 Init == exprValue = %1$s
                 Next == UNCHANGED exprValue
                 Inv == exprValue = %1$s
-                Bound == TRUE
+                Fairness == TRUE
+                Spec == Init /\\ [][Next]_exprValue /\\ Fairness
+                Prop == TRUE
+                Liveness == Fairness => Prop
                 ====
                 """.formatted(expression);
     }

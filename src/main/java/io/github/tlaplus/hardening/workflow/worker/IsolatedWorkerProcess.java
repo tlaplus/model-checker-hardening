@@ -70,7 +70,7 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
         if (!process.isAlive()) {
             return crashAndClose(description + " exited before accepting the input");
         }
-        if (!channel.writeRequest(bytes, source.length())) {
+        if (!channel.writeRequest(bytes, source.request())) {
             return crashAndClose(description + " died while accepting the input");
         }
 

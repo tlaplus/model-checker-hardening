@@ -29,14 +29,11 @@ class IrSpecGeneratorsTest {
         assertEquals(List.of("var0", STEP), variableNames(spec));
         assertEquals(List.of(), spec.operators());
         assertEquals("var0 = FALSE /\\ step = 0", print(spec.initPredicate()));
-        assertEquals("(var0' = FALSE /\\ step' = step + 1)", print(spec.nextAction()));
+        assertEquals("(step < 5 /\\ var0' = FALSE /\\ step' = step + 1)", print(spec.nextAction()));
         // Even the empty input yields an invariant over the state rather than a constant: the
         // Boolean terminal rotates over the visible bindings before the closed FALSE.
         assertEquals("var0", print(spec.invariant()));
-        // The constraint names one less than the step bound: a checker driven by it evaluates
-        // the invariant on the successor state it then discards, so `step <= 4` and an
-        // exploration length of 5 admit the same states. See ModuleLimits.DEFAULT_MAXIMUM_STEPS.
-        assertEquals("step <= 4", print(spec.boundPredicate()));
+        assertTrue(spec.property().isEmpty());
         assertEquals(ModuleLimits.DEFAULT_MAXIMUM_STEPS, spec.stepBound());
     }
 
@@ -108,7 +105,7 @@ class IrSpecGeneratorsTest {
         // wherever the shape asks for it; a call still has to be drawn, which needs the bytes a
         // larger input carries into the action.
         var config = IrGenerationConfig.defaults()
-                .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5));
+                .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5, 2));
         var generator = IrGenerators.specs(config);
         var random = new Random(0xACCA11L);
         var sawCall = false;
@@ -231,7 +228,6 @@ class IrSpecGeneratorsTest {
         forEachGeneratedSpec(spec -> {
             assertFalse(containsPrime(spec.initPredicate()), "Init is primed");
             assertFalse(containsPrime(spec.invariant()), "Inv is primed");
-            assertFalse(containsPrime(spec.boundPredicate()), "Bound is primed");
             for (var operator : auxiliaryOperators(spec)) {
                 assertFalse(
                         containsPrime(operator.body()), operator.name() + " is primed");
@@ -329,24 +325,82 @@ class IrSpecGeneratorsTest {
     }
 
     @Test
-    void theStateConstraintNamesOneLessThanTheStepBound() {
-        // The two bounds must admit the same states. A checker driven by the constraint
-        // evaluates the invariant on a successor state before the constraint discards it,
-        // so a constraint of `step <= n` covers 0..n+1 while a length of n covers 0..n.
-        // Without the offset an invariant that first fails one step past the bound is a
-        // counterexample for one checker and a pass for the other.
+    void everyDisjunctIsGuardedByTheStepBound() {
+        // The guard, and the stuttering disjunct the skeleton adds, close the state graph at the
+        // bound: states 0..n are reachable, and both checkers explore exactly those. A length of
+        // n transitions covers the same states in Apalache, with no state constraint in TLC.
         for (var steps : List.of(0, 1, 5, 9)) {
             var config = IrGenerationConfig.defaults()
                     .withModuleLimits(new ModuleLimits(
-                            1, 0, new ActionLimits(3, 3, 0, 3), steps));
+                            1, 0, new ActionLimits(3, 3, 0, 3), steps, 2));
             var spec = IrGenerators.specs(config).generate(new byte[0]);
 
             assertEquals(steps, spec.stepBound());
-            assertEquals(
-                    STEP + " <= " + (steps - 1),
-                    print(spec.boundPredicate()),
-                    "constraint does not match step bound " + steps);
+            for (var disjunct : disjuncts(spec.nextAction())) {
+                assertTrue(print(disjunct).replaceFirst("^\\(", "").startsWith(STEP + " < " + steps + " /\\ "),
+                        "disjunct is not guarded by step bound " + steps + ": " + print(disjunct));
+            }
         }
+    }
+
+    @Test
+    void enabledActionAndTemporalCategoriesKeepLevelsAndAccounting() {
+        // With the categories enabled, post-assignment guards may prime and the property is
+        // temporal, while every other body stays a state predicate and every disjunct's spine still
+        // accounts for every variable exactly once.
+        var config = IrGenerationConfig.defaults()
+                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC));
+        var generator = IrGenerators.specs(config);
+        var random = new Random(0x7e3905L);
+        var modules = 0;
+        var primedGuards = 0;
+        var properties = 0;
+        var fairness = 0;
+        var constraints = 0;
+        for (var sample = 0; sample < 600; sample++) {
+            var input = new byte[128 + random.nextInt(1024)];
+            random.nextBytes(input);
+            final GeneratedSpec spec;
+            try {
+                spec = generator.generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            try {
+                assertEquals(IrLevel.STATE, level(spec.initPredicate()));
+                assertEquals(IrLevel.STATE, level(spec.invariant()));
+                auxiliaryOperators(spec).forEach(operator -> assertEquals(IrLevel.STATE, level(operator.body())));
+                var declared = new LinkedHashSet<>(variableNames(spec));
+                var actionOps = actionOperatorBodies(spec);
+                for (var disjunct : disjuncts(spec.nextAction())) {
+                    var account = collectAssignedVars(accountedSpine(disjunct, STEP), declared, actionOps);
+                    assertEquals(declared, new LinkedHashSet<>(account), print(disjunct));
+                    assertEquals(declared.size(), account.size(), print(disjunct));
+                    for (var guard : postAssignmentGuards(disjunct, STEP)) {
+                        assertFalse(level(guard) == IrLevel.TEMPORAL, print(guard));
+                        primedGuards += containsPrime(guard) ? 1 : 0;
+                    }
+                }
+                if (spec.property().isPresent()) {
+                    var property = spec.property().get();
+                    properties++;
+                    fairness += property.fairness().size();
+                    constraints += property.actionConstraints().size();
+                    assertCheckableTemporal(property.formula(), true);
+                    property.fairness().forEach(condition -> assertEquals(IrLevel.TEMPORAL, level(condition)));
+                    property.actionConstraints().forEach(constraint -> assertEquals(IrLevel.TEMPORAL, level(constraint)));
+                }
+            } catch (AssertionError failure) {
+                throw new AssertionError(
+                        "failed for input " + Base64.getEncoder().encodeToString(input), failure);
+            }
+            modules++;
+        }
+        assertTrue(modules > 300, "too few inputs were admitted to be conclusive: " + modules);
+        assertTrue(primedGuards > 0, "no post-assignment guard read a primed variable");
+        assertTrue(properties > modules / 4, "modules with a property: " + properties + " of " + modules);
+        assertTrue(fairness > 0, "no property had fairness");
+        assertTrue(constraints > 0, "no property had an action constraint");
     }
 
     /** Every declaration is its own label scope: a module has no binder in scope at its top. */

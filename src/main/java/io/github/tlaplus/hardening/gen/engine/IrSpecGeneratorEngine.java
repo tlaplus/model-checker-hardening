@@ -1,18 +1,18 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import java.math.BigInteger;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
-import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.TemporalProperty;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 
 /**
@@ -23,10 +23,12 @@ import org.apalache_mc.tla.jir.TlaDeclarations;
  * invoked concurrently with distinct cursors.
  *
  * <p>Everything it draws below the declaration level comes from the ordinary expression factory,
- * with the action and temporal categories excluded whatever the caller configured. Priming and
- * {@code UNCHANGED} are constructed by {@link ActionGenFactory} over the declared variables, which
- * is what lets a generated action account for every variable exactly once; a prime reached through
- * an expression form could sit under a negation or a quantifier and would not.
+ * in the state-level context unless the module layer names another: {@link ActionGenFactory} draws
+ * post-assignment guards in the action context and {@link PropertyGenFactory} draws the property in
+ * the temporal one. The accounted priming and {@code UNCHANGED} of an action are constructed over
+ * the declared variables, which is what lets a generated action account for every variable exactly
+ * once; a prime reached through an expression form could sit under a negation or a quantifier and
+ * would not, so no expression form primes before the step update.
  */
 public final class IrSpecGeneratorEngine {
     /**
@@ -46,13 +48,9 @@ public final class IrSpecGeneratorEngine {
      *     one index can address
      */
     public IrSpecGeneratorEngine(IrGenerationConfig config) {
-        Objects.requireNonNull(config, "config");
-        // The module layer owns every action and temporal construct, so the subexpression decoder
-        // never produces one, however the corpus configured its ignore list.
-        this.config = config.ignoring(
-                ExpressionCategory.ACTION,
-                ExpressionCategory.TEMPORAL,
-                ExpressionCategory.EXOTIC);
+        // Every body is drawn in the state-level context unless the module layer names another,
+        // so no ordinary subexpression primes a name or is temporal, whatever the ignore list.
+        this.config = Objects.requireNonNull(config, "config");
         ExpressionKindCatalog.requireAddressableSlots(this.config);
         CustomExpressionKind.requireUsableLibrary(this.config);
     }
@@ -71,7 +69,7 @@ public final class IrSpecGeneratorEngine {
      */
     public GeneratedSpec generate(Draw draw) {
         Objects.requireNonNull(draw, "draw");
-        var sections = ModuleSection.split(draw);
+        var sections = ModuleSection.split(draw, config);
         var context = new GenerationContext(config);
         var typeFactory = new IrTypeGenFactory(context);
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
@@ -125,21 +123,19 @@ public final class IrSpecGeneratorEngine {
                 context.withBindings(stateScope, actions.nextAction(depth,
                         new VisibleActionOperators(actionOperators))));
 
-        // One less than the step bound. A checker driven by the constraint evaluates the
-        // invariant on a successor state before the constraint discards it, so a constraint
-        // of `step <= n` covers states 0..n+1 while an exploration length of n covers 0..n.
-        // Subtracting one makes both bounds admit exactly the same states.
-        var boundPredicate = context.builder().le(
-                context.builder().name(step.name(), PrimitiveType.INT.toTlaType()),
-                context.builder().integer(
-                        BigInteger.valueOf(config.modules().maximumSteps() - 1L)));
+        // The property reads the state and may apply the auxiliary definitions, like the invariant.
+        var properties = new PropertyGenFactory(context, typeFactory, expressionFactory);
+        var property = ModuleSection.PROPERTY.isPresent(config)
+                ? sections.get(ModuleSection.PROPERTY).draw(context.withBindings(
+                        stateScope, properties.property(depth)))
+                : Optional.<TemporalProperty>empty();
         return new GeneratedSpec(
                 declarations,
                 generatedOperators,
                 initPredicate,
                 nextAction,
                 invariant,
-                boundPredicate,
+                property,
                 config.modules().maximumSteps());
     }
 

@@ -117,6 +117,16 @@ class ApalacheProcessTest {
                 CheckerFailureCode.SPEC_EVAL);
         assertClassification(
                 255,
+                "scala.NotImplementedError: Handling fairness is not supported yet!",
+                StageOutcome.FAIL,
+                CheckerFailureCode.SPEC_EVAL);
+        assertClassification(
+                255,
+                "scala.NotImplementedError: Handling guarantees is not supported yet!",
+                StageOutcome.CRASH,
+                null);
+        assertClassification(
+                255,
                 "Input error (see the manual): Unsupported arithmetic",
                 StageOutcome.CRASH,
                 null);
@@ -125,6 +135,17 @@ class ApalacheProcessTest {
                 "Input error (see the manual): Division by zero-ish",
                 StageOutcome.CRASH,
                 null);
+    }
+
+    @Test
+    void extractsTheUnsupportedFeatureRatherThanTheUnhandledException() {
+        var diagnostic = String.join("\n",
+                "Unhandled exception                                               E@10:25:47.544",
+                "scala.NotImplementedError: Handling fairness is not supported yet!");
+
+        assertEquals(
+                Optional.of("scala.NotImplementedError: Handling fairness is not supported yet!"),
+                ApalacheFailureDetail.extract(diagnostic));
     }
 
     @Test
