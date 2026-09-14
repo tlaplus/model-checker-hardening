@@ -113,6 +113,34 @@ proves and Apalache refutes. See the
 [`a3418701...` input](../../corpus12/03aggregator-fail/a3418701ba4d12943ac91aa990485fccea9ac5414db9417d8b5a17b67f0ee896.cbor).
 Reproduced with Apalache 0.62.2.
 
+## Reached through the initial predicate
+
+In `corpus18` the wrong value selects an initial state instead of deciding an
+invariant. One aggregator deviation, a TLC counterexample and an Apalache pass,
+has `Init == var0 \in {IsFiniteSet(Int), FALSE => FALSE} /\ ...` and
+`Inv == var0`. TLC enumerates `{FALSE, TRUE}`, finds the initial state with
+`var0 = FALSE`, and reports the violation. Apalache evaluates the set as
+`{TRUE}` and reports `NoError`. See the
+[`48d1d6a3...` input](../../corpus18/03aggregator-fail/48d1d6a3807c9733aacfc20f203d545e83ef9aef107e6d0d7330129af706ffbb.cbor).
+
+```tla
+---- MODULE IsFiniteSetInit ----
+EXTENDS Integers, FiniteSets
+
+VARIABLE
+\* @type: Bool;
+flag
+
+Init == flag \in {IsFiniteSet(Int), TRUE}
+Next == UNCHANGED flag
+Inv == flag
+====
+```
+
+Apalache 0.62.2 and the 0.62.3-SNAPSHOT build `129af5d` both report `NoError`
+for this module and for the corpus input. TLC reports
+`Invariant Inv is violated by the initial state` with `flag = FALSE`.
+
 ## Expected behavior
 
 `Int` and `Nat` are infinite, so `IsFiniteSet` applied to either must evaluate
