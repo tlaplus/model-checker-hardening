@@ -177,6 +177,62 @@ In `f7c9117e` the function set is additionally wrapped in a label. None of the
 nine reproduces on the 0.62.3-SNAPSHOT build `129af5d`, which reports the
 violation for each.
 
+## Recurring in `corpus19`, and a spurious counterexample
+
+The `corpus19` run contains eleven aggregator deviations with this cause. All
+were reproduced with Apalache 0.62.2.
+
+Nine have an initial predicate `var0 \in [D -> {}]` with a computed empty `D`,
+a TLC counterexample, and an Apalache `ExecutionsTooShort` pass. In
+`85633f69` the function set is the base of `ApaFoldSet(Lambda, [D -> {}] \union {}, {})`
+and is reached only through the fold. Replacing `D`, and nothing else, with a
+literal `{}` in the Apalache IR makes Apalache report the violation in each of
+the nine, which isolates the computed domain as the trigger. The entries are
+`30cfbdd9`, `461847e0`, `46a4e1d1`, `72f6def7`, `776241b2`, `85633f69`,
+`a564e167`, `a74cf715` and `d1a15ff9`.
+
+Two reach the defect through the invariant:
+
+- `79b5a35c` has `Inv == [ApaFoldSeqLeft(Lambda, {}, <<>>) -> {}] \subseteq {}`. TLC
+  reports a counterexample and Apalache reports `state invariant 0 holds`.
+- `6c54a0d9` has `Inv == ([VariantFilter("Tag1", {}) -> {}] = {} <=> FALSE)`. Apalache
+  answers the equality `TRUE`, so it reports a counterexample in state 0 for an
+  invariant TLC proves. This is the first instance in the opposite verdict
+  direction: the defect yields a spurious counterexample, not only a silent
+  pass.
+
+Both invariant shapes reproduce in isolation:
+
+```tla
+---- MODULE ComputedEmptyDomains ----
+EXTENDS Integers, Sequences, Apalache, Variants
+
+VARIABLE
+\* @type: Int;
+step
+
+\* @type: (Set(Int), Str) => Set(Int);
+Keep(a, b) == a
+\* @type: (() => Seq(Str));
+NoSeq == <<>>
+\* @type: (() => Set(Tag1(Int) | Tag2(Str)));
+NoVariants == {}
+\* @type: (() => Set(Str));
+EmptyRange == {}
+\* @type: (() => Set((Int -> Str)));
+NoFunctions == {}
+
+Init == step = 0
+Next == step' = step + 1
+FoldInv == [ApaFoldSeqLeft(Keep, {}, NoSeq) -> EmptyRange] \subseteq NoFunctions
+\* @type: (() => Bool);
+FilterInv == [VariantFilter("Tag1", NoVariants) -> {}] = {}
+====
+```
+
+Checked with `--length=1`, Apalache 0.62.2 reports `state invariant 0 holds`
+for `--inv=FoldInv` and for `--inv=FilterInv`; both invariants are false.
+
 ## Expected behavior
 
 `[S -> R]` denotes the set of total functions from `S` to `R`. When `S` is
