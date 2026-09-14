@@ -238,9 +238,12 @@ temporal operator anywhere below another operator, so ADR 0006's pattern languag
 gained a descendant pattern `(.. p)` and a conjunction `(& p ...)`. Five signatures
 were measured on a 1600-module smoke corpus with every category but `exotic`
 enabled. Together they match all 13 "cannot handle" and all 16 "must be of forms"
-crashes, and none of their matches passed in TLC or produced a counterexample. The
-[conformance document][tlc-limits] lists each shape, its Apalache behavior and its
-precision, including three shapes without a signature because they did not occur.
+crashes, and none of their matches passed in TLC or produced a counterexample.
+The 1000-module corpus20 exposed two shapes the smoke corpus had not produced,
+fairness under `<>` or `~>` and `[][A]_v` under `~`, `=>` or `\/`, in 6 crashes;
+two more signatures cover them. The [conformance document][tlc-limits] lists each
+shape, its Apalache behavior and its precision, including two shapes still without
+a signature because they have not occurred.
 
 `TemporalPropertyCheckersTest` pins the contract: TLC rejects the temporal formula
 of no generated module that the shipped database leaves unquarantined.

@@ -199,11 +199,11 @@ The repository ships `signatures/known-defects.toml` with these signatures:
 | `sequence-set` | `(Sequences!Seq _)` | [`Seq`][seq] |
 | `string-set` | `STRING` | [`STRING`][string] |
 
-[ADR 0007](0007-levels-and-temporal-properties.md) adds five TLC signatures for
+[ADR 0007](0007-levels-and-temporal-properties.md) adds seven TLC signatures for
 temporal formulas TLC cannot check, referencing
 [TLC temporal formula limits](../../conformance/tlc-temporal-formula-limits.md).
-They were measured on a 1600-module smoke corpus rather than corpus12, which has
-no temporal properties.
+They were measured on a 1600-module smoke corpus and on corpus20 rather than
+corpus12, which has no temporal properties.
 
 ### Measured precision
 

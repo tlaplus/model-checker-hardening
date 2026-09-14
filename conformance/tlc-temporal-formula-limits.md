@@ -2,8 +2,9 @@
 
 Observed share: in a 1600-module smoke corpus generated with every category but
 `exotic` enabled ([ADR 0007](../docs/decisions/0007-levels-and-temporal-properties.md)),
-29 modules made TLC crash with one of the two diagnostics below. SANY accepted
-all of them.
+29 modules made TLC crash with one of the two diagnostics below; in the
+1000-module corpus20, generated with the same categories and the first five
+signatures below, another 6 did. SANY accepted all of them.
 
 TLC checks a temporal property by translating it into its liveness formulas
 (`tlc2.tool.liveness.Liveness`). The translation has no case for several
@@ -27,8 +28,9 @@ quarantine them, so neither checker spends time on them.
 | `<><<A>>_v` | `<><<x' > x>>_x` | must be of forms | counterexample | `tlc-eventually-action` |
 | `[][A]_v` under `<>`, `~>` or `[]` | `[](<>[][x' > x]_x)` | must be of forms | pass | `tlc-always-action-under-temporal` |
 | Temporal formula under bounded `\A` or `\E` whose domain depends on the state | `\A k \in {x} : <>(x >= k)` | cannot handle | crash | none |
-| `[][A]_v` under `\/`, `=>` or `~` | `[][x' > x]_x \/ <>(x = 3)` | must be of forms | pass | none |
-| `SF_v(A)` under `<>`, or a negated `WF_v(A)` under `[]` | `<>SF_x(A)` | must be of forms | fail, fairness | none |
+| `[][A]_v` under `\/`, `=>` or `~` | `[][x' > x]_x \/ <>(x = 3)` | must be of forms | pass | `tlc-always-action-under-connective` |
+| `WF_v(A)` or `SF_v(A)` under `<>` or `~>` | `<>SF_x(A)`, `WF_x(A) ~> (x = 3)` | must be of forms | fail, fairness | `tlc-fairness-under-eventuality` |
+| A negated `WF_v(A)` under `[]` | `[](~WF_x(A))` | must be of forms | fail, fairness | none |
 
 The examples use the module below with `SPECIFICATION Spec` and `PROPERTY Prop`
 for TLC, and `--temporal=Liveness --length=4` for Apalache.
@@ -62,20 +64,25 @@ Apalache reports a counterexample, since stuttering at `x = 0` never reaches
 
 ## Signature precision
 
-The signatures cover every crash with either diagnostic in the smoke corpus:
-13 "cannot handle" and 16 "must be of forms". No matched module passed in TLC or
-produced a counterexample.
+The first five signatures cover every crash with either diagnostic in the smoke
+corpus: 13 "cannot handle" and 16 "must be of forms". The last two were added
+after corpus20, where the first five had quarantined the rest; they cover its 6
+remaining "must be of forms" crashes. No matched module in either corpus passed in
+TLC or produced a counterexample.
 
-| Signature | Matched | TLC crashed with the diagnostic |
-| --- | ---: | ---: |
-| `tlc-temporal-equivalence` | 6 | 6 |
-| `tlc-temporal-case` | 1 | 1 |
-| `tlc-temporal-unbounded-quantifier` | 7 | 7 |
-| `tlc-eventually-action` | 17 | 16 |
-| `tlc-always-action-under-temporal` | 2 | 2 |
+| Signature | Corpus | Matched | TLC crashed with the diagnostic |
+| --- | --- | ---: | ---: |
+| `tlc-temporal-equivalence` | smoke | 6 | 6 |
+| `tlc-temporal-case` | smoke | 1 | 1 |
+| `tlc-temporal-unbounded-quantifier` | smoke | 7 | 7 |
+| `tlc-eventually-action` | smoke | 17 | 16 |
+| `tlc-always-action-under-temporal` | smoke | 2 | 2 |
+| `tlc-always-action-under-connective` | corpus20, smoke | 4 | 3 |
+| `tlc-fairness-under-eventuality` | corpus20, smoke | 4 | 3 |
 
-`tlc-eventually-action` also matches `[]<><<A>>_v`, which TLC checks; the
+`tlc-eventually-action` also matches `[]<><<A>>_v`, and
+`tlc-always-action-under-connective` also matches `<>[][A]_v` under a connective;
+TLC checks both, and neither occurred among the matches. Each signature's
 remaining match failed an evaluation before TLC reached the property. The last
-three rows of the shape table had no occurrence in the corpus, so they have no
-signature. The action rule depends on TLC's normalization, and a signature for
-them could not be measured.
+two rows of the shape table have no signature, because they did not occur in
+either corpus and a signature for them could not be measured.

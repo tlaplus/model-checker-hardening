@@ -84,6 +84,8 @@ class AggregatorClassificationTest(unittest.TestCase):
     def test_classifies_apalache_temporal_limitations(self) -> None:
         cases = (
             ("<unknown>: unsupported expression: ENABLED (step < 5)", "enabled-apalache-unsupported.md"),
+            # corpus20 e339bb85: the stored detail can end right after the operator.
+            ("<unknown>: unsupported expression: ENABLED", "enabled-apalache-unsupported.md"),
             (
                 "scala.NotImplementedError: Handling fairness is not supported yet!",
                 "fairness-apalache-unsupported.md",
@@ -458,6 +460,47 @@ class AggregatorClassificationTest(unittest.TestCase):
         )
         self.assertEqual(
             "tlc-007.md",
+            triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
+        )
+
+    def test_classifies_constant_eventuality_error_before_initial_states_as_tlc_009(self) -> None:
+        """corpus20 0719eea2 and 77176b08: the property is <> over a constant CHOOSE."""
+        for exception, message in (
+            ("tlc2.tool.EvalException", ": Attempted to apply Head to the empty sequence."),
+            ("java.lang.RuntimeException", ": Attempted to compute the value of an expression of form"),
+        ):
+            diagnostic = "\n".join(
+                (
+                    "TLC error code 1000 mapped to exit status 255",
+                    "Starting... (2026-09-14 16:05:12)",
+                    "Error: TLC threw an unexpected exception.",
+                    "This was probably caused by an error in the spec or model.",
+                    "See the User Output or TLC Console for clues to what happened.",
+                    f"The exception was a {exception}",
+                    message,
+                    "Finished in 00s at (2026-09-14 16:05:12)",
+                )
+            )
+            with self.subTest(exception=exception):
+                self.assertEqual(
+                    "tlc-009.md",
+                    triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
+                )
+
+    def test_error_1000_while_computing_states_is_not_tlc_009(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "TLC error code 1000 mapped to exit status 255",
+                "Starting... (2026-09-14 16:05:12)",
+                "Computing initial states...",
+                "Error: TLC threw an unexpected exception.",
+                "The exception was a java.lang.RuntimeException",
+                ": In applying the function",
+                "which is not in its domain.",
+            )
+        )
+        self.assertEqual(
+            "tlc-001.md",
             triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
         )
 

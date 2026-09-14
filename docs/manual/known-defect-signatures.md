@@ -309,6 +309,12 @@ signature's matches on which TLC crashed with it.
 | `tlc-temporal-unbounded-quantifier` | `(& (FORALL2 ...) (.. (T ...)))`, and `EXISTS2` | cannot handle | | 7 of 7 |
 | `tlc-eventually-action` | `(EVENTUALLY (NO_STUTTER ...))` | must be of forms | 16 of 16, together | 16 of 17 |
 | `tlc-always-action-under-temporal` | `[][A]_v` under `EVENTUALLY`, `LEADS_TO` or `GLOBALLY` | must be of forms | | 2 of 2 |
+| `tlc-always-action-under-connective` | `[][A]_v` under `NOT`, `IMPLIES` or `OR` | must be of forms | 3 of 3 in corpus20, together | 3 of 4 |
+| `tlc-fairness-under-eventuality` | `WEAK_FAIRNESS` or `STRONG_FAIRNESS` under `EVENTUALLY` or `LEADS_TO` | must be of forms | 3 of 3 in corpus20, together | 3 of 4 |
 
 `tlc-eventually-action` also matches `[]<><<A>>_v`, which TLC checks; its
 seventeenth match failed an evaluation before TLC reached the property.
+`tlc-always-action-under-connective` also matches `<>[][A]_v` under a connective,
+which TLC checks. The last two signatures were measured on corpus20, where the
+earlier ones already quarantined their shapes, and on the smoke corpus; their
+fourth matches failed an evaluation before TLC reached the property.

@@ -138,6 +138,16 @@ SIGNATURES = (
     finding("sany-001.md", CrashKind.PARSER,
             all_of(r"java\.util\.UnknownFormatConversionException: Conversion = ':'",
                    r"tla2sany\.semantic\.Errors\$ErrorDetails\.getMessage")),
+    # An evaluation error in a constant eventuality escapes while TLC prepares liveness
+    # checking, after "Starting..." and before it computes any initial state. The
+    # lookahead is what separates it from the error-1000 escapes of tlc-001 and
+    # tlc-003, which occur while states are computed.
+    finding("tlc-009.md", CrashKind.TLC,
+            all_of(r"^TLC error code 1000 mapped to exit status 255$",
+                   r"^Starting\.\.\. ",
+                   r"\A(?![\s\S]*^Computing initial states\.\.\.$)",
+                   r"^Error: TLC threw an unexpected exception\.$",
+                   r"^The exception was a (?:tlc2\.tool\.EvalException|java\.lang\.RuntimeException)$")),
     finding("tlc-001.md", CrashKind.TLC,
             tlc_runtime_error(r"In applying the function", r"which is not in its domain\.")),
     finding("tlc-002.md", CrashKind.TLC,
@@ -379,7 +389,7 @@ AGGREGATOR_SIGNATURES = (
     failure("string-set-unsupported.md", Checker.APALACHE,
             r"^<unknown>: unsupported expression: STRING$"),
     failure("enabled-apalache-unsupported.md", Checker.APALACHE,
-            r"^<unknown>: unsupported expression: ENABLED "),
+            r"^<unknown>: unsupported expression: ENABLED\b"),
     failure("fairness-apalache-unsupported.md", Checker.APALACHE,
             r"^scala\.NotImplementedError: Handling fairness is not supported yet!$"),
 )
