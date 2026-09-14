@@ -232,8 +232,8 @@ Liveness == Fairness => Prop
   `Handling fairness is not supported yet!` to `fail` with code `spec_eval`,
   as it already does for undefined arithmetic, and `ApalacheFailureDetail`
   records that message rather than the preceding "Unhandled exception". The
-  aggregator then compares the pair, and the triager classifies it using
-  conformance documents for fairness and `ENABLED`.
+  aggregator then compares the pair, and the triager classifies it using the
+  conformance documents for [fairness][fairness] and [`ENABLED`][enabled].
   Without this rule, every module with fairness would count as an Apalache crash
   and would never be aggregated.
 - **Signature matching** ([ADR 0006][]). The evaluated roots become `Init`,
@@ -263,9 +263,30 @@ Liveness == Fairness => Prop
 - **More Apalache work for properties.** A module with a property costs Apalache
   one more transition and the loop encoding, which doubles the state variables.
   The property marker keeps modules without a property at the current cost.
+- **Measured on a smoke corpus.** A 400-module `pbt` run with `ignore = ["unbound",
+  "exotic"]` and the shipped known-defect signatures took 3 min 11 s:
+  - SANY accepted all 400 modules.
+  - TLC: 46 pass, 38 counterexample, 310 fail, 6 crash. Apalache: 111 pass,
+    182 counterexample, 102 fail, 5 crash.
+  - Of the 240 aggregator deviations, the existing conformance classes account
+    for 214 (function application outside its domain alone for 73). The Apalache
+    limitations account for 15: `ENABLED` for 11 and fairness for 4. TLC's
+    rejection of a constant `FALSE` or tautological property
+    ([conformance][constant-property]) accounts for 10. One remains unclassified:
+    an invariant, unrelated to temporal operators, that Apalache evaluates to
+    `TRUE` and TLC to `FALSE`.
+  - Two TLC crashes match `tlc-001` and `tlc-002`. Three are new, and each is an
+    evaluation error that TLC reports as an unexpected exception (error 1000)
+    while it checks a property.
+
+  In a separate probe, an evaluation error inside a temporal property made TLC
+  print the error and still exit 0. Apalache rejects `UNCHANGED` in a
+  non-top-level position of a post-assignment guard, such as `~UNCHANGED x` or a
+  `CASE` guard, with an assignment error (exit 255); one smoke crash is of this
+  kind.
 - **Documents revised.** [ir-generators.md][ir] (§5, §7.1, §9.1–9.4 and rules 2,
   3 and 9), [fuzzing-workflows.md][fw], ADR 0006's list of evaluated roots and its
-  manual, and two conformance documents with triager signatures.
+  manual, and three conformance documents with triager signatures.
 - **Unexercised features.** Some TLA<sup>+</sup> features stay out of generated
   modules: quantifiers, `<=>` and `CASE` over temporal formulas, `[][A]_v` below
   the top level, actions under `[]`, `<>` and `~>`, and every `exotic` form. They
@@ -273,6 +294,9 @@ Liveness == Fairness => Prop
   can revisit this if the crashes should be reported as findings.
 
 [ADR 0006]: 0006-known-defect-signatures.md
+[fairness]: ../../conformance/fairness-apalache-unsupported.md
+[constant-property]: ../../conformance/constant-property-tlc-rejects.md
+[enabled]: ../../conformance/enabled-apalache-unsupported.md
 [ir]: ../architecture/ir-generators.md
 [ir-9-2]: ../architecture/ir-generators.md#92-action-shape
 [fw]: ../architecture/fuzzing-workflows.md

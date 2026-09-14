@@ -351,6 +351,11 @@ AGGREGATOR_SIGNATURES = (
             r"^The invariant of Inv is equal to (?!FALSE$)", code=150),
     failure("constant-false-invariant.md", Checker.TLC,
             r"^The invariant of Inv is equal to FALSE$", code=150),
+    failure("constant-property-tlc-rejects.md", Checker.TLC,
+            r"^The property of Prop is equal to FALSE$",
+            r"^The spec is trivially false because FALSE is false\.$", code=150),
+    failure("constant-property-tlc-rejects.md", Checker.TLC,
+            r"^Temporal formula is a tautology \(its negation is unsatisfiable\)\.$"),
     # TLC declines an operand whose finiteness it cannot decide; Apalache
     # answers TRUE for the same set. Reachable once the detail stores the
     # innermost failure, since TLC reports this inside the override wrapper.
@@ -373,6 +378,10 @@ AGGREGATOR_SIGNATURES = (
             r"^<unknown>: unsupported expression: Seq\(_\) produces an infinite set"),
     failure("string-set-unsupported.md", Checker.APALACHE,
             r"^<unknown>: unsupported expression: STRING$"),
+    failure("enabled-apalache-unsupported.md", Checker.APALACHE,
+            r"^<unknown>: unsupported expression: ENABLED "),
+    failure("fairness-apalache-unsupported.md", Checker.APALACHE,
+            r"^scala\.NotImplementedError: Handling fairness is not supported yet!$"),
 )
 
 ENTRY_NAME = re.compile(r"(?P<hash>[0-9a-f]{64})\.cbor\Z")

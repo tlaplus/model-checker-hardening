@@ -83,12 +83,15 @@ implication.
 | Module contains | TLC | Apalache | Aggregation |
 | --- | --- | --- | --- |
 | No `ENABLED`, `WF` or `SF` | `pass` or `counterexample` | the same verdict | compared as usual |
-| `ENABLED` anywhere | evaluates it | `fail`, "unsupported expression: ENABLED" | fails |
-| `WF` or `SF` | evaluates it | `fail` (`spec_eval`), "Handling fairness is not supported yet!" | fails |
+| `ENABLED` anywhere | evaluates it | `fail`, "unsupported expression: ENABLED" | fails; the triager classifies it as a known limitation |
+| `WF` or `SF` | evaluates it | `fail` (`spec_eval`), "Handling fairness is not supported yet!" | fails; the triager classifies it as a known limitation |
+| A property that is constant `FALSE` or a tautology | `fail`, "The property of Prop is equal to FALSE" or "Temporal formula is a tautology" | checks it | fails; the triager classifies it as a TLC restriction |
 
 A property that makes the parser stage fail with a level error is a decoder
 defect, not a SANY finding. Report it against the generator.
 
 Checking a property adds one transition to Apalache's unrolling and doubles its
 state variables. Expect Apalache time per module to rise when `temporal` is
-enabled.
+enabled. In a 400-module smoke run, `ENABLED` and fairness accounted for 15 of 240
+aggregator deviations, and a constant property for 10; ADR 0007 lists the full
+counts.
