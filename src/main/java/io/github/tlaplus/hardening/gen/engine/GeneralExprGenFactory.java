@@ -43,8 +43,8 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 case NAME -> draw.draw(name(type));
                 case IF_THEN_ELSE -> builder().ite(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(type, nextDepth)),
-                        draw.draw(expression(type, nextDepth)));
+                        draw.draw(transparent(type, nextDepth)),
+                        draw.draw(transparent(type, nextDepth)));
                 // The parameters are read before the body is drawn: a binder introduced inside
                 // the labeled expression is not in scope at the label and must not be declared.
                 // A label is itself a definition, so its body starts a new label scope: a nested
@@ -53,7 +53,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                     var parameters = labelArguments(context.fresh("label"));
                     yield builder().label(
                             draw.draw(context.withDefinitionBoundary(
-                                    expression(type, nextDepth))),
+                                    transparent(type, nextDepth))),
                             parameters);
                 }
                 // CHOOSE predicates see their bound name, but the domain does not.
@@ -64,7 +64,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 case CASE -> draw.draw(caseExpression(type, remainingDepth));
                 case OPERATOR_APPLICATION -> draw.draw(operatorApplication(type, remainingDepth));
                 case LET -> draw.draw(letExpression(type, remainingDepth));
-                case PRIME -> builder().prime(draw.draw(expression(type, nextDepth)));
+                case PRIME -> builder().prime(draw.draw(atLevel(LevelContext.STATE, type, nextDepth)));
                 case FUNCTION_APPLICATION -> draw.draw(functionApplication(type, remainingDepth));
                 case FOLD_SET -> draw.draw(fold(type, remainingDepth, SetType::new, builder()::foldSet));
                 case FOLD_SEQUENCE -> draw.draw(fold(type, remainingDepth, SequenceType::new, builder()::foldSeq));
@@ -165,7 +165,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
             var binding = draw.draw(context.chooseOperatorReturning(resultType));
             var operatorType = (OperatorType) binding.type();
             var arguments = operatorType.arguments().stream()
-                    .map(type -> draw.draw(expression(type, remainingDepth - 1)))
+                    .map(type -> draw.draw(atLevel(LevelContext.STATE, type, remainingDepth - 1)))
                     .toArray(TlaEx[]::new);
             var operator = builder().name(binding.name(), operatorType.toTlaType());
             return builder().operApply(operator, arguments);
@@ -189,6 +189,10 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
      * then one Boolean: even keeps the LET's own type as its result, odd draws a value type. Its
      * body sees its parameters and the declarations before it, but not itself, so no declaration
      * is recursive.
+     *
+     * <p>A declaration body is drawn at state level whatever the context, so that every local
+     * operator is applicable wherever the LET body may apply it; the body itself passes the
+     * context through.
      */
     private Generator<TlaEx> letExpression(
             IrType resultType, int remainingDepth) {
@@ -208,14 +212,14 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                         var body = declarationDraw.draw(context.withBindings(
                                 visible,
                                 context.withDefinitionBoundary(
-                                        expression(declaredResult, remainingDepth - 1))));
+                                        atLevel(LevelContext.STATE, declaredResult, remainingDepth - 1))));
                         bindings.add(binding);
                         return builder().decl(binding.name(), body, parameters.declarations());
                     },
                     1,
                     context.config().expressions().maximumCollectionSize()));
             var body = draw.draw(context.withBindings(
-                    bindings, expression(resultType, remainingDepth - 1)));
+                    bindings, transparent(resultType, remainingDepth - 1)));
             return builder().letIn(body, declarations.toArray(TlaOperDecl[]::new));
         };
     }

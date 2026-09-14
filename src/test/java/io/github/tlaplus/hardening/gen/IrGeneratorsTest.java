@@ -123,6 +123,25 @@ class IrGeneratorsTest {
         }
     }
 
+    @Test
+    void enablingActionAndTemporalCategoriesKeepsExpressionsAtStateLevel() {
+        // The expression wrapper places the expression in Init and Inv, so it must stay a state
+        // predicate however the categories are configured.
+        var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of());
+        var random = new Random(0x1e7e1L);
+        for (var sample = 0; sample < 512; sample++) {
+            var input = new byte[random.nextInt(128)];
+            random.nextBytes(input);
+            try {
+                var expression = IrGenerators.expressions(config).generate(input);
+                assertEquals(TlaIrTestSupport.IrLevel.STATE, TlaIrTestSupport.level(expression),
+                        print(expression));
+            } catch (InputRejectedException expected) {
+                // Some forms intentionally reject when the current scope cannot satisfy them.
+            }
+        }
+    }
+
     private void assertBuildsOrRejects(byte[] input) {
         assertBuildsOrRejects(IrGenerationConfig.defaults(), input);
     }

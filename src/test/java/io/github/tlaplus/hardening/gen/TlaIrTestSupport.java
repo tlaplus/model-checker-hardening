@@ -232,6 +232,155 @@ public final class TlaIrTestSupport {
         return List.of();
     }
 
+    /** The TLA+ level of an expression, with constant and state level merged. */
+    public enum IrLevel { STATE, ACTION, TEMPORAL }
+
+    /**
+     * Computes the level of {@code expression} by the TLA+ rules the generator must respect, and
+     * fails when an operand violates one: a primed or {@code UNCHANGED} operand above state level,
+     * an {@code ENABLED} or subscripted action above action level, a subscript above state level,
+     * or an operator that mixes an action with a temporal formula. A {@code LET} counts the levels
+     * of its declaration bodies; SANY is the authority, and this only pins the generator's intent.
+     */
+    public static IrLevel level(TlaEx expression) {
+        if (expression instanceof LetInEx let) {
+            var level = level(let.body());
+            for (var declaration : TlaExpressions.localDeclarations(let)) {
+                level = join(level, level(declaration.body()), expression);
+            }
+            return level;
+        }
+        if (!(expression instanceof OperEx operator)) {
+            return IrLevel.STATE;
+        }
+        var args = TlaExpressions.arguments(operator);
+        var oper = operator.oper();
+        if (oper == TlaOperators.PRIME || oper == TlaOperators.UNCHANGED) {
+            requireAtMost(IrLevel.STATE, args.getFirst(), expression);
+            return IrLevel.ACTION;
+        }
+        if (oper == TlaOperators.ENABLED) {
+            requireAtMost(IrLevel.ACTION, args.getFirst(), expression);
+            return IrLevel.STATE;
+        }
+        if (oper == TlaOperators.STUTTER || oper == TlaOperators.NO_STUTTER) {
+            requireAtMost(IrLevel.ACTION, args.get(0), expression);
+            requireAtMost(IrLevel.STATE, args.get(1), expression);
+            return IrLevel.ACTION;
+        }
+        if (oper == TlaOperators.WEAK_FAIRNESS || oper == TlaOperators.STRONG_FAIRNESS) {
+            requireAtMost(IrLevel.STATE, args.get(0), expression);
+            requireAtMost(IrLevel.ACTION, args.get(1), expression);
+            return IrLevel.TEMPORAL;
+        }
+        if (oper == TlaOperators.GLOBALLY || oper == TlaOperators.EVENTUALLY) {
+            var operand = args.getFirst();
+            // [][A]_v and <><<A>>_v are the forms in which an action may occur under [] and <>.
+            var subscripted = operand instanceof OperEx inner
+                    && (inner.oper() == TlaOperators.STUTTER || inner.oper() == TlaOperators.NO_STUTTER);
+            if (!subscripted && level(operand) == IrLevel.ACTION) {
+                throw new AssertionError("action under a temporal operator: " + print(expression));
+            }
+            level(operand);
+            return IrLevel.TEMPORAL;
+        }
+        var level = IrLevel.STATE;
+        for (var argument : args) {
+            level = join(level, level(argument), expression);
+        }
+        if (oper == TlaOperators.LEADS_TO || oper == TlaOperators.GUARANTEES
+                || oper == TlaOperators.TEMPORAL_EXISTS || oper == TlaOperators.TEMPORAL_FORALL) {
+            if (level == IrLevel.ACTION) {
+                throw new AssertionError("action under a temporal operator: " + print(expression));
+            }
+            return IrLevel.TEMPORAL;
+        }
+        return level;
+    }
+
+    /**
+     * Asserts that a temporal formula uses only the nesting both checkers accept (ADR 0007): an
+     * action occurs only in {@code []<><<A>>_v}, {@code <>[][A]_v}, {@code WF} and {@code SF}, and
+     * only where {@code actionTemporal} holds, which {@code []}, {@code <>} and {@code ~>} withdraw;
+     * a temporal formula passes only through {@code ~}, {@code /\}, {@code \/}, {@code =>},
+     * {@code IF} branches, {@code LET} bodies, labels, {@code []}, {@code <>} and {@code ~>}.
+     */
+    public static void assertCheckableTemporal(TlaEx expression, boolean actionTemporal) {
+        level(expression);
+        if (expression instanceof LetInEx let) {
+            for (var declaration : TlaExpressions.localDeclarations(let)) {
+                assertEquals(IrLevel.STATE, level(declaration.body()), print(expression));
+            }
+            assertCheckableTemporal(let.body(), actionTemporal);
+            return;
+        }
+        if (!(expression instanceof OperEx operator)) {
+            return;
+        }
+        var args = TlaExpressions.arguments(operator);
+        var oper = operator.oper();
+        if (isActionTemporalPattern(operator) || oper == TlaOperators.WEAK_FAIRNESS
+                || oper == TlaOperators.STRONG_FAIRNESS) {
+            if (!actionTemporal) {
+                throw new AssertionError("action formula where none is allowed: " + print(expression));
+            }
+            return;
+        }
+        if (oper == TlaOperators.AND || oper == TlaOperators.OR || oper == TlaOperators.NOT
+                || oper == TlaOperators.IMPLIES) {
+            args.forEach(argument -> assertCheckableTemporal(argument, actionTemporal));
+            return;
+        }
+        if (oper == TlaOperators.LABEL) {
+            assertCheckableTemporal(args.getFirst(), actionTemporal);
+            return;
+        }
+        if (oper == TlaOperators.IF_THEN_ELSE) {
+            assertEquals(IrLevel.STATE, level(args.getFirst()), print(expression));
+            assertCheckableTemporal(args.get(1), actionTemporal);
+            assertCheckableTemporal(args.get(2), actionTemporal);
+            return;
+        }
+        if (oper == TlaOperators.LEADS_TO || oper == TlaOperators.GLOBALLY
+                || oper == TlaOperators.EVENTUALLY) {
+            args.forEach(argument -> assertCheckableTemporal(argument, false));
+            return;
+        }
+        if (oper == TlaOperators.ENABLED) {
+            return;
+        }
+        assertEquals(IrLevel.STATE, level(expression),
+                "a non-transparent form with a temporal or action operand: " + print(expression));
+    }
+
+    private static boolean isActionTemporalPattern(OperEx operator) {
+        return nested(operator, TlaOperators.GLOBALLY, TlaOperators.EVENTUALLY, TlaOperators.NO_STUTTER)
+                || nested(operator, TlaOperators.EVENTUALLY, TlaOperators.GLOBALLY, TlaOperators.STUTTER);
+    }
+
+    private static boolean nested(OperEx operator, TlaOper outer, TlaOper middle, TlaOper inner) {
+        return operator.oper() == outer
+                && TlaExpressions.arguments(operator).getFirst() instanceof OperEx second
+                && second.oper() == middle
+                && TlaExpressions.arguments(second).getFirst() instanceof OperEx third
+                && third.oper() == inner;
+    }
+
+    private static IrLevel join(IrLevel left, IrLevel right, TlaEx context) {
+        if (left != right && left != IrLevel.STATE && right != IrLevel.STATE) {
+            throw new AssertionError("an action and a temporal formula are mixed: " + print(context));
+        }
+        return left.compareTo(right) >= 0 ? left : right;
+    }
+
+    private static void requireAtMost(IrLevel bound, TlaEx operand, TlaEx context) {
+        var actual = level(operand);
+        if (actual.compareTo(bound) > 0) {
+            throw new AssertionError(
+                    "operand level " + actual + " exceeds " + bound + ": " + print(context));
+        }
+    }
+
     public static boolean containsPrime(TlaEx expression) {
         return containsOperator(expression, TlaOperators.PRIME);
     }

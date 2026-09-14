@@ -33,9 +33,10 @@ class ExpressionKindCatalogTest {
                                     BooleanExpressionKind.ALWAYS,
                                     BooleanExpressionKind.EVENTUALLY,
                                     BooleanExpressionKind.LEADS_TO,
-                                    BooleanExpressionKind.GUARANTEES,
                                     BooleanExpressionKind.WEAK_FAIR,
-                                    BooleanExpressionKind.STRONG_FAIR)),
+                                    BooleanExpressionKind.STRONG_FAIR,
+                                    TemporalActionExpressionKind.INFINITELY_OFTEN_ACTION,
+                                    TemporalActionExpressionKind.EVENTUALLY_ALWAYS_ACTION)),
                     Map.entry(
                             ExpressionCategory.UNBOUND,
                             kinds(
@@ -46,6 +47,7 @@ class ExpressionKindCatalogTest {
                             ExpressionCategory.EXOTIC,
                             kinds(
                                     BooleanExpressionKind.ACTION_THEN,
+                                    BooleanExpressionKind.GUARANTEES,
                                     BooleanExpressionKind.TEMPORAL_EXISTS,
                                     BooleanExpressionKind.TEMPORAL_FORALL)),
                     Map.entry(
@@ -370,7 +372,9 @@ class ExpressionKindCatalogTest {
                     ApplicativeExpressionKind.SEQUENCE_EXCEPT,
                     ApplicativeExpressionKind.RECORD_DOMAIN,
                     ApplicativeExpressionKind.TUPLE_DOMAIN,
-                    ApplicativeExpressionKind.SEQUENCE_DOMAIN);
+                    ApplicativeExpressionKind.SEQUENCE_DOMAIN,
+                    TemporalActionExpressionKind.INFINITELY_OFTEN_ACTION,
+                    TemporalActionExpressionKind.EVENTUALLY_ALWAYS_ACTION);
 
     @Test
     void catalogOrderIsTheStoredByteEncoding() {
@@ -385,7 +389,8 @@ class ExpressionKindCatalogTest {
                 + SetExpressionKind.values().length
                 + SequenceExpressionKind.values().length
                 + OtherExpressionKind.values().length
-                + ApplicativeExpressionKind.values().length;
+                + ApplicativeExpressionKind.values().length
+                + TemporalActionExpressionKind.values().length;
 
         assertEquals(expectedSize, ExpressionKindCatalog.all().size());
         assertEquals(expectedSize, new HashSet<>(ExpressionKindCatalog.all()).size());
@@ -428,11 +433,33 @@ class ExpressionKindCatalogTest {
         assertTrue(defaults.isApplicable(
                 BooleanExpressionKind.FORALL_BOUNDED, PrimitiveType.BOOL));
 
-        var allEnabled = expressionFactory(configIgnoring(Set.of()));
-        assertTrue(allEnabled.isApplicable(
+        // Enabling a category makes a form configured; its level decides where it is selectable.
+        var allEnabledContext = new GenerationContext(configIgnoring(Set.of()));
+        var allEnabled = new IrExprGenFactory(allEnabledContext, new IrTypeGenFactory(allEnabledContext));
+        assertFalse(allEnabled.isApplicable(
                 GeneralExpressionKind.PRIME, PrimitiveType.BOOL));
-        assertTrue(allEnabled.isApplicable(
+        assertFalse(allEnabled.isApplicable(
                 BooleanExpressionKind.TEMPORAL_EXISTS, PrimitiveType.BOOL));
+        assertTrue(allEnabled.isApplicable(
+                BooleanExpressionKind.ENABLED, PrimitiveType.BOOL));
+        new Draw(new byte[0]).draw(allEnabledContext.withLevel(LevelContext.ACTION, ignored -> {
+            assertTrue(allEnabled.isApplicable(GeneralExpressionKind.PRIME, PrimitiveType.BOOL));
+            assertFalse(allEnabled.isApplicable(BooleanExpressionKind.ALWAYS, PrimitiveType.BOOL));
+            return null;
+        }));
+        new Draw(new byte[0]).draw(allEnabledContext.withLevel(LevelContext.TEMPORAL, ignored -> {
+            assertTrue(allEnabled.isApplicable(
+                    BooleanExpressionKind.TEMPORAL_EXISTS, PrimitiveType.BOOL));
+            assertTrue(allEnabled.isApplicable(
+                    TemporalActionExpressionKind.INFINITELY_OFTEN_ACTION, PrimitiveType.BOOL));
+            assertFalse(allEnabled.isApplicable(GeneralExpressionKind.PRIME, PrimitiveType.BOOL));
+            return null;
+        }));
+        new Draw(new byte[0]).draw(allEnabledContext.withLevel(LevelContext.ACTION_FREE_TEMPORAL, ignored -> {
+            assertTrue(allEnabled.isApplicable(BooleanExpressionKind.ALWAYS, PrimitiveType.BOOL));
+            assertFalse(allEnabled.isApplicable(BooleanExpressionKind.WEAK_FAIR, PrimitiveType.BOOL));
+            return null;
+        }));
 
         var noSets = expressionFactory(configIgnoring(Set.of(ExpressionCategory.SET)));
         assertFalse(noSets.isApplicable(

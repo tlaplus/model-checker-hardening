@@ -49,15 +49,6 @@ class ScopedExprGenFactoryTest {
                                 0),
                         "q0"),
                 new Scenario(
-                        PrimitiveType.BOOL,
-                        input(
-                                PrimitiveType.BOOL,
-                                BooleanExpressionKind.TEMPORAL_EXISTS,
-                                0,
-                                scopedBooleanName,
-                                0),
-                        "temporal0"),
-                new Scenario(
                         new SetType(PrimitiveType.BOOL),
                         input(
                                 new SetType(PrimitiveType.BOOL),
@@ -104,6 +95,19 @@ class ScopedExprGenFactoryTest {
     }
 
     @Test
+    void aTemporalQuantifierBindsItsNameInATemporalContext() {
+        var context = new GenerationContext(allExpressionsConfig());
+        var typeFactory = new IrTypeGenFactory(context);
+        var expressionFactory = new IrExprGenFactory(context, typeFactory);
+        var factory = new BooleanExprGenFactory(context, typeFactory, expressionFactory);
+        // An empty input draws the binder's type and body from terminals, so the body names it.
+        var printed = print(new Draw(new byte[0]).draw(context.withLevel(LevelContext.TEMPORAL,
+                factory.mkGen(BooleanExpressionKind.TEMPORAL_EXISTS, 2))));
+
+        assertTrue(printed.contains("temporal0"), printed);
+    }
+
+    @Test
     void nameDependentFormsAreAvailableOnlyWithCompatibleBindings() {
         var context = new GenerationContext(allExpressionsConfig());
         var typeFactory = new IrTypeGenFactory(context);
@@ -138,33 +142,41 @@ class ScopedExprGenFactoryTest {
     }
 
     @Test
-    void primeEqualRejectsOrdinaryBindingsButUsesStateVariables() {
+    void primeEqualWithdrawsWithoutStateVariablesAndUsesThemOtherwise() {
         var missingContext = new GenerationContext(allExpressionsConfig());
         var missingTypes = new IrTypeGenFactory(missingContext);
         var missingExpressions = new IrExprGenFactory(missingContext, missingTypes);
         var missingFactory = new BooleanExprGenFactory(
                 missingContext, missingTypes, missingExpressions);
+        var ordinary = ScopedName.binder("ordinary", PrimitiveType.INT);
+        var state = ScopedName.stateVariable("state", PrimitiveType.INT);
 
-        assertTrue(missingExpressions.isApplicable(
-                BooleanExpressionKind.PRIME_EQUAL, PrimitiveType.BOOL));
+        new Draw(new byte[0]).draw(missingContext.withLevel(LevelContext.ACTION, ignored -> {
+            assertFalse(missingExpressions.isApplicable(
+                    BooleanExpressionKind.PRIME_EQUAL, PrimitiveType.BOOL));
+            new Draw(new byte[0]).draw(missingContext.withBinding(ordinary, inner -> {
+                assertFalse(missingExpressions.isApplicable(
+                        BooleanExpressionKind.PRIME_EQUAL, PrimitiveType.BOOL));
+                return null;
+            }));
+            new Draw(new byte[0]).draw(missingContext.withBinding(state, inner -> {
+                assertTrue(missingExpressions.isApplicable(
+                        BooleanExpressionKind.PRIME_EQUAL, PrimitiveType.BOOL));
+                return null;
+            }));
+            return null;
+        }));
+        // The form still rejects when a caller builds it directly without a state variable.
         assertThrows(
                 InputRejectedException.class,
                 () -> new Draw(new byte[0]).draw(
                         missingFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1)));
-
-        var ordinary = ScopedName.binder("ordinary", PrimitiveType.INT);
-        assertThrows(
-                InputRejectedException.class,
-                () -> new Draw(new byte[0]).draw(missingContext.withBinding(
-                        ordinary,
-                        missingFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1))));
 
         var stateContext = new GenerationContext(allExpressionsConfig());
         var stateTypes = new IrTypeGenFactory(stateContext);
         var stateExpressions = new IrExprGenFactory(stateContext, stateTypes);
         var stateFactory = new BooleanExprGenFactory(
                 stateContext, stateTypes, stateExpressions);
-        var state = ScopedName.stateVariable("state", PrimitiveType.INT);
         var expression = new Draw(new byte[0]).draw(stateContext.withBinding(
                 state, stateFactory.mkGen(BooleanExpressionKind.PRIME_EQUAL, 1)));
 

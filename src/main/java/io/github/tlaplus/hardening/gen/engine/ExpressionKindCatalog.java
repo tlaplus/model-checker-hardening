@@ -74,6 +74,7 @@ final class ExpressionKindCatalog {
         result.addAll(List.of(SequenceExpressionKind.values()));
         result.addAll(List.of(OtherExpressionKind.values()));
         result.addAll(List.of(ApplicativeExpressionKind.values()));
+        result.addAll(List.of(TemporalActionExpressionKind.values()));
         return List.copyOf(result);
     }
 }

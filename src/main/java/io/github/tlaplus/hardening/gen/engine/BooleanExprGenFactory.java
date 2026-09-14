@@ -20,13 +20,16 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                 case BOOLEAN_LITERAL -> builder().bool(draw.drawBoolean());
                 case EQUAL -> draw.draw(equal(remainingDepth, false));
                 case NOT_EQUAL -> draw.draw(equal(remainingDepth, true));
+                // These connectives pass a temporal context through to their operands. <=> does not:
+                // TLC cannot handle an equivalence between temporal formulas.
                 case NOT -> builder().not(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
+                        draw.draw(transparent(PrimitiveType.BOOL, nextDepth)));
                 case AND -> builder().and(
-                        draw.draw(operands(PrimitiveType.BOOL, nextDepth)));
+                        draw.draw(operands(transparent(PrimitiveType.BOOL, nextDepth))));
                 case OR -> builder().or(
-                        draw.draw(operands(PrimitiveType.BOOL, nextDepth)));
-                case IMPLIES -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::implies));
+                        draw.draw(operands(transparent(PrimitiveType.BOOL, nextDepth))));
+                case IMPLIES -> draw.draw(binary(
+                        transparent(PrimitiveType.BOOL, nextDepth), builder()::implies));
                 case EQUIVALENT -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::equiv));
                 case FORALL_BOUNDED ->
                     draw.draw(quantifier(true, true, remainingDepth));
@@ -58,35 +61,46 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                     yield builder().primeEq(
                             name, draw.draw(expression(valueType, nextDepth)));
                 }
-                case STUTTER -> builder().stutter(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)));
-                case NO_STUTTER -> builder().noStutter(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)));
+                case STUTTER -> draw.draw(subscripted(remainingDepth, builder()::stutter));
+                case NO_STUTTER -> draw.draw(subscripted(remainingDepth, builder()::noStutter));
                 case ENABLED -> builder().enabled(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case UNCHANGED -> builder().unchanged(
-                        draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)));
-                case ACTION_THEN -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::actionThen));
-                case ALWAYS -> builder().always(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case EVENTUALLY -> builder().eventually(
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case LEADS_TO -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::leadsTo));
-                case GUARANTEES -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::guarantees));
-                case WEAK_FAIR -> builder().weakFair(
-                        draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
-                case STRONG_FAIR -> builder().strongFair(
-                        draw.draw(expression(draw.draw(typeFactory.valueType()), nextDepth)),
-                        draw.draw(expression(PrimitiveType.BOOL, nextDepth)));
+                        draw.draw(atLevel(LevelContext.ACTION, PrimitiveType.BOOL, nextDepth)));
+                case UNCHANGED -> builder().unchanged(draw.draw(
+                        atLevel(LevelContext.STATE, draw.draw(typeFactory.valueType()), nextDepth)));
+                case ACTION_THEN -> draw.draw(binary(
+                        atLevel(LevelContext.ACTION, PrimitiveType.BOOL, nextDepth), builder()::actionThen));
+                case ALWAYS -> builder().always(draw.draw(actionFreeTemporal(nextDepth)));
+                case EVENTUALLY -> builder().eventually(draw.draw(actionFreeTemporal(nextDepth)));
+                case LEADS_TO -> draw.draw(binary(actionFreeTemporal(nextDepth), builder()::leadsTo));
+                case GUARANTEES -> draw.draw(binary(actionFreeTemporal(nextDepth), builder()::guarantees));
+                case WEAK_FAIR -> draw.draw(fairness(false, remainingDepth));
+                case STRONG_FAIR -> draw.draw(fairness(true, remainingDepth));
                 case TEMPORAL_EXISTS ->
                     draw.draw(temporalQuantifier(true, remainingDepth));
                 case TEMPORAL_FORALL ->
                     draw.draw(temporalQuantifier(false, remainingDepth));
             };
         };
+    }
+
+    /** Returns a generator for the selected temporal formula built around an action. */
+    Generator<TlaEx> mkGen(TemporalActionExpressionKind kind, int remainingDepth) {
+        return switch (kind) {
+            case INFINITELY_OFTEN_ACTION -> subscripted(remainingDepth, (action, subscript) ->
+                    builder().always(builder().eventually(builder().noStutter(action, subscript))));
+            case EVENTUALLY_ALWAYS_ACTION -> subscripted(remainingDepth, (action, subscript) ->
+                    builder().eventually(builder().always(builder().stutter(action, subscript))));
+        };
+    }
+
+    /**
+     * Returns an operand of {@code []}, {@code <>}, {@code ~>} or {@code -+->}, which may be temporal
+     * but contain no action. TLC checks an action only in {@code []<>A} and {@code <>[]A}, and only
+     * when a Boolean connective, not another temporal operator, surrounds it: it rejects
+     * {@code <>[]<>A}, {@code []<>[]A}, {@code []~WF_v(A)} and {@code <>SF_v(A)}.
+     */
+    private Generator<TlaEx> actionFreeTemporal(int depth) {
+        return atLevel(LevelContext.ACTION_FREE_TEMPORAL, PrimitiveType.BOOL, depth);
     }
 
     /** Returns a generator of equality or inequality over a generated value type. */
