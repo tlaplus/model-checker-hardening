@@ -37,7 +37,7 @@ abstract class AbstractExprGenFactory {
      * Returns a recursive generator of an ordinary operand with the requested type and budget.
      *
      * <p>The operand is drawn in {@link LevelContext#valueOperand()}, so it is never temporal. This
-     * is the default for every operand; a form opts out only through {@link #transparent} or
+     * is the default for every operand; a form opts out only through {@link #sameLevel} or
      * {@link #atLevel}.
      */
     protected final Generator<TlaEx> expression(
@@ -50,9 +50,10 @@ abstract class AbstractExprGenFactory {
      *
      * <p>Only the forms through which a temporal formula may pass use it: {@code ~}, {@code /\},
      * {@code \/} and {@code =>}, the branches of {@code IF}, the body of {@code LET}, and labels. TLC
-     * cannot handle a temporal formula under {@code <=>} or in a {@code CASE} arm.
+     * cannot handle a temporal formula under {@code <=>}
+     * (<a href="https://github.com/tlaplus/tlaplus/issues/1029">tlaplus/tlaplus#1029</a>) or in a {@code CASE} arm.
      */
-    protected final Generator<TlaEx> transparent(
+    protected final Generator<TlaEx> sameLevel(
             IrType type, int remainingDepth) {
         return expressionFactory.mkGen(type, remainingDepth);
     }
