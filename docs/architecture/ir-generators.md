@@ -580,9 +580,10 @@ Operands inherit the context by three rules:
   `LevelContext.valueOperand()`: a temporal context becomes `STATE`, and `ACTION`
   stays `ACTION`, so `x' + 1` remains reachable. Quantifier bodies, predicates,
   domains and values are all ordinary operands.
-- `transparent` keeps the context. Only `~`, `/\`, `\/`, `=>`, the branches of
+- `sameLevel` keeps the context. Only `~`, `/\`, `\/`, `=>`, the branches of
   `IF`, the body of `LET` and labels use it. TLC cannot handle a temporal formula
-  under `<=>` or in a `CASE` arm, and Apalache crashes on a quantifier over one.
+  under `<=>` ([tlaplus/tlaplus#1029](https://github.com/tlaplus/tlaplus/issues/1029)) or in a `CASE` arm, and Apalache
+  crashes on a quantifier over one.
 - `atLevel` names the context explicitly: `STATE` for the operand of prime and
   `UNCHANGED`, for subscripts, for `LET` declaration and lambda bodies and for
   operator arguments, so every name in scope is state-level; `ACTION` for the
@@ -886,7 +887,7 @@ Changes to this subsystem should preserve the following rules:
    re-evaluated on every draw — the rest of applicability is cached per type. A weight of zero is how a
    form says the current scope cannot supply what it needs.
 3. Generate every operand through `expression(requiredType, remainingDepth - 1)`,
-   which lowers a temporal context to `STATE`. Use `transparent` only for an
+   which lowers a temporal context to `STATE`. Use `sameLevel` only for an
    operand through which both checkers accept a temporal formula, and `atLevel`
    for an operand whose level the form fixes (section 7.1).
 4. Introduce lexical bindings with `AbstractExprGenFactory.freshBinding` and

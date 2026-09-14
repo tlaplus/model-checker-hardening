@@ -40,7 +40,7 @@ enum LevelContext {
     }
 
     /**
-     * Returns the context of an operand that is not a Boolean passed through a transparent form.
+     * Returns the context of an operand that is not a Boolean passed on at the form's own level.
      *
      * <p>Such an operand is a value, a quantifier body, a predicate or a domain. None of them may be
      * temporal: TLA+ forbids it for values, and Apalache crashes on a quantifier over a temporal
