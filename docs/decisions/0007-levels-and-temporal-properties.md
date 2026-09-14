@@ -90,8 +90,9 @@ measurements establish five facts:
      not, so none is generated there;
    - `[][A]_v`, as a top-level conjunct only.
 
-   A temporal formula passes neither `<=>` nor a `CASE` arm in TLC, and neither
-   checker accepts a quantifier over a temporal body. Apalache crashes on it even
+   A temporal formula passes neither `<=>` ([tlaplus/tlaplus#1029][tlc-1029]) nor
+   a `CASE` arm in TLC, and neither checker accepts a quantifier over a temporal
+   body. Apalache crashes on it even
    when the body contains no action.
 4. **Unsupported by at least one checker.** `-+->`, `\EE`, `\AA` and `\cdot`
    crash both checkers. `WF` and `SF` crash Apalache, and `ENABLED` makes
@@ -273,6 +274,7 @@ Liveness == Fairness => Prop
   can revisit this if the crashes should be reported as findings.
 
 [ADR 0006]: 0006-known-defect-signatures.md
+[tlc-1029]: https://github.com/tlaplus/tlaplus/issues/1029
 [ir]: ../architecture/ir-generators.md
 [ir-9-2]: ../architecture/ir-generators.md#92-action-shape
 [fw]: ../architecture/fuzzing-workflows.md

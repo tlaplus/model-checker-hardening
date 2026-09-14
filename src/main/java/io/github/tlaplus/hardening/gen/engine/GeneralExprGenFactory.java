@@ -43,8 +43,8 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                 case NAME -> draw.draw(name(type));
                 case IF_THEN_ELSE -> builder().ite(
                         draw.draw(expression(PrimitiveType.BOOL, nextDepth)),
-                        draw.draw(transparent(type, nextDepth)),
-                        draw.draw(transparent(type, nextDepth)));
+                        draw.draw(sameLevel(type, nextDepth)),
+                        draw.draw(sameLevel(type, nextDepth)));
                 // The parameters are read before the body is drawn: a binder introduced inside
                 // the labeled expression is not in scope at the label and must not be declared.
                 // A label is itself a definition, so its body starts a new label scope: a nested
@@ -53,7 +53,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                     var parameters = labelArguments(context.fresh("label"));
                     yield builder().label(
                             draw.draw(context.withDefinitionBoundary(
-                                    transparent(type, nextDepth))),
+                                    sameLevel(type, nextDepth))),
                             parameters);
                 }
                 // CHOOSE predicates see their bound name, but the domain does not.
@@ -219,7 +219,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                     1,
                     context.config().expressions().maximumCollectionSize()));
             var body = draw.draw(context.withBindings(
-                    bindings, transparent(resultType, remainingDepth - 1)));
+                    bindings, sameLevel(resultType, remainingDepth - 1)));
             return builder().letIn(body, declarations.toArray(TlaOperDecl[]::new));
         };
     }

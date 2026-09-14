@@ -350,7 +350,7 @@ public final class TlaIrTestSupport {
             return;
         }
         assertEquals(IrLevel.STATE, level(expression),
-                "a non-transparent form with a temporal or action operand: " + print(expression));
+                "a form that lowers its operands' level has a temporal or action operand: " + print(expression));
     }
 
     private static boolean isActionTemporalPattern(OperEx operator) {
