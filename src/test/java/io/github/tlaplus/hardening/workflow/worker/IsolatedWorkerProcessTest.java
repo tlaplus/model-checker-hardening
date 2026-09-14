@@ -108,6 +108,33 @@ class IsolatedWorkerProcessTest {
     }
 
     @Test
+    void roundTripsTheCheckRequest(@TempDir Path directory) throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+
+        ToolResult withProperty;
+        ToolResult withoutProperty;
+        try (var worker = IsolatedWorkerProcess.start(
+                new WorkerSpec(scratch, TIMEOUT, EchoRequestWorker.class, DESCRIPTION))) {
+            withProperty = worker.request(new ToolInput("text", new CheckRequest(5, true)), TIMEOUT);
+        }
+        try (var worker = IsolatedWorkerProcess.start(
+                new WorkerSpec(scratch, TIMEOUT, EchoRequestWorker.class, DESCRIPTION))) {
+            withoutProperty = worker.request(new ToolInput("text", 3), TIMEOUT);
+        }
+
+        assertEquals("5 true text", withProperty.diagnostic());
+        assertEquals("3 false text", withoutProperty.diagnostic());
+        assertScratchIsEmpty(scratch);
+    }
+
+    @Test
+    void aTemporalPropertyNeedsOneMoreUnrolledTransitionThanTheInvariant() {
+        assertEquals(5, CheckRequest.invariant(5).unrollingLength());
+        assertEquals(6, new CheckRequest(5, true).unrollingLength());
+        assertEquals(1, new CheckRequest(0, true).unrollingLength());
+    }
+
+    @Test
     void reportsAnOversizedSpecificationAsACrashRatherThanStoppingTheRun(@TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
@@ -179,6 +206,20 @@ class IsolatedWorkerProcessTest {
                 ToolWorkerProtocol.writeHandshake(connection.output());
                 ToolWorkerProtocol.readRequest(connection.input());
                 System.err.println("deliberate processing failure");
+            }
+        }
+    }
+
+    public static final class EchoRequestWorker {
+        private EchoRequestWorker() {}
+
+        public static void main(String[] ignoredArguments) throws Exception {
+            try (var connection = ToolWorkerConnection.connect()) {
+                ToolWorkerProtocol.writeHandshake(connection.output());
+                var input = ToolWorkerProtocol.readRequest(connection.input());
+                var request = input.request();
+                ToolWorkerProtocol.writeResult(connection.output(), new ToolResult(StageOutcome.PASS,
+                        request.transitions() + " " + request.temporalProperty() + " " + input.text()));
             }
         }
     }

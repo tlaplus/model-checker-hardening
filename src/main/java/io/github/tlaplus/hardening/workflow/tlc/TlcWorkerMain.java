@@ -41,12 +41,6 @@ public final class TlcWorkerMain {
         var configuration =
                 temporaryDirectory.resolve(FuzzInputModule.MODULE_NAME + ".cfg");
         var metadata = temporaryDirectory.resolve("states");
-        Files.writeString(
-                configuration,
-                configurationText(),
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE_NEW,
-                StandardOpenOption.WRITE);
 
         var diagnostics = ToolWorkerRuntime.diagnosticBuffer("TLC");
         try (connection;
@@ -80,21 +74,17 @@ public final class TlcWorkerMain {
                     ToolWorkerRuntime.Lifetime.ONE_INPUT,
                     source -> {
                         ToolWorkerRuntime.writeInput(specification, source);
+                        // TLC reads the configuration when it processes the input, not when it
+                        // accepts its parameters, so the file can follow the request.
+                        Files.writeString(
+                                configuration,
+                                TlcConfiguration.text(source.request()),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE_NEW,
+                                StandardOpenOption.WRITE);
                         return check(tlc, diagnostics);
                     });
         }
-    }
-
-    /**
-     * Returns the fixed configuration naming the module's entry points.
-     *
-     * <p>TLC needs no state constraint: every generated module bounds its step counter in its
-     * next-state action, and the expression wrapper has a single state.
-     */
-    private static String configurationText() {
-        return "INIT " + FuzzInputModule.INIT + "\n"
-                + "NEXT " + FuzzInputModule.NEXT + "\n"
-                + "INVARIANT " + FuzzInputModule.INV + "\n";
     }
 
     /** Checks the written specification and classifies whatever TLC reports. */

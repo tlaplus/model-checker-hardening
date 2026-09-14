@@ -48,6 +48,6 @@ class GeneratedSpecTest {
         var predicate = builder.bool(true);
         return new GeneratedSpec(List.of(TlaDeclarations.variable("x",
                         TlaTypes.typeOf(predicate))),
-                operators, predicate, predicate, predicate, 0);
+                operators, predicate, predicate, predicate, java.util.Optional.empty(), 0);
     }
 }

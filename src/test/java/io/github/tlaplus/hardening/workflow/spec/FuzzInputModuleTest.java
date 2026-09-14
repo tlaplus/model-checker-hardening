@@ -18,8 +18,8 @@ import org.apalache_mc.tla.jir.TlaModules;
 import org.junit.jupiter.api.Test;
 
 class FuzzInputModuleTest {
-    /** The fixed entry points every assembled module ends with. */
-    private static final int ENTRY_POINTS = 3;
+    /** The entry points and the fairness they share, which every assembled module ends with. */
+    private static final int ENTRY_POINTS = 7;
 
     @Test
     void constructsOneStateVariableAndCopiesTheExpressionIntoInitAndInv() {
@@ -35,7 +35,8 @@ class FuzzInputModuleTest {
         assertEquals(1, variables.size());
         assertEquals("exprValue", variables.getFirst().name());
 
-        // The definition names are the contract with the fixed tool invocations.
+        // The definition names are the contract with the fixed tool invocations, and every entry
+        // point is defined so that one TLC configuration shape serves every input kind.
         var operators = operators(module);
         assertEntryPointOrder(operators.subList(operators.size() - ENTRY_POINTS, operators.size()));
 
@@ -48,6 +49,10 @@ class FuzzInputModuleTest {
         assertTrue(source.contains("VARIABLE"));
         assertTrue(source.contains("exprValue"));
         assertTrue(source.contains("Next == UNCHANGED exprValue"));
+        assertTrue(source.contains("Fairness == TRUE"));
+        assertTrue(source.contains("Prop == TRUE"));
+        assertTrue(source.contains("Liveness == Fairness => Prop"), source);
+        assertTrue(source.contains("Spec == Init /\\ []([Next]_(<<exprValue>>)) /\\ Fairness"), source);
         assertEquals(2, occurrences(source, "exprValue = FALSE"));
         assertFalse(source.contains("GeneratedExpression"));
     }
@@ -117,7 +122,9 @@ class FuzzInputModuleTest {
     private void assertEntryPointOrder(
             java.util.List<TlaOperDecl> entryPoints) {
         assertEquals(
-                List.of(FuzzInputModule.INIT, FuzzInputModule.NEXT, FuzzInputModule.INV),
+                List.of(FuzzInputModule.INIT, FuzzInputModule.NEXT, FuzzInputModule.INV,
+                        FuzzInputModule.FAIRNESS, FuzzInputModule.SPEC, FuzzInputModule.PROP,
+                        FuzzInputModule.LIVENESS),
                 entryPoints.stream().map(TlaOperDecl::name).toList());
     }
 

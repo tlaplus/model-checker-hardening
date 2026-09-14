@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
@@ -52,7 +53,7 @@ public final class ApalacheWorkerMain {
                                             toolRun,
                                             jobDirectory,
                                             specification,
-                                            source.length(),
+                                            source.request(),
                                             processError);
 
                             // Tool.run resets Logback at the beginning of every invocation.
@@ -73,7 +74,7 @@ public final class ApalacheWorkerMain {
             Method toolRun,
             Path jobDirectory,
             Path specification,
-            int length,
+            CheckRequest request,
             PrintStream processError) {
         var diagnostics = ToolWorkerRuntime.diagnosticBuffer("Apalache");
         try (var diagnosticStream = new PrintStream(
@@ -83,7 +84,7 @@ public final class ApalacheWorkerMain {
             setScalaConsole(diagnosticStream);
             try {
                 var exitStatus = (int) toolRun.invoke(
-                        null, (Object) arguments(jobDirectory, specification, length));
+                        null, (Object) ApalacheArguments.check(jobDirectory, specification, request));
                 diagnosticStream.flush();
                 return ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text());
             } catch (Exception | StackOverflowError exception) {
@@ -108,24 +109,6 @@ public final class ApalacheWorkerMain {
             throw new NoSuchMethodException(TOOL_CLASS + ".run(String[]) must return int");
         }
         return method;
-    }
-
-    /**
-     * Returns the check invocation for one input. The unrolling length comes from the input rather
-     * than being fixed here: an expression input has a single state, while an assembled module
-     * bounds its own step counter and asks for exactly that many transitions.
-     */
-    private static String[] arguments(Path jobDirectory, Path specification, int length) {
-        return new String[] {
-            "--out-dir=" + jobDirectory.resolve("out"),
-            "check",
-            "--init=" + FuzzInputModule.INIT,
-            "--next=" + FuzzInputModule.NEXT,
-            "--inv=" + FuzzInputModule.INV,
-            "--length=" + length,
-            "--no-deadlock",
-            specification.toString()
-        };
     }
 
     private static void deletePending(ArrayList<Path> pending) {

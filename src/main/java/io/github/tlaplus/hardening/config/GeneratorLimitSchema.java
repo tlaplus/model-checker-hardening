@@ -22,6 +22,7 @@ final class GeneratorLimitSchema {
     private final ConfigSchema.Key<Integer> maximumActionParameters;
     private final ConfigSchema.Key<Integer> maximumActionDepth;
     private final ConfigSchema.Key<Integer> maximumSteps;
+    private final ConfigSchema.Key<Integer> maximumFairnessConditions;
 
     GeneratorLimitSchema(ConfigTableBuilder<IrGenerationConfig> generator) {
         var expressions = generator.project(IrGenerationConfig::expressions);
@@ -54,6 +55,9 @@ final class GeneratorLimitSchema {
         maximumSteps = modules.integer("max_steps", ModuleLimits::maximumSteps,
                 "Transitions explored from an initial state of a generated module.",
                 "Every next-state disjunct is guarded by the step counter staying below it.");
+        maximumFairnessConditions = modules.integer("max_fairness", ModuleLimits::maximumFairnessConditions,
+                "Maximum weak and strong fairness conditions in a generated specification.",
+                "Fairness is generated only with the \"temporal\" category enabled.");
     }
 
     ExpressionLimits readExpressionLimits(Map<String, TomlTable> tables)
@@ -71,6 +75,6 @@ final class GeneratorLimitSchema {
         return new ModuleLimits(maximumVariables.read(tables), maximumAuxiliaryOperators.read(tables),
                 new ActionLimits(maximumActionOperators.read(tables), maximumActions.read(tables),
                         maximumActionParameters.read(tables), maximumActionDepth.read(tables)),
-                maximumSteps.read(tables));
+                maximumSteps.read(tables), maximumFairnessConditions.read(tables));
     }
 }
