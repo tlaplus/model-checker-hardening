@@ -148,7 +148,6 @@ class TlcProcessTest {
                 Init == exprValue = FALSE
                 Next == UNCHANGED exprValue
                 Inv == %s
-                Bound == TRUE
                 ====
                 """.formatted(invariant);
     }
@@ -161,7 +160,6 @@ class TlcProcessTest {
                 Init == exprValue = %1$s
                 Next == UNCHANGED exprValue
                 Inv == exprValue = %1$s
-                Bound == TRUE
                 ====
                 """.formatted(expression);
     }

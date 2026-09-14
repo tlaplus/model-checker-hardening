@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import java.math.BigInteger;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
@@ -21,11 +20,12 @@ import org.apalache_mc.tla.jir.TlaDeclarations;
  * creates its own builder, scope, counters, and name supply, so one engine may be reused and
  * invoked concurrently with distinct cursors.
  *
- * <p>Everything it draws below the declaration level comes from the ordinary expression factory in
- * the state-level context, whatever the caller configured. Priming and {@code UNCHANGED} are
- * constructed by {@link ActionGenFactory} over the declared variables, which is what lets a
- * generated action account for every variable exactly once; a prime reached through an expression
- * form could sit under a negation or a quantifier and would not.
+ * <p>Everything it draws below the declaration level comes from the ordinary expression factory,
+ * in the state-level context unless the module layer names another: {@link ActionGenFactory} draws
+ * post-assignment guards in the action context. The accounted priming and {@code UNCHANGED} of an
+ * action are constructed over the declared variables, which is what lets a generated action account
+ * for every variable exactly once; a prime reached through an expression form could sit under a
+ * negation or a quantifier and would not, so no expression form primes before the step update.
  */
 public final class IrSpecGeneratorEngine {
     /**
@@ -120,21 +120,12 @@ public final class IrSpecGeneratorEngine {
                 context.withBindings(stateScope, actions.nextAction(depth,
                         new VisibleActionOperators(actionOperators))));
 
-        // One less than the step bound. A checker driven by the constraint evaluates the
-        // invariant on a successor state before the constraint discards it, so a constraint
-        // of `step <= n` covers states 0..n+1 while an exploration length of n covers 0..n.
-        // Subtracting one makes both bounds admit exactly the same states.
-        var boundPredicate = context.builder().le(
-                context.builder().name(step.name(), PrimitiveType.INT.toTlaType()),
-                context.builder().integer(
-                        BigInteger.valueOf(config.modules().maximumSteps() - 1L)));
         return new GeneratedSpec(
                 declarations,
                 generatedOperators,
                 initPredicate,
                 nextAction,
                 invariant,
-                boundPredicate,
                 config.modules().maximumSteps());
     }
 

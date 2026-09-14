@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.spec;
 import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
+import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,23 +29,17 @@ public final class FuzzInputModule {
     /** Initial-state predicate. */
     public static final String INIT = "Init";
 
-    /** Next-state action. */
+    /**
+     * Next-state action. A generated module's action ends with a stuttering disjunct over every
+     * variable, because Apalache, unlike TLC, adds no stuttering step of its own.
+     */
     public static final String NEXT = "Next";
 
     /** State invariant. */
     public static final String INV = "Inv";
 
-    /**
-     * State constraint bounding exploration.
-     *
-     * <p>A generated module advances a step counter and bounds it here; the expression wrapper has
-     * a single state and defines the constraint as {@code TRUE}. Defining it unconditionally is
-     * what lets one configuration file serve both kinds.
-     */
-    public static final String BOUND = "Bound";
-
     /** Every definition some tool evaluates directly; everything else is reached through them. */
-    public static final List<String> ENTRY_POINTS = List.of(INIT, NEXT, INV, BOUND);
+    public static final List<String> ENTRY_POINTS = List.of(INIT, NEXT, INV);
 
     private static final String VARIABLE_NAME = "exprValue";
 
@@ -66,25 +61,22 @@ public final class FuzzInputModule {
         var init = builder.eql(builder.varDeclAsNameEx(exprValue), expression);
         var next = builder.unchanged(builder.varDeclAsNameEx(exprValue));
         var invariant = builder.eql(builder.varDeclAsNameEx(exprValue), expressionCopy);
-        return assemble(List.of(exprValue), init, next, invariant, builder.bool(true));
+        return assemble(List.of(exprValue), init, next, invariant);
     }
 
     /**
-     * Assembles a generated module, bounding exploration by its own step counter.
+     * Assembles a generated module and closes its next-state action with a stuttering disjunct.
      *
-     * <p>The generated declarations keep their names; only the four entry points are fixed, so the
-     * tool invocations need not change with the input.
+     * <p>The generated declarations keep their names; only the entry points are fixed, so the tool
+     * invocations need not change with the input.
      */
     public static TlaModule create(GeneratedSpec spec) {
         Objects.requireNonNull(spec, "spec");
+        var builder = new TlaTypedScopeUncheckedBuilder();
         var declarations = new ArrayList<TlaDecl>(spec.variables());
         spec.operators().forEach(operator -> declarations.add(operator.declaration()));
-        return assemble(
-                declarations,
-                spec.initPredicate(),
-                spec.nextAction(),
-                spec.invariant(),
-                spec.boundPredicate());
+        var next = builder.or(spec.nextAction(), builder.unchanged(variablesTuple(builder, spec.variables())));
+        return assemble(declarations, spec.initPredicate(), next, spec.invariant());
     }
 
     /** Appends the fixed entry points once, in the order emitted to every tool. */
@@ -92,14 +84,17 @@ public final class FuzzInputModule {
             List<? extends TlaDecl> prefix,
             TlaEx init,
             TlaEx next,
-            TlaEx invariant,
-            TlaEx bound) {
+            TlaEx invariant) {
         var builder = new TlaTypedScopeUncheckedBuilder();
         var declarations = new ArrayList<TlaDecl>(prefix);
         declarations.add(builder.decl(INIT, init));
         declarations.add(builder.decl(NEXT, next));
         declarations.add(builder.decl(INV, invariant));
-        declarations.add(builder.decl(BOUND, bound));
         return TlaModules.create(MODULE_NAME, declarations);
+    }
+
+    /** Returns the tuple of every declared variable, in declaration order. */
+    private static TlaEx variablesTuple(TlaTypedScopeUncheckedBuilder builder, List<TlaVarDecl> variables) {
+        return builder.tuple(variables.stream().map(builder::varDeclAsNameEx).toArray(TlaEx[]::new));
     }
 }

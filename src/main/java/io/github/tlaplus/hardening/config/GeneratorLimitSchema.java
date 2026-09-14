@@ -53,7 +53,7 @@ final class GeneratorLimitSchema {
                         + " disjunct a flat conjunction.");
         maximumSteps = modules.integer("max_steps", ModuleLimits::maximumSteps,
                 "Transitions explored from an initial state of a generated module.",
-                "Bounds Apalache's unrolling and TLC's state constraint alike.");
+                "Every next-state disjunct is guarded by the step counter staying below it.");
     }
 
     ExpressionLimits readExpressionLimits(Map<String, TomlTable> tables)

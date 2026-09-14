@@ -692,9 +692,8 @@ properties of the input — no byte string can violate them.
 
 ### 9.1. Declaration order
 
-Each numbered body below except the bound predicate decodes from the
-`ModuleSection` of the same name, in this order; the section weights are
-`1, 2, 3, 3, 2, 5` in the order listed.
+Each numbered body below decodes from the `ModuleSection` of the same name, in
+this order; the section weights are `1, 2, 3, 3, 2, 5` in the order listed.
 
 1. **Variables.** A terminated non-empty list of value types, named `var0`
    onward, each entering the scope with the `STATE_VARIABLE` role. An `Int`
@@ -718,7 +717,6 @@ Each numbered body below except the bound predicate decodes from the
 5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
 6. **Next-state action.** A terminated non-empty disjunction of actions.
-7. **Bound predicate.** `step <= maximumSteps - 1`; see [9.3](#93-bounding-exploration).
 
 `GeneratedSpec.operators` stores auxiliary and action variants of the sealed
 `GeneratedOperator` abstraction in one declaration-order list. Declaration-only
@@ -752,14 +750,21 @@ predicate does not fix.
 
 - zero or more bounded existential parameters, whose bound sets belong to the
   enclosing scope and whose names are visible to everything inside;
-- an optional guard, an ordinary Boolean state predicate;
-- a recursive *action shape* over the declared variables (below); and
-- `step' = step + 1`.
+- the byte-free step guard `step < maximumSteps` (section 9.3);
+- optional guards, ordinary Boolean state predicates;
+- a recursive *action shape* over the declared variables (below);
+- `step' = step + 1`; and
+- optional *post-assignment guards*, Boolean expressions drawn in the `ACTION`
+  context (section 7.1), which may read primed variables.
 
-The parameters are drawn first, then the shape, then the guards, although the
-guards precede the shape in the conjunction. A guard drawn from a short section is
-merely absent, whereas a shape drawn from exhausted bytes is always a leaf and
-never applies an action operator.
+The parameters are drawn first, then the shape, then the guards and the
+post-assignment guards, although the guards precede the shape in the conjunction.
+A guard drawn from a short section is merely absent, whereas a shape drawn from
+exhausted bytes is always a leaf and never applies an action operator. The
+post-assignment guards follow the step update, where the shape has determined
+every primed variable on every path, so TLC's left-to-right evaluation and
+Apalache's assignment analysis both see the assignments first. With the `action`
+category ignored their list is empty and spends no marker.
 
 `ActionShapeGenFactory` constructs the recursive shape. Operator generation passes
 an immutable index of the already generated prefix to each body, and Next receives
@@ -800,7 +805,8 @@ as not — the first one takes the type's closed terminal instead. Both repairs 
 byte-free, so they stay out of the encoding. A non-spine conjunction group, and
 the remainder beside a call, may be left entirely `UNCHANGED`.
 
-The invariant a test can check is that in every disjunct the conjunctive spine —
+The invariant a test can check is that in every disjunct the conjunctive spine,
+cut after the step update —
 with each nested disjunction and IF-THEN-ELSE collapsed to the variable set its
 arms share, and each call resolved to its operator's effect by recursing into the
 applied body — accounts for each declared variable exactly once (primed on the
@@ -808,17 +814,19 @@ left of an assignment, or inside an `UNCHANGED`), and that sibling arms and
 branches account for the same set. What makes it checkable is that the accounting
 is assembled here, over the declaration list, and that the effect of every action
 operator is recorded. This is why only `ActionGenFactory` (the step update) and
-`ActionShapeGenFactory` (recursive bodies) prime names or build `UNCHANGED`,
-and why every module subexpression — the IF-THEN-ELSE predicate included — is
-drawn in the `STATE` context (section 7.1) whatever the corpus configured: a prime
-reached through an expression form could sit under a negation or a quantifier,
-where it accounts for nothing. Every value a module expression produces therefore
-reads the current state only.
+`ActionShapeGenFactory` (recursive bodies) prime names or build `UNCHANGED` on the
+spine, and why every module subexpression before the step update — the
+IF-THEN-ELSE predicate included — is drawn in the `STATE` context: a prime reached
+through an expression form could sit under a negation or a quantifier, where it
+accounts for nothing. The step update is a fixed conjunct, which is how a reader
+of the IR tells the spine from the post-assignment guards.
 
 **Decoder deviation (levels, ADR 0007).** Module generation used to ignore the
 `action`, `temporal` and `exotic` categories in every subexpression whatever the
-corpus configured; the `STATE` context now does that job. Stored inputs decode as
-before under the default ignore list.
+corpus configured; the `STATE` context now does that job. Each disjunct gained the
+step guard and, with `action` enabled, the post-assignment guards. With the
+default ignore list the guards spend no byte, so stored `module` inputs decode to
+the same shapes plus the step guard; with `action` enabled they reinterpret.
 
 **Historical decoder deviation (introduction of nested actions).** This weakened the previous invariant — "each declared variable
 appears exactly once on a flat conjunctive spine" — to the recursive form above,
@@ -837,22 +845,26 @@ above. Declaration order, category exclusions and generated behavior are unchang
 
 ### 9.3. Bounding exploration
 
-A generated action can run forever, and the two checkers bound exploration
-differently: Apalache takes an unrolling length, TLC takes a state constraint.
-The step counter serves both. `GeneratedSpec.stepBound` reaches Apalache as
-`--length`, and `boundPredicate` becomes the `Bound` definition that TLC's
-configuration names as its `CONSTRAINT`. The expression wrapper defines `Bound`
-as `TRUE` and asks for zero transitions, so one configuration file serves both
-kinds.
+A generated action can run forever, and the checkers must explore the same
+states, or a verdict difference records a bound difference rather than a checker
+difference. Every generated disjunct is guarded by `step < maximumSteps` and
+advances `step`, and `FuzzInputModule` closes the next-state action with a
+stuttering disjunct over every variable:
+`Next == nextAction \/ UNCHANGED <<var0, ..., step>>`. The reachable states are
+those within `maximumSteps` transitions, so TLC needs no state constraint, and
+`GeneratedSpec.stepBound` reaches Apalache as `--length`. The expression wrapper
+asks for zero transitions.
 
-The two bounds must admit the same states, or a verdict difference records a
-bound difference rather than a checker difference. They are not symmetric: a
-checker evaluates the invariant on a successor state before the constraint
-discards it, so `step <= n` covers states `0..n+1` while a length of `n` covers
-`0..n`. The constraint therefore names `maximumSteps - 1` while `stepBound`
-stays `maximumSteps`. `IrSpecGeneratorsTest` pins the relation across step
-bounds, including `0`, where the constraint is `step <= -1` and both checkers
-still examine the initial state.
+The stuttering disjunct makes every state's stuttering step explicit. TLC adds
+such steps of its own and Apalache does not, which matters once a temporal
+property is checked (ADR 0007).
+
+**Decoder deviation (closed bounding, ADR 0007).** Earlier modules had no step
+guard; `GeneratedSpec.boundPredicate` became a `Bound` definition that TLC named
+as its `CONSTRAINT`, as `step <= maximumSteps - 1` to compensate for TLC evaluating
+the invariant on a successor state before discarding it. The guard makes that
+offset unnecessary and removes `Bound`. `IrSpecGeneratorsTest` pins the guard
+across step bounds, including `0`.
 
 ## 10. Extension rules
 
@@ -893,8 +905,9 @@ Changes to this subsystem should preserve the following rules:
    propagate.
 9. Keep the step prime in `ActionGenFactory` and recursive priming and `UNCHANGED`
    in `ActionShapeGenFactory`, including action-operator bodies. Draw every module
-   subexpression in the `STATE` context — the IF-THEN-ELSE predicate included — or
-   a disjunct's account of the declared variables stops being checkable.
+   subexpression before the step update in the `STATE` context — the IF-THEN-ELSE
+   predicate included — or a disjunct's account of the declared variables stops
+   being checkable. Only post-assignment guards and the property leave it.
 10. Give a new module-level body a `ModuleSection` and a node budget of its own
     with `GenerationContext.withFreshNodeBudget`. Adding or reweighting a
     section reinterprets every stored module input and fails `ModuleSectionTest`.
@@ -921,7 +934,8 @@ generation they should additionally cover assignment completeness per disjunct
 across the recursive action shape — that sibling disjunction arms and IF branches
 account for the same variables, that the spine accounts for each declared
 variable exactly once, and that each action-operator body accounts for its
-declared effect — the absence of primes outside the action, and that auxiliary
+declared effect — the absence of primes outside the action and its
+post-assignment guards, the level of every body, and that auxiliary
 definitions and the initial-state predicate read no state variable. A catalog
 change must retain the fixed-width upper bound, update the pinned catalog order,
 and explicitly revise the decoding protocol.

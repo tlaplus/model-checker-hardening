@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
  *       determined.
  *   <li>every disjunct of {@code nextAction} either assigns each declared variable exactly once or
  *       lists it in that disjunct's {@code UNCHANGED}, so a successor state is fully determined.
+ *       The conjuncts after the step update {@code step' = step + 1} are post-assignment guards
+ *       and account for nothing.
  * </ul>
  *
  * @param variables the declared state variables, in declaration order
@@ -30,12 +32,9 @@ import java.util.stream.Collectors;
  * @param initPredicate the initial-state predicate
  * @param nextAction the next-state action
  * @param invariant the state invariant
- * @param boundPredicate the state constraint that stops exploration, {@code step <= stepBound - 1}
- * @param stepBound transitions to explore from an initial state, which {@code boundPredicate}
- *     expresses as a constraint for a checker that has no length parameter. The constraint
- *     names one less: a checker applies it after evaluating the invariant on a successor
- *     state, so {@code step <= stepBound - 1} and a length of {@code stepBound} admit the
- *     same states
+ * @param stepBound the step counter's bound: every disjunct of {@code nextAction} is guarded by
+ *     {@code step < stepBound}, so the states reachable from an initial state are those within
+ *     {@code stepBound} transitions
  */
 public record GeneratedSpec(
         List<TlaVarDecl> variables,
@@ -43,7 +42,6 @@ public record GeneratedSpec(
         TlaEx initPredicate,
         TlaEx nextAction,
         TlaEx invariant,
-        TlaEx boundPredicate,
         int stepBound) {
     public GeneratedSpec {
         variables = List.copyOf(Objects.requireNonNull(variables, "variables"));
@@ -61,7 +59,6 @@ public record GeneratedSpec(
         Objects.requireNonNull(initPredicate, "initPredicate");
         Objects.requireNonNull(nextAction, "nextAction");
         Objects.requireNonNull(invariant, "invariant");
-        Objects.requireNonNull(boundPredicate, "boundPredicate");
         Preconditions.requireNonnegative(stepBound, "stepBound");
     }
 

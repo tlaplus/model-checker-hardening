@@ -657,7 +657,7 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertTrue(result.out().contains("MODULE FuzzInput"), result.out());
-        assertTrue(result.out().contains("Next == (var0' = FALSE"), result.out());
+        assertTrue(result.out().contains("step < 5 /\\ var0' = FALSE"), result.out());
         assertEquals(CommandLine.ExitCode.OK, envelopeResult.exitCode(), envelopeResult.err());
         assertTrue(envelopeResult.out().contains("kind: module"), envelopeResult.out());
     }

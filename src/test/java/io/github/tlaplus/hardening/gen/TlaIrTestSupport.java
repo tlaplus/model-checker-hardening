@@ -55,6 +55,51 @@ public final class TlaIrTestSupport {
     }
 
     /**
+     * Returns a next-state disjunct without its post-assignment guards: the conjunction of a
+     * disjunct, below its action parameters, is cut after the step update {@code step' = step + 1},
+     * which ends the accounted spine. A disjunct without the update is returned unchanged.
+     */
+    public static TlaEx accountedSpine(TlaEx disjunct, String step) {
+        if (!(disjunct instanceof OperEx operator)) {
+            return disjunct;
+        }
+        var args = TlaExpressions.arguments(operator);
+        if (operator.oper() == TlaOperators.EXISTS3) {
+            return TlaExpressions.withArguments(operator,
+                    List.of(args.get(0), args.get(1), accountedSpine(args.get(2), step)));
+        }
+        var update = stepUpdateIndex(operator, step);
+        return update < 0 ? disjunct : TlaExpressions.withArguments(operator, args.subList(0, update + 1));
+    }
+
+    /** Returns the conjuncts that follow the step update of a next-state disjunct. */
+    public static List<TlaEx> postAssignmentGuards(TlaEx disjunct, String step) {
+        if (!(disjunct instanceof OperEx operator)) {
+            return List.of();
+        }
+        var args = TlaExpressions.arguments(operator);
+        if (operator.oper() == TlaOperators.EXISTS3) {
+            return postAssignmentGuards(args.get(2), step);
+        }
+        var update = stepUpdateIndex(operator, step);
+        return update < 0 ? List.of() : args.subList(update + 1, args.size());
+    }
+
+    private static int stepUpdateIndex(OperEx conjunction, String step) {
+        if (conjunction.oper() != TlaOperators.AND) {
+            return -1;
+        }
+        var args = TlaExpressions.arguments(conjunction);
+        for (var index = 0; index < args.size(); index++) {
+            if (args.get(index) instanceof OperEx equality && equality.oper() == TlaOperators.EQ
+                    && step.equals(primedName(TlaExpressions.arguments(equality).getFirst()))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /**
      * Collects the variables one action shape settles, recursively: those given a next value by a
      * primed equality or membership, and those listed in an {@code UNCHANGED}. The conjunctive
      * spine unions its children; every arm of a nested disjunction and every branch of an

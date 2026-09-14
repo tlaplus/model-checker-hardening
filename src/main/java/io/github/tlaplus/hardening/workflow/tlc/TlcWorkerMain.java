@@ -88,14 +88,13 @@ public final class TlcWorkerMain {
     /**
      * Returns the fixed configuration naming the module's entry points.
      *
-     * <p>The state constraint is what bounds TLC: an assembled module defines it, so naming it
-     * here unconditionally lets one configuration serve every input kind.
+     * <p>TLC needs no state constraint: every generated module bounds its step counter in its
+     * next-state action, and the expression wrapper has a single state.
      */
     private static String configurationText() {
         return "INIT " + FuzzInputModule.INIT + "\n"
                 + "NEXT " + FuzzInputModule.NEXT + "\n"
-                + "INVARIANT " + FuzzInputModule.INV + "\n"
-                + "CONSTRAINT " + FuzzInputModule.BOUND + "\n";
+                + "INVARIANT " + FuzzInputModule.INV + "\n";
     }
 
     /** Checks the written specification and classifies whatever TLC reports. */

@@ -122,22 +122,50 @@ final class ActionGenFactory extends AbstractExprGenFactory {
     }
 
     /**
-     * Guards are a terminated list; they and the unconditional step update sit outside the shape.
-     * The shape is drawn before the guards it follows in the conjunction: guards are ordinary
-     * predicates that a short section can do without, whereas a shape drawn from exhausted bytes
-     * is always a leaf and never applies an action operator.
+     * A disjunct is the conjunction of the step guard, the guards, the shape, the step update and
+     * the post-assignment guards, in that order. Only the shape accounts for variables.
+     *
+     * <p>The step guard {@code step < maximumSteps} is byte-free. With the skeleton's stuttering
+     * disjunct it closes the state graph at the bound, so both checkers explore the same finite
+     * graph and see the same infinite behaviors.
+     *
+     * <p>Guards are a terminated list of state predicates. Post-assignment guards are a terminated
+     * list of predicates drawn in the action context, so they may read primed variables. They come
+     * after the step update, where every primed variable has been assigned on every path; the
+     * step update is a fixed conjunct, which is how a reader of the IR tells the accounted spine
+     * from the post-assignment guards. With the {@code action} category ignored the list is empty
+     * and spends no marker.
+     *
+     * <p>The shape is drawn first: guards are ordinary predicates that a short section can do
+     * without, whereas a shape drawn from exhausted bytes is always a leaf and never applies an
+     * action operator.
      */
     private Generator<TlaEx> actionBody(int expressionDepth, VisibleActionOperators visible) {
         return draw -> {
             var shape = draw.draw(shapes.shape(request(variables, expressionDepth), visible));
-            var conjuncts = new ArrayList<TlaEx>(draw.draw(BasicGenerators.listOf(
+            var guards = draw.draw(BasicGenerators.listOf(
                     expression(PrimitiveType.BOOL, expressionDepth - 1),
-                    0, context.config().expressions().maximumCollectionSize())));
+                    0, context.config().expressions().maximumCollectionSize()));
+            var maximumPostGuards = context.config().ignoredCategories().contains(ExpressionCategory.ACTION)
+                    ? 0 : context.config().expressions().maximumCollectionSize();
+            var postGuards = draw.draw(BasicGenerators.listOf(
+                    atLevel(LevelContext.ACTION, PrimitiveType.BOOL, expressionDepth - 1),
+                    0, maximumPostGuards));
+            var conjuncts = new ArrayList<TlaEx>();
+            conjuncts.add(builder().lt(shapes.nameOf(step), builder().integer(
+                    BigInteger.valueOf(context.config().modules().maximumSteps()))));
+            conjuncts.addAll(guards);
             conjuncts.addAll(shape);
-            conjuncts.add(builder().primeEq(shapes.nameOf(step),
-                    builder().plus(shapes.nameOf(step), builder().integer(BigInteger.ONE))));
+            conjuncts.add(stepUpdate());
+            conjuncts.addAll(postGuards);
             return builder().and(BuilderArrays.expressions(conjuncts));
         };
+    }
+
+    /** Returns {@code step' = step + 1}, the conjunct that ends a disjunct's accounted spine. */
+    private TlaEx stepUpdate() {
+        return builder().primeEq(shapes.nameOf(step),
+                builder().plus(shapes.nameOf(step), builder().integer(BigInteger.ONE)));
     }
 
     private Request request(List<ScopedName> effect, int expressionDepth) {
