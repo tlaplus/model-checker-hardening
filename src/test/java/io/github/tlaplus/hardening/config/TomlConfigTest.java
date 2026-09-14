@@ -47,7 +47,7 @@ class TomlConfigTest {
         assertTrue(Files.readString(path)
                 .contains("weights = { name = 8, enum_set = 16 }"));
         assertTrue(Files.readString(path)
-                .contains("ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]"));
+                .contains("ignore = [\"unbound\", \"exotic\"]"));
         assertTrue(Files.readString(path).contains("max_input_bytes = 10240"));
         assertTrue(Files.readString(path).contains("max_heap_mb = 512"));
         assertTrue(Files.readString(path).contains("workers = 1"));
@@ -116,12 +116,12 @@ class TomlConfigTest {
         var empty = readConfig(
                 directory,
                 rendered.replace(
-                        "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                        "ignore = [\"unbound\", \"exotic\"]",
                         "ignore = []"));
         var partial = readConfig(
                 directory,
                 rendered.replace(
-                        "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                        "ignore = [\"unbound\", \"exotic\"]",
                         "ignore = [\"quantifier\", \"bool_logic\", \"finite_set\", \"label\"]"));
 
         assertEquals(Set.of(), empty.generator().ignoredCategories());
@@ -228,7 +228,7 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]\n",
+                                "ignore = [\"unbound\", \"exotic\"]\n",
                                 ""));
         assertTrue(missingIgnore.getMessage().contains("missing generator keys: ignore"));
 
@@ -293,7 +293,7 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"unbound\", \"exotic\"]",
                                 "ignore = \"action\""));
         assertTrue(wrongIgnoreShape.getMessage().contains("generator.ignore"));
 
@@ -301,7 +301,7 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"unbound\", \"exotic\"]",
                                 "ignore = [\"action\", 1]"));
         assertTrue(wrongIgnoreElement.getMessage().contains("generator.ignore[1]"));
 
@@ -309,7 +309,7 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"unbound\", \"exotic\"]",
                                 "ignore = [\"state\"]"));
         assertTrue(unknownCategory.getMessage().contains("unknown expression category 'state'"));
     }
@@ -339,7 +339,7 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "ignore = [\"action\", \"temporal\", \"unbound\", \"exotic\"]",
+                                "ignore = [\"unbound\", \"exotic\"]",
                                 "ignore = [\"core\"]"));
         assertTrue(ignoredCore.getMessage().contains("core expression category cannot be ignored"));
     }

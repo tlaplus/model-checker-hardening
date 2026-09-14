@@ -47,7 +47,7 @@ public record FuzzTlaConfig(
      */
     public static FuzzTlaConfig defaults() {
         return new FuzzTlaConfig(
-                InputKind.EXPRESSION,
+                InputKind.MODULE,
                 IrGenerationConfig.defaults(),
                 WorkflowConfig.defaults(),
                 PbtConfig.defaults(), OperatorLibraryConfig.empty());

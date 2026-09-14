@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 
 /** Fixed vectors pin both the action IR and the cursor protocol, independently of expressions. */
 class ActionGenFactoryTest {
-    private final GenerationContext context = new GenerationContext(IrGenerationConfig.defaults());
+    /** The vectors pin the action layout without post-assignment guards, which spend no marker then. */
+    private final GenerationContext context = new GenerationContext(
+            IrGenerationConfig.defaults().ignoring(io.github.tlaplus.hardening.gen.ExpressionCategory.ACTION));
     private final IrTypeGenFactory types = new IrTypeGenFactory(context);
     private final List<ScopedName> variables = List.of(
             ScopedName.stateVariable("x", PrimitiveType.BOOL),

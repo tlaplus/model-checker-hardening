@@ -15,6 +15,10 @@ import org.junit.jupiter.api.Test;
 
 /** The section layout is part of the module byte encoding, so its order and weights are pinned. */
 class ModuleSectionTest {
+    /** A configuration without the temporal category, in which the property section is absent. */
+    private static final IrGenerationConfig WITHOUT_TEMPORAL =
+            IrGenerationConfig.defaults().ignoring(io.github.tlaplus.hardening.gen.ExpressionCategory.TEMPORAL);
+
     @Test
     void layoutOrderAndWeightsAreTheStoredByteEncoding() {
         var layout = new LinkedHashMap<String, Integer>();
@@ -38,11 +42,11 @@ class ModuleSectionTest {
         }
         var draw = new Draw(input);
 
-        var sections = ModuleSection.split(draw, IrGenerationConfig.defaults());
+        var sections = ModuleSection.split(draw, WITHOUT_TEMPORAL);
 
         assertTrue(draw.isEmpty());
-        // The defaults ignore the temporal category, so the property section is absent and the
-        // other sections keep the layout they had before it existed.
+        // Without the temporal category the property section is absent, and the other sections
+        // keep the layout they had before it existed.
         var expectedLengths = List.of(10, 20, 30, 30, 20, 50, 0);
         var offset = 0;
         for (var section : ModuleSection.values()) {
@@ -58,7 +62,7 @@ class ModuleSectionTest {
 
     @Test
     void theLastSectionTakesTheRoundingRemainder() {
-        var sections = ModuleSection.split(new Draw(new byte[17]), IrGenerationConfig.defaults());
+        var sections = ModuleSection.split(new Draw(new byte[17]), WITHOUT_TEMPORAL);
 
         var lengths = Arrays.stream(ModuleSection.values()).map(section -> sections.get(section).remaining()).toList();
 
@@ -74,7 +78,7 @@ class ModuleSectionTest {
 
         assertEquals(List.of(10, 20, 30, 30, 20, 50, 30), lengths);
         assertTrue(ModuleSection.PROPERTY.isPresent(config));
-        assertFalse(ModuleSection.PROPERTY.isPresent(IrGenerationConfig.defaults()));
+        assertFalse(ModuleSection.PROPERTY.isPresent(WITHOUT_TEMPORAL));
     }
 
     @Test

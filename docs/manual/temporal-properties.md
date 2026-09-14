@@ -12,8 +12,8 @@ and the shipped known-defect signatures quarantine them (section 5).
 
 ## 1. Enabling the operators
 
-In the corpus's `config.toml`, remove `action` and `temporal` from the ignore
-list:
+`fuzztla init` enables the operators: it writes a `module` corpus whose ignore
+list leaves `action` and `temporal` out.
 
 ```toml
 [generator]
@@ -22,6 +22,10 @@ kind = "module"
 max_fairness = 2
 ignore = ["unbound", "exotic"]
 ```
+
+A corpus created before this default keeps the `kind` and `ignore` its
+`config.toml` records; edit both to enable the operators there. Add `action` or
+`temporal` to the ignore list to turn them off.
 
 | Category | Enables |
 | --- | --- |

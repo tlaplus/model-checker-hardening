@@ -275,14 +275,22 @@ of no generated module that the shipped database leaves unquarantined.
 
 - `[generator] max_fairness`: an integer, default 2, bounding the fairness
   conditions per module.
-- The default `ignore` list is unchanged:
-  `["action", "temporal", "unbound", "exotic"]`. A corpus enables levels by
-  removing `action` and `temporal`. `exotic` stays ignored because its forms
-  crash both checkers (fact 4).
+- The defaults generate modules with the new operators: `kind = "module"` and
+  `ignore = ["unbound", "exotic"]`. `exotic` stays ignored because specifications
+  rarely use its forms and both checkers crash on them (fact 4).
+
+  *Revision.* The first version kept `kind = "expr"` and the ignore list
+  `["action", "temporal", "unbound", "exotic"]`, so a corpus had to opt in. With
+  generation following the TLA<sup>+</sup> level rules and the shapes TLC cannot
+  check quarantined by signatures, nothing justified the opt-in. Expression inputs
+  gain little from the two categories, since they declare no state variable, which
+  is why the default kind moved to `module` together with them. An existing
+  corpus keeps the `kind` and `ignore` its `config.toml` records.
 
 ## Consequences
 
-- **Stored inputs.** Under the default ignore list the byte layout is unchanged:
+- **Stored inputs.** Under an ignore list with `action` and `temporal` the byte
+  layout is unchanged:
   the property section is absent and the post-assignment guards spend no marker,
   so stored `expr` and `module` inputs decode to the same choices, and a module
   gains only the byte-free step guard and the skeleton's stuttering disjunct.
