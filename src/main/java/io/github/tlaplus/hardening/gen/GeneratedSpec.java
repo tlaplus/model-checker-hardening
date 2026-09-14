@@ -5,6 +5,7 @@ import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
  * @param initPredicate the initial-state predicate
  * @param nextAction the next-state action
  * @param invariant the state invariant
+ * @param property the temporal property and its fairness, when the module has one
  * @param stepBound the step counter's bound: every disjunct of {@code nextAction} is guarded by
  *     {@code step < stepBound}, so the states reachable from an initial state are those within
  *     {@code stepBound} transitions
@@ -42,6 +44,7 @@ public record GeneratedSpec(
         TlaEx initPredicate,
         TlaEx nextAction,
         TlaEx invariant,
+        Optional<TemporalProperty> property,
         int stepBound) {
     public GeneratedSpec {
         variables = List.copyOf(Objects.requireNonNull(variables, "variables"));
@@ -59,6 +62,7 @@ public record GeneratedSpec(
         Objects.requireNonNull(initPredicate, "initPredicate");
         Objects.requireNonNull(nextAction, "nextAction");
         Objects.requireNonNull(invariant, "invariant");
+        Objects.requireNonNull(property, "property");
         Preconditions.requireNonnegative(stepBound, "stepBound");
     }
 
@@ -66,7 +70,8 @@ public record GeneratedSpec(
     public List<TlaEx> generated() {
         return Stream.of(
                         operators.stream().map(operator -> operator.declaration().body()),
-                        Stream.of(initPredicate, nextAction, invariant))
+                        Stream.of(initPredicate, nextAction, invariant),
+                        property.stream().flatMap(temporal -> temporal.generated().stream()))
                 .flatMap(stream -> stream)
                 .toList();
     }

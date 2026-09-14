@@ -25,6 +25,9 @@ max_action_depth = 3
 # Transitions explored from an initial state of a generated module.
 # Every next-state disjunct is guarded by the step counter staying below it.
 max_steps = 5
+# Maximum weak and strong fairness conditions in a generated specification.
+# Fairness is generated only with the "temporal" category enabled.
+max_fairness = 2
 ignore = ["action", "temporal", "unbound", "exotic"]
 # Selection slots per expression form, for the forms that are not weighted one.
 # A form with weight N is N times as likely as an unweighted form applicable to the same request.

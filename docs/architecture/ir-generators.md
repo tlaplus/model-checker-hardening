@@ -461,6 +461,7 @@ value for the four action-specific limits. TOML keys and defaults are unchanged:
 | `maximumActionParameters` | 2 | Maximum bounded existential parameters of one action. |
 | `maximumActionDepth` | 3 | Maximum nesting of disjunction, conjunction, and IF-THEN-ELSE within one action disjunct; 0 keeps each disjunct a flat conjunction. |
 | `maximumSteps` | 5 | Transitions explored from an initial state. |
+| `maximumFairnessConditions` | 2 | Maximum weak and strong fairness conditions of a property. |
 
 Selection weights default to one, except:
 
@@ -569,9 +570,9 @@ every draw rather than cached with type applicability.
 
 | `LevelContext` | Admits | Used for |
 | --- | --- | --- |
-| `STATE` | `STATE` | every body a module or the expression entry point draws |
-| `ACTION` | `STATE`, `ACTION` | the action of `ENABLED`, `[A]_v`, `<<A>>_v`, fairness and the action-temporal forms |
-| `TEMPORAL` | `STATE`, `TEMPORAL`, `ACTION_TEMPORAL` | none yet; ADR 0007 proposes it for a module's property |
+| `STATE` | `STATE` | every body not listed below |
+| `ACTION` | `STATE`, `ACTION` | post-assignment guards; the action of `ENABLED`, `[A]_v`, `<<A>>_v`, fairness and the action-temporal forms |
+| `TEMPORAL` | `STATE`, `TEMPORAL`, `ACTION_TEMPORAL` | the property formula |
 | `ACTION_FREE_TEMPORAL` | `STATE`, `TEMPORAL` | operands of `[]`, `<>`, `~>` and `-+->` |
 
 Operands inherit the context by three rules:
@@ -593,9 +594,9 @@ Operands inherit the context by three rules:
   from the top of the formula by Boolean connectives alone.
 
 `[][A]_v` is not an expression form: both checkers accept it only as a top-level
-conjunct of a property. Every body of a module and the expression entry point
-starts in `STATE`, which is what keeps priming out of every ordinary
-subexpression whatever the ignore list.
+conjunct of a property, so `PropertyGenFactory` draws it (section 9.4). Every
+body of a module and the expression entry point starts in `STATE`, which is what
+keeps priming out of every ordinary subexpression whatever the ignore list.
 
 ## 8. Correctness and failure semantics
 
@@ -694,7 +695,10 @@ properties of the input — no byte string can violate them.
 ### 9.1. Declaration order
 
 Each numbered body below decodes from the `ModuleSection` of the same name, in
-this order; the section weights are `1, 2, 3, 3, 2, 5` in the order listed.
+this order; the section weights are `1, 2, 3, 3, 2, 5, 3` in the order listed. The
+property section is present only when the `temporal` category is enabled; an
+absent section receives no bytes, so the other sections keep the layout they had
+before it existed.
 
 1. **Variables.** A terminated non-empty list of value types, named `var0`
    onward, each entering the scope with the `STATE_VARIABLE` role. An `Int`
@@ -718,6 +722,8 @@ this order; the section weights are `1, 2, 3, 3, 2, 5` in the order listed.
 5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
 6. **Next-state action.** A terminated non-empty disjunction of actions.
+7. **Property.** An optional temporal property with fairness; see
+   [9.4](#94-temporal-property).
 
 `GeneratedSpec.operators` stores auxiliary and action variants of the sealed
 `GeneratedOperator` abstraction in one declaration-order list. Declaration-only
@@ -847,18 +853,20 @@ above. Declaration order, category exclusions and generated behavior are unchang
 ### 9.3. Bounding exploration
 
 A generated action can run forever, and the checkers must explore the same
-states, or a verdict difference records a bound difference rather than a checker
-difference. Every generated disjunct is guarded by `step < maximumSteps` and
-advances `step`, and `FuzzInputModule` closes the next-state action with a
-stuttering disjunct over every variable:
+states and the same infinite behaviors, or a verdict difference records a bound
+difference rather than a checker difference. Every generated disjunct is guarded
+by `step < maximumSteps` and advances `step`, and `FuzzInputModule` closes the
+next-state action with a stuttering disjunct over every variable:
 `Next == nextAction \/ UNCHANGED <<var0, ..., step>>`. The reachable states are
-those within `maximumSteps` transitions, so TLC needs no state constraint, and
-`GeneratedSpec.stepBound` reaches Apalache as `--length`. The expression wrapper
-asks for zero transitions.
+those within `maximumSteps` transitions, and TLC needs no state constraint.
 
-The stuttering disjunct makes every state's stuttering step explicit. TLC adds
-such steps of its own and Apalache does not, which matters once a temporal
-property is checked (ADR 0007).
+The stuttering disjunct matters for properties: TLC adds stuttering steps of its
+own, Apalache does not, and without the disjunct Apalache reports
+`ExecutionsTooShort` where TLC reports a violation of `<>P`. Because `step` only
+increases, every cycle is a stuttering self-loop, so every lasso fits in
+`maximumSteps + 1` transitions. `GeneratedSpec.stepBound` travels in a
+`CheckRequest`, whose `unrollingLength` is the bound for an invariant and one more
+when a property is checked. The expression wrapper asks for zero transitions.
 
 **Decoder deviation (closed bounding, ADR 0007).** Earlier modules had no step
 guard; `GeneratedSpec.boundPredicate` became a `Bound` definition that TLC named
@@ -866,6 +874,22 @@ as its `CONSTRAINT`, as `step <= maximumSteps - 1` to compensate for TLC evaluat
 the invariant on a successor state before discarding it. The guard makes that
 offset unnecessary and removes `Bound`. `IrSpecGeneratorsTest` pins the guard
 across step bounds, including `0`.
+
+### 9.4. Temporal property
+
+With the `temporal` category enabled, `PropertyGenFactory` decodes the property
+section over the state scope: one Boolean marker and, when it is odd, the formula
+in the `TEMPORAL` context, a terminated list of at most `maximumFairnessConditions`
+fairness conditions (a Boolean chooses `SF` over `WF`), and a terminated list of
+`[][A]_v` conjuncts. The formula comes first, so a short section still decodes
+one, and each part has a node budget of its own. `GeneratedSpec.property` holds
+them as a `TemporalProperty`.
+
+`FuzzInputModule` assembles `Fairness`, `Spec == Init /\ [][Next]_vars /\ Fairness`,
+`Prop` as the conjunction of the `[][A]_v` conjuncts and the formula, and
+`Liveness == Fairness => Prop`; each is `TRUE`-based when absent, and the
+expression wrapper defines them too. TLC checks `SPECIFICATION Spec` with
+`PROPERTY Prop`; Apalache, which supports no fairness, checks `--temporal=Liveness`.
 
 ## 10. Extension rules
 
@@ -936,7 +960,8 @@ across the recursive action shape — that sibling disjunction arms and IF branc
 account for the same variables, that the spine accounts for each declared
 variable exactly once, and that each action-operator body accounts for its
 declared effect — the absence of primes outside the action and its
-post-assignment guards, the level of every body, and that auxiliary
+post-assignment guards, the level of every body and of generated properties, that
+SANY accepts modules with the `action` and `temporal` categories enabled, and that auxiliary
 definitions and the initial-state predicate read no state variable. A catalog
 change must retain the fixed-width upper bound, update the pinned catalog order,
 and explicitly revise the decoding protocol.

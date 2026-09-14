@@ -126,8 +126,9 @@ produce a signature that silently never matches.
 
 A signature matches a candidate when one of its alternatives matches a
 subexpression of the code the tools evaluate:
-- the entry points `Init`, `Next` and `Inv` (revised by
-  [ADR 0007](0007-levels-and-temporal-properties.md), which removed `Bound`);
+- the entry points `Init`, `Next`, `Inv`, `Spec`, `Prop` and `Liveness`
+  (revised by [ADR 0007](0007-levels-and-temporal-properties.md), which replaced
+  `Bound`);
 - every top-level definition they reference, transitively, including linked
   library definitions;
 - every `LET` definition inside that code, referenced or not, lambdas included.

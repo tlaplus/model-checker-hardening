@@ -12,7 +12,18 @@ final class ApalacheFailureDetail {
 
     private ApalacheFailureDetail() {}
 
+    /**
+     * Returns the first error line, or the unsupported-feature message when Apalache reported one:
+     * such a limitation is thrown, so its first error line only says "Unhandled exception".
+     */
     static Optional<String> extract(String diagnostic) {
+        var unsupported = diagnostic.lines()
+                .map(String::strip)
+                .filter(ApalacheOutcomeClassifier.UNSUPPORTED_FEATURES::contains)
+                .findFirst();
+        if (unsupported.isPresent()) {
+            return unsupported.flatMap(CheckerFailure::normalizeDetail);
+        }
         return diagnostic.lines()
                 .map(String::strip)
                 .filter(line -> ERROR_TIMESTAMP.matcher(line).find())

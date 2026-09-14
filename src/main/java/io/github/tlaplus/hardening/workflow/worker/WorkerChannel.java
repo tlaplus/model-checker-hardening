@@ -52,10 +52,11 @@ final class WorkerChannel implements AutoCloseable {
     }
 
     /** Sends one request, or reports that the channel is gone. */
-    boolean writeRequest(byte[] source, int length) {
+    boolean writeRequest(byte[] source, CheckRequest request) {
         try {
             output.writeInt(source.length);
-            output.writeInt(length);
+            output.writeInt(request.transitions());
+            output.writeBoolean(request.temporalProperty());
             output.write(source);
             output.flush();
             return true;

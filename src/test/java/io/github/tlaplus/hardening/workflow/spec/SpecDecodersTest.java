@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 
@@ -29,8 +30,8 @@ class SpecDecodersTest {
                 new CorpusInput(InputKind.EXPRESSION, new byte[0]));
         var module = decoders.decode(new CorpusInput(InputKind.MODULE, new byte[0]));
 
-        assertEquals(0, expression.length());
-        assertEquals(config.modules().maximumSteps(), module.length());
+        assertEquals(CheckRequest.invariant(0), expression.request());
+        assertEquals(CheckRequest.invariant(config.modules().maximumSteps()), module.request());
         assertEquals(1, expression.generated().size());
         assertTrue(expression.standaloneExpression().isPresent());
         assertTrue(module.generated().size() > 1);

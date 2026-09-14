@@ -57,8 +57,18 @@ envelope's `kind` field names it, `workflow.spec.SpecDecoders` pairs each kind
 with its decoder, and `generator.kind` selects only what a run *generates*, so a
 corpus may hold entries of more than one kind. An `expr` entry is wrapped in the
 fixed single-state module; a `module` entry decodes to a whole module's
-declarations. Either way the stage receives one assembled module and the
-exploration depth it asks for.
+declarations. Either way the stage receives one assembled module and a
+`CheckRequest`: the exploration depth it asks for and whether it has a temporal
+property.
+
+Every assembled module defines the entry points `Init`, `Next`, `Inv`,
+`Fairness`, `Spec`, `Prop` and `Liveness`
+([ADR 0007](../decisions/0007-levels-and-temporal-properties.md)). TLC checks
+`SPECIFICATION Spec` against `INVARIANT Inv`, and against `PROPERTY Prop` when the
+module has a property. Apalache checks `--init=Init --next=Next --inv=Inv` with
+the requested unrolling length, and `--temporal=Liveness` when the module has a
+property; `Liveness` is `Fairness => Prop`, because Apalache supports no fairness
+in a specification.
 
 The parser and TLC consume a TLA+ module rendered through Apalache's Java I/O
 facade. Apalache instead consumes its typed IR JSON format through the same
@@ -302,7 +312,8 @@ The fields have the following meaning:
       which the workflow wraps in a fixed single-state module.
     - When `"kind"` is `"module"`, the field `"input"` encodes the declarations of a single
       TLA<sup>+</sup> module: its state variables, operator definitions, initial-state
-      predicate, next-state action, and invariant.
+      predicate, next-state action, invariant, and an optional temporal property with
+      fairness.
 
    The two encodings are independent, so a change to one cannot reinterpret an
    entry stored under the other.

@@ -58,7 +58,7 @@ class GeneratedNestedActionShapesTest {
         // One state variable makes every action operator's effect the whole state, so the shape's
         // CALL kind can apply one wherever it is drawn.
         var config = IrGenerationConfig.defaults()
-                .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5));
+                .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5, 2));
         var samples = GeneratedSpecSamples.collect(config, 0xA9701CL, 6000, 6, spec -> {
             var names = actionOperators(spec).stream()
                     .map(operator -> operator.declaration().name())
@@ -79,7 +79,7 @@ class GeneratedNestedActionShapesTest {
             for (var spec : samples) {
                 var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
                 results.add(worker.check(new ToolInput(
-                        ApalacheIrJson.render(artifact.module()), artifact.length())));
+                        ApalacheIrJson.render(artifact.module()), artifact.request())));
             }
         }
 

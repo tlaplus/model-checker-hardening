@@ -33,6 +33,7 @@ class IrSpecGeneratorsTest {
         // Even the empty input yields an invariant over the state rather than a constant: the
         // Boolean terminal rotates over the visible bindings before the closed FALSE.
         assertEquals("var0", print(spec.invariant()));
+        assertTrue(spec.property().isEmpty());
         assertEquals(ModuleLimits.DEFAULT_MAXIMUM_STEPS, spec.stepBound());
     }
 
@@ -104,7 +105,7 @@ class IrSpecGeneratorsTest {
         // wherever the shape asks for it; a call still has to be drawn, which needs the bytes a
         // larger input carries into the action.
         var config = IrGenerationConfig.defaults()
-                .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5));
+                .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5, 2));
         var generator = IrGenerators.specs(config);
         var random = new Random(0xACCA11L);
         var sawCall = false;
@@ -331,7 +332,7 @@ class IrSpecGeneratorsTest {
         for (var steps : List.of(0, 1, 5, 9)) {
             var config = IrGenerationConfig.defaults()
                     .withModuleLimits(new ModuleLimits(
-                            1, 0, new ActionLimits(3, 3, 0, 3), steps));
+                            1, 0, new ActionLimits(3, 3, 0, 3), steps, 2));
             var spec = IrGenerators.specs(config).generate(new byte[0]);
 
             assertEquals(steps, spec.stepBound());
@@ -344,15 +345,18 @@ class IrSpecGeneratorsTest {
 
     @Test
     void enabledActionAndTemporalCategoriesKeepLevelsAndAccounting() {
-        // With the categories enabled, post-assignment guards may prime, while every other body
-        // stays a state predicate and every disjunct's spine still accounts for every variable
-        // exactly once.
+        // With the categories enabled, post-assignment guards may prime and the property is
+        // temporal, while every other body stays a state predicate and every disjunct's spine still
+        // accounts for every variable exactly once.
         var config = IrGenerationConfig.defaults()
                 .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC));
         var generator = IrGenerators.specs(config);
         var random = new Random(0x7e3905L);
         var modules = 0;
         var primedGuards = 0;
+        var properties = 0;
+        var fairness = 0;
+        var constraints = 0;
         for (var sample = 0; sample < 600; sample++) {
             var input = new byte[128 + random.nextInt(1024)];
             random.nextBytes(input);
@@ -377,6 +381,15 @@ class IrSpecGeneratorsTest {
                         primedGuards += containsPrime(guard) ? 1 : 0;
                     }
                 }
+                if (spec.property().isPresent()) {
+                    var property = spec.property().get();
+                    properties++;
+                    fairness += property.fairness().size();
+                    constraints += property.actionConstraints().size();
+                    assertCheckableTemporal(property.formula(), true);
+                    property.fairness().forEach(condition -> assertEquals(IrLevel.TEMPORAL, level(condition)));
+                    property.actionConstraints().forEach(constraint -> assertEquals(IrLevel.TEMPORAL, level(constraint)));
+                }
             } catch (AssertionError failure) {
                 throw new AssertionError(
                         "failed for input " + Base64.getEncoder().encodeToString(input), failure);
@@ -385,6 +398,9 @@ class IrSpecGeneratorsTest {
         }
         assertTrue(modules > 300, "too few inputs were admitted to be conclusive: " + modules);
         assertTrue(primedGuards > 0, "no post-assignment guard read a primed variable");
+        assertTrue(properties > modules / 4, "modules with a property: " + properties + " of " + modules);
+        assertTrue(fairness > 0, "no property had fairness");
+        assertTrue(constraints > 0, "no property had an action constraint");
     }
 
     /** Every declaration is its own label scope: a module has no binder in scope at its top. */

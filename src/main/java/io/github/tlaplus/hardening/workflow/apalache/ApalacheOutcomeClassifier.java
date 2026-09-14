@@ -11,11 +11,18 @@ final class ApalacheOutcomeClassifier {
     private static final String INPUT_ERROR_PREFIX = "Input error (see the manual): ";
     private static final List<String> UNDEFINED_ARITHMETIC = List.of(
             "Division by zero", "Mod by zero", "0 ^ 0 is undefined");
+    /**
+     * Unsupported language features that Apalache reports by throwing, and therefore with exit
+     * status 255, although they are deterministic limitations documented in its manual. Fairness is
+     * one: a generated module with fairness makes Apalache fail on the property (ADR 0007).
+     */
+    static final List<String> UNSUPPORTED_FEATURES = List.of(
+            "scala.NotImplementedError: Handling fairness is not supported yet!");
 
     private ApalacheOutcomeClassifier() {}
 
     static ToolResult classify(int exitStatus, String diagnostic) {
-        if (exitStatus == 255 && isUndefinedArithmetic(diagnostic)) {
+        if (exitStatus == 255 && isInputLimitation(diagnostic)) {
             return ToolResult.failure(CheckerFailureCode.SPEC_EVAL, diagnostic);
         }
         return switch (exitStatus) {
@@ -31,11 +38,11 @@ final class ApalacheOutcomeClassifier {
         };
     }
 
-    private static boolean isUndefinedArithmetic(String diagnostic) {
+    private static boolean isInputLimitation(String diagnostic) {
         return diagnostic.lines()
                 .map(String::strip)
-                .anyMatch(line -> UNDEFINED_ARITHMETIC.stream()
-                        .anyMatch(message -> matchesInputError(line, message)));
+                .anyMatch(line -> UNSUPPORTED_FEATURES.contains(line)
+                        || UNDEFINED_ARITHMETIC.stream().anyMatch(message -> matchesInputError(line, message)));
     }
 
     private static boolean matchesInputError(String line, String message) {

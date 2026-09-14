@@ -1,8 +1,11 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The independent parts of a module input, each decoded from its own contiguous range of bytes.
@@ -30,36 +33,63 @@ enum ModuleSection {
     /** The initial-state predicate. */
     INIT(2),
     /** The next-state action. */
-    NEXT(5);
+    NEXT(5),
+    /** The temporal property and its fairness, drawn only with the temporal category enabled. */
+    PROPERTY(3, ExpressionCategory.TEMPORAL);
 
     private final int weight;
+    private final Optional<ExpressionCategory> requiredCategory;
 
     ModuleSection(int weight) {
         this.weight = weight;
+        this.requiredCategory = Optional.empty();
     }
 
-    /** Returns this section's share of the input, relative to the sum over all sections. */
+    ModuleSection(int weight, ExpressionCategory requiredCategory) {
+        this.weight = weight;
+        this.requiredCategory = Optional.of(requiredCategory);
+    }
+
+    /** Returns this section's share of the input, relative to the sum over the present sections. */
     int weight() {
         return weight;
     }
 
     /**
-     * Divides every remaining byte of {@code draw} among the sections, in declaration order.
-     *
-     * <p>Each section receives the floor of its proportional share and the last one also receives
-     * the remainder, so no byte is left unowned and the parent cursor ends exhausted.
+     * Reports whether this section is decoded under the configuration. An absent section receives
+     * no bytes, so enabling a category that no present section needs leaves the layout unchanged.
      */
-    static Map<ModuleSection, Draw> split(Draw draw) {
+    boolean isPresent(IrGenerationConfig config) {
+        return requiredCategory.map(category -> !config.ignoredCategories().contains(category)).orElse(true);
+    }
+
+    /**
+     * Divides every remaining byte of {@code draw} among the present sections, in declaration order.
+     *
+     * <p>Each present section receives the floor of its proportional share and the last present one
+     * also receives the remainder, so no byte is left unowned and the parent cursor ends exhausted.
+     * An absent section receives an empty cursor.
+     */
+    static Map<ModuleSection, Draw> split(Draw draw, IrGenerationConfig config) {
         var total = 0;
+        ModuleSection last = null;
         for (var section : values()) {
-            total += section.weight;
+            if (section.isPresent(config)) {
+                total += section.weight;
+                last = section;
+            }
         }
         var remaining = (long) draw.remaining();
         var result = new EnumMap<ModuleSection, Draw>(ModuleSection.class);
         for (var section : values()) {
-            var length = section.ordinal() == values().length - 1
-                    ? draw.remaining()
-                    : Math.toIntExact(remaining * section.weight / total);
+            final int length;
+            if (!section.isPresent(config)) {
+                length = 0;
+            } else if (section == last) {
+                length = draw.remaining();
+            } else {
+                length = Math.toIntExact(remaining * section.weight / total);
+            }
             result.put(section, draw.slice(length));
         }
         return result;

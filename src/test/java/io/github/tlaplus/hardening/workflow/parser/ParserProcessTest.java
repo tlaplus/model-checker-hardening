@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -17,6 +18,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -144,6 +146,24 @@ class ParserProcessTest {
 
         assertTrue(generated > 20, "too few modules were generated to be conclusive: " + generated);
         assertEquals(generated, parsed);
+    }
+
+    @Test
+    void generatedPrimedGuardsAndTemporalPropertiesPassLevelChecking(@TempDir Path directory) throws Exception {
+        // SANY checks TLA+ levels, so a prime in a state predicate, an action under a temporal
+        // operator, or an action mixed with a temporal formula fails here. With the action and
+        // temporal categories enabled, post-assignment guards and properties must still parse.
+        var config = IrGenerationConfig.defaults().withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND));
+        var samples = GeneratedSpecSamples.collect(config, 0x1e7e15L, 400, 24, spec -> spec.property().isPresent());
+        assertEquals(24, samples.size(), "too few modules with a property were generated");
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+            for (var spec : samples) {
+                var source = SpecText.render(FuzzInputModule.create(spec));
+                var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
+                assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic() + "\n" + source);
+            }
+        }
     }
 
     @Test

@@ -9,7 +9,7 @@ import java.util.Arrays;
 /** Binary framing shared by isolated parser and model-checker workers. */
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 4;
+    static final int VERSION = 5;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 128 * 1024 * 1024;
@@ -48,15 +48,17 @@ public final class ToolWorkerProtocol {
         if (byteCount < 0 || byteCount > MAXIMUM_MESSAGE_BYTES) {
             throw new IOException("invalid worker request length: " + byteCount);
         }
-        var length = input.readInt();
-        if (length < 0) {
-            throw new IOException("invalid worker request exploration length: " + length);
+        var transitions = input.readInt();
+        if (transitions < 0) {
+            throw new IOException("invalid worker request exploration length: " + transitions);
         }
+        var temporalProperty = input.readBoolean();
         var bytes = input.readNBytes(byteCount);
         if (bytes.length != byteCount) {
             throw new IOException("truncated worker request");
         }
-        return new ToolInput(new String(bytes, StandardCharsets.UTF_8), length);
+        return new ToolInput(new String(bytes, StandardCharsets.UTF_8),
+                new CheckRequest(transitions, temporalProperty));
     }
 
     public static void writeResult(DataOutputStream output, ToolResult result) throws IOException {
