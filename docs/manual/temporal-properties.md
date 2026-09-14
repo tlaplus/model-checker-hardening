@@ -96,8 +96,9 @@ defect, not a SANY finding. Report it against the generator.
 ## 5. Shapes TLC cannot check
 
 TLC cannot check some well-formed temporal formulas: a temporal formula under
-`<=>`, in a `CASE` arm or under an unbounded quantifier, and `<><<A>>_v` or a
-`[][A]_v` nested under another temporal operator. The shipped known-defect
+`<=>`, in a `CASE` arm or under an unbounded quantifier, `<><<A>>_v`, `[][A]_v`
+under another temporal operator or under `~`, `=>` or `\/`, and fairness under `<>`
+or `~>`. The shipped known-defect
 database quarantines modules with these shapes, so they land in
 `00-known-defects` with the signature id instead of crashing TLC. Keep
 `known_defects` pointing at `signatures/known-defects.toml`; without it, expect

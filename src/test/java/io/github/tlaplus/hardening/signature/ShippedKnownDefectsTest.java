@@ -40,7 +40,7 @@ class ShippedKnownDefectsTest {
         var database = KnownDefectDatabase.load(List.of(DATABASE));
         var step = builder.name("step", TlaTypes.INT);
         var zero = builder.integer(0);
-        var cases = Map.of(
+        var cases = new java.util.HashMap<>(Map.of(
                 "modulo-by-literal-zero",
                 List.of(builder.mod(step, zero), builder.mod(step, builder.integer(2))),
                 "division-by-literal-zero",
@@ -66,7 +66,13 @@ class ShippedKnownDefectsTest {
                         builder.always(builder.stutter(action(), flag()))),
                 "tlc-always-action-under-temporal",
                 List.of(builder.eventually(builder.always(builder.stutter(action(), flag()))),
-                        builder.always(builder.stutter(action(), flag()))));
+                        builder.always(builder.stutter(action(), flag())))));
+        cases.put("tlc-fairness-under-eventuality",
+                List.of(builder.eventually(builder.weakFair(flag(), action())),
+                        builder.always(builder.weakFair(flag(), action()))));
+        cases.put("tlc-always-action-under-connective",
+                List.of(builder.not(builder.always(builder.stutter(action(), flag()))),
+                        builder.and(builder.always(builder.stutter(action(), flag())), flag())));
 
         assertEquals(
                 cases.keySet(),

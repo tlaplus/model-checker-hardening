@@ -114,3 +114,24 @@ match = [
   '(& (LEADS_TO ...) (.. (GLOBALLY (STUTTER ...))))',
   '(GLOBALLY (.. (GLOBALLY (STUTTER ...))))',
 ]
+
+[[signature]]
+id = "tlc-fairness-under-eventuality"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects WF or SF under <> or ~>, accepting actions in temporal formulas only as <>[]A or []<>A."
+match = [
+  '(& (EVENTUALLY ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EVENTUALLY ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (LEADS_TO ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (LEADS_TO ...) (.. (STRONG_FAIRNESS ...)))',
+]
+
+[[signature]]
+id = "tlc-always-action-under-connective"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects [][A]_v under ~, => or \\/, accepting actions in temporal formulas only as <>[]A or []<>A; also matches <>[][A]_v there, which TLC checks."
+match = [
+  '(& (NOT ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(& (IMPLIES ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(& (OR ...) (.. (GLOBALLY (STUTTER ...))))',
+]
