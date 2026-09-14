@@ -224,13 +224,13 @@ class IrSpecGeneratorsTest {
     }
 
     @Test
-    void initInvariantAndDefinitionsAreStatePredicatesWithoutPrimes() {
+    void initInvariantAndDefinitionsAreStatePredicates() {
+        // A prime may occur only inside ENABLED, whose operand is an action of a state predicate.
         forEachGeneratedSpec(spec -> {
-            assertFalse(containsPrime(spec.initPredicate()), "Init is primed");
-            assertFalse(containsPrime(spec.invariant()), "Inv is primed");
+            assertEquals(IrLevel.STATE, level(spec.initPredicate()), "Init is not a state predicate");
+            assertEquals(IrLevel.STATE, level(spec.invariant()), "Inv is not a state predicate");
             for (var operator : auxiliaryOperators(spec)) {
-                assertFalse(
-                        containsPrime(operator.body()), operator.name() + " is primed");
+                assertEquals(IrLevel.STATE, level(operator.body()), operator.name() + " is not state-level");
             }
         });
     }

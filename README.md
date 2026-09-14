@@ -107,13 +107,14 @@ every candidate.
 
 ```toml
 [generator]
+kind = "module"
 max_type_depth = 3
 max_expression_depth = 32
 max_nodes = 32
 max_collection_size = 8
 max_string_bytes = 32
 max_integer_bytes = 16
-ignore = ["action", "temporal", "unbound", "exotic"]
+ignore = ["unbound", "exotic"]
 weights = { name = 8, enum_set = 16 }
 classpath = []
 custom_operators = []
@@ -182,10 +183,12 @@ ignored. `generator.weights` accepts the lowercase name of every
 
 Dependencies are disabled transitively. For example, ignoring `set` also
 removes bounded quantifiers and function values because they require set-valued
-domains. Set `ignore = []` to enable every excludable category. The fixed
-workflow module still uses `Next == UNCHANGED exprValue`; filtering applies to
-the expression copied into `Init` and `Inv`. The current format requires every
-listed field and workflow directory.
+domains. Set `ignore = []` to enable every excludable category. For
+`kind = "expr"`, the fixed workflow module still uses `Next == UNCHANGED
+exprValue`, and filtering applies to the expression copied into `Init` and
+`Inv`; `kind = "module"` generates whole modules, including temporal properties
+([manual](docs/manual/temporal-properties.md)). The current format requires
+every listed field and workflow directory.
 
 ### Custom TLA+ operators
 

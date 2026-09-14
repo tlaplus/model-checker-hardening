@@ -148,11 +148,7 @@ public record IrGenerationConfig(
         return new IrGenerationConfig(
                 ExpressionLimits.defaults(),
                 ModuleLimits.defaults(),
-                Set.of(
-                        ExpressionCategory.ACTION,
-                        ExpressionCategory.TEMPORAL,
-                        ExpressionCategory.UNBOUND,
-                        ExpressionCategory.EXOTIC),
+                Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC),
                 DEFAULT_FORM_WEIGHTS, OperatorLibrary.empty());
     }
 }

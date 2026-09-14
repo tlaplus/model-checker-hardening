@@ -429,11 +429,15 @@ Raising it further is not worthwhile: at 256 the precursor rate roughly doubles
 again but checking time per input grows by more than an order of magnitude,
 because a few very large expressions dominate it.
 
-The default configuration ignores these four categories:
+The default configuration ignores two categories:
 
 ```toml
-ignore = ["action", "temporal", "unbound", "exotic"]
+ignore = ["unbound", "exotic"]
 ```
+
+Unbounded quantifiers and `CHOOSE` rarely yield checkable inputs, and the
+`exotic` forms crash both checkers. The `action` and `temporal` categories are
+enabled; ADR 0007 records why.
 
 An empty list enables every excludable category. The reserved `core` category is
 always enabled. The default limits are:
@@ -832,9 +836,9 @@ of the IR tells the spine from the post-assignment guards.
 **Decoder deviation (levels, ADR 0007).** Module generation used to ignore the
 `action`, `temporal` and `exotic` categories in every subexpression whatever the
 corpus configured; the `STATE` context now does that job. Each disjunct gained the
-step guard and, with `action` enabled, the post-assignment guards. With the
-default ignore list the guards spend no byte, so stored `module` inputs decode to
-the same shapes plus the step guard; with `action` enabled they reinterpret.
+step guard and, with `action` enabled, the post-assignment guards. With `action`
+ignored the guards spend no byte, so stored `module` inputs decode to the same
+shapes plus the step guard; with `action` enabled they reinterpret.
 
 **Historical decoder deviation (introduction of nested actions).** This weakened the previous invariant — "each declared variable
 appears exactly once on a flat conjunctive spine" — to the recursive form above,

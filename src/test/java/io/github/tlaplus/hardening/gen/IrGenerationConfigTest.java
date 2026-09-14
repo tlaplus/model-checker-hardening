@@ -23,11 +23,7 @@ class IrGenerationConfigTest {
                 new IrGenerationConfig(
                         new ExpressionLimits(3, 32, 128, 8, 32, 16),
                         new ModuleLimits(3, 2, new ActionLimits(2, 3, 2, 3), 5, 2),
-                        Set.of(
-                                ExpressionCategory.ACTION,
-                                ExpressionCategory.TEMPORAL,
-                                ExpressionCategory.UNBOUND,
-                                ExpressionCategory.EXOTIC),
+                        Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC),
                         Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16), OperatorLibrary.empty()),
                 IrGenerationConfig.defaults());
     }
