@@ -21,15 +21,16 @@ final class BooleanExprGenFactory extends AbstractExprGenFactory {
                 case EQUAL -> draw.draw(equal(remainingDepth, false));
                 case NOT_EQUAL -> draw.draw(equal(remainingDepth, true));
                 // These connectives pass a temporal context through to their operands. <=> does not:
-                // TLC cannot handle an equivalence between temporal formulas.
+                // TLC cannot handle an equivalence between temporal formulas,
+                // https://github.com/tlaplus/tlaplus/issues/1029.
                 case NOT -> builder().not(
-                        draw.draw(transparent(PrimitiveType.BOOL, nextDepth)));
+                        draw.draw(sameLevel(PrimitiveType.BOOL, nextDepth)));
                 case AND -> builder().and(
-                        draw.draw(operands(transparent(PrimitiveType.BOOL, nextDepth))));
+                        draw.draw(operands(sameLevel(PrimitiveType.BOOL, nextDepth))));
                 case OR -> builder().or(
-                        draw.draw(operands(transparent(PrimitiveType.BOOL, nextDepth))));
+                        draw.draw(operands(sameLevel(PrimitiveType.BOOL, nextDepth))));
                 case IMPLIES -> draw.draw(binary(
-                        transparent(PrimitiveType.BOOL, nextDepth), builder()::implies));
+                        sameLevel(PrimitiveType.BOOL, nextDepth), builder()::implies));
                 case EQUIVALENT -> draw.draw(binary(PrimitiveType.BOOL, nextDepth, builder()::equiv));
                 case FORALL_BOUNDED ->
                     draw.draw(quantifier(true, true, remainingDepth));

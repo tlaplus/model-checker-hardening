@@ -61,7 +61,8 @@ Liveness == Fairness => Prop
   only as `[]<><<A>>_v`, `<>[][A]_v`, `WF` or `SF`, and only below `~`, `/\`,
   `\/`, `=>`, `IF` branches and `LET` bodies. A temporal formula never occurs
   under a quantifier, `<=>` or `CASE`. These are the nestings TLC and Apalache
-  both check; the others crash one of them.
+  both check; the others crash one of them. TLC's limitation for `<=>` is
+  [tlaplus/tlaplus#1029](https://github.com/tlaplus/tlaplus/issues/1029).
 
 `fuzztla print` renders the whole module, including `Spec`, `Prop` and
 `Liveness`. The printer parenthesizes `[]([Next]_(vars))`; SANY, TLC and
