@@ -157,6 +157,26 @@ Extending the table above:
 Neither reproduces on the 0.62.3-SNAPSHOT build `fefda087`, which reports the
 violation for both corpus inputs and for the module above.
 
+## Recurring in `corpus18`
+
+The `corpus18` run contains nine aggregator deviations with this cause, all
+with a TLC counterexample and an Apalache pass. Each has an initial predicate
+`var \in [D -> {}]` where `D` evaluates to the empty set. TLC reports the
+invariant violated by an initial state that assigns `<<>>` to that variable.
+Apalache 0.62.2 reports `ExecutionsTooShort`. The empty domain is spelled in
+four more ways, grouped by the operator that yields `{}`:
+
+| Domain `D` | Inputs |
+| --- | --- |
+| `ApaFoldSet` or `ApaFoldSeqLeft` with an empty base over an empty collection | [`32e3a422`](../../corpus18/03aggregator-fail/32e3a4225c3f61c9291666dc56173d6068db6792864e2d0917068299ee49e7c7.cbor), [`74bf9bcf`](../../corpus18/03aggregator-fail/74bf9bcf247e43365b66e0756572ce617a790dfc19410188d4de8dcb3e68acb9.cbor), [`9ee9461a`](../../corpus18/03aggregator-fail/9ee9461ac3484a55292f7753c4b9192b52be0007e921254f3b25d61a8af4989a.cbor), [`a73fccba`](../../corpus18/03aggregator-fail/a73fccba27238874f1114cc0ba2dbe1787afeb89602c1e3d9d4890dd5881885f.cbor), [`f7c9117e`](../../corpus18/03aggregator-fail/f7c9117e3e97beb1aaa1d8373e2e07a7d52a0e47368782e118ecb7c52604827.cbor) |
+| a record field of a fold result | [`745ef01c`](../../corpus18/03aggregator-fail/745ef01c1e86576ac8eedbd4d60d0468d91050ce8447297d41edb6e92d26e9b3.cbor) |
+| `VariantGetOrElse` yielding `{}`, directly or as a tuple component of its default | [`72e4713e`](../../corpus18/03aggregator-fail/72e4713e580f3fe712aa9113d11bf71d6dfe616687836f26d02c7773bc6b2040.cbor), [`63cabb3f`](../../corpus18/03aggregator-fail/63cabb3f39e70925e7916b0ad2747c31adb80d811485d9cbd67bb17076a33ffa.cbor) |
+| a set map whose last binder ranges over `{}` | [`815c9625`](../../corpus18/03aggregator-fail/815c96254b0d891d1b54ebe1df3ea45401068fc4db635af82c8122f3856b7bc6.cbor) |
+
+In `f7c9117e` the function set is additionally wrapped in a label. None of the
+nine reproduces on the 0.62.3-SNAPSHOT build `129af5d`, which reports the
+violation for each.
+
 ## Expected behavior
 
 `[S -> R]` denotes the set of total functions from `S` to `R`. When `S` is

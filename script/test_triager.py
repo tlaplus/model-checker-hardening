@@ -406,6 +406,44 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
         )
 
+    def test_classifies_invariant_error_with_foreign_call_stack(self) -> None:
+        """corpus18 fabd5358: the message is the invariant's, the code is Head's."""
+        diagnostic = "\n".join(
+            (
+                "TLC error code 2184 mapped to exit status 255",
+                "Error: Evaluating invariant Inv failed.",
+                "Attempted to compute the value of an expression of form",
+                "CHOOSE x \\in S: P, but no element of S satisfied P.",
+                "line 112, col 4 to line 163, col 8 of module FuzzInput",
+                "Error: The behavior up to this point is:",
+                "Error: The error occurred when TLC was evaluating the nested",
+                "expressions at the following positions:",
+                "0. Line 59, column 9 to line 106, column 25 in FuzzInput",
+            )
+        )
+        self.assertEqual(
+            "tlc-007.md",
+            triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
+        )
+
+    def test_module_error_inside_invariant_with_call_stack_stays_tlc_002(self) -> None:
+        """corpus18 a6be9eb6: the invariant raised the reported module error itself."""
+        diagnostic = "\n".join(
+            (
+                "TLC error code 2178 mapped to exit status 255",
+                "Error: Evaluating invariant Inv failed.",
+                "Overflow when computing 88^5",
+                "Error: The behavior up to this point is:",
+                "Error: The error occurred when TLC was evaluating the nested",
+                "expressions at the following positions:",
+                "0. Line 48, column 8 to line 48, column 24 in FuzzInput",
+            )
+        )
+        self.assertEqual(
+            "tlc-002.md",
+            triager.classify(triager.CrashKind.TLC, diagnostic, HASH_A),
+        )
+
     def test_set_map_and_set_filter_are_separate_findings(self) -> None:
         set_map = "\n".join(
             (

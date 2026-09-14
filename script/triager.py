@@ -161,6 +161,16 @@ SIGNATURES = (
             tlc_runtime_error(r"Attempted to enumerate S \\cap T when neither S:"),
             tlc_runtime_error(r"Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\."),
             tlc_runtime_error(r"Attempted to enumerate \{ x \\in S : p\(x\) \} when S:")),
+    # An invariant evaluation error reported with the exit code and call stack of
+    # a different, module-raised error. A module error inside the invariant
+    # itself prints its own message after the wrapper and stays tlc-002, so the
+    # lookahead excludes exactly the tlc-002 messages.
+    finding("tlc-007.md", CrashKind.TLC,
+            all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
+                   r"^Error: Evaluating invariant \w+ failed\.\n"
+                   r"(?!Overflow when computing |Attempted to apply (?:Head|Tail) to the empty sequence\."
+                   r"|The second argument of |0\^0 is undefined\.)",
+                   r"^Error: The error occurred when TLC was evaluating the nested$")),
     finding("apalache-printer-008.md", CrashKind.TLC,
             all_of(r"^TLC error code 2102 mapped to exit status 255$",
                    r"Error: current state is not a legal state", r"/\\ step = null")),
