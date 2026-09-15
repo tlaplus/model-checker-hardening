@@ -140,6 +140,7 @@ public final class ToolStage implements WorkflowStage {
                             startTime,
                             StageResult.endedNow(startTime),
                             failure,
+                            result.metrics(),
                             result.diagnostic()));
             counters.record(verdict);
             routing.forward(corpus, destination, verdict);
