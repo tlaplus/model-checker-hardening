@@ -597,6 +597,18 @@ class AggregatorClassificationTest(unittest.TestCase):
         self.assertEqual(
             "filter-over-infinite-set.md", triager.classify_aggregator(results, HASH_A))
 
+    def test_classifies_enabled_unchanged_of_expression(self) -> None:
+        # corpus24 d65d9c03 and 7fd26b9f: stored truncated, no WF or SF in the spec.
+        detail = ("The action formula A appearing in a WF_v(A) or SF_v(A) operator "
+                  "does not specif…")
+        for other in ("pass", "counterexample"):
+            with self.subTest(other=other):
+                self.assertEqual(
+                    "tlc-012.md",
+                    triager.classify_aggregator(
+                        results(triager.Checker.TLC, detail, other_verdict=other), HASH_A),
+                )
+
     def test_reports_ambiguous_matches(self) -> None:
         duplicate = triager.AggregatorSignature(
             "duplicate.md",
