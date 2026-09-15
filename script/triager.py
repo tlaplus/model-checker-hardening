@@ -435,6 +435,11 @@ AGGREGATOR_SIGNATURES = (
             r"^In computing initial states, the right side of \\IN is not enumerable\.$",
             # The same enumeration limit reached from the next-state action.
             r"^In computing next states, the right side of \\IN is not enumerable\.$"),
+    # ENABLED UNCHANGED e for a non-variable e. An actual WF_v(A) raises the same
+    # message only while TLC checks liveness, as an error-1000 crash (tlc-010),
+    # so an exit-75 failure stored by the aggregator is the ENABLED path.
+    failure("tlc-012.md", Checker.TLC,
+            r"^The action formula A appearing in a WF_v\(A\) or SF_v\(A\) operator does not specif"),
     failure("modulo-by-zero-apalache-fails.md", Checker.APALACHE,
             r"^Input error \(see the manual\): Mod by zero at "),
     failure("division-by-zero-apalache-fails.md", Checker.APALACHE,
