@@ -65,14 +65,11 @@ final class CorpusEntries {
 
     /** Reads one entry and checks its name, digest, envelope, and payload. */
     Entry verify(Path path) throws IOException, CorpusException {
-        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
-            throw new CorpusException("corpus entry is not a regular file: " + path);
-        }
         var matcher = ENTRY_FILE_NAME.matcher(path.getFileName().toString());
         if (!matcher.matches()) {
             throw new CorpusException("invalid corpus entry name: " + path);
         }
-        var encoded = Files.readAllBytes(path);
+        var encoded = CorpusLayout.readRegularFile(path, "corpus entry");
         var entry = decode(path, encoded);
         var corpusInput = entry.envelope().corpusInput();
         var input = corpusInput.input();
@@ -119,7 +116,7 @@ final class CorpusEntries {
     CorpusInput readOwnedInput(Path path, CorpusStage stage)
             throws IOException, CorpusException {
         requireOwnedPath(path, stage.input(), stage.displayName() + " input");
-        return decodeInput(path, Files.readAllBytes(path));
+        return decodeInput(path, CorpusLayout.readRegularFile(path, stage.displayName() + " input entry"));
     }
 
     /** Rejects a path that does not name an existing entry of the given corpus directory. */

@@ -34,6 +34,7 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertTrue(result.out().contains("Usage: fuzztla"));
+        assertTrue(result.out().contains("export-db"));
         assertTrue(result.out().contains("init"));
         assertTrue(result.out().contains("print"));
         assertTrue(result.out().contains("run"));
@@ -154,6 +155,45 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertTrue(result.err().contains("configuration already exists"));
+    }
+
+    @Test
+    void exportsACorpusToADatabaseOnceWithoutForce(@TempDir Path directory) throws Exception {
+        var corpus = directory.resolve("corpus");
+        assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+        var input = new CorpusInput(InputKind.EXPRESSION, new byte[0]);
+        Files.write(
+                corpus.resolve(CorpusPath.INPUT.relativePath()).resolve(Digests.digest(input.input()) + ".cbor"),
+                CorpusInputCodec.encode(input));
+        var output = directory.resolve("corpus.sqlite");
+
+        var result = execute("export-db", "--corpus=" + corpus, "--output=" + output, "--max-cpus=1");
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        assertEquals(
+                "exported 1 entries (0 unreadable, 0 replay failures, 0 vanished) to "
+                        + output
+                        + System.lineSeparator(),
+                result.out());
+        try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + output);
+                var rows = connection.createStatement().executeQuery(
+                        "SELECT e.evaluatedNodes, e.replayError, count(o.name) FROM entry e"
+                                + " LEFT JOIN expr o ON o.entryId = e.id GROUP BY e.id")) {
+            assertTrue(rows.next());
+            assertTrue(rows.getLong(1) > 0);
+            assertNull(rows.getString(2));
+            assertTrue(rows.getLong(3) > 0);
+        }
+        var exported = Files.readAllBytes(output);
+
+        var refused = execute("export-db", "--corpus=" + corpus, "--output=" + output);
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, refused.exitCode());
+        assertTrue(refused.err().contains("database already exists"), refused.err());
+        assertArrayEquals(exported, Files.readAllBytes(output));
+        assertEquals(
+                CommandLine.ExitCode.OK,
+                execute("export-db", "--corpus=" + corpus, "--output=" + output, "--force").exitCode());
     }
 
     @Test

@@ -16,7 +16,8 @@ model. [ADR 0002][] records the property-based input admission policy.
 [ADR 0005][] records the separate model-checker counterexample verdict.
 [ADR 0006][] records the known-defect admission filter. [ADR 0008][] records the
 exploration metrics that the model-checker stages store for a future quality
-gate.
+gate. [ADR 0009][] records `fuzztla export-db`, which exports a corpus to a
+SQLite database for analysis ([corpus-database manual][database manual]).
 
 ### 1.1. General architecture
 
@@ -527,6 +528,8 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0005]: ../decisions/0005-counterexample-verdict.md
 [ADR 0006]: ../decisions/0006-known-defect-signatures.md
 [ADR 0008]: ../decisions/0008-exploration-metrics.md
+[ADR 0009]: ../decisions/0009-corpus-database.md
+[database manual]: ../manual/corpus-database.md
 [metrics manual]: ../manual/exploration-metrics.md
 [known-defect manual]: ../manual/known-defect-signatures.md
 [the JSON label finding]: ../../findings/apalache-json/apalache-json-001.md

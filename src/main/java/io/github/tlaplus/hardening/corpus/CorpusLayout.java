@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -125,10 +127,28 @@ final class CorpusLayout {
         if (Files.notExists(path, NO_FOLLOW_LINKS)) {
             return Optional.empty();
         }
-        if (!Files.isRegularFile(path, NO_FOLLOW_LINKS)) {
+        return Optional.of(readRegularFile(path, description));
+    }
+
+    /**
+     * Reads a file that must be a regular file, without following a symbolic link.
+     *
+     * <p>The type is checked before the file is opened, so a FIFO or device is rejected rather
+     * than blocking in {@code open}, and the open itself refuses a link. A writer to the directory
+     * that replaces the file between the check and the open can still make the open block.
+     *
+     * @param description names the file when it is not a regular file
+     * @throws NoSuchFileException if the file does not exist
+     */
+    static byte[] readRegularFile(Path path, String description)
+            throws IOException, CorpusException {
+        var attributes = Files.readAttributes(path, BasicFileAttributes.class, NO_FOLLOW_LINKS);
+        if (!attributes.isRegularFile()) {
             throw new CorpusException(description + " is not a regular file: " + path);
         }
-        return Optional.of(Files.readAllBytes(path));
+        try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
+            return input.readAllBytes();
+        }
     }
 
     /** Lists the entries of one directory in name order, rejecting any foreign file name. */
@@ -167,11 +187,16 @@ final class CorpusLayout {
 
     /** Returns the crash-report name beside an entry, rejecting a non-entry name. */
     static String crashReportName(Path entry) throws CorpusException {
+        return crashReportNameForDigest(entryDigest(entry));
+    }
+
+    /** Returns the payload digest that names an entry, rejecting a non-entry name. */
+    static String entryDigest(Path entry) throws CorpusException {
         var matcher = ENTRY_FILE_NAME.matcher(entry.getFileName().toString());
         if (!matcher.matches()) {
             throw new CorpusException("invalid corpus entry name: " + entry);
         }
-        return crashReportNameForDigest(matcher.group(1));
+        return matcher.group(1);
     }
 
     /** Returns the work-directory path where a stage stages a crash report before committing it. */
