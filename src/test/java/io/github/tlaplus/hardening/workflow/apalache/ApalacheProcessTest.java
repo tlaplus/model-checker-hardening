@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaDecl;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -16,6 +17,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaModules;
@@ -60,6 +62,11 @@ class ApalacheProcessTest {
         assertEquals(StageOutcome.COUNTEREXAMPLE, fail.outcome(), fail.diagnostic());
         assertTrue(fail.failureCode().isEmpty());
         assertTrue(fail.diagnostic().contains("EXITCODE: ERROR (12)"), fail.diagnostic());
+        assertEquals(
+                OptionalLong.of(0),
+                fail.metrics().orElseThrow().count(ExplorationCount.TRACE_LENGTH),
+                "an invariant violated initially has a one-state trace");
+        assertTrue(pass.metrics().isEmpty());
         assertEquals(StageOutcome.PASS, secondPass.outcome(), secondPass.diagnostic());
         assertTrue(secondPass.failureCode().isEmpty());
         assertTrue(secondPass.diagnostic().contains("EXITCODE: OK"), secondPass.diagnostic());
