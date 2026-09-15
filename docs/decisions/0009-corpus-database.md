@@ -100,7 +100,8 @@ and `cli` passes it to `database` as an `InputAnalysis` (see below).
 ### Operators of the evaluated code
 
 The export replays every entry's input through the generator and stores, per
-entry, how often each operator is applied in the code the checkers evaluate.
+entry, how often each operator, `LET-IN` form and kind of literal occurs in the
+code the checkers evaluate.
 This is not optional: a database without operators cannot answer the questions
 it exists for, and replay costs minutes, not hours.
 
@@ -108,10 +109,20 @@ it exists for, and replay costs minutes, not hours.
   from `FuzzInputModule.ENTRY_POINTS`, the walk that known-defect signatures
   ([ADR 0006][adr-0006]) match against. It follows referenced top-level
   definitions, walks every `LET` definition and treats labels as transparent.
-  `signature.IrOperatorCounts` counts the operator applications (`OperEx`) of the
-  walk by `TlaOper.name()`, which is also the `oper` field of Apalache's IR JSON
-  and the name a signature pattern uses. The size of the walk is stored as
-  `entry.evaluatedNodes`, one of the static features ADR 0008 derives.
+  `signature.IrOperatorCounts` counts the constructs of the walk under their
+  names in Apalache's IR JSON:
+  - an operator application (`OperEx`) by `TlaOper.name()`, the `oper` field,
+    which is also the name a signature pattern uses;
+  - a `LET-IN` by its `kind`, `LetInEx`;
+  - a literal (`ValEx`) by the `kind` of its value, such as `TlaInt` or
+    `TlaNatSet`.
+
+  `EvaluatedOperatorsTest` checks every counted name against the IR JSON of
+  generated modules. `LET-IN` and literals are counted because the checkers treat
+  them as constructs of their own: in corpus22, 90% of entries evaluate a
+  `LET-IN`, 1.96 million in total. Names (`NameEx`) are not counted. The size of
+  the walk is stored as `entry.evaluatedNodes`, one of the static features
+  ADR 0008 derives.
 - **Replay settings.** `cli` reads the corpus's `config.toml`, prepares
   `SpecDecoders` and checks the custom operator library with
   `LibraryManifest.verify`, as `fuzztla print --corpus` does. Replay records no
@@ -170,10 +181,10 @@ is counted as vanished and skipped. The export never changes a corpus entry.
 - **Cost.** Replay dominates. A single-threaded probe over corpus22 decoded
   103,598 inputs in 124 s and walked their modules in 3 s, without a failure.
   The export of corpus22 takes 35 s on 8 threads (213 s of CPU, peak resident
-  set 1.7 GB) and 135 s on one thread (680 MB), and both write identical
-  tables. The database has 157 MB, of which `operator` (3.6 million rows) takes
-  76 MB. An index on `operator(name)` would add 61 MB and save at most 0.1 s per
-  query, so there is none. Without replay, the
+  set 1.8 GB). On one thread it took 135 s (680 MB), measured before `LET-IN` and
+  literals were counted, and wrote identical tables. The database has 165 MB, of which `operator` (4.0 million rows) takes
+  84 MB. An index on `operator(name)` would add about 60 MB and save at most
+  0.1 s per query, so there is none. Without replay, the
   metadata alone exports in 23 s from a cold page cache and 4 s from a warm one;
   its `stage` table takes 45 MB, `entry` 11 MB, the unique index of `entry` 10 MB
   and the `stage(stage, verdict)` index 8 MB.

@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `2`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `3`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -151,28 +151,36 @@ exploration metrics existed have `NULL` in every metric column.
 
 ### 2.5. `operator`
 
-One row per operator that an entry's evaluated code applies. The key is
-`(entryId, name)`.
+One row per construct that occurs in an entry's evaluated code: an operator
+application, a `LET-IN`, or a literal. The key is `(entryId, name)`.
 
 The evaluated code is what the checkers evaluate. The walk starts at the
 definitions `Init`, `Next`, `Inv`, `Spec`, `Prop` and `Liveness` and follows every
 reference to another top-level definition. A top-level definition that nothing
 references is skipped. Inside reached code, every `LET` definition is walked.
 Labels are transparent. This is the walk that
-[known-defect signatures][signatures] match against, so an operator counted here
-is one a signature can name.
+[known-defect signatures][signatures] match against.
 
-`name` is the operator's name in Apalache's IR, the `oper` field of
-`fuzztla print --apalache-ir`: for example `SET_ENUM`, `FUN_APP`, `OPER_APP` for
-an application of a user-defined operator, or `Sequences!Head` for a standard
-module operator. `LET-IN` expressions, names and literals are not operators; they
-count towards `entry.evaluatedNodes` only.
+`name` is the construct's name in the IR JSON of `fuzztla print --apalache-ir`:
+
+- **Operator application** (`"kind": "OperEx"`): its `oper` field, for example
+  `SET_ENUM`, `FUN_APP`, `OPER_APP` for an application of a user-defined
+  operator, or `Sequences!Head` for a standard module operator.
+- **`LET-IN`** (`"kind": "LetInEx"`): `LetInEx`.
+- **Literal** (`"kind": "ValEx"`): the `kind` of its value. That is `TlaInt`,
+  `TlaStr`, `TlaBool` or `TlaDecimal` for a scalar, and `TlaBoolSet`,
+  `TlaStrSet`, `TlaIntSet`, `TlaNatSet` or `TlaRealSet` for a predefined set
+  such as `BOOLEAN` or `Nat`.
+
+Operator names are upper case or qualified with `!`, so they never collide with
+the other two. Names (`NameEx`), such as variables and parameters, are not
+counted; they count towards `entry.evaluatedNodes` only.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
 | `entryId` | INTEGER | no | `entry.id` | – |
-| `name` | TEXT | no | Operator name in Apalache's IR | replayed `input` |
-| `occurrences` | INTEGER | no | Applications of the operator in the evaluated code | replayed `input` |
+| `name` | TEXT | no | Operator name, `LetInEx`, or literal value kind, as in Apalache's IR JSON | replayed `input` |
+| `occurrences` | INTEGER | no | Occurrences of the construct in the evaluated code | replayed `input` |
 
 ### 2.6. `unreadable`
 
