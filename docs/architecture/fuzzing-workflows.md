@@ -14,7 +14,9 @@ described below are implemented. The quality gate, mutator, and final test-suite
 stages remain proposals. [ADR 0001][] records the stage and worker execution
 model. [ADR 0002][] records the property-based input admission policy.
 [ADR 0005][] records the separate model-checker counterexample verdict.
-[ADR 0006][] records the known-defect admission filter.
+[ADR 0006][] records the known-defect admission filter. [ADR 0008][] records the
+exploration metrics that the model-checker stages store for a future quality
+gate.
 
 ### 1.1. General architecture
 
@@ -486,6 +488,15 @@ The metadata depends on the stage. The minimal set of fields is:
    conservative signatures over it to assign advisory labels that are not stored
    in the corpus envelope. It is valid only when `"code"` is present.
 
+- A model-checker stage may contain a `"metrics"` map that describes what the
+  checker explored ([ADR 0008][]). It is written for `"pass"`,
+  `"counterexample"` and `"fail"` and forbidden for `"crashed"`. TLC records
+  the exploration phase, state counts, depth, the next-state disjuncts that fired,
+  and the shape of the largest state. TLC and Apalache record `"traceLength"`,
+  which is allowed only with `"counterexample"`. A count that was not measured is
+  absent, and a reader preserves metric fields it does not know. The
+  [exploration-metrics manual][metrics manual] lists the fields.
+
 ```cbor
 {
     "kind": "expr",
@@ -515,5 +526,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0003]: ../decisions/0003-checker-failure-codes.md
 [ADR 0005]: ../decisions/0005-counterexample-verdict.md
 [ADR 0006]: ../decisions/0006-known-defect-signatures.md
+[ADR 0008]: ../decisions/0008-exploration-metrics.md
+[metrics manual]: ../manual/exploration-metrics.md
 [known-defect manual]: ../manual/known-defect-signatures.md
 [the JSON label finding]: ../../findings/apalache-json/apalache-json-001.md

@@ -1,9 +1,9 @@
 # Exploration metrics
 
-> **Status:** Proposed, not implemented.
+> **Status:** Implemented.
 > [ADR 0008](../decisions/0008-exploration-metrics.md) records the design and
-> the calibration measurements behind it. Nothing described here is written to
-> a corpus yet.
+> the calibration measurements behind it. Entries checked before this feature
+> have no metrics.
 
 Two checkers agreeing on a verdict says little when neither of them explored
 anything. Most agreeing pairs in current corpora are like that: TLC finds no
@@ -44,7 +44,6 @@ Each checker stores its metrics in a `metrics` map under its own stage record:
         "maxStateNodes": 9,
         "maxCardinality": 3,
         "maxNesting": 2,
-        "saturated": false,
         "traceLength": 3
       }
     },
@@ -57,6 +56,10 @@ Each checker stores its metrics in a `metrics` map under its own stage record:
   }
 }
 ```
+
+Fields appear in the order of the tables in section 2, with `saturated` last. A count the checker did
+not measure is absent; for example, `actions` is absent when TLC stops before
+model checking starts. `saturated` appears only when it is true.
 
 The map is written for the `pass`, `counterexample` and `fail` verdicts. A
 `crashed` entry has no metrics: a timeout or a dead worker JVM returns nothing to
@@ -72,10 +75,10 @@ unchanged, so metrics reach `03aggregator-pass` and `03aggregator-fail`.
 
 | Field | Meaning |
 | --- | --- |
-| `phase` | How far TLC got: `init` if it stopped before its initial states were complete, `explore` if it stopped while exploring successors, `complete` if the search finished. |
+| `phase` | How far TLC got: `complete` if the search finished, otherwise `init` if it stopped before its initial states were complete and `explore` if it stopped afterwards. |
 | `initStates` | Distinct initial states. |
 | `distinctStates` | Distinct reachable states, initial states included. |
-| `generatedStates` | States generated, including duplicates. |
+| `generatedStates` | Initial states plus transitions, including transitions to states already found. |
 | `projectedStates` | Distinct states after removing `step`, the step counter of a generated module. In an `expr` entry, equal to `distinctStates`. |
 | `depth` | Length of the longest shortest path from an initial state to a found state. |
 | `projectedDepth` | The largest depth at which a new projected state appeared. |
@@ -86,30 +89,39 @@ unchanged, so metrics reach `03aggregator-pass` and `03aggregator-fail`.
 | `maxCardinality` | Largest set, sequence, tuple, record or function domain in any state. |
 | `maxNesting` | Deepest value nesting in any state. A scalar variable has nesting 0. |
 | `saturated` | `true` if a state exceeded the node cap of the size walk. The three size fields are then lower bounds. |
-| `traceLength` | Transitions in TLC's counterexample. Present only for `counterexample`. |
+| `traceLength` | Transitions in TLC's counterexample. A liveness trace counts its closing stuttering step or step back to an earlier state. A violation in an initial state has length 0. Present only for `counterexample`. |
 
 ### 2.2. Apalache
 
 | Field | Meaning |
 | --- | --- |
-| `traceLength` | Transitions in the counterexample trace, including the loop for a temporal property. Present only for `counterexample`. |
+| `traceLength` | States in `violation1.itf.json` minus one. Present only for `counterexample`, and absent if Apalache wrote no readable trace. |
 
 ## 3. Reading metrics
 
-`fuzztla print --envelope` lists the metrics under each stage:
+`fuzztla print --envelope` lists the metrics under each stage, one field per
+line:
 
 ```text
 stages:
   tlc:
     verdict: counterexample
     startTime: 2026-09-15T08:00:00Z
-    endTime: 2026-09-15T08:00:02Z (duration: 2 s)
+    endTime: 2026-09-15T08:00:02Z (duration: 2s)
     metrics:
       phase: explore
-      states: 1 initial, 4 distinct (3 without step), 7 generated
-      depth: 3 (2 without step)
-      actions: 2 fired, 1 discovering, of 2
-      largest state: 9 nodes, cardinality 3, nesting 2
+      initStates: 1
+      distinctStates: 4
+      generatedStates: 7
+      projectedStates: 3
+      depth: 3
+      projectedDepth: 2
+      actions: 2
+      actionsFired: 2
+      actionsDiscovering: 1
+      maxStateNodes: 9
+      maxCardinality: 3
+      maxNesting: 2
       traceLength: 3
 ```
 

@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-15
 
@@ -90,25 +90,29 @@ an existing corpus without re-running a checker.
 ### TLC metrics
 
 `TlcWorkerMain` collects the metrics in the child JVM through three public TLC
-APIs:
+APIs. `TlcExplorationMetrics` installs the observers after `handleParameters` and
+attaches the metrics to every classified outcome except a crash.
 
-- **State writer.** An `IStateWriter` installed with `TLC.setStateWriter` after
-  `handleParameters`. TLC calls `writeState(s)` for every initial state, and
+- **State writer.** `TlcStateMetrics`, an `IStateWriter` installed with
+  `TLC.setStateWriter`. TLC calls `writeState(s)` for every initial state, and
   `writeState(s, t, seen, action)` for every generated transition. The `seen`
   flag says whether `t` is new.
-- **Message recorder.** An `IMessagePrinterRecorder` registered with
-  `MP.setRecorder`. The `EC.TLC_INIT_GENERATED*` messages mark the completion of
-  initial states. The calibration probe detected them by their text,
-  "Finished computing initial states".
-- **Checker counters.** `TLCGlobals.mainChecker` provides
-  `getDistinctStatesGenerated` and `getStatesGenerated` after `process`
-  returns.
+- **Message recorder.** `TlcMessageMetrics`, an `IMessagePrinterRecorder`
+  registered with `MP.setRecorder`. The `EC.TLC_INIT_GENERATED*` messages mark the
+  completion of initial states, and the `EC.TLC_STATE_PRINT*` and
+  `EC.TLC_BACK_TO_STATE` messages make up the error trace. The calibration probe
+  detected initial-state completion by its text, "Finished computing initial
+  states".
+- **Checker.** `TLCGlobals.mainChecker` provides the sub-actions after `process`
+  returns. It does not exist when TLC stops before model checking starts, for
+  example on a parse error; `actions` is then absent.
 
 | Field | Definition | Computed from |
 | --- | --- | --- |
-| `phase` | `init` if the run stopped before initial states were complete, `explore` if it stopped afterwards, `complete` if the search finished | recorder, error code |
+| `phase` | `complete` for a pass; otherwise `explore` if initial states were complete, and `init` if not | outcome, recorder |
 | `initStates` | distinct initial states | writer |
-| `distinctStates`, `generatedStates` | TLC's counters | checker |
+| `distinctStates` | initial states plus new successors | writer |
+| `generatedStates` | initial states plus transitions | writer |
 | `projectedStates` | distinct new states after removing the step variable | writer: a second fingerprint per new state, over the other variables |
 | `depth` | largest `TLCState.getLevel()` of a new state, minus the initial level | writer |
 | `projectedDepth` | largest level at which a new projected state appeared | writer |
@@ -119,7 +123,7 @@ APIs:
 | `maxCardinality` | largest set, sequence, tuple, record or function domain | value walk |
 | `maxNesting` | deepest value nesting; a scalar is 0 | value walk |
 | `saturated` | a value walk stopped at its node cap | value walk |
-| `traceLength` | transitions in the counterexample, for `counterexample` only | recorder: `EC.TLC_STATE_PRINT*` messages of the error trace |
+| `traceLength` | trace states minus one, plus one for a closing stuttering step or step back to an earlier state; 0 for a violation in an initial state, which TLC reports without a trace; `counterexample` only | recorder |
 
 Three rules keep the collection cheap and well defined:
 
@@ -135,18 +139,19 @@ Three rules keep the collection cheap and well defined:
   non-stuttering test on whether any action progressed, and differed in the
   exact count in 2.
 - **The value walk is bounded.** It visits new states only and stops at a node
-  cap (the probe used 100,000), then sets `saturated`. A large state therefore
+  cap of 100,000 nodes per state, then sets `saturated`. A large state therefore
   cannot turn measurement into a timeout. The projection needs the name of the
-  step variable, which today is the private constant
-  `IrSpecGeneratorEngine.STEP_VARIABLE`; the implementation shares it. An `expr`
+  step variable, `GeneratedSpec.STEP_VARIABLE`, which the generator also uses. An `expr`
   module has no step variable, so there `projectedStates` equals
   `distinctStates`.
 
 ### Apalache metrics
 
-Apalache stores `traceLength` for a counterexample. It is the number of states
-in `violation1.itf.json`, minus one. The file lies in the run directory under
-`--out-dir`, which `ApalacheWorkerMain` removes only after the next invocation.
+Apalache stores `traceLength` for a counterexample. `ApalacheTraceLength` counts
+the states in `violation1.itf.json`, minus one. `ApalacheWorkerMain` reads the
+file from the run directory under `--out-dir` right after `Tool.run` returns. A
+missing or unreadable trace leaves the metric out and does not change the
+verdict.
 Apalache explores no explicit state graph, so the TLC metrics have no Apalache
 counterpart. Solver statistics require `--smtprof` and a log parser, and are not
 collected.
@@ -165,16 +170,23 @@ The gate derives these from stored data:
 
 Each checker stores its metrics as a CBOR map in `stages.tlc.metrics` or
 `stages.apalache.metrics`, for the `pass`, `counterexample` and `fail` verdicts.
-A crash has no metrics. Counts are unsigned integers, `saturated` is a Boolean,
-and `phase` is text. The [manual][manual] gives an example.
+A crash has no metrics, and `traceLength` requires a counterexample. Counts are
+nonnegative integers, and a count a checker did not measure is absent. `phase` is
+text, and `saturated` is written only when true. The [manual][manual] gives an
+example.
 
-- **Types.** An `ExplorationMetrics` record travels in `ToolResult`, bumping
-  `ToolWorkerProtocol` to version 6, and in `StageRecord`. The field names are
-  the constants of one enum, which the codec, the protocol and
-  `fuzztla print --envelope` share. A round-trip test pins the encoding.
+- **Types.** `checker.ExplorationMetrics` holds an optional
+  `ExplorationPhase`, a map keyed by `ExplorationCount`, and the saturation flag.
+  It travels in `ToolResult` and `StageRecord`. Each `ExplorationCount` constant
+  carries its field name, which the codec, the worker protocol and
+  `fuzztla print --envelope` share. `ExplorationMetricsTest` pins the names.
+- **Protocol.** `ToolWorkerProtocol` version 6 appends an optional metrics
+  section to a result frame. It names each metric, so enum order is not part of
+  the frame.
 - **Preservation.** `CorpusEnvelopeCodec` already preserves unknown stage
-  fields, and the aggregator merges stage records unchanged. Metrics therefore
-  reach `03aggregator-*` without aggregator changes.
+  fields, and it keeps metric fields this build does not know when it rewrites a
+  stage. The aggregator merges stage records unchanged, so metrics reach
+  `03aggregator-*` without aggregator changes.
 - **No migration.** Existing entries have no metrics, and per repository policy
   no migration adds them.
 
@@ -208,13 +220,18 @@ and `phase` is text. The [manual][manual] gives an example.
     writer over three, about +15%. The first version, which fingerprinted every
     transition to detect stuttering and formatted each action's location per
     transition, took 3,007–3,223 ms.
+  - *Workflow.* Two 300-entry `pbt` runs with seed 42 and `--max-cpus=8`, one
+    with this implementation and one with the preceding commit, accumulated
+    5 min 53 s and 6 min 57 s of TLC stage time. The 296 entries both runs
+    generated received the same TLC verdict. All 129 agreeing entries of the
+    first run matched a shallow pattern.
   - *Where time goes.* TLC's per-input cost stays dominated by JVM start-up.
 - **Shallow agreement becomes visible corpus-wide.** An estimated 99.6% of
   corpus22's agreeing entries are shallow. The patterns point at the generator:
   `Init` is unsatisfiable or violates `Inv`, and rich cohorts fail early. Stored
   metrics measure progress on that work without re-running a checker.
 - **Protocol and envelope change.** Both change once. `fuzztla print --envelope`
-  renders the metrics.
+  prints one line per metric.
 - **Open questions for the gate ADR:**
   - the thresholds;
   - whether fail/fail pairs with unequal codes count as agreement;
