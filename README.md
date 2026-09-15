@@ -394,6 +394,16 @@ input:
 
 The embedded `input` byte string is interpreted directly by FuzzTLA's generator framework. Variable-length values use per-element continuation markers—an odd byte continues and an even byte terminates—instead of a length prefix. The encoding is implementation-local and may change between versions; a suffix may remain unused when the selected expression is complete.
 
+Export a corpus to a SQLite database for analysis with:
+
+```sh
+./bin/fuzztla export-db --corpus=corpus
+sqlite3 corpus/corpus.sqlite "SELECT tlc, apalache, count(*) FROM verdictPair GROUP BY 1, 2"
+```
+
+The [corpus-database manual](docs/manual/corpus-database.md) documents the
+schema and gives example queries.
+
 ## License
 
 Licensed under either of

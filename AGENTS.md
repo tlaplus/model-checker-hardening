@@ -56,7 +56,9 @@ enum ordinals are part of a stored format or wire encoding, a comment is not
 enough; add a test that fails on reorder.
 
 **Keep the layering.** Dependencies run `checker`, `gen` → `corpus` → `config` →
-`workflow` → `cli`, with `common` a leaf every package may import. No upward
+`workflow` → `cli`, and `corpus` → `database` → `cli`
+([ADR 0009](docs/decisions/0009-corpus-database.md)), with `common` a leaf every
+package may import. No upward
 imports. `config` keys its stage tables by `corpus.CorpusStage`
 ([ADR 0004](docs/decisions/0004-stage-identity.md)). Validation and parsing policy do not belong
 in the storage layer; storage returns bytes and lets the caller interpret them.
