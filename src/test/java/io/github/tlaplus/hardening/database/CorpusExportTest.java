@@ -34,13 +34,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class CorpusExportTest {
     private static final Instant START = Instant.parse("2026-09-15T10:00:00Z");
-    private static final Instant EXPORTED_AT = Instant.parse("2026-09-15T12:00:00.5Z");
+    private static final CorpusExport.Provenance PROVENANCE = new CorpusExport.Provenance(
+            "fuzztla test", Instant.parse("2026-09-15T12:00:00.5Z"));
 
     @Test
     void exportsEntriesStageRecordsMetricsAndKnownDefects(@TempDir Path directory)
@@ -79,9 +81,9 @@ class CorpusExportTest {
         Files.write(resolve(root, CorpusPath.PARSER_FAIL, corrupt + ".cbor"), new byte[] {1, 2, 3});
         var output = directory.resolve("corpus.sqlite");
 
-        var summary = CorpusExport.run(options(root, output, false, true));
+        var summary = run(root, output, false, true);
 
-        assertEquals(new CorpusExport.Summary(output, 3, 1, 0), summary);
+        assertEquals(new CorpusExport.Summary(output, 3, 1, 0, 0), summary);
         try (var connection = connect(output)) {
             assertEquals(
                     List.of(
@@ -91,6 +93,18 @@ class CorpusExportTest {
                     rows(connection,
                             "SELECT directory, hash, kind, inputBytes, cohort, richness"
                                     + " FROM entry ORDER BY id"));
+            assertEquals(
+                    List.of(
+                            row("00-known-defects", 11L, null),
+                            row("02tlc-crash", 7L, null),
+                            row("03aggregator-pass", 10L, null)),
+                    rows(connection,
+                            "SELECT directory, evaluatedNodes, replayError FROM entry ORDER BY id"));
+            assertEquals(
+                    List.of(row("EQ", 1L), row("SET_ENUM", 10L)),
+                    rows(connection,
+                            "SELECT o.name, o.occurrences FROM operator o JOIN entry e ON e.id = o.entryId"
+                                    + " WHERE e.hash = '" + aggregated + "' ORDER BY o.name"));
             assertEquals(
                     List.of(row("modulo-by-zero", 0L), row("string-set", 1L)),
                     rows(connection, "SELECT signature, position FROM knownDefect ORDER BY position"));
@@ -150,10 +164,10 @@ class CorpusExportTest {
 
         assertThrows(
                 CorpusDatabaseException.class,
-                () -> CorpusExport.run(options(root, output, false, true)));
+                () -> run(root, output, false, true));
         assertArrayEquals(previous, Files.readAllBytes(output));
 
-        assertEquals(1, CorpusExport.run(options(root, output, true, true)).entries());
+        assertEquals(1, run(root, output, true, true).entries());
         try (var connection = connect(output)) {
             assertEquals(List.of(List.of(1L)), rows(connection, "SELECT count(*) FROM entry"));
         }
@@ -170,10 +184,10 @@ class CorpusExportTest {
 
         try (var lock = CorpusDirectory.openExisting(root).acquireExclusiveLock()) {
             assertThrows(
-                    CorpusException.class, () -> CorpusExport.run(options(root, output, false, true)));
+                    CorpusException.class, () -> run(root, output, false, true));
             assertFalse(Files.exists(output));
 
-            assertEquals(1, CorpusExport.run(options(root, output, false, false)).entries());
+            assertEquals(1, run(root, output, false, false).entries());
         }
         assertTrue(Files.exists(output));
     }
@@ -184,8 +198,78 @@ class CorpusExportTest {
         return root;
     }
 
-    private static CorpusExport.Options options(Path root, Path output, boolean replace, boolean lock) {
-        return new CorpusExport.Options(root, output, replace, lock, "fuzztla test", EXPORTED_AT);
+    @Test
+    void recordsInputsThatCannotBeReplayedAndContinues(@TempDir Path directory) throws Exception {
+        var root = corpus(directory);
+        var rejected = store(root, CorpusPath.INPUT, InputKind.EXPRESSION, "boom", Optional.empty());
+        var deep = store(root, CorpusPath.PARSER_FAIL, InputKind.EXPRESSION, "deep", Optional.empty());
+        var replayed = store(root, CorpusPath.PARSER_CRASH, InputKind.EXPRESSION, "fine", Optional.empty());
+        var output = directory.resolve("failures.sqlite");
+
+        var summary = run(root, output, false, true);
+
+        assertEquals(new CorpusExport.Summary(output, 3, 0, 2, 0), summary);
+        try (var connection = connect(output)) {
+            assertEquals(
+                    List.of(
+                            row(rejected, null, "no replay for boom"),
+                            row(deep, null, "StackOverflowError"),
+                            row(replayed, 4L, null)),
+                    rows(connection, "SELECT hash, evaluatedNodes, replayError FROM entry ORDER BY id"));
+            assertEquals(
+                    List.of(row(replayed)),
+                    rows(connection,
+                            "SELECT DISTINCT e.hash FROM operator o JOIN entry e ON e.id = o.entryId"));
+        }
+    }
+
+    @Test
+    void writesTheSameDatabaseForAnyNumberOfThreads(@TempDir Path directory) throws Exception {
+        var root = corpus(directory);
+        // More entries than one chunk, so that chunk boundaries are exercised too.
+        for (var index = 0; index < EntryBatchExporter.CHUNK_SIZE + 7; index++) {
+            var location = index % 3 == 0 ? CorpusPath.AGGREGATOR_PASS : CorpusPath.AGGREGATOR_FAIL;
+            store(root, location, InputKind.MODULE, "input-" + index + "x".repeat(index % 11),
+                    Optional.of(new GenerationMetadata(index % 10, index)));
+        }
+        var contents = new ArrayList<List<List<Object>>>();
+
+        for (var threads : List.of(1, 4)) {
+            var output = directory.resolve("threads-" + threads + ".sqlite");
+            var options = new CorpusExport.Options(root, output, false, true, PROVENANCE);
+            CorpusExport.run(options, new CorpusExport.Analysis(CorpusExportTest::analyze, threads));
+            try (var connection = connect(output)) {
+                var tables = new ArrayList<List<Object>>();
+                tables.addAll(rows(connection, "SELECT * FROM entry ORDER BY id"));
+                tables.addAll(rows(connection, "SELECT * FROM operator ORDER BY entryId, name"));
+                contents.add(tables);
+            }
+        }
+
+        assertEquals(EntryBatchExporter.CHUNK_SIZE + 7 + 2 * (EntryBatchExporter.CHUNK_SIZE + 7),
+                contents.getFirst().size());
+        assertEquals(contents.getFirst(), contents.getLast());
+    }
+
+    private static CorpusExport.Summary run(Path root, Path output, boolean replace, boolean lock)
+            throws Exception {
+        return CorpusExport.run(
+                new CorpusExport.Options(root, output, replace, lock, PROVENANCE),
+                new CorpusExport.Analysis(CorpusExportTest::analyze, 2));
+    }
+
+    /**
+     * A stand-in for replay: the node count is the payload length, and every payload has one
+     * equality and a set enumeration per byte. Payloads {@code boom} and {@code deep} fail.
+     */
+    private static InputFeatures analyze(CorpusInput input) {
+        var payload = new String(input.input(), StandardCharsets.UTF_8);
+        return switch (payload) {
+            case "boom" -> throw new IllegalArgumentException("no replay for boom");
+            case "deep" -> throw new StackOverflowError();
+            default -> new InputFeatures(
+                    payload.length(), Map.of("EQ", 1L, "SET_ENUM", (long) payload.length()));
+        };
     }
 
     private static StageMetadata stage(String name, StageRecord record) {

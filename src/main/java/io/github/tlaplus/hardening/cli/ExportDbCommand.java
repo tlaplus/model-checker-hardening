@@ -1,8 +1,18 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.config.TomlConfig;
+import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
+import io.github.tlaplus.hardening.database.InputAnalysis;
+import io.github.tlaplus.hardening.database.InputFeatures;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
+import io.github.tlaplus.hardening.workflow.spec.EvaluatedOperators;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -24,6 +34,13 @@ final class ExportDbCommand implements Callable<Integer> {
     private boolean helpRequested;
 
     @Option(
+            names = "--corpus",
+            defaultValue = "corpus",
+            paramLabel = "DIR",
+            description = "Corpus directory (default: ${DEFAULT-VALUE}).")
+    private Path corpus;
+
+    @Option(
             names = {"-o", "--output"},
             paramLabel = "FILE",
             description = "Database file. Default: corpus.sqlite in the corpus directory.")
@@ -39,11 +56,11 @@ final class ExportDbCommand implements Callable<Integer> {
     private boolean noLock;
 
     @Option(
-            names = "--corpus",
-            defaultValue = "corpus",
-            paramLabel = "DIR",
-            description = "Corpus directory (default: ${DEFAULT-VALUE}).")
-    private Path corpus;
+            names = "--max-cpus",
+            converter = RunCommand.CpuCountConverter.class,
+            paramLabel = "N",
+            description = "Threads that replay inputs (default: all available processors).")
+    private int maximumCpus = Runtime.getRuntime().availableProcessors();
 
     @Spec private CommandSpec spec;
 
@@ -54,16 +71,38 @@ final class ExportDbCommand implements Callable<Integer> {
                 output == null ? CorpusExport.defaultOutput(corpus) : output,
                 force,
                 !noLock,
-                new FuzzTlaCommand.VersionProvider().getVersion()[0],
-                Instant.now());
-        try {
-            var summary = CorpusExport.run(options);
+                new CorpusExport.Provenance(
+                        new FuzzTlaCommand.VersionProvider().getVersion()[0], Instant.now()));
+        try (var shutdown = RunShutdownHook.install()) {
+            var analysis = new CorpusExport.Analysis(replay(), maximumCpus);
+            var summary = CorpusExport.run(options, analysis);
             spec.commandLine().getOut().print(ExportDbReport.render(summary));
             spec.commandLine().getOut().flush();
             return CommandLine.ExitCode.OK;
-        } catch (IOException | CorpusException | CorpusDatabaseException exception) {
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            spec.commandLine().getErr().printf("fuzztla: export of '%s' interrupted%n", corpus);
+            return CommandLine.ExitCode.SOFTWARE;
+        } catch (IOException
+                | ConfigException
+                | CorpusException
+                | CorpusDatabaseException
+                | WorkflowException exception) {
             CommandDiagnostic.print(spec.commandLine().getErr(), "cannot export", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
+    }
+
+    /** Replays inputs under the corpus's own generator settings and operator library. */
+    private InputAnalysis replay()
+            throws IOException, ConfigException, CorpusException, WorkflowException {
+        var directory = CorpusDirectory.openExisting(corpus);
+        var decoders = SpecDecoders.prepare(TomlConfig.read(directory.resolve(CorpusPath.CONFIG)));
+        LibraryManifest.verify(directory, decoders.libraryManifest(), false);
+        var operators = new EvaluatedOperators(decoders);
+        return input -> {
+            var counts = operators.count(input);
+            return new InputFeatures(counts.nodes(), counts.operators());
+        };
     }
 }

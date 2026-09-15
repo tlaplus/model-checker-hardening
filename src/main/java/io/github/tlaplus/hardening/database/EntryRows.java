@@ -8,13 +8,17 @@ import static io.github.tlaplus.hardening.database.DatabaseColumns.DURATION_MILL
 import static io.github.tlaplus.hardening.database.DatabaseColumns.END_TIME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.ENTRY_ID;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.ERROR;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.EVALUATED_NODES;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.HASH;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.ID;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.INPUT_BYTES;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.KIND;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.METRICS;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.NAME;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.OCCURRENCES;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PHASE;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.POSITION;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.REPLAY_ERROR;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.RICHNESS;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.SATURATED;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.SIGNATURE;
@@ -31,16 +35,19 @@ import java.util.List;
 
 /**
  * The rows that one decoded corpus entry contributes: its {@code entry} row, one {@code
- * knownDefect} row per signature and one {@code stage} row per stage record.
+ * knownDefect} row per signature, one {@code stage} row per stage record and one {@code operator}
+ * row per operator of its replayed input.
  */
-record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages) {
+record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> operators) {
     EntryRows {
         knownDefects = List.copyOf(knownDefects);
         stages = List.copyOf(stages);
+        operators = List.copyOf(operators);
     }
 
     /** Maps an entry file, which the database identifies by {@code id}, to its rows. */
-    static EntryRows of(long id, StoredEntry stored, CorpusEnvelope envelope) {
+    static EntryRows of(
+            long id, StoredEntry stored, CorpusEnvelope envelope, ReplayOutcome replay) {
         var input = envelope.corpusInput();
         var entry = new Row(DatabaseTable.ENTRY)
                 .set(ID, id)
@@ -63,7 +70,19 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages) {
         for (var stage : envelope.stages()) {
             stages.add(stageRow(id, stage));
         }
-        return new EntryRows(entry, knownDefects, stages);
+        var operators = new ArrayList<Row>();
+        switch (replay) {
+            case ReplayOutcome.Replayed(var features) -> {
+                entry.set(EVALUATED_NODES, features.evaluatedNodes());
+                features.operators().forEach((name, occurrences) -> operators.add(
+                        new Row(DatabaseTable.OPERATOR)
+                                .set(ENTRY_ID, id)
+                                .set(NAME, name)
+                                .set(OCCURRENCES, occurrences)));
+            }
+            case ReplayOutcome.Failed(var error) -> entry.set(REPLAY_ERROR, error);
+        }
+        return new EntryRows(entry, knownDefects, stages, operators);
     }
 
     /** Returns the row of an entry file that does not decode. */
@@ -76,10 +95,12 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages) {
 
     /** Every row, parents first. */
     List<Row> all() {
-        var rows = new ArrayList<Row>(1 + knownDefects.size() + stages.size());
+        var rows = new ArrayList<Row>(
+                1 + knownDefects.size() + stages.size() + operators.size());
         rows.add(entry);
         rows.addAll(knownDefects);
         rows.addAll(stages);
+        rows.addAll(operators);
         return rows;
     }
 

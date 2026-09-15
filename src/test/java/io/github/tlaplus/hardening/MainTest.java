@@ -161,14 +161,29 @@ class MainTest {
     void exportsACorpusToADatabaseOnceWithoutForce(@TempDir Path directory) throws Exception {
         var corpus = directory.resolve("corpus");
         assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+        var input = new CorpusInput(InputKind.EXPRESSION, new byte[0]);
+        Files.write(
+                corpus.resolve(CorpusPath.INPUT.relativePath()).resolve(Digests.digest(input.input()) + ".cbor"),
+                CorpusInputCodec.encode(input));
         var output = directory.resolve("corpus.sqlite");
 
-        var result = execute("export-db", "--corpus=" + corpus, "--output=" + output);
+        var result = execute("export-db", "--corpus=" + corpus, "--output=" + output, "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertEquals(
-                "exported 0 entries (0 unreadable, 0 vanished) to " + output + System.lineSeparator(),
+                "exported 1 entries (0 unreadable, 0 replay failures, 0 vanished) to "
+                        + output
+                        + System.lineSeparator(),
                 result.out());
+        try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + output);
+                var rows = connection.createStatement().executeQuery(
+                        "SELECT e.evaluatedNodes, e.replayError, count(o.name) FROM entry e"
+                                + " LEFT JOIN operator o ON o.entryId = e.id GROUP BY e.id")) {
+            assertTrue(rows.next());
+            assertTrue(rows.getLong(1) > 0);
+            assertNull(rows.getString(2));
+            assertTrue(rows.getLong(3) > 0);
+        }
         var exported = Files.readAllBytes(output);
 
         var refused = execute("export-db", "--corpus=" + corpus, "--output=" + output);

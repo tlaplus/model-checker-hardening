@@ -14,7 +14,16 @@ enum DatabaseTable {
     EXPORT("export", List.of(KEY, VALUE), List.of(KEY), List.of(), false),
     ENTRY(
             "entry",
-            List.of(ID, DIRECTORY, HASH, KIND, INPUT_BYTES, COHORT, RICHNESS),
+            List.of(
+                    ID,
+                    DIRECTORY,
+                    HASH,
+                    KIND,
+                    INPUT_BYTES,
+                    COHORT,
+                    RICHNESS,
+                    EVALUATED_NODES,
+                    REPLAY_ERROR),
             List.of(ID),
             List.of(HASH, DIRECTORY),
             false),
@@ -25,6 +34,12 @@ enum DatabaseTable {
             List.of(),
             true),
     STAGE("stage", stageColumns(), List.of(ENTRY_ID, STAGE_NAME), List.of(), true),
+    OPERATOR(
+            "operator",
+            List.of(ENTRY_ID, NAME, OCCURRENCES),
+            List.of(ENTRY_ID, NAME),
+            List.of(),
+            true),
     UNREADABLE(
             "unreadable", List.of(DIRECTORY, HASH, ERROR), List.of(DIRECTORY, HASH), List.of(), false);
 

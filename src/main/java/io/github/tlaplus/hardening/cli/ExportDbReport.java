@@ -10,9 +10,10 @@ final class ExportDbReport {
     static String render(CorpusExport.Summary summary) {
         Objects.requireNonNull(summary, "summary");
         return String.format(
-                "exported %d entries (%d unreadable, %d vanished) to %s%n",
+                "exported %d entries (%d unreadable, %d replay failures, %d vanished) to %s%n",
                 summary.entries(),
                 summary.unreadable(),
+                summary.replayFailures(),
                 summary.vanished(),
                 summary.output());
     }
