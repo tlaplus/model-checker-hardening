@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
+import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.signature.IrExprCounts;
 import java.util.Objects;
@@ -24,7 +25,7 @@ public final class EvaluatedExprs {
      * @throws RuntimeException if the generator rejects or fails on the input
      * @throws StackOverflowError if the input nests too deeply to decode or walk
      */
-    public IrExprCounts count(CorpusInput input) {
+    public ExprCounts count(CorpusInput input) {
         Objects.requireNonNull(input, "input");
         return IrExprCounts.evaluated(
                 decoders.decode(input).module(), FuzzInputModule.ENTRY_POINTS);

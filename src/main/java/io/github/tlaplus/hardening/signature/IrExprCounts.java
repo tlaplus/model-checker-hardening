@@ -4,39 +4,32 @@ import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.ValEx;
-import java.util.Collections;
+import io.github.tlaplus.hardening.common.ExprCounts;
 import java.util.List;
-import java.util.Objects;
-import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- * The size and constructs of the code the tools evaluate, over the walk that signatures match
+ * Counts the size and constructs of the code the tools evaluate, over the walk that signatures match
  * against.
  *
  * <p>Constructs are named as in Apalache's IR JSON: an operator application by its {@code oper}
  * field, such as {@code SET_ENUM}; a {@code LET-IN} by its {@code kind}, {@code LetInEx}; and a
  * literal by the {@code kind} of its value, such as {@code TlaInt} or {@code TlaBoolSet}. Names
  * are not counted.
- *
- * @param nodes the evaluated subexpressions, labels excluded
- * @param exprs the occurrences of each expression construct, keyed by its name
  */
-public record IrExprCounts(long nodes, SortedMap<String, Long> exprs) {
+public final class IrExprCounts {
     /** The name of a {@code LET-IN} construct: its {@code kind} in Apalache's IR JSON. */
     public static final String LET_IN = "LetInEx";
 
-    public IrExprCounts {
-        exprs = Collections.unmodifiableSortedMap(
-                new TreeMap<>(Objects.requireNonNull(exprs, "exprs")));
-    }
+    private IrExprCounts() {}
 
     /**
-     * Counts the subexpressions reachable from the root definitions and their constructs.
+     * Counts the subexpressions reachable from the root definitions, labels excluded, and their
+     * constructs.
      *
      * @throws IllegalArgumentException if the module does not define a root
      */
-    public static IrExprCounts evaluated(TlaModule module, List<String> roots) {
+    public static ExprCounts evaluated(TlaModule module, List<String> roots) {
         var subexpressions = IrTree.evaluatedSubexpressions(module, roots);
         var exprs = new TreeMap<String, Long>();
         for (var subexpression : subexpressions) {
@@ -50,7 +43,7 @@ public record IrExprCounts(long nodes, SortedMap<String, Long> exprs) {
                 exprs.merge(name, 1L, Long::sum);
             }
         }
-        return new IrExprCounts(subexpressions.size(), exprs);
+        return new ExprCounts(subexpressions.size(), exprs);
     }
 
     /**

@@ -8,7 +8,6 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
 import io.github.tlaplus.hardening.database.InputAnalysis;
-import io.github.tlaplus.hardening.database.InputFeatures;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
@@ -99,10 +98,6 @@ final class ExportDbCommand implements Callable<Integer> {
         var directory = CorpusDirectory.openExisting(corpus);
         var decoders = SpecDecoders.prepare(TomlConfig.read(directory.resolve(CorpusPath.CONFIG)));
         LibraryManifest.verify(directory, decoders.libraryManifest(), false);
-        var exprs = new EvaluatedExprs(decoders);
-        return input -> {
-            var counts = exprs.count(input);
-            return new InputFeatures(counts.nodes(), counts.exprs());
-        };
+        return new EvaluatedExprs(decoders)::count;
     }
 }

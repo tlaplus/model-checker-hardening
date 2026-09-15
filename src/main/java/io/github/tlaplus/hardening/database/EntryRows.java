@@ -72,9 +72,9 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> 
         }
         var exprs = new ArrayList<Row>();
         switch (replay) {
-            case ReplayOutcome.Replayed(var features) -> {
-                entry.set(EVALUATED_NODES, features.evaluatedNodes());
-                features.exprs().forEach((name, occurrences) -> exprs.add(
+            case ReplayOutcome.Replayed(var counts) -> {
+                entry.set(EVALUATED_NODES, counts.nodes());
+                counts.exprs().forEach((name, occurrences) -> exprs.add(
                         new Row(DatabaseTable.EXPR)
                                 .set(ENTRY_ID, id)
                                 .set(NAME, name)

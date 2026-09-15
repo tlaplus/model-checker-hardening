@@ -1,9 +1,10 @@
 package io.github.tlaplus.hardening.database;
 
+import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 
 /**
- * Derives the static features of one stored input, typically by replaying it through the
+ * Counts the evaluated nodes and expression constructs of one stored input, typically by replaying it through the
  * generator.
  *
  * <p>The export calls one instance from several threads at once, one input per call, so an
@@ -12,5 +13,5 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
  */
 @FunctionalInterface
 public interface InputAnalysis {
-    InputFeatures analyze(CorpusInput input);
+    ExprCounts analyze(CorpusInput input);
 }

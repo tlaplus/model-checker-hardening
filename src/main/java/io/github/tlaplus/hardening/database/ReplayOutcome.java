@@ -1,14 +1,15 @@
 package io.github.tlaplus.hardening.database;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import java.util.Objects;
 
-/** The result of analysing one input: its features, or why the input could not be replayed. */
+/** The result of analysing one input: its counts, or why the input could not be replayed. */
 sealed interface ReplayOutcome {
-    record Replayed(InputFeatures features) implements ReplayOutcome {
+    record Replayed(ExprCounts counts) implements ReplayOutcome {
         public Replayed {
-            Objects.requireNonNull(features, "features");
+            Objects.requireNonNull(counts, "counts");
         }
     }
 

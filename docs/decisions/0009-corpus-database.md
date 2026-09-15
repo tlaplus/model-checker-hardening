@@ -133,10 +133,10 @@ it exists for, and replay costs minutes, not hours.
   that throws a `RuntimeException` or `StackOverflowError` sets
   `entry.replayError`, and the entry has no `expr` rows.
 - **Layering.** `database.InputAnalysis` is a functional interface from
-  `CorpusInput` to `InputFeatures`, a node count and expression construct counts.
-  `workflow.spec.EvaluatedExprs` decodes and counts, and `cli` adapts it to
-  `InputAnalysis` with a lambda. `database` imports neither `workflow` nor
-  `signature`.
+  `CorpusInput` to `common.ExprCounts`, a node count and expression construct
+  counts, which `signature.IrExprCounts` returns. `workflow.spec.EvaluatedExprs`
+  decodes and counts, and `cli` passes its `count` method as the
+  `InputAnalysis`. `database` imports neither `workflow` nor `signature`.
 - **Parallelism.** `EntryBatchExporter` processes the listing in chunks of 1,024
   entries. It reads and decodes the envelopes of a chunk on the calling thread,
   replays the inputs with `ExecutorService.invokeAll` on `--max-cpus` threads,

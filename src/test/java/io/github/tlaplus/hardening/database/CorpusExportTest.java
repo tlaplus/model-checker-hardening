@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.common.Digests;
+import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -40,6 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -362,13 +364,14 @@ class CorpusExportTest {
      * A stand-in for replay: the node count is the payload length, and every payload has one
      * equality and a set enumeration per byte. Payloads {@code boom} and {@code deep} fail.
      */
-    private static InputFeatures analyze(CorpusInput input) {
+    private static ExprCounts analyze(CorpusInput input) {
         var payload = new String(input.input(), StandardCharsets.UTF_8);
         return switch (payload) {
             case "boom" -> throw new IllegalArgumentException("no replay for boom");
             case "deep" -> throw new StackOverflowError();
-            default -> new InputFeatures(
-                    payload.length(), Map.of("EQ", 1L, "SET_ENUM", (long) payload.length()));
+            default -> new ExprCounts(
+                    payload.length(),
+                    new TreeMap<>(Map.of("EQ", 1L, "SET_ENUM", (long) payload.length())));
         };
     }
 
