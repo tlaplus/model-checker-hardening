@@ -5,15 +5,20 @@ import static io.github.tlaplus.hardening.corpus.CborDocuments.cbor;
 import static io.github.tlaplus.hardening.corpus.CborDocuments.writeStage;
 import static io.github.tlaplus.hardening.corpus.CborDocuments.writeTaggedEpoch;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.checker.ExplorationCount;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -227,6 +232,127 @@ class CorpusEnvelopeCodecTest {
         assertInvalidEnvelope(excessiveDetail, "must not exceed 80 characters");
         assertInvalidEnvelope(multilineDetail, "must be a single line");
         assertInvalidEnvelope(textCode, "must be an integer");
+    }
+
+    @Test
+    void mergesAndRewritesCheckerStagesWithExplorationMetrics() throws Exception {
+        var tlcMetrics = ExplorationMetrics.builder()
+                .phase(ExplorationPhase.EXPLORE)
+                .count(ExplorationCount.INIT_STATES, 1)
+                .count(ExplorationCount.DISTINCT_STATES, 4)
+                .count(ExplorationCount.DEPTH, 3)
+                .count(ExplorationCount.TRACE_LENGTH, 3)
+                .saturated(true)
+                .build();
+        var apalacheMetrics = ExplorationMetrics.builder()
+                .count(ExplorationCount.TRACE_LENGTH, 3)
+                .build();
+        var input = CorpusInputCodec.encode(new CorpusInput(InputKind.MODULE, new byte[] {4, 2}));
+        var tlc = CorpusEnvelopeCodec.withStageMetadata(input, counterexample("tlc", tlcMetrics));
+        var apalache = CorpusEnvelopeCodec.withStageMetadata(input, counterexample("apalache", apalacheMetrics));
+
+        var merged = CorpusEnvelopeCodec.mergeWithStageMetadata(
+                List.of(tlc, apalache),
+                new StageMetadata(
+                        "aggregator", CorpusVerdict.PASS, Instant.ofEpochSecond(7), Instant.ofEpochSecond(8)));
+        var stages = CorpusEnvelopeCodec.decodeEnvelope(merged).stages();
+        var tree = new ObjectMapper(FACTORY).readTree(merged).path("stages");
+
+        assertEquals(Optional.of(tlcMetrics), stages.get(0).metrics());
+        assertEquals(Optional.of(apalacheMetrics), stages.get(1).metrics());
+        assertEquals(Optional.empty(), stages.get(2).metrics());
+        assertEquals("explore", tree.path("tlc").path("metrics").path("phase").textValue());
+        assertTrue(tree.path("tlc").path("metrics").path("saturated").booleanValue());
+        assertEquals(
+                List.of("traceLength"),
+                tree.path("apalache").path("metrics").properties().stream()
+                        .map(Map.Entry::getKey)
+                        .toList());
+    }
+
+    @Test
+    void keepsExplorationMetricsThisBuildDoesNotKnow() throws Exception {
+        var encoded = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "module");
+            generator.writeBinaryField("input", new byte[] {1});
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("tlc");
+            generator.writeStringField("verdict", "pass");
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeObjectFieldStart("metrics");
+            generator.writeStringField("phase", "complete");
+            generator.writeNumberField("depth", 2);
+            generator.writeNumberField("futureMetric", 7);
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        var rewritten = CorpusEnvelopeCodec.withStageMetadata(
+                encoded,
+                new StageMetadata(
+                        "aggregator", CorpusVerdict.PASS, Instant.ofEpochSecond(13), Instant.ofEpochSecond(14)));
+        var metrics = CorpusEnvelopeCodec.decodeEnvelope(rewritten).stages().getFirst().metrics().orElseThrow();
+        var stored = new ObjectMapper(FACTORY).readTree(rewritten).path("stages").path("tlc").path("metrics");
+
+        assertEquals(Optional.of(ExplorationPhase.COMPLETE), metrics.phase());
+        assertEquals(2L, metrics.count(ExplorationCount.DEPTH).orElseThrow());
+        assertFalse(metrics.saturated());
+        assertEquals(7, stored.path("futureMetric").intValue());
+        assertFalse(stored.has("saturated"));
+    }
+
+    @Test
+    void rejectsInvalidExplorationMetrics() throws Exception {
+        assertInvalidEnvelope(
+                metricsEnvelope("crashed", generator -> generator.writeNumberField("depth", 1)),
+                "a crashed stage records no exploration metrics");
+        assertInvalidEnvelope(
+                metricsEnvelope("pass", generator -> generator.writeNumberField("traceLength", 1)),
+                "a trace length requires the counterexample verdict");
+        assertInvalidEnvelope(
+                metricsEnvelope("pass", generator -> generator.writeNumberField("depth", -1)),
+                "must be nonnegative");
+        assertInvalidEnvelope(
+                metricsEnvelope("pass", generator -> generator.writeStringField("phase", "done")),
+                "unsupported exploration phase: done");
+        assertInvalidEnvelope(
+                metricsEnvelope("pass", generator -> generator.writeNumberField("saturated", 1)),
+                "must be a Boolean");
+    }
+
+    private static StageMetadata counterexample(String stage, ExplorationMetrics metrics) {
+        return new StageMetadata(
+                stage,
+                new StageRecord(
+                        CorpusVerdict.COUNTEREXAMPLE,
+                        Instant.ofEpochSecond(10),
+                        Instant.ofEpochSecond(12),
+                        Optional.empty(),
+                        Optional.of(metrics)));
+    }
+
+    private static byte[] metricsEnvelope(String verdict, CborDocuments.CborWriter metrics)
+            throws Exception {
+        return cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "module");
+            generator.writeBinaryField("input", new byte[] {1});
+            generator.writeObjectFieldStart("stages");
+            generator.writeObjectFieldStart("tlc");
+            generator.writeStringField("verdict", verdict);
+            writeTaggedEpoch(generator, "startTime", Instant.ofEpochSecond(10));
+            writeTaggedEpoch(generator, "endTime", Instant.ofEpochSecond(12));
+            generator.writeObjectFieldStart("metrics");
+            metrics.write(generator);
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
     }
 
     @Test

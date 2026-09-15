@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import java.time.Instant;
 import java.util.Objects;
@@ -52,6 +53,10 @@ public record StageMetadata(String stage, StageRecord record) {
 
     public Optional<CheckerFailure> failure() {
         return record.failure();
+    }
+
+    public Optional<ExplorationMetrics> metrics() {
+        return record.metrics();
     }
 
     /** Checks the stage name before the record, so a blank name is reported first. */

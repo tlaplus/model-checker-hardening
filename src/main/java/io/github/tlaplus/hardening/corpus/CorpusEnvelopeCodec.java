@@ -3,6 +3,9 @@ package io.github.tlaplus.hardening.corpus;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.checker.ExplorationCount;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import java.io.IOException;
 import java.time.Instant;
@@ -31,10 +34,13 @@ public final class CorpusEnvelopeCodec {
     private static final String DETAIL_FIELD = "detail";
     private static final String START_TIME_FIELD = "startTime";
     private static final String END_TIME_FIELD = "endTime";
+    private static final String METRICS_FIELD = "metrics";
+    private static final String PHASE_FIELD = "phase";
+    private static final String SATURATED_FIELD = "saturated";
 
     /** Every field this build writes into a stage's metadata; any other field is preserved. */
-    private static final Set<String> STAGE_METADATA_FIELDS =
-            Set.of(VERDICT_FIELD, CODE_FIELD, DETAIL_FIELD, START_TIME_FIELD, END_TIME_FIELD);
+    private static final Set<String> STAGE_METADATA_FIELDS = Set.of(
+            VERDICT_FIELD, CODE_FIELD, DETAIL_FIELD, START_TIME_FIELD, END_TIME_FIELD, METRICS_FIELD);
 
     private CorpusEnvelopeCodec() {}
 
@@ -238,6 +244,7 @@ public final class CorpusEnvelopeCodec {
         Instant endTime = null;
         Integer failureCode = null;
         String failureDetail = null;
+        ExplorationMetrics metrics = null;
         CborReader.Field field;
         while ((field = reader.nextField(stage.path())) != null) {
             switch (field.name()) {
@@ -246,6 +253,7 @@ public final class CorpusEnvelopeCodec {
                 case END_TIME_FIELD -> endTime = reader.epoch(field);
                 case CODE_FIELD -> failureCode = reader.intValue(field);
                 case DETAIL_FIELD -> failureDetail = reader.text(field);
+                case METRICS_FIELD -> metrics = readMetrics(reader, field);
                 default -> reader.skipValue();
             }
         }
@@ -270,16 +278,56 @@ public final class CorpusEnvelopeCodec {
                             Optional.ofNullable(failureDetail)));
             return new StageMetadata(
                     stage.name(),
-                    CorpusVerdict.fromEncodedName(requiredVerdict),
-                    requiredStart,
-                    requiredEnd,
-                    failure);
+                    new StageRecord(
+                            CorpusVerdict.fromEncodedName(requiredVerdict),
+                            requiredStart,
+                            requiredEnd,
+                            failure,
+                            Optional.ofNullable(metrics)));
         } catch (IllegalArgumentException exception) {
             throw CborReader.malformed(
                     "invalid metadata for stage '"
                             + stage.name()
                             + "': "
                             + Diagnostics.message(exception));
+        }
+    }
+
+    /** Reads the exploration metrics that {@code metrics} names, passing over unknown fields. */
+    private static ExplorationMetrics readMetrics(CborReader reader, CborReader.Field metrics)
+            throws IOException {
+        reader.requireMap(metrics);
+        var builder = ExplorationMetrics.builder();
+        CborReader.Field field;
+        while ((field = reader.nextField(metrics.path())) != null) {
+            switch (field.name()) {
+                case PHASE_FIELD -> builder.phase(readPhase(reader, field));
+                case SATURATED_FIELD -> builder.saturated(reader.booleanValue(field));
+                default -> {
+                    var count = ExplorationCount.fromFieldName(field.name());
+                    if (count.isEmpty()) {
+                        reader.skipValue();
+                        continue;
+                    }
+                    var value = reader.longValue(field);
+                    if (value < 0) {
+                        throw CborReader.malformed("field '" + field.path() + "' must be nonnegative");
+                    }
+                    builder.count(count.get(), value);
+                }
+            }
+        }
+        return builder.build();
+    }
+
+    private static ExplorationPhase readPhase(CborReader reader, CborReader.Field field)
+            throws IOException {
+        var name = reader.text(field);
+        try {
+            return ExplorationPhase.fromEncodedName(name);
+        } catch (IllegalArgumentException exception) {
+            throw CborReader.malformed(
+                    "field '" + field.path() + "': " + Diagnostics.message(exception));
         }
     }
 
@@ -296,10 +344,34 @@ public final class CorpusEnvelopeCodec {
         });
         map.epoch(START_TIME_FIELD, metadata.startTime());
         map.epoch(END_TIME_FIELD, metadata.endTime());
+        metadata.metrics().ifPresent(metrics -> map.map(
+                METRICS_FIELD,
+                metricsMap(metrics, previous == null ? null : previous.get(METRICS_FIELD))));
         if (previous != null) {
             for (Map.Entry<String, JsonNode> field : previous.properties()) {
                 if (!STAGE_METADATA_FIELDS.contains(field.getKey())) {
                     map.tree(field.getKey(), field.getValue());
+                }
+            }
+        }
+        return map;
+    }
+
+    /** Writes exploration metrics, keeping any metric of {@code previous} this build does not know. */
+    private static CborMapWriter metricsMap(ExplorationMetrics metrics, JsonNode previous) {
+        var map = new CborMapWriter();
+        metrics.phase().ifPresent(phase -> map.string(PHASE_FIELD, phase.encodedName()));
+        metrics.counts().forEach((count, value) -> map.number(count.fieldName(), value));
+        if (metrics.saturated()) {
+            map.bool(SATURATED_FIELD, true);
+        }
+        if (previous != null && previous.isObject()) {
+            for (Map.Entry<String, JsonNode> field : previous.properties()) {
+                var name = field.getKey();
+                if (!PHASE_FIELD.equals(name)
+                        && !SATURATED_FIELD.equals(name)
+                        && ExplorationCount.fromFieldName(name).isEmpty()) {
+                    map.tree(name, field.getValue());
                 }
             }
         }
