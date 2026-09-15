@@ -42,7 +42,10 @@ database. The [manual][manual] documents the schema, which is the contract.
   change detection and no migration. The schema version is stored in `PRAGMA
   user_version`. A database with an old version is exported again.
 - **Atomic replacement.** The export writes a temporary file in the target
-  directory and renames it over the target only after it commits. The one
+  directory and publishes it only after it commits: with `--force` by a rename
+  over the target, and without it by a hard link, which refuses a target that
+  exists at that moment. A rename cannot refuse one, because POSIX `rename`
+  replaces an existing target. The one
   transaction runs with `journal_mode = OFF` and `synchronous = OFF`: a crash
   leaves only a temporary file behind, so there is nothing to recover.
 

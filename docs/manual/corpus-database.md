@@ -28,7 +28,7 @@ fuzztla export-db --corpus corpus23 --max-cpus=4        # replay inputs on 4 thr
 - `-o`, `--output FILE`: the database file. The default is `corpus.sqlite` in
   the corpus root.
 - `--force`: replace `FILE` if it exists. Without it the command refuses and
-  leaves the file unchanged.
+  leaves the file unchanged, including a file created while the export runs.
 - `--no-lock`: do not take the corpus lock. By default the export takes the same
   exclusive lock as `fuzztla run`, so it fails while a run holds the lock and a
   run cannot start during an export. With `--no-lock`, the export reads a corpus

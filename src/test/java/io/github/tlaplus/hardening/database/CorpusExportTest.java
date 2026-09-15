@@ -23,6 +23,8 @@ import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StageRecord;
 import io.github.tlaplus.hardening.gen.InputKind;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -171,6 +173,32 @@ class CorpusExportTest {
         try (var connection = connect(output)) {
             assertEquals(List.of(List.of(1L)), rows(connection, "SELECT count(*) FROM entry"));
         }
+        try (var files = Files.list(directory)) {
+            assertEquals(List.of(output), files.filter(Files::isRegularFile).toList());
+        }
+    }
+
+    @Test
+    void refusesAnOutputCreatedWhileTheExportRuns(@TempDir Path directory) throws Exception {
+        var root = corpus(directory);
+        store(root, CorpusPath.INPUT, InputKind.EXPRESSION, "input", Optional.empty());
+        var output = directory.resolve("raced.sqlite");
+        var concurrent = "written during replay".getBytes(StandardCharsets.UTF_8);
+        InputAnalysis createOutput = input -> {
+            try {
+                Files.write(output, concurrent);
+            } catch (IOException exception) {
+                throw new UncheckedIOException(exception);
+            }
+            return analyze(input);
+        };
+
+        assertThrows(
+                CorpusDatabaseException.class,
+                () -> CorpusExport.run(
+                        new CorpusExport.Options(root, output, false, true, PROVENANCE),
+                        new CorpusExport.Analysis(createOutput, 1)));
+        assertArrayEquals(concurrent, Files.readAllBytes(output));
         try (var files = Files.list(directory)) {
             assertEquals(List.of(output), files.filter(Files::isRegularFile).toList());
         }

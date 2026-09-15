@@ -10,7 +10,9 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
@@ -22,9 +24,10 @@ import java.util.Objects;
 /**
  * Exports a corpus to a new SQLite database, as ADR 0009 defines it.
  *
- * <p>The export writes a temporary file beside the output and moves it onto the output only after
- * the transaction commits, so a failed or interrupted export leaves no partial database. It never
- * writes to the corpus. {@link EntryBatchExporter} reads, replays and inserts the entries.
+ * <p>The export writes a temporary file beside the output and publishes it only after the
+ * transaction commits, so a failed or interrupted export leaves no partial database. Without
+ * {@link Options#replace()}, publication refuses an output that exists at that moment, even one
+ * created while the export ran. It never writes to the corpus. {@link EntryBatchExporter} reads, replays and inserts the entries.
  */
 public final class CorpusExport {
     /**
@@ -96,20 +99,16 @@ public final class CorpusExport {
         Objects.requireNonNull(analysis, "analysis");
         var corpus = CorpusDirectory.openExisting(options.corpus());
         var output = options.output().toAbsolutePath().normalize();
-        if (!options.replace() && Files.exists(output)) {
-            throw new CorpusDatabaseException("database already exists: " + options.output());
+        // Fails fast before a long replay; publish() is what refuses an existing output.
+        if (!options.replace() && Files.exists(output, LinkOption.NOFOLLOW_LINKS)) {
+            throw alreadyExists(options.output());
         }
         try (var lock = options.lock() ? corpus.acquireExclusiveLock() : null) {
             var temporary = Files.createTempFile(
                     output.getParent(), "." + output.getFileName() + "-", ".tmp");
             try {
                 var summary = write(corpus, temporary, options, analysis);
-                if (options.replace()) {
-                    Files.move(temporary, output,
-                            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                } else {
-                    Files.move(temporary, output, StandardCopyOption.ATOMIC_MOVE);
-                }
+                publish(temporary, output, options.replace());
                 return summary;
             } catch (IOException
                     | CorpusException
@@ -121,6 +120,38 @@ public final class CorpusExport {
                 throw exception;
             }
         }
+    }
+
+    /**
+     * Moves the committed {@code temporary} file onto {@code output}.
+     *
+     * <p>A rename replaces an existing target on POSIX systems whatever the copy options say, so
+     * without {@code replace} the file is published by a hard link, which refuses an existing
+     * target atomically, and the temporary name is removed afterwards. A file system without hard
+     * links is refused rather than published by a rename that could overwrite a file.
+     */
+    static void publish(Path temporary, Path output, boolean replace)
+            throws IOException, CorpusDatabaseException {
+        if (replace) {
+            Files.move(temporary, output,
+                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            return;
+        }
+        try {
+            Files.createLink(output, temporary);
+        } catch (FileAlreadyExistsException exception) {
+            throw alreadyExists(output);
+        } catch (UnsupportedOperationException exception) {
+            throw new CorpusDatabaseException(
+                    "cannot publish '" + output + "' without replacing: the file system has no"
+                            + " hard links; use --force",
+                    exception);
+        }
+        Files.delete(temporary);
+    }
+
+    private static CorpusDatabaseException alreadyExists(Path output) {
+        return new CorpusDatabaseException("database already exists: " + output);
     }
 
     private static Summary write(
