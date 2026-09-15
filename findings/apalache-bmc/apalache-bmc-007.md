@@ -141,6 +141,23 @@ Apalache 0.62.2 and the 0.62.3-SNAPSHOT build `129af5d` both report `NoError`
 for this module and for the corpus input. TLC reports
 `Invariant Inv is violated by the initial state` with `flag = FALSE`.
 
+## Reached through set difference
+
+Removing finitely many elements from `Nat` or `Int` leaves an infinite set, and
+Apalache 0.62.2 answers that it is finite. With
+`Init == x = 0`, `Next == UNCHANGED x` and `--length=3`:
+
+| `Inv` | Apalache 0.62.2 | TLC |
+| --- | --- | --- |
+| `IsFiniteSet(Nat \ {1})` | `NoError` | `The invariant of Inv is equal to FALSE` (2230) |
+| `~IsFiniteSet(Nat \ {1})` | counterexample | no error |
+| `IsFiniteSet(Int \ (0 .. 3))` | `NoError` | `The invariant of Inv is equal to FALSE` (2230) |
+
+In the `module` corpus23, one aggregator deviation, `5a1b4158`, has this shape:
+its invariant is `IsFiniteSet(Nat \ S)` for a set `S` computed from the state. TLC
+reports `Invariant Inv is violated by the initial state`, and Apalache reports
+`NoError`.
+
 ## Expected behavior
 
 `Int` and `Nat` are infinite, so `IsFiniteSet` applied to either must evaluate

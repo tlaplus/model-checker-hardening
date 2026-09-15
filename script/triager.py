@@ -287,6 +287,18 @@ SIGNATURES = (
                            r"^<unknown>: unexpected expression: +E@")),
     finding("apalache-temporal-002.md", CrashKind.APALACHE,
             apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\.")),
+    # Without a temporal property, the same SubstRule message is the uninitialized
+    # CONSTANTS case that its hint names; generated modules declare no constants.
+    finding("apalache-temporal-003.md", CrashKind.APALACHE,
+            all_of(r"^Apalache exited with status 255$",
+                   r"^  > Set a temporal property to \w+",
+                   r"^Input error \(see the manual\): SubstRule: Variable \S+ is not assigned a value")),
+    finding("apalache-temporal-004.md", CrashKind.APALACHE,
+            apalache_error(r"^java\.lang\.IllegalArgumentException: Variable names should never contain more than one separator$")),
+    # The builder's stack-unsafe State.run, reached from the bounded checker's
+    # encoding; the trace may start in collection or type-unifier frames above typecomp.
+    finding("apalache-builder-001.md", CrashKind.APALACHE,
+            apalache_error(r"^java\.lang\.StackOverflowError\n(?:\tat .+\n)*?\tat at\.forsyte\.apalache\.tla\.typecomp\.")),
 )
 
 # These signatures intentionally use only diagnostics that uniquely identify a
