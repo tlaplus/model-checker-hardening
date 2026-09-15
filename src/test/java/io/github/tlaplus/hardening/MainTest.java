@@ -178,7 +178,7 @@ class MainTest {
         try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + output);
                 var rows = connection.createStatement().executeQuery(
                         "SELECT e.evaluatedNodes, e.replayError, count(o.name) FROM entry e"
-                                + " LEFT JOIN operator o ON o.entryId = e.id GROUP BY e.id")) {
+                                + " LEFT JOIN expr o ON o.entryId = e.id GROUP BY e.id")) {
             assertTrue(rows.next());
             assertTrue(rows.getLong(1) > 0);
             assertNull(rows.getString(2));

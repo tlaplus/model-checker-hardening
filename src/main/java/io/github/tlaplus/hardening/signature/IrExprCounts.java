@@ -20,15 +20,15 @@ import java.util.TreeMap;
  * are not counted.
  *
  * @param nodes the evaluated subexpressions, labels excluded
- * @param operators the occurrences of each construct, keyed by its name
+ * @param exprs the occurrences of each expression construct, keyed by its name
  */
-public record IrOperatorCounts(long nodes, SortedMap<String, Long> operators) {
+public record IrExprCounts(long nodes, SortedMap<String, Long> exprs) {
     /** The name of a {@code LET-IN} construct: its {@code kind} in Apalache's IR JSON. */
     public static final String LET_IN = "LetInEx";
 
-    public IrOperatorCounts {
-        operators = Collections.unmodifiableSortedMap(
-                new TreeMap<>(Objects.requireNonNull(operators, "operators")));
+    public IrExprCounts {
+        exprs = Collections.unmodifiableSortedMap(
+                new TreeMap<>(Objects.requireNonNull(exprs, "exprs")));
     }
 
     /**
@@ -36,9 +36,9 @@ public record IrOperatorCounts(long nodes, SortedMap<String, Long> operators) {
      *
      * @throws IllegalArgumentException if the module does not define a root
      */
-    public static IrOperatorCounts evaluated(TlaModule module, List<String> roots) {
+    public static IrExprCounts evaluated(TlaModule module, List<String> roots) {
         var subexpressions = IrTree.evaluatedSubexpressions(module, roots);
-        var operators = new TreeMap<String, Long>();
+        var exprs = new TreeMap<String, Long>();
         for (var subexpression : subexpressions) {
             var name = switch (subexpression) {
                 case OperEx application -> application.oper().name();
@@ -47,10 +47,10 @@ public record IrOperatorCounts(long nodes, SortedMap<String, Long> operators) {
                 default -> null;
             };
             if (name != null) {
-                operators.merge(name, 1L, Long::sum);
+                exprs.merge(name, 1L, Long::sum);
             }
         }
-        return new IrOperatorCounts(subexpressions.size(), operators);
+        return new IrExprCounts(subexpressions.size(), exprs);
     }
 
     /**

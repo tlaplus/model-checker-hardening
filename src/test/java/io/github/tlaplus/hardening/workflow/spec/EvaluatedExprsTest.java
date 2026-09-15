@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
-import io.github.tlaplus.hardening.signature.IrOperatorCounts;
+import io.github.tlaplus.hardening.signature.IrExprCounts;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
@@ -17,7 +17,7 @@ import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class EvaluatedOperatorsTest {
+class EvaluatedExprsTest {
     private final SpecDecoders decoders = SpecDecoders.of(IrGenerationConfig.defaults());
 
     @Test
@@ -26,14 +26,14 @@ class EvaluatedOperatorsTest {
         new Random(42).nextBytes(bytes);
         var input = new CorpusInput(InputKind.MODULE, bytes);
 
-        var counts = new EvaluatedOperators(decoders).count(input);
+        var counts = new EvaluatedExprs(decoders).count(input);
 
-        assertFalse(counts.operators().isEmpty());
-        assertTrue(counts.nodes() >= counts.operators().values().stream().mapToLong(Long::longValue).sum());
+        assertFalse(counts.exprs().isEmpty());
+        assertTrue(counts.nodes() >= counts.exprs().values().stream().mapToLong(Long::longValue).sum());
         assertEquals(
-                IrOperatorCounts.evaluated(decoders.decode(input).module(), FuzzInputModule.ENTRY_POINTS),
+                IrExprCounts.evaluated(decoders.decode(input).module(), FuzzInputModule.ENTRY_POINTS),
                 counts);
-        assertEquals(counts, new EvaluatedOperators(decoders).count(input));
+        assertEquals(counts, new EvaluatedExprs(decoders).count(input));
     }
 
     @Test
@@ -44,7 +44,7 @@ class EvaluatedOperatorsTest {
             new Random(seed).nextBytes(bytes);
             var input = new CorpusInput(InputKind.MODULE, bytes);
             var json = new ObjectMapper().readTree(ApalacheIrJson.render(decoders.decode(input).module()));
-            var counted = new EvaluatedOperators(decoders).count(input).operators().keySet();
+            var counted = new EvaluatedExprs(decoders).count(input).exprs().keySet();
 
             var serialized = new HashSet<String>();
             collectNames(json, serialized);
@@ -52,7 +52,7 @@ class EvaluatedOperatorsTest {
             names.addAll(counted);
         }
 
-        assertTrue(names.contains(IrOperatorCounts.LET_IN), names::toString);
+        assertTrue(names.contains(IrExprCounts.LET_IN), names::toString);
         assertTrue(names.containsAll(Set.of("TlaInt", "TlaStr", "TlaBool")), names::toString);
     }
 
@@ -68,7 +68,7 @@ class EvaluatedOperatorsTest {
 
     @Test
     void replaysAnExpressionInput() {
-        var counts = new EvaluatedOperators(decoders).count(new CorpusInput(InputKind.EXPRESSION, new byte[0]));
+        var counts = new EvaluatedExprs(decoders).count(new CorpusInput(InputKind.EXPRESSION, new byte[0]));
 
         assertTrue(counts.nodes() > 0);
     }

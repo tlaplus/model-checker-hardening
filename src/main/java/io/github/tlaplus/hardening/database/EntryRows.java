@@ -35,14 +35,14 @@ import java.util.List;
 
 /**
  * The rows that one decoded corpus entry contributes: its {@code entry} row, one {@code
- * knownDefect} row per signature, one {@code stage} row per stage record and one {@code operator}
- * row per operator of its replayed input.
+ * knownDefect} row per signature, one {@code stage} row per stage record and one {@code expr} row
+ * per expression construct of its replayed input.
  */
-record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> operators) {
+record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> exprs) {
     EntryRows {
         knownDefects = List.copyOf(knownDefects);
         stages = List.copyOf(stages);
-        operators = List.copyOf(operators);
+        exprs = List.copyOf(exprs);
     }
 
     /** Maps an entry file, which the database identifies by {@code id}, to its rows. */
@@ -70,19 +70,19 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> 
         for (var stage : envelope.stages()) {
             stages.add(stageRow(id, stage));
         }
-        var operators = new ArrayList<Row>();
+        var exprs = new ArrayList<Row>();
         switch (replay) {
             case ReplayOutcome.Replayed(var features) -> {
                 entry.set(EVALUATED_NODES, features.evaluatedNodes());
-                features.operators().forEach((name, occurrences) -> operators.add(
-                        new Row(DatabaseTable.OPERATOR)
+                features.exprs().forEach((name, occurrences) -> exprs.add(
+                        new Row(DatabaseTable.EXPR)
                                 .set(ENTRY_ID, id)
                                 .set(NAME, name)
                                 .set(OCCURRENCES, occurrences)));
             }
             case ReplayOutcome.Failed(var error) -> entry.set(REPLAY_ERROR, error);
         }
-        return new EntryRows(entry, knownDefects, stages, operators);
+        return new EntryRows(entry, knownDefects, stages, exprs);
     }
 
     /** Returns the row of an entry file that does not decode. */
@@ -96,11 +96,11 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> 
     /** Every row, parents first. */
     List<Row> all() {
         var rows = new ArrayList<Row>(
-                1 + knownDefects.size() + stages.size() + operators.size());
+                1 + knownDefects.size() + stages.size() + exprs.size());
         rows.add(entry);
         rows.addAll(knownDefects);
         rows.addAll(stages);
-        rows.addAll(operators);
+        rows.addAll(exprs);
         return rows;
     }
 

@@ -103,7 +103,7 @@ class CorpusExportTest {
             assertEquals(
                     List.of(row("EQ", 1L), row("SET_ENUM", 10L)),
                     rows(connection,
-                            "SELECT o.name, o.occurrences FROM operator o JOIN entry e ON e.id = o.entryId"
+                            "SELECT o.name, o.occurrences FROM expr o JOIN entry e ON e.id = o.entryId"
                                     + " WHERE e.hash = '" + aggregated + "' ORDER BY o.name"));
             assertEquals(
                     List.of(row("modulo-by-zero", 0L), row("string-set", 1L)),
@@ -219,7 +219,7 @@ class CorpusExportTest {
             assertEquals(
                     List.of(row(replayed)),
                     rows(connection,
-                            "SELECT DISTINCT e.hash FROM operator o JOIN entry e ON e.id = o.entryId"));
+                            "SELECT DISTINCT e.hash FROM expr o JOIN entry e ON e.id = o.entryId"));
         }
     }
 
@@ -241,7 +241,7 @@ class CorpusExportTest {
             try (var connection = connect(output)) {
                 var tables = new ArrayList<List<Object>>();
                 tables.addAll(rows(connection, "SELECT * FROM entry ORDER BY id"));
-                tables.addAll(rows(connection, "SELECT * FROM operator ORDER BY entryId, name"));
+                tables.addAll(rows(connection, "SELECT * FROM expr ORDER BY entryId, name"));
                 contents.add(tables);
             }
         }

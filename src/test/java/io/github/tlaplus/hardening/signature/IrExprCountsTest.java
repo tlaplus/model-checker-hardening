@@ -10,11 +10,11 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
-class IrOperatorCountsTest {
+class IrExprCountsTest {
     private final TlaTypedScopeUncheckedBuilder builder = new TlaTypedScopeUncheckedBuilder();
 
     @Test
-    void countsOperatorsOfReachableDefinitionsOnceAndSkipsLabels() {
+    void countsConstructsOfReachableDefinitionsOnceAndSkipsLabels() {
         var helper = builder.decl(
                 "Helper", builder.label(builder.plus(builder.integer(1), builder.integer(2)), "lab"));
         var unused = builder.decl("Unused", builder.plus(builder.integer(3), builder.integer(4)));
@@ -26,7 +26,7 @@ class IrOperatorCountsTest {
                         builder.letIn(builder.bool(true), local)));
         var module = TlaModules.create("M", List.of(helper, unused, inv));
 
-        var counts = IrOperatorCounts.evaluated(module, List.of("Inv"));
+        var counts = IrExprCounts.evaluated(module, List.of("Inv"));
 
         // Helper is walked once although referenced twice; Unused is never reached; the LET
         // definition is walked although nothing references it; the label is transparent; the
@@ -37,10 +37,10 @@ class IrOperatorCountsTest {
                         "EQ", 1L,
                         "PLUS", 1L,
                         "MINUS", 1L,
-                        IrOperatorCounts.LET_IN, 1L,
+                        IrExprCounts.LET_IN, 1L,
                         "TlaInt", 4L,
                         "TlaBool", 1L),
-                counts.operators());
+                counts.exprs());
         assertEquals(IrTree.evaluatedSubexpressions(module, List.of("Inv")).size(), counts.nodes());
     }
 
@@ -54,7 +54,7 @@ class IrOperatorCountsTest {
                         builder.in(builder.bool(true), builder.booleanSet()),
                         builder.in(builder.integer(-1), builder.intSet())));
 
-        var counts = IrOperatorCounts.evaluated(TlaModules.create("M", List.of(inv)), List.of("Inv"));
+        var counts = IrExprCounts.evaluated(TlaModules.create("M", List.of(inv)), List.of("Inv"));
 
         assertEquals(
                 Map.of(
@@ -67,7 +67,7 @@ class IrOperatorCountsTest {
                         "TlaBool", 1L,
                         "TlaBoolSet", 1L,
                         "TlaIntSet", 1L),
-                counts.operators());
+                counts.exprs());
     }
 
     @Test
@@ -76,6 +76,6 @@ class IrOperatorCountsTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> IrOperatorCounts.evaluated(module, List.of("Inv")));
+                () -> IrExprCounts.evaluated(module, List.of("Inv")));
     }
 }

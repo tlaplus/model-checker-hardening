@@ -97,7 +97,7 @@ and `cli` passes it to `database` as an `InputAnalysis` (see below).
   damaged file therefore does not block analysis of the rest, and remains
   visible. Listing or I/O errors still fail the export.
 
-### Operators of the evaluated code
+### Expression constructs of the evaluated code
 
 The export replays every entry's input through the generator and stores, per
 entry, how often each operator, `LET-IN` form and kind of literal occurs in the
@@ -109,7 +109,7 @@ it exists for, and replay costs minutes, not hours.
   from `FuzzInputModule.ENTRY_POINTS`, the walk that known-defect signatures
   ([ADR 0006][adr-0006]) match against. It follows referenced top-level
   definitions, walks every `LET` definition and treats labels as transparent.
-  `signature.IrOperatorCounts` counts the constructs of the walk under their
+  `signature.IrExprCounts` counts the constructs of the walk under their
   names in Apalache's IR JSON:
   - an operator application (`OperEx`) by `TlaOper.name()`, the `oper` field,
     which is also the name a signature pattern uses;
@@ -117,7 +117,7 @@ it exists for, and replay costs minutes, not hours.
   - a literal (`ValEx`) by the `kind` of its value, such as `TlaInt` or
     `TlaNatSet`.
 
-  `EvaluatedOperatorsTest` checks every counted name against the IR JSON of
+  `EvaluatedExprsTest` checks every counted name against the IR JSON of
   generated modules. `LET-IN` and literals are counted because the checkers treat
   them as constructs of their own: in corpus22, 90% of entries evaluate a
   `LET-IN`, 1.96 million in total. Names (`NameEx`) are not counted. The size of
@@ -128,10 +128,10 @@ it exists for, and replay costs minutes, not hours.
   `LibraryManifest.verify`, as `fuzztla print --corpus` does. Replay records no
   generator-crash artifact: the export does not write to the corpus. A replay
   that throws a `RuntimeException` or `StackOverflowError` sets
-  `entry.replayError`, and the entry has no operator rows.
+  `entry.replayError`, and the entry has no `expr` rows.
 - **Layering.** `database.InputAnalysis` is a functional interface from
-  `CorpusInput` to `InputFeatures`, a node count and operator counts.
-  `workflow.spec.EvaluatedOperators` decodes and counts, and `cli` adapts it to
+  `CorpusInput` to `InputFeatures`, a node count and expression construct counts.
+  `workflow.spec.EvaluatedExprs` decodes and counts, and `cli` adapts it to
   `InputAnalysis` with a lambda. `database` imports neither `workflow` nor
   `signature`.
 - **Parallelism.** `EntryBatchExporter` processes the listing in chunks of 1,024
@@ -182,8 +182,8 @@ is counted as vanished and skipped. The export never changes a corpus entry.
   103,598 inputs in 124 s and walked their modules in 3 s, without a failure.
   The export of corpus22 takes 35 s on 8 threads (213 s of CPU, peak resident
   set 1.8 GB). On one thread it took 135 s (680 MB), measured before `LET-IN` and
-  literals were counted, and wrote identical tables. The database has 165 MB, of which `operator` (4.0 million rows) takes
-  84 MB. An index on `operator(name)` would add about 60 MB and save at most
+  literals were counted, and wrote identical tables. The database has 165 MB,
+  of which `expr` (4.0 million rows) takes 84 MB. An index on `expr(name)` would add about 60 MB and save at most
   0.1 s per query, so there is none. Without replay, the
   metadata alone exports in 23 s from a cold page cache and 4 s from a warm one;
   its `stage` table takes 45 MB, `entry` 11 MB, the unique index of `entry` 10 MB

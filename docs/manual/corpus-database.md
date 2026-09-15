@@ -51,8 +51,8 @@ The export reads every entry directory of the [corpus layout][storage], from
 `.stacktrace` sidecars, `.work/generator-crash`, or `.workflow-stats.cbor`.
 
 Besides the envelope, the export replays every entry's input through the
-generator, as `fuzztla print --corpus` does, and counts the operators of the
-resulting module (section 2.5). Replay uses the corpus's `config.toml` and
+generator, as `fuzztla print --corpus` does, and counts the operators, `LET-IN`
+forms and literals of the resulting module (section 2.5). Replay uses the corpus's `config.toml` and
 fails if the corpus's custom operator library has changed. Replay dominates the
 export time: about 1.2 ms of CPU per entry, so a corpus of 100,000 entries takes
 about two minutes on one thread. The export writes rows in the same order for
@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `3`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `4`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -90,7 +90,7 @@ records.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
-| `id` | INTEGER | no | Row id, referenced by `stage`, `knownDefect` and `operator` | – |
+| `id` | INTEGER | no | Row id, referenced by `stage`, `knownDefect` and `expr` | – |
 | `directory` | TEXT | no | Directory name, such as `03aggregator-pass` | file path |
 | `hash` | TEXT | no | SHA-256 of the input bytes, from the file name | file name |
 | `kind` | TEXT | no | `expr` or `module` | `kind` |
@@ -149,7 +149,7 @@ The metric columns, from `initStates` to `traceLength`, follow section 2 of the
 metric the checker did not measure is `NULL`, not 0. Entries checked before
 exploration metrics existed have `NULL` in every metric column.
 
-### 2.5. `operator`
+### 2.5. `expr`
 
 One row per construct that occurs in an entry's evaluated code: an operator
 application, a `LET-IN`, or a literal. The key is `(entryId, name)`.
@@ -213,7 +213,7 @@ two checkers' results side by side.
 
 ### 2.8. Indexes
 
-Besides the keys, `stage(stage, verdict)` is indexed. `operator` has no index on
+Besides the keys, `stage(stage, verdict)` is indexed. `expr` has no index on
 `name`: on corpus22 it would add 61 MB and save at most 0.1 s per query. The unique key
 `(hash, directory)` also serves lookups by `hash`. Every table except `entry` is
 stored `WITHOUT ROWID`.
@@ -275,7 +275,7 @@ Verdict pairs of the entries whose evaluated code applies `Sequences!Head`:
 
 ```sql
 SELECT p.tlc, p.apalache, count(*) AS entries
-FROM operator o JOIN verdictPair p ON p.entryId = o.entryId
+FROM expr o JOIN verdictPair p ON p.entryId = o.entryId
 WHERE o.name = 'Sequences!Head'
 GROUP BY p.tlc, p.apalache ORDER BY entries DESC;
 ```
@@ -290,7 +290,7 @@ SELECT o.name,
        sum(p.tlc = 'pass' AND p.apalache = 'fail') AS inSubset,
        round((sum(p.tlc = 'pass' AND p.apalache = 'fail') * 1.0 / (SELECT n FROM subset))
              / (count(*) * 1.0 / (SELECT n FROM total)), 2) AS lift
-FROM operator o JOIN verdictPair p ON p.entryId = o.entryId
+FROM expr o JOIN verdictPair p ON p.entryId = o.entryId
 GROUP BY o.name HAVING inSubset >= 5 ORDER BY lift DESC LIMIT 15;
 ```
 

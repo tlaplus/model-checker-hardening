@@ -34,8 +34,8 @@ enum DatabaseTable {
             List.of(),
             true),
     STAGE("stage", stageColumns(), List.of(ENTRY_ID, STAGE_NAME), List.of(), true),
-    OPERATOR(
-            "operator",
+    EXPR(
+            "expr",
             List.of(ENTRY_ID, NAME, OCCURRENCES),
             List.of(ENTRY_ID, NAME),
             List.of(),

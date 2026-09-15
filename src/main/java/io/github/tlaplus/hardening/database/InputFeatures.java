@@ -10,17 +10,17 @@ import java.util.TreeMap;
  * The static features of one input.
  *
  * @param evaluatedNodes the subexpressions the checkers evaluate
- * @param operators the applications of each operator in them, keyed by operator name
+ * @param exprs the occurrences of each expression construct in them, keyed by construct name
  */
-public record InputFeatures(long evaluatedNodes, Map<String, Long> operators) {
+public record InputFeatures(long evaluatedNodes, Map<String, Long> exprs) {
     public InputFeatures {
         Preconditions.requireNonnegative(evaluatedNodes, "evaluatedNodes");
         var copy = new TreeMap<String, Long>();
-        Objects.requireNonNull(operators, "operators").forEach((name, occurrences) -> {
+        Objects.requireNonNull(exprs, "exprs").forEach((name, occurrences) -> {
             Objects.requireNonNull(name, "name");
             Preconditions.requireNonnegative(Objects.requireNonNull(occurrences, "occurrences"), name);
             copy.put(name, occurrences);
         });
-        operators = Collections.unmodifiableMap(copy);
+        exprs = Collections.unmodifiableMap(copy);
     }
 }
