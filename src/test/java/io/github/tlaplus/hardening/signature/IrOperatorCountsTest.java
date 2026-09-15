@@ -29,9 +29,45 @@ class IrOperatorCountsTest {
         var counts = IrOperatorCounts.evaluated(module, List.of("Inv"));
 
         // Helper is walked once although referenced twice; Unused is never reached; the LET
-        // definition is walked although nothing references it; the label is transparent.
-        assertEquals(Map.of("AND", 1L, "EQ", 1L, "PLUS", 1L, "MINUS", 1L), counts.operators());
+        // definition is walked although nothing references it; the label is transparent; the
+        // names Helper are not constructs.
+        assertEquals(
+                Map.of(
+                        "AND", 1L,
+                        "EQ", 1L,
+                        "PLUS", 1L,
+                        "MINUS", 1L,
+                        IrOperatorCounts.LET_IN, 1L,
+                        "TlaInt", 4L,
+                        "TlaBool", 1L),
+                counts.operators());
         assertEquals(IrTree.evaluatedSubexpressions(module, List.of("Inv")).size(), counts.nodes());
+    }
+
+    @Test
+    void namesLiteralsByTheKindOfTheirValue() {
+        var inv = builder.decl(
+                "Inv",
+                builder.and(
+                        builder.in(builder.integer(1), builder.natSet()),
+                        builder.in(builder.str("a"), builder.stringSet()),
+                        builder.in(builder.bool(true), builder.booleanSet()),
+                        builder.in(builder.integer(-1), builder.intSet())));
+
+        var counts = IrOperatorCounts.evaluated(TlaModules.create("M", List.of(inv)), List.of("Inv"));
+
+        assertEquals(
+                Map.of(
+                        "AND", 1L,
+                        "SET_IN", 4L,
+                        "TlaInt", 2L,
+                        "TlaNatSet", 1L,
+                        "TlaStr", 1L,
+                        "TlaStrSet", 1L,
+                        "TlaBool", 1L,
+                        "TlaBoolSet", 1L,
+                        "TlaIntSet", 1L),
+                counts.operators());
     }
 
     @Test

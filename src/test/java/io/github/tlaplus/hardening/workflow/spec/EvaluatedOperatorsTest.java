@@ -8,7 +8,13 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.signature.IrOperatorCounts;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class EvaluatedOperatorsTest {
@@ -28,6 +34,36 @@ class EvaluatedOperatorsTest {
                 IrOperatorCounts.evaluated(decoders.decode(input).module(), FuzzInputModule.ENTRY_POINTS),
                 counts);
         assertEquals(counts, new EvaluatedOperators(decoders).count(input));
+    }
+
+    @Test
+    void namesConstructsAsApalachesIrJsonDoes() throws Exception {
+        var names = new HashSet<String>();
+        for (var seed = 0; seed < 20; seed++) {
+            var bytes = new byte[4_096];
+            new Random(seed).nextBytes(bytes);
+            var input = new CorpusInput(InputKind.MODULE, bytes);
+            var json = new ObjectMapper().readTree(ApalacheIrJson.render(decoders.decode(input).module()));
+            var counted = new EvaluatedOperators(decoders).count(input).operators().keySet();
+
+            var serialized = new HashSet<String>();
+            collectNames(json, serialized);
+            assertTrue(serialized.containsAll(counted), () -> "not in the IR JSON: " + counted);
+            names.addAll(counted);
+        }
+
+        assertTrue(names.contains(IrOperatorCounts.LET_IN), names::toString);
+        assertTrue(names.containsAll(Set.of("TlaInt", "TlaStr", "TlaBool")), names::toString);
+    }
+
+    /** Collects every {@code oper} and every {@code kind} value of the IR JSON. */
+    private static void collectNames(JsonNode node, Set<String> names) {
+        for (var field : List.of("oper", "kind")) {
+            if (node.path(field).isTextual()) {
+                names.add(node.path(field).textValue());
+            }
+        }
+        node.forEach(child -> collectNames(child, names));
     }
 
     @Test
