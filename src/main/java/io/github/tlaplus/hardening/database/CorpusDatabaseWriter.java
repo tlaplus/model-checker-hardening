@@ -31,7 +31,7 @@ final class CorpusDatabaseWriter implements AutoCloseable {
     /** Opens {@code file}, which must be absent or empty, and creates the tables. */
     static CorpusDatabaseWriter create(Path file) throws SQLException {
         Objects.requireNonNull(file, "file");
-        var connection = DriverManager.getConnection("jdbc:sqlite:" + file.toAbsolutePath());
+        var connection = DriverManager.getConnection(url(file));
         var writer = new CorpusDatabaseWriter(connection);
         try {
             try (var statement = connection.createStatement()) {
@@ -57,6 +57,15 @@ final class CorpusDatabaseWriter implements AutoCloseable {
             }
             throw exception;
         }
+    }
+
+    /**
+     * The JDBC URL of {@code file}, as a percent-encoded {@code file:} URI. sqlite-jdbc reads a
+     * {@code ?} in a plain file name as the start of connection pragmas and strips it, even when
+     * the name is passed separately, so a plain path could open a different file.
+     */
+    static String url(Path file) {
+        return "jdbc:sqlite:" + file.toAbsolutePath().toUri();
     }
 
     void insert(Row row) throws SQLException {

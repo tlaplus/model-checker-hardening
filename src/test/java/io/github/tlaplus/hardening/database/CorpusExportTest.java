@@ -205,6 +205,37 @@ class CorpusExportTest {
     }
 
     @Test
+    void writesOutputsWhosePathsLookLikeUrlSyntax(@TempDir Path directory) throws Exception {
+        var root = corpus(directory);
+        store(root, CorpusPath.INPUT, InputKind.EXPRESSION, "input", Optional.empty());
+        var parents = List.of(
+                directory.resolve("plain"), directory.resolve("dir?x=1&y#z"), directory.resolve("a b%41"));
+        var names = List.of(
+                "out.sqlite?busy_timeout=1000&suffix",
+                "a#b.sqlite",
+                "a%20b.sqlite",
+                "c:d;e.sqlite",
+                "file:x.sqlite");
+
+        for (var parent : parents) {
+            Files.createDirectories(parent);
+            for (var name : names) {
+                var output = parent.resolve(name);
+
+                assertEquals(1, run(root, output, false, true).entries(), output.toString());
+                try (var connection = connect(output)) {
+                    assertEquals(List.of(List.of(1L)), rows(connection, "SELECT count(*) FROM entry"));
+                }
+            }
+            try (var files = Files.list(parent)) {
+                assertEquals(
+                        names.stream().sorted().toList(),
+                        files.map(file -> file.getFileName().toString()).sorted().toList());
+            }
+        }
+    }
+
+    @Test
     void takesTheCorpusLockUnlessToldNotTo(@TempDir Path directory) throws Exception {
         var root = corpus(directory);
         store(root, CorpusPath.INPUT, InputKind.EXPRESSION, "input", Optional.empty());
@@ -332,7 +363,7 @@ class CorpusExportTest {
     }
 
     private static Connection connect(Path file) throws SQLException {
-        return DriverManager.getConnection("jdbc:sqlite:" + file);
+        return DriverManager.getConnection(CorpusDatabaseWriter.url(file));
     }
 
     private static List<List<Object>> rows(Connection connection, String query) throws SQLException {
