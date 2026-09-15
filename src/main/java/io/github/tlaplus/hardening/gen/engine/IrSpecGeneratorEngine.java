@@ -31,12 +31,6 @@ import org.apalache_mc.tla.jir.TlaDeclarations;
  * would not, so no expression form primes before the step update.
  */
 public final class IrSpecGeneratorEngine {
-    /**
-     * Name of the step counter that bounds exploration. Every disjunct advances it, and the bound
-     * predicate constrains it, so a generated module cannot run a checker forever.
-     */
-    private static final String STEP_VARIABLE = "step";
-
     private final IrGenerationConfig config;
 
     /**
@@ -85,7 +79,7 @@ public final class IrSpecGeneratorEngine {
             declarations.add(
                     TlaDeclarations.variable(variable.name(), type.toTlaType()));
         }
-        var step = ScopedName.stateVariable(STEP_VARIABLE, PrimitiveType.INT);
+        var step = ScopedName.stateVariable(GeneratedSpec.STEP_VARIABLE, PrimitiveType.INT);
         declarations.add(
                 TlaDeclarations.variable(step.name(), PrimitiveType.INT.toTlaType()));
 

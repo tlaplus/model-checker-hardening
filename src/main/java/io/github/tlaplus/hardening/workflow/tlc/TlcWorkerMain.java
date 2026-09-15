@@ -68,6 +68,8 @@ public final class TlcWorkerMain {
             if (!tlc.handleParameters(arguments)) {
                 throw new IOException("TLC rejected the fixed worker parameters");
             }
+            var metrics = new TlcExplorationMetrics();
+            metrics.install(tlc);
 
             ToolWorkerRuntime.serve(
                     connection,
@@ -82,7 +84,7 @@ public final class TlcWorkerMain {
                                 StandardCharsets.UTF_8,
                                 StandardOpenOption.CREATE_NEW,
                                 StandardOpenOption.WRITE);
-                        return check(tlc, diagnostics);
+                        return metrics.attach(check(tlc, diagnostics));
                     });
         }
     }
