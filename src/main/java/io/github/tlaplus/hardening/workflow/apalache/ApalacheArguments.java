@@ -18,9 +18,14 @@ final class ApalacheArguments {
      * specification. A module with fairness then makes Apalache report that limitation instead of
      * returning a counterexample the fairness would exclude.
      */
+    /** Returns the directory below which Apalache writes the runs of one job. */
+    static Path outputDirectory(Path jobDirectory) {
+        return jobDirectory.resolve("out");
+    }
+
     static String[] check(Path jobDirectory, Path specification, CheckRequest request) {
         var arguments = new ArrayList<String>();
-        arguments.add("--out-dir=" + jobDirectory.resolve("out"));
+        arguments.add("--out-dir=" + outputDirectory(jobDirectory));
         arguments.add("check");
         arguments.add("--init=" + FuzzInputModule.INIT);
         arguments.add("--next=" + FuzzInputModule.NEXT);

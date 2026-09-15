@@ -54,6 +54,10 @@ final class CborMapWriter {
         return field(name, generator -> generator.writeNumber(value));
     }
 
+    CborMapWriter bool(String name, boolean value) {
+        return field(name, generator -> generator.writeBoolean(value));
+    }
+
     /** Appends a field holding a nested map. */
     CborMapWriter map(String name, CborMapWriter nested) {
         Objects.requireNonNull(nested, "nested");

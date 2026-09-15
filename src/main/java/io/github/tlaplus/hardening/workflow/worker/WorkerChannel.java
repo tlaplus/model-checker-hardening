@@ -1,17 +1,12 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
-import io.github.tlaplus.hardening.checker.CheckerFailureCode;
-import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -68,7 +63,7 @@ final class WorkerChannel implements AutoCloseable {
     /** Reads one result under the supplied deadline. */
     ToolResult readResult(Duration timeout)
             throws InterruptedException, ExecutionException, TimeoutException {
-        return await(this::readResult, timeout);
+        return await(() -> ToolWorkerProtocol.readResult(input), timeout);
     }
 
     /** Asks the child to stop, ignoring a channel it has already closed. */
@@ -83,43 +78,6 @@ final class WorkerChannel implements AutoCloseable {
             socket.close();
         } catch (IOException ignored) {
             // The child process may already have closed its end of the connection.
-        }
-    }
-
-    private ToolResult readResult() throws IOException, WorkflowException {
-        var outcome = StageOutcome.fromProtocolCode(input.readInt());
-        var encodedFailureCode = input.readInt();
-        var failureCode = encodedFailureCode == ToolWorkerProtocol.NO_FAILURE_CODE
-                ? Optional.<CheckerFailureCode>empty()
-                : decodeFailureCode(encodedFailureCode);
-        var diagnosticLength = input.readInt();
-        if (diagnosticLength < 0
-                || diagnosticLength > ToolWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES) {
-            throw new WorkflowException(
-                    "worker returned an invalid diagnostic length: " + diagnosticLength);
-        }
-        var diagnosticBytes = input.readNBytes(diagnosticLength);
-        if (diagnosticBytes.length != diagnosticLength) {
-            throw new EOFException("truncated worker diagnostic");
-        }
-        try {
-            return new ToolResult(
-                    outcome,
-                    failureCode,
-                    new String(diagnosticBytes, StandardCharsets.UTF_8));
-        } catch (IllegalArgumentException exception) {
-            throw new WorkflowException(
-                    "worker returned an invalid failure classification", exception);
-        }
-    }
-
-    private static Optional<CheckerFailureCode> decodeFailureCode(int encodedCode)
-            throws WorkflowException {
-        try {
-            return Optional.of(CheckerFailureCode.fromEncodedCode(encodedCode));
-        } catch (IllegalArgumentException exception) {
-            throw new WorkflowException(
-                    "worker returned an unknown failure code: " + encodedCode, exception);
         }
     }
 

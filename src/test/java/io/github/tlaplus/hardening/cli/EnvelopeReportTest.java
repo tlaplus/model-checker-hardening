@@ -6,11 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.checker.ExplorationCount;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
+import io.github.tlaplus.hardening.corpus.StageRecord;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.time.Instant;
 import java.util.List;
@@ -35,6 +39,38 @@ class EnvelopeReportTest {
         assertTrue(report.contains("gen:"), report);
         assertTrue(report.contains("  cohort: 3"), report);
         assertTrue(report.contains("  richness: 0.25"), report);
+    }
+
+    @Test
+    void reportsExplorationMetricsOneFieldPerLine() {
+        var metrics = ExplorationMetrics.builder()
+                .phase(ExplorationPhase.EXPLORE)
+                .count(ExplorationCount.INIT_STATES, 1)
+                .count(ExplorationCount.TRACE_LENGTH, 3)
+                .saturated(true)
+                .build();
+        var report = EnvelopeReport.render(
+                envelope(
+                        Optional.empty(),
+                        List.of(new StageMetadata(
+                                "tlc",
+                                new StageRecord(
+                                        CorpusVerdict.COUNTEREXAMPLE,
+                                        Instant.ofEpochSecond(10),
+                                        Instant.ofEpochSecond(12),
+                                        Optional.empty(),
+                                        Optional.of(metrics))))),
+                INPUT);
+
+        var expected = String.join(
+                newline(),
+                "    metrics:",
+                "      phase: explore",
+                "      initStates: 1",
+                "      traceLength: 3",
+                "      saturated: true",
+                "input:");
+        assertTrue(report.contains(expected), report);
     }
 
     /** A passing stage carries no failure, so neither the code nor the detail line is printed. */

@@ -1,8 +1,11 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.checker.ExplorationCount;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
+import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
@@ -86,7 +89,8 @@ public final class ApalacheWorkerMain {
                 var exitStatus = (int) toolRun.invoke(
                         null, (Object) ApalacheArguments.check(jobDirectory, specification, request));
                 diagnosticStream.flush();
-                return ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text());
+                return withTraceLength(
+                        ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text()), jobDirectory);
             } catch (Exception | StackOverflowError exception) {
                 diagnosticStream.flush();
                 return ToolResult.crash(exception, diagnostics.text());
@@ -96,6 +100,19 @@ public final class ApalacheWorkerMain {
                 setScalaConsole(processError);
             }
         }
+    }
+
+    /** Attaches the counterexample's length, which Apalache wrote below the job's output directory. */
+    private static ToolResult withTraceLength(ToolResult result, Path jobDirectory) {
+        if (result.outcome() != StageOutcome.COUNTEREXAMPLE) {
+            return result;
+        }
+        var length = ApalacheTraceLength.read(ApalacheArguments.outputDirectory(jobDirectory));
+        return length.isEmpty()
+                ? result
+                : result.withMetrics(ExplorationMetrics.builder()
+                        .count(ExplorationCount.TRACE_LENGTH, length.getAsLong())
+                        .build());
     }
 
     private static void setScalaConsole(PrintStream stream) {

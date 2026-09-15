@@ -3,10 +3,14 @@ package io.github.tlaplus.hardening.workflow.tool;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.checker.ExplorationCount;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
@@ -26,8 +30,10 @@ import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
@@ -35,7 +41,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ToolStageTest {
     @Test
-    void replacesAWorkerAfterACrashAndClosesTheReplacement(@TempDir Path directory)
+    void replacesAWorkerAfterACrashAndStoresTheReplacementsMetrics(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var expression = IrGenerators.expressions().generate(new byte[0]);
@@ -80,9 +86,20 @@ class ToolStageTest {
         var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
         assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
         assertEquals(1, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH));
+        try (var passes = Files.list(corpus.resolve(CorpusPath.TLC_PASS))) {
+            var stored = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(passes.findFirst().orElseThrow()));
+            assertEquals(
+                    Optional.of(RestartingBackend.METRICS),
+                    stored.stages().getLast().metrics());
+        }
     }
 
     private static final class RestartingBackend implements ToolBackend {
+        private static final ExplorationMetrics METRICS = ExplorationMetrics.builder()
+                .phase(ExplorationPhase.COMPLETE)
+                .count(ExplorationCount.DISTINCT_STATES, 6)
+                .build();
+
         private final AtomicInteger starts = new AtomicInteger();
         private final AtomicInteger closes = new AtomicInteger();
         private final AtomicInteger renders = new AtomicInteger();
@@ -119,7 +136,7 @@ class ToolStageTest {
                     assertEquals("backend-specific input", input.text());
                     return ordinal == 0
                             ? new ToolResult(StageOutcome.CRASH, "deliberate crash")
-                            : new ToolResult(StageOutcome.PASS, "pass");
+                            : new ToolResult(StageOutcome.PASS, "pass").withMetrics(METRICS);
                 }
 
                 @Override

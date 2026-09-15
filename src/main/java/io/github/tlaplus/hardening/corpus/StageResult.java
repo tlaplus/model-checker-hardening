@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,6 +26,17 @@ public record StageResult(StageRecord record, String diagnostic) {
             Optional<CheckerFailure> failure,
             String diagnostic) {
         this(new StageRecord(verdict, startTime, endTime, failure), diagnostic);
+    }
+
+    /** A result of a stage that classifies failures and measures exploration. */
+    public StageResult(
+            CorpusVerdict verdict,
+            Instant startTime,
+            Instant endTime,
+            Optional<CheckerFailure> failure,
+            Optional<ExplorationMetrics> metrics,
+            String diagnostic) {
+        this(new StageRecord(verdict, startTime, endTime, failure, metrics), diagnostic);
     }
 
     /** A result of a stage that does not classify failures and produced no diagnostic. */
@@ -53,6 +65,10 @@ public record StageResult(StageRecord record, String diagnostic) {
 
     public Optional<CheckerFailure> failure() {
         return record.failure();
+    }
+
+    public Optional<ExplorationMetrics> metrics() {
+        return record.metrics();
     }
 
     /** Returns what the corpus stores for this result under {@code stage}. */

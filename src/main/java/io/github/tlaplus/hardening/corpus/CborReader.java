@@ -134,6 +134,13 @@ final class CborReader implements AutoCloseable {
         return parser.getBinaryValue();
     }
 
+    boolean booleanValue(Field field) throws CorpusFormatException {
+        if (field.value() != JsonToken.VALUE_TRUE && field.value() != JsonToken.VALUE_FALSE) {
+            throw malformed("field '" + field.path() + "' must be a Boolean");
+        }
+        return field.value() == JsonToken.VALUE_TRUE;
+    }
+
     long longValue(Field field) throws IOException {
         requireToken(field, JsonToken.VALUE_NUMBER_INT, "an integer");
         return parser.getLongValue();

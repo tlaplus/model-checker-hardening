@@ -46,6 +46,12 @@ public record GeneratedSpec(
         TlaEx invariant,
         Optional<TemporalProperty> property,
         int stepBound) {
+    /**
+     * Name of the step counter that bounds exploration. Every disjunct advances it, and its bound
+     * guards every disjunct, so a generated module cannot run a checker forever.
+     */
+    public static final String STEP_VARIABLE = "step";
+
     public GeneratedSpec {
         variables = List.copyOf(Objects.requireNonNull(variables, "variables"));
         if (variables.isEmpty()) {
