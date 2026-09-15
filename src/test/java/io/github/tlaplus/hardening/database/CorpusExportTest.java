@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.abort;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
@@ -39,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 class CorpusExportTest {
@@ -233,6 +236,44 @@ class CorpusExportTest {
                         files.map(file -> file.getFileName().toString()).sorted().toList());
             }
         }
+    }
+
+    @Test
+    void rejectsAnEntryThatIsASymbolicLink(@TempDir Path directory) throws Exception {
+        var root = corpus(directory);
+        var digest = store(root, CorpusPath.INPUT, InputKind.EXPRESSION, "linked", Optional.empty());
+        var entry = resolve(root, CorpusPath.INPUT, digest + ".cbor");
+        var outside = Files.move(entry, directory.resolve("outside.cbor"));
+        Files.createSymbolicLink(entry, outside);
+        var output = directory.resolve("linked.sqlite");
+
+        var failure = assertThrows(CorpusException.class, () -> run(root, output, false, true));
+
+        assertTrue(failure.getMessage().contains("not a regular file"), failure.getMessage());
+        assertFalse(Files.exists(output));
+    }
+
+    @Test
+    @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    void rejectsAnEntryThatIsAFifoWithoutOpeningIt(@TempDir Path directory) throws Exception {
+        var root = corpus(directory);
+        var digest = Digests.digest("fifo".getBytes(StandardCharsets.UTF_8));
+        var entry = resolve(root, CorpusPath.INPUT, digest + ".cbor");
+        Files.createDirectories(entry.getParent());
+        Process mkfifo;
+        try {
+            mkfifo = new ProcessBuilder("mkfifo", entry.toString()).start();
+        } catch (IOException exception) {
+            abort("mkfifo is not available: " + exception.getMessage());
+            return;
+        }
+        assumeTrue(mkfifo.waitFor() == 0, "mkfifo failed");
+        var output = directory.resolve("fifo.sqlite");
+
+        var failure = assertThrows(CorpusException.class, () -> run(root, output, false, true));
+
+        assertTrue(failure.getMessage().contains("not a regular file"), failure.getMessage());
+        assertFalse(Files.exists(output));
     }
 
     @Test

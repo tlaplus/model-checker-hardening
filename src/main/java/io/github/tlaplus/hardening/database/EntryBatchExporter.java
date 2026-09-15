@@ -3,10 +3,10 @@ package io.github.tlaplus.hardening.database;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
+import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.StoredEntry;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.sql.SQLException;
@@ -52,7 +52,7 @@ final class EntryBatchExporter implements AutoCloseable {
     }
 
     void export(List<StoredEntry> listing)
-            throws IOException, SQLException, InterruptedException {
+            throws IOException, CorpusException, SQLException, InterruptedException {
         for (var start = 0; start < listing.size(); start += CHUNK_SIZE) {
             exportChunk(listing.subList(start, Math.min(listing.size(), start + CHUNK_SIZE)));
         }
@@ -69,12 +69,12 @@ final class EntryBatchExporter implements AutoCloseable {
     }
 
     private void exportChunk(List<StoredEntry> chunk)
-            throws IOException, SQLException, InterruptedException {
+            throws IOException, CorpusException, SQLException, InterruptedException {
         var decoded = new ArrayList<Decoded>(chunk.size());
         for (var stored : chunk) {
             final byte[] encoded;
             try {
-                encoded = Files.readAllBytes(stored.path());
+                encoded = stored.read();
             } catch (NoSuchFileException exception) {
                 if (!tolerateVanished) {
                     throw exception;
