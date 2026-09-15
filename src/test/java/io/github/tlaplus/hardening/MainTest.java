@@ -34,6 +34,7 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertTrue(result.out().contains("Usage: fuzztla"));
+        assertTrue(result.out().contains("export-db"));
         assertTrue(result.out().contains("init"));
         assertTrue(result.out().contains("print"));
         assertTrue(result.out().contains("run"));
@@ -154,6 +155,30 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertTrue(result.err().contains("configuration already exists"));
+    }
+
+    @Test
+    void exportsACorpusToADatabaseOnceWithoutForce(@TempDir Path directory) throws Exception {
+        var corpus = directory.resolve("corpus");
+        assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+        var output = directory.resolve("corpus.sqlite");
+
+        var result = execute("export-db", "--corpus=" + corpus, "--output=" + output);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        assertEquals(
+                "exported 0 entries (0 unreadable, 0 vanished) to " + output + System.lineSeparator(),
+                result.out());
+        var exported = Files.readAllBytes(output);
+
+        var refused = execute("export-db", "--corpus=" + corpus, "--output=" + output);
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, refused.exitCode());
+        assertTrue(refused.err().contains("database already exists"), refused.err());
+        assertArrayEquals(exported, Files.readAllBytes(output));
+        assertEquals(
+                CommandLine.ExitCode.OK,
+                execute("export-db", "--corpus=" + corpus, "--output=" + output, "--force").exitCode());
     }
 
     @Test

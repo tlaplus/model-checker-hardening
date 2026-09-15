@@ -167,11 +167,16 @@ final class CorpusLayout {
 
     /** Returns the crash-report name beside an entry, rejecting a non-entry name. */
     static String crashReportName(Path entry) throws CorpusException {
+        return crashReportNameForDigest(entryDigest(entry));
+    }
+
+    /** Returns the payload digest that names an entry, rejecting a non-entry name. */
+    static String entryDigest(Path entry) throws CorpusException {
         var matcher = ENTRY_FILE_NAME.matcher(entry.getFileName().toString());
         if (!matcher.matches()) {
             throw new CorpusException("invalid corpus entry name: " + entry);
         }
-        return crashReportNameForDigest(matcher.group(1));
+        return matcher.group(1);
     }
 
     /** Returns the work-directory path where a stage stages a crash report before committing it. */

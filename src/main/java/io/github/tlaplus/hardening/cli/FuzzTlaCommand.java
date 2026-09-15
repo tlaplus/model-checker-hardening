@@ -11,7 +11,8 @@ import picocli.CommandLine.Spec;
         name = "fuzztla",
         description = "Synthesize TLA+ specifications to harden model checkers.",
         mixinStandardHelpOptions = true,
-        subcommands = {InitCommand.class, PrintCommand.class, RunCommand.class},
+        subcommands = {
+                ExportDbCommand.class, InitCommand.class, PrintCommand.class, RunCommand.class},
         versionProvider = FuzzTlaCommand.VersionProvider.class)
 public final class FuzzTlaCommand implements Callable<Integer> {
     @Spec private CommandSpec spec;

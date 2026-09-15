@@ -7,6 +7,9 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +33,15 @@ import java.util.Optional;
  *   <li>Call {@link #openExisting(Path)} to check the fixed corpus layout.
  *   <li>Read {@link CorpusPath#CONFIG} through {@link #resolve(CorpusPath)} and perform the
  *       required read-only operation.
+ * </ol>
+ *
+ * <p><strong>Export</strong>
+ *
+ * <ol>
+ *   <li>Call {@link #openExisting(Path)} and, for a consistent snapshot, acquire {@link
+ *       #acquireExclusiveLock()}.
+ *   <li>Call {@link #storedEntries()} and decode each listed file with {@link
+ *       CorpusEnvelopeCodec#decodeEnvelope(byte[])}.
  * </ol>
  *
  * <p><strong>Workflow run</strong>
@@ -149,6 +161,29 @@ public final class CorpusDirectory {
             }
         }
         return false;
+    }
+
+    /**
+     * Lists the entry files of every entry directory, in layout order and by name within a
+     * directory, without reading them. Crash reports are skipped, and a foreign file name is
+     * rejected. Listing needs no lock; without one, the listing reflects whatever a concurrent run
+     * has moved by the time each directory is read.
+     */
+    public synchronized List<StoredEntry> storedEntries() throws IOException, CorpusException {
+        var result = new ArrayList<StoredEntry>();
+        var listing = entries(CorpusEntryValidator.NONE);
+        for (var location : CorpusPath.values()) {
+            var directory = resolve(location);
+            if (!location.storesEntries() || Files.notExists(directory, NO_FOLLOW_LINKS)) {
+                continue;
+            }
+            var paths = listing.entryPathsAndReports(
+                    directory, new HashSet<>(), location.relativePath().toString());
+            for (var path : paths) {
+                result.add(new StoredEntry(location, CorpusLayout.entryDigest(path), path));
+            }
+        }
+        return result;
     }
 
     /** Acquires the process-wide exclusive lock for this corpus. */
