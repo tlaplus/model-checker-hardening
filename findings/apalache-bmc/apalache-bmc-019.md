@@ -74,6 +74,19 @@ folded, over an empty sequence, a lambda whose body was
 `VariantGetUnsafe("Tag10", CASE ENABLED ... -> ...)`. Reducing the module's typed
 IR JSON while keeping that invariant shape led to the reproduction above.
 
+## Recurring in `corpus22`
+
+The `module` corpus22, generated with the `action` and `temporal` categories,
+has 63 aggregator deviations where TLC reports "Invariant Inv is violated by the
+initial state" and Apalache passes. 59 of them contain `ENABLED`; the other 4 are
+[apalache-bmc-017](apalache-bmc-017.md). Six of the 59 were rerun with Apalache
+0.62.2 on their IR, and each ended with `NoError`. In four of the six (`05676e5c`,
+`469e02e6`, `7014ee9c`, `de1d28ee`) the invariant has `ENABLED` in a `CASE` guard.
+In `de25b1a9` `ENABLED` occurs in the predicate of a `CHOOSE`, and in `a8c6f937`
+in a `LET` definition, `LocalOp10 == ENABLED (var1 = step)`; these two were not
+reduced, so whether a `CASE` guard is involved there is open. The remaining 53
+were not rerun.
+
 ## Expected behavior
 
 Apalache either rejects `ENABLED` as unsupported, with exit 75, or checks the

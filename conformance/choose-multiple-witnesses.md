@@ -17,6 +17,11 @@ The corpus input is
 whose invariant is
 `(IF FALSE THEN FALSE ELSE CHOOSE b \in BOOLEAN : {} \subseteq {}) <=> FALSE`.
 
+Corpus22 has two more deviations of this kind, `68aef61f` and `7fe8d4eb`, both
+with `Inv == (CHOOSE b \in BOOLEAN : IsFiniteSet(DOMAIN f)) => FALSE`, where `f`
+is a fold result whose domain is finite for either `b`. TLC passes, and Apalache
+0.62.2 reports `state invariant 0 violated` in state 0.
+
 ## Representative MWE
 
 ```tla

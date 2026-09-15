@@ -123,9 +123,35 @@ def apalache_error(pattern: str) -> PatternSet:
     return all_of(r"^Apalache exited with status 255$", pattern)
 
 
+TLC_GENERAL_ERROR = r"^TLC error code 1000 mapped to exit status 255$"
+
+# TLC started but never began computing initial states: an escape here happens
+# while TLC prepares liveness checking (tlc-009).
+TLC_BEFORE_INITIAL_STATES = r"\A(?=[\s\S]*^Starting\.\.\. )(?![\s\S]*^Computing initial states\.\.\.$)"
+
+# TLC prints the implied-temporal line when it has liveness obligations, a
+# property with []<>, <>[], WF or SF, or fairness in the specification, and
+# evaluates them while it explores states. An error-1000 escape after the
+# initial states of such a run is tlc-010.
+TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES = (
+    r"^Implied-temporal checking--satisfiability problem has \d+ branch(?:es)?\.$"
+    r"[\s\S]*^Finished computing initial states: "
+)
+
+# Messages that TLC's standard modules raise with their own error codes
+# (tlc-002), printed on the line after an "Evaluating ... failed." wrapper.
+TLC_MODULE_ERROR_MESSAGE = (
+    r"(?:Overflow when computing |Attempted to apply (?:Head|Tail) to the empty sequence\."
+    r"|The second argument of |0\^0 is undefined\.)"
+)
+
+
 def tlc_runtime_error(*patterns: str) -> PatternSet:
+    """An error-1000 escape while states are computed, outside tlc-009 and tlc-010."""
     return all_of(
-        r"^TLC error code 1000 mapped to exit status 255$",
+        TLC_GENERAL_ERROR,
+        rf"\A(?!{TLC_BEFORE_INITIAL_STATES})",
+        rf"\A(?![\s\S]*{TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES})",
         r"Error: TLC threw an unexpected exception\.",
         r"The exception was a java\.lang\.RuntimeException",
         *patterns,
@@ -133,21 +159,27 @@ def tlc_runtime_error(*patterns: str) -> PatternSet:
 
 
 # Keep signatures conservative. Add an alternative only after a crash has been
-# confirmed to have the same root cause as the finding it names.
+# confirmed to have the same root cause as the finding it names. Order matters:
+# when several signatures match, the first one wins and the triager warns.
 SIGNATURES = (
     finding("sany-001.md", CrashKind.PARSER,
             all_of(r"java\.util\.UnknownFormatConversionException: Conversion = ':'",
                    r"tla2sany\.semantic\.Errors\$ErrorDetails\.getMessage")),
     # An evaluation error in a constant eventuality escapes while TLC prepares liveness
     # checking, after "Starting..." and before it computes any initial state. The
-    # lookahead is what separates it from the error-1000 escapes of tlc-001 and
+    # context is what separates it from the error-1000 escapes of tlc-001 and
     # tlc-003, which occur while states are computed.
     finding("tlc-009.md", CrashKind.TLC,
-            all_of(r"^TLC error code 1000 mapped to exit status 255$",
-                   r"^Starting\.\.\. ",
-                   r"\A(?![\s\S]*^Computing initial states\.\.\.$)",
+            all_of(TLC_GENERAL_ERROR,
+                   TLC_BEFORE_INITIAL_STATES,
                    r"^Error: TLC threw an unexpected exception\.$",
                    r"^The exception was a (?:tlc2\.tool\.EvalException|java\.lang\.RuntimeException)$")),
+    # An evaluation error in a liveness obligation, after the initial states.
+    # TLC prints either the wrapped diagnostic or only the behavior, so the
+    # signature does not constrain the message; tlc_runtime_error excludes the
+    # same context from tlc-001 and tlc-003.
+    finding("tlc-010.md", CrashKind.TLC,
+            all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES)),
     finding("tlc-001.md", CrashKind.TLC,
             tlc_runtime_error(r"In applying the function", r"which is not in its domain\.")),
     finding("tlc-002.md", CrashKind.TLC,
@@ -164,7 +196,10 @@ SIGNATURES = (
             all_of(r"^TLC error code 2178 mapped to exit status 255$",
                    r"Overflow when computing "),
             all_of(r"^TLC error code 2181 mapped to exit status 255$",
-                   r"Error: Attempted to compute cardinality of the value")),
+                   r"Error: Attempted to compute cardinality of the value"),
+            # The same module errors raised while TLC evaluates [][A]_v.
+            all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
+                   rf"^Error: Evaluating action property \w+ failed\.\n{TLC_MODULE_ERROR_MESSAGE}")),
     finding("tlc-003.md", CrashKind.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
@@ -179,9 +214,7 @@ SIGNATURES = (
     # lookahead excludes exactly the tlc-002 messages.
     finding("tlc-007.md", CrashKind.TLC,
             all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
-                   r"^Error: Evaluating invariant \w+ failed\.\n"
-                   r"(?!Overflow when computing |Attempted to apply (?:Head|Tail) to the empty sequence\."
-                   r"|The second argument of |0\^0 is undefined\.)",
+                   rf"^Error: Evaluating invariant \w+ failed\.\n(?!{TLC_MODULE_ERROR_MESSAGE})",
                    r"^Error: The error occurred when TLC was evaluating the nested$")),
     finding("apalache-printer-008.md", CrashKind.TLC,
             all_of(r"^TLC error code 2102 mapped to exit status 255$",
@@ -244,6 +277,16 @@ SIGNATURES = (
                    r"ConstSimplifier", r"ExprOptimizer")),
     finding("apalache-json-002.md", CrashKind.APALACHE,
             all_of(r"java\.lang\.OutOfMemoryError: Java heap space", r"DefaultType1Parser")),
+    finding("apalache-assignments-001.md", CrashKind.APALACHE,
+            apalache_error(r"^Assignment error: .+: (?:Illegal assignment inside an assignment-free expression\."
+                           r"|Manual assignment is spurious, \w+ is already assigned!)")),
+    # The empty unexpected expression, reported while TemporalPass is the latest
+    # pass. apalache-optimizer-001 names an undeclared operator after the colon.
+    finding("apalache-temporal-001.md", CrashKind.APALACHE,
+            apalache_error(r"^PASS #\d+: TemporalPass\b(?:(?!^PASS #)[\s\S])*"
+                           r"^<unknown>: unexpected expression: +E@")),
+    finding("apalache-temporal-002.md", CrashKind.APALACHE,
+            apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\.")),
 )
 
 # These signatures intentionally use only diagnostics that uniquely identify a
@@ -278,7 +321,7 @@ AGGREGATOR_SIGNATURES = (
             r"^Attempted to apply Head to the empty sequence\.$"),
     failure("case-without-matching-arm.md", Checker.TLC,
             r"^Attempted to evaluate a CASE with no conditions true\.$",
-            r"^In computing next states, TLC encountered a CASE with no conditions true\.$"),
+            r"^In computing (?:next states|ENABLED), TLC encountered a CASE with no conditions true\.$"),
     failure("subseq-outside-domain.md", Checker.TLC,
             r"^The second argument of SubSeq must be in the domain of its first argument:$"),
     failure("tail-of-empty-sequence.md", Checker.TLC,
@@ -365,7 +408,7 @@ AGGREGATOR_SIGNATURES = (
             r"^The invariant of Inv is equal to FALSE$", code=150),
     failure("constant-property-tlc-rejects.md", Checker.TLC,
             r"^The property of Prop is equal to FALSE$",
-            r"^The spec is trivially false because FALSE is false\.$", code=150),
+            r"^The spec is trivially false because \w+ is false\.$", code=150),
     failure("constant-property-tlc-rejects.md", Checker.TLC,
             r"^Temporal formula is a tautology \(its negation is unsatisfiable\)\.$"),
     # TLC declines an operand whose finiteness it cannot decide; Apalache
@@ -456,32 +499,41 @@ def validate_signature_catalog(repository_root: Path) -> None:
 def classify(crash_kind: CrashKind, diagnostic: str, entry_hash: str) -> str:
     if WORKER_TIMEOUT_PATTERN.search(diagnostic):
         return WORKER_TIMEOUT
-    matches = {
+    matches = [
         signature.finding_file
         for signature in SIGNATURES
         if signature.crash_kind is crash_kind and signature.matches(diagnostic)
-    }
-    return unique_match(matches, f"{crash_kind.value}/{entry_hash}", "findings")
+    ]
+    return first_match(matches, f"{crash_kind.value}/{entry_hash}", "findings")
 
 
 def classify_aggregator(
     results: dict[Checker, CheckerResult], entry_hash: str
 ) -> str:
-    matches = {
+    matches = [
         signature.issue_file
         for signature in AGGREGATOR_SIGNATURES
         if signature.matches(results)
-    }
-    return unique_match(matches, f"{AGGREGATOR_DIRECTORY}/{entry_hash}", "issues")
+    ]
+    return first_match(matches, f"{AGGREGATOR_DIRECTORY}/{entry_hash}", "issues")
 
 
-def unique_match(matches: set[str], location: str, description: str) -> str:
-    if not matches:
+def first_match(matches: Sequence[str], location: str, description: str) -> str:
+    """Return the first match in catalog order, warning when several documents match.
+
+    Catalog order is the tie-break: a signature listed earlier takes precedence, so
+    place a narrow signature before a broader one that overlaps it.
+    """
+    distinct = list(dict.fromkeys(matches))
+    if not distinct:
         return NEW_FINDING
-    if len(matches) > 1:
-        issues = ", ".join(sorted(matches))
-        raise TriageError(f"{location} matches multiple {description}: {issues}")
-    return next(iter(matches))
+    if len(distinct) > 1:
+        print(
+            f"triager: warning: {location} matches multiple {description}: "
+            f"{', '.join(distinct)}; using {distinct[0]}",
+            file=sys.stderr,
+        )
+    return distinct[0]
 
 
 def require_regular_file(path: Path, description: str) -> None:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import csv
+import io
 import sys
 import tempfile
 import unittest
@@ -68,6 +70,8 @@ class AggregatorClassificationTest(unittest.TestCase):
         cases = (
             ("The property of Prop is equal to FALSE", 150),
             ("The spec is trivially false because FALSE is false.", 150),
+            # corpus22 4660e132: TLC names a bound variable of the property.
+            ("The spec is trivially false because q36 is false.", 150),
             ("Temporal formula is a tautology (its negation is unsatisfiable).", 75),
         )
         for detail, code in cases:
@@ -228,6 +232,11 @@ class AggregatorClassificationTest(unittest.TestCase):
             ),
             (
                 "In computing next states, TLC encountered a CASE with no conditions true.",
+                "case-without-matching-arm.md",
+            ),
+            (
+                # corpus22 17d662de: the CASE is inside the action of ENABLED.
+                "In computing ENABLED, TLC encountered a CASE with no conditions true.",
                 "case-without-matching-arm.md",
             ),
             (
@@ -598,20 +607,186 @@ class AggregatorClassificationTest(unittest.TestCase):
         original = triager.AGGREGATOR_SIGNATURES
         try:
             triager.AGGREGATOR_SIGNATURES = original + (duplicate,)
-            with self.assertRaisesRegex(triager.TriageError, "multiple issues"):
-                triager.classify_aggregator(
+            with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                classification = triager.classify_aggregator(
                     results(triager.Checker.TLC, "In applying the function"), HASH_A
                 )
+            self.assertNotEqual("duplicate.md", classification)
+            self.assertIn("multiple issues", stderr.getvalue())
         finally:
             triager.AGGREGATOR_SIGNATURES = original
 
 
-class UniqueMatchTest(unittest.TestCase):
-    def test_unique_match_preserves_ambiguity_wording_and_sorting(self):
-        self.assertEqual("NEW", triager.unique_match(set(), "path", "issues"))
-        self.assertEqual("a.md", triager.unique_match({"a.md"}, "path", "issues"))
-        with self.assertRaisesRegex(triager.TriageError, "path matches multiple findings: a.md, b.md"):
-            triager.unique_match({"b.md", "a.md"}, "path", "findings")
+class FirstMatchTest(unittest.TestCase):
+    def test_first_match_prefers_catalog_order_and_warns(self):
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            self.assertEqual("NEW", triager.first_match([], "path", "issues"))
+            self.assertEqual("a.md", triager.first_match(["a.md", "a.md"], "path", "issues"))
+            self.assertEqual("", stderr.getvalue())
+            self.assertEqual("b.md", triager.first_match(["b.md", "a.md"], "path", "findings"))
+        self.assertEqual(
+            "triager: warning: path matches multiple findings: b.md, a.md; using b.md\n",
+            stderr.getvalue(),
+        )
+
+
+DOMAIN_ERROR_ESCAPE = (
+    "Error: TLC threw an unexpected exception.",
+    "The exception was a java.lang.RuntimeException",
+    ": In applying the function",
+    "[Tag31 |-> {}],",
+    "which is not in its domain.",
+)
+
+
+def classify_quietly(
+    test: unittest.TestCase, kind: triager.CrashKind, diagnostic: str
+) -> str:
+    """Classify and require that no ambiguity warning was printed."""
+    with contextlib.redirect_stderr(io.StringIO()) as stderr:
+        classification = triager.classify(kind, diagnostic, HASH_A)
+    test.assertEqual("", stderr.getvalue())
+    return classification
+
+
+class Corpus22CrashTest(unittest.TestCase):
+    def test_domain_error_before_initial_states_is_only_tlc_009(self) -> None:
+        """corpus22 048fbcdd: a domain error in a constant ~> operand."""
+        diagnostic = "\n".join(
+            (
+                "TLC error code 1000 mapped to exit status 255",
+                "Starting... (2026-09-14 18:29:36)",
+                *DOMAIN_ERROR_ESCAPE,
+            )
+        )
+        self.assertEqual(
+            "tlc-009.md", classify_quietly(self, triager.CrashKind.TLC, diagnostic)
+        )
+
+    def test_liveness_escape_after_initial_states_is_tlc_010(self) -> None:
+        """corpus22 358f84eb (wrapped) and 3eedba61 (behavior only)."""
+        prefix = (
+            "TLC error code 1000 mapped to exit status 255",
+            "Starting... (2026-09-14 18:50:03)",
+            "Implied-temporal checking--satisfiability problem has 1 branches.",
+            "Computing initial states...",
+            "Finished computing initial states: 1 distinct state generated at 2026-09-14 18:50:03.",
+        )
+        for name, body in (
+            ("wrapped", ("Error: The error occurred when TLC was evaluating the nested",
+                         *DOMAIN_ERROR_ESCAPE)),
+            ("behavior only", ("Error: The behavior up to this point is:",
+                               "State 1: <Initial predicate>")),
+        ):
+            with self.subTest(name):
+                self.assertEqual(
+                    "tlc-010.md",
+                    classify_quietly(
+                        self, triager.CrashKind.TLC, "\n".join((*prefix, *body))
+                    ),
+                )
+
+    def test_domain_error_while_computing_initial_states_stays_tlc_001(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "TLC error code 1000 mapped to exit status 255",
+                "Starting... (2026-09-14 18:50:03)",
+                "Implied-temporal checking--satisfiability problem has 1 branches.",
+                "Computing initial states...",
+                *DOMAIN_ERROR_ESCAPE,
+            )
+        )
+        self.assertEqual(
+            "tlc-001.md", classify_quietly(self, triager.CrashKind.TLC, diagnostic)
+        )
+
+    def test_module_error_in_action_property_is_tlc_002(self) -> None:
+        """corpus22 8e1c9a32 (SubSeq, 2183) and 9ba661a0 (0^0, 2180)."""
+        for code, message in (
+            (2183, "The second argument of SubSeq must be in the domain of its first argument:"),
+            (2180, "0^0 is undefined."),
+        ):
+            diagnostic = "\n".join(
+                (
+                    f"TLC error code {code} mapped to exit status 255",
+                    "Error: Evaluating action property Prop failed.",
+                    message,
+                    "Error: The behavior up to this point is:",
+                )
+            )
+            with self.subTest(code=code):
+                self.assertEqual(
+                    "tlc-002.md",
+                    classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+                )
+
+    def test_classifies_apalache_assignment_errors(self) -> None:
+        """corpus22 7d93a530 and a spurious manual assignment."""
+        for message in (
+            "Illegal assignment inside an assignment-free expression.",
+            "Manual assignment is spurious, var1 is already assigned!",
+        ):
+            diagnostic = "\n".join(
+                (
+                    "Apalache exited with status 255",
+                    "PASS #10: TransitionFinderPass                                    I@21:30:56.800",
+                    f"Assignment error: <[UNKNOWN]>: {message} See "
+                    "https://apalache-mc.org/docs/apalache/principles/assignments.html E@21:30:56.841",
+                    "EXITCODE: ERROR (255)",
+                )
+            )
+            with self.subTest(message=message):
+                self.assertEqual(
+                    "apalache-assignments-001.md",
+                    classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+                )
+
+    def test_empty_unexpected_expression_in_temporal_pass(self) -> None:
+        """corpus22 9e4e2256: (~var0 ~> var1) ~> FALSE."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #5: TemporalPass                                             I@21:16:48.122",
+                "  > Rewriting temporal operators...                               I@21:16:48.122",
+                "  > Adding logic for loop finding                                 I@21:16:48.123",
+                "<unknown>: unexpected expression:                                 E@21:16:48.130",
+                "Unexpected expressions in the specification (see the error messages) E@21:16:48.130",
+                "EXITCODE: ERROR (255)",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-001.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
+    def test_unexpected_expression_in_a_later_pass_is_not_temporal_001(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #5: TemporalPass                                             I@21:16:48.122",
+                "PASS #11: OptimizationPass                                        I@21:16:48.200",
+                "<unknown>: unexpected expression:                                 E@21:16:48.230",
+                "EXITCODE: ERROR (255)",
+            )
+        )
+        self.assertEqual(
+            "NEW", classify_quietly(self, triager.CrashKind.APALACHE, diagnostic)
+        )
+
+    def test_foldset_lambda_type_error_is_temporal_002(self) -> None:
+        """corpus22 36cd5261."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@21:27:55.900",
+                "<unknown>: internal error in type checking: FoldSet argument Lambda26$1 should "
+                "have the tag ((Bool, MODEL) => Bool), found Bool. E@21:27:56.125",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-002.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
 
 
 class AggregatorDirectoryTest(unittest.TestCase):

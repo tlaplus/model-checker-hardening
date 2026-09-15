@@ -233,6 +233,15 @@ FilterInv == [VariantFilter("Tag1", NoVariants) -> {}] = {}
 Checked with `--length=1`, Apalache 0.62.2 reports `state invariant 0 holds`
 for `--inv=FoldInv` and for `--inv=FilterInv`; both invariants are false.
 
+## Recurring in `corpus22`
+
+The `corpus22` run contains four aggregator deviations with this cause:
+`3de9e3af`, `5222e4f8`, `60f819af` and `eeafeb5f`. Each has an initial predicate
+`var0 \in [D -> {}]` with a computed empty `D`, TLC reports that the initial
+state violates the invariant, and Apalache 0.62.2, rerun on the IR, reports
+`All executions are shorter than the provided bound` and `ExecutionsTooShort`.
+The domains were not replaced with a literal `{}` to isolate them.
+
 ## Expected behavior
 
 `[S -> R]` denotes the set of total functions from `S` to `R`. When `S` is
