@@ -70,5 +70,13 @@ final class EnvelopeReport {
                 "    endTime: %s (duration: %s)%n",
                 stage.endTime(),
                 HumanDuration.format(Duration.between(stage.startTime(), stage.endTime())));
+        stage.metrics().ifPresent(metrics -> {
+            writer.printf("    metrics:%n");
+            metrics.phase().ifPresent(phase -> writer.printf("      phase: %s%n", phase.encodedName()));
+            metrics.counts().forEach((count, value) -> writer.printf("      %s: %d%n", count.fieldName(), value));
+            if (metrics.saturated()) {
+                writer.printf("      saturated: true%n");
+            }
+        });
     }
 }
