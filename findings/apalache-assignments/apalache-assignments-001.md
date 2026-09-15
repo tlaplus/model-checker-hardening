@@ -60,6 +60,28 @@ Replacing the parenthesized conjunct of `Next`, with the same command and
 In the last row the action `x' = x + 1 /\ x' = x` is unsatisfiable, and TLC treats
 it as disabled.
 
+## `<<A>>_v` and `[A]_v` as guards
+
+`<<A>>_v` stands for `A /\ ~(v' = v)` and `[A]_v` for `A \/ v' = v`. Used as a
+Boolean guard after `x'` is assigned, both fail in the same way, with a location
+of `<[UNKNOWN]>`, which suggests that Apalache expands them through `UNCHANGED v`.
+The same module and command as above, with these conjuncts:
+
+| Conjunct | Apalache | TLC |
+| --- | --- | --- |
+| `<<x' > x>>_x` | exit 255, illegal assignment | no error |
+| `<<TRUE>>_x` | exit 255, illegal assignment | no error |
+| `[x' > x]_x` | exit 255, spurious manual assignment | no error |
+| `x' # x` | `NoError` | no error |
+
+## Corpus evidence
+
+The `module` corpus22, generated with the `action` and `temporal` categories,
+has 22 Apalache crashes with these assignment errors. Each has, after
+`step' = step + 1` in `Next`, a guard with `UNCHANGED` (6), with `<<A>>_v` or
+`[A]_v` (12), or with both (4). An example is `7d93a530`: `var0' = FALSE /\ step' = step + 1 /\
+<<(Len(...) > step)>>_var0`.
+
 ## Expected behavior
 
 `UNCHANGED x` behaves as `x' = x`: after `x'` has been assigned, it is a

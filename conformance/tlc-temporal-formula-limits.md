@@ -4,7 +4,8 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 `exotic` enabled ([ADR 0007](../docs/decisions/0007-levels-and-temporal-properties.md)),
 29 modules made TLC crash with one of the two diagnostics below; in the
 1000-module corpus20, generated with the same categories and the first five
-signatures below, another 6 did. SANY accepted all of them.
+signatures below, another 6 did; corpus22, with all seven signatures, left 57
+more (see [Signature precision](#signature-precision)). SANY accepted all of them.
 
 TLC checks a temporal property by translating it into its liveness formulas
 (`tlc2.tool.liveness.Liveness`). The translation has no case for several
@@ -28,9 +29,18 @@ quarantine them, so neither checker spends time on them.
 | `<><<A>>_v` | `<><<x' > x>>_x` | must be of forms | counterexample | `tlc-eventually-action` |
 | `[][A]_v` under `<>`, `~>` or `[]` | `[](<>[][x' > x]_x)` | must be of forms | pass | `tlc-always-action-under-temporal` |
 | Temporal formula under bounded `\A` or `\E` whose domain depends on the state | `\A k \in {x} : <>(x >= k)` | cannot handle | crash | none |
+| Temporal formula under bounded `\A` or `\E` over `Int` or `Nat` | `\E q \in Nat : <>(x = q)` | cannot handle | crash, [apalache-bmc-005](../findings/apalache-bmc/apalache-bmc-005.md) | none |
 | `[][A]_v` under `\/`, `=>` or `~` | `[][x' > x]_x \/ <>(x = 3)` | must be of forms | pass | `tlc-always-action-under-connective` |
+| `[][A]_v` in an `IF` branch | `IF x = 0 THEN [][x' >= x]_x ELSE TRUE` | must be of forms | pass | none |
+| A label directly on `[][A]_v` or on `[A]_v` | `lbl :: [][x' >= x]_x` | must be of forms | pass | none |
 | `WF_v(A)` or `SF_v(A)` under `<>` or `~>` | `<>SF_x(A)`, `WF_x(A) ~> (x = 3)` | must be of forms | fail, fairness | `tlc-fairness-under-eventuality` |
+| `SF_v(A)` under `[]` | `[]SF_x(x' = x + 1)` | must be of forms | fail, fairness | none |
 | A negated `WF_v(A)` under `[]` | `[](~WF_x(A))` | must be of forms | fail, fairness | none |
+
+TLC checks the unlabeled `[][x' >= x]_x` and `[]WF_x(x' = x + 1)`. A label is only
+a name for a subexpression, so the labeled row is arguably a TLC defect rather
+than a missing case; it is listed here with the other shapes TLC's liveness
+translation does not handle.
 
 The examples use the module below with `SPECIFICATION Spec` and `PROPERTY Prop`
 for TLC, and `--temporal=Liveness --length=4` for Apalache.
@@ -83,6 +93,25 @@ TLC or produced a counterexample.
 `tlc-eventually-action` also matches `[]<><<A>>_v`, and
 `tlc-always-action-under-connective` also matches `<>[][A]_v` under a connective;
 TLC checks both, and neither occurred among the matches. Each signature's
-remaining match failed an evaluation before TLC reached the property. The last
-two rows of the shape table have no signature, because they did not occur in
-either corpus and a signature for them could not be measured.
+remaining match failed an evaluation before TLC reached the property.
+
+The corpus22 run, generated with the same categories and the shipped
+signatures, left 57 TLC crashes with either diagnostic. They are classified
+by the property that TLC rejected:
+
+| Shape | "Must be of forms" | "Cannot handle" |
+| --- | ---: | ---: |
+| A label directly on `[][A]_v` or `[A]_v` | 23 | |
+| `SF_v(A)` under `[]`, possibly negated or labeled | 19 | |
+| `[][A]_v` in an `IF` branch | 2 | |
+| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | |
+| `[]` under a bounded `\E` over a constant set filter | 1 | |
+| Bounded quantifier whose domain depends on the state | | 8 |
+| Bounded quantifier over `Int` or `Nat` | | 2 |
+
+None of these rows has a signature yet. The label rows cannot have one: the
+pattern language skips labels
+([known-defect signatures](../docs/manual/known-defect-signatures.md), section 3.4).
+The two `WF` and quantifier rows of the "must be of forms" count were not
+reduced to a reproduction. The negated-`WF` row of the shape table did not occur in the
+smoke corpus or corpus20, and a signature for it could not be measured.

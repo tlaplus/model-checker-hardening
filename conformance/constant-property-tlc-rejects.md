@@ -16,6 +16,14 @@ decide without the behaviors:
 | `The spec is trivially false because FALSE is false.` | 150 | 1 |
 | `Temporal formula is a tautology (its negation is unsatisfiable).` | 75 | 1 |
 
+Corpus22 adds a variant of the second detail that names a bound variable, as in
+`The spec is trivially false because q36 is false.` (code 150, 3 deviations, all
+with an Apalache counterexample). Each property is a bounded `\A` over a set
+enumeration, `\A q36 \in {e, ...} : ...`, whose elements are large fold, `CASE`
+and `CHOOSE` expressions. The shape was not reduced: the
+simpler properties `\A q \in {FALSE} : q` and `\A q \in {1} : FALSE` produce
+`The property of Prop is equal to FALSE` instead.
+
 Apalache has no such restriction. It checks `Liveness == Fairness => Prop` like
 any other property: it reports a counterexample when an initial state exists, or
 a violation of the invariant, and passes when the initial predicate is
