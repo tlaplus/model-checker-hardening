@@ -5,7 +5,7 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 29 modules made TLC crash with one of the two diagnostics below; in the
 1000-module corpus20, generated with the same categories and the first five
 signatures below, another 6 did; corpus22, with all seven signatures, left 57
-more (see [Signature precision](#signature-precision)). SANY accepted all of them.
+more, and corpus23 76 (see [Signature precision](#signature-precision)). SANY accepted all of them.
 
 TLC checks a temporal property by translating it into its liveness formulas
 (`tlc2.tool.liveness.Liveness`). The translation has no case for several
@@ -95,23 +95,43 @@ TLC or produced a counterexample.
 TLC checks both, and neither occurred among the matches. Each signature's
 remaining match failed an evaluation before TLC reached the property.
 
-The corpus22 run, generated with the same categories and the shipped
-signatures, left 57 TLC crashes with either diagnostic. They are classified
-by the property that TLC rejected:
+The corpus22 and corpus23 runs, generated with the same categories and the
+shipped signatures, left 57 and 76 TLC crashes with either diagnostic. They are
+classified by the property that TLC rejected:
 
-| Shape | "Must be of forms" | "Cannot handle" |
-| --- | ---: | ---: |
-| A label directly on `[][A]_v` or `[A]_v` | 23 | |
-| `SF_v(A)` under `[]`, possibly negated or labeled | 19 | |
-| `[][A]_v` in an `IF` branch | 2 | |
-| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | |
-| `[]` under a bounded `\E` over a constant set filter | 1 | |
-| Bounded quantifier whose domain depends on the state | | 8 |
-| Bounded quantifier over `Int` or `Nat` | | 2 |
+| Shape | "Must be of forms", corpus22 | corpus23 | "Cannot handle", corpus22 | corpus23 |
+| --- | ---: | ---: | ---: | ---: |
+| A label directly on `[][A]_v` or `[A]_v` | 23 | 27 | | |
+| `SF_v(A)` under `[]`, possibly negated or labeled | 19 | 34 | | |
+| `[][A]_v` in an `IF` branch | 2 | 0 | | |
+| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | 1 | | |
+| `[]` or `[][A]_v` under a bounded `\E` over a constant set | 1 | 2 | | |
+| A negated bounded quantifier over `{}` around a temporal formula | 0 | 2 | | |
+| Bounded quantifier whose domain depends on the state | | | 8 | 10 |
+| Bounded quantifier over `Int` or `Nat` | | | 2 | 0 |
+
+The negated-quantifier row contains no action, yet TLC reports "must be of forms".
+With `Init == x = 0`, `Next == UNCHANGED x` and `Spec == Init /\ [][Next]_x`:
+
+| `Prop` | TLC |
+| --- | --- |
+| `~(\A q \in {}: []FALSE)` | "must be of forms", exit 255 |
+| `~(\A q \in {}: <>(x = 1))` | "must be of forms", exit 255 |
+| `~(\E q \in {}: []FALSE)` | "must be of forms", exit 255 |
+| `(\A q \in {}: []FALSE) => FALSE` | "must be of forms", exit 255 |
+| `\A q \in {}: []FALSE` | rejected as a tautology |
+| `\E q \in {}: []FALSE` | property violated |
+| `(\A q \in {0}: [](x = q)) => FALSE` | property violated |
+| `~(\A q \in {}: (x = 0))` | property violated in the initial state |
+
+The corpus23 examples are `d94fbfd5`, whose property is
+`(\A q9 \in {}: []FALSE) => FALSE`, and `6e9f1514`, `~(\A q53 \in {}: P ~> FALSE)`.
+In the bounded-`\E` row, `\E q \in BOOLEAN: [][x' = x]_x` alone reproduces the
+crash; its corpus23 examples are `07a0fee5` and `70e1b933`.
 
 None of these rows has a signature yet. The label rows cannot have one: the
 pattern language skips labels
 ([known-defect signatures](../docs/manual/known-defect-signatures.md), section 3.4).
-The two `WF` and quantifier rows of the "must be of forms" count were not
-reduced to a reproduction. The negated-`WF` row of the shape table did not occur in the
+The `WF` row was not reduced to a reproduction; the bounded-`\E` and
+negated-quantifier rows were reduced as above. The negated-`WF` row of the shape table did not occur in the
 smoke corpus or corpus20, and a signature for it could not be measured.

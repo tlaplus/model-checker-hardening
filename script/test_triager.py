@@ -788,6 +788,68 @@ class Corpus22CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
         )
 
+    def test_unassigned_quantified_variable_in_temporal_property_is_temporal_003(self) -> None:
+        """corpus23 99aa1906: \\E q27 \\in {} around <> and ~>."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "  > Set a temporal property to Liveness                           I@08:16:37.953",
+                "PASS #13: BoundedChecker                                          I@08:16:38.050",
+                "This error may show up when CONSTANTS are not initialized.        E@08:16:38.167",
+                "Input error (see the manual): SubstRule: Variable q27$1 is not assigned a value E@08:16:38.174",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-003.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
+    def test_unassigned_variable_without_temporal_property_stays_new(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@08:16:38.050",
+                "Input error (see the manual): SubstRule: Variable N$1 is not assigned a value E@08:16:38.174",
+            )
+        )
+        self.assertEqual(
+            "NEW", classify_quietly(self, triager.CrashKind.APALACHE, diagnostic)
+        )
+
+    def test_doubly_separated_name_is_temporal_004(self) -> None:
+        """corpus23 a840f3c3: a two-variable function constructor under ~>."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "  > UniqueRenamer                                                 I@07:20:14.694",
+                "Unhandled exception                                               E@07:20:14.695",
+                "java.lang.IllegalArgumentException: Variable names should never contain more than one separator",
+                "\tat at.forsyte.apalache.tla.lir.transformations.standard.IncrementalRenaming$.parseName(IncrementalRenaming.scala:43)",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-004.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
+    def test_builder_stack_overflow_is_builder_001(self) -> None:
+        """corpus23 d0f6bfa2: -20480 .. 0 \\subseteq {}."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@07:36:17.671",
+                "Unhandled exception                                               E@07:36:22.594",
+                "java.lang.StackOverflowError",
+                "\tat scala.collection.Iterator$$anon$6.hasNext(Iterator.scala:487)",
+                "\tat at.forsyte.apalache.tla.types.TypeUnifier.unify(TypeUnifier.scala:49)",
+                "\tat at.forsyte.apalache.tla.typecomp.signatures.FlexibleEquality$.commonSupertype(FlexibleEquality.scala:23)",
+            )
+        )
+        self.assertEqual(
+            "apalache-builder-001.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
 
 class AggregatorDirectoryTest(unittest.TestCase):
     def write_entry(self, directory: Path, name: str, document: object) -> Path:

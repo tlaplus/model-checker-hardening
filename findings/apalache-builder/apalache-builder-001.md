@@ -54,6 +54,62 @@ Exception in thread "main" java.lang.StackOverflowError
 `build` should return the typed `TlaEx` without consuming stack proportional to
 the number of composed builder instructions.
 
+## Reached from `apalache-mc check`
+
+The model checker builds its encoding with the same builder, so a specification
+alone reaches the overflow. An invariant that compares an integer range of a few
+thousand elements with the empty set is enough:
+
+```tla
+---- MODULE FuzzInput ----
+EXTENDS Integers, FiniteSets
+VARIABLE
+  \* @type: Int;
+  x
+Init == x = 0
+Next == (x < 2 /\ x' = x + 1) \/ UNCHANGED x
+Inv == 0 .. 2000 \subseteq {}
+====
+```
+
+```sh
+apalache-mc check --init=Init --next=Next --inv=Inv --length=3 FuzzInput.tla
+```
+
+```text
+State 0: Checking 1 state invariants
+Unhandled exception
+java.lang.StackOverflowError
+	at at.forsyte.apalache.tla.types.TypeUnifier.unify(TypeUnifier.scala:49)
+	at at.forsyte.apalache.tla.typecomp.signatures.FlexibleEquality$.commonSupertype(FlexibleEquality.scala:23)
+	...
+	at at.forsyte.apalache.tla.typecomp.unsafe.ProtoBuilder.buildBySignatureLookup(ProtoBuilder.scala:23)
+	...
+EXITCODE: ERROR (255)
+```
+
+The failure occurs in `BoundedChecker`. Below `ApalacheInternalBuilder.selectInSet`,
+the printed trace, which the JVM cuts at 1,024 frames, repeats
+`scalaz.IndexedStateT.apply`, `IndexedStateT.$anonfun$apply$1` and
+`IdInstances$$anon$1.bind`: the frame pattern of the regression test above. It was
+observed with the Apalache 0.62.2 release launcher, which sets no thread stack
+size.
+
+| `Inv` | Apalache 0.62.2 |
+| --- | --- |
+| `-1000 .. 0 \subseteq {}` | counterexample |
+| `0 .. 2000 \subseteq {}` | exit 255, `StackOverflowError` |
+| `0 .. 5000 \subseteq {}`, also as `--temporal` property | exit 255, `StackOverflowError` |
+| `0 .. 5000 = {}` | exit 255, `StackOverflowError` |
+| `{} \subseteq 0 .. 5000` | `NoError` |
+| `\A v \in 0 .. 5000: v >= 0` | `NoError` |
+| `Cardinality(0 .. 5000) = 5001` | `NoError` |
+| `x \in 0 .. 5000` in `Init`, `Inv == x >= 0` | `NoError` |
+
+In the `module` corpus23, one Apalache crash, `d0f6bfa2`, is this overflow: its
+temporal property is `-20480 .. 0 \subseteq {}`, and the stack trace starts in
+`TypeUnifier.unify` under the same `typecomp` frames.
+
 ## Root cause
 
 Apalache represents a checked builder instruction as
