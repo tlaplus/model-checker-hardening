@@ -1,13 +1,17 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -34,11 +38,6 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     private static final String MODULE = "module";
     private static final String OPERATORS = "operators";
 
-    private static final Map<String, ExpressionCategory> CATEGORIES_BY_CONFIG_NAME =
-            Arrays.stream(ExpressionCategory.values())
-                    .collect(Collectors.toUnmodifiableMap(
-                            ExpressionCategory::configName, category -> category));
-
     private static final Map<String, ExpressionKind> KINDS_BY_CONFIG_NAME =
             ExpressionKind.all().stream()
                     .collect(Collectors.toUnmodifiableMap(
@@ -50,8 +49,14 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<Double> NUMBER =
             new ConfigValueType<>(ConfigValueType::readDouble, Object::toString);
 
-    static final ConfigValueType<Set<ExpressionCategory>> CATEGORIES = new ConfigValueType<>(
-            ConfigValueType::readCategories, ConfigValueType::formatCategories);
+    static final ConfigValueType<Set<ExpressionCategory>> CATEGORIES =
+            names(ExpressionCategory.class, ExpressionCategory::configName, "expression category");
+
+    static final ConfigValueType<Set<ShallowPattern>> SHALLOW_PATTERNS =
+            names(ShallowPattern.class, ShallowPattern::configName, "shallow pattern");
+
+    static final ConfigValueType<Map<MutationOperator, Integer>> OPERATOR_WEIGHTS =
+            weights(MutationOperator.class, MutationOperator::encodedName, "mutation operator");
 
     static final ConfigValueType<Map<ExpressionKind, Integer>> WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readWeights, ConfigValueType::formatWeights);
@@ -116,20 +121,6 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             result.add(text);
         }
         return result;
-    }
-
-    private static Set<ExpressionCategory> readCategories(
-            TomlTable table, String path, String key) throws ConfigException {
-        var categories = EnumSet.noneOf(ExpressionCategory.class);
-        for (var name : strings(array(table, path, key), path)) {
-            var category = CATEGORIES_BY_CONFIG_NAME.get(name);
-            if (category == null) {
-                throw new ConfigException(
-                        "unknown expression category '" + name + "' in '" + path + "'");
-            }
-            categories.add(category);
-        }
-        return Set.copyOf(categories);
     }
 
     /** Reads the ordered module selections, each an inline table of a name and its operators. */
@@ -212,12 +203,65 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                                         .collect(Collectors.joining(", "))));
     }
 
-    /** Renders a category list in {@link ExpressionCategory} declaration order. */
-    private static String formatCategories(Set<ExpressionCategory> categories) {
-        return formatList(Arrays.stream(ExpressionCategory.values())
-                .filter(categories::contains)
-                .map(ExpressionCategory::configName)
-                .toList());
+    /**
+     * Returns the type of a set of enum constants written as an array of their names, rendered in
+     * declaration order.
+     */
+    private static <E extends Enum<E>> ConfigValueType<Set<E>> names(
+            Class<E> type, Function<E, String> name, String description) {
+        var byName = byName(type, name);
+        return new ConfigValueType<>(
+                (table, path, key) -> {
+                    var values = EnumSet.noneOf(type);
+                    for (var text : strings(array(table, path, key), path)) {
+                        values.add(constant(byName, text, path, description));
+                    }
+                    return Collections.unmodifiableSet(values);
+                },
+                values -> formatList(EnumSet.allOf(type).stream()
+                        .filter(values::contains)
+                        .map(name)
+                        .toList()));
+    }
+
+    /**
+     * Returns the type of a table of enum constant names to integer weights,
+     * rendered in declaration order with every constant present. A constant the table omits is
+     * absent from the map; the record the map belongs to decides what that means.
+     */
+    private static <E extends Enum<E>> ConfigValueType<Map<E, Integer>> weights(
+            Class<E> type, Function<E, String> name, String description) {
+        var byName = byName(type, name);
+        return new ConfigValueType<>(
+                (table, path, key) -> {
+                    if (!table.isTable(key)) {
+                        throw new ConfigException("expected '" + path + "' to be a table");
+                    }
+                    var entries = table.getTable(key);
+                    var weights = new EnumMap<E, Integer>(type);
+                    for (var text : entries.keySet()) {
+                        weights.put(
+                                constant(byName, text, path, description),
+                                readInt(entries, path + "." + text, text));
+                    }
+                    return Collections.unmodifiableMap(weights);
+                },
+                weights -> EnumSet.allOf(type).stream()
+                        .map(constant -> name.apply(constant) + " = " + weights.getOrDefault(constant, 0))
+                        .collect(Collectors.joining(", ", "{ ", " }")));
+    }
+
+    private static <E extends Enum<E>> Map<String, E> byName(Class<E> type, Function<E, String> name) {
+        return EnumSet.allOf(type).stream().collect(Collectors.toUnmodifiableMap(name, constant -> constant));
+    }
+
+    private static <E> E constant(Map<String, E> byName, String text, String path, String description)
+            throws ConfigException {
+        var constant = byName.get(text);
+        if (constant == null) {
+            throw new ConfigException("unknown " + description + " '" + text + "' in '" + path + "'");
+        }
+        return constant;
     }
 
     private static String formatList(List<String> values) {

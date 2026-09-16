@@ -27,7 +27,7 @@ class LibraryReplayIntegrationTest {
         for (var stage : CorpusStage.checkerBranches()) checkers.put(stage, new CheckerStageConfig(0, 30, 512, 1));
         var config = new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(),
                 new WorkflowConfig(0, InputStageConfig.of(0), new ParserStageConfig(0, 30), checkers),
-                defaults.pbt(), defaults.libraries());
+                defaults.pbt(), defaults.mutator(), defaults.libraries());
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(config));
         new WorkflowRunner(config).run(corpus, 42, 1);
         assertTrue(corpus.readLibraryManifest().isPresent());
