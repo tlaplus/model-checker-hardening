@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
+import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
@@ -30,7 +31,10 @@ final class ApalacheProcess {
                 timeout,
                 ApalacheWorkerMain.class,
                 List.of(releaseJar),
-                JavaLaunch.boundedHeap(config.maximumHeapMegabytes(), "-XX:-UsePerfData"),
+                new ChildJvm(
+                        1,
+                        ChildJvm.Compilation.TIERED,
+                        JavaLaunch.boundedHeap(config.maximumHeapMegabytes(), "-XX:-UsePerfData")),
                 "Apalache worker"));
         return new ProcessToolWorker(process, timeout);
     }

@@ -172,7 +172,7 @@ final class WorkerLaunch {
             WorkerSpec spec, Path temporaryDirectory, ServerSocket listener, String token) {
         var command = new ArrayList<String>();
         command.add(JavaLaunch.executable());
-        command.addAll(spec.jvmArguments());
+        command.addAll(spec.jvm().arguments());
         command.add("-XX:ErrorFile=" + WorkerOutput.fatalErrorReportPattern(temporaryDirectory));
         command.add("-Djava.io.tmpdir=" + temporaryDirectory);
         command.add("-D" + ToolWorkerProtocol.PORT_PROPERTY + "=" + listener.getLocalPort());
