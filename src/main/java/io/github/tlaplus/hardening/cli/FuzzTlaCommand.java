@@ -17,8 +17,24 @@ import picocli.CommandLine.Spec;
 public final class FuzzTlaCommand implements Callable<Integer> {
     @Spec private CommandSpec spec;
 
+    private final TerminalAcquisition terminals;
+
+    /** Creates a command that reports plainly to its configured writers, as embedded callers need. */
+    public FuzzTlaCommand() {
+        this(TerminalAcquisition.NONE);
+    }
+
+    FuzzTlaCommand(TerminalAcquisition terminals) {
+        this.terminals = terminals;
+    }
+
+    /** The process entry point: the only caller that may take over the physical terminal. */
     public static int execute(String... args) {
-        return new CommandLine(new FuzzTlaCommand()).execute(args);
+        return new CommandLine(new FuzzTlaCommand(RunTerminal::open)).execute(args);
+    }
+
+    TerminalAcquisition terminals() {
+        return terminals;
     }
 
     @Override

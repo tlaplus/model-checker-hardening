@@ -1,228 +1,194 @@
 package io.github.tlaplus.hardening.cli;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-import io.github.tlaplus.hardening.corpus.CorpusInventory;
-import io.github.tlaplus.hardening.common.GeneratorAggregate;
-import io.github.tlaplus.hardening.common.GeneratorAggregate.Richness;
-import io.github.tlaplus.hardening.corpus.CorpusStage;
-import io.github.tlaplus.hardening.corpus.CorpusVerdict;
-import io.github.tlaplus.hardening.corpus.StageEntryCounts;
-import io.github.tlaplus.hardening.workflow.WorkflowProgress;
-import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
-import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
-import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
+import java.util.regex.Pattern;
+import org.jline.builtins.ScreenTerminal;
+import org.jline.terminal.Size;
+import org.jline.utils.InfoCmp.Capability;
+import org.jline.utils.Curses;
+import org.jline.utils.AttributedString;
+import org.jline.utils.AttributedStyle;
 import org.junit.jupiter.api.Test;
 
 class TerminalProgressDisplayTest {
     @Test
-    void replacesLiveTablesAndLeavesOnlyTheFinalTableVisible() {
-        var output = new StringWriter();
-        var display = new TerminalProgressDisplay(new PrintWriter(output));
-        var first = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 1, 0));
-        var second = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 3, 2));
-        var finished = "finished" + System.lineSeparator();
+    void resizingReplacesTheWholeScreenAndClosingLeavesTheAlternateScreen() throws Exception {
+        try (var fixture = RunTestTerminal.open("xterm-256color")) {
+            var terminal = fixture.terminal();
+            var screen = new ScreenTerminal(80, 24);
+            screen.write("Random seed: 42\r\n");
+            var display = new TerminalProgressDisplay(terminal, true, RunPalette.PLAIN, () -> 0);
+            display.update(RunDisplayFixture.sample());
+            screen.write(fixture.drain());
+            assertTrue(screen.toString().contains("PARSER"), screen.toString());
+            assertTrue(screen.toString().contains("both non-crash results"), screen.toString());
 
-        display.update(progress(WorkflowProgress.Phase.RUNNING, 1, 0));
-        display.update(progress(WorkflowProgress.Phase.RUNNING, 3, 2));
-        display.finish(finished);
-        display.close();
+            terminal.setSize(new Size(60, 16));
+            screen.setSize(60, 16);
+            display.resize();
+            screen.write(fixture.drain());
+            assertTrue(screen.toString().contains("Stage"), screen.toString());
+            assertFalse(screen.toString().contains("both non-crash results"), screen.toString());
+            assertTrue(screen.toString().contains("Full statistics at completion"), screen.toString());
 
-        assertEquals(
-                first
-                        + erase(first)
-                        + second
-                        + erase(second)
-                        + finished,
-                output.toString());
-    }
+            terminal.setSize(new Size(80, 24));
+            screen.setSize(80, 24);
+            display.resize();
+            screen.write(fixture.drain());
+            assertTrue(screen.toString().contains("both non-crash results"), screen.toString());
+            assertFalse(screen.toString().contains("Full statistics at completion"), screen.toString());
 
-    @Test
-    void clearsAnUnfinishedTableBeforeAnErrorIsPrinted() {
-        var output = new StringWriter();
-        var display = new TerminalProgressDisplay(new PrintWriter(output));
-        var table = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 2, 1));
-
-        display.update(progress(WorkflowProgress.Phase.RUNNING, 2, 1));
-        display.close();
-        display.close();
-
-        assertEquals(table + erase(table), output.toString());
-    }
-
-    @Test
-    void rendersTheFinalizingPhase() {
-        var table = RunTable.progress(
-                progress(WorkflowProgress.Phase.FINALIZING, 3, 3));
-
-        assertTrue(table.lines().anyMatch(line -> line.contains("FINALIZING")
-                && line.contains("run state")));
-    }
-
-    @Test
-    void rendersAdmittedInputRichnessStatistics() {
-        var snapshot = new WorkflowProgress(
-                WorkflowProgress.Phase.RUNNING,
-                0,
-                new GeneratorSummary(
-                        42, 3, new GeneratorAggregate(5, 0, 1, 1, new Richness(3, 1.25, 9.0, 4.5)),
-                        Duration.ofSeconds(3)),
-                Map.of(
-                        CorpusStage.PARSER,
-                        summary(2, Duration.ofSeconds(2)),
-                        CorpusStage.TLC,
-                        summary(1, Duration.ofSeconds(1)),
-                        CorpusStage.APALACHE,
-                        StageVerdictSummary.empty(),
-                        CorpusStage.AGGREGATOR,
-                        StageVerdictSummary.empty(),
-                        CorpusStage.QUALITY,
-                        StageVerdictSummary.empty()),
-                Map.of(
-                        CorpusStage.PARSER, 1L,
-                        CorpusStage.TLC, 1L,
-                        CorpusStage.APALACHE, 2L,
-                        CorpusStage.AGGREGATOR, 0L,
-                        CorpusStage.QUALITY, 0L),
-                3,
-                Duration.ofSeconds(4));
-
-        var table = RunTable.progress(snapshot);
-
-        assertTrue(table.lines()
-                .anyMatch(line -> line.contains("1.25") && line.contains("min richness")));
-        assertTrue(table.lines()
-                .anyMatch(line -> line.contains("9") && line.contains("max richness")));
-        assertTrue(table.lines()
-                .anyMatch(line -> line.contains("4.5") && line.contains("avg richness")));
-
-        var emptyTable = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 0, 0));
-        assertEquals(
-                3,
-                emptyTable.lines()
-                        .filter(line -> line.contains("n/a") && line.contains("richness"))
-                        .count());
-    }
-
-    @Test
-    void rendersCounterexamplesSeparatelyFromFailures() {
-        var base = progress(WorkflowProgress.Phase.RUNNING, 2, 0);
-        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(base.stages());
-        stages.put(
-                CorpusStage.TLC,
-                new StageVerdictSummary(
-                        new StageEntryCounts(Map.of(
-                                CorpusVerdict.COUNTEREXAMPLE, 2L,
-                                CorpusVerdict.FAIL, 1L)),
-                        Duration.ZERO));
-        var snapshot = new WorkflowProgress(
-                base.phase(),
-                base.generation(),
-                base.generator(),
-                stages,
-                base.backlog(),
-                base.corpusEntries(),
-                base.totalElapsed());
-
-        var table = RunTable.progress(snapshot);
-
-        assertTrue(table.lines().anyMatch(line -> line.contains("2")
-                && line.contains("TLC counterexamples")), table);
-        assertTrue(table.lines().anyMatch(line -> line.contains("1")
-                && line.contains("TLC failed")), table);
-        assertFalse(table.contains("parser counterexamples"), table);
-    }
-
-    @Test
-    void rendersStageAndTotalElapsedTime() {
-        var table = RunTable.progress(progress(WorkflowProgress.Phase.RUNNING, 65, 3));
-
-        assertTrue(table.lines()
-                .anyMatch(line -> line.contains("1m 5s") && line.contains("generator elapsed")));
-        assertTrue(table.lines()
-                .anyMatch(line -> line.contains("3s") && line.contains("parser elapsed")));
-        assertTrue(table.lines()
-                .anyMatch(line -> line.contains("1m 5s") && line.contains("total elapsed")));
-    }
-
-    @Test
-    void omitsTheSeedFromLiveAndFinalTables() {
-        var snapshot = progress(WorkflowProgress.Phase.RUNNING, 3, 1);
-        var stages = new EnumMap<CorpusStage, CorpusInventory.StageEntries>(CorpusStage.class);
-        stages.put(
-                CorpusStage.PARSER,
-                new CorpusInventory.StageEntries(
-                        List.of(),
-                        new StageEntryCounts(Map.of(
-                                CorpusVerdict.PASS, 1L,
-                                CorpusVerdict.FAIL, 1L)),
-                        1));
-        for (var checker : CorpusStage.checkerBranches()) {
-            stages.put(
-                    checker,
-                    new CorpusInventory.StageEntries(
-                            List.of(),
-                            new StageEntryCounts(Map.of(CorpusVerdict.PASS, 1L)),
-                            1));
+            display.close();
+            var cleanup = fixture.drain();
+            screen.write(cleanup);
+            assertTrue(cleanup.contains(Curses.tputs(terminal.getStringCapability(Capability.exit_ca_mode))));
+            // ScreenTerminal.setSize discards its inactive buffer. Test preservation separately.
+            assertFalse(screen.toString().contains("PARSER"), screen.toString());
+            display.close();
+            display.update(RunDisplayFixture.sample());
+            assertEquals("", fixture.drain());
         }
-        for (var stage : List.of(CorpusStage.AGGREGATOR, CorpusStage.QUALITY)) {
-            stages.put(stage, new CorpusInventory.StageEntries(List.of(), StageEntryCounts.empty(), 0));
+    }
+
+    @Test
+    void errorCleanupPreservesEarlierOutputAndIsSafeBeforeTheFirstSnapshot() throws Exception {
+        try (var fixture = RunTestTerminal.open("xterm-256color")) {
+            var screen = new ScreenTerminal(80, 24);
+            screen.write("Random seed: 42\r\n");
+            try (var display = new TerminalProgressDisplay(fixture.terminal(), false, RunPalette.PLAIN, () -> 0)) {
+                display.update(RunDisplayFixture.sample());
+                screen.write(fixture.drain());
+                assertFalse(screen.toString().contains("Random seed: 42"));
+            }
+            screen.write(fixture.drain());
+            assertTrue(screen.toString().contains("Random seed: 42"), screen.toString());
+            assertFalse(screen.toString().contains("PARSER"));
         }
-        var summary = new WorkflowRunSummary(
-                WorkflowRunSummary.StopReason.COMPLETED,
-                snapshot.generator(),
-                snapshot.stages(),
-                new CorpusInventory(stages, new java.util.TreeMap<>()),
-                snapshot.totalElapsed());
-
-        assertFalse(RunTable.progress(snapshot).contains("random seed"));
-        assertFalse(RunTable.finished(Path.of("corpus"), summary).contains("random seed"));
-    }
-
-    private WorkflowProgress progress(
-            WorkflowProgress.Phase phase, long generated, long parsed) {
-        return new WorkflowProgress(
-                phase,
-                0,
-                new GeneratorSummary(
-                        42,
-                        generated,
-                        new GeneratorAggregate(generated, 0, 0, 0, Richness.empty()),
-                        Duration.ofSeconds(generated)),
-                stageSummaries(summary(parsed, Duration.ofSeconds(parsed))),
-                Map.of(
-                        CorpusStage.PARSER, generated - parsed,
-                        CorpusStage.TLC, 0L,
-                        CorpusStage.APALACHE, 0L,
-                        CorpusStage.AGGREGATOR, 0L,
-                        CorpusStage.QUALITY, 0L),
-                generated,
-                Duration.ofSeconds(generated));
-    }
-
-    private static StageVerdictSummary summary(long passed, Duration elapsed) {
-        return new StageVerdictSummary(
-                new StageEntryCounts(Map.of(CorpusVerdict.PASS, passed)), elapsed);
-    }
-
-    private Map<CorpusStage, StageVerdictSummary> stageSummaries(StageVerdictSummary summary) {
-        var stages = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
-        for (var stage : CorpusStage.values()) {
-            stages.put(stage, summary);
+        try (var fixture = RunTestTerminal.open("xterm-256color")) {
+            new TerminalProgressDisplay(fixture.terminal(), false, RunPalette.PLAIN, () -> 0).close();
+            assertEquals("", fixture.drain());
         }
-        return stages;
     }
 
-    private String erase(String table) {
-        return "\u001b[" + table.lines().count() + "F\u001b[J";
+    @Test
+    void monochromeChangesRemainEmphasizedAndExpireEvenAcrossResizing() throws Exception {
+        try (var fixture = RunTestTerminal.open("xterm", true)) {
+            var terminal = fixture.terminal();
+            var clock = new AtomicLong();
+            assertTrue(RunPalette.detect(terminal, null).inverse());
+            try (var display = new TerminalProgressDisplay(terminal, true,
+                    RunPalette.detect(terminal, null), clock::get)) {
+                display.update(RunDisplayFixture.empty());
+                fixture.drain();
+                clock.set(1_000_000_000L);
+                display.update(RunDisplayFixture.sample());
+                var changed = fixture.drain();
+                assertEquals(AttributedStyle.DEFAULT.bold().inverse(), firstCountStyle(changed));
+                assertFalse(Pattern.compile("\u001b\\[[0-9;]*3[0-9][;m]")
+                        .matcher(changed).find());
+                terminal.setSize(new Size(60, 16));
+                display.resize();
+                assertEquals(AttributedStyle.DEFAULT.bold().inverse(), firstCountStyle(fixture.drain()));
+                clock.set(2_000_000_000L);
+                display.update(RunDisplayFixture.sample());
+                var settled = fixture.drain();
+                assertTrue(settled.contains("1240"));
+                assertEquals(AttributedStyle.DEFAULT, firstCountStyle(settled));
+            }
+        }
+    }
+
+    private static AttributedStyle firstCountStyle(String output) {
+        var decoded = AttributedString.fromAnsi(output);
+        return decoded.styleAt(decoded.toString().indexOf("1240"));
+    }
+
+    @Test
+    void finalReportGoesToTheConfiguredWriterAfterRestoringTheScreen() throws Exception {
+        try (var fixture = RunTestTerminal.open("xterm-256color")) {
+            var clock = new AtomicLong();
+            var display = new TerminalProgressDisplay(fixture.terminal(), true,
+                    new RunPalette(true, true, true), clock::get);
+            var configured = new StringWriter();
+            try (var output = new RunOutput(new PrintWriter(configured), Optional.of(display))) {
+                display.update(RunDisplayFixture.empty());
+                clock.set(1_000_000_000L);
+                display.update(RunDisplayFixture.sample());
+                fixture.drain();
+                output.finish(Path.of("corpus"), RunDisplayFixture.finished(RunDisplayFixture.sample()));
+                var terminalOutput = fixture.drain();
+                assertTrue(terminalOutput.contains(Curses.tputs(
+                        fixture.terminal().getStringCapability(Capability.exit_ca_mode))));
+                assertFalse(terminalOutput.contains("Workflow run finished"));
+                var report = configured.toString();
+                assertTrue(report.contains("Workflow run finished"));
+                assertTrue(AttributedString.fromAnsi(report).toString().contains("Corpus entries: 1240"));
+                assertTrue(report.contains("\u001b["), "the report keeps the terminal palette");
+                assertFalse(report.contains("[7m"), "transient highlights do not reach the report");
+                display.update(RunDisplayFixture.empty());
+                assertEquals("", fixture.drain());
+            }
+        }
+    }
+
+    @Test
+    void plainOutputHasNoEscapes() {
+        var configured = new StringWriter();
+        try (var output = RunOutput.open(new PrintWriter(configured), TerminalAcquisition.NONE, true)) {
+            output.finish(Path.of("corpus"), RunDisplayFixture.finished(RunDisplayFixture.sample()));
+        }
+        assertTrue(configured.toString().contains("Corpus entries: 1240" + System.lineSeparator()));
+        assertFalse(configured.toString().contains("\u001b"));
+    }
+
+    @Test
+    void unknownSizeRecoversOnTheNextSnapshotWithoutEnteringTheScreenEarly() throws Exception {
+        try (var fixture = RunTestTerminal.open("xterm-256color")) {
+            var terminal = fixture.terminal();
+            terminal.setSize(new Size(0, 0));
+            try (var display = new TerminalProgressDisplay(terminal, true, RunPalette.PLAIN, () -> 0)) {
+                display.update(RunDisplayFixture.sample());
+                assertEquals("", fixture.drain());
+                terminal.setSize(new Size(80, 24));
+                display.update(RunDisplayFixture.sample());
+                var output = fixture.drain();
+                assertTrue(output.contains(Curses.tputs(terminal.getStringCapability(Capability.enter_ca_mode))));
+                assertTrue(output.contains("PARSER"), output);
+            }
+        }
+    }
+
+    @Test
+    void renderingFailureStopsLiveUpdatesAndRestoresTheScreen() throws Exception {
+        try (var fixture = RunTestTerminal.open("xterm-256color")) {
+            var calls = new AtomicLong();
+            var failAt = new AtomicLong(Long.MAX_VALUE);
+            // Each update reads the clock twice; the second read happens while rendering.
+            LongSupplier clock = () -> {
+                if (calls.incrementAndGet() == failAt.get()) {
+                    throw new IllegalStateException("rendering");
+                }
+                return 0;
+            };
+            try (var display = new TerminalProgressDisplay(fixture.terminal(), true, RunPalette.PLAIN, clock)) {
+                display.update(RunDisplayFixture.sample());
+                fixture.drain();
+                failAt.set(calls.get() + 2);
+                display.update(RunDisplayFixture.sample());
+                assertTrue(fixture.drain().contains(Curses.tputs(
+                        fixture.terminal().getStringCapability(Capability.exit_ca_mode))));
+                display.resize();
+                display.update(RunDisplayFixture.sample());
+                assertEquals("", fixture.drain());
+                assertEquals(RunPalette.PLAIN, display.finish());
+            }
+        }
     }
 }

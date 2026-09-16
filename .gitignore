@@ -2,3 +2,4 @@
 .idea
 /corpus*/
 _apalache-out/
+__pycache__

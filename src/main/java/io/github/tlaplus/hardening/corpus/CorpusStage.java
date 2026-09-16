@@ -27,7 +27,11 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.PARSER_PASS,
                             CorpusVerdict.FAIL, CorpusPath.PARSER_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.PARSER_CRASH)),
-            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN)),
+            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN),
+            Map.of(
+                    CorpusVerdict.PASS, ResultMeaning.PASS,
+                    CorpusVerdict.FAIL, ResultMeaning.FAIL,
+                    CorpusVerdict.CRASH, ResultMeaning.CRASH)),
     TLC(
             "tlc",
             "TLC",
@@ -39,7 +43,12 @@ public enum CorpusStage {
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLC_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.TLC_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.TLC_CRASH)),
-            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL)),
+            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL),
+            Map.of(
+                    CorpusVerdict.PASS, ResultMeaning.PASS,
+                    CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
+                    CorpusVerdict.FAIL, ResultMeaning.FAIL,
+                    CorpusVerdict.CRASH, ResultMeaning.CRASH)),
     APALACHE(
             "apalache",
             "Apalache",
@@ -51,7 +60,12 @@ public enum CorpusStage {
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.APALACHE_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.APALACHE_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH)),
-            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL)),
+            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL),
+            Map.of(
+                    CorpusVerdict.PASS, ResultMeaning.PASS,
+                    CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
+                    CorpusVerdict.FAIL, ResultMeaning.FAIL,
+                    CorpusVerdict.CRASH, ResultMeaning.CRASH)),
     AGGREGATOR(
             "aggregator",
             "aggregator",
@@ -61,7 +75,8 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.AGGREGATOR_PASS,
                             CorpusVerdict.FAIL, CorpusPath.AGGREGATOR_FAIL)),
-            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN)),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN),
+            Map.of(CorpusVerdict.PASS, ResultMeaning.AGREE, CorpusVerdict.FAIL, ResultMeaning.DIFFER)),
     /**
      * The quality gate of ADR 0010. It consumes the aggregator's passes, which are its input
      * directory without being its own, and like the aggregator is bounded only by the global limit.
@@ -75,7 +90,27 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.QUALITY_PASS,
                             CorpusVerdict.FAIL, CorpusPath.QUALITY_FAIL)),
-            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN));
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN),
+            Map.of(CorpusVerdict.PASS, ResultMeaning.KEEP, CorpusVerdict.FAIL, ResultMeaning.DROP));
+
+    /**
+     * The meaning of a verdict at one stage, independent of its persisted encoding. Distinct from the
+     * workflow's {@code StageOutcome}, which is a tool result before it becomes a corpus verdict.
+     */
+    public enum ResultMeaning {
+        PASS("Pass"), COUNTEREXAMPLE("Cex"), FAIL("Fail"), CRASH("Crash"),
+        AGREE("Agree"), DIFFER("Differ"), KEEP("Keep"), DROP("Drop");
+
+        private final String label;
+
+        ResultMeaning(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
 
     /** What becomes of an entry this stage passes. */
     private enum Passes {
@@ -113,12 +148,27 @@ public enum CorpusStage {
     private final String displayName;
     private final StagePaths paths;
     private final StagePolicy policy;
+    private final Map<CorpusVerdict, ResultMeaning> meanings;
 
-    CorpusStage(String metadataName, String displayName, StagePaths paths, StagePolicy policy) {
+    CorpusStage(String metadataName, String displayName, StagePaths paths, StagePolicy policy,
+            Map<CorpusVerdict, ResultMeaning> meanings) {
+        if (!meanings.keySet().equals(paths.results().keySet())) {
+            throw new IllegalArgumentException(metadataName + " must give each recorded verdict a meaning");
+        }
         this.metadataName = metadataName;
         this.displayName = displayName;
         this.paths = paths;
         this.policy = policy;
+        this.meanings = Map.copyOf(meanings);
+    }
+
+    /** Returns the stage-specific meaning and display label of a recorded verdict. */
+    public ResultMeaning meaning(CorpusVerdict verdict) {
+        var meaning = meanings.get(Objects.requireNonNull(verdict, "verdict"));
+        if (meaning == null) {
+            throw new IllegalArgumentException(displayName + " does not record " + verdict);
+        }
+        return meaning;
     }
 
     /** Returns the stages that check a parser pass, in the order the parser fans out to them. */

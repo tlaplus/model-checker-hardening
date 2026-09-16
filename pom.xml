@@ -35,6 +35,7 @@
     <gson.version>2.14.0</gson.version>
     <jackson.version>2.20.2</jackson.version>
     <junit.version>6.1.3</junit.version>
+    <jline.version>3.25.1</jline.version>
     <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
     <maven.compiler.release>25</maven.compiler.release>
     <picocli.version>4.7.7</picocli.version>
@@ -63,6 +64,12 @@
   </repositories>
 
   <dependencies>
+    <!-- Also present transitively; terminal rendering is a direct dependency. -->
+    <dependency>
+      <groupId>org.jline</groupId>
+      <artifactId>jline</artifactId>
+      <version>${jline.version}</version>
+    </dependency>
     <!-- The tla2tools snapshot uses its vendored Gson version but omits it from its POM. -->
     <dependency>
       <groupId>com.google.code.gson</groupId>

@@ -262,9 +262,9 @@ class MainTest {
         assertTrue(result.out().contains("Workflow run finished for '"));
         assertFalse(result.out().contains("random seed"));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+8 corpus entries\\s+]")));
+                .anyMatch(line -> line.equals("Corpus entries: 8")));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+8 generated inputs\\s+]")));
+                .anyMatch(line -> line.equals("  Generated inputs: 8")));
         var entryCount = 0;
         for (var resultDirectory : java.util.List.of(
                 CorpusPath.AGGREGATOR_PASS,
@@ -330,9 +330,9 @@ class MainTest {
         assertEquals("", result.err());
         assertTrue(result.out().startsWith("Random seed: 7" + System.lineSeparator()));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+4 generated inputs\\s+]")));
+                .anyMatch(line -> line.equals("  Generated inputs: 4")));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.contains("total elapsed")));
+                .anyMatch(line -> line.contains("Total elapsed")));
         assertTrue(result.out().contains("COMPLETED"));
     }
 
@@ -402,9 +402,9 @@ class MainTest {
         assertTrue(result.out().startsWith(
                 "Random seed: " + Long.MAX_VALUE + System.lineSeparator()));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.matches("\\[\\s+0 generated inputs\\s+]")));
+                .anyMatch(line -> line.equals("  Generated inputs: 0")));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.contains("total elapsed")));
+                .anyMatch(line -> line.contains("Total elapsed")));
     }
 
     @Test
