@@ -9,15 +9,18 @@ cargofuzz).
 
 ## 1. Processing pipeline
 
-The input-generation, parser, TLC, Apalache, and conformance-aggregator stages
-described below are implemented. The quality gate, mutator, and final test-suite
-stages remain proposals. [ADR 0001][] records the stage and worker execution
-model. [ADR 0002][] records the property-based input admission policy.
-[ADR 0005][] records the separate model-checker counterexample verdict.
-[ADR 0006][] records the known-defect admission filter. [ADR 0008][] records the
-exploration metrics that the model-checker stages store for a future quality
-gate. [ADR 0009][] records `fuzztla export-db`, which exports a corpus to a
-SQLite database for analysis ([corpus-database manual][database manual]).
+The input-generation, parser, TLC, Apalache, conformance-aggregator and
+quality-gate stages described below are implemented, and so is the mutator,
+as a candidate source of the input stage. The final test-suite stages remain
+proposals. [ADR 0001][] records the stage and worker execution model.
+[ADR 0002][] records the property-based input admission policy. [ADR 0005][]
+records the separate model-checker counterexample verdict. [ADR 0006][] records
+the known-defect admission filter. [ADR 0008][] records the exploration metrics
+that the model-checker stages store. [ADR 0010][] records generations, the
+quality gate that ranks entries by those metrics, and the mutator
+([mutation manual][]). [ADR 0009][] records `fuzztla export-db`, which exports a
+corpus to a SQLite database for analysis ([corpus-database manual][database
+manual]).
 
 ### 1.1. General architecture
 
@@ -28,9 +31,10 @@ is general enough to encompass many fuzzing frameworks.
 The implemented input stage uses stratified rejection sampling to prevent empty
 collection literals from dominating the corpus. For each target entry, it selects
 one collection-richness cohort uniformly and retains that cohort until it admits a
-unique input. Each generator worker has deterministic, independent candidate and
-cohort streams derived from the run seed. Workers claim target entries
-dynamically. This policy belongs to the workflow; the IR decoders remain
+unique input. Workers claim target entries dynamically, and each target draws its
+cohort and candidates from its own stream, seeded by the generation seed and the
+target's ordinal, so which worker fills a target does not change what it admits
+([ADR 0010][]). This policy belongs to the workflow; the IR decoders remain
 deterministic mappings from bytes to IR. The richness score covers the
 expressions an input decoded to, each counted once, rather than the assembled
 module: the module also holds the fixed skeleton, and the expression wrapper
@@ -39,6 +43,20 @@ a stored score depend on the skeleton rather than on the input. Admission also
 rejects a candidate whose assembled module renders to more TLA<sup>+</sup> source
 than one worker request frame holds, so no stored entry can only be crashed on by
 the parser and TLC.
+
+**Implemented architectural extension.** A run proceeds in generations
+([ADR 0010][]). `workflow.GenerationLoop` runs one `StageGraph` per generation:
+the input stage admits the generation's missing entries and every stage drains.
+The quality gate, `workflow.quality.QualityGate`, then runs in process over the
+settled generation, and the next generation starts until the corpus holds
+`workflow.max_entries` entries. The input stage draws each target entry from a
+`CandidateSource`: `PbtCandidates` implements the cohort policy above, and
+`MutantCandidates` mutates a parent from `04quality-pass` with the byte
+operators of the `mutation` package. `[mutator] feedback_ratio` fixes the share
+of mutant targets. Both sources share one attempt loop, so a mutant is decoded,
+admitted, deduplicated, quarantined and stored exactly like a PBT candidate. A
+mutant that renders to its parent's module is rejected as a clone. The mutator
+is not a stage: it records no verdict and owns no directory.
 
 **Implemented architectural extension.** Admission ends with the known-defect
 signatures listed in `[workflow.inputs] known_defects` ([ADR 0006][]). A
@@ -131,9 +149,8 @@ flowchart LR
         quality_fail["04quality-fail"]
     end
 
-    subgraph mutator["Mutator"]
+    subgraph mutator["Mutator (input-stage candidate source)"]
         direction TB
-        mutator_pass["05mutator-pass"]
     end
 
     subgraph test_suite["Final test suite"]
@@ -162,7 +179,7 @@ flowchart LR
     apalache_fail --> conformance
     aggregator_pass --> quality
     quality_pass --> mutator
-    mutator_pass --> inp
+    mutator --> inp
     quality_pass --> tests_pass
     aggregator_fail --> tests_fail
     parse_crash --> tests_crash
@@ -242,8 +259,18 @@ This workflow specializes the general workflow as follows:
   invariant was violated. Failure codes are diagnostic metadata and do not affect
   this verdict-level comparison. A crash in either checker is not aggregated and
   remains in the checker result directories.
-- **Mutator.** The mutator is no-operation. It does not generate new inputs.
-- **Quality gate.** Good quality gates are to be found.
+- **Quality gate.** The gate ranks the agreeing entries of a settled generation
+  and keeps the best `[mutator] select_fraction` of them in `04quality-pass`;
+  the rest move to `04quality-fail` ([ADR 0010][]). An entry is admissible when
+  its TLC verdict is not `fail`, TLC measured its exploration, and it matches
+  none of the enabled shallow patterns of [ADR 0008][]. Admissible entries are
+  ranked lexicographically by projected depth, projected states, discovering
+  actions and state shape. The gate commits every pass in rank order before any
+  fail, so rerunning it after an interruption completes the same placement.
+- **Mutator.** The mutator derives `[mutator] feedback_ratio` of each
+  generation from `04quality-pass` by byte-level edits; PBT supplies the rest.
+  With `feedback_ratio = 0`, or before any entry passes the gate, a generation
+  is PBT only.
 
 ### 1.4. Metamorphic testing of TLC and Apalache
 
@@ -364,6 +391,15 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    capacity. Pairs containing a checker crash are left in the checker result
    directories.
 
+ - The quality gate consumes `03aggregator-pass` without owning it, and moves
+   each entry of a settled generation to `04quality-pass` or `04quality-fail`
+   with an ordinary stage transition, so startup recovery finishes a move whose
+   `stages.quality` metadata was committed. A gated entry still counts as an
+   aggregator pass, and its checker verdicts still count for both checkers. The
+   gate is bounded only by the global corpus limit. The mutator reads its
+   parents from `04quality-pass` and stores its mutants in `00-inputs`; it owns
+   no directory.
+
  - An unexpected failure while generating or preparing an input produces
    `.work/generator-crash/<sha256>.cbor` and a matching `.stacktrace`. This
    diagnostic copy preserves the exact generator bytes without admitting the
@@ -395,6 +431,8 @@ A stage the reader does not know is ignored, and a stage the document omits
 contributes zero, so adding or removing a stage needs no migration.
 `generator.knownDefects` maps a primary signature id to the number of candidates
 that matched it, stored or not; it is omitted while no candidate has matched.
+`generator.clones` counts mutants rejected because they render to their parent's
+module.
 
 ```cbor
 {
@@ -405,7 +443,8 @@ that matched it, stored or not; it is omitted while no candidate has matched.
       "parser": 0,
       "tlc": 0,
       "apalache": 0,
-      "aggregator": 0
+      "aggregator": 0,
+      "quality": 0
     }
   },
   "generator": {
@@ -413,6 +452,7 @@ that matched it, stored or not; it is omitted while no candidate has matched.
     "rejected": 0,
     "richnessRejected": 0,
     "duplicates": 0,
+    "clones": 0,
     "knownDefects": { "modulo-by-literal-zero": 0 },
     "richnessSamples": 0,
     "minimumRichness": 0.0,
@@ -422,21 +462,44 @@ that matched it, stored or not; it is omitted while no candidate has matched.
 }
 ```
 
-### 2.4. Property-based generation
+### 2.4. Admission metadata
 
-Every property-based input records its admission cohort and collection-richness
-score in the compact `"gen"` field:
+Every admitted input records the generation that admitted it, its admission
+cohort and its collection-richness score in the compact `"gen"` field:
 
 ```cbor
 {
     "kind": "expr",
     "input": h'0123af',
     "gen": {
+      "generation": 0,
       "cohort": 7,
       "richness": 18.0
     }
 }
 ```
+
+A mutant also records the digest of the parent it was mutated from and the
+operators applied, in order ([ADR 0010][]). The two fields appear together or
+not at all. A mutant keeps its parent's cohort and records its own richness.
+
+```cbor
+{
+    "kind": "module",
+    "input": h'0123af',
+    "gen": {
+      "generation": 2,
+      "cohort": 3,
+      "richness": 4.0,
+      "parent": "f8d0eea82ac8…",
+      "operators": ["random_byte"]
+    }
+}
+```
+
+The workflow requires `generation` on every entry of a stage directory. A reader
+still decodes an envelope written before generations existed, so `fuzztla print`
+and `fuzztla export-db` work on it, but a run rejects the corpus.
 
 A quarantined entry in `00-known-defects` also lists, under `knownDefects`, the
 known-defect signatures it matched in database order; the first is its primary
@@ -447,6 +510,7 @@ signature. Admitted entries omit the field.
     "kind": "module",
     "input": h'0123af',
     "gen": {
+      "generation": 0,
       "cohort": 3,
       "richness": 4.0,
       "knownDefects": ["modulo-by-literal-zero", "string-set"]
@@ -457,7 +521,8 @@ signature. Admitted entries omit the field.
 The metadata describes the admission decision; it is not recomputed by later
 stages. A stage must preserve it when updating the envelope. It does not
 participate in the input identity: the filename remains the digest of `"input"`.
-[ADR 0002][] specifies the score and cohort schedule.
+[ADR 0002][] specifies the score and cohort schedule, and [ADR 0010][]
+generations and mutation.
 
 ### 2.5. Stage
 
@@ -498,6 +563,10 @@ The metadata depends on the stage. The minimal set of fields is:
   absent, and a reader preserves metric fields it does not know. The
   [exploration-metrics manual][metrics manual] lists the fields.
 
+- The quality gate records `stages.quality` with the `"pass"` or `"fail"`
+  verdict and the two timestamps, and nothing else: the rank and the matched
+  shallow pattern derive from the stored metrics ([ADR 0010][]).
+
 ```cbor
 {
     "kind": "expr",
@@ -529,7 +598,9 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0006]: ../decisions/0006-known-defect-signatures.md
 [ADR 0008]: ../decisions/0008-exploration-metrics.md
 [ADR 0009]: ../decisions/0009-corpus-database.md
+[ADR 0010]: ../decisions/0010-mutation.md
 [database manual]: ../manual/corpus-database.md
+[mutation manual]: ../manual/mutation.md
 [metrics manual]: ../manual/exploration-metrics.md
 [known-defect manual]: ../manual/known-defect-signatures.md
 [the JSON label finding]: ../../findings/apalache-json/apalache-json-001.md

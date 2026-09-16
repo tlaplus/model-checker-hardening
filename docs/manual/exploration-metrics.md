@@ -9,8 +9,9 @@ Two checkers agreeing on a verdict says little when neither of them explored
 anything. Most agreeing pairs in current corpora are like that: TLC finds no
 initial state, the invariant fails in the initial state, or both checkers stop
 on an evaluation error before a state exists. Exploration metrics record *how
-much* a checker explored to reach its verdict. A future quality gate will use
-them to keep only agreements that exercise the checkers.
+much* a checker explored to reach its verdict. The quality gate of
+[ADR 0010](../decisions/0010-mutation.md) uses them to keep only agreements that
+exercise the checkers.
 
 The TLC stage measures its run and stores the result in the corpus entry. The
 Apalache stage stores the length of its counterexample. The stages do not accept
