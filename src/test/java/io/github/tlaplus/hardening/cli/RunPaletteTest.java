@@ -17,13 +17,16 @@ class RunPaletteTest {
             assertTrue(RunPalette.detect(terminal, "").colors());
             var plain = RunPalette.detect(terminal, "1");
             assertFalse(plain.colors());
-            assertEquals(AttributedStyle.DEFAULT.bold().inverse(), plain.style(RunPalette.Tone.BAD, true));
+            assertEquals(AttributedStyle.DEFAULT.bold(), plain.style(RunPalette.Tone.BAD, true));
+            assertEquals(Glyphs.UNICODE, plain.glyphs());
         }
         try (var fixture = RunTestTerminal.open("dumb")) {
             assertFalse(RunTerminal.supportsDisplay(fixture.terminal()));
-            assertEquals(RunPalette.PLAIN, RunPalette.detect(fixture.terminal(), null));
+            var dumb = RunPalette.detect(fixture.terminal(), null);
+            assertFalse(dumb.colors());
+            assertFalse(dumb.bold());
         }
-        assertEquals(AttributedStyle.BOLD, new RunPalette(false, false, true)
+        assertEquals(AttributedStyle.BOLD, new RunPalette(false, true, Glyphs.ASCII)
                 .style(RunPalette.Tone.NORMAL, true));
     }
 

@@ -5,17 +5,28 @@ import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
 /** Shared field formatting; attributed text keeps terminal escapes out of width arithmetic. */
 record RunText(Map<RunMetric, RunValue> values, Precision precision,
-        RunPalette palette, Set<RunMetric> changed) {
+        RunPalette palette, Highlights highlights) {
     static final String INPUTS_HEADING = "INPUTS";
     static final String COUNTEREXAMPLE_LEGEND =
             CorpusStage.ResultMeaning.COUNTEREXAMPLE.label() + ": counterexamples";
+
+    /**
+     * Recent changes by direction. A live screen reserves one column after each ordered value, so a
+     * marker appearing or expiring never shifts the text after it; reports reserve none.
+     */
+    record Highlights(Map<RunMetric, RunValue.Direction> changes, boolean markers) {
+        static final Highlights NONE = new Highlights(Map.of(), false);
+
+        static Highlights live(Map<RunMetric, RunValue.Direction> changes) {
+            return new Highlights(changes, true);
+        }
+    }
 
     Line line() {
         return new Line();
@@ -40,8 +51,12 @@ record RunText(Map<RunMetric, RunValue> values, Precision precision,
 
         Line value(RunMetric key) {
             var value = Objects.requireNonNull(values.get(key), () -> "no value for " + key);
-            text.append(value.format(precision),
-                    palette.style(RunPalette.tone(key, value), changed.contains(key)));
+            var direction = highlights.changes().get(key);
+            var style = palette.style(RunPalette.tone(key, value), direction != null);
+            text.append(value.format(precision), style);
+            if (highlights.markers() && value.directional()) {
+                text.append(direction == null ? " " : palette.glyphs().marker(direction), style);
+            }
             return this;
         }
 

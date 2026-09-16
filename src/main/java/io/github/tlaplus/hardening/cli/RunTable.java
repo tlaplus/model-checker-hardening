@@ -5,7 +5,6 @@ import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import org.jline.utils.AttributedString;
 
 /** Complete, exact statistics grouped by stage; suitable for scrollback and redirected output. */
@@ -15,7 +14,7 @@ final class RunTable {
     private RunTable() {}
 
     static List<AttributedString> finished(Path corpus, WorkflowRunSummary summary, RunPalette palette) {
-        var text = new RunText(RunView.finished(summary).metrics(), Precision.EXACT, palette, Set.of());
+        var text = new RunText(RunView.finished(summary).metrics(), Precision.EXACT, palette, RunText.Highlights.NONE);
         var lines = new ArrayList<AttributedString>();
         lines.add(text.line().heading("Workflow run finished for '" + corpus + "'").build());
         lines.add(text.line().text("Counts and elapsed times are cumulative across corpus runs.").build());

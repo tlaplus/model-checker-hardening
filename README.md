@@ -268,8 +268,11 @@ completes partial parser fan-outs, reconstructs ready checker pairs, and finishe
 interrupted aggregate source deletion.
 
 On a capable interactive terminal, `run` refreshes a stage flow diagram once per
-second, using a compact view on smaller screens. Colors and change highlighting
-follow terminal capabilities; a nonempty `NO_COLOR` disables colors. Counts and
+second, using a compact view on smaller screens. For one second after a value
+changes, it is bold and followed by `↑` or `↓`. The diagram uses box-drawing
+lines; where the terminal encoding cannot represent them, it uses ASCII lines and
+`+` or `-` markers instead. Colors and bold follow terminal capabilities; a nonempty
+`NO_COLOR` disables colors. Counts and
 times are cumulative across corpus runs; queues show currently waiting work.
 After workers stop, `FINALIZING` indicates corpus validation. Completion prints
 all statistics grouped by stage with exact counts. Redirected output omits live

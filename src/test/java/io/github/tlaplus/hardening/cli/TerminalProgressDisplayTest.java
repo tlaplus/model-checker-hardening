@@ -82,7 +82,7 @@ class TerminalProgressDisplayTest {
         try (var fixture = RunTestTerminal.open("xterm", true)) {
             var terminal = fixture.terminal();
             var clock = new AtomicLong();
-            assertTrue(RunPalette.detect(terminal, null).inverse());
+            assertTrue(RunPalette.detect(terminal, null).bold());
             try (var display = new TerminalProgressDisplay(terminal, true,
                     RunPalette.detect(terminal, null), clock::get)) {
                 display.update(RunDisplayFixture.empty());
@@ -90,17 +90,20 @@ class TerminalProgressDisplayTest {
                 clock.set(1_000_000_000L);
                 display.update(RunDisplayFixture.sample());
                 var changed = fixture.drain();
-                assertEquals(AttributedStyle.DEFAULT.bold().inverse(), firstCountStyle(changed));
+                assertEquals(AttributedStyle.DEFAULT.bold(), firstCountStyle(changed));
+                assertTrue(changed.contains("1240\u2191"), changed);
+                assertFalse(changed.contains("[7m"), "changes never reverse the background");
                 assertFalse(Pattern.compile("\u001b\\[[0-9;]*3[0-9][;m]")
                         .matcher(changed).find());
                 terminal.setSize(new Size(60, 16));
                 display.resize();
-                assertEquals(AttributedStyle.DEFAULT.bold().inverse(), firstCountStyle(fixture.drain()));
+                assertEquals(AttributedStyle.DEFAULT.bold(), firstCountStyle(fixture.drain()));
                 clock.set(2_000_000_000L);
                 display.update(RunDisplayFixture.sample());
                 var settled = fixture.drain();
                 assertTrue(settled.contains("1240"));
                 assertEquals(AttributedStyle.DEFAULT, firstCountStyle(settled));
+                assertFalse(settled.contains("\u2191"), settled);
             }
         }
     }
@@ -115,7 +118,7 @@ class TerminalProgressDisplayTest {
         try (var fixture = RunTestTerminal.open("xterm-256color")) {
             var clock = new AtomicLong();
             var display = new TerminalProgressDisplay(fixture.terminal(), true,
-                    new RunPalette(true, true, true), clock::get);
+                    new RunPalette(true, true, Glyphs.UNICODE), clock::get);
             var configured = new StringWriter();
             try (var output = new RunOutput(new PrintWriter(configured), Optional.of(display))) {
                 display.update(RunDisplayFixture.empty());
@@ -131,7 +134,7 @@ class TerminalProgressDisplayTest {
                 assertTrue(report.contains("Workflow run finished"));
                 assertTrue(AttributedString.fromAnsi(report).toString().contains("Corpus entries: 1240"));
                 assertTrue(report.contains("\u001b["), "the report keeps the terminal palette");
-                assertFalse(report.contains("[7m"), "transient highlights do not reach the report");
+                assertFalse(report.contains("\u2191"), "transient markers do not reach the report");
                 display.update(RunDisplayFixture.empty());
                 assertEquals("", fixture.drain());
             }

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.nio.file.Path;
 import java.util.Locale;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class RunTableTest {
@@ -36,7 +35,7 @@ class RunTableTest {
     @Test
     void exactPrecisionKeepsFullCounts() {
         var huge = new RunText(RunDisplayFixture.values(RunDisplayFixture.extreme()), Precision.EXACT,
-                RunPalette.PLAIN, Set.of()).line().value(RunMetric.Field.GENERATED).build();
+                RunPalette.PLAIN, RunText.Highlights.NONE).line().value(RunMetric.Field.GENERATED).build();
         assertEquals(Long.toString(Long.MAX_VALUE), huge.toString());
     }
 }

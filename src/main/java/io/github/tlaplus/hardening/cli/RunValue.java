@@ -12,10 +12,37 @@ sealed interface RunValue {
         return true;
     }
 
+    /** Whether the value is ordered, so a live screen reserves a column for its change marker. */
+    default boolean directional() {
+        return false;
+    }
+
+    /** How this value moved from an earlier, different value of the same metric. */
+    default Direction since(RunValue previous) {
+        return Direction.CHANGED;
+    }
+
+    enum Direction {
+        UP,
+        DOWN,
+        /** Changed without an order, such as the workflow phase. */
+        CHANGED
+    }
+
     record Count(long value) implements RunValue {
         @Override
         public String format(Precision precision) {
             return precision == Precision.COMPACT ? HumanNumber.compact(value) : Long.toString(value);
+        }
+
+        @Override
+        public boolean directional() {
+            return true;
+        }
+
+        @Override
+        public Direction since(RunValue previous) {
+            return previous instanceof Count(var old) && value < old ? Direction.DOWN : Direction.UP;
         }
     }
 
@@ -27,6 +54,21 @@ sealed interface RunValue {
         @Override
         public String format(Precision precision) {
             return value.isEmpty() ? "n/a" : HumanNumber.richness(value.getAsDouble(), precision);
+        }
+
+        @Override
+        public boolean directional() {
+            return true;
+        }
+
+        /** A first sample counts as a rise; losing all samples as a fall. */
+        @Override
+        public Direction since(RunValue previous) {
+            if (value.isEmpty()) {
+                return Direction.DOWN;
+            }
+            return previous instanceof Richness(var old) && old.isPresent()
+                    && value.getAsDouble() < old.getAsDouble() ? Direction.DOWN : Direction.UP;
         }
     }
 

@@ -5,9 +5,12 @@ import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
-/** Capability-aware styles on the terminal's own palette and default background. */
-record RunPalette(boolean colors, boolean inverse, boolean bold) {
-    static final RunPalette PLAIN = new RunPalette(false, false, false);
+/**
+ * Capability-aware styles on the terminal's own palette and default background. Changes are marked
+ * by bold text and a direction glyph, never by a background change.
+ */
+record RunPalette(boolean colors, boolean bold, Glyphs glyphs) {
+    static final RunPalette PLAIN = new RunPalette(false, false, Glyphs.ASCII);
 
     enum Tone {
         NORMAL(-1, false),
@@ -40,8 +43,8 @@ record RunPalette(boolean colors, boolean inverse, boolean bold) {
     static RunPalette detect(Terminal terminal, String noColor) {
         var count = terminal.getNumericCapability(Capability.max_colors);
         return new RunPalette(count != null && count >= 8 && (noColor == null || noColor.isEmpty()),
-                terminal.getStringCapability(Capability.enter_reverse_mode) != null,
-                terminal.getStringCapability(Capability.enter_bold_mode) != null);
+                terminal.getStringCapability(Capability.enter_bold_mode) != null,
+                Glyphs.detect(terminal.encoding()));
     }
 
     AttributedStyle style(Tone tone, boolean changed) {
@@ -49,10 +52,7 @@ record RunPalette(boolean colors, boolean inverse, boolean bold) {
         if (colors && tone.color >= 0) {
             result = result.foreground(tone.color);
         }
-        if (bold && (tone == Tone.HEADING || changed)) {
-            result = result.bold();
-        }
-        return changed && inverse ? result.inverse() : result;
+        return bold && (tone == Tone.HEADING || changed) ? result.bold() : result;
     }
 
     static Tone tone(RunMetric metric, RunValue value) {

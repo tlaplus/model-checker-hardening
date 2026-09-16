@@ -55,26 +55,28 @@ final class ProgressLayout {
     }
 
     private static List<AttributedString> flow(RunText text, boolean feedback) {
+        var glyphs = text.palette().glyphs();
         var lines = new ArrayList<AttributedString>();
         lines.add(header(text).field("  ", GENERATION).field("  ", ENTRIES).field("  ", TOTAL_ELAPSED).build());
         lines.add(text.line().text("Cumulative totals / time; " + LIVE_LEGEND).build());
         inputDetails(lines, text);
-        lines.add(text.line().padTo(BRANCH_COLUMN).text("v").build());
+        lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.arrowDown()).build());
         lines.add(stageSummary(text, CorpusStage.PARSER));
-        lines.add(text.line().padTo(BRANCH_COLUMN).text("| each pass goes to every checker").build());
-        lines.add(text.line().text(connector(false)).build());
+        lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.vertical() + " each pass goes to every checker").build());
+        lines.add(text.line().text(connector(glyphs, false)).build());
         var arrows = text.line();
         for (var branch = 0; branch < branchCount(); branch++) {
-            arrows.padTo(branchColumn(branch)).text("v");
+            arrows.padTo(branchColumn(branch)).text(glyphs.arrowDown());
         }
         lines.add(arrows.build());
         checkerCards(lines, text);
-        lines.add(text.line().text(connector(true)).build());
-        lines.add(text.line().padTo(JOIN_COLUMN).text("v both non-crash results").build());
+        lines.add(text.line().text(connector(glyphs, true)).build());
+        lines.add(text.line().padTo(joinColumn()).text(glyphs.arrowDown() + " both non-crash results").build());
         lines.add(stageSummary(text, CorpusStage.AGGREGATOR));
-        lines.add(text.line().padTo(JOIN_COLUMN).text("v agreeing entries; gate at generation end").build());
+        lines.add(text.line().padTo(joinColumn())
+                .text(glyphs.arrowDown() + " agreeing entries; gate at generation end").build());
         lines.add(stageSummary(text, CorpusStage.QUALITY));
-        lines.add(text.line().padTo(FEEDBACK_COLUMN).text(feedback(feedback)).build());
+        lines.add(text.line().padTo(FEEDBACK_COLUMN).text(feedback(glyphs, feedback)).build());
         return lines;
     }
 
@@ -119,17 +121,26 @@ final class ProgressLayout {
         return lines;
     }
 
-    /** The fan-out bar below the parser, or the join bar that also marks the aggregator's arrow. */
-    private static String connector(boolean join) {
+    /**
+     * The fan-out bar below the parser, or the join bar above the aggregator. Each column's glyph
+     * follows from the lines it connects: the parser or aggregator on one side, the branches on the
+     * other, and the bar itself.
+     */
+    private static String connector(Glyphs glyphs, boolean join) {
         var last = branchColumn(branchCount() - 1);
-        var bar = new StringBuilder(" ".repeat(BRANCH_COLUMN) + "-".repeat(Math.max(1, last - BRANCH_COLUMN + 1)));
-        for (var branch = 0; branch < branchCount(); branch++) {
-            bar.setCharAt(branchColumn(branch), '+');
-        }
-        if (join) {
-            bar.setCharAt(Math.min(JOIN_COLUMN, bar.length() - 1), '+');
+        var bar = new StringBuilder(" ".repeat(BRANCH_COLUMN));
+        for (var column = BRANCH_COLUMN; column <= last; column++) {
+            var branch = (column - BRANCH_COLUMN) % CARD_WIDTH == 0;
+            var trunk = column == (join ? joinColumn() : BRANCH_COLUMN);
+            bar.append(glyphs.junction(join ? branch : trunk, join ? trunk : branch,
+                    column > BRANCH_COLUMN, column < last));
         }
         return bar.toString();
+    }
+
+    /** The aggregator's arrow leaves the join bar here, within the bar's extent. */
+    private static int joinColumn() {
+        return Math.min(JOIN_COLUMN, branchColumn(branchCount() - 1));
     }
 
     private static int branchCount() {
@@ -144,7 +155,8 @@ final class ProgressLayout {
         var lines = new ArrayList<AttributedString>();
         lines.add(header(text).field("  ", GENERATION).field("  ", ENTRIES).build());
         lines.add(text.line().field("", TOTAL_ELAPSED).text("; cumulative totals / time").build());
-        lines.add(text.line().text("Inputs -> Parser -> checkers -> join -> Quality").build());
+        var arrow = " " + text.palette().glyphs().arrowRight(2) + " ";
+        lines.add(text.line().text(String.join(arrow, "Inputs", "Parser", "checkers", "join", "Quality")).build());
         var headings = text.line().text("Stage").padTo(TABLE_QUEUE_COLUMN).text(RunMetric.Queue.LABEL);
         resultColumns(headings, verdict -> headings.text(columnLabel(verdict)));
         lines.add(headings.build());
@@ -165,7 +177,7 @@ final class ProgressLayout {
             }
             lines.add(line.build());
         }
-        lines.add(text.line().text(feedback(feedback)).build());
+        lines.add(text.line().text(feedback(text.palette().glyphs(), feedback)).build());
         lines.add(text.line().text(LIVE_LEGEND).build());
         lines.add(text.line().text("Full statistics at completion").build());
         return lines;
@@ -218,8 +230,10 @@ final class ProgressLayout {
         return line.build();
     }
 
-    private static String feedback(boolean enabled) {
-        return enabled ? "`--> mutation parents --> next generation " + RunText.INPUTS_HEADING
+    private static String feedback(Glyphs glyphs, boolean enabled) {
+        return enabled
+                ? glyphs.corner() + glyphs.arrowRight(3) + " mutation parents " + glyphs.arrowRight(3)
+                        + " next generation " + RunText.INPUTS_HEADING
                 : "Mutation feedback disabled";
     }
 }

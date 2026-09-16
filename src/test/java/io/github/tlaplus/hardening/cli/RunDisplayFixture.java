@@ -14,7 +14,6 @@ import java.time.Duration;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.LongStream;
 import org.jline.terminal.Size;
@@ -96,11 +95,13 @@ final class RunDisplayFixture {
     }
 
     static List<AttributedString> render(WorkflowProgress source, Size size) {
-        return ProgressLayout.render(new RunText(values(source), Precision.COMPACT, RunPalette.PLAIN, Set.of()),
+        return ProgressLayout.render(new RunText(values(source), Precision.COMPACT, RunPalette.PLAIN,
+                RunText.Highlights.live(Map.of())),
                 size, true);
     }
 
     static String plain(List<AttributedString> lines) {
-        return String.join("\n", lines.stream().map(AttributedString::toString).toList());
+        // Reserved marker columns leave trailing blanks that are invisible on screen.
+        return String.join("\n", lines.stream().map(line -> line.toString().stripTrailing()).toList());
     }
 }

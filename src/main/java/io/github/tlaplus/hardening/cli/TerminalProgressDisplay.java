@@ -60,7 +60,8 @@ final class TerminalProgressDisplay implements AutoCloseable {
 
     private void redraw() {
         try {
-            var text = new RunText(latest, Precision.COMPACT, palette, changes.highlighted(clock.getAsLong()));
+            var text = new RunText(latest, Precision.COMPACT, palette,
+                    RunText.Highlights.live(changes.highlighted(clock.getAsLong())));
             screen.show(size -> ProgressLayout.render(text, size, feedback));
         } catch (RuntimeException | IOError exception) {
             // Live progress is optional: stop rendering and leave the final report available.
