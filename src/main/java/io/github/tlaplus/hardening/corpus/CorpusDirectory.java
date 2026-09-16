@@ -171,17 +171,33 @@ public final class CorpusDirectory {
      */
     public synchronized List<StoredEntry> storedEntries() throws IOException, CorpusException {
         var result = new ArrayList<StoredEntry>();
-        var listing = entries(CorpusEntryValidator.NONE);
         for (var location : CorpusPath.values()) {
-            var directory = resolve(location);
-            if (!location.storesEntries() || Files.notExists(directory, NO_FOLLOW_LINKS)) {
-                continue;
+            if (location.storesEntries()) {
+                result.addAll(list(location));
             }
-            var paths = listing.entryPathsAndReports(
-                    directory, new HashSet<>(), location.relativePath().toString());
-            for (var path : paths) {
-                result.add(new StoredEntry(location, CorpusLayout.entryDigest(path), path));
-            }
+        }
+        return result;
+    }
+
+    /**
+     * Lists the entry files of one stage's result directory for one verdict, by name, without
+     * reading them. The caller must hold the corpus lock for a listing that stays current.
+     */
+    public synchronized List<StoredEntry> resultEntries(CorpusStage stage, CorpusVerdict verdict)
+            throws IOException, CorpusException {
+        return list(Objects.requireNonNull(stage, "stage").result(verdict));
+    }
+
+    private List<StoredEntry> list(CorpusPath location) throws IOException, CorpusException {
+        var directory = resolve(location);
+        if (Files.notExists(directory, NO_FOLLOW_LINKS)) {
+            return List.of();
+        }
+        var result = new ArrayList<StoredEntry>();
+        var paths = entries(CorpusEntryValidator.NONE).entryPathsAndReports(
+                directory, new HashSet<>(), location.relativePath().toString());
+        for (var path : paths) {
+            result.add(new StoredEntry(location, CorpusLayout.entryDigest(path), path));
         }
         return result;
     }
@@ -298,6 +314,15 @@ public final class CorpusDirectory {
     public synchronized Path completeAggregation(AggregationInput input, StageResult result)
             throws IOException, CorpusException {
         return aggregations.complete(input, result);
+    }
+
+    /**
+     * Records the quality gate's verdict on an entry of {@code 03aggregator-pass} and moves it to
+     * the quality directory the verdict names.
+     */
+    public synchronized Path completeQuality(Path source, StageResult result)
+            throws IOException, CorpusException {
+        return transitions.complete(source, CorpusStage.QUALITY, result);
     }
 
     /** Copies one parser pass into both checker branches, then removes the fan-out source. */

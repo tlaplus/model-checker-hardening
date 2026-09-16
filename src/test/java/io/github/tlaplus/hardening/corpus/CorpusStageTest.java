@@ -13,7 +13,8 @@ class CorpusStageTest {
                         CorpusStage.PARSER,
                         CorpusStage.TLC,
                         CorpusStage.APALACHE,
-                        CorpusStage.AGGREGATOR),
+                        CorpusStage.AGGREGATOR,
+                        CorpusStage.QUALITY),
                 List.of(CorpusStage.values()));
     }
 
@@ -35,5 +36,8 @@ class CorpusStageTest {
         assertEquals(
                 List.of(CorpusVerdict.PASS, CorpusVerdict.FAIL),
                 CorpusStage.AGGREGATOR.resultVerdicts());
+        assertEquals(
+                CorpusStage.AGGREGATOR.resultVerdicts(),
+                CorpusStage.QUALITY.resultVerdicts());
     }
 }
