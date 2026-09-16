@@ -25,7 +25,7 @@ import io.github.tlaplus.hardening.workflow.input.GenerationPlan;
 import io.github.tlaplus.hardening.workflow.input.InputAdmission;
 import io.github.tlaplus.hardening.workflow.input.InputHandoff;
 import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
-import io.github.tlaplus.hardening.workflow.input.PbtStage;
+import io.github.tlaplus.hardening.workflow.input.InputStage;
 import io.github.tlaplus.hardening.workflow.parser.ParserBackend;
 import io.github.tlaplus.hardening.workflow.parser.ParserRouting;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
@@ -40,8 +40,8 @@ import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 /**
- * The stages of one workflow invocation, wired to their queues, result capacities, and shared
- * collaborators, and the order in which they start and stop.
+ * The stages that run one generation of a workflow invocation, wired to their queues, result
+ * capacities, and shared collaborators, and the order in which they start and stop.
  */
 final class StageGraph {
     /** What every invocation of one runner shares. */
@@ -78,10 +78,14 @@ final class StageGraph {
     private final WorkflowControl control;
     private final AggregatorStage aggregator;
     private final ToolStage parser;
-    private final PbtStage inputs;
+    private final InputStage inputs;
 
-    StageGraph(Setup setup, Invocation invocation, Startup startup)
+    /**
+     * @param plan what the input stage admits in this generation
+     */
+    StageGraph(Setup setup, Invocation invocation, Startup startup, GenerationPlan plan)
             throws IOException, CorpusException {
+        Objects.requireNonNull(plan, "plan");
         var initial = startup.initial();
         var workflow = setup.config().workflow();
         for (var stage : CorpusStage.values()) {
@@ -143,18 +147,13 @@ final class StageGraph {
                 counters.get(CorpusStage.PARSER),
                 environment,
                 queues.get(CorpusStage.PARSER));
-        inputs = new PbtStage(
+        inputs = new InputStage(
                 new InputAdmission(
                         setup.config().pbt(),
                         setup.knownDefects(),
                         KnownDefectQuarantine.open(
                                 invocation.corpus(), workflow.inputs().knownDefectSamples())),
-                new GenerationPlan(
-                        setup.config().generatedKind(),
-                        invocation.seed(),
-                        workflow.maximumEntries(),
-                        initial.totalEntries(),
-                        invocation.maximumCpus()),
+                plan,
                 environment,
                 new InputHandoff(queues.get(CorpusStage.PARSER), inputCapacity),
                 startup.metrics().generator());
@@ -162,6 +161,11 @@ final class StageGraph {
 
     WorkflowControl control() {
         return control;
+    }
+
+    /** Returns the verdict counters of one stage, including a stage that runs outside the graph. */
+    StageCounters counters(CorpusStage stage) {
+        return counters.get(Objects.requireNonNull(stage, "stage"));
     }
 
     /**

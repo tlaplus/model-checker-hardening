@@ -72,6 +72,7 @@ class TerminalProgressDisplayTest {
     void rendersAdmittedInputRichnessStatistics() {
         var snapshot = new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
+                0,
                 new GeneratorSummary(
                         42, 3, new GeneratorAggregate(5, 0, 1, 1, new Richness(3, 1.25, 9.0, 4.5)),
                         Duration.ofSeconds(3)),
@@ -83,12 +84,15 @@ class TerminalProgressDisplayTest {
                         CorpusStage.APALACHE,
                         StageVerdictSummary.empty(),
                         CorpusStage.AGGREGATOR,
+                        StageVerdictSummary.empty(),
+                        CorpusStage.QUALITY,
                         StageVerdictSummary.empty()),
                 Map.of(
                         CorpusStage.PARSER, 1L,
                         CorpusStage.TLC, 1L,
                         CorpusStage.APALACHE, 2L,
-                        CorpusStage.AGGREGATOR, 0L),
+                        CorpusStage.AGGREGATOR, 0L,
+                        CorpusStage.QUALITY, 0L),
                 3,
                 Duration.ofSeconds(4));
 
@@ -122,6 +126,7 @@ class TerminalProgressDisplayTest {
                         Duration.ZERO));
         var snapshot = new WorkflowProgress(
                 base.phase(),
+                base.generation(),
                 base.generator(),
                 stages,
                 base.backlog(),
@@ -169,14 +174,14 @@ class TerminalProgressDisplayTest {
                             new StageEntryCounts(Map.of(CorpusVerdict.PASS, 1L)),
                             1));
         }
-        stages.put(
-                CorpusStage.AGGREGATOR,
-                new CorpusInventory.StageEntries(List.of(), StageEntryCounts.empty(), 0));
+        for (var stage : List.of(CorpusStage.AGGREGATOR, CorpusStage.QUALITY)) {
+            stages.put(stage, new CorpusInventory.StageEntries(List.of(), StageEntryCounts.empty(), 0));
+        }
         var summary = new WorkflowRunSummary(
                 WorkflowRunSummary.StopReason.COMPLETED,
                 snapshot.generator(),
                 snapshot.stages(),
-                new CorpusInventory(stages),
+                new CorpusInventory(stages, new java.util.TreeMap<>()),
                 snapshot.totalElapsed());
 
         assertFalse(RunTable.progress(snapshot).contains("random seed"));
@@ -187,6 +192,7 @@ class TerminalProgressDisplayTest {
             WorkflowProgress.Phase phase, long generated, long parsed) {
         return new WorkflowProgress(
                 phase,
+                0,
                 new GeneratorSummary(
                         42,
                         generated,
@@ -197,7 +203,8 @@ class TerminalProgressDisplayTest {
                         CorpusStage.PARSER, generated - parsed,
                         CorpusStage.TLC, 0L,
                         CorpusStage.APALACHE, 0L,
-                        CorpusStage.AGGREGATOR, 0L),
+                        CorpusStage.AGGREGATOR, 0L,
+                        CorpusStage.QUALITY, 0L),
                 generated,
                 Duration.ofSeconds(generated));
     }

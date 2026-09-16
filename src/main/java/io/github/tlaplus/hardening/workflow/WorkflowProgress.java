@@ -13,10 +13,12 @@ import java.util.Objects;
  * Best-effort snapshot of cumulative corpus statistics and current pending work.
  *
  * <p>Per-stage figures are keyed by {@link CorpusStage}: {@code stages} holds what each stage has
- * produced, and {@code backlog} how many inputs currently wait for it.
+ * produced, and {@code backlog} how many inputs currently wait for it. {@code generation} is the
+ * generation the workflow is admitting or settling.
  */
 public record WorkflowProgress(
         Phase phase,
+        int generation,
         GeneratorSummary generator,
         Map<CorpusStage, StageVerdictSummary> stages,
         Map<CorpusStage, Long> backlog,
@@ -24,6 +26,7 @@ public record WorkflowProgress(
         Duration totalElapsed) {
     public WorkflowProgress {
         Objects.requireNonNull(phase, "phase");
+        Preconditions.requireNonnegative(generation, "generation");
         Objects.requireNonNull(generator, "generator");
         stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "stages");
         backlog = EnumMaps.requireAllKeys(CorpusStage.class, backlog, "backlog");

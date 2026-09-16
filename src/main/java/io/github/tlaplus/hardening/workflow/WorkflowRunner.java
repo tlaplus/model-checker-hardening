@@ -15,7 +15,6 @@ import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
-import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
@@ -29,10 +28,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * Runs generation, parsing, TLC, Apalache, and conformance aggregation under one CPU budget.
+ * Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one
+ * CPU budget.
  *
  * <p>This class owns one invocation's life cycle: it checks the limits, locks and recovers the
- * corpus, runs the {@link StageGraph}, reports progress, and saves the statistics on exit.
+ * corpus, runs the {@link GenerationLoop}, reports progress, and saves the statistics on exit.
  */
 public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
@@ -119,10 +119,7 @@ public final class WorkflowRunner {
             ElapsedTimeAccumulator invocationElapsed,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
-        var graph = new StageGraph(setup, invocation, startup);
-        if (limits.exhausted(startup.initial())) {
-            graph.control().capacityReached();
-        }
+        var generations = new GenerationLoop(setup, invocation, startup, limits);
         var metrics = startup.metrics();
         var phase = new AtomicReference<>(WorkflowProgress.Phase.RUNNING);
         try (var progress = progressListener == null
@@ -130,15 +127,15 @@ public final class WorkflowRunner {
                 : WorkflowProgressMonitor.start(
                         PROGRESS_UPDATE_INTERVAL,
                         () -> progressSnapshot(
-                                phase.get(), graph, invocation.seed(), metrics, invocationElapsed),
+                                phase.get(),
+                                generations.current(),
+                                invocation.seed(),
+                                metrics,
+                                invocationElapsed),
                         progressListener)) {
-            graph.run();
-            graph.throwIfFailed();
+            var stopReason = generations.run();
             phase.set(WorkflowProgress.Phase.FINALIZING);
             var result = invocation.corpus().recoverAndValidate(entryValidator());
-            var stopReason = graph.control().state() == WorkflowControl.State.CAPACITY_REACHED
-                    ? WorkflowRunSummary.StopReason.CAPACITY_REACHED
-                    : WorkflowRunSummary.StopReason.COMPLETED;
             var finalSummaries = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
             for (var stage : CorpusStage.values()) {
                 finalSummaries.put(stage, StageGraph.summary(result, stage, metrics));
@@ -150,17 +147,19 @@ public final class WorkflowRunner {
 
     private static WorkflowProgress progressSnapshot(
             WorkflowProgress.Phase phase,
-            StageGraph graph,
+            GenerationLoop.Generation generation,
             long seed,
             WorkflowMetrics metrics,
             ElapsedTimeAccumulator invocationElapsed) {
         var generatorSummary = metrics.generator().summary(seed);
+        var graph = generation.graph();
         var stages = graph.summaries();
         var corpusEntries = generatorSummary.generated();
         var backlog = graph.backlog();
         backlog.replaceAll((stage, pending) -> Math.min(pending, corpusEntries));
         return new WorkflowProgress(
                 phase,
+                generation.number(),
                 generatorSummary,
                 stages,
                 backlog,
@@ -171,11 +170,15 @@ public final class WorkflowRunner {
     /**
      * Returns the policy that decides whether a stored input is still usable. Each entry selects
      * its own decoder; {@code generator.kind} only selects what the input stage adds to the corpus.
+     * Every entry must record the generation that admitted it (ADR 0010).
      */
     private CorpusEntryValidator entryValidator() {
-        return (entry, input) -> {
+        return (entry, envelope) -> {
+            if (envelope.generation().filter(metadata -> metadata.generation().isPresent()).isEmpty()) {
+                throw new CorpusException("corpus entry records no generation: " + entry);
+            }
             try {
-                setup.decoders().decode(input);
+                setup.decoders().decode(envelope.corpusInput());
             } catch (InputRejectedException exception) {
                 throw new CorpusException(
                         "corpus entry is rejected: "
