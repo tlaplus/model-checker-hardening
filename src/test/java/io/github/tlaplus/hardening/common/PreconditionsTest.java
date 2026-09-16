@@ -17,11 +17,11 @@ class PreconditionsTest {
     void preservesNumericBoundariesIncludingNegativeZeroAndNonfiniteValues() {
         for (var value : new double[] {Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, -1.0}) {
             assertEquals("richness must be finite and nonnegative", assertThrows(IllegalArgumentException.class,
-                    () -> new GenerationMetadata(0, value)).getMessage());
+                    () -> GenerationMetadata.generated(0, 0, value)).getMessage());
         }
         for (var value : new double[] {0.0, -0.0, Double.MIN_VALUE, Double.MAX_VALUE}) {
             assertEquals(Double.doubleToLongBits(value),
-                    Double.doubleToLongBits(new GenerationMetadata(0, value).richness()));
+                    Double.doubleToLongBits(GenerationMetadata.generated(0, 0, value).richness()));
         }
         assertDoesNotThrow(() -> Preconditions.requireNonnegative(Long.MAX_VALUE, "value"));
         assertEquals("value must be nonnegative", assertThrows(IllegalArgumentException.class,
@@ -35,7 +35,7 @@ class PreconditionsTest {
         assertEquals("maximumInputBytes must be nonnegative", assertThrows(IllegalArgumentException.class,
                 () -> new PbtConfig(-1, 0, Double.NaN, Double.NaN)).getMessage());
         assertEquals("cohort must be nonnegative", assertThrows(IllegalArgumentException.class,
-                () -> new GenerationMetadata(-1, Double.NaN)).getMessage());
+                () -> GenerationMetadata.generated(0, -1, Double.NaN)).getMessage());
         assertEquals("stage must not be blank", assertThrows(IllegalArgumentException.class,
                 () -> new StageMetadata(" ", null, null, null, null)).getMessage());
         assertEquals("failure", assertThrows(NullPointerException.class,

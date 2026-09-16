@@ -3,9 +3,11 @@ package io.github.tlaplus.hardening.cli;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jio.TlaText;
 
 /**
@@ -39,12 +41,19 @@ final class EnvelopeReport {
             writer.printf("kind: %s%n", envelope.corpusInput().kind().encodedName());
             envelope.generation().ifPresent(generation -> {
                 writer.printf("gen:%n");
+                generation.generation().ifPresent(number -> writer.printf("  generation: %d%n", number));
                 writer.printf("  cohort: %d%n", generation.cohort());
                 writer.printf("  richness: %s%n", generation.richness());
                 if (!generation.knownDefects().isEmpty()) {
                     writer.printf(
                             "  knownDefects: %s%n", String.join(", ", generation.knownDefects()));
                 }
+                generation.mutation().ifPresent(mutation -> {
+                    writer.printf("  parent: %s%n", mutation.parent());
+                    writer.printf("  operators: %s%n", mutation.operators().stream()
+                            .map(MutationOperator::encodedName)
+                            .collect(Collectors.joining(", ")));
+                });
             });
             if (!envelope.stages().isEmpty()) {
                 writer.printf("stages:%n");

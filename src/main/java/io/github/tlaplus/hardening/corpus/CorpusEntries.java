@@ -77,7 +77,7 @@ final class CorpusEntries {
             throw new CorpusException("corpus entry hash does not match its input: " + path);
         }
         try {
-            validator.validate(path, corpusInput);
+            validator.validate(path, entry.envelope());
         } catch (RuntimeException | StackOverflowError exception) {
             // The payload broke the generator: keep it for inspection outside the stage
             // directories.

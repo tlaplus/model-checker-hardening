@@ -104,7 +104,7 @@ class CorpusEnvelopeCodecTest {
 
     @Test
     void preservesGenerationMetadataWhenAddingStageMetadata() throws Exception {
-        var generation = new GenerationMetadata(4, 8.0);
+        var generation = GenerationMetadata.generated(0, 4, 8.0);
         var encoded = CorpusInputCodec.encode(
                 new CorpusInput(InputKind.EXPRESSION, new byte[] {4, 2}), generation);
 

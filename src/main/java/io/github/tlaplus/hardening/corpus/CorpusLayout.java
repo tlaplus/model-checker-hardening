@@ -38,6 +38,7 @@ final class CorpusLayout {
             Pattern.compile(DIGEST_PATTERN + Pattern.quote(ENTRY_EXTENSION));
     static final Pattern CRASH_REPORT_FILE_NAME =
             Pattern.compile(DIGEST_PATTERN + Pattern.quote(CRASH_REPORT_EXTENSION));
+    private static final Pattern DIGEST = Pattern.compile(DIGEST_PATTERN);
 
     private final EnumMap<CorpusPath, Path> paths;
 
@@ -173,6 +174,11 @@ final class CorpusLayout {
     /** Returns the lowercase hexadecimal digest that identifies a payload. */
     static String digest(byte[] input) {
         return Digests.digest(input);
+    }
+
+    /** Reports whether {@code text} has the form of a payload digest. */
+    static boolean isDigest(String text) {
+        return DIGEST.matcher(text).matches();
     }
 
     /** Returns the file name of the entry whose payload has this digest. */
