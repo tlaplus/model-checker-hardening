@@ -5,7 +5,7 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 29 modules made TLC crash with one of the two diagnostics below; in the
 1000-module corpus20, generated with the same categories and the first five
 signatures below, another 6 did; corpus22, with all seven signatures, left 57
-more, corpus23 76, corpus24 69 and corpus25 125 (see
+more, corpus23 76, corpus24 69, corpus25 125 and corpus26 66 (see
 [Signature precision](#signature-precision)). SANY accepted all of them.
 
 TLC checks a temporal property by translating it into its liveness formulas
@@ -37,6 +37,7 @@ quarantine them, so neither checker spends time on them.
 | `WF_v(A)` or `SF_v(A)` under `<>` or `~>` | `<>SF_x(A)`, `WF_x(A) ~> (x = 3)` | must be of forms | fail, fairness | `tlc-fairness-under-eventuality` |
 | `SF_v(A)` under `[]` | `[]SF_x(x' = x + 1)` | must be of forms | fail, fairness | none |
 | A negated `WF_v(A)` under `[]` | `[](~WF_x(A))` | must be of forms | fail, fairness | none |
+| A negated `IF` around a temporal formula whose constant condition selects a constant branch | `~(IF FALSE THEN <>(x = 3) ELSE FALSE)` | must be of forms | pass | none |
 
 TLC checks the unlabeled `[][x' >= x]_x` and `[]WF_x(x' = x + 1)`. A label is only
 a name for a subexpression, so the labeled row is arguably a TLC defect rather
@@ -96,25 +97,28 @@ TLC or produced a counterexample.
 TLC checks both, and neither occurred among the matches. Each signature's
 remaining match failed an evaluation before TLC reached the property.
 
-The corpus22, corpus23, corpus24 and corpus25 runs, generated with the same
-categories and the shipped signatures, left 57, 76, 69 and 125 TLC crashes with
-either diagnostic. corpus25 uses the same generator settings as corpus24 with
-twice its entry budget, so its larger count is the corpus size, not a new shape.
+The corpus22, corpus23, corpus24, corpus25 and corpus26 runs, generated with the
+same categories and the shipped signatures, left 57, 76, 69, 125 and 66 TLC
+crashes with either diagnostic. corpus25 uses the same generator settings as
+corpus24 with twice its entry budget, so its larger count is the corpus size, not
+a new shape. corpus26 uses corpus25's generator settings with half its entry
+budget.
 They are classified by the property that TLC rejected:
 
-| Shape | "Must be of forms", corpus22 | corpus23 | corpus24 | corpus25 | "Cannot handle", corpus22 | corpus23 | corpus24 | corpus25 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| A label directly on `[][A]_v` or `[A]_v` | 23 | 27 | 29 | 38 | | | | |
-| `SF_v(A)` under `[]`, possibly negated, labeled or nested | 19 | 34 | 30 | 48 | | | | |
-| `[][A]_v` in an `IF` branch | 2 | 0 | 1 | 8 | | | | |
-| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | 1 | 0 | 0 | | | | |
-| A negated `WF_v(A)` under `[]` | | | 3 | 1 | | | | |
-| `WF_v(A)` under `[]`, plain or doubly nested, or under a negated `IF` | | | | 3 | | | | |
-| `[]` or `[][A]_v` under a bounded `\E` over a constant set | 1 | 2 | 1 | 0 | | | | |
-| A negated bounded quantifier over `{}` around a temporal formula | 0 | 2 | 0 | 0 | | | | |
-| Bounded quantifier whose domain depends on the state | | | | | 8 | 10 | 3 | 13 |
-| Bounded quantifier over `Int` or `Nat` | | | | | 2 | 0 | 1 | 5 |
-| Bounded quantifier whose constant domain fails to evaluate, [tlc-011](../findings/TLC/tlc-011.md) | | | | | | | 1 | 9 |
+| Shape | "Must be of forms", corpus22 | corpus23 | corpus24 | corpus25 | corpus26 | "Cannot handle", corpus22 | corpus23 | corpus24 | corpus25 | corpus26 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A label directly on `[][A]_v` or `[A]_v` | 23 | 27 | 29 | 38 | 26 | | | | | |
+| `SF_v(A)` under `[]`, possibly negated, labeled or nested | 19 | 34 | 30 | 48 | 27 | | | | | |
+| `[][A]_v` in an `IF` branch | 2 | 0 | 1 | 8 | 0 | | | | | |
+| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | 1 | 0 | 0 | 0 | | | | | |
+| A negated `WF_v(A)` under `[]` | | | 3 | 1 | 1 | | | | | |
+| `WF_v(A)` under `[]`, plain or doubly nested, or under a negated `IF` | | | | 3 | 0 | | | | | |
+| `[]` or `[][A]_v` under a bounded `\E` over a constant set | 1 | 2 | 1 | 0 | 1 | | | | | |
+| A negated bounded quantifier over `{}` around a temporal formula | 0 | 2 | 0 | 0 | 1 | | | | | |
+| A negated `IF` whose constant condition selects a constant branch | | | | | 1 | | | | | |
+| Bounded quantifier whose domain depends on the state | | | | | | 8 | 10 | 3 | 13 | 5 |
+| Bounded quantifier over `Int` or `Nat` | | | | | | 2 | 0 | 1 | 5 | 4 |
+| Bounded quantifier whose constant domain fails to evaluate, [tlc-011](../findings/TLC/tlc-011.md) | | | | | | | | 1 | 9 | 0 |
 
 The negated-`WF` and failing-domain rows were first separated in corpus24; the
 earlier columns may count such crashes under a neighboring row.
@@ -147,6 +151,22 @@ with more than one rejected construct is counted once. Three observations:
   over a constant domain that raises the same way. Their domains apply `Head` to
   an empty sequence or `VariantGetUnsafe` to a mismatched tag.
 
+The corpus26 rows were classified the same way, with TLC2 version
+2026.09.16.090156. Four observations:
+
+- The negated-`IF` row is new. Its one crash, `1d3f1339`, has the property
+  `C => (IF FALSE THEN <>(P <=> FALSE) ELSE FALSE)` for a constant `C`. It
+  contains no action and is reduced [below](#negated-constant-if).
+- `524e2c6c` is counted in the label row, its outermost shape. Its property is
+  `lbl :: \E q \in {c}: lbl(q) :: [][A]_v`, so it also has the bounded-`\E` shape.
+- The negated-`WF` crash is `7750e2e6`, `[](WF_e(A) => FALSE)`, the corpus24
+  shape. The bounded-`\E` crash is `316acaaa`, `\E q \in BOOLEAN: [][q]_e`, and
+  the negated-quantifier crash is `55766806`, `(\E q \in D: P ~> FALSE) => FALSE`
+  where `D` is a `VariantGetOrElse` that evaluates to `{}`.
+- Two of the five state-dependent domains also fail to evaluate: `17a6f2f8`
+  quantifies over `{<<>>[step]}` and `ea0d75c5` over `<<>>[step]`. They are
+  counted as state-dependent, since the domain reads `step`.
+
 The negated-quantifier row contains no action, yet TLC reports "must be of forms".
 With `Init == x = 0`, `Next == UNCHANGED x` and `Spec == Init /\ [][Next]_x`:
 
@@ -166,9 +186,38 @@ The corpus23 examples are `d94fbfd5`, whose property is
 In the bounded-`\E` row, `\E q \in BOOLEAN: [][x' = x]_x` alone reproduces the
 crash; its corpus23 examples are `07a0fee5` and `70e1b933`.
 
+<a id="negated-constant-if"></a>
+The negated-`IF` row has no action either. It needs both a negation, or a
+position that implies one, and a constant `IF` condition that selects a branch
+without a temporal operator. With the module above:
+
+| `Prop` | TLC |
+| --- | --- |
+| `~(IF FALSE THEN <>(x = 1) ELSE FALSE)` | "must be of forms", exit 255 |
+| `~(IF FALSE THEN <>(x = 1) ELSE TRUE)` | "must be of forms", exit 255 |
+| `~(IF TRUE THEN FALSE ELSE <>(x = 1))` | "must be of forms", exit 255 |
+| `~(IF 1 = 2 THEN <>(x = 1) ELSE FALSE)` | "must be of forms", exit 255 |
+| `~(IF FALSE THEN [](x = 1) ELSE FALSE)` | "must be of forms", exit 255 |
+| `TRUE => (IF FALSE THEN <>(x = 1) ELSE FALSE)` | "must be of forms", exit 255 |
+| `<>(x = 0) \/ ~(IF FALSE THEN <>(x = 1) ELSE FALSE)` | "must be of forms", exit 255 |
+| `[](~(IF FALSE THEN <>(x = 1) ELSE FALSE))` | "must be of forms", exit 255 |
+| `IF FALSE THEN <>(x = 1) ELSE FALSE` | property violated |
+| `IF FALSE THEN <>(x = 1) ELSE TRUE` | rejected as a tautology |
+| `~(IF TRUE THEN <>(x = 1) ELSE FALSE)` | no error |
+| `~(IF x = 0 THEN <>(x = 1) ELSE FALSE)` | no error |
+| `~(IF FALSE THEN <>(x = 1) ELSE x = 0)` | property violated |
+| `~(IF FALSE THEN <>(x = 1) ELSE <>FALSE)` | no error |
+| `~(IF FALSE THEN x = 1 ELSE FALSE)` | no error |
+
+Like the negated quantifier over `{}`, the failing formulas reduce to a constant
+under a negation, which suggests the same cause in the liveness translation;
+the translation code was not inspected. With the representative MWE and
+`Prop == ~(IF FALSE THEN <>(x = 3) ELSE FALSE)`, Apalache 0.62.2 reports
+`NoError` for `--temporal=Liveness --length=4`.
+
 None of these rows has a signature yet. The label rows cannot have one: the
 pattern language skips labels
 ([known-defect signatures](../docs/manual/known-defect-signatures.md), section 3.4).
-The `WF` row was not reduced to a reproduction; the bounded-`\E` and
-negated-quantifier rows were reduced as above. The negated-`WF` row of the shape table did not occur in the
+The `WF` row was not reduced to a reproduction; the bounded-`\E`,
+negated-quantifier and negated-`IF` rows were reduced as above. The negated-`WF` row of the shape table did not occur in the
 smoke corpus or corpus20, and a signature for it could not be measured.

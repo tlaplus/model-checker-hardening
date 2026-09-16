@@ -117,6 +117,21 @@ diagnostic of
 input therefore passed once and crashed once. Whether the difference is in
 Apalache or in the IR the worker feeds it was not established.
 
+## Recurring in `corpus26`
+
+The `module` corpus26 run, generated like corpus25 with half its entry budget,
+has 62 aggregator deviations where TLC reports a counterexample and Apalache
+passes. All 62 were rerun as in corpus25. Each TLC rerun reports
+`Invariant Inv is violated by the initial state` and exits 12, and each Apalache
+0.62.2 rerun ends with `NoError` and exit status 0. All 62 have `ENABLED` in the
+invariant.
+
+None is [apalache-bmc-017](apalache-bmc-017.md): no rerun reports
+`All executions are shorter than the provided bound`. A `[D -> {}]` function set
+occurs somewhere in 49 of the 62, but, as in corpus25, Apalache explores states
+and answers the invariant. The position of `ENABLED` inside the invariant was
+not counted, and no entry was reduced.
+
 ## Expected behavior
 
 Apalache either rejects `ENABLED` as unsupported, with exit 75, or checks the
