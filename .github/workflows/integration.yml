@@ -39,6 +39,8 @@ jobs:
             corpus/02apa-crash \
             corpus/03aggregator-pass \
             corpus/03aggregator-fail \
+            corpus/04quality-pass \
+            corpus/04quality-fail \
             -type f -name '*.cbor' | wc -l)
           tlc_results=$(find \
             corpus/02tlc-pass \
@@ -57,4 +59,6 @@ jobs:
           test "$(find corpus/01parser-pass -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/02tlc-inputs -type f -name '*.cbor' | wc -l)" -eq 0
           test "$(find corpus/02apa-inputs -type f -name '*.cbor' | wc -l)" -eq 0
+          # The quality gate places every agreeing entry of a settled generation.
+          test "$(find corpus/03aggregator-pass -type f -name '*.cbor' | wc -l)" -eq 0
           test "$tlc_results" -eq "$apalache_results"
