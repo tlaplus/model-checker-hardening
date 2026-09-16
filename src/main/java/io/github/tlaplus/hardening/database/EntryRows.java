@@ -9,6 +9,7 @@ import static io.github.tlaplus.hardening.database.DatabaseColumns.END_TIME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.ENTRY_ID;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.ERROR;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.EVALUATED_NODES;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.GENERATION;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.HASH;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.ID;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.INPUT_BYTES;
@@ -16,6 +17,8 @@ import static io.github.tlaplus.hardening.database.DatabaseColumns.KIND;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.METRICS;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.NAME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.OCCURRENCES;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.OPERATOR;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.PARENT;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PHASE;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.POSITION;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.REPLAY_ERROR;
@@ -29,20 +32,20 @@ import static io.github.tlaplus.hardening.database.DatabaseColumns.VERDICT;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StoredEntry;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The rows that one decoded corpus entry contributes: its {@code entry} row, one {@code
- * knownDefect} row per signature, one {@code stage} row per stage record and one {@code expr} row
- * per expression construct of its replayed input.
+ * The rows that one decoded corpus entry contributes: its {@code entry} row, followed by the rows
+ * that reference it: one {@code knownDefect} row per signature, one {@code mutationOperator} row
+ * per operator, one {@code stage} row per stage record and one {@code expr} row per expression
+ * construct of its replayed input.
  */
-record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> exprs) {
+record EntryRows(Row entry, List<Row> dependents) {
     EntryRows {
-        knownDefects = List.copyOf(knownDefects);
-        stages = List.copyOf(stages);
-        exprs = List.copyOf(exprs);
+        dependents = List.copyOf(dependents);
     }
 
     /** Maps an entry file, which the database identifies by {@code id}, to its rows. */
@@ -55,26 +58,27 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> 
                 .set(HASH, stored.digest())
                 .set(KIND, input.kind().encodedName())
                 .set(INPUT_BYTES, input.input().length);
-        var knownDefects = new ArrayList<Row>();
+        var dependents = new ArrayList<Row>();
         envelope.generation().ifPresent(generation -> {
             entry.set(COHORT, generation.cohort()).set(RICHNESS, generation.richness());
-            var signatures = generation.knownDefects();
-            for (var position = 0; position < signatures.size(); position++) {
-                knownDefects.add(new Row(DatabaseTable.KNOWN_DEFECT)
-                        .set(ENTRY_ID, id)
-                        .set(POSITION, position)
-                        .set(SIGNATURE, signatures.get(position)));
-            }
+            generation.generation().ifPresent(value -> entry.set(GENERATION, value));
+            dependents.addAll(positions(DatabaseTable.KNOWN_DEFECT, SIGNATURE, id, generation.knownDefects()));
+            generation.mutation().ifPresent(mutation -> {
+                entry.set(PARENT, mutation.parent());
+                dependents.addAll(positions(
+                        DatabaseTable.MUTATION_OPERATOR,
+                        OPERATOR,
+                        id,
+                        mutation.operators().stream().map(MutationOperator::encodedName).toList()));
+            });
         });
-        var stages = new ArrayList<Row>();
         for (var stage : envelope.stages()) {
-            stages.add(stageRow(id, stage));
+            dependents.add(stageRow(id, stage));
         }
-        var exprs = new ArrayList<Row>();
         switch (replay) {
             case ReplayOutcome.Replayed(var counts) -> {
                 entry.set(EVALUATED_NODES, counts.nodes());
-                counts.exprs().forEach((name, occurrences) -> exprs.add(
+                counts.exprs().forEach((name, occurrences) -> dependents.add(
                         new Row(DatabaseTable.EXPR)
                                 .set(ENTRY_ID, id)
                                 .set(NAME, name)
@@ -82,7 +86,7 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> 
             }
             case ReplayOutcome.Failed(var error) -> entry.set(REPLAY_ERROR, error);
         }
-        return new EntryRows(entry, knownDefects, stages, exprs);
+        return new EntryRows(entry, dependents);
     }
 
     /** Returns the row of an entry file that does not decode. */
@@ -95,12 +99,18 @@ record EntryRows(Row entry, List<Row> knownDefects, List<Row> stages, List<Row> 
 
     /** Every row, parents first. */
     List<Row> all() {
-        var rows = new ArrayList<Row>(
-                1 + knownDefects.size() + stages.size() + exprs.size());
+        var rows = new ArrayList<Row>(1 + dependents.size());
         rows.add(entry);
-        rows.addAll(knownDefects);
-        rows.addAll(stages);
-        rows.addAll(exprs);
+        rows.addAll(dependents);
+        return rows;
+    }
+
+    /** Returns one row per value of an ordered list, keyed by the value's position. */
+    private static List<Row> positions(DatabaseTable table, Column value, long id, List<String> values) {
+        var rows = new ArrayList<Row>(values.size());
+        for (var position = 0; position < values.size(); position++) {
+            rows.add(new Row(table).set(ENTRY_ID, id).set(POSITION, position).set(value, values.get(position)));
+        }
         return rows;
     }
 

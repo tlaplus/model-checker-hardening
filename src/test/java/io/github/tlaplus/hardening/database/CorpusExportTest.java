@@ -23,11 +23,13 @@ import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
+import io.github.tlaplus.hardening.corpus.Mutation;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StageRecord;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,8 +57,10 @@ class CorpusExportTest {
     void exportsEntriesStageRecordsMetricsAndKnownDefects(@TempDir Path directory)
             throws Exception {
         var root = corpus(directory);
+        var parent = Digests.digest("parent".getBytes(StandardCharsets.UTF_8));
         var aggregated = store(root, CorpusPath.AGGREGATOR_PASS, InputKind.MODULE, "aggregated",
-                Optional.of(new GenerationMetadata(3, 7.25)),
+                Optional.of(GenerationMetadata.mutated(2, 3, 7.25, new Mutation(
+                        parent, List.of(MutationOperator.SPLICE, MutationOperator.BITFLIP)))),
                 stage("parser", new StageRecord(CorpusVerdict.PASS, START, START)),
                 stage("tlc", new StageRecord(
                         CorpusVerdict.COUNTEREXAMPLE,
@@ -79,7 +83,7 @@ class CorpusExportTest {
                         Optional.of(ExplorationMetrics.builder().build()))),
                 stage("aggregator", new StageRecord(CorpusVerdict.FAIL, START, START)));
         var quarantined = store(root, CorpusPath.KNOWN_DEFECTS, InputKind.EXPRESSION, "quarantined",
-                Optional.of(new GenerationMetadata(0, 1.0, List.of("modulo-by-zero", "string-set"))));
+                Optional.of(GenerationMetadata.generated(0, 0, 1.0).withKnownDefects(List.of("modulo-by-zero", "string-set"))));
         var crashed = store(root, CorpusPath.TLC_CRASH, InputKind.MODULE, "crashed",
                 Optional.empty(),
                 stage("tlc", new StageRecord(CorpusVerdict.CRASH, START, START.plusSeconds(60))));
@@ -115,6 +119,15 @@ class CorpusExportTest {
             assertEquals(
                     List.of(row("modulo-by-zero", 0L), row("string-set", 1L)),
                     rows(connection, "SELECT signature, position FROM knownDefect ORDER BY position"));
+            assertEquals(
+                    List.of(
+                            row("00-known-defects", 0L, null),
+                            row("02tlc-crash", null, null),
+                            row("03aggregator-pass", 2L, parent)),
+                    rows(connection, "SELECT directory, generation, parent FROM entry ORDER BY id"));
+            assertEquals(
+                    List.of(row("splice", 0L), row("bitflip", 1L)),
+                    rows(connection, "SELECT operator, position FROM mutationOperator ORDER BY position"));
             assertEquals(
                     List.of(
                             row("aggregator", "fail", 0L),
@@ -332,7 +345,7 @@ class CorpusExportTest {
         for (var index = 0; index < EntryBatchExporter.CHUNK_SIZE + 7; index++) {
             var location = index % 3 == 0 ? CorpusPath.AGGREGATOR_PASS : CorpusPath.AGGREGATOR_FAIL;
             store(root, location, InputKind.MODULE, "input-" + index + "x".repeat(index % 11),
-                    Optional.of(new GenerationMetadata(index % 10, index)));
+                    Optional.of(GenerationMetadata.generated(0, index % 10, index)));
         }
         var contents = new ArrayList<List<List<Object>>>();
 

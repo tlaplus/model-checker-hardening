@@ -22,6 +22,8 @@ enum DatabaseTable {
                     INPUT_BYTES,
                     COHORT,
                     RICHNESS,
+                    GENERATION,
+                    PARENT,
                     EVALUATED_NODES,
                     REPLAY_ERROR),
             List.of(ID),
@@ -30,6 +32,12 @@ enum DatabaseTable {
     KNOWN_DEFECT(
             "knownDefect",
             List.of(ENTRY_ID, POSITION, SIGNATURE),
+            List.of(ENTRY_ID, POSITION),
+            List.of(),
+            true),
+    MUTATION_OPERATOR(
+            "mutationOperator",
+            List.of(ENTRY_ID, POSITION, OPERATOR),
             List.of(ENTRY_ID, POSITION),
             List.of(),
             true),
