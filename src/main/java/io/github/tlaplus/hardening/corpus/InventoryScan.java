@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -47,7 +49,7 @@ final class InventoryScan {
     CorpusInventory scan() throws IOException, CorpusException {
         var aggregateResults = aggregationRecovery.recoverAndValidate();
 
-        var logicalNames = new HashSet<String>();
+        var logicalEntries = new LogicalEntries();
         var inputs = new ArrayList<Path>();
         var parserResults = new VerdictTally();
 
@@ -57,7 +59,7 @@ final class InventoryScan {
             for (var stage : CorpusStage.values()) {
                 CorpusEntries.requireMissingStage(entry, stage);
             }
-            addLogicalName(logicalNames, path.getFileName().toString());
+            logicalEntries.add(entry);
             inputs.add(path);
         }
 
@@ -78,13 +80,34 @@ final class InventoryScan {
                         for (var checker : CorpusStage.checkerBranches()) {
                             CorpusEntries.requireMissingStage(entry, checker);
                         }
-                        addLogicalName(logicalNames, entry.path().getFileName().toString());
+                        logicalEntries.add(entry);
                     });
             parserResults.add(verdict, count);
         }
 
-        for (var name : aggregateResults.entries().keySet()) {
-            addLogicalName(logicalNames, name);
+        // Entries past the aggregator carry the checker verdicts they were aggregated from.
+        var aggregatedCheckerVerdicts = new EnumMap<CorpusStage, VerdictTally>(CorpusStage.class);
+        CorpusStage.checkerBranches().forEach(checker -> aggregatedCheckerVerdicts.put(checker, new VerdictTally()));
+        ThrowingConsumer<Entry, CorpusException> aggregated = entry -> {
+            aggregationRecovery.upstreamCheckerVerdicts(entry).forEach((checker, verdict) ->
+                    aggregatedCheckerVerdicts.get(checker).increment(verdict));
+            logicalEntries.add(entry);
+        };
+        var ungated = new ArrayList<Path>();
+        for (var entry : aggregateResults.entries().values()) {
+            aggregated.accept(entry);
+            if (entry.envelope().stage(CorpusStage.AGGREGATOR).orElseThrow().verdict()
+                    == CorpusVerdict.PASS) {
+                ungated.add(entry.path());
+            }
+        }
+        ungated.sort(null);
+        var gatedResults = new VerdictTally();
+        for (var verdict : CorpusStage.QUALITY.resultVerdicts()) {
+            gatedResults.add(verdict, visitResultEntries(CorpusStage.QUALITY, verdict, entry -> {
+                CorpusEntries.requireStageVerdict(entry, CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
+                aggregated.accept(entry);
+            }));
         }
 
         // Validate each checker branch and distinguish pending inputs from completed results.
@@ -93,8 +116,9 @@ final class InventoryScan {
         for (var checker : CorpusStage.checkerBranches()) {
             checkerBranches.put(checker, visitCheckerBranch(checker));
         }
-        var checkerEntries = validateAndRegisterCheckerBranches(checkerBranches, logicalNames);
-        var parserPass = checkerEntries + aggregateResults.entries().size();
+        var checkerEntries = validateAndRegisterCheckerBranches(checkerBranches, logicalEntries);
+        var gatedEntries = gatedResults.total();
+        var parserPass = checkerEntries + aggregateResults.entries().size() + gatedEntries;
         var aggregationCandidates = aggregationCandidates(checkerBranches);
 
         // Publish counts only after the entire corpus has passed validation.
@@ -111,7 +135,7 @@ final class InventoryScan {
                         parserResults.total()));
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = checkerBranches.get(checker);
-            var downstream = aggregateResults.upstreamCounts().get(checker);
+            var downstream = aggregatedCheckerVerdicts.get(checker);
             stages.put(
                     checker,
                     new CorpusInventory.StageEntries(
@@ -128,9 +152,16 @@ final class InventoryScan {
                         aggregationCandidates,
                         StageEntryCounts.from(
                                 CorpusStage.AGGREGATOR.resultVerdicts(),
-                                aggregateResults.resultCounts()::count),
+                                verdict -> aggregateResults.resultCounts().count(verdict)
+                                        + (verdict == CorpusVerdict.PASS ? gatedEntries : 0)),
                         aggregateResults.entries().size()));
-        return new CorpusInventory(stages);
+        stages.put(
+                CorpusStage.QUALITY,
+                new CorpusInventory.StageEntries(
+                        ungated,
+                        gatedResults.snapshot(),
+                        gatedEntries));
+        return new CorpusInventory(stages, logicalEntries.generations());
     }
 
     /** Validates one result directory and reports how many entries it holds. */
@@ -235,16 +266,16 @@ final class InventoryScan {
      * output, and returns the number of logical entries the parser has passed.
      */
     private long validateAndRegisterCheckerBranches(
-            Map<CorpusStage, CheckerBranch> branches, Set<String> logicalNames)
+            Map<CorpusStage, CheckerBranch> branches, LogicalEntries logicalEntries)
             throws CorpusException {
-        var logicalEntries = new TreeSet<String>();
+        var names = new TreeSet<String>();
         for (var checker : CorpusStage.checkerBranches()) {
-            logicalEntries.addAll(branches.get(checker).entries().keySet());
+            names.addAll(branches.get(checker).entries().keySet());
         }
 
         var missingDescriptions = new ArrayList<String>();
         for (var checker : CorpusStage.checkerBranches()) {
-            var missing = new TreeSet<>(logicalEntries);
+            var missing = new TreeSet<>(names);
             missing.removeAll(branches.get(checker).entries().keySet());
             if (!missing.isEmpty()) {
                 missingDescriptions.add("from " + checker.displayName() + "=" + missing);
@@ -256,7 +287,7 @@ final class InventoryScan {
                             + String.join(", ", missingDescriptions));
         }
 
-        for (var name : logicalEntries) {
+        for (var name : names) {
             Entry reference = null;
             for (var checker : CorpusStage.checkerBranches()) {
                 var candidate = branches.get(checker).entries().get(name);
@@ -266,9 +297,9 @@ final class InventoryScan {
                     CorpusEntries.requireSameParserOutput(name, reference, candidate);
                 }
             }
-            addLogicalName(logicalNames, name);
+            logicalEntries.add(reference);
         }
-        return logicalEntries.size();
+        return names.size();
     }
 
     /** Requires that crash entries and stack-trace sidecars pair up exactly. */
@@ -299,9 +330,29 @@ final class InventoryScan {
         }
     }
 
-    private static void addLogicalName(Set<String> names, String name) throws CorpusException {
-        if (!names.add(name)) {
-            throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
+    /**
+     * The logical entries seen so far: each name once, however many physical copies it has, and
+     * how many of them, and of their mutants, each generation admitted.
+     */
+    private static final class LogicalEntries {
+        private final Set<String> names = new HashSet<>();
+        private final SortedMap<Integer, CorpusInventory.GenerationEntries> generations = new TreeMap<>();
+
+        void add(Entry entry) throws CorpusException {
+            var name = entry.path().getFileName().toString();
+            if (!names.add(name)) {
+                throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
+            }
+            entry.envelope().generation().ifPresent(metadata -> metadata.generation().ifPresent(
+                    generation -> generations.merge(
+                            generation,
+                            new CorpusInventory.GenerationEntries(1, metadata.mutation().isPresent() ? 1 : 0),
+                            (left, right) -> new CorpusInventory.GenerationEntries(
+                                    left.entries() + right.entries(), left.mutants() + right.mutants()))));
+        }
+
+        SortedMap<Integer, CorpusInventory.GenerationEntries> generations() {
+            return generations;
         }
     }
 

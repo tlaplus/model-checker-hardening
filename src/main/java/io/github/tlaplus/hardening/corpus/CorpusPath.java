@@ -29,6 +29,8 @@ public enum CorpusPath {
     APALACHE_CRASH("02apa-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     AGGREGATOR_PASS("03aggregator-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     AGGREGATOR_FAIL("03aggregator-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    QUALITY_PASS("04quality-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    QUALITY_FAIL("04quality-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     WORK(".work", Kind.DIRECTORY, Presence.REQUIRED, Contents.NONE),
     GENERATOR_CRASH(".work/generator-crash", Kind.DIRECTORY, Presence.LAZY, Contents.NONE),
     PARSER_SCRATCH(".work/parser-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),

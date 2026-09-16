@@ -6,6 +6,9 @@
 
 **Date:** 2026-08-15
 
+**Amended by:** [ADR 0010](0010-mutation.md), which seeds each target entry
+instead of each worker.
+
 ## Context
 
 The IR decoder deliberately produces closed terminal expressions when its input

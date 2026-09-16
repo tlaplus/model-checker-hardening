@@ -5,7 +5,7 @@
 > rationale.
 
 `fuzztla export-db` turns a corpus into one SQLite file. After that, questions
-such as "which agreeing entries are shallow", "failure codes by cohort" or "which
+such as "which agreeing entries are shallow", "which mutation operators pay off", "failure codes by cohort" or "which
 operators are overrepresented in disagreements" are SQL queries instead of scripts over
 thousands of CBOR files.
 
@@ -47,12 +47,12 @@ exported 1344 entries (0 unreadable, 0 replay failures, 0 vanished) to corpus23/
 ```
 
 The export reads every entry directory of the [corpus layout][storage], from
-`00-inputs` and `00-known-defects` to `03aggregator-fail`. It does not read
+`00-inputs` and `00-known-defects` to `04quality-fail`. It does not read
 `.stacktrace` sidecars, `.work/generator-crash`, or `.workflow-stats.cbor`.
 
 Besides the envelope, the export replays every entry's input through the
 generator, as `fuzztla print --corpus` does, and counts the operators, `LET-IN`
-forms and literals of the resulting module (section 2.5). Replay uses the corpus's `config.toml` and
+forms and literals of the resulting module (section 2.6). Replay uses the corpus's `config.toml` and
 fails if the corpus's custom operator library has changed. Replay dominates the
 export time: about 1.2 ms of CPU per entry, so a corpus of 100,000 entries takes
 about two minutes on one thread. The export writes rows in the same order for
@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `4`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `5`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -90,14 +90,16 @@ records.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
-| `id` | INTEGER | no | Row id, referenced by `stage`, `knownDefect` and `expr` | – |
+| `id` | INTEGER | no | Row id, referenced by `stage`, `knownDefect`, `mutationOperator` and `expr` | – |
 | `directory` | TEXT | no | Directory name, such as `03aggregator-pass` | file path |
 | `hash` | TEXT | no | SHA-256 of the input bytes, from the file name | file name |
 | `kind` | TEXT | no | `expr` or `module` | `kind` |
 | `inputBytes` | INTEGER | no | Size of the generator input | `input` |
 | `cohort` | INTEGER | yes | Richness cohort of the admission | `gen.cohort` |
 | `richness` | REAL | yes | Richness score of the admission | `gen.richness` |
-| `evaluatedNodes` | INTEGER | yes | Subexpressions the checkers evaluate (section 2.5); `NULL` when replay failed | replayed `input` |
+| `generation` | INTEGER | yes | Generation that admitted the entry ([ADR 0010][adr-0010]) | `gen.generation` |
+| `parent` | TEXT | yes | For a mutant, the `hash` of the entry it was mutated from | `gen.parent` |
+| `evaluatedNodes` | INTEGER | yes | Subexpressions the checkers evaluate (section 2.6); `NULL` when replay failed | replayed `input` |
 | `replayError` | TEXT | yes | Why replaying the input failed; `NULL` when it succeeded | replayed `input` |
 
 ### 2.3. `knownDefect`
@@ -111,17 +113,29 @@ key is `(entryId, position)`. Signatures are not matched again during export.
 | `position` | INTEGER | no | Position in the list; 0 is the primary signature | `gen.knownDefects` |
 | `signature` | TEXT | no | Signature id | `gen.knownDefects` |
 
-### 2.4. `stage`
+### 2.4. `mutationOperator`
+
+One row per mutation operator applied to a mutant, in the order applied. The key
+is `(entryId, position)`. An entry that was not mutated has no rows.
+
+| Column | Type | Null | Meaning | Source |
+| --- | --- | --- | --- | --- |
+| `entryId` | INTEGER | no | `entry.id` | – |
+| `position` | INTEGER | no | Position in the list; 0 is the first edit | `gen.operators` |
+| `operator` | TEXT | no | Operator name, such as `random_byte` or `splice` | `gen.operators` |
+
+### 2.5. `stage`
 
 One row per stage record of an entry. The key is `(entryId, stage)`. An entry in
-`03aggregator-pass` has four rows: `parser`, `tlc`, `apalache` and `aggregator`.
+`03aggregator-pass` has four rows: `parser`, `tlc`, `apalache` and `aggregator`;
+an entry in `04quality-pass` or `04quality-fail` also has a `quality` row.
 A stage that this build does not know still gets a row if its record has a
 verdict and both times.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
 | `entryId` | INTEGER | no | `entry.id` | – |
-| `stage` | TEXT | no | `parser`, `tlc`, `apalache` or `aggregator` | key in `stages` |
+| `stage` | TEXT | no | `parser`, `tlc`, `apalache`, `aggregator` or `quality` | key in `stages` |
 | `verdict` | TEXT | no | `pass`, `counterexample`, `fail` or `crashed` | `stages.<stage>.verdict` |
 | `startTime` | TEXT | no | When the stage started | `stages.<stage>.startTime` |
 | `endTime` | TEXT | no | When the stage finished | `stages.<stage>.endTime` |
@@ -149,7 +163,7 @@ The metric columns, from `initStates` to `traceLength`, follow section 2 of the
 metric the checker did not measure is `NULL`, not 0. Entries checked before
 exploration metrics existed have `NULL` in every metric column.
 
-### 2.5. `expr`
+### 2.6. `expr`
 
 One row per construct that occurs in an entry's evaluated code: an operator
 application, a `LET-IN`, or a literal. The key is `(entryId, name)`.
@@ -182,7 +196,7 @@ counted; they count towards `entry.evaluatedNodes` only.
 | `name` | TEXT | no | Operator name, `LetInEx`, or literal value kind, as in Apalache's IR JSON | replayed `input` |
 | `occurrences` | INTEGER | no | Occurrences of the construct in the evaluated code | replayed `input` |
 
-### 2.6. `unreadable`
+### 2.7. `unreadable`
 
 One row per entry file that does not decode as a corpus envelope. The export
 continues past such files. The key is `(directory, hash)`.
@@ -193,7 +207,7 @@ continues past such files. The key is `(directory, hash)`.
 | `hash` | TEXT | no | Digest from the file name | file name |
 | `error` | TEXT | no | The decoder's diagnostic | – |
 
-### 2.7. `verdictPair`
+### 2.8. `verdictPair`
 
 A view with one row per entry that has an `aggregator` stage record. It puts the
 two checkers' results side by side.
@@ -211,7 +225,7 @@ two checkers' results side by side.
 | `apalacheCode` | INTEGER | yes | Apalache failure code | `stage.code` |
 | `apalacheTraceLength` | INTEGER | yes | Apalache counterexample length | `stage.traceLength` |
 
-### 2.8. Indexes
+### 2.9. Indexes
 
 Besides the keys, `stage(stage, verdict)` is indexed. `expr` has no index on
 `name`: on corpus22 it would add 61 MB and save at most 0.1 s per query. The unique key
@@ -234,8 +248,11 @@ FROM verdictPair GROUP BY tlc, apalache ORDER BY entries DESC;
 ```
 
 The shallow patterns of [ADR 0008][adr-0008] over agreeing entries, each entry
-assigned the first pattern that matches. Entries checked before exploration
-metrics existed count as `no metrics`:
+assigned the first pattern that matches. An agreeing entry sits in
+`03aggregator-pass` until the quality gate moves it to `04quality-pass` or
+`04quality-fail`, so agreement is selected by the aggregator's verdict rather
+than by directory. Entries checked before exploration metrics existed count as
+`no metrics`:
 
 ```sql
 SELECT CASE
@@ -248,10 +265,35 @@ SELECT CASE
          ELSE 'none of the above'
        END AS pattern,
        count(*) AS entries
-FROM entry e
-JOIN stage t ON t.entryId = e.id AND t.stage = 'tlc'
-WHERE e.directory = '03aggregator-pass'
+FROM verdictPair p
+JOIN stage t ON t.entryId = p.entryId AND t.stage = 'tlc'
+WHERE p.aggregator = 'pass'
 GROUP BY pattern ORDER BY entries DESC;
+```
+
+Admissions, gate passes and agreement per generation ([ADR 0010][adr-0010]):
+
+```sql
+SELECT e.generation,
+       count(*) AS entries,
+       sum(e.parent IS NOT NULL) AS mutants,
+       sum(p.aggregator = 'pass') AS agreeing,
+       sum(e.directory = '04quality-pass') AS selected
+FROM entry e LEFT JOIN verdictPair p ON p.entryId = e.id
+WHERE e.directory NOT IN ('00-known-defects', '02apa-inputs', '02apa-pass',
+                          '02apa-counterexample', '02apa-fail', '02apa-crash')
+GROUP BY e.generation ORDER BY e.generation;
+```
+
+The yield of each mutation operator: how many of the mutants it took part in
+the gate selected. A mutant with stacked edits counts once per operator:
+
+```sql
+SELECT m.operator,
+       count(DISTINCT e.id) AS mutants,
+       count(DISTINCT CASE WHEN e.directory = '04quality-pass' THEN e.id END) AS selected
+FROM mutationOperator m JOIN entry e ON e.id = m.entryId
+GROUP BY m.operator ORDER BY selected DESC;
 ```
 
 Apalache failure details by cohort:
@@ -318,3 +360,4 @@ The column names of the imported table come from the CSV header.
 [signatures]: known-defect-signatures.md
 [adr-0003]: ../decisions/0003-checker-failure-codes.md
 [adr-0008]: ../decisions/0008-exploration-metrics.md
+[adr-0010]: ../decisions/0010-mutation.md

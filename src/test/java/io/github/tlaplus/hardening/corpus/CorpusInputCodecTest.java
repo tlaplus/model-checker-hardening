@@ -4,14 +4,17 @@ import static io.github.tlaplus.hardening.corpus.CborDocuments.FACTORY;
 import static io.github.tlaplus.hardening.corpus.CborDocuments.cbor;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 
 class CorpusInputCodecTest {
@@ -31,7 +34,7 @@ class CorpusInputCodecTest {
     @Test
     void encodesAndDecodesCompactGenerationMetadata() throws Exception {
         var corpusInput = new CorpusInput(InputKind.EXPRESSION, new byte[] {1, 2, 3});
-        var generation = new GenerationMetadata(7, 18.5);
+        var generation = GenerationMetadata.generated(0, 7, 18.5);
 
         var encoded = CorpusInputCodec.encode(corpusInput, generation);
         var envelope = CorpusEnvelopeCodec.decodeEnvelope(encoded);
@@ -46,11 +49,91 @@ class CorpusInputCodecTest {
     }
 
     @Test
+    void encodesTheGenerationAndTheProvenanceOfAMutant() throws Exception {
+        var corpusInput = new CorpusInput(InputKind.MODULE, new byte[] {4, 5});
+        var parent = "ab".repeat(32);
+        var mutant = GenerationMetadata.mutated(3, 2, 1.5, new Mutation(
+                parent, List.of(MutationOperator.SPLICE, MutationOperator.PARITY_FLIP)));
+
+        var encoded = CorpusInputCodec.encode(corpusInput, mutant);
+        var gen = new ObjectMapper(FACTORY).readTree(encoded).path("gen");
+
+        assertEquals(mutant, CorpusEnvelopeCodec.decodeEnvelope(encoded).generation().orElseThrow());
+        assertEquals(3, gen.path("generation").intValue());
+        assertEquals(parent, gen.path("parent").textValue());
+        assertEquals("splice", gen.path("operators").get(0).textValue());
+        assertEquals("parity_flip", gen.path("operators").get(1).textValue());
+        var generated = new ObjectMapper(FACTORY)
+                .readTree(CorpusInputCodec.encode(corpusInput, GenerationMetadata.generated(3, 2, 1.5)))
+                .path("gen");
+        assertFalse(generated.has("parent"));
+        assertFalse(generated.has("operators"));
+    }
+
+    @Test
+    void decodesMetadataWrittenBeforeGenerationsWithoutAGeneration() throws Exception {
+        var legacy = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("cohort", 1);
+            generator.writeNumberField("richness", 2.0);
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertEquals(
+                OptionalInt.empty(),
+                CorpusEnvelopeCodec.decodeEnvelope(legacy).generation().orElseThrow().generation());
+    }
+
+    @Test
+    void rejectsIncompleteOrUnknownMutationProvenance() throws Exception {
+        var parentOnly = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("generation", 1);
+            generator.writeNumberField("cohort", 1);
+            generator.writeNumberField("richness", 2.0);
+            generator.writeStringField("parent", "ab".repeat(32));
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+        var unknownOperator = cbor(generator -> {
+            generator.writeStartObject(null, 3);
+            generator.writeStringField("kind", "expr");
+            generator.writeBinaryField("input", new byte[0]);
+            generator.writeObjectFieldStart("gen");
+            generator.writeNumberField("generation", 1);
+            generator.writeNumberField("cohort", 1);
+            generator.writeNumberField("richness", 2.0);
+            generator.writeStringField("parent", "ab".repeat(32));
+            generator.writeArrayFieldStart("operators");
+            generator.writeString("interesting");
+            generator.writeEndArray();
+            generator.writeEndObject();
+            generator.writeEndObject();
+        });
+
+        assertEquals(
+                "fields 'gen.parent' and 'gen.operators' must appear together",
+                assertThrows(CorpusFormatException.class, () -> CorpusInputCodec.decode(parentOnly))
+                        .getMessage());
+        assertEquals(
+                "unknown mutation operator 'interesting' in 'gen.operators'",
+                assertThrows(CorpusFormatException.class, () -> CorpusInputCodec.decode(unknownOperator))
+                        .getMessage());
+    }
+
+    @Test
     void recordsKnownDefectsOnlyForAQuarantinedInput() throws Exception {
         var corpusInput = new CorpusInput(InputKind.MODULE, new byte[] {1});
-        var quarantined = new GenerationMetadata(1, 2.0, List.of("string-set", "sequence-set"));
+        var quarantined = GenerationMetadata.generated(0, 1, 2.0).withKnownDefects(List.of("string-set", "sequence-set"));
 
-        var admitted = CorpusInputCodec.encode(corpusInput, new GenerationMetadata(1, 2.0));
+        var admitted = CorpusInputCodec.encode(corpusInput, GenerationMetadata.generated(0, 1, 2.0));
         var encoded = CorpusInputCodec.encode(corpusInput, quarantined);
 
         assertTrue(!new ObjectMapper(FACTORY).readTree(admitted).path("gen").has("knownDefects"));

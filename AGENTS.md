@@ -55,8 +55,8 @@ arithmetic is unavoidable, cover it with a round-trip test.
 enum ordinals are part of a stored format or wire encoding, a comment is not
 enough; add a test that fails on reorder.
 
-**Keep the layering.** Dependencies run `checker`, `gen` → `corpus` → `config` →
-`workflow` → `cli`, and `corpus` → `database` → `cli`
+**Keep the layering.** Dependencies run `checker`, `gen`, `mutation` → `corpus` →
+`config` → `workflow` → `cli`, and `corpus` → `database` → `cli`
 ([ADR 0009](docs/decisions/0009-corpus-database.md)), with `common` a leaf every
 package may import. `database` stays below `config` and `workflow`: `cli` passes
 it the input replay as an interface. No upward

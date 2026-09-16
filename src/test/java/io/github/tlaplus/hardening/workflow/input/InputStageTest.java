@@ -7,7 +7,9 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.common.Digests;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
@@ -20,6 +22,8 @@ import java.util.List;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
+import io.github.tlaplus.hardening.mutation.ByteMutator;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -34,6 +38,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.SplittableRandom;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
@@ -44,7 +49,7 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class PbtStageTest {
+class InputStageTest {
     private static final TlaEx EMPTY = expression(0);
     private static final TlaEx RICH = expression(32);
     private static final Generator<TlaEx> ACCEPT = _ -> RICH;
@@ -137,9 +142,9 @@ class PbtStageTest {
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new PbtStage(
+        var stage = new InputStage(
                 InputAdmission.withoutKnownDefects(config(1)),
-                new GenerationPlan(InputKind.EXPRESSION, 99, 2, 0, 1),
+                plan(99, 2, 1, config(1)),
                 new StageEnvironment(corpus, decoders(acceptOnce), new CpuBudget(1), control),
                 new InputHandoff(queue, new Semaphore(2)),
                 metrics(0));
@@ -166,9 +171,9 @@ class PbtStageTest {
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new PbtStage(
+        var stage = new InputStage(
                 InputAdmission.withoutKnownDefects(config(8)),
-                new GenerationPlan(InputKind.EXPRESSION, 42, 1, 0, 1),
+                plan(42, 1, 1, config(8)),
                 new StageEnvironment(corpus, decoders(overflow), new CpuBudget(1), control),
                 new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
@@ -228,10 +233,8 @@ class PbtStageTest {
         runStage(corpus, new PbtConfig(32, 10, 2.0, 1.5), ACCEPT, target, seed);
 
         var expected = new HashMap<Integer, Integer>();
-        var root = new SplittableRandom(PbtStage.workerSeeds(seed, 1)[0]);
-        var cohortRandom = root.split();
         for (var index = 0; index < target; index++) {
-            expected.merge(cohortRandom.nextInt(10), 1, Integer::sum);
+            expected.merge(cohort(seed, index, 10), 1, Integer::sum);
         }
         var actual = new HashMap<Integer, Integer>();
         for (var encoded : readEntries(corpus).values()) {
@@ -271,9 +274,9 @@ class PbtStageTest {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var target = 12;
-        var stage = new PbtStage(
+        var stage = new InputStage(
                 InputAdmission.withoutKnownDefects(config(32)),
-                new GenerationPlan(InputKind.EXPRESSION, 42, target, 0, 4),
+                plan(42, target, 4, config(32)),
                 new StageEnvironment(corpus, decoders(observed), new CpuBudget(2), control),
                 new InputHandoff(queue, new Semaphore(target)),
                 metrics(0));
@@ -311,16 +314,16 @@ class PbtStageTest {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException(exception);
             }
-            if (Thread.currentThread().getName().equals("fuzztla-pbt-0")) {
+            if (Thread.currentThread().getName().equals("fuzztla-input-0")) {
                 throw new StackOverflowError("worker-local failure");
             }
             return RICH;
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new PbtStage(
+        var stage = new InputStage(
                 InputAdmission.withoutKnownDefects(config(32)),
-                new GenerationPlan(InputKind.EXPRESSION, 42, 20, 0, 4),
+                plan(42, 20, 4, config(32)),
                 new StageEnvironment(corpus, decoders(oneWorkerCrashes), new CpuBudget(4), control),
                 new InputHandoff(queue, new Semaphore(20)),
                 metrics(0));
@@ -352,12 +355,12 @@ class PbtStageTest {
         Generator<TlaEx> defectsThenClean = _ -> calls.getAndIncrement() < 5 ? RICH : EMPTY;
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new PbtStage(
+        var stage = new InputStage(
                 new InputAdmission(
                         config(16),
                         KnownDefectDatabase.load(List.of(database)),
                         KnownDefectQuarantine.open(corpus, 2)),
-                new GenerationPlan(InputKind.EXPRESSION, 7, 1, 0, 1),
+                plan(7, 1, 1, config(16)),
                 new StageEnvironment(corpus, decoders(defectsThenClean), new CpuBudget(1), control),
                 new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
@@ -384,18 +387,118 @@ class PbtStageTest {
                 KnownDefectQuarantine.open(corpus, 2).record(
                         InputKind.EXPRESSION,
                         new byte[] {1, 2, 3},
-                        new GenerationMetadata(0, 0.0, List.of("sequence-from-zero"))));
+                        GenerationMetadata.generated(0, 0, 0.0).withKnownDefects(List.of("sequence-from-zero"))));
     }
 
     @Test
-    void derivesStableDistinctWorkerSeeds() {
-        var first = PbtStage.workerSeeds(1234, 8);
-        var second = PbtStage.workerSeeds(1234, 8);
+    void storesMutantsWithTheirParentAndOperatorsBesideGeneratedEntries(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var parent = new byte[] {1, 2, 3, 4};
+        var decoder = decoders(draw -> expression(1 + draw.remaining()));
+        var pool = pool(corpus, decoder, parent, 6);
+        var mutants = new MutantCandidates(pool, new ByteMutator(Map.of(MutationOperator.INSERT, 1), 1, 64));
 
-        assertArrayEquals(first, second);
-        assertEquals(first.length, Arrays.stream(first).distinct().count());
-        assertThrows(IllegalArgumentException.class, () -> PbtStage.workerSeeds(-1, 1));
-        assertThrows(IllegalArgumentException.class, () -> PbtStage.workerSeeds(1, -1));
+        var stage = runPlan(corpus, decoder, new GenerationPlan(InputKind.EXPRESSION, 3, 11, 0, 1, List.of(
+                new GenerationPlan.Quota(mutants, 3),
+                new GenerationPlan.Quota(new PbtCandidates(config(32)), 2))));
+
+        var metadata = readEntries(corpus).values().stream()
+                .map(encoded -> decode(encoded).generation().orElseThrow())
+                .toList();
+        assertEquals(5, metadata.size());
+        assertTrue(metadata.stream().allMatch(entry -> entry.generation().equals(OptionalInt.of(3))));
+        var mutated = metadata.stream().filter(entry -> entry.mutation().isPresent()).toList();
+        assertEquals(3, mutated.size());
+        for (var entry : mutated) {
+            assertEquals(Digests.digest(parent), entry.mutation().orElseThrow().parent());
+            assertEquals(List.of(MutationOperator.INSERT), entry.mutation().orElseThrow().operators());
+            assertEquals(6, entry.cohort());
+        }
+        assertEquals(0, stage.summary().aggregate().clones());
+    }
+
+    @Test
+    void rejectsMutantsThatRenderToTheirParentsModule(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        // Every input decodes to the same module, so every mutant is a clone of its parent.
+        var decoder = decoders(ACCEPT);
+        var pool = pool(corpus, decoder, new byte[] {9, 9}, 0);
+        var mutants = new MutantCandidates(pool, new ByteMutator(Map.of(MutationOperator.BITFLIP, 1), 1, 64));
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var stage = new InputStage(
+                InputAdmission.withoutKnownDefects(config(8)),
+                new GenerationPlan(InputKind.EXPRESSION, 1, 5, 0, 1, List.of(new GenerationPlan.Quota(mutants, 1))),
+                new StageEnvironment(corpus, decoder, new CpuBudget(1), control),
+                new InputHandoff(queue, new Semaphore(1)),
+                metrics(0));
+
+        stage.start();
+        stage.await();
+
+        assertTrue(control.hasFailed());
+        assertEquals(10_000, stage.summary().aggregate().clones());
+        assertTrue(control.failure().getMessage().contains("a mutant of a parent pool of 1 entries"),
+                control.failure().getMessage());
+        assertTrue(control.failure().getMessage().contains("10000 were clones of their parent"));
+        assertEquals(0, stage.summary().generated());
+    }
+
+    @Test
+    void readsOnlyParentsOfTheGeneratedKind(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var decoder = decoders(ACCEPT);
+        pool(corpus, decoder, new byte[] {1}, 0);
+        writeParent(corpus, InputKind.MODULE, new byte[] {2}, 0);
+
+        assertEquals(1, ParentPool.load(corpus, InputKind.EXPRESSION, decoder.decoder(InputKind.EXPRESSION)).size());
+        assertEquals(1, ParentPool.load(corpus, InputKind.MODULE, decoder.decoder(InputKind.MODULE)).size());
+    }
+
+    @Test
+    void derivesStableDistinctGenerationSeeds() {
+        var seeds = new java.util.HashSet<Long>();
+        for (var generation = 0; generation < 16; generation++) {
+            var seed = InputStage.generationSeed(1234, generation);
+            assertEquals(seed, InputStage.generationSeed(1234, generation));
+            assertTrue(seed >= 0);
+            seeds.add(seed);
+        }
+        assertEquals(16, seeds.size());
+        assertThrows(IllegalArgumentException.class, () -> InputStage.generationSeed(1, -1));
+    }
+
+    @Test
+    void derivesStableDistinctTargetSeeds() {
+        var seeds = new java.util.HashSet<Long>();
+        for (var target = 0; target < 1000; target++) {
+            var seed = InputStage.derivedSeed(1234, target);
+            assertEquals(seed, InputStage.derivedSeed(1234, target));
+            assertTrue(seed >= 0);
+            seeds.add(seed);
+        }
+        assertEquals(1000, seeds.size());
+        assertNotEquals(InputStage.derivedSeed(1234, 0), InputStage.derivedSeed(1235, 0));
+        assertThrows(IllegalArgumentException.class, () -> InputStage.derivedSeed(-1, 1));
+        assertThrows(IllegalArgumentException.class, () -> InputStage.derivedSeed(1, -1));
+    }
+
+    @Test
+    void admitsTheSameEntriesWhateverTheNumberOfWorkers(@TempDir Path directory) throws Exception {
+        var single = CorpusDirectory.initialize(directory.resolve("single"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var parallel = CorpusDirectory.initialize(directory.resolve("parallel"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var pbt = new PbtConfig(32, 10, 2.0, 1.5);
+
+        runPlan(single, decoders(ACCEPT), pbt, plan(99, 40, 1, pbt), 1);
+        runPlan(parallel, decoders(ACCEPT), pbt, plan(99, 40, 4, pbt), 4);
+
+        var singleEntries = readEntries(single);
+        var parallelEntries = readEntries(parallel);
+        assertEquals(singleEntries.keySet(), parallelEntries.keySet());
+        for (var name : singleEntries.keySet()) {
+            assertArrayEquals(singleEntries.get(name), parallelEntries.get(name));
+        }
     }
 
     private GeneratorSummary runStage(
@@ -407,9 +510,9 @@ class PbtStageTest {
             throws Exception {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new PbtStage(
+        var stage = new InputStage(
                 InputAdmission.withoutKnownDefects(config),
-                new GenerationPlan(InputKind.EXPRESSION, seed, target, 0, 1),
+                plan(seed, target, 1, config),
                 new StageEnvironment(corpus, decoders(generator), new CpuBudget(1), control),
                 new InputHandoff(queue, new Semaphore(target)),
                 metrics(0));
@@ -417,6 +520,56 @@ class PbtStageTest {
         stage.await();
         assertFalse(control.hasFailed());
         return stage.summary();
+    }
+
+    private static GenerationPlan plan(long seed, long target, int workers, PbtConfig config) {
+        return new GenerationPlan(InputKind.EXPRESSION, 0, seed, 0, workers,
+                List.of(new GenerationPlan.Quota(new PbtCandidates(config), target)));
+    }
+
+    private InputStage runPlan(CorpusDirectory corpus, SpecDecoders decoders, GenerationPlan plan)
+            throws Exception {
+        return runPlan(corpus, decoders, config(32), plan, 1);
+    }
+
+    private InputStage runPlan(
+            CorpusDirectory corpus, SpecDecoders decoders, PbtConfig pbt, GenerationPlan plan, int cpus)
+            throws Exception {
+        var queue = new WorkQueue<Path>();
+        var control = new WorkflowControl(queue);
+        var entries = Math.toIntExact(plan.missingEntries());
+        var stage = new InputStage(
+                InputAdmission.withoutKnownDefects(pbt),
+                plan,
+                new StageEnvironment(corpus, decoders, new CpuBudget(cpus), control),
+                new InputHandoff(queue, new Semaphore(entries)),
+                metrics(0));
+        stage.start();
+        stage.await();
+        assertFalse(control.hasFailed(), () -> String.valueOf(control.failure()));
+        return stage;
+    }
+
+    /** Writes one parent into {@code 04quality-pass} and loads the pool of its kind. */
+    private static ParentPool pool(CorpusDirectory corpus, SpecDecoders decoders, byte[] parent, int cohort)
+            throws Exception {
+        writeParent(corpus, InputKind.EXPRESSION, parent, cohort);
+        return ParentPool.load(corpus, InputKind.EXPRESSION, decoders.decoder(InputKind.EXPRESSION));
+    }
+
+    private static void writeParent(CorpusDirectory corpus, InputKind kind, byte[] parent, int cohort)
+            throws Exception {
+        Files.write(
+                corpus.resolve(CorpusPath.QUALITY_PASS).resolve(Digests.digest(parent) + ".cbor"),
+                CorpusInputCodec.encode(new CorpusInput(kind, parent), GenerationMetadata.generated(0, cohort, 1.0)));
+    }
+
+    private static CorpusEnvelope decode(byte[] encoded) {
+        try {
+            return CorpusEnvelopeCodec.decodeEnvelope(encoded);
+        } catch (Exception exception) {
+            throw new AssertionError(exception);
+        }
     }
 
     private static SpecDecoders decoders(Generator<TlaEx> expressions) {
@@ -441,8 +594,12 @@ class PbtStageTest {
     }
 
     private static int firstCohort(long seed, int cohorts) {
-        var workerSeed = PbtStage.workerSeeds(seed, 1)[0];
-        return new SplittableRandom(workerSeed).split().nextInt(cohorts);
+        return cohort(seed, 0, cohorts);
+    }
+
+    /** Returns the cohort a PBT target draws: the first value of its claim stream. */
+    private static int cohort(long seed, long target, int cohorts) {
+        return new SplittableRandom(InputStage.derivedSeed(seed, target)).split().nextInt(cohorts);
     }
 
     private static TlaEx expression(int sequenceSize) {

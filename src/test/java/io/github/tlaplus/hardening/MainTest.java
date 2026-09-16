@@ -269,6 +269,8 @@ class MainTest {
         for (var resultDirectory : java.util.List.of(
                 CorpusPath.AGGREGATOR_PASS,
                 CorpusPath.AGGREGATOR_FAIL,
+                CorpusPath.QUALITY_PASS,
+                CorpusPath.QUALITY_FAIL,
                 CorpusPath.APALACHE_PASS,
                 CorpusPath.APALACHE_FAIL,
                 CorpusPath.APALACHE_CRASH,
@@ -521,7 +523,7 @@ class MainTest {
                 input,
                 CorpusInputCodec.encode(
                         new CorpusInput(InputKind.EXPRESSION, new byte[0]),
-                        new GenerationMetadata(6, 12.5)));
+                        GenerationMetadata.generated(0, 6, 12.5)));
 
         var result = execute("print", "--envelope", input.toString());
 
@@ -531,6 +533,7 @@ class MainTest {
                         System.lineSeparator(),
                         "kind: expr",
                         "gen:",
+                        "  generation: 0",
                         "  cohort: 6",
                         "  richness: 12.5",
                         "input:",
@@ -546,7 +549,7 @@ class MainTest {
                 input,
                 CorpusInputCodec.encode(
                         new CorpusInput(InputKind.EXPRESSION, new byte[0]),
-                        new GenerationMetadata(6, 12.5, java.util.List.of("string-set"))));
+                        GenerationMetadata.generated(0, 6, 12.5).withKnownDefects(java.util.List.of("string-set"))));
 
         var result = execute("print", "--envelope", input.toString());
 
@@ -556,6 +559,7 @@ class MainTest {
                         System.lineSeparator(),
                         "kind: expr",
                         "gen:",
+                        "  generation: 0",
                         "  cohort: 6",
                         "  richness: 12.5",
                         "  knownDefects: string-set",
@@ -799,7 +803,7 @@ class MainTest {
                                 new CheckerStageConfig(entries, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(entries, 10, 512, 1))),
-                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         Files.writeString(
                 corpus.resolve(CorpusPath.CONFIG.relativePath()),
                 TomlConfig.render(config),

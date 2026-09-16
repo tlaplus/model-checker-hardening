@@ -23,12 +23,15 @@ final class DatabaseColumns {
     static final Column INPUT_BYTES = required("inputBytes", SqlType.INTEGER);
     static final Column COHORT = optional("cohort", SqlType.INTEGER);
     static final Column RICHNESS = optional("richness", SqlType.REAL);
+    static final Column GENERATION = optional("generation", SqlType.INTEGER);
+    static final Column PARENT = optional("parent", SqlType.TEXT);
     static final Column EVALUATED_NODES = optional("evaluatedNodes", SqlType.INTEGER);
     static final Column REPLAY_ERROR = optional("replayError", SqlType.TEXT);
 
     static final Column ENTRY_ID = required("entryId", SqlType.INTEGER);
     static final Column POSITION = required("position", SqlType.INTEGER);
     static final Column SIGNATURE = required("signature", SqlType.TEXT);
+    static final Column OPERATOR = required("operator", SqlType.TEXT);
 
     static final Column STAGE_NAME = required("stage", SqlType.TEXT);
     static final Column VERDICT = required("verdict", SqlType.TEXT);

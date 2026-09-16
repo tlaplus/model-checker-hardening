@@ -5,12 +5,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Recovers aggregate commits and inventories their downstream and upstream verdicts. */
+/** Recovers aggregate commits and inventories the aggregator's result directories. */
 final class AggregationRecovery {
     private final CorpusLayout layout;
     private final CorpusEntries entries;
@@ -28,10 +27,6 @@ final class AggregationRecovery {
         var aggregateEntries = new HashMap<String, Entry>();
         var resultCounts = new VerdictTally();
         var residualSources = new ArrayList<Path>();
-        var upstreamCounts = new EnumMap<CorpusStage, VerdictTally>(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
-            upstreamCounts.put(checker, new VerdictTally());
-        }
 
         for (var verdict : CorpusStage.AGGREGATOR.resultVerdicts()) {
             for (var path : CorpusLayout.entryPaths(
@@ -50,28 +45,28 @@ final class AggregationRecovery {
                 }
                 residualSources.addAll(
                         transition.residualSources(entry, verdict, aggregation));
-                aggregation.checkerVerdicts().forEach((checker, checkerVerdict) ->
-                        upstreamCounts.get(checker).increment(checkerVerdict));
                 resultCounts.increment(verdict);
             }
         }
         for (var source : residualSources) {
             Files.delete(source);
         }
-        var upstream = new EnumMap<CorpusStage, StageEntryCounts>(CorpusStage.class);
-        upstreamCounts.forEach((checker, tally) -> upstream.put(checker, tally.snapshot()));
-        return new Results(aggregateEntries, resultCounts.snapshot(), upstream);
+        return new Results(aggregateEntries, resultCounts.snapshot());
     }
 
-    /** Aggregate entries and the verdict history they encode for upstream checker stages. */
-    record Results(
-            Map<String, Entry> entries,
-            StageEntryCounts resultCounts,
-            Map<CorpusStage, StageEntryCounts> upstreamCounts) {
+    /**
+     * Validates and returns the non-crash checker verdicts an entry that passed through the
+     * aggregator carries, wherever it now sits.
+     */
+    Map<CorpusStage, CorpusVerdict> upstreamCheckerVerdicts(Entry entry) throws CorpusException {
+        return transition.upstreamCheckerVerdicts(entry);
+    }
+
+    /** The entries of the aggregator's result directories, by name, and their verdict counts. */
+    record Results(Map<String, Entry> entries, StageEntryCounts resultCounts) {
         Results {
             entries = Map.copyOf(entries);
             Objects.requireNonNull(resultCounts, "resultCounts");
-            upstreamCounts = Map.copyOf(upstreamCounts);
         }
     }
 }

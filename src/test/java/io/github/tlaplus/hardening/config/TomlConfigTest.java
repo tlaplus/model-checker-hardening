@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.IntegerExpressionKind;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,6 +23,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class TomlConfigTest {
+    private static final String DEFAULT_OPERATOR_WEIGHTS = "weights = { random_byte = 8, bitflip = 8,"
+            + " parity_flip = 8, copy = 4, duplicate = 1, insert = 1, erase = 1, splice = 1 }";
+    private static final String DEFAULT_SHALLOW_PATTERNS = "shallow_patterns = [\"vacuous_pass\","
+            + " \"initial_state_violation\", \"early_failure\", \"no_discovering_action\","
+            + " \"counter_only_progress\"]";
+
     @Test
     void renderedDefaultsMatchThePreRefactorFixture() throws Exception {
         try (var fixture = getClass().getResourceAsStream("/config/default.toml.template")) {
@@ -184,6 +192,50 @@ class TomlConfigTest {
         var outOfRange = assertInvalid(
                 directory, rendered.replace(defaultWeights, "weights = { name = 0 }"));
         assertTrue(outOfRange.getMessage().contains("weight of 'name'"), outOfRange.getMessage());
+    }
+
+    @Test
+    void readsMutatorSettingsAndTreatsAnOmittedOperatorAsDisabled(@TempDir Path directory)
+            throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+        var config = readConfig(directory, rendered
+                .replace(DEFAULT_OPERATOR_WEIGHTS, "weights = { splice = 2 }")
+                .replace(DEFAULT_SHALLOW_PATTERNS, "shallow_patterns = [\"early_failure\"]")
+                .replace("select_fraction = 0.05", "select_fraction = 1"));
+
+        var weights = config.mutator().weights();
+        assertEquals(2, weights.get(MutationOperator.SPLICE));
+        assertEquals(0, weights.get(MutationOperator.RANDOM_BYTE));
+        assertEquals(Set.of(ShallowPattern.EARLY_FAILURE), config.mutator().shallowPatterns());
+        assertEquals(1.0, config.mutator().selectFraction());
+        assertEquals(config, readConfig(directory, TomlConfig.render(config)));
+    }
+
+    @Test
+    void rejectsUnusableMutatorSettings(@TempDir Path directory) throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+
+        var unknownOperator = assertInvalid(
+                directory, rendered.replace(DEFAULT_OPERATOR_WEIGHTS, "weights = { interesting = 1 }"));
+        assertTrue(unknownOperator.getMessage().contains("unknown mutation operator 'interesting'"),
+                unknownOperator.getMessage());
+
+        var allZero = assertInvalid(
+                directory, rendered.replace(DEFAULT_OPERATOR_WEIGHTS, "weights = { copy = 0 }"));
+        assertTrue(allZero.getMessage().contains("must not all be zero"), allZero.getMessage());
+
+        var unknownPattern = assertInvalid(directory, rendered.replace(
+                DEFAULT_SHALLOW_PATTERNS, "shallow_patterns = [\"degenerate\"]"));
+        assertTrue(unknownPattern.getMessage().contains("unknown shallow pattern 'degenerate'"),
+                unknownPattern.getMessage());
+
+        var noSelection = assertInvalid(
+                directory, rendered.replace("select_fraction = 0.05", "select_fraction = 0"));
+        assertTrue(noSelection.getMessage().contains("selectFraction"), noSelection.getMessage());
+
+        var ratio = assertInvalid(
+                directory, rendered.replace("feedback_ratio = 0.5", "feedback_ratio = 1.5"));
+        assertTrue(ratio.getMessage().contains("feedbackRatio"), ratio.getMessage());
     }
 
     @Test

@@ -18,6 +18,7 @@ final class CorpusRunStatisticsCodec {
     private static final String REJECTED_FIELD = "rejected";
     private static final String RICHNESS_REJECTED_FIELD = "richnessRejected";
     private static final String DUPLICATES_FIELD = "duplicates";
+    private static final String CLONES_FIELD = "clones";
     private static final String KNOWN_DEFECTS_FIELD = "knownDefects";
     private static final String RICHNESS_SAMPLES_FIELD = "richnessSamples";
     private static final String MINIMUM_RICHNESS_FIELD = "minimumRichness";
@@ -38,7 +39,8 @@ final class CorpusRunStatisticsCodec {
                 .number(ATTEMPTS_FIELD, aggregate.attempts())
                 .number(REJECTED_FIELD, aggregate.rejected())
                 .number(RICHNESS_REJECTED_FIELD, aggregate.richnessRejected())
-                .number(DUPLICATES_FIELD, aggregate.duplicates());
+                .number(DUPLICATES_FIELD, aggregate.duplicates())
+                .number(CLONES_FIELD, aggregate.clones());
         // A run without known-defect signatures writes the document it wrote before they existed.
         if (!aggregate.knownDefects().isEmpty()) {
             var knownDefects = new CborMapWriter();
@@ -149,6 +151,7 @@ final class CorpusRunStatisticsCodec {
         Long rejected = null;
         Long richnessRejected = null;
         Long duplicates = null;
+        Long clones = null;
         Map<String, Long> knownDefects = Map.of();
         Long richnessSamples = null;
         Double minimumRichness = null;
@@ -161,6 +164,7 @@ final class CorpusRunStatisticsCodec {
                 case REJECTED_FIELD -> rejected = reader.longValue(field);
                 case RICHNESS_REJECTED_FIELD -> richnessRejected = reader.longValue(field);
                 case DUPLICATES_FIELD -> duplicates = reader.longValue(field);
+                case CLONES_FIELD -> clones = reader.longValue(field);
                 case KNOWN_DEFECTS_FIELD -> {
                     reader.requireMap(field);
                     knownDefects = readCounts(reader, field.path());
@@ -178,6 +182,7 @@ final class CorpusRunStatisticsCodec {
                     CborReader.required(rejected, path(GENERATOR_FIELD, REJECTED_FIELD)),
                     CborReader.required(richnessRejected, path(GENERATOR_FIELD, RICHNESS_REJECTED_FIELD)),
                     CborReader.required(duplicates, path(GENERATOR_FIELD, DUPLICATES_FIELD)),
+                    CborReader.required(clones, path(GENERATOR_FIELD, CLONES_FIELD)),
                     knownDefects,
                     new GeneratorAggregate.Richness(
                             CborReader.required(richnessSamples, path(GENERATOR_FIELD, RICHNESS_SAMPLES_FIELD)),

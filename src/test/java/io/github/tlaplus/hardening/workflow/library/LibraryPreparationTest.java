@@ -16,14 +16,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class LibraryPreparationTest {
     static FuzzTlaConfig config(List<Path> classpath, String module, String... operators) {
         var defaults = FuzzTlaConfig.defaults();
-        return new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(), defaults.workflow(), defaults.pbt(),
+        return new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(), defaults.workflow(), defaults.pbt(), defaults.mutator(),
                 new OperatorLibraryConfig(classpath, List.of(new OperatorLibraryConfig.Module(module, List.of(operators)))));
     }
 
     @Test
     void emptySelectionsDoNotLaunchApalacheOrInspectTheClasspath() throws Exception {
         var defaults = FuzzTlaConfig.defaults();
-        var config = new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(), defaults.workflow(), defaults.pbt(),
+        var config = new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(), defaults.workflow(), defaults.pbt(), defaults.mutator(),
                 new OperatorLibraryConfig(List.of(Path.of("does-not-exist")), List.of()));
         assertSame(defaults.generator(), LibraryPreparation.prepare(config).generator());
     }

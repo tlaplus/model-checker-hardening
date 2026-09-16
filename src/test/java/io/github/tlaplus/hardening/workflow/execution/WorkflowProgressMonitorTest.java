@@ -84,6 +84,7 @@ class WorkflowProgressMonitorTest {
     private WorkflowProgress progress(int value) {
         return new WorkflowProgress(
                 WorkflowProgress.Phase.RUNNING,
+                0,
                 new GeneratorSummary(
                         1,
                         value,

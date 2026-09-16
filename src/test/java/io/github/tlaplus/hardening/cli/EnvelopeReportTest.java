@@ -13,9 +13,11 @@ import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
+import io.github.tlaplus.hardening.corpus.Mutation;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StageRecord;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -34,11 +36,26 @@ class EnvelopeReportTest {
     @Test
     void reportsAdmissionMetadataWhenPresent() {
         var report = EnvelopeReport.render(
-                envelope(Optional.of(new GenerationMetadata(3, 0.25)), List.of()), INPUT);
+                envelope(Optional.of(GenerationMetadata.generated(0, 3, 0.25)), List.of()), INPUT);
 
         assertTrue(report.contains("gen:"), report);
         assertTrue(report.contains("  cohort: 3"), report);
         assertTrue(report.contains("  richness: 0.25"), report);
+        assertTrue(report.contains("  generation: 0"), report);
+        assertFalse(report.contains("parent"), report);
+    }
+
+    @Test
+    void reportsTheProvenanceOfAMutant() {
+        var parent = "0f".repeat(32);
+        var mutant = GenerationMetadata.mutated(4, 1, 0.0, new Mutation(
+                parent, List.of(MutationOperator.COPY, MutationOperator.ERASE)));
+
+        var report = EnvelopeReport.render(envelope(Optional.of(mutant), List.of()), INPUT);
+
+        assertTrue(report.contains("  generation: 4"), report);
+        assertTrue(report.contains("  parent: " + parent), report);
+        assertTrue(report.contains("  operators: copy, erase"), report);
     }
 
     @Test

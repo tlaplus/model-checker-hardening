@@ -57,6 +57,8 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.APALACHE_CRASH, Path.of("02apa-crash")),
                 Map.entry(CorpusPath.AGGREGATOR_PASS, Path.of("03aggregator-pass")),
                 Map.entry(CorpusPath.AGGREGATOR_FAIL, Path.of("03aggregator-fail")),
+                Map.entry(CorpusPath.QUALITY_PASS, Path.of("04quality-pass")),
+                Map.entry(CorpusPath.QUALITY_FAIL, Path.of("04quality-fail")),
                 Map.entry(CorpusPath.WORK, Path.of(".work")),
                 Map.entry(
                         CorpusPath.GENERATOR_CRASH,
@@ -104,7 +106,7 @@ class CorpusDirectoryTest {
     void storesCborUnderThePayloadsLowercaseDigest(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {0, 1, (byte) 0xff};
-        var generation = new GenerationMetadata(3, 5.0);
+        var generation = GenerationMetadata.generated(0, 3, 5.0);
 
         assertEquals("00-inputs", corpus.resolve(CorpusPath.INPUT).getFileName().toString());
         assertEquals(StoreResult.ADDED, corpus.store(InputKind.EXPRESSION, input, generation));
@@ -124,7 +126,7 @@ class CorpusDirectoryTest {
         var corpus = CorpusDirectory.initialize(
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {4, 2};
-        var generation = new GenerationMetadata(1, 2.0, List.of("string-set", "sequence-set"));
+        var generation = GenerationMetadata.generated(0, 1, 2.0).withKnownDefects(List.of("string-set", "sequence-set"));
 
         assertFalse(Files.exists(corpus.resolve(CorpusPath.KNOWN_DEFECTS)));
         assertFalse(corpus.hasStoredInputs());
@@ -143,7 +145,7 @@ class CorpusDirectoryTest {
         assertEquals(0, corpus.recoverAndValidate(ACCEPT).totalEntries());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> corpus.quarantine(InputKind.MODULE, new byte[] {5}, new GenerationMetadata(1, 2.0)));
+                () -> corpus.quarantine(InputKind.MODULE, new byte[] {5}, GenerationMetadata.generated(0, 1, 2.0)));
     }
 
     @Test
@@ -263,8 +265,8 @@ class CorpusDirectoryTest {
         assertEquals(InputKind.MODULE, corpus.readParserInput(modulePath).kind());
 
         // And a run that consumes expressions rejects it through its own validator.
-        CorpusEntryValidator expressionsOnly = (entry, input) -> {
-            if (input.kind() != InputKind.EXPRESSION) {
+        CorpusEntryValidator expressionsOnly = (entry, envelope) -> {
+            if (envelope.corpusInput().kind() != InputKind.EXPRESSION) {
                 throw new CorpusException("corpus entry is rejected: " + entry);
             }
         };
@@ -361,7 +363,7 @@ class CorpusDirectoryTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var input = new byte[] {3, 1, 4};
-        var generation = new GenerationMetadata(2, 3.0);
+        var generation = GenerationMetadata.generated(0, 2, 3.0);
         corpus.store(InputKind.EXPRESSION, input, generation);
         var source = corpus.inputPath(input);
         var start = Instant.ofEpochSecond(10);
@@ -965,6 +967,76 @@ class CorpusDirectoryTest {
     }
 
     @Test
+    void theQualityGateMovesAggregatorPassesAndKeepsTheirUpstreamCounts(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var kept = aggregatedPass(corpus, new byte[] {7, 1}, 2);
+        var dropped = aggregatedPass(corpus, new byte[] {7, 2}, 2);
+        var waiting = aggregatedPass(corpus, new byte[] {7, 3}, 3);
+
+        var before = corpus.recoverAndValidate(ACCEPT);
+        assertEquals(List.of(kept, dropped, waiting).stream().sorted().toList(),
+                before.pending(CorpusStage.QUALITY));
+        assertEquals(3, corpus.resultEntries(CorpusStage.AGGREGATOR, CorpusVerdict.PASS).size());
+
+        var passed = corpus.completeQuality(kept, qualityResult(CorpusVerdict.PASS));
+        corpus.completeQuality(dropped, qualityResult(CorpusVerdict.FAIL));
+
+        assertEquals(corpus.resolve(CorpusPath.QUALITY_PASS).resolve(kept.getFileName()), passed);
+        assertEquals(
+                List.of(hash(new byte[] {7, 1})),
+                corpus.resultEntries(CorpusStage.QUALITY, CorpusVerdict.PASS).stream()
+                        .map(StoredEntry::digest)
+                        .toList());
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+        assertEquals(List.of(waiting), inventory.pending(CorpusStage.QUALITY));
+        assertEquals(1, inventory.counts(CorpusStage.QUALITY).count(CorpusVerdict.PASS));
+        assertEquals(1, inventory.counts(CorpusStage.QUALITY).count(CorpusVerdict.FAIL));
+        assertEquals(3, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.PASS));
+        assertEquals(1, inventory.resultEntries(CorpusStage.AGGREGATOR));
+        assertEquals(3, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.PASS));
+        assertEquals(3, inventory.counts(CorpusStage.PARSER).count(CorpusVerdict.PASS));
+        assertEquals(3, inventory.totalEntries());
+        assertEquals(3, inventory.latestGeneration());
+        assertEquals(2, inventory.entries(2));
+        assertEquals(1, inventory.entries(3));
+        assertEquals(0, inventory.mutants(3));
+    }
+
+    @Test
+    void recoversAQualityMoveWhoseMetadataWasCommitted(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var source = aggregatedPass(corpus, new byte[] {8, 1}, 0);
+        Files.write(source, CorpusEnvelopeCodec.withStageMetadata(
+                Files.readAllBytes(source),
+                qualityResult(CorpusVerdict.FAIL).metadata(CorpusStage.QUALITY)));
+
+        var inventory = corpus.recoverAndValidate(ACCEPT);
+
+        assertTrue(Files.notExists(source));
+        assertTrue(Files.exists(corpus.resolve(CorpusPath.QUALITY_FAIL).resolve(source.getFileName())));
+        assertEquals(1, inventory.counts(CorpusStage.QUALITY).count(CorpusVerdict.FAIL));
+    }
+
+    @Test
+    void rejectsAGatedEntryThatDidNotPassAggregation(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(
+                directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var source = aggregatedPass(corpus, new byte[] {8, 2}, 0);
+        var passed = corpus.completeQuality(source, qualityResult(CorpusVerdict.PASS));
+        Files.write(passed, CorpusEnvelopeCodec.withStageMetadata(
+                Files.readAllBytes(passed),
+                new StageMetadata("aggregator", CorpusVerdict.FAIL, Instant.ofEpochSecond(20),
+                        Instant.ofEpochSecond(21))));
+
+        var failure = assertThrows(CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
+
+        assertTrue(failure.getMessage().contains("aggregator verdict does not match workflow directory"));
+    }
+
+    @Test
     void leavesCrashContainingPairsInCheckerResults(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(
@@ -1131,6 +1203,20 @@ class CorpusDirectoryTest {
         return corpus.resolve(branch).resolve(parserPass.getFileName());
     }
 
+    /** Stores an entry of {@code generation} and passes it through both checkers and aggregation. */
+    private static Path aggregatedPass(CorpusDirectory corpus, byte[] input, int generation)
+            throws Exception {
+        corpus.store(InputKind.EXPRESSION, input, GenerationMetadata.generated(generation, 0, 0.0));
+        var pair = checkerPair(corpus, input, CorpusVerdict.PASS, CorpusVerdict.PASS);
+        return corpus.completeAggregation(
+                corpus.aggregationInput(pair.tlc()).orElseThrow(),
+                new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(20), Instant.ofEpochSecond(21)));
+    }
+
+    private static StageResult qualityResult(CorpusVerdict verdict) {
+        return new StageResult(verdict, Instant.ofEpochSecond(30), Instant.ofEpochSecond(30));
+    }
+
     private static CheckerPair completeCheckerPair(
             CorpusDirectory corpus,
             byte[] input,
@@ -1138,6 +1224,16 @@ class CorpusDirectoryTest {
             CorpusVerdict apalacheVerdict)
             throws Exception {
         corpus.store(InputKind.EXPRESSION, input);
+        return checkerPair(corpus, input, tlcVerdict, apalacheVerdict);
+    }
+
+    /** Passes a stored input through the parser and records both checker verdicts. */
+    private static CheckerPair checkerPair(
+            CorpusDirectory corpus,
+            byte[] input,
+            CorpusVerdict tlcVerdict,
+            CorpusVerdict apalacheVerdict)
+            throws Exception {
         var parserPass = corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(

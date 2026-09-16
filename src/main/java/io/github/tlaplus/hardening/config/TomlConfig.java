@@ -121,10 +121,19 @@ public final class TomlConfig {
                 ConfigSchema.RICHNESS_NESTING_BASE.read(tables),
                 ConfigSchema.RICHNESS_THRESHOLD_BASE.read(tables));
 
+        var mutatorConfig = new MutatorConfig(
+                ConfigSchema.GENERATION_SIZE.read(tables),
+                ConfigSchema.SELECT_FRACTION.read(tables),
+                ConfigSchema.FEEDBACK_RATIO.read(tables),
+                ConfigSchema.MAXIMUM_EDITS.read(tables),
+                ConfigSchema.OPERATOR_WEIGHTS.read(tables),
+                ConfigSchema.SHALLOW_PATTERNS.read(tables));
+
         var libraries = new OperatorLibraryConfig(
                 ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))
                 .relativeTo(directory);
-        return new FuzzTlaConfig(generatedKind, generationConfig, workflowConfig, pbtConfig, libraries);
+        return new FuzzTlaConfig(
+                generatedKind, generationConfig, workflowConfig, pbtConfig, mutatorConfig, libraries);
     }
 
     /** Reads one checker table, naming the stage in every diagnostic. */

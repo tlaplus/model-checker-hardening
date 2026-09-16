@@ -11,26 +11,34 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.InputStageConfig;
+import io.github.tlaplus.hardening.config.MutatorConfig;
+import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.mutation.MutationOperator;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -39,9 +47,10 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 
 class WorkflowRunnerTest {
+    private static final GenerationMetadata ADMITTED = GenerationMetadata.generated(0, 0, 0.0);
+
     @Test
     void reportsInitialAndFinalProgressSnapshots(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
@@ -107,7 +116,7 @@ class WorkflowRunnerTest {
                 .name("missing", TlaTypes.BOOL);
         Generator<TlaEx> generator = _ -> expression;
         var input = new byte[] {1};
-        corpus.store(InputKind.EXPRESSION, input);
+        corpus.store(InputKind.EXPRESSION, input, ADMITTED);
         corpus.completeParser(
                 corpus.inputPath(input),
                 new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -208,6 +217,54 @@ class WorkflowRunnerTest {
     }
 
     @Test
+    void mutatesTheSelectedEntriesOfOneGenerationIntoTheNext(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var summary = runner(generationalConfig(8), BY_LENGTH).run(corpus, 42, 1);
+
+        assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
+        assertEquals(8, summary.corpus().totalEntries());
+        assertEquals(1, summary.corpus().latestGeneration());
+        assertEquals(4, summary.corpus().entries(0));
+        assertEquals(4, summary.corpus().entries(1));
+        var parents = new HashSet<String>();
+        var mutants = new ArrayList<GenerationMetadata>();
+        for (var verdict : CorpusStage.QUALITY.resultVerdicts()) {
+            for (var stored : corpus.resultEntries(CorpusStage.QUALITY, verdict)) {
+                var generation = CorpusEnvelopeCodec.decodeEnvelope(stored.read()).generation().orElseThrow();
+                if (verdict == CorpusVerdict.PASS && generation.generation().getAsInt() == 0) {
+                    parents.add(stored.digest());
+                }
+                generation.mutation().ifPresent(mutation -> mutants.add(generation));
+            }
+        }
+        assertFalse(parents.isEmpty());
+        assertEquals(2, mutants.size());
+        for (var mutant : mutants) {
+            assertEquals(1, mutant.generation().getAsInt());
+            assertTrue(parents.contains(mutant.mutation().orElseThrow().parent()));
+        }
+        assertEquals(
+                0, corpus.resultEntries(CorpusStage.AGGREGATOR, CorpusVerdict.PASS).size(),
+                "every agreeing entry of both generations passed through the gate");
+    }
+
+    @Test
+    void resumesTheLatestGenerationWhereTheCorpusLimitStoppedIt(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+
+        var first = runner(generationalConfig(6), BY_LENGTH).run(corpus, 42, 1);
+        var second = runner(generationalConfig(8), BY_LENGTH).run(corpus, 42, 1);
+
+        assertEquals(2, first.corpus().entries(1));
+        assertEquals(1, second.corpus().latestGeneration());
+        assertEquals(4, second.corpus().entries(1));
+        assertEquals(8, second.corpus().totalEntries());
+        assertEquals(0, corpus.resultEntries(CorpusStage.AGGREGATOR, CorpusVerdict.PASS).size());
+    }
+
+    @Test
     void parserCapacityStopsGracefullyAndLeavesUpstreamInputs(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
@@ -217,7 +274,7 @@ class WorkflowRunnerTest {
         Generator<TlaEx> generator = _ -> unbound;
         var runner = runner(config, generator);
         for (var candidate = 0; candidate < 5; candidate++) {
-            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) candidate});
+            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) candidate}, ADMITTED);
         }
 
         var first = runner.run(
@@ -240,7 +297,7 @@ class WorkflowRunnerTest {
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> constant = _ -> expression;
         for (var value = 0; value < 4; value++) {
-            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) value});
+            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) value}, ADMITTED);
         }
 
         var summary = runner(config, constant).run(
@@ -274,12 +331,12 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", TlaTypes.BOOL);
         Generator<TlaEx> generator = _ -> unbound;
-        corpus.store(InputKind.EXPRESSION, new byte[] {0});
-        corpus.store(InputKind.EXPRESSION, new byte[] {1});
+        corpus.store(InputKind.EXPRESSION, new byte[] {0}, ADMITTED);
+        corpus.store(InputKind.EXPRESSION, new byte[] {1}, ADMITTED);
 
         var summary = runner(config, generator).run(corpus, 42, 1);
 
@@ -295,7 +352,7 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 0);
         var input = new byte[0];
-        corpus.store(InputKind.EXPRESSION, input);
+        corpus.store(InputKind.EXPRESSION, input, ADMITTED);
         var source = corpus.inputPath(input);
         var delegate = IrGenerators.expressions(config.generator());
         Generator<TlaEx> overflowInParser = payload -> {
@@ -328,8 +385,8 @@ class WorkflowRunnerTest {
             throws Exception {
         var corpus = CorpusDirectory.initialize(
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
-        corpus.store(InputKind.EXPRESSION, new byte[] {0});
-        corpus.store(InputKind.MODULE, new byte[0]);
+        corpus.store(InputKind.EXPRESSION, new byte[] {0}, ADMITTED);
+        corpus.store(InputKind.MODULE, new byte[0], ADMITTED);
         var config = new FuzzTlaConfig(
                 InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),
@@ -342,7 +399,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(2, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 10, 512, 1))),
-                new PbtConfig(4, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(4, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
         var summary = new WorkflowRunner(config).run(corpus, 42, 1);
 
@@ -367,7 +424,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 2),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(0, 10, 512, 1))),
-                new PbtConfig(0, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(0, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
         var failure = assertThrows(
                 WorkflowException.class,
@@ -393,7 +450,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(0, 10, 512, 2))),
-                new PbtConfig(0, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(0, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
         var failure = assertThrows(
                 WorkflowException.class,
@@ -419,14 +476,14 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(0, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(1, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
         for (var candidate = 0; source == null; candidate++) {
             var input = new byte[] {(byte) candidate};
             try {
                 generator.generate(input);
-                corpus.store(InputKind.EXPRESSION, input);
+                corpus.store(InputKind.EXPRESSION, input, ADMITTED);
                 source = corpus.inputPath(input);
             } catch (InputRejectedException ignored) {
                 // Find one accepted deterministic input.
@@ -461,14 +518,14 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(1, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(0, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
         for (var candidate = 0; source == null; candidate++) {
             var input = new byte[] {(byte) candidate};
             try {
                 generator.generate(input);
-                corpus.store(InputKind.EXPRESSION, input);
+                corpus.store(InputKind.EXPRESSION, input, ADMITTED);
                 source = corpus.inputPath(input);
             } catch (InputRejectedException ignored) {
                 // Find one accepted deterministic input.
@@ -504,12 +561,12 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(1, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(2, 10, 512, 1))),
-                new PbtConfig(16, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> generator = _ -> expression;
         for (var value = 0; value < 2; value++) {
             var payload = new byte[] {(byte) value};
-            corpus.store(InputKind.EXPRESSION, payload);
+            corpus.store(InputKind.EXPRESSION, payload, ADMITTED);
             var parserPass = corpus.completeParser(
                 corpus.inputPath(payload),
                 new StageResult(CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
@@ -533,6 +590,27 @@ class WorkflowRunnerTest {
                 SpecDecoders.of(config.generator()).replacingExpressions(expressions));
     }
 
+    /** Decodes every input to {@code n = n} for its length n, so only length changes change the module. */
+    private static final Generator<TlaEx> BY_LENGTH = draw -> {
+        var builder = new TlaTypedScopeUncheckedBuilder();
+        return builder.eql(builder.integer(draw.remaining()), builder.integer(draw.remaining()));
+    };
+
+    /**
+     * Generations of four entries, all agreeing entries kept, half of each generation mutated by
+     * insertion. Expression inputs are always shallow, so no shallow pattern is enabled.
+     */
+    private FuzzTlaConfig generationalConfig(int total) {
+        var base = config(total, total, total, 8);
+        return new FuzzTlaConfig(
+                base.generatedKind(),
+                base.generator(),
+                base.workflow(),
+                new PbtConfig(8, 1, 2.0, 1.5),
+                new MutatorConfig(4, 1.0, 0.5, 1, Map.of(MutationOperator.INSERT, 1), Set.of()),
+                base.libraries());
+    }
+
     private FuzzTlaConfig config(
             int total, int inputs, int parser, int maximumInputBytes) {
         return new FuzzTlaConfig(
@@ -547,7 +625,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(total, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(total, 10, 512, 1))),
-                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), OperatorLibraryConfig.empty());
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
     }
 
 }

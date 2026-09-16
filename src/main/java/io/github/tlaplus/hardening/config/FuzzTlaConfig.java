@@ -20,12 +20,14 @@ public record FuzzTlaConfig(
         IrGenerationConfig generator,
         WorkflowConfig workflow,
         PbtConfig pbt,
+        MutatorConfig mutator,
         OperatorLibraryConfig libraries) {
     public FuzzTlaConfig {
         Objects.requireNonNull(generatedKind, "generatedKind");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(workflow, "workflow");
         Objects.requireNonNull(pbt, "pbt");
+        Objects.requireNonNull(mutator, "mutator");
         Objects.requireNonNull(libraries, "libraries");
         var selected = Set.copyOf(libraries.operators());
         for (var kind : generator.formWeights().keySet()) {
@@ -50,7 +52,9 @@ public record FuzzTlaConfig(
                 InputKind.MODULE,
                 IrGenerationConfig.defaults(),
                 WorkflowConfig.defaults(),
-                PbtConfig.defaults(), OperatorLibraryConfig.empty());
+                PbtConfig.defaults(),
+                MutatorConfig.defaults(),
+                OperatorLibraryConfig.empty());
     }
 
     /** Returns this configuration with the input stage consulting the given known-defect databases. */
@@ -61,6 +65,7 @@ public record FuzzTlaConfig(
                 generator,
                 new WorkflowConfig(workflow.maximumEntries(), inputs, workflow.parser(), workflow.checkers()),
                 pbt,
+                mutator,
                 libraries);
     }
 }

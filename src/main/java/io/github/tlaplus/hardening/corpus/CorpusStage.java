@@ -61,6 +61,20 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.AGGREGATOR_PASS,
                             CorpusVerdict.FAIL, CorpusPath.AGGREGATOR_FAIL)),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN)),
+    /**
+     * The quality gate of ADR 0010. It consumes the aggregator's passes, which are its input
+     * directory without being its own, and like the aggregator is bounded only by the global limit.
+     */
+    QUALITY(
+            "quality",
+            "quality",
+            new StagePaths(
+                    CorpusPath.AGGREGATOR_PASS,
+                    null,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.QUALITY_PASS,
+                            CorpusVerdict.FAIL, CorpusPath.QUALITY_FAIL)),
             new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN));
 
     /** What becomes of an entry this stage passes. */
@@ -137,7 +151,10 @@ public enum CorpusStage {
         return policy.passes() == Passes.RETAINED;
     }
 
-    /** Returns the stages that own a durable input directory. */
+    /**
+     * Returns the stages that consume a durable input directory. A stage's input may be another
+     * stage's result directory, as the quality gate's is.
+     */
     static List<CorpusStage> inputStages() {
         return Arrays.stream(values()).filter(stage -> stage.paths.input() != null).toList();
     }

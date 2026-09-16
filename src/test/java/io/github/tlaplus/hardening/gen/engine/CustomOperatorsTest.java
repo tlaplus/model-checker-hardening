@@ -26,7 +26,7 @@ class CustomOperatorsTest {
     static void prepare() throws Exception {
         var defaults = FuzzTlaConfig.defaults();
         config = LibraryPreparation.prepare(new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(),
-                defaults.workflow(), defaults.pbt(), new OperatorLibraryConfig(
+                defaults.workflow(), defaults.pbt(), defaults.mutator(), new OperatorLibraryConfig(
                         List.of(Path.of("src/test/resources/custom").toAbsolutePath()),
                         List.of(new OperatorLibraryConfig.Module("PolyOps", SELECTED))))).generator();
     }

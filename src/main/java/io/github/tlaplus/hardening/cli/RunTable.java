@@ -21,6 +21,7 @@ final class RunTable {
     static String progress(WorkflowProgress progress) {
         return render(new View(
                 "Workflow run in progress",
+                progress.generation(),
                 progress.corpusEntries(),
                 progress::backlog,
                 progress.generator(),
@@ -33,6 +34,7 @@ final class RunTable {
     static String finished(Path corpus, WorkflowRunSummary summary) {
         return render(new View(
                 "Workflow run finished for '" + corpus + "'",
+                summary.corpus().latestGeneration(),
                 summary.corpus().totalEntries(),
                 summary.corpus()::pendingEntries,
                 summary.generator(),
@@ -45,6 +47,7 @@ final class RunTable {
     /** Everything the table shows, gathered from either a live snapshot or a final summary. */
     private record View(
             String header,
+            int generation,
             long corpusEntries,
             ToLongFunction<CorpusStage> backlog,
             GeneratorSummary generator,
@@ -57,6 +60,7 @@ final class RunTable {
         var output = new StringWriter();
         try (var writer = new PrintWriter(output)) {
             writer.printf("%s%n%n", view.header());
+            printCounter(writer, view.generation(), "generation");
             printCounter(writer, view.corpusEntries(), "corpus entries");
             for (var stage : CorpusStage.values()) {
                 printCounter(
@@ -101,6 +105,7 @@ final class RunTable {
         printCounter(writer, generator.rejected(), "generator rejected");
         printCounter(writer, generator.richnessRejected(), "richness rejected");
         printCounter(writer, generator.duplicates(), "duplicate inputs");
+        printCounter(writer, generator.clones(), "mutant clones");
         printCounter(writer, generator.knownDefectRejections(), "known defects");
     }
 
