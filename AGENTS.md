@@ -24,6 +24,9 @@ computer scientists. Keep the text concise and to the point. State purpose and
 scope early, use precise terms and direct sentences, and distinguish implemented
 behavior from proposals.
 
+When writing findings and conformance issues, add the commit hashes of: fuzztla,
+TLC, and Apalache.
+
 ## Coding rules
 
 **Represent a concept once.** If `parser`, `tlc` and `apalache` (or any other fixed
