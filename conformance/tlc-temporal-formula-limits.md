@@ -5,7 +5,8 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 29 modules made TLC crash with one of the two diagnostics below; in the
 1000-module corpus20, generated with the same categories and the first five
 signatures below, another 6 did; corpus22, with all seven signatures, left 57
-more, corpus23 76, and corpus24 69 (see [Signature precision](#signature-precision)). SANY accepted all of them.
+more, corpus23 76, corpus24 69 and corpus25 125 (see
+[Signature precision](#signature-precision)). SANY accepted all of them.
 
 TLC checks a temporal property by translating it into its liveness formulas
 (`tlc2.tool.liveness.Liveness`). The translation has no case for several
@@ -95,26 +96,31 @@ TLC or produced a counterexample.
 TLC checks both, and neither occurred among the matches. Each signature's
 remaining match failed an evaluation before TLC reached the property.
 
-The corpus22, corpus23 and corpus24 runs, generated with the same categories
-and the shipped signatures, left 57, 76 and 69 TLC crashes with either
-diagnostic. They are classified by the property that TLC rejected:
+The corpus22, corpus23, corpus24 and corpus25 runs, generated with the same
+categories and the shipped signatures, left 57, 76, 69 and 125 TLC crashes with
+either diagnostic. corpus25 uses the same generator settings as corpus24 with
+twice its entry budget, so its larger count is the corpus size, not a new shape.
+They are classified by the property that TLC rejected:
 
-| Shape | "Must be of forms", corpus22 | corpus23 | corpus24 | "Cannot handle", corpus22 | corpus23 | corpus24 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A label directly on `[][A]_v` or `[A]_v` | 23 | 27 | 29 | | | |
-| `SF_v(A)` under `[]`, possibly negated, labeled or nested | 19 | 34 | 30 | | | |
-| `[][A]_v` in an `IF` branch | 2 | 0 | 1 | | | |
-| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | 1 | 0 | | | |
-| A negated `WF_v(A)` under `[]` | | | 3 | | | |
-| `[]` or `[][A]_v` under a bounded `\E` over a constant set | 1 | 2 | 1 | | | |
-| A negated bounded quantifier over `{}` around a temporal formula | 0 | 2 | 0 | | | |
-| Bounded quantifier whose domain depends on the state | | | | 8 | 10 | 3 |
-| Bounded quantifier over `Int` or `Nat` | | | | 2 | 0 | 1 |
-| Bounded `\E` whose constant domain fails to evaluate, [tlc-011](../findings/TLC/tlc-011.md) | | | | | | 1 |
+| Shape | "Must be of forms", corpus22 | corpus23 | corpus24 | corpus25 | "Cannot handle", corpus22 | corpus23 | corpus24 | corpus25 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A label directly on `[][A]_v` or `[A]_v` | 23 | 27 | 29 | 38 | | | | |
+| `SF_v(A)` under `[]`, possibly negated, labeled or nested | 19 | 34 | 30 | 48 | | | | |
+| `[][A]_v` in an `IF` branch | 2 | 0 | 1 | 8 | | | | |
+| `WF_v(A)` under `[]` inside a double negation, or with an action inside its action | 2 | 1 | 0 | 0 | | | | |
+| A negated `WF_v(A)` under `[]` | | | 3 | 1 | | | | |
+| `WF_v(A)` under `[]`, plain or doubly nested, or under a negated `IF` | | | | 3 | | | | |
+| `[]` or `[][A]_v` under a bounded `\E` over a constant set | 1 | 2 | 1 | 0 | | | | |
+| A negated bounded quantifier over `{}` around a temporal formula | 0 | 2 | 0 | 0 | | | | |
+| Bounded quantifier whose domain depends on the state | | | | | 8 | 10 | 3 | 13 |
+| Bounded quantifier over `Int` or `Nat` | | | | | 2 | 0 | 1 | 5 |
+| Bounded quantifier whose constant domain fails to evaluate, [tlc-011](../findings/TLC/tlc-011.md) | | | | | | | 1 | 9 |
 
 The negated-`WF` and failing-domain rows were first separated in corpus24; the
-earlier columns may count such crashes under a neighboring row. The negated-`WF`
-crashes are `15e8eb25`, `a89fe219` and `9ddcedb6`, whose property is
+earlier columns may count such crashes under a neighboring row.
+
+The corpus24 negated-`WF` crashes are `15e8eb25`, `a89fe219` and `9ddcedb6`,
+whose property is
 `[](WF_FALSE(A) => FALSE)`. The nested `SF` shapes of corpus24 include
 `[]([]SF_v(A))`, `<>TRUE => []SF_v(A)` and `[]SF_v(A) => FALSE`.
 
@@ -124,6 +130,22 @@ domain that depends on the state and a constant domain that fails to evaluate
 print the same line. The latter is an incorrect specification, not a shape the
 translation lacks, and is filed as [tlc-011](../findings/TLC/tlc-011.md). Its
 corpus24 example is `c2a07f51`.
+
+The corpus25 rows were classified by the outermost shape of `Prop`, so an entry
+with more than one rejected construct is counted once. Three observations:
+
+- The plain-`WF` row is new. Its three crashes are `17d3fbcd`, `[](WF_e(P))`;
+  `e81662be`, `[]([](WF_e(P)))`; and `ae5ec647`, `~(IF p THEN WF_e(P) ELSE q)`.
+  None has an action inside the fairness action, which is what separates them
+  from the corpus24 double-negation row. The one negated-`WF` crash is
+  `9b35d44e`, `[](~(WF_e(P)))`.
+- No fairness subscript among the 125 is a variable: every `WF` and `SF` is
+  written `WF_FALSE(A)`, `SF_("")(A)` or with another non-variable expression in
+  the subscript. `[]WF_x(A)`, which TLC checks, did not occur.
+- The `\A` binder reaches the failing-constant-domain row for the first time.
+  Seven of the nine are `\E`, as in tlc-011; `fe734055` and `36032bed` are `\A`
+  over a constant domain that raises the same way. Their domains apply `Head` to
+  an empty sequence or `VariantGetUnsafe` to a mismatched tag.
 
 The negated-quantifier row contains no action, yet TLC reports "must be of forms".
 With `Init == x = 0`, `Next == UNCHANGED x` and `Spec == Init /\ [][Next]_x`:
