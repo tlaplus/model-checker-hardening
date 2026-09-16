@@ -19,6 +19,13 @@ final class HumanDuration {
         return output.isEmpty() ? "0s" : output.toString();
     }
 
+    /** At most two significant units, bounded to twelve columns for live displays. */
+    static String compact(Duration duration) {
+        var parts = format(duration).split(" ");
+        var result = parts[0] + (parts.length > 1 ? parts[1] : "");
+        return result.length() <= 12 ? result : HumanNumber.compact(duration.toDays()) + "d";
+    }
+
     private static void appendPart(StringBuilder output, long value, String suffix) {
         if (value == 0) {
             return;

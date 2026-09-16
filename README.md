@@ -267,10 +267,16 @@ them. Before starting, FuzzTLA validates the corpus, recovers interrupted moves,
 completes partial parser fan-outs, reconstructs ready checker pairs, and finishes
 interrupted aggregate source deletion.
 
-When standard output is an interactive ANSI terminal, `run` refreshes its
-progress table in place once per second. Redirected output omits intermediate
-updates. After all stage workers stop, the table changes to `FINALIZING` while
-FuzzTLA validates the complete corpus for the final summary.
+On a capable interactive terminal, `run` refreshes a stage flow diagram once per
+second, using a compact view on smaller screens. For one second after a value
+changes, it is bold and followed by `↑` or `↓`. The diagram uses box-drawing
+lines; where the terminal encoding cannot represent them, it uses ASCII lines and
+`+` or `-` markers instead. Colors and bold follow terminal capabilities; a nonempty
+`NO_COLOR` disables colors. Counts and
+times are cumulative across corpus runs; queues show currently waiting work.
+After workers stop, `FINALIZING` indicates corpus validation. Completion prints
+all statistics grouped by stage with exact counts. Redirected output omits live
+updates and ANSI escapes.
 
 The workflow tries random byte arrays until `workflow.max_entries` unique
 accepted inputs exist across all directories. Lengths are selected from uniformly
@@ -291,9 +297,10 @@ expressions, and duplicate inputs are retried. A failure to fill one cohort afte
 10,000 candidates stops the workflow with the cohort, threshold, and best score
 in the diagnostic. The progress table reports candidate attempts, generator
 rejections, richness rejections, and duplicates separately. It also reports the
-minimum, maximum, and average richness of inputs admitted during the current run.
-Stage progress distinguishes inputs awaiting the parser, TLC, Apalache, and
-aggregation and reports verdict counters for every stage.
+minimum, maximum, and average richness of admitted inputs across corpus runs.
+Stage progress distinguishes inputs awaiting the parser, TLC, and Apalache and
+reports verdict counters for every stage. The final report also includes inputs
+awaiting aggregation and quality selection.
 
 The effective nonnegative seed is printed and flushed before corpus access or
 worker startup. The input stage

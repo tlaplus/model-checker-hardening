@@ -6,7 +6,6 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -17,6 +16,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine.TypeConversionException;
 import picocli.CommandLine;
@@ -59,6 +59,8 @@ final class RunCommand implements Callable<Integer> {
             description = "Maximum active stage jobs (default: all available processors).")
     private int maximumCpus = Runtime.getRuntime().availableProcessors();
 
+    @ParentCommand private FuzzTlaCommand parent;
+
     @Spec private CommandSpec spec;
 
     @Override
@@ -70,54 +72,32 @@ final class RunCommand implements Callable<Integer> {
 
     /** Runs property-based generation, parsing, TLC, and Apalache as one concurrent workflow. */
     private int runPbt() {
-        TerminalProgressDisplay progress = null;
+        // Shutdown waits until terminal restoration and diagnostics have completed as well.
+        try (var shutdown = RunShutdownHook.install()) {
+            return executePbt();
+        }
+    }
+
+    private int executePbt() {
         try {
             var effectiveSeed = seed == null ? randomSeed() : seed;
             spec.commandLine().getOut().printf("Random seed: %d%n", effectiveSeed);
             spec.commandLine().getOut().flush();
             var directory = CorpusDirectory.openExisting(corpus);
             var config = TomlConfig.read(directory.resolve(CorpusPath.CONFIG));
-            if (supportsTerminalUpdates()) {
-                progress = new TerminalProgressDisplay(spec.commandLine().getOut());
-            }
-            final WorkflowRunSummary summary;
-            try (var shutdown = RunShutdownHook.install()) {
-                var runner = new WorkflowRunner(config);
-                summary = progress == null
-                        ? runner.run(directory, effectiveSeed, maximumCpus)
-                        : runner.run(directory, effectiveSeed, maximumCpus, progress::update);
-            }
-            var finalOutput = RunTable.finished(directory.resolve(CorpusPath.ROOT), summary);
-            if (progress == null) {
-                spec.commandLine().getOut().print(finalOutput);
-                spec.commandLine().getOut().flush();
-            } else {
-                progress.finish(finalOutput);
+            // Closing the output restores the terminal before a diagnostic is printed.
+            try (var output = RunOutput.open(spec.commandLine().getOut(), parent.terminals(),
+                    config.mutator().feedbackRatio() > 0)) {
+                var summary = output.run(new WorkflowRunner(config), directory, effectiveSeed, maximumCpus);
+                output.finish(directory.resolve(CorpusPath.ROOT), summary);
             }
             return CommandLine.ExitCode.OK;
         } catch (IOException | ConfigException | CorpusException | WorkflowException exception) {
-            closeProgress(progress);
             CommandDiagnostic.print(spec.commandLine().getErr(), "cannot run workflow in", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         } catch (RuntimeException | StackOverflowError exception) {
-            closeProgress(progress);
             CommandDiagnostic.print(spec.commandLine().getErr(), "workflow failed in", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
-        } finally {
-            closeProgress(progress);
-        }
-    }
-
-    private boolean supportsTerminalUpdates() {
-        var console = System.console();
-        return console != null
-                && console.isTerminal()
-                && !"dumb".equalsIgnoreCase(System.getenv("TERM"));
-    }
-
-    private static void closeProgress(TerminalProgressDisplay progress) {
-        if (progress != null) {
-            progress.close();
         }
     }
 

@@ -1,141 +1,53 @@
 package io.github.tlaplus.hardening.cli;
 
-import io.github.tlaplus.hardening.common.GeneratorAggregate;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
-import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
-import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
-import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.Locale;
-import java.util.Map;
-import java.util.function.ToLongFunction;
+import java.util.ArrayList;
+import java.util.List;
+import org.jline.utils.AttributedString;
 
-/** Formats live and final workflow counters with one stable table layout. */
+/** Complete, exact statistics grouped by stage; suitable for scrollback and redirected output. */
 final class RunTable {
+    private static final String INDENT = "  ";
+
     private RunTable() {}
 
-    static String progress(WorkflowProgress progress) {
-        return render(new View(
-                "Workflow run in progress",
-                progress.generation(),
-                progress.corpusEntries(),
-                progress::backlog,
-                progress.generator(),
-                progress.stages(),
-                progress.totalElapsed(),
-                progress.phase().toString(),
-                "run state"));
-    }
-
-    static String finished(Path corpus, WorkflowRunSummary summary) {
-        return render(new View(
-                "Workflow run finished for '" + corpus + "'",
-                summary.corpus().latestGeneration(),
-                summary.corpus().totalEntries(),
-                summary.corpus()::pendingEntries,
-                summary.generator(),
-                summary.stages(),
-                summary.totalElapsed(),
-                summary.stopReason().toString(),
-                "stop reason"));
-    }
-
-    /** Everything the table shows, gathered from either a live snapshot or a final summary. */
-    private record View(
-            String header,
-            int generation,
-            long corpusEntries,
-            ToLongFunction<CorpusStage> backlog,
-            GeneratorSummary generator,
-            Map<CorpusStage, StageVerdictSummary> stages,
-            Duration totalElapsed,
-            String stateValue,
-            String stateLabel) {}
-
-    private static String render(View view) {
-        var output = new StringWriter();
-        try (var writer = new PrintWriter(output)) {
-            writer.printf("%s%n%n", view.header());
-            printCounter(writer, view.generation(), "generation");
-            printCounter(writer, view.corpusEntries(), "corpus entries");
-            for (var stage : CorpusStage.values()) {
-                printCounter(
-                        writer,
-                        view.backlog().applyAsLong(stage),
-                        "awaiting " + stage.displayName());
+    static List<AttributedString> finished(Path corpus, WorkflowRunSummary summary, RunPalette palette) {
+        var text = new RunText(RunView.finished(summary).metrics(), Precision.EXACT, palette, RunText.Highlights.NONE);
+        var lines = new ArrayList<AttributedString>();
+        lines.add(text.line().heading("Workflow run finished for '" + corpus + "'").build());
+        lines.add(text.line().text("Counts and elapsed times are cumulative across corpus runs.").build());
+        fields(lines, text, RunMetric.Field.Section.SUMMARY, "");
+        lines.add(labeled(text, "", "Stop reason", RunMetric.State.STATUS));
+        lines.add(AttributedString.EMPTY);
+        lines.add(text.line().heading(RunText.INPUTS_HEADING).build());
+        fields(lines, text, RunMetric.Field.Section.INPUTS, INDENT);
+        for (var stage : CorpusStage.values()) {
+            lines.add(AttributedString.EMPTY);
+            lines.add(text.line().stage(stage).build());
+            lines.add(labeled(text, INDENT, RunMetric.Queue.LABEL, new RunMetric.Queue(stage)));
+            for (var verdict : stage.resultVerdicts()) {
+                lines.add(text.line().text(INDENT).result(stage, verdict).build());
             }
-            printCounter(writer, view.generator().generated(), "generated inputs");
-            printGenerationCounters(writer, view.generator().aggregate());
-            printElapsed(writer, view.generator().elapsed(), "generator elapsed");
-            for (var stage : CorpusStage.values()) {
-                printVerdicts(writer, view.stages().get(stage), stage);
+            lines.add(labeled(text, INDENT, RunMetric.StageElapsed.LABEL, new RunMetric.StageElapsed(stage)));
+        }
+        lines.add(text.line().text(RunText.COUNTEREXAMPLE_LEGEND
+                + "; Agree/Differ: checker conformance; Keep/Drop: quality selection.").build());
+        lines.add(text.line().text(RunMetric.Queue.LABEL + " counts are the final inventory.").build());
+        return List.copyOf(lines);
+    }
+
+    private static void fields(
+            List<AttributedString> lines, RunText text, RunMetric.Field.Section section, String indent) {
+        for (var field : RunMetric.Field.values()) {
+            if (field.section() == section) {
+                lines.add(labeled(text, indent, field.label(), field));
             }
-            printElapsed(writer, view.totalElapsed(), "total elapsed");
-            printStatistic(writer, view.stateValue(), view.stateLabel());
         }
-        return output.toString();
     }
 
-    private static void printVerdicts(
-            PrintWriter writer, StageVerdictSummary summary, CorpusStage stage) {
-        for (var verdict : stage.resultVerdicts()) {
-            printCounter(
-                    writer,
-                    summary.count(verdict),
-                    stage.displayName() + " " + verdict.countLabel());
-        }
-        printElapsed(writer, summary.elapsed(), stage.displayName() + " elapsed");
-    }
-
-
-    private static void printCounter(PrintWriter writer, long value, String label) {
-        writer.printf("[%20d %-18s]%n", value, label);
-    }
-
-    private static void printGenerationCounters(PrintWriter writer, GeneratorAggregate generator) {
-        var richness = generator.richness();
-        printRichness(writer, richness.samples(), richness.minimum(), "min richness");
-        printRichness(writer, richness.samples(), richness.maximum(), "max richness");
-        printRichness(writer, richness.samples(), richness.average(), "avg richness");
-        printCounter(writer, generator.attempts(), "candidate attempts");
-        printCounter(writer, generator.rejected(), "generator rejected");
-        printCounter(writer, generator.richnessRejected(), "richness rejected");
-        printCounter(writer, generator.duplicates(), "duplicate inputs");
-        printCounter(writer, generator.clones(), "mutant clones");
-        printCounter(writer, generator.knownDefectRejections(), "known defects");
-    }
-
-    private static void printRichness(PrintWriter writer, long samples, double value, String label) {
-        printStatistic(writer, samples == 0 ? "n/a" : formatRichness(value), label);
-    }
-
-    private static void printStatistic(PrintWriter writer, String value, String label) {
-        writer.printf("[%20s %-18s]%n", value, label);
-    }
-
-    private static void printElapsed(PrintWriter writer, Duration elapsed, String label) {
-        printStatistic(writer, HumanDuration.format(elapsed), label);
-    }
-
-    private static String formatRichness(double value) {
-        if (value == 0.0) {
-            return "0";
-        }
-        if (value < 0.001 || value >= 1_000_000_000_000.0) {
-            return String.format(Locale.ROOT, "%.3e", value);
-        }
-        var formatted = String.format(Locale.ROOT, "%.3f", value);
-        var end = formatted.length();
-        while (end > 0 && formatted.charAt(end - 1) == '0') {
-            end--;
-        }
-        if (end > 0 && formatted.charAt(end - 1) == '.') {
-            end--;
-        }
-        return formatted.substring(0, end);
+    private static AttributedString labeled(RunText text, String indent, String label, RunMetric key) {
+        return text.line().text(indent + label + ": ").value(key).build();
     }
 }

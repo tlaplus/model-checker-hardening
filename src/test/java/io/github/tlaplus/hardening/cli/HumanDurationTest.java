@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
@@ -19,5 +20,11 @@ class HumanDurationTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> HumanDuration.format(Duration.ofSeconds(-1)));
+    }
+
+    @Test
+    void compactKeepsTwoUnitsWithinTwelveColumns() {
+        assertEquals("1m5s", HumanDuration.compact(Duration.ofSeconds(65)));
+        assertTrue(HumanDuration.compact(Duration.ofSeconds(Long.MAX_VALUE)).length() <= 12);
     }
 }

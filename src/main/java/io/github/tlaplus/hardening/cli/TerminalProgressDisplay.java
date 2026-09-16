@@ -1,58 +1,93 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
-import java.io.PrintWriter;
-import java.util.Objects;
+import java.io.IOError;
+import java.util.Map;
+import java.util.function.LongSupplier;
+import org.jline.terminal.Terminal;
 
-/** Maintains one in-place workflow progress block on an ANSI terminal. */
+/**
+ * Terminal mechanics of live progress: snapshots, change highlighting, resizing, and screen
+ * restoration. It never writes the final report; its owner does, after {@link #finish}.
+ */
 final class TerminalProgressDisplay implements AutoCloseable {
-    private static final String ERASE_TO_END = "\u001b[J";
-
-    private final PrintWriter output;
-    private int renderedLines;
-    private boolean finished;
+    private final Terminal terminal;
+    private final ProgressScreen screen;
+    private final RunPalette palette;
+    private final boolean feedback;
+    private final LongSupplier clock;
+    private final ProgressChanges changes = new ProgressChanges();
+    private final Terminal.SignalHandler previousResize;
+    private Map<RunMetric, RunValue> latest;
+    private boolean stopped;
     private boolean closed;
 
-    TerminalProgressDisplay(PrintWriter output) {
-        this.output = Objects.requireNonNull(output, "output");
+    TerminalProgressDisplay(Terminal terminal, boolean feedback, RunPalette palette, LongSupplier clock) {
+        this.terminal = terminal;
+        this.feedback = feedback;
+        this.palette = palette;
+        this.clock = clock;
+        screen = new ProgressScreen(terminal);
+        previousResize = terminal.handle(Terminal.Signal.WINCH, _ -> resize());
     }
 
     synchronized void update(WorkflowProgress progress) {
-        if (!finished && !closed) {
-            replace(RunTable.progress(progress));
+        if (!stopped) {
+            latest = RunView.live(progress).metrics();
+            changes.observe(latest, clock.getAsLong());
+            redraw();
         }
     }
 
-    synchronized void finish(String summary) {
-        if (!finished && !closed) {
-            replace(Objects.requireNonNull(summary, "summary"));
-            finished = true;
+    synchronized void resize() {
+        if (!stopped) {
+            screen.resized();
+            if (latest != null) {
+                redraw();
+            }
         }
     }
 
-    private void replace(String text) {
-        eraseRenderedBlock();
-        output.print(text);
-        output.flush();
-        renderedLines = Math.toIntExact(text.lines().count());
+    /**
+     * Stops live rendering and restores the normal screen. Returns the palette the final report may
+     * use on this terminal.
+     */
+    synchronized RunPalette finish() {
+        stopped = true;
+        attempt(screen::leave);
+        return palette;
     }
 
-    private void eraseRenderedBlock() {
-        if (renderedLines > 0) {
-            output.printf("\u001b[%dF%s", renderedLines, ERASE_TO_END);
-            renderedLines = 0;
+    private void redraw() {
+        try {
+            var text = new RunText(latest, Precision.COMPACT, palette,
+                    RunText.Highlights.live(changes.highlighted(clock.getAsLong())));
+            screen.show(size -> ProgressLayout.render(text, size, feedback));
+        } catch (RuntimeException | IOError exception) {
+            // Live progress is optional: stop rendering and leave the final report available.
+            stopped = true;
+            attempt(screen::leave);
         }
     }
 
+    /** Attempts every cleanup step even if an earlier one fails, and never throws. */
     @Override
     public synchronized void close() {
         if (closed) {
             return;
         }
-        if (!finished) {
-            eraseRenderedBlock();
-            output.flush();
-        }
         closed = true;
+        stopped = true;
+        attempt(() -> terminal.handle(Terminal.Signal.WINCH, previousResize));
+        attempt(screen::leave);
+        RunTerminal.closeQuietly(terminal);
+    }
+
+    private static void attempt(Runnable cleanup) {
+        try {
+            cleanup.run();
+        } catch (RuntimeException | IOError ignored) {
+            // A display failure must not replace the workflow's result or diagnostic.
+        }
     }
 }
