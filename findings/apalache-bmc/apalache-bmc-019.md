@@ -87,6 +87,36 @@ in a `LET` definition, `LocalOp10 == ENABLED (var1 = step)`; these two were not
 reduced, so whether a `CASE` guard is involved there is open. The remaining 53
 were not rerun.
 
+## Recurring in `corpus25`
+
+The `module` corpus25 run, generated like corpus24 with twice its entry budget,
+has 115 aggregator deviations where TLC reports "Invariant Inv is violated by
+the initial state" and Apalache passes. All 115 were rerun, TLC on the printed
+module and Apalache 0.62.2 on the entry's IR with the workflow's arguments,
+including `--temporal=Liveness`.
+
+107 have `ENABLED` in the invariant. 106 of them end with `NoError` and exit
+status 0, so Apalache explored states, neither rejected `ENABLED` with exit 75
+nor reported the violation TLC sees. This is the shape of the summary at the
+scale of a whole run, and the first time every deviation in the group was rerun
+rather than sampled. The remaining eight deviations are
+[apalache-bmc-017](apalache-bmc-017.md).
+
+Where `ENABLED` sits inside the invariant, counting each context that occurs in
+an entry: a `CASE` guard in 62, an `IF` condition in 24, a `CHOOSE` predicate in
+8, and 25 entries reach it only through a `LET` definition or another
+subexpression. The contexts were read off the printed module, not reduced, so
+the counts locate the occurrence and do not attribute the pass to it. The
+`CASE`-guard group is the reproduction above.
+
+One entry does not fit. `ba60e0c4` has `ENABLED` in a `CHOOSE` predicate and was
+recorded as an Apalache pass during the run, but the rerun of its IR exits 255
+with `internal error in type checking: FoldSet argument ... found Bool`, the
+diagnostic of
+[apalache-temporal-002](../apalache-temporal/apalache-temporal-002.md). The same
+input therefore passed once and crashed once. Whether the difference is in
+Apalache or in the IR the worker feeds it was not established.
+
 ## Expected behavior
 
 Apalache either rejects `ENABLED` as unsupported, with exit 75, or checks the

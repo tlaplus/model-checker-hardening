@@ -242,6 +242,26 @@ state violates the invariant, and Apalache 0.62.2, rerun on the IR, reports
 `All executions are shorter than the provided bound` and `ExecutionsTooShort`.
 The domains were not replaced with a literal `{}` to isolate them.
 
+## Recurring in `corpus25`
+
+The `module` corpus25 run, generated like corpus24 with twice its entry budget,
+has 115 aggregator deviations where TLC reports "Invariant Inv is violated by
+the initial state" and Apalache passes. Every one was rerun: TLC on the printed
+module, Apalache 0.62.2 on the entry's IR with the workflow's arguments.
+
+Eight have this cause. None of them mentions `ENABLED` in its invariant, each
+has an initial predicate `var0 \in [D -> {}]` with a computed empty `D`, and
+each rerun ends with `All executions are shorter than the provided bound` and
+`ExecutionsTooShort`, the initial-predicate direction of the summary. They are
+`0205fa5f`, `153babe7`, `25624bc9`, `2ae12b1d`, `6344e21c`, `99fa0f6d`,
+`9ca09feb` and `e678ecbb`. The domains were not replaced with a literal `{}` to
+isolate them.
+
+The other 107 have `ENABLED` in the invariant and are
+[apalache-bmc-019](apalache-bmc-019.md). A `[D -> {}]` function set also occurs
+somewhere in 80 of those 107, but Apalache explores states and answers the
+invariant there, so the `ENABLED` path is what the rerun exhibits.
+
 ## Expected behavior
 
 `[S -> R]` denotes the set of total functions from `S` to `R`. When `S` is
