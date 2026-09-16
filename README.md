@@ -260,6 +260,9 @@ Workers run concurrently and reserve one permit per active call. A timeout or
 crash retires the child JVM, and the next input starts a replacement. The
 initialized worker count is half the available processors, rounded down with a
 minimum of one; the stored setting also must not exceed `--max-cpus`.
+Each child JVM sees only as many processors as its permits
+(`-XX:ActiveProcessorCount`), so its compiler and collector thread pools stay
+small; TLC JVMs also skip optimizing compilation.
 The aggregator has priority over TLC and Apalache, which have equal checker
 priority over parsing, which has priority over generation. Waiting
 checker requests reserve partial CPU capacity so upstream work cannot starve

@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.tlc;
 
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -26,9 +27,12 @@ final class TlcProcess {
                 timeout,
                 TlcWorkerMain.class,
                 List.of(),
-                JavaLaunch.boundedHeap(
-                        config.maximumHeapMegabytes(),
-                        "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers()),
+                new ChildJvm(
+                        config.workers(),
+                        ChildJvm.Compilation.QUICK,
+                        JavaLaunch.boundedHeap(
+                                config.maximumHeapMegabytes(),
+                                "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers())),
                 "TLC worker"))) {
             return worker.request(source, timeout);
         }

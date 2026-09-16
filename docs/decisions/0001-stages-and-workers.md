@@ -122,7 +122,17 @@ number of FuzzTLA workers. Corpus initialization sets it to half the processors
 visible to the JVM, rounded down with a minimum of one. The persisted value must
 not exceed `--max-cpus` when the workflow runs.
 TLC and Apalache requests have equal checker priority and FIFO ordering in the
-shared CPU budget. Stage capacity limits bound current result-directory
+shared CPU budget.
+
+A permit bounds a tool thread, but a JVM sizes its garbage-collector and
+JIT-compiler thread pools from the processors it sees, and those threads run
+beside the tool. Every child JVM is therefore launched with
+`-XX:ActiveProcessorCount` equal to the permits one of its requests reserves:
+`workflow.tlc.workers` for TLC and one for the parser and Apalache. A TLC JVM
+serves one input and exits before optimized code pays off, so it also runs with
+`-XX:TieredStopAtLevel=1`. Persistent parser and Apalache JVMs keep tiered
+compilation. Compiler and collector threads still run outside the budget, so
+measured CPU use can exceed `--max-cpus` slightly. Stage capacity limits bound current result-directory
 occupancy, while a global limit bounds unique corpus entries.
 
 The runner may sample cumulative in-memory counters and elapsed time once per

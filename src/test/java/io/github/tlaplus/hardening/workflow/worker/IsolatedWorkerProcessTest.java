@@ -8,10 +8,12 @@ import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -128,6 +130,24 @@ class IsolatedWorkerProcessTest {
     }
 
     @Test
+    void theChildJvmSeesOnlyTheProcessorsItsPermitsReserve(@TempDir Path directory)
+            throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        var jvm = new ChildJvm(2, ChildJvm.Compilation.QUICK, List.of("-Xmx64m"));
+
+        ToolResult result;
+        try (var worker = IsolatedWorkerProcess.start(new WorkerSpec(
+                scratch, TIMEOUT, JvmReportWorker.class, List.of(), jvm, DESCRIPTION))) {
+            result = worker.request(new ToolInput("text", 0), TIMEOUT);
+        }
+
+        var report = List.of(result.diagnostic().split("\n"));
+        assertEquals("2", report.getFirst());
+        assertTrue(report.containsAll(jvm.arguments()), result.diagnostic());
+        assertScratchIsEmpty(scratch);
+    }
+
+    @Test
     void aTemporalPropertyNeedsOneMoreUnrolledTransitionThanTheInvariant() {
         assertEquals(5, CheckRequest.invariant(5).unrollingLength());
         assertEquals(6, new CheckRequest(5, true).unrollingLength());
@@ -220,6 +240,23 @@ class IsolatedWorkerProcessTest {
                 var request = input.request();
                 ToolWorkerProtocol.writeResult(connection.output(), new ToolResult(StageOutcome.PASS,
                         request.transitions() + " " + request.temporalProperty() + " " + input.text()));
+            }
+        }
+    }
+
+    public static final class JvmReportWorker {
+        private JvmReportWorker() {}
+
+        public static void main(String[] ignoredArguments) throws Exception {
+            try (var connection = ToolWorkerConnection.connect()) {
+                ToolWorkerProtocol.writeHandshake(connection.output());
+                ToolWorkerProtocol.readRequest(connection.input());
+                var report = new ArrayList<String>();
+                report.add(Integer.toString(Runtime.getRuntime().availableProcessors()));
+                report.addAll(ManagementFactory.getRuntimeMXBean()
+                        .getInputArguments());
+                ToolWorkerProtocol.writeResult(connection.output(),
+                        new ToolResult(StageOutcome.PASS, String.join("\n", report)));
             }
         }
     }

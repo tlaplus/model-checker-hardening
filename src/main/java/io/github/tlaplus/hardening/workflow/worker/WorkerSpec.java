@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /**
  * How to launch one isolated tool worker: where it may write, how long it may take to come up,
- * which class it runs, what goes in front of this JVM's class path, which JVM options it needs, and
+ * which class it runs, what goes in front of this JVM's class path, the child JVM it runs in, and
  * what to call it in diagnostics.
  */
 public record WorkerSpec(
@@ -16,24 +16,30 @@ public record WorkerSpec(
         Duration startupTimeout,
         Class<?> workerMain,
         List<Path> classpathPrefix,
-        List<String> jvmArguments,
+        ChildJvm jvm,
         String description) {
     public WorkerSpec {
         Objects.requireNonNull(scratchDirectory, "scratchDirectory");
         Objects.requireNonNull(startupTimeout, "startupTimeout");
         Objects.requireNonNull(workerMain, "workerMain");
         classpathPrefix = List.copyOf(classpathPrefix);
-        jvmArguments = List.copyOf(jvmArguments);
+        Objects.requireNonNull(jvm, "jvm");
         Preconditions.require(!Objects.requireNonNull(description, "description").isBlank(),
                 "description must not be blank");
     }
 
-    /** A worker that needs no extra class-path entries and no extra JVM options. */
+    /** A single-processor worker that needs no extra class-path entries and no extra JVM options. */
     public WorkerSpec(
             Path scratchDirectory,
             Duration startupTimeout,
             Class<?> workerMain,
             String description) {
-        this(scratchDirectory, startupTimeout, workerMain, List.of(), List.of(), description);
+        this(
+                scratchDirectory,
+                startupTimeout,
+                workerMain,
+                List.of(),
+                ChildJvm.singleProcessor(),
+                description);
     }
 }
