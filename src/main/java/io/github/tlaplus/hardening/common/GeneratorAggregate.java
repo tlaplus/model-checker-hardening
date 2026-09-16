@@ -10,15 +10,17 @@ import java.util.TreeMap;
  *
  * <p>{@code knownDefects} counts the candidates that matched a known-defect signature, keyed by
  * primary signature id, whether they were quarantined or discarded past the per-signature cap.
+ * {@code clones} counts mutants rejected because they decode to their parent's module.
  */
 public record GeneratorAggregate(long attempts, long rejected, long richnessRejected,
-                                 long duplicates, Map<String, Long> knownDefects,
+                                 long duplicates, long clones, Map<String, Long> knownDefects,
                                  Richness richness) {
     public GeneratorAggregate {
         Preconditions.requireNonnegative(attempts, "attempts");
         Preconditions.requireNonnegative(rejected, "rejected");
         Preconditions.requireNonnegative(richnessRejected, "richnessRejected");
         Preconditions.requireNonnegative(duplicates, "duplicates");
+        Preconditions.requireNonnegative(clones, "clones");
         Objects.requireNonNull(knownDefects, "knownDefects");
         for (var entry : knownDefects.entrySet()) {
             Preconditions.require(!entry.getKey().isBlank(), "known-defect ids must not be blank");
@@ -28,10 +30,10 @@ public record GeneratorAggregate(long attempts, long rejected, long richnessReje
         Objects.requireNonNull(richness, "richness");
     }
 
-    /** Returns counters from before any candidate matched a known-defect signature. */
+    /** Returns counters from before any candidate was a clone or matched a known-defect signature. */
     public GeneratorAggregate(long attempts, long rejected, long richnessRejected,
                               long duplicates, Richness richness) {
-        this(attempts, rejected, richnessRejected, duplicates, Map.of(), richness);
+        this(attempts, rejected, richnessRejected, duplicates, 0, Map.of(), richness);
     }
 
     public static GeneratorAggregate empty() {

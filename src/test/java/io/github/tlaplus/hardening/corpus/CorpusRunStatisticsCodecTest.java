@@ -27,7 +27,10 @@ class CorpusRunStatisticsCodecTest {
                     CorpusStage.AGGREGATOR, 6L),
             new GeneratorAggregate(7, 8, 9, 10, new Richness(2, 1.5, 9.5, 5.5)));
 
-    /** Captured from the pre-refactor codec, not produced by the codec under test. */
+    /**
+     * Captured from an earlier build of the codec, not produced by the codec under test. It was
+     * last re-captured when ADR 0010 added the quality stage and the clone counter.
+     */
     @Test
     void readsAndReproducesTheHistoricalFixture() throws Exception {
         try (var fixture = getClass().getResourceAsStream("/corpus/workflow-statistics.cbor")) {
@@ -51,7 +54,7 @@ class CorpusRunStatisticsCodecTest {
                 2,
                 Map.of(),
                 new GeneratorAggregate(
-                        7, 8, 9, 10, Map.of("string-set", 3L, "sequence-set", 4L), Richness.empty()));
+                        7, 8, 9, 10, 11, Map.of("string-set", 3L, "sequence-set", 4L), Richness.empty()));
 
         assertEquals(statistics, CorpusRunStatisticsCodec.decode(
                 CorpusRunStatisticsCodec.encode(statistics)));

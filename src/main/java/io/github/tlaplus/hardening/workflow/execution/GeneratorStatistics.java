@@ -22,6 +22,7 @@ public final class GeneratorStatistics {
     private final LongAdder rejected = new LongAdder();
     private final LongAdder richnessRejected = new LongAdder();
     private final LongAdder duplicates = new LongAdder();
+    private final LongAdder clones = new LongAdder();
     private final ConcurrentHashMap<String, LongAdder> knownDefects = new ConcurrentHashMap<>();
     private long generated;
     private GeneratorAggregate.Richness richness;
@@ -35,6 +36,7 @@ public final class GeneratorStatistics {
         rejected.add(aggregate.rejected());
         richnessRejected.add(aggregate.richnessRejected());
         duplicates.add(aggregate.duplicates());
+        clones.add(aggregate.clones());
         aggregate.knownDefects().forEach((signature, count) -> knownDefect(signature).add(count));
         generated = initialEntries;
         richness = aggregate.richness();
@@ -59,6 +61,11 @@ public final class GeneratorStatistics {
 
     public void recordDuplicate() {
         duplicates.increment();
+    }
+
+    /** Records a mutant that decodes to its parent's module. */
+    public void recordClone() {
+        clones.increment();
     }
 
     /** Records a candidate that matched known-defect signatures, under its primary signature. */
@@ -87,6 +94,6 @@ public final class GeneratorStatistics {
         var knownDefectCounts = new TreeMap<String, Long>();
         knownDefects.forEach((signature, count) -> knownDefectCounts.put(signature, count.sum()));
         return new GeneratorAggregate(attempts.sum(), rejected.sum(), richnessRejected.sum(),
-                duplicates.sum(), knownDefectCounts, richness);
+                duplicates.sum(), clones.sum(), knownDefectCounts, richness);
     }
 }

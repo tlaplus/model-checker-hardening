@@ -22,15 +22,15 @@ class GeneratorAggregateTest {
 
     @Test
     void countsKnownDefectsBySignatureInIdOrder() {
-        var aggregate = new GeneratorAggregate(0, 0, 0, 0, Map.of("b", 2L, "a", 3L), Richness.empty());
+        var aggregate = new GeneratorAggregate(0, 0, 0, 0, 0, Map.of("b", 2L, "a", 3L), Richness.empty());
 
         assertEquals(List.of("a", "b"), List.copyOf(aggregate.knownDefects().keySet()));
         assertEquals(5, aggregate.knownDefectRejections());
         assertEquals(0, GeneratorAggregate.empty().knownDefectRejections());
         assertThrows(IllegalArgumentException.class,
-                () -> new GeneratorAggregate(0, 0, 0, 0, Map.of("a", -1L), Richness.empty()));
+                () -> new GeneratorAggregate(0, 0, 0, 0, 0, Map.of("a", -1L), Richness.empty()));
         assertThrows(IllegalArgumentException.class,
-                () -> new GeneratorAggregate(0, 0, 0, 0, Map.of(" ", 1L), Richness.empty()));
+                () -> new GeneratorAggregate(0, 0, 0, 0, 0, Map.of(" ", 1L), Richness.empty()));
     }
 
     @Test
