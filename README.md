@@ -127,11 +127,13 @@ custom_operators = []
 
 [workflow]
 # Maximum number of unique entries across every workflow directory.
+# A stage table that omits max_entries inherits this value.
 max_entries = 1000
 
 [workflow.inputs]
 # Maximum current occupancy of 00-inputs.
-max_entries = 1000
+# Defaults to workflow.max_entries.
+# max_entries = 1000
 # Known-defect signature databases, relative to this config file.
 # A candidate that matches a signature goes to 00-known-defects; [] admits every candidate.
 known_defects = ["../signatures/known-defects.toml"]
@@ -140,13 +142,15 @@ known_defect_samples = 100
 
 [workflow.parser]
 # Maximum combined occupancy of the parser result directories.
-max_entries = 1000
+# Defaults to workflow.max_entries.
+# max_entries = 1000
 # Wall-clock limit for parsing one generated specification.
 timeout_sec = 30
 
 [workflow.tlc]
 # Maximum combined occupancy of the TLC result directories.
-max_entries = 1000
+# Defaults to workflow.max_entries.
+# max_entries = 1000
 # Wall-clock limit for checking one generated specification.
 timeout_sec = 30
 # Maximum heap allocated to each isolated TLC JVM.
@@ -156,7 +160,8 @@ workers = 1
 
 [workflow.apalache]
 # Maximum combined occupancy of the Apalache result directories.
-max_entries = 1000
+# Defaults to workflow.max_entries.
+# max_entries = 1000
 # Wall-clock limit for checking one generated specification.
 timeout_sec = 30
 # Maximum heap allocated to each persistent Apalache worker JVM.

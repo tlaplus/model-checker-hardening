@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.tomlj.TomlTable;
 
@@ -35,19 +36,30 @@ final class ConfigSchema {
     /**
      * One configuration key: the table it belongs to, its name, its type, the documentation
      * rendered above it, and the value it holds in a configuration.
+     *
+     * <p>A key with a {@code fallback} is optional: a table that omits it inherits the fallback
+     * key's value, and rendering comments the assignment out while the value is the inherited
+     * one.
      */
     record Key<T>(
             String tablePath,
             String name,
             ConfigValueType<T> type,
             List<String> documentation,
-            Function<FuzzTlaConfig, T> value) {
+            Function<FuzzTlaConfig, T> value,
+            Key<T> fallback) {
         Key {
             Objects.requireNonNull(tablePath, "tablePath");
             Objects.requireNonNull(name, "name");
             Objects.requireNonNull(type, "type");
             Objects.requireNonNull(value, "value");
             documentation = List.copyOf(Objects.requireNonNull(documentation, "documentation"));
+        }
+
+        /** A required key has no fallback. */
+        Key(String tablePath, String name, ConfigValueType<T> type, List<String> documentation,
+                Function<FuzzTlaConfig, T> value) {
+            this(tablePath, name, type, documentation, value, null);
         }
 
         /** Returns the full document path, as it appears in diagnostics. */
@@ -57,19 +69,35 @@ final class ConfigSchema {
 
         /** Reads this key from the parsed tables of a document, keyed by table path. */
         T read(Map<String, TomlTable> tables) throws ConfigException {
-            var table = tables.get(tablePath);
-            if (table == null) {
-                throw new IllegalStateException("table " + tablePath + " was not resolved");
-            }
-            return type.reader().read(table, path(), name);
+            return type.reader().read(table(tables), path(), name);
+        }
+
+        /** Reads this optional key, or its fallback key's value when the table omits it. */
+        T readOr(Map<String, TomlTable> tables) throws ConfigException {
+            Preconditions.require(fallback != null, path() + " is a required key");
+            return table(tables).contains(name) ? read(tables) : fallback.read(tables);
         }
 
         /** Returns the documentation and assignment lines of this key. */
         List<String> render(FuzzTlaConfig config) {
             var lines = new ArrayList<String>(documentation.size() + 1);
             documentation.forEach(comment -> lines.add("# " + comment));
-            lines.add(name + " = " + type.format().apply(value.apply(config)));
+            var rendered = value.apply(config);
+            var assignment = name + " = " + type.format().apply(rendered);
+            // An optional key at its inherited value documents the knob without overriding the
+            // fallback, so a fresh config states the limit once.
+            var inherited = fallback != null && rendered.equals(fallback.value.apply(config));
+            lines.add(inherited ? "# " + assignment : assignment);
             return lines;
+        }
+
+        /** Returns the table this key lives in. */
+        private TomlTable table(Map<String, TomlTable> tables) {
+            var table = tables.get(tablePath);
+            if (table == null) {
+                throw new IllegalStateException("table " + tablePath + " was not resolved");
+            }
+            return table;
         }
     }
 
@@ -116,6 +144,7 @@ final class ConfigSchema {
             Key<Integer> workers) {}
 
     private static final String WORKFLOW_PATH = "workflow";
+    private static final String INHERITS_MAXIMUM_ENTRIES = "Defaults to workflow.max_entries.";
 
     private static final ConfigTableBuilder<FuzzTlaConfig> GENERATOR =
             new ConfigTableBuilder<>("generator", Function.identity());
@@ -155,9 +184,11 @@ final class ConfigSchema {
             "Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }.");
     static final Key<Integer> WORKFLOW_MAXIMUM_ENTRIES = WORKFLOW.integer(
             "max_entries", WorkflowConfig::maximumEntries,
-            "Maximum number of unique entries across every workflow directory.");
-    static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.integer(
-            "max_entries", InputStageConfig::maximumEntries, "Maximum current occupancy of 00-inputs.");
+            "Maximum number of unique entries across every workflow directory.",
+            "A stage table that omits max_entries inherits this value.");
+    static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.optionalInteger(
+            "max_entries", InputStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,
+            "Maximum current occupancy of 00-inputs.", INHERITS_MAXIMUM_ENTRIES);
     static final Key<List<Path>> KNOWN_DEFECTS = INPUTS.key(
             "known_defects", ConfigValueType.PATHS, InputStageConfig::knownDefects,
             "Known-defect signature databases, relative to this config file.",
@@ -167,8 +198,9 @@ final class ConfigSchema {
             "known_defect_samples", InputStageConfig::knownDefectSamples,
             "Quarantined entries kept per signature in 00-known-defects; further matches are"
                     + " only counted.");
-    static final Key<Integer> PARSER_MAXIMUM_ENTRIES = PARSER.integer(
-            "max_entries", ParserStageConfig::maximumEntries, resultDirectoryDocumentation(CorpusStage.PARSER));
+    static final Key<Integer> PARSER_MAXIMUM_ENTRIES = PARSER.optionalInteger(
+            "max_entries", ParserStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,
+            resultDirectoryDocumentation(CorpusStage.PARSER), INHERITS_MAXIMUM_ENTRIES);
     static final Key<Integer> PARSER_TIMEOUT_SECONDS = PARSER.integer(
             "timeout_sec", ParserStageConfig::timeoutSeconds,
             "Wall-clock limit for parsing one generated specification.");
@@ -217,15 +249,27 @@ final class ConfigSchema {
     }
 
     /**
-     * Returns the keys required directly in one table: the keys declared in it and the names of the
-     * tables nested immediately inside it. The empty path denotes the root of the document.
+     * Returns the keys one table may declare directly: the keys declared in it and the names of
+     * the tables nested immediately inside it. The empty path denotes the root of the document.
      */
     static Set<String> expectedKeys(String path) {
+        return keys(path, key -> true);
+    }
+
+    /**
+     * Returns the keys one table must declare directly: the keys declared without a fallback and
+     * the names of the tables nested immediately inside it.
+     */
+    static Set<String> requiredKeys(String path) {
+        return keys(path, key -> key.fallback() == null);
+    }
+
+    private static Set<String> keys(String path, Predicate<Key<?>> filter) {
         Objects.requireNonNull(path, "path");
         var expected = new LinkedHashSet<String>();
         for (var table : TABLES) {
             if (table.path().equals(path)) {
-                table.keys().forEach(key -> expected.add(key.name()));
+                table.keys().stream().filter(filter).forEach(key -> expected.add(key.name()));
             }
             if (table.parentPath().equals(path)) {
                 expected.add(table.name());
@@ -256,7 +300,9 @@ final class ConfigSchema {
             var profile = CheckerProfile.of(stage);
             var table = new ConfigTableBuilder<>(stagePath(stage), config -> config.workflow().checker(stage));
             keys.put(stage, new CheckerKeys(
-                    table.integer("max_entries", CheckerStageConfig::maximumEntries, resultDirectoryDocumentation(stage)),
+                    table.optionalInteger("max_entries", CheckerStageConfig::maximumEntries,
+                            WORKFLOW_MAXIMUM_ENTRIES,
+                            resultDirectoryDocumentation(stage), INHERITS_MAXIMUM_ENTRIES),
                     table.integer("timeout_sec", CheckerStageConfig::timeoutSeconds,
                             "Wall-clock limit for checking one generated specification."),
                     table.integer("max_heap_mb", CheckerStageConfig::maximumHeapMegabytes, profile.heapDocumentation()),

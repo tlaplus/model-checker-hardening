@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 /** Registers typed keys in document order, then snapshots them as an immutable schema table. */
@@ -35,6 +36,17 @@ final class ConfigTableBuilder<T> {
 
     ConfigSchema.Key<Integer> integer(String name, Function<T, Integer> field, String... documentation) {
         return key(name, ConfigValueType.INTEGER, field, documentation);
+    }
+
+    /** An integer key a table may omit, in which case the key inherits the fallback's value. */
+    ConfigSchema.Key<Integer> optionalInteger(
+            String name, Function<T, Integer> field, ConfigSchema.Key<Integer> fallback,
+            String... documentation) {
+        var key = new ConfigSchema.Key<>(
+                path, name, ConfigValueType.INTEGER, List.of(documentation), value.andThen(field),
+                Objects.requireNonNull(fallback, "fallback"));
+        keys.add(key);
+        return key;
     }
 
     ConfigSchema.Table build() {

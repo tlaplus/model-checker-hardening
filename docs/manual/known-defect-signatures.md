@@ -18,7 +18,6 @@ Two keys in the corpus's `config.toml` control the feature:
 
 ```toml
 [workflow.inputs]
-max_entries = 100000
 # Known-defect signature databases, relative to this config file.
 known_defects = ["../signatures/known-defects.toml"]
 # Quarantined entries kept per signature in 00-known-defects.

@@ -41,12 +41,17 @@ public final class TomlConfig {
             throw new ConfigException("invalid TOML:" + System.lineSeparator() + errors);
         }
 
-        requireKeys(result, ConfigSchema.expectedKeys(ROOT_PATH), ROOT_LOCATION);
+        requireKeys(
+                result,
+                ConfigSchema.expectedKeys(ROOT_PATH),
+                ConfigSchema.requiredKeys(ROOT_PATH),
+                ROOT_LOCATION);
         var tables = resolveTables(result);
         for (var table : ConfigSchema.TABLES) {
             requireKeys(
                     tables.get(table.path()),
                     ConfigSchema.expectedKeys(table.path()),
+                    ConfigSchema.requiredKeys(table.path()),
                     table.path());
         }
 
@@ -106,12 +111,12 @@ public final class TomlConfig {
         var workflowConfig = new WorkflowConfig(
                 ConfigSchema.WORKFLOW_MAXIMUM_ENTRIES.read(tables),
                 new InputStageConfig(
-                        ConfigSchema.INPUTS_MAXIMUM_ENTRIES.read(tables),
+                        ConfigSchema.INPUTS_MAXIMUM_ENTRIES.readOr(tables),
                         ConfigSchema.KNOWN_DEFECTS.read(tables),
                         ConfigSchema.KNOWN_DEFECT_SAMPLES.read(tables))
                         .relativeTo(directory),
                 new ParserStageConfig(
-                        ConfigSchema.PARSER_MAXIMUM_ENTRIES.read(tables),
+                        ConfigSchema.PARSER_MAXIMUM_ENTRIES.readOr(tables),
                         ConfigSchema.PARSER_TIMEOUT_SECONDS.read(tables)),
                 checkers);
 
@@ -141,7 +146,7 @@ public final class TomlConfig {
             CorpusStage stage, Map<String, TomlTable> tables) throws ConfigException {
         var keys = ConfigSchema.checker(stage);
         return new CheckerStageConfig(
-                keys.maximumEntries().read(tables),
+                keys.maximumEntries().readOr(tables),
                 keys.timeoutSeconds().read(tables),
                 keys.maximumHeapMegabytes().read(tables),
                 keys.workers().read(tables));
@@ -155,10 +160,13 @@ public final class TomlConfig {
         return parent.getTable(key);
     }
 
-    /** Requires exactly the supported keys at one level of the document. */
-    private static void requireKeys(TomlTable table, Set<String> expected, String location)
-            throws ConfigException {
-        var missing = expected.stream()
+    /**
+     * Requires exactly the supported keys at one level of the document: every key of {@code
+     * required} must be present, and no key outside {@code expected} may be.
+     */
+    private static void requireKeys(TomlTable table, Set<String> expected, Set<String> required,
+            String location) throws ConfigException {
+        var missing = required.stream()
                 .filter(key -> !table.keySet().contains(key))
                 .sorted()
                 .toList();
