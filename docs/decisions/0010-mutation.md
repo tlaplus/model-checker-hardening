@@ -348,6 +348,15 @@ interrupted run already admitted is then a duplicate, and the target draws on.
   checkers. The triager's signatures decide how much of that is already known,
   and the known-defect filter stays enabled in production runs, unlike in the
   experiment.
+- **The gate rewards aliases of the step counter.** In corpus28 (100
+  generations, `select_fraction = 0.25`), every `04quality-pass` entry from
+  generation 10 on descends from one PBT root whose `Next` assigns `step` into a
+  record field; 13,725 of 13,753 selected entries share `projectedDepth = 5`,
+  `projectedStates = 5` and `actionsDiscovering = 1`. `projectedStates` removes
+  the `step` variable but not copies of it. The generator therefore no longer
+  offers `step` to action operators and `Next`
+  ([ir-generators §9.1][ir-generators]). Diversity of the parent pool remains
+  open: only 4 PBT entries were ever selected.
 - **The gate's thresholds are unvalidated.** `select_fraction`,
   `feedback_ratio`, the weights and `max_edits` have defaults from one
   experiment on one corpus, at one generation. Calibration over several
