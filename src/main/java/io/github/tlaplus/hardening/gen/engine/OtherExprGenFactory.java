@@ -126,7 +126,7 @@ final class OtherExprGenFactory extends AbstractExprGenFactory {
                             updateDraw.draw(context.withinExceptReplacement(
                                     expression(type.result(), remainingDepth - 1)))),
                     1,
-                    context.config().expressions().maximumCollectionSize()));
+                    context.config().expressions().collections().maximumSize()));
             return builder().exceptMany(
                     draw.draw(expression(type, remainingDepth - 1)),
                     BuilderArrays.updates(updates));

@@ -70,6 +70,9 @@ class ShippedKnownDefectsTest {
         cases.put("tlc-fairness-under-eventuality",
                 List.of(builder.eventually(builder.weakFair(flag(), action())),
                         builder.always(builder.weakFair(flag(), action()))));
+        cases.put("integer-literal-outside-tlc-range",
+                List.of(builder.plus(step, builder.integer(new java.math.BigInteger("2147483648"))),
+                        builder.plus(step, builder.integer(Integer.MAX_VALUE))));
         cases.put("tlc-always-action-under-connective",
                 List.of(builder.not(builder.always(builder.stutter(action(), flag()))),
                         builder.and(builder.always(builder.stutter(action(), flag())), flag())));

@@ -232,6 +232,41 @@ class IrSpecGeneratorsTest {
     }
 
     @Test
+    void aPositiveBaseSizeKeepsAccountingAndLevelsAndFillsTerminals() {
+        var defaults = IrGenerationConfig.defaults();
+        var config = defaults.withExpressionLimits(defaults.expressions().withCollections(
+                defaults.expressions().collections().withBaseSize(3)));
+        var generator = IrGenerators.specs(config);
+        var random = new Random(0xBA5E3L);
+        var checked = 0;
+        var filled = 0;
+        for (var sample = 0; sample < 400; sample++) {
+            var input = new byte[64 + random.nextInt(1024)];
+            random.nextBytes(input);
+            final GeneratedSpec spec;
+            try {
+                spec = generator.generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            var declared = new LinkedHashSet<>(variableNames(spec));
+            var actionOps = actionOperatorBodies(spec);
+            for (var disjunct : disjuncts(spec.nextAction())) {
+                assertEquals(declared, new LinkedHashSet<>(collectAssignedVars(disjunct, declared, actionOps)),
+                        "disjunct does not account for every variable: " + print(disjunct));
+            }
+            assertEquals(IrLevel.STATE, level(spec.initPredicate()), "Init is not a state predicate");
+            assertEquals(IrLevel.STATE, level(spec.invariant()), "Inv is not a state predicate");
+            if (render(spec).replaceAll("\\s+", " ").contains("1, 2, 3")) {
+                filled++;
+            }
+            checked++;
+        }
+        assertTrue(checked > 100, "too few inputs were admitted to be conclusive: " + checked);
+        assertTrue(filled > checked / 4, "too few modules contain a base-size terminal: " + filled);
+    }
+
+    @Test
     void everyActionPathAssignsANonStepVariable() {
         forEachGeneratedSpec(spec -> {
             var variables = new LinkedHashSet<>(variableNames(spec));

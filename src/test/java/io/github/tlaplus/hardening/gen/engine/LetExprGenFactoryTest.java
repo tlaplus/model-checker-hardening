@@ -42,7 +42,7 @@ class LetExprGenFactoryTest {
     void aDeclarationWithParametersIsAppliedInTheBody() {
         var apply = firstSlot(GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.INT,
                 List.of(ScopedName.definition("LocalOp", UNARY)));
-        assertForm("LET LocalOp1(parameter0) == parameter0 IN LocalOp1(0)",
+        assertForm("LET LocalOp1(parameter0) == parameter0 IN LocalOp1(1)",
                 GeneralExpressionKind.LET, PrimitiveType.INT, List.of(), 2,
                 1, INT, 0, 0, 0, 0, 0, 0, apply, 42);
     }
@@ -52,7 +52,7 @@ class LetExprGenFactoryTest {
         var nullary = new OperatorType(List.of(), PrimitiveType.INT);
         var apply = firstSlot(GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.INT,
                 List.of(ScopedName.definition("LocalOp", nullary)));
-        assertForm("LET LocalOp0 == 0 IN LET LocalOp1 == LocalOp0 IN LocalOp1",
+        assertForm("LET LocalOp0 == 1 IN LET LocalOp1 == LocalOp0 IN LocalOp1",
                 GeneralExpressionKind.LET, PrimitiveType.INT, List.of(), 2,
                 0, 0, 0, 0, 1,
                 0, 0, 0, apply, 0,
@@ -65,7 +65,7 @@ class LetExprGenFactoryTest {
                 List.of(ScopedName.definition("F", UNARY)));
         var applyDeclaration = firstSlot(GeneralExpressionKind.OPERATOR_APPLICATION, PrimitiveType.INT,
                 List.of(ScopedName.definition("LocalOp", HIGHER_ORDER)));
-        assertForm("LET LocalOp1(parameter0(_)) == parameter0(0) IN "
+        assertForm("LET LocalOp1(parameter0(_)) == parameter0(1) IN "
                         + "(LET Lambda3(parameter2) == parameter2 IN LocalOp1(Lambda3))",
                 GeneralExpressionKind.LET, PrimitiveType.INT, List.of(), 2,
                 1, OPERATOR, INT, 0, INT, 0, 0, 0, applyParameter, 0, 0, applyDeclaration, 42);
@@ -80,7 +80,7 @@ class LetExprGenFactoryTest {
                 List.of(unary, ScopedName.definition("G", HIGHER_ORDER)));
         var name = firstSlot(GeneralExpressionKind.NAME, UNARY, List.of(unary));
         assertForm("LET LocalOp1(parameter0) == parameter0 IN "
-                        + "LET LocalOp3(parameter2(_)) == parameter2(0) IN LocalOp3(LocalOp1)",
+                        + "LET LocalOp3(parameter2(_)) == parameter2(1) IN LocalOp3(LocalOp1)",
                 GeneralExpressionKind.LET, PrimitiveType.INT, List.of(), 3,
                 1, INT, 0, 0, 0, 0, 1,
                 1, OPERATOR, INT, 0, INT, 0, 0, 0, applyParameter, 1, 0, 0, 0,

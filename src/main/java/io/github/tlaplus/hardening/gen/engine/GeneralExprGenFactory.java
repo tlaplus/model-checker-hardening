@@ -22,6 +22,8 @@ import org.apalache_mc.tla.jir.ExpressionPair;
 final class GeneralExprGenFactory extends AbstractExprGenFactory {
     private final OtherExprGenFactory otherFactory;
 
+    private final IndexedValues indexedValues;
+
     GeneralExprGenFactory(
             GenerationContext context,
             IrTypeGenFactory typeFactory,
@@ -29,6 +31,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
             OtherExprGenFactory otherFactory) {
         super(context, typeFactory, expressionFactory);
         this.otherFactory = otherFactory;
+        this.indexedValues = new IndexedValues(context);
     }
 
     /**
@@ -106,20 +109,27 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         return draw -> switch (type) {
             case PrimitiveType primitive -> switch (primitive) {
                 case BOOL -> builder().bool(false);
-                case INT -> builder().integer(BigInteger.ZERO);
+                case INT -> builder().integer(BigInteger.valueOf(context.config().expressions().integers().base()));
                 case STRING -> builder().str("");
             };
             case ConstantType constantType -> builder().constant("default", (ConstT1) constantType.toTlaType());
-            case SetType(IrType element) -> builder().emptySet(element.toTlaType());
-            case SequenceType(IrType element) -> builder().emptySeq(element.toTlaType());
+            case SetType(IrType element) -> {
+                var size = terminalSize(element);
+                yield size == 0 ? builder().emptySet(element.toTlaType()) : builder().enumSet(indexed(element, size));
+            }
+            case SequenceType(IrType element) -> {
+                var size = terminalSize(element);
+                yield size == 0 ? builder().emptySeq(element.toTlaType()) : builder().seq(indexed(element, size));
+            }
             case FunctionType functionType -> {
-                var binding = context.freshBinding("terminalArg", functionType.argument());
-                var variable = builder().name(
-                        binding.name(), functionType.argument().toTlaType());
-                var domain = builder().emptySet(functionType.argument().toTlaType());
+                var argument = functionType.argument();
+                var size = terminalSize(argument);
+                var binding = context.freshBinding("terminalArg", argument);
+                var variable = builder().name(binding.name(), argument.toTlaType());
+                var domain = size == 0 ? builder().emptySet(argument.toTlaType()) : builder().enumSet(indexed(argument, size));
                 var pair = new ExpressionPair<>(variable, domain);
                 yield builder().funDef(
-                        draw.draw(terminal(functionType.result())),
+                        draw.draw(context.atoms().within(Math.max(1, size), terminal(functionType.result()))),
                         BuilderArrays.pairs(List.of(pair)));
             }
             case TupleType tupleType -> draw.draw(tuple(tupleType, this::terminal));
@@ -136,6 +146,24 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
     }
 
     /**
+     * Returns the size of a collection terminal over {@code element}: the configured base size,
+     * bounded by the value-atom budget and by the distinct indexed values of the element type.
+     */
+    private int terminalSize(IrType element) {
+        var base = context.config().expressions().collections().baseSize();
+        return Math.min(Math.min(base, context.atoms().current()), IndexedValues.distinctValues(element));
+    }
+
+    /** Returns the first {@code size} indexed values of {@code element}. */
+    private TlaEx[] indexed(IrType element, int size) {
+        var values = new TlaEx[size];
+        for (var k = 1; k <= size; k++) {
+            values[k - 1] = indexedValues.value(element, k);
+        }
+        return values;
+    }
+
+    /**
      * Returns a generator of a CASE expression with a terminated branch collection.
      */
     private Generator<TlaEx> caseExpression(IrType type, int remainingDepth) {
@@ -146,7 +174,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                                     PrimitiveType.BOOL, remainingDepth - 1)),
                             branchDraw.draw(sameLevel(type, remainingDepth - 1))),
                     1,
-                    context.config().expressions().maximumCollectionSize()));
+                    context.config().expressions().collections().maximumSize()));
             if (draw.drawBoolean()) {
                 return builder().caseOther(
                         draw.draw(sameLevel(type, remainingDepth - 1)),
@@ -217,7 +245,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
                         return builder().decl(binding.name(), body, parameters.declarations());
                     },
                     1,
-                    context.config().expressions().maximumCollectionSize()));
+                    context.config().expressions().collections().maximumSize()));
             var body = draw.draw(context.withBindings(
                     bindings, sameLevel(resultType, remainingDepth - 1)));
             return builder().letIn(body, declarations.toArray(TlaOperDecl[]::new));

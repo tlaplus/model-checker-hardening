@@ -64,7 +64,7 @@ final class ApplicativeExprGenFactory extends AbstractExprGenFactory {
     private Generator<IrType> containing(ApplicativeType applicative, IrType component) {
         return typeFactory.containing(
                 component,
-                applicative.maximumOtherComponents(context.config().expressions().maximumCollectionSize()),
+                applicative.maximumOtherComponents(context.config().expressions().collections().maximumSize()),
                 components -> applicative.of(components, context));
     }
 

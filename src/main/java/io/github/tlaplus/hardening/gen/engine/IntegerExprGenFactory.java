@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import java.math.BigInteger;
 
 /** Constructs integer-valued expression generators. */
@@ -39,12 +40,23 @@ final class IntegerExprGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** Returns a generator that decodes a terminated two's-complement integer payload. */
+    /** Returns a generator of an integer literal in the configured {@link IntegerLiteralMode}. */
     private Generator<BigInteger> integerLiteral() {
-        return BasicGenerators.byteArray(0, context.config().expressions().maximumIntegerBytes())
-                .map(payload -> payload.length == 0
-                        ? BigInteger.ZERO
-                        : new BigInteger(payload));
+        var limits = context.config().expressions().integers();
+        Generator<BigInteger> wide = BasicGenerators.byteArray(0, limits.maximumBytes())
+                .map(payload -> payload.length == 0 ? BigInteger.ZERO : new BigInteger(payload));
+        Generator<BigInteger> small = draw -> BigInteger.valueOf(
+                (long) limits.base() + draw.draw(BasicGenerators.offset(limits.spread())));
+        Generator<BigInteger> boundary = draw -> BOUNDARIES[draw.drawIndex(BOUNDARIES.length, 1)].value();
+        return switch (limits.literals()) {
+            case WIDE -> wide;
+            case SMALL -> draw -> draw.draw(draw.drawBoolean() ? wide : small);
+            case BOUNDARY -> draw -> !draw.drawBoolean()
+                    ? draw.draw(small)
+                    : draw.draw(draw.drawBoolean() ? wide : boundary);
+        };
     }
+
+    private static final BoundaryInteger[] BOUNDARIES = BoundaryInteger.values();
 
 }

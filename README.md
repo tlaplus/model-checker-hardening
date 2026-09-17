@@ -112,8 +112,14 @@ max_type_depth = 3
 max_expression_depth = 32
 max_nodes = 32
 max_collection_size = 8
+collection_base_size = 3
+collection_size_spread = 4
+max_value_atoms = 64
 max_string_bytes = 32
 max_integer_bytes = 16
+integer_base = 1
+integer_literal_spread = 4
+integer_literals = "boundary"
 ignore = ["unbound", "exotic"]
 weights = { name = 8, enum_set = 16 }
 classpath = []

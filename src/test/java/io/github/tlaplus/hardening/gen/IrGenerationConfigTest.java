@@ -15,13 +15,13 @@ import org.junit.jupiter.api.Test;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 
 class IrGenerationConfigTest {
-    private static final ExpressionLimits LIMITS = new ExpressionLimits(0, 1, 1, 1, 0, 0);
+    private static final ExpressionLimits LIMITS = new ExpressionLimits(0, 1, 1, new CollectionLimits(1, 0, 4, 64), 0, new IntegerLimits(0, 0, 4, IntegerLiteralMode.WIDE));
 
     @Test
     void exposesDocumentedDefaults() {
         assertEquals(
                 new IrGenerationConfig(
-                        new ExpressionLimits(3, 32, 128, 8, 32, 16),
+                        new ExpressionLimits(3, 32, 128, new CollectionLimits(8, 3, 4, 64), 32, new IntegerLimits(16, 1, 4, IntegerLiteralMode.BOUNDARY)),
                         new ModuleLimits(3, 2, new ActionLimits(2, 3, 2, 3), 5, 2),
                         Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC),
                         Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16), OperatorLibrary.empty()),
@@ -31,17 +31,26 @@ class IrGenerationConfigTest {
     @Test
     void rejectsInvalidExpressionLimits() {
         assertThrows(
-                IllegalArgumentException.class, () -> new ExpressionLimits(-1, 1, 1, 1, 0, 0));
+                IllegalArgumentException.class, () -> new ExpressionLimits(-1, 1, 1, new CollectionLimits(1, 0, 4, 64), 0, new IntegerLimits(0, 0, 4, IntegerLiteralMode.WIDE)));
         assertThrows(
-                IllegalArgumentException.class, () -> new ExpressionLimits(0, 0, 1, 1, 0, 0));
+                IllegalArgumentException.class, () -> new ExpressionLimits(0, 0, 1, new CollectionLimits(1, 0, 4, 64), 0, new IntegerLimits(0, 0, 4, IntegerLiteralMode.WIDE)));
         assertThrows(
-                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 0, 1, 0, 0));
+                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 0, new CollectionLimits(1, 0, 4, 64), 0, new IntegerLimits(0, 0, 4, IntegerLiteralMode.WIDE)));
         assertThrows(
-                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 1, 0, 0, 0));
+                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 1, new CollectionLimits(0, 0, 4, 64), 0, new IntegerLimits(0, 0, 4, IntegerLiteralMode.WIDE)));
         assertThrows(
-                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 1, 1, -1, 0));
+                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 1, new CollectionLimits(1, 0, 4, 64), -1, new IntegerLimits(0, 0, 4, IntegerLiteralMode.WIDE)));
         assertThrows(
-                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 1, 1, 0, -1));
+                IllegalArgumentException.class, () -> new ExpressionLimits(0, 1, 1, new CollectionLimits(1, 0, 4, 64), 0, new IntegerLimits(-1, 0, 4, IntegerLiteralMode.WIDE)));
+    }
+
+    @Test
+    void rejectsInvalidCollectionLimits() {
+        assertThrows(IllegalArgumentException.class, () -> new CollectionLimits(8, -1, 4, 64));
+        assertThrows(IllegalArgumentException.class, () -> new CollectionLimits(8, 9, 4, 64));
+        assertThrows(IllegalArgumentException.class, () -> new CollectionLimits(8, 0, -1, 64));
+        assertThrows(IllegalArgumentException.class, () -> new CollectionLimits(8, 0, 128, 64));
+        assertThrows(IllegalArgumentException.class, () -> new CollectionLimits(8, 0, 4, 0));
     }
 
     @Test

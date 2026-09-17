@@ -192,12 +192,33 @@ derived from that count would change how many bytes one choice costs, reframing
 every byte after it for a reason unrelated to the choice. Form selection
 therefore uses a fixed-width index.
 
-Variable-size values use continuation markers rather than length prefixes.
-`BasicGenerators.listOf` and `byteArray` first generate their mandatory elements.
-Before each optional element, they read one Boolean marker: odd continues and
-even terminates. Reaching the configured maximum consumes no additional marker.
-This layout avoids a dedicated size byte whose mutation could add or remove many
-elements at once.
+**Decoder deviation (integer literals, [ADR 0012][adr-0012]).** An integer
+literal reads up to two Boolean markers under the default `boundary` mode: even
+decodes a small literal, `integer_base` plus a rotated one-byte offset; odd then
+even indexes `BoundaryInteger` with one byte; odd then odd decodes the wide
+payload below. Exhausted input decodes `integer_base`. The `small` mode reads one
+marker and the `wide` mode none.
+
+Structural lists and byte payloads use continuation markers rather than length
+prefixes. `BasicGenerators.listOf` and `byteArray` first generate their mandatory
+elements. Before each optional element, they read one Boolean marker: odd
+continues and even terminates. Reaching the configured maximum consumes no
+additional marker. Conjunction and disjunction operands, `CASE` arms, `LET`
+definitions, `EXCEPT` updates, set-map sources, action guards, `Next` disjuncts,
+operator lists, tuple and record type fields, and string and integer payloads use
+this layout.
+
+**Decoder deviation (value collection sizes, [ADR 0011][adr-0011]).** The elements
+of set enumerations and sequence literals follow one size byte instead.
+`BasicGenerators.collectionSize` reads an index in `0..2s`, rotates it into the
+offset `((index + s) mod (2s + 1)) − s`, and adds it to the configured base size,
+clamped to `1..maximumSize` and to the value-atom budget (section 6). Exhausted
+input decodes to the base size; a uniform byte to a size nearly uniform in
+base ± spread; a change of the index by one to a size change of one, except where
+the offset wraps. This replaces the earlier rationale against a size byte, that
+its mutation could add or remove many elements at once: the spread bounds such a
+change, and markers had made random literals geometric in size (mean below two)
+and exhausted ones minimal. The byte is read even for a zero spread.
 
 The byte encoding is implementation-local. Enum declaration order, expression
 catalog order, or generator composition changes may reinterpret an existing
@@ -380,8 +401,23 @@ exhausted, mirroring the expression fallback above.
 Terminal construction is byte-free. When bindings of exactly the requested type are
 lexically visible, successive terminals rotate over them, innermost first, and then
 the closed terminal. Otherwise every `IrType` has a closed terminal expression:
-`FALSE`, zero, the empty string, empty sets and sequences, componentwise terminal
-tuples and records, an empty-domain function, and a lambda for an operator type.
+`FALSE`, `integer_base` ([ADR 0012][adr-0012], default `1`), the empty string,
+componentwise terminal tuples and records, a
+lambda for an operator type, and collections of the configured base size
+([ADR 0011][adr-0011]): a set `{v1, …, vn}`, a sequence `<<v1, …, vn>>`, and a
+function `[x \in {v1, …, vn} |-> t]` whose result is the result type's terminal.
+`IndexedValues` supplies `vk`, a byte-free k-th value of the element type (`k`,
+`"k"`, `k` odd, `"valuek_OF_C"`, componentwise for tuples and records, singletons
+for collections, the first tag for variants), so a terminal set does not collapse.
+Its size `n` is the base size, bounded by the value-atom budget and by two for
+types whose every atom is Boolean. A base size of zero gives the empty set,
+sequence and domain.
+
+`ValueAtomBudget` bounds the elements of one collection value over all nesting
+levels, so nested base sizes cannot multiply. A literal or terminal of `n`
+elements generated under budget `a` draws each element under `⌊a / n⌋`, and its
+size is at most `a`. Every top-level body starts with `maximumValueAtoms`, in the
+same scope as its node budget. The budget costs no bytes.
 Operator types always take the lambda terminal, because an operator name is not a
 value; a visible operator reaches an operator argument through `NAME` instead. An
 empty input therefore selects Boolean as its root type and produces `FALSE`.
@@ -449,9 +485,15 @@ always enabled. The default limits are:
 | `maximumTypeDepth` | 3 | Maximum nesting depth of generated types. |
 | `maximumExpressionDepth` | 32 | Maximum recursive expression depth. |
 | `maximumNodes` | 128 | Maximum nonterminal expression requests per top-level body. |
-| `maximumCollectionSize` | 8 | Maximum generated elements in a variable-size collection. |
+| `collections.maximumSize` | 8 | Maximum generated elements in a variable-size collection or structural list (`max_collection_size`). |
+| `collections.baseSize` | 3 | Size of set and sequence literals and collection terminals on exhausted input (`collection_base_size`). |
+| `collections.sizeSpread` | 4 | How far one size byte moves a literal's size from the base (`collection_size_spread`). |
+| `collections.maximumValueAtoms` | 64 | Value-atom budget of one collection literal or terminal (`max_value_atoms`). |
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
-| `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |
+| `integers.maximumBytes` | 16 | Maximum two's-complement payload of a wide integer literal (`max_integer_bytes`). |
+| `integers.base` | 1 | Closed integer terminal and centre of small literals (`integer_base`). |
+| `integers.spread` | 4 | Offset range of small integer literals (`integer_literal_spread`). |
+| `integers.literals` | `BOUNDARY` | Mix of small, boundary and wide literals (`integer_literals`). |
 
 `ModuleLimits` bounds declarations and exploration and contains an `ActionLimits`
 value for the four action-specific limits. TOML keys and defaults are unchanged:
@@ -1040,3 +1082,6 @@ with `LET`. Library bodies are excluded from collection-richness scoring, while
 the generated applications and their arguments are scored normally. Rendering
 admission limits include the linked definitions. Every assembled artifact owns
 fresh library IR identities and cannot mutate the prepared snapshot.
+
+[adr-0011]: ../decisions/0011-collection-base-size.md
+[adr-0012]: ../decisions/0012-integer-literals.md
