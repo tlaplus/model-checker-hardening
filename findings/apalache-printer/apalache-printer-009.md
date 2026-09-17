@@ -77,6 +77,23 @@ Op == CASE TRUE -> CHOOSE c : TRUE [] FALSE -> lab(c) :: TRUE
 SANY reports `Illegal parameter c of label 'lab'`, so there `c` is correctly out
 of scope. The nested `CASE` is the absorbing construct.
 
+## Recurring in `corpus28`
+
+The `module` corpus28 run, with generational mutation, has 12 parser failures.
+Nine of them are this defect: SANY reports that a label must contain the formal
+parameter of a `CHOOSE` or `\A` binder, and in each printed module that binder
+directly follows the `->` of a `CASE` arm. In seven of them the entry's IR shows
+the binder's body ending in a nested `CASE`; in `269797c3` and `fcaf925f` the
+arm value is wrapped, and the IR was not inspected further. They are
+`050a50d4`, `269797c3`, `3673c5e7`, `97581992`, `9f8087ab`, `ca8e4a6f`,
+`d3b9625f`, `e9363cab` and `fcaf925f`; `d3b9625f` reports two such labels.
+Only `3673c5e7` is a mutant (`erase`). The other three parser failures are
+[apalache-printer-010](apalache-printer-010.md) (`084a7bbf`) and two level errors in
+`ApaFoldSet` arguments that FuzzTLA generates (`02917b8f`, `6742bad8`), which
+SANY rejects correctly.
+
+Parsed with the SANY bundled in FuzzTLA `41bda26` (TLC commit `957faa0`).
+
 ## Expected behavior
 
 `PrettyWriter` must delimit a `CASE` expression whenever it is printed as an

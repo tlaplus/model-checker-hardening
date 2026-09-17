@@ -132,6 +132,24 @@ occurs somewhere in 49 of the 62, but, as in corpus25, Apalache explores states
 and answers the invariant. The position of `ENABLED` inside the invariant was
 not counted, and no entry was reduced.
 
+## Recurring in `corpus28`
+
+The `module` corpus28 run adds generational mutation to the corpus26
+categories. Of its 24 aggregator deviations where TLC reports a counterexample
+and Apalache passes, 23 have `ENABLED` in the invariant. All 24 were rerun as in
+corpus25, with TLC commit `957faa0`, Apalache 0.62.2 (build `f0dec98`) and
+FuzzTLA `41bda26`. Each TLC rerun reports
+`Invariant Inv is violated by the initial state`, and each Apalache rerun ends
+with `NoError` and exit status 0. No rerun reports
+`All executions are shorter than the provided bound`.
+
+The 23 with `ENABLED` are this finding. Three of them are mutants: `copy` for
+`2a7ac794` and `98c58eaa`, and `splice` for `9ce5bd63`. The 24th, the `splice`
+mutant `980f1fd3`, has no `ENABLED` and is recorded in
+[apalache-bmc-017](apalache-bmc-017.md#recurring-in-corpus28-in-the-invariant).
+As in corpus26, the position of `ENABLED` inside the invariant was not counted,
+and no entry was reduced.
+
 ## Expected behavior
 
 Apalache either rejects `ENABLED` as unsupported, with exit 75, or checks the
