@@ -722,11 +722,17 @@ before it existed.
    its signature, too, comes from `parameterTypes()`. Unlike an
    auxiliary operator it reads current state and primes, so it is applicable only
    in `Next`, never in `Init` or `Inv`. A later operator may apply an earlier
-   one; none mentions `step`. `ActionGenFactory` assembles these definitions using
+   one; none reads or primes `step`. `ActionGenFactory` assembles these definitions using
    `ActionShapeGenFactory` for their bodies.
 5. **Initial-state predicate.** One conjunct per declared variable, in
    declaration order, either `v = e` or `v \in S`, plus `step = 0`.
-6. **Next-state action.** A terminated non-empty disjunction of actions.
+6. **Next-state action.** A terminated non-empty disjunction of actions. Its
+   drawn parts see the auxiliary operators and the declared variables, but not
+   `step`; only the fixed step guard and step update mention it. A variable
+   assigned from `step` would change on every transition and pass for real state
+   change in the projected exploration metrics; in corpus28 the quality gate
+   selected such modules exclusively. The invariant and the property still read
+   `step`.
 7. **Property.** An optional temporal property with fairness; see
    [9.4](#94-temporal-property).
 

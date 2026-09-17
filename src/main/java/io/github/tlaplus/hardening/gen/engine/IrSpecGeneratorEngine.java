@@ -89,8 +89,11 @@ public final class IrSpecGeneratorEngine {
         var operators = sections.get(ModuleSection.AUXILIARY_OPERATORS)
                 .draw(auxiliaryOperators(context, typeFactory, expressionFactory));
         var operatorNames = operators.stream().map(DefinedOperator::binding).toList();
-        var stateScope = new ArrayList<ScopedName>(operatorNames);
-        stateScope.addAll(variables);
+        // Actions do not read step: a variable assigned from the counter changes on every
+        // transition and passes for real state change in the projected exploration metrics.
+        var actionScope = new ArrayList<ScopedName>(operatorNames);
+        actionScope.addAll(variables);
+        var stateScope = new ArrayList<ScopedName>(actionScope);
         stateScope.add(step);
 
         // Each body owns its bytes, so the invariant no longer has to be drawn first to avoid
@@ -101,10 +104,10 @@ public final class IrSpecGeneratorEngine {
                         expressionFactory.mkGen(PrimitiveType.BOOL, depth))));
 
         // Action operators read current state and prime, so they are drawn with the state
-        // variables in scope. Only Next receives the completed visibility index;
+        // variables, but not step, in scope. Only Next receives the completed visibility index;
         // Init and the invariant never see action operators.
         var actionOperators = sections.get(ModuleSection.ACTION_OPERATORS).draw(context.withBindings(
-                stateScope, actions.actionOperators(depth)));
+                actionScope, actions.actionOperators(depth)));
         var generatedOperators = new ArrayList<GeneratedOperator>();
         operators.forEach(operator -> generatedOperators.add(operator.generated()));
         actionOperators.forEach(operator -> generatedOperators.add(operator.generated()));
@@ -114,7 +117,7 @@ public final class IrSpecGeneratorEngine {
         var initPredicate = sections.get(ModuleSection.INIT).draw(context.withBindings(
                 operatorNames, context.withFreshNodeBudget(actions.initPredicate(depth))));
         var nextAction = sections.get(ModuleSection.NEXT).draw(
-                context.withBindings(stateScope, actions.nextAction(depth,
+                context.withBindings(actionScope, actions.nextAction(depth,
                         new VisibleActionOperators(actionOperators))));
 
         // The property reads the state and may apply the auxiliary definitions, like the invariant.

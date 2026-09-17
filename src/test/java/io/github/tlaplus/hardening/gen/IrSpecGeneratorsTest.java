@@ -64,6 +64,26 @@ class IrSpecGeneratorsTest {
     }
 
     @Test
+    void actionsReadStepOnlyInTheGuardAndTheUpdate() {
+        // A variable assigned from step changes on every transition, which the projected
+        // exploration metrics would count as state change: corpus28's elite did exactly that.
+        forEachGeneratedSpec(spec -> {
+            for (var disjunct : disjuncts(spec.nextAction())) {
+                var reads = new ArrayList<String>();
+                collectFreeReads(disjunct, Set.of(STEP), reads, false);
+                assertEquals(3, reads.size(), "a disjunct reads step: " + print(disjunct));
+            }
+            for (var operator : actionOperators(spec)) {
+                var reads = new ArrayList<String>();
+                collectFreeReads(operator.declaration().body(), Set.of(STEP), reads, false);
+                assertEquals(List.of(), reads,
+                        operator.declaration().name() + " reads step: "
+                                + print(operator.declaration().body()));
+            }
+        });
+    }
+
+    @Test
     void actionOperatorBodiesAccountForTheirDeclaredEffect() {
         var random = new Random(0xAC7057L);
         var checkedOperators = 0;
