@@ -48,3 +48,16 @@ about 16% of either's matches fail with this message, and about 81% fail TLC at
 all, against a 75.8% base rate. TLC also reports the failure within seconds, so
 quarantining would discard many inputs that Apalache still checks while saving
 little time.
+
+## Under a temporal property
+
+When the application sits inside a `[][A]_v` property, TLC stores the wrapper
+`Error: Evaluating action property Prop failed.` as the entry's detail and prints
+the application error only on the following lines. The aggregator keeps a single
+line, so the triager leaves these deviations as `NEW`. corpus28 has four:
+`6a805821`, `6c69f64a`, `d4308ac1` and `f1512c5e`. On a rerun with TLC commit
+`957faa0`, three report `In applying the function <<>>` with an argument outside
+its domain, and `d4308ac1` reports `Attempted to access index 0 of tuple <<>>`.
+Apalache 0.62.2 (build `f0dec98`), rerun on the IR, reports `NoError` for all
+four. Three are `copy` mutants; `f1512c5e` came from
+PBT. The FuzzTLA commit is `41bda26`.

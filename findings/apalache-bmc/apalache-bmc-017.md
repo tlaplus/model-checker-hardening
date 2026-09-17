@@ -262,6 +262,40 @@ The other 107 have `ENABLED` in the invariant and are
 somewhere in 80 of those 107, but Apalache explores states and answers the
 invariant there, so the `ENABLED` path is what the rerun exhibits.
 
+## Recurring in `corpus28`, in the invariant
+
+The `module` corpus28 run adds generational mutation to the corpus26
+categories. One aggregator deviation, the `splice` mutant `980f1fd3`, has this
+cause in the invariant direction of the summary. Its invariant, without
+`ENABLED`, is
+
+```tla
+Inv == [ (ApaFoldSet(Lambda36, <<{}, "", {}>>, {}))[1] -> {} ] \subseteq {}
+```
+
+where `Lambda36` is never applied, so the domain is the computed empty set `{}`.
+TLC reports `Invariant Inv is violated by the initial state`. Apalache 0.62.2
+(build `f0dec98`), rerun on the IR with the workflow's arguments, explores the
+states and ends with `NoError` and exit status 0. It also ends with `NoError`
+on the reduced module
+
+```tla
+---- MODULE R ----
+EXTENDS Integers, Apalache
+VARIABLE
+  \* @type: Int;
+  x
+\* @type: (<<Set(Int), Str, Set(Int)>>, Int) => <<Set(Int), Str, Set(Int)>>;
+L(a, b) == a
+Init == x = 0
+Next == UNCHANGED x
+Inv == [ (ApaFoldSet(L, <<{}, "", {}>>, {}))[1] -> {} ] \subseteq {}
+====
+```
+
+checked with `apalache-mc check --inv=Inv --length=1 R.tla`. Reproduced with
+TLC commit `957faa0` and FuzzTLA `41bda26`.
+
 ## Expected behavior
 
 `[S -> R]` denotes the set of total functions from `S` to `R`. When `S` is
