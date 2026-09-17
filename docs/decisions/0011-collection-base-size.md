@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-17
 
@@ -145,7 +145,7 @@ A terminal needs distinct elements, or a set collapses. Define the byte-free
 | `Int` | `k` |
 | `Str` | `"k"` |
 | `Bool` | `k` odd |
-| uninterpreted `C` | `"k_OF_C"` |
+| uninterpreted `C` | `"valuek_OF_C"` |
 | tuple, record | componentwise `value(Ti, k)` |
 | `Set(E)` | `{value(E, k)}` |
 | `Seq(E)` | `<<value(E, k)>>` |
@@ -187,14 +187,13 @@ now have base size, but calibration of `max_nodes` is part of the evaluation.
 
 Three `[generator]` keys:
 
-| Key | Proposed default | Meaning |
+| Key | Default | Meaning |
 | --- | ---: | --- |
-| `collection_base_size` | 0 | Size that exhausted input decodes to. Must be in `0..max_collection_size`. |
+| `collection_base_size` | 3 | Size that exhausted input decodes to. Must be in `0..max_collection_size`. |
 | `collection_size_spread` | 4 | Bytes move a size within base ± spread. Must be in `0..127`. |
 | `max_value_atoms` | 64 | Atom budget of one collection literal or terminal. Must be positive. |
 
-The default `collection_base_size = 0` is provisional; the evaluation below
-chooses it.
+The default `collection_base_size = 3` comes from the evaluation below.
 
 ### Base 0 is not the current decoder
 
@@ -226,6 +225,43 @@ Accept if a positive base raises `maxCardinality ≥ 3` substantially without
 raising timeouts to a comparable degree. The chosen base then becomes a dimension
 of the exploration versus exploitation experiment
 (`script/mutation-experiment/`).
+
+## Evaluation results
+
+Three `module` corpora of 1,000 PBT entries each, seed 11, `feedback_ratio = 0`,
+default configuration otherwise, 30 s checker timeouts. fuzztla: this change on
+top of `54ee477`; TLC: tla2tools `142d0ba`; Apalache: release 0.62.2. Shares are
+of the 1,000 entries, excluding `00-known-defects`.
+
+| Measure | Base 0 | Base 3 | Base 6 |
+| --- | ---: | ---: | ---: |
+| Quarantined known defects | 335 | 289 | 305 |
+| Parser failures | 0 | 0 | 0 |
+| ≥ 1 initial state | 26.5% | 40.2% | 40.2% |
+| TLC fails in `Init` | 78.7% | 74.3% | 73.4% |
+| `maxCardinality ≥ 1` | 11.2% | 19.4% | 18.8% |
+| `maxCardinality ≥ 3` | 2.2% | 5.8% | 5.4% |
+| `maxStateNodes ≥ 10` | 1.2% | 6.1% | 6.3% |
+| `projectedStates ≥ 2` | 0.1% | 3.1% | 3.4% |
+| Checkers agree | 33.2% | 32.9% | 33.3% |
+| Mean evaluated nodes | 384 | 652 | 797 |
+| Mean TLC / Apalache time (ms) | 357 / 672 | 475 / 1,648 | 460 / 2,077 |
+| Apalache crashes (of which timeouts) | 3 (0) | 45 (35) | 61 (52) |
+
+- A positive base doubles to triples every size measure and raises state change
+  from 1 to 31 entries. Base 6 adds nothing over base 3: sizes are bounded by
+  `max_value_atoms` and by how rarely values survive `Init`.
+- `head-of-empty-sequence` disagreements fall from 71 to 8, and
+  `tail-of-empty-sequence` from 14 to 2. `function-application-outside-domain`,
+  `choose-without-witness` and `case-without-matching-arm` stay flat: they come
+  from explicit empty forms, integer terminal `0` and generated predicates, which
+  this ADR does not change. Tuple index 0 remains a top TLC failure.
+- The cost is Apalache time. Mean time rises 2.5 to 3 times, and Apalache timeouts
+  rise from 0 to 35 and 52. Known crash classes (`apalache-bmc-001`,
+  `apalache-cli-001`) stay at a handful; TLC is unaffected.
+
+**Default:** `collection_base_size = 3`. Changing the closed `Int`
+terminal from `0` to `1` is the next candidate, measured the same way.
 
 ## Alternatives considered
 

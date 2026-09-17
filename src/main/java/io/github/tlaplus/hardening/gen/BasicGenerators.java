@@ -67,6 +67,35 @@ public final class BasicGenerators {
     }
 
     /**
+     * Returns a generator of a value collection's size around {@link CollectionLimits#baseSize()}
+     * (ADR 0011).
+     *
+     * <p>One byte is read as an index in {@code 0..2s}, where {@code s} is the spread, and rotated
+     * into the offset {@code ((index + s) mod (2s + 1)) - s}. An exhausted cursor therefore yields
+     * the base, a uniform byte a size nearly uniform in base ± spread, and a change of the index by
+     * one changes the size by one except where the offset wraps from {@code +s} to {@code -s}. The
+     * result is clamped to {@code [minimumSize, maximumSize]}. The byte is read even when the
+     * spread is zero, so the spread does not change the byte layout.
+     *
+     * @param limits base size and spread
+     * @param minimumSize smallest permitted size
+     * @param maximumSize largest permitted size
+     * @return size generator
+     * @throws IllegalArgumentException unless {@code 0 <= minimumSize <= maximumSize}
+     */
+    public static Generator<Integer> collectionSize(CollectionLimits limits, int minimumSize, int maximumSize) {
+        Objects.requireNonNull(limits, "limits");
+        Preconditions.require(minimumSize >= 0 && minimumSize <= maximumSize,
+                "expected 0 <= minimumSize <= maximumSize");
+        var spread = limits.sizeSpread();
+        var count = 2 * spread + 1;
+        return draw -> {
+            var offset = (draw.drawIndex(count, 1) + spread) % count - spread;
+            return Math.clamp((long) limits.baseSize() + offset, minimumSize, maximumSize);
+        };
+    }
+
+    /**
      * Returns a generator that produces a list without decoding its size. Generation is deferred:
      * this method only validates {@code elements} and the size bounds. Each invocation allocates a
      * new mutable list and generates its elements from that invocation's cursor. The mutable list is

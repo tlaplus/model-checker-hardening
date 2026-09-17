@@ -77,7 +77,7 @@ class LevelGenerationTest {
                 ScopedName.stateVariable("b", PrimitiveType.BOOL),
                 ScopedName.stateVariable("s", new SetType(PrimitiveType.INT)));
         var result = new ArrayList<TlaEx>();
-        for (var sample = 0; sample < 600; sample++) {
+        for (var sample = 0; sample < 1200; sample++) {
             var input = new byte[random.nextInt(256)];
             random.nextBytes(input);
             var context = new GenerationContext(CONFIG);

@@ -22,7 +22,7 @@ final class SequenceExprGenFactory extends AbstractExprGenFactory {
             return switch (kind) {
                 case EMPTY_SEQUENCE -> builder().emptySeq(type.element().toTlaType());
                 case SEQUENCE_LITERAL -> builder().seq(
-                        draw.draw(operands(type.element(), nextDepth)));
+                        draw.draw(valueOperands(type.element(), nextDepth)));
                 case APPEND -> builder().append(
                         draw.draw(expression(type, nextDepth)),
                         draw.draw(expression(type.element(), nextDepth)));

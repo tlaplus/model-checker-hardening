@@ -76,9 +76,9 @@ class ScopedReadTest {
     @Test
     void anEvenMarkerDrawsTheFunctionTypeAroundTheRequestedComponent() {
         // The drawn argument type is the first value type (Boolean), so the visible `f` does not fit.
-        assertForm("[ terminalArg0 \\in {} |-> FALSE ][FALSE]", GeneralExpressionKind.FUNCTION_APPLICATION,
+        assertForm("[ terminalArg0 \\in { TRUE, FALSE } |-> FALSE ][FALSE]", GeneralExpressionKind.FUNCTION_APPLICATION,
                 PrimitiveType.BOOL, List.of(ScopedName.stateVariable("f", FUNCTION)), 1, 0, 0, 42);
-        assertForm("DOMAIN ([ terminalArg0 \\in {} |-> FALSE ])", SetExpressionKind.DOMAIN,
+        assertForm("DOMAIN ([ terminalArg0 \\in { 1, 2, 3 } |-> FALSE ])", SetExpressionKind.DOMAIN,
                 new SetType(PrimitiveType.INT), List.of(), 1, 1, 0, 42);
     }
 

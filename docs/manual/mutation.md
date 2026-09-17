@@ -105,7 +105,7 @@ mutation on one, set `shallow_patterns = []`.
 | --- | --- |
 | `random_byte` | Replaces one byte with a random byte. |
 | `bitflip` | Flips one bit. |
-| `parity_flip` | Flips the low bit of one byte, which adds or removes a collection element when the byte is a continuation marker. |
+| `parity_flip` | Flips the low bit of one byte. On a continuation marker it adds or removes an element of a structural list; on the size byte of a set or sequence literal it changes the size by one ([collection sizes](collection-size.md)). |
 | `copy` | Copies up to 32 bytes over another offset. |
 | `duplicate` | Repeats a block of up to 32 bytes in place. |
 | `insert` | Inserts up to 8 random bytes. |

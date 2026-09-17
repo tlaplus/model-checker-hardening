@@ -23,17 +23,17 @@ class MultipleBinderTest {
 
     @Test
     void aFunctionOfATupleMayBindOneNamePerComponent() {
-        assertForm("[ arg0 \\in {}, arg1 \\in {} |-> arg0 ]",
+        assertForm("[ arg0 \\in { TRUE, FALSE }, arg1 \\in { 1, 2, 3 } |-> arg0 ]",
                 OtherExpressionKind.FUNCTION_DEFINITION, PAIR_FUNCTION, List.of(), 1, 1, 42);
-        assertForm("[ arg0 \\in {} |-> FALSE ]",
+        assertForm("[ arg0 \\in { <<TRUE, 1>>, <<FALSE, 2>>, <<TRUE, 3>> } |-> FALSE ]",
                 OtherExpressionKind.FUNCTION_DEFINITION, PAIR_FUNCTION, List.of(), 1, 0, 42);
     }
 
     @Test
     void aFunctionOfAnythingElseSpendsNoMarkerOnTheChoice() {
-        assertForm("[ arg0 \\in {} |-> arg0 ]", OtherExpressionKind.FUNCTION_DEFINITION,
+        assertForm("[ arg0 \\in { TRUE, FALSE } |-> arg0 ]", OtherExpressionKind.FUNCTION_DEFINITION,
                 new FunctionType(PrimitiveType.BOOL, PrimitiveType.BOOL), List.of(), 1, 42);
-        assertForm("[ arg0 \\in {} |-> FALSE ]", OtherExpressionKind.FUNCTION_DEFINITION,
+        assertForm("[ arg0 \\in { <<1>>, <<2>>, <<3>> } |-> FALSE ]", OtherExpressionKind.FUNCTION_DEFINITION,
                 new FunctionType(new TupleType(List.of(PrimitiveType.INT)), PrimitiveType.BOOL),
                 List.of(), 1, 42);
     }
@@ -41,7 +41,7 @@ class MultipleBinderTest {
     @Test
     void aSetMapBindsATerminatedListOfNames() {
         // Source types Boolean then integer, then the terminating marker.
-        assertForm("{ mapped0: mapped0 \\in {}, mapped1 \\in {} }",
+        assertForm("{ mapped0: mapped0 \\in { TRUE, FALSE }, mapped1 \\in { 1, 2, 3 } }",
                 SetExpressionKind.SET_MAP, new SetType(PrimitiveType.BOOL), List.of(), 1, 0, 1, 1, 0, 42);
     }
 

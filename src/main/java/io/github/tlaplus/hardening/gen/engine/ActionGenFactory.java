@@ -145,9 +145,9 @@ final class ActionGenFactory extends AbstractExprGenFactory {
             var shape = draw.draw(shapes.shape(request(variables, expressionDepth), visible));
             var guards = draw.draw(BasicGenerators.listOf(
                     expression(PrimitiveType.BOOL, expressionDepth - 1),
-                    0, context.config().expressions().maximumCollectionSize()));
+                    0, context.config().expressions().collections().maximumSize()));
             var maximumPostGuards = context.config().ignoredCategories().contains(ExpressionCategory.ACTION)
-                    ? 0 : context.config().expressions().maximumCollectionSize();
+                    ? 0 : context.config().expressions().collections().maximumSize();
             var postGuards = draw.draw(BasicGenerators.listOf(
                     atLevel(LevelContext.ACTION, PrimitiveType.BOOL, expressionDepth - 1),
                     0, maximumPostGuards));

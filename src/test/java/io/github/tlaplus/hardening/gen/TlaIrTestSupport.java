@@ -123,9 +123,15 @@ public final class TlaIrTestSupport {
             case TlaOper candidate when candidate == TlaOperators.UNCHANGED ->
                 names(arguments.getFirst()).stream().filter(declared::contains).toList();
             case TlaOper candidate when candidate == TlaOperators.AND -> {
+                // The step update ends the accounted spine; post-assignment guards after it may
+                // mention UNCHANGED without settling anything.
                 var settled = new ArrayList<String>();
-                arguments.forEach(argument ->
-                        settled.addAll(collectAssignedVars(argument, declared, actionOperators)));
+                for (var argument : arguments) {
+                    settled.addAll(collectAssignedVars(argument, declared, actionOperators));
+                    if (isStepUpdate(argument)) {
+                        break;
+                    }
+                }
                 yield settled;
             }
             case TlaOper candidate when candidate == TlaOperators.OR ->
@@ -252,6 +258,13 @@ public final class TlaIrTestSupport {
                         && guaranteesAssignment(operators.get(name.name()), variables, operators);
             default -> false;
         };
+    }
+
+    /** Reports whether {@code expression} is the conjunct {@code step' = ...}. */
+    private static boolean isStepUpdate(TlaEx expression) {
+        return expression instanceof OperEx operator
+                && operator.oper() == TlaOperators.EQ
+                && GeneratedSpec.STEP_VARIABLE.equals(primedName(TlaExpressions.arguments(operator).getFirst()));
     }
 
     /** Returns the name a PRIME wraps, or {@code null} when the expression is not primed. */

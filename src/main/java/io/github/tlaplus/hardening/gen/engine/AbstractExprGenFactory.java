@@ -192,19 +192,33 @@ abstract class AbstractExprGenFactory {
     }
 
     /**
-     * Returns the operand array of a collection form: at least one expression of the requested
-     * type, up to the configured maximum collection size.
+     * Returns the elements of a set or sequence literal: at least one, sized around the configured
+     * base by one byte (ADR 0011), each drawn under its share of the value-atom budget.
      */
-    protected final Generator<TlaEx[]> operands(IrType type, int remainingDepth) {
-        return operands(expression(type, remainingDepth));
+    protected final Generator<TlaEx[]> valueOperands(IrType type, int remainingDepth) {
+        return draw -> {
+            var limits = context.config().expressions().collections();
+            var atoms = context.atoms();
+            int size = draw.draw(BasicGenerators.collectionSize(
+                    limits, 1, Math.min(limits.maximumSize(), atoms.current())));
+            var element = atoms.within(size, expression(type, remainingDepth));
+            var operands = new TlaEx[size];
+            for (var index = 0; index < size; index++) {
+                operands[index] = draw.draw(element);
+            }
+            return operands;
+        };
     }
 
-    /** Returns the operand array of a collection form whose operands come from one generator. */
+    /**
+     * Returns the operands of a structural n-ary form, such as a conjunction: at least one, then
+     * continuation markers up to the configured maximum collection size.
+     */
     protected final Generator<TlaEx[]> operands(Generator<TlaEx> operand) {
         return BasicGenerators.listOf(
                         operand,
                         1,
-                        context.config().expressions().maximumCollectionSize())
+                        context.config().expressions().collections().maximumSize())
                 .map(BuilderArrays::expressions);
     }
 }

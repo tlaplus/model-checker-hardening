@@ -1,8 +1,7 @@
 # Collection sizes
 
-> **Status:** Proposed, not implemented.
-> [ADR 0011](../decisions/0011-collection-base-size.md) records the design and
-> the measurements behind it.
+> **Status:** Implemented. [ADR 0011](../decisions/0011-collection-base-size.md)
+> records the design and the evaluation that chose the default base size of 3.
 
 Generated modules rarely hold non-empty collections in a state: a starved
 expression falls back to `{}`, `<<>>` or a function over an empty domain, and
@@ -16,7 +15,7 @@ smaller or larger than the base.
 [generator]
 max_collection_size = 8
 # Size of a set or sequence literal, and of a collection terminal, when the input is exhausted.
-collection_base_size = 4
+collection_base_size = 3
 # Input bytes move a collection's size within base ± spread.
 collection_size_spread = 4
 # Maximum atoms in one generated collection value, over all nesting levels.
@@ -33,7 +32,9 @@ max_value_atoms = 64
 
 With `collection_base_size = 3`, a starved expression of type `Set(Int)` becomes
 `{1, 2, 3}` instead of `{}`, a `Seq(Str)` becomes `<<"1", "2", "3">>`, and a
-function of type `Int -> Bool` becomes `[x \in {1, 2, 3} |-> FALSE]`. A set or
+function of type `Int -> Bool` becomes `[x \in {1, 2, 3} |-> FALSE]`. A set of
+Booleans has at most two elements, and nested collections share
+`max_value_atoms`. A set or
 sequence literal drawn from input has between `base − spread` and
 `base + spread` elements, clamped to `1..max_collection_size`.
 

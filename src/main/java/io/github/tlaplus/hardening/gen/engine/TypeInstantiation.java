@@ -42,7 +42,7 @@ record TypeInstantiation(TlaType1 template, List<Variable> variables) {
             return Optional.empty();
         }
         var variables = new LinkedHashMap<Integer, Variable>();
-        if (!inspect(template, config.expressions().maximumCollectionSize(), depth, variables)) {
+        if (!inspect(template, config.expressions().collections().maximumSize(), depth, variables)) {
             return Optional.empty();
         }
         if (variables.values().stream().flatMap(v -> v.row().stream())

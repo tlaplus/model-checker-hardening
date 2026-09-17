@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
+import io.github.tlaplus.hardening.gen.CollectionLimits;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
@@ -192,6 +193,24 @@ class TomlConfigTest {
         var outOfRange = assertInvalid(
                 directory, rendered.replace(defaultWeights, "weights = { name = 0 }"));
         assertTrue(outOfRange.getMessage().contains("weight of 'name'"), outOfRange.getMessage());
+    }
+
+    @Test
+    void readsCollectionSizesAndRejectsABaseAboveTheMaximum(@TempDir Path directory) throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+        var config = readConfig(directory, rendered
+                .replace("collection_base_size = 3", "collection_base_size = 2")
+                .replace("collection_size_spread = 4", "collection_size_spread = 2")
+                .replace("max_value_atoms = 64", "max_value_atoms = 27"));
+        assertEquals(new CollectionLimits(8, 2, 2, 27), config.generator().expressions().collections());
+
+        var tooLarge = assertInvalid(
+                directory, rendered.replace("collection_base_size = 3", "collection_base_size = 9"));
+        assertTrue(tooLarge.getMessage().contains("collection_base_size"), tooLarge.getMessage());
+
+        var tooWide = assertInvalid(
+                directory, rendered.replace("collection_size_spread = 4", "collection_size_spread = 128"));
+        assertTrue(tooWide.getMessage().contains("collection_size_spread"), tooWide.getMessage());
     }
 
     @Test

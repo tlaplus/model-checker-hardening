@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.ActionLimits;
+import io.github.tlaplus.hardening.gen.CollectionLimits;
 import io.github.tlaplus.hardening.gen.ExpressionLimits;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.ModuleLimits;
@@ -13,6 +14,9 @@ final class GeneratorLimitSchema {
     private final ConfigSchema.Key<Integer> maximumExpressionDepth;
     private final ConfigSchema.Key<Integer> maximumNodes;
     private final ConfigSchema.Key<Integer> maximumCollectionSize;
+    private final ConfigSchema.Key<Integer> collectionBaseSize;
+    private final ConfigSchema.Key<Integer> collectionSizeSpread;
+    private final ConfigSchema.Key<Integer> maximumValueAtoms;
     private final ConfigSchema.Key<Integer> maximumStringBytes;
     private final ConfigSchema.Key<Integer> maximumIntegerBytes;
     private final ConfigSchema.Key<Integer> maximumVariables;
@@ -29,7 +33,14 @@ final class GeneratorLimitSchema {
         maximumTypeDepth = expressions.integer("max_type_depth", ExpressionLimits::maximumTypeDepth);
         maximumExpressionDepth = expressions.integer("max_expression_depth", ExpressionLimits::maximumExpressionDepth);
         maximumNodes = expressions.integer("max_nodes", ExpressionLimits::maximumNodes);
-        maximumCollectionSize = expressions.integer("max_collection_size", ExpressionLimits::maximumCollectionSize);
+        var collections = expressions.project(ExpressionLimits::collections);
+        maximumCollectionSize = collections.integer("max_collection_size", CollectionLimits::maximumSize);
+        collectionBaseSize = collections.integer("collection_base_size", CollectionLimits::baseSize,
+                "Size of a set or sequence literal, and of a collection terminal, when the input is exhausted.");
+        collectionSizeSpread = collections.integer("collection_size_spread", CollectionLimits::sizeSpread,
+                "Input bytes move a collection's size within base ± spread.");
+        maximumValueAtoms = collections.integer("max_value_atoms", CollectionLimits::maximumValueAtoms,
+                "Maximum atoms in one generated collection value, over all nesting levels.");
         maximumStringBytes = expressions.integer("max_string_bytes", ExpressionLimits::maximumStringBytes);
         maximumIntegerBytes = expressions.integer("max_integer_bytes", ExpressionLimits::maximumIntegerBytes);
         var modules = generator.project(IrGenerationConfig::modules);
@@ -66,7 +77,8 @@ final class GeneratorLimitSchema {
                 maximumTypeDepth.read(tables),
                 maximumExpressionDepth.read(tables),
                 maximumNodes.read(tables),
-                maximumCollectionSize.read(tables),
+                new CollectionLimits(maximumCollectionSize.read(tables), collectionBaseSize.read(tables),
+                        collectionSizeSpread.read(tables), maximumValueAtoms.read(tables)),
                 maximumStringBytes.read(tables),
                 maximumIntegerBytes.read(tables));
     }

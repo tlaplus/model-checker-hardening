@@ -87,7 +87,7 @@ class IrGeneratorsTest {
         var full = new byte[8192];
         java.util.Arrays.fill(full, (byte) 0xff);
         var bounded = IrGenerationConfig.defaults()
-                .withExpressionLimits(new ExpressionLimits(3, 12, 256, 8, 32, 16));
+                .withExpressionLimits(new ExpressionLimits(3, 12, 256, new CollectionLimits(8, 0, 4, 64), 32, 16));
         assertBuildsOrRejects(bounded, full);
 
         var longStructuredInput = Base64.getMimeDecoder()

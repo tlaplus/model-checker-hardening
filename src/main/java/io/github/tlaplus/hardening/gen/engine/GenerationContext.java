@@ -36,9 +36,11 @@ final class GenerationContext {
     private int exceptReplacementDepth;
     private int fieldCount;
     private int nodeCount;
+    private final ValueAtomBudget atoms;
 
     GenerationContext(IrGenerationConfig config) {
         this.config = config;
+        this.atoms = new ValueAtomBudget(config.expressions().collections().maximumValueAtoms());
     }
 
     /**
@@ -298,11 +300,12 @@ final class GenerationContext {
      * top-level bodies would therefore let an early body decide how much is left for a later one:
      * a large {@code Init} would starve {@code Inv} into a constant. Each top-level body gets its
      * own budget instead, and the prior count is restored afterwards, including on an exceptional
-     * exit, so a rejected body does not leak its consumption into the next one.
+     * exit, so a rejected body does not leak its consumption into the next one. The body also
+     * starts with a full value-atom budget.
      */
     <T> Generator<T> withFreshNodeBudget(Generator<? extends T> body) {
         Objects.requireNonNull(body, "body");
-        return draw -> {
+        return atoms.fresh(draw -> {
             var previous = nodeCount;
             nodeCount = 0;
             try {
@@ -310,7 +313,12 @@ final class GenerationContext {
             } finally {
                 nodeCount = previous;
             }
-        };
+        });
+    }
+
+    /** Returns the value-atom budget of collection literals and terminals. */
+    ValueAtomBudget atoms() {
+        return atoms;
     }
 
     /**

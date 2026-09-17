@@ -21,7 +21,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
             return switch (kind) {
                 case EMPTY_SET -> builder().emptySet(type.element().toTlaType());
                 case ENUM_SET -> builder().enumSet(
-                        draw.draw(operands(type.element(), nextDepth)));
+                        draw.draw(valueOperands(type.element(), nextDepth)));
                 case SET_INTERSECTION -> draw.draw(binary(type, nextDepth, builder()::intersect));
                 case SET_UNION -> draw.draw(binary(type, nextDepth, builder()::union));
                 case SET_DIFFERENCE -> draw.draw(binary(type, nextDepth, builder()::difference));
@@ -76,7 +76,7 @@ final class SetExprGenFactory extends AbstractExprGenFactory {
     private Generator<TlaEx> map(
             IrType resultElementType, int remainingDepth) {
         return BasicGenerators.listOf(typeFactory.valueType(), 1,
-                        context.config().expressions().maximumCollectionSize())
+                        context.config().expressions().collections().maximumSize())
                 .flatMap(sourceTypes -> boundedTogether(
                         "mapped", sourceTypes, resultElementType, remainingDepth - 1,
                         builder()::map));

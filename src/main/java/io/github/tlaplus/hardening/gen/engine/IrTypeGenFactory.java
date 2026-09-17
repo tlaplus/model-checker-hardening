@@ -80,7 +80,7 @@ final class IrTypeGenFactory {
         return BasicGenerators.listOf(
                 mkGen(context.config().expressions().maximumTypeDepth(), OperatorTypes.PARAMETER),
                 0,
-                context.config().expressions().maximumCollectionSize());
+                context.config().expressions().collections().maximumSize());
     }
 
     /**
@@ -159,7 +159,7 @@ final class IrTypeGenFactory {
     private Generator<IrType> freshVariant(IrType payload) {
         return containing(
                 payload,
-                context.config().expressions().maximumCollectionSize() - 1,
+                context.config().expressions().collections().maximumSize() - 1,
                 payloads -> new VariantType(payloads.stream()
                         .map(type -> new Field(context.freshTag(), type))
                         .toList()));
@@ -212,7 +212,7 @@ final class IrTypeGenFactory {
                     yield draw.draw(BasicGenerators.listOf(
                                     element,
                                     1,
-                                    context.config().expressions().maximumCollectionSize())
+                                    context.config().expressions().collections().maximumSize())
                             .map(TupleType::new));
                 }
                 case RECORD -> draw.draw(fields(remainingDepth - 1, context::freshField, RecordType::new));
@@ -222,7 +222,7 @@ final class IrTypeGenFactory {
                     yield draw.draw(BasicGenerators.listOf(
                                     component,
                                     operators.minimumArguments(),
-                                    context.config().expressions().maximumCollectionSize())
+                                    context.config().expressions().collections().maximumSize())
                             .flatMap(arguments -> component.map(
                                     result -> new OperatorType(arguments, result))));
                 }
@@ -235,7 +235,7 @@ final class IrTypeGenFactory {
             int depth, Supplier<String> name, Function<List<Field>, T> constructor) {
         var component = mkGen(depth, OperatorTypes.NONE);
         Generator<Field> field = draw -> new Field(name.get(), draw.draw(component));
-        return BasicGenerators.listOf(field, 1, context.config().expressions().maximumCollectionSize())
+        return BasicGenerators.listOf(field, 1, context.config().expressions().collections().maximumSize())
                 .map(constructor);
     }
 

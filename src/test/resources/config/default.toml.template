@@ -6,6 +6,12 @@ max_type_depth = 3
 max_expression_depth = 32
 max_nodes = 128
 max_collection_size = 8
+# Size of a set or sequence literal, and of a collection terminal, when the input is exhausted.
+collection_base_size = 3
+# Input bytes move a collection's size within base ± spread.
+collection_size_spread = 4
+# Maximum atoms in one generated collection value, over all nesting levels.
+max_value_atoms = 64
 max_string_bytes = 32
 max_integer_bytes = 16
 # Maximum state variables declared by a generated module.
