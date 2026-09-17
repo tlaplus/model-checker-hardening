@@ -169,6 +169,8 @@ components of composite terminals still rotate.
 The closed terminals of scalar types are unchanged. `Int` stays `0`, although
 `0` is never a valid sequence index; changing it is a separate decision whose
 effect on arithmetic, ranges and `EXCEPT` indices needs its own measurement.
+[ADR 0012](0012-integer-literals.md) made that decision: the terminal is now
+`integer_base`, default `1`.
 
 ### Atom budget
 

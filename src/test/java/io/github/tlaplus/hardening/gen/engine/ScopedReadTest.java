@@ -31,7 +31,7 @@ class ScopedReadTest {
                 PrimitiveType.INT, v, 1, 1, 0, 42);
         assertForm("VariantGetUnsafe(\"C\", v)", GeneralExpressionKind.VARIANT_GET_UNSAFE,
                 PrimitiveType.INT, v, 1, 1, 1, 42);
-        assertForm("VariantGetOrElse(\"B\", v, 0)", GeneralExpressionKind.VARIANT_GET_OR_ELSE,
+        assertForm("VariantGetOrElse(\"B\", v, 1)", GeneralExpressionKind.VARIANT_GET_OR_ELSE,
                 PrimitiveType.INT, v, 1, 1, 0, 42);
         // A single matching tag spends no byte on the choice.
         assertForm("VariantGetUnsafe(\"A\", v)", GeneralExpressionKind.VARIANT_GET_UNSAFE,
@@ -57,7 +57,7 @@ class ScopedReadTest {
 
     @Test
     void anEvenMarkerOrAnEmptyScopeDrawsAFreshVariantWithDrawnAlternatives() {
-        assertForm("VariantGetUnsafe(\"Tag0\", (Variant(\"Tag0\", 0)))",
+        assertForm("VariantGetUnsafe(\"Tag0\", (Variant(\"Tag0\", 1)))",
                 GeneralExpressionKind.VARIANT_GET_UNSAFE, PrimitiveType.INT,
                 List.of(ScopedName.stateVariable("v", VARIANT)), 1, 0, 0, 42);
         // One more alternative of the first primitive type (Boolean), the payload placed second.
@@ -69,7 +69,7 @@ class ScopedReadTest {
     @Test
     void aFunctionReadCanApplyAndTakeTheDomainOfAVisibleName() {
         var f = List.of(ScopedName.stateVariable("f", FUNCTION));
-        assertForm("f[0]", GeneralExpressionKind.FUNCTION_APPLICATION, PrimitiveType.BOOL, f, 1, 1, 42);
+        assertForm("f[1]", GeneralExpressionKind.FUNCTION_APPLICATION, PrimitiveType.BOOL, f, 1, 1, 42);
         assertForm("DOMAIN f", SetExpressionKind.DOMAIN, new SetType(PrimitiveType.INT), f, 1, 1, 42);
     }
 

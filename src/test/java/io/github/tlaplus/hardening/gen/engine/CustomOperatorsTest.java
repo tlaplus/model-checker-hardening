@@ -141,7 +141,7 @@ class CustomOperatorsTest {
         var canonicalVariable = TlaTypes.typeVariable(0);
         assertEquals(TlaTypes.operator(PrimitiveType.BOOL.toTlaType(),
                 canonicalVariable, TlaTypes.set(canonicalVariable)), canonical);
-        var limits = new ExpressionLimits(1, 4, 8, new CollectionLimits(2, 0, 4, 64), 4, 4);
+        var limits = new ExpressionLimits(1, 4, 8, new CollectionLimits(2, 0, 4, 64), 4, new IntegerLimits(4, 0, 4, IntegerLiteralMode.WIDE));
         var bounded = config.withExpressionLimits(limits);
         var context = new GenerationContext(bounded);
         var types = new IrTypeGenFactory(context);

@@ -87,12 +87,23 @@ public final class BasicGenerators {
         Objects.requireNonNull(limits, "limits");
         Preconditions.require(minimumSize >= 0 && minimumSize <= maximumSize,
                 "expected 0 <= minimumSize <= maximumSize");
-        var spread = limits.sizeSpread();
+        var offset = offset(limits.sizeSpread());
+        return draw -> Math.clamp((long) limits.baseSize() + draw.draw(offset), minimumSize, maximumSize);
+    }
+
+    /**
+     * Returns a generator of an offset in {@code [-spread, spread]} read from one byte: an index in
+     * {@code 0..2·spread} rotated so that index 0 is offset 0 and neighbouring indices differ by one
+     * except at the wrap from {@code +spread} to {@code -spread}.
+     *
+     * @param spread largest absolute offset, at most 127
+     * @return offset generator
+     */
+    public static Generator<Integer> offset(int spread) {
+        Preconditions.require(spread >= 0 && spread <= CollectionLimits.MAXIMUM_SIZE_SPREAD,
+                "spread must be in the range 0.." + CollectionLimits.MAXIMUM_SIZE_SPREAD);
         var count = 2 * spread + 1;
-        return draw -> {
-            var offset = (draw.drawIndex(count, 1) + spread) % count - spread;
-            return Math.clamp((long) limits.baseSize() + offset, minimumSize, maximumSize);
-        };
+        return draw -> (draw.drawIndex(count, 1) + spread) % count - spread;
     }
 
     /**

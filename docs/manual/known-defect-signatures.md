@@ -291,6 +291,13 @@ corpus12's Apalache time.
 | `sequence-set` | `(Sequences!Seq _)` | [Apalache does not support `Seq(S)`](../../conformance/sequence-set-unsupported.md) | 100% | 82.5% |
 | `string-set` | `STRING` | [Apalache does not support `STRING`](../../conformance/string-set-unsupported.md) | 100% | 82.0% |
 | `zero-power-zero` | `(POW 0 0)` | [Apalache reaches `0 ^ 0`](../../conformance/zero-power-zero-apalache-fails.md) | 79.9% | 78.9% |
+| `integer-literal-outside-tlc-range` | `2147483648`, `-2147483649`, `9223372036854775807` | [TLC rejects integers outside 32 bits](../../conformance/integer-outside-tlc-range.md) | not measured | not measured |
+
+`integer-literal-outside-tlc-range` matches the out-of-range values of the
+boundary literal table ([integer literals](integer-literals.md)). It was added
+without a precision measurement: a quarantined entry is not checked, and TLC
+rejects such a literal whenever it evaluates it. It matched 27 of 1,165
+candidates in the ADR 0012 boundary corpus.
 
 The database also holds signatures for temporal formulas that TLC cannot check
 ([TLC temporal formula limits](../../conformance/tlc-temporal-formula-limits.md)).

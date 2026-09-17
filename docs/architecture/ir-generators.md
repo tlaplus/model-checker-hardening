@@ -192,6 +192,13 @@ derived from that count would change how many bytes one choice costs, reframing
 every byte after it for a reason unrelated to the choice. Form selection
 therefore uses a fixed-width index.
 
+**Decoder deviation (integer literals, [ADR 0012][adr-0012]).** An integer
+literal reads up to two Boolean markers under the default `boundary` mode: even
+decodes a small literal, `integer_base` plus a rotated one-byte offset; odd then
+even indexes `BoundaryInteger` with one byte; odd then odd decodes the wide
+payload below. Exhausted input decodes `integer_base`. The `small` mode reads one
+marker and the `wide` mode none.
+
 Structural lists and byte payloads use continuation markers rather than length
 prefixes. `BasicGenerators.listOf` and `byteArray` first generate their mandatory
 elements. Before each optional element, they read one Boolean marker: odd
@@ -394,7 +401,8 @@ exhausted, mirroring the expression fallback above.
 Terminal construction is byte-free. When bindings of exactly the requested type are
 lexically visible, successive terminals rotate over them, innermost first, and then
 the closed terminal. Otherwise every `IrType` has a closed terminal expression:
-`FALSE`, zero, the empty string, componentwise terminal tuples and records, a
+`FALSE`, `integer_base` ([ADR 0012][adr-0012], default `1`), the empty string,
+componentwise terminal tuples and records, a
 lambda for an operator type, and collections of the configured base size
 ([ADR 0011][adr-0011]): a set `{v1, …, vn}`, a sequence `<<v1, …, vn>>`, and a
 function `[x \in {v1, …, vn} |-> t]` whose result is the result type's terminal.
@@ -482,7 +490,10 @@ always enabled. The default limits are:
 | `collections.sizeSpread` | 4 | How far one size byte moves a literal's size from the base (`collection_size_spread`). |
 | `collections.maximumValueAtoms` | 64 | Value-atom budget of one collection literal or terminal (`max_value_atoms`). |
 | `maximumStringBytes` | 32 | Maximum byte payload mapped into a string literal. |
-| `maximumIntegerBytes` | 16 | Maximum two's-complement payload for an integer literal. |
+| `integers.maximumBytes` | 16 | Maximum two's-complement payload of a wide integer literal (`max_integer_bytes`). |
+| `integers.base` | 1 | Closed integer terminal and centre of small literals (`integer_base`). |
+| `integers.spread` | 4 | Offset range of small integer literals (`integer_literal_spread`). |
+| `integers.literals` | `BOUNDARY` | Mix of small, boundary and wide literals (`integer_literals`). |
 
 `ModuleLimits` bounds declarations and exploration and contains an `ActionLimits`
 value for the four action-specific limits. TOML keys and defaults are unchanged:
@@ -1073,3 +1084,4 @@ admission limits include the linked definitions. Every assembled artifact owns
 fresh library IR identities and cannot mutate the prepared snapshot.
 
 [adr-0011]: ../decisions/0011-collection-base-size.md
+[adr-0012]: ../decisions/0012-integer-literals.md

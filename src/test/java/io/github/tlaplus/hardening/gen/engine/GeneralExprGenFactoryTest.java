@@ -63,7 +63,7 @@ class GeneralExprGenFactoryTest {
 
         // The innermost binding stays the first candidate, and the cycle repeats.
         assertEquals(
-                List.of("inner", "outer", "0", "inner", "outer", "0", "inner"), printed);
+                List.of("inner", "outer", "1", "inner", "outer", "1", "inner"), printed);
         assertEquals(1, draw.remaining(), "terminal consumed bytes");
     }
 
@@ -101,7 +101,7 @@ class GeneralExprGenFactoryTest {
                         print(draw.draw(fixture.factory().terminal(PrimitiveType.STRING))),
                         print(draw.draw(fixture.factory().terminal(PrimitiveType.INT))))));
 
-        assertEquals(List.of("number", "text", "0"), printed);
+        assertEquals(List.of("number", "text", "1"), printed);
     }
 
     @Test
@@ -115,7 +115,7 @@ class GeneralExprGenFactoryTest {
                 List.of(otherType, operator),
                 draw -> print(draw.draw(fixture.factory().terminal(PrimitiveType.INT)))));
 
-        assertEquals("0", printed);
+        assertEquals("1", printed);
     }
 
     @Test
@@ -160,7 +160,7 @@ class GeneralExprGenFactoryTest {
         var fixture = fixture(defaults.withExpressionLimits(new ExpressionLimits(limits.maximumTypeDepth(),
                 limits.maximumExpressionDepth(), limits.maximumNodes(),
                 new CollectionLimits(limits.collections().maximumSize(), baseSize, 4, atoms),
-                limits.maximumStringBytes(), limits.maximumIntegerBytes())));
+                limits.maximumStringBytes(), limits.integers())));
         var draw = new Draw(new byte[] {99});
         var printed = print(draw.draw(fixture.factory().closedTerminal(type)));
         assertEquals(1, draw.remaining(), "a closed terminal consumed bytes");

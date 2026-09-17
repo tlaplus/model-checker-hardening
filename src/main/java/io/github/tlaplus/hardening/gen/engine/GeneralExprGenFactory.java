@@ -109,7 +109,7 @@ final class GeneralExprGenFactory extends AbstractExprGenFactory {
         return draw -> switch (type) {
             case PrimitiveType primitive -> switch (primitive) {
                 case BOOL -> builder().bool(false);
-                case INT -> builder().integer(BigInteger.ZERO);
+                case INT -> builder().integer(BigInteger.valueOf(context.config().expressions().integers().base()));
                 case STRING -> builder().str("");
             };
             case ConstantType constantType -> builder().constant("default", (ConstT1) constantType.toTlaType());

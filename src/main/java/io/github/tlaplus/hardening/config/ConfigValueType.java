@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
@@ -45,6 +46,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     static final ConfigValueType<Integer> INTEGER =
             new ConfigValueType<>(ConfigValueType::readInt, String::valueOf);
+
+    static final ConfigValueType<IntegerLiteralMode> INTEGER_LITERAL_MODE =
+            name(IntegerLiteralMode.class, IntegerLiteralMode::configName, "integer literal mode");
 
     static final ConfigValueType<Double> NUMBER =
             new ConfigValueType<>(ConfigValueType::readDouble, Object::toString);
@@ -201,6 +205,20 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                                 + Arrays.stream(InputKind.values())
                                         .map(InputKind::encodedName)
                                         .collect(Collectors.joining(", "))));
+    }
+
+    /** Returns the type of one enum constant written as its name. */
+    private static <E extends Enum<E>> ConfigValueType<E> name(
+            Class<E> type, Function<E, String> name, String description) {
+        var byName = byName(type, name);
+        return new ConfigValueType<>(
+                (table, path, key) -> {
+                    if (!table.isString(key)) {
+                        throw new ConfigException("expected '" + path + "' to be a string");
+                    }
+                    return constant(byName, table.getString(key), path, description);
+                },
+                constant -> quote(name.apply(constant)));
     }
 
     /**

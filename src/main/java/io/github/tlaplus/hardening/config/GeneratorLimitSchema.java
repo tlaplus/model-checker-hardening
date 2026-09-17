@@ -3,6 +3,8 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.gen.ActionLimits;
 import io.github.tlaplus.hardening.gen.CollectionLimits;
 import io.github.tlaplus.hardening.gen.ExpressionLimits;
+import io.github.tlaplus.hardening.gen.IntegerLimits;
+import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.ModuleLimits;
 import java.util.Map;
@@ -19,6 +21,9 @@ final class GeneratorLimitSchema {
     private final ConfigSchema.Key<Integer> maximumValueAtoms;
     private final ConfigSchema.Key<Integer> maximumStringBytes;
     private final ConfigSchema.Key<Integer> maximumIntegerBytes;
+    private final ConfigSchema.Key<Integer> integerBase;
+    private final ConfigSchema.Key<Integer> integerLiteralSpread;
+    private final ConfigSchema.Key<IntegerLiteralMode> integerLiterals;
     private final ConfigSchema.Key<Integer> maximumVariables;
     private final ConfigSchema.Key<Integer> maximumAuxiliaryOperators;
     private final ConfigSchema.Key<Integer> maximumActionOperators;
@@ -42,7 +47,16 @@ final class GeneratorLimitSchema {
         maximumValueAtoms = collections.integer("max_value_atoms", CollectionLimits::maximumValueAtoms,
                 "Maximum atoms in one generated collection value, over all nesting levels.");
         maximumStringBytes = expressions.integer("max_string_bytes", ExpressionLimits::maximumStringBytes);
-        maximumIntegerBytes = expressions.integer("max_integer_bytes", ExpressionLimits::maximumIntegerBytes);
+        var integers = expressions.project(ExpressionLimits::integers);
+        maximumIntegerBytes = integers.integer("max_integer_bytes", IntegerLimits::maximumBytes);
+        integerBase = integers.integer("integer_base", IntegerLimits::base,
+                "Closed integer terminal, and centre of small integer literals.");
+        integerLiteralSpread = integers.integer("integer_literal_spread", IntegerLimits::spread,
+                "Input bytes move a small integer literal within base ± spread.");
+        integerLiterals = integers.key("integer_literals", ConfigValueType.INTEGER_LITERAL_MODE,
+                IntegerLimits::literals,
+                "How integer literals decode: \"wide\" byte payloads, \"small\" values around integer_base,",
+                "or \"boundary\" values such as 2^31 - 1 besides both.");
         var modules = generator.project(IrGenerationConfig::modules);
         maximumVariables = modules.integer("max_variables", ModuleLimits::maximumVariables,
                 "Maximum state variables declared by a generated module.");
@@ -80,7 +94,8 @@ final class GeneratorLimitSchema {
                 new CollectionLimits(maximumCollectionSize.read(tables), collectionBaseSize.read(tables),
                         collectionSizeSpread.read(tables), maximumValueAtoms.read(tables)),
                 maximumStringBytes.read(tables),
-                maximumIntegerBytes.read(tables));
+                new IntegerLimits(maximumIntegerBytes.read(tables), integerBase.read(tables),
+                        integerLiteralSpread.read(tables), integerLiterals.read(tables)));
     }
 
     ModuleLimits readModuleLimits(Map<String, TomlTable> tables) throws ConfigException {

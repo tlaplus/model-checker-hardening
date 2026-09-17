@@ -15,7 +15,7 @@ import java.util.Objects;
  * @param maximumNodes maximum nonterminal expression requests per top-level body
  * @param collections sizes of collections and bounds on variable-size lists
  * @param maximumStringBytes maximum byte payload mapped into a string literal
- * @param maximumIntegerBytes maximum two's-complement payload for an integer literal
+ * @param integers integer literals and the closed integer terminal
  */
 public record ExpressionLimits(
         int maximumTypeDepth,
@@ -23,13 +23,12 @@ public record ExpressionLimits(
         int maximumNodes,
         CollectionLimits collections,
         int maximumStringBytes,
-        int maximumIntegerBytes) {
+        IntegerLimits integers) {
 
     public static final int DEFAULT_MAXIMUM_TYPE_DEPTH = 3;
     public static final int DEFAULT_MAXIMUM_EXPRESSION_DEPTH = 32;
     public static final int DEFAULT_MAXIMUM_NODES = 128;
     public static final int DEFAULT_MAXIMUM_STRING_BYTES = 32;
-    public static final int DEFAULT_MAXIMUM_INTEGER_BYTES = 16;
 
     public ExpressionLimits {
         Preconditions.requireNonnegative(maximumTypeDepth, "maximumTypeDepth");
@@ -37,13 +36,13 @@ public record ExpressionLimits(
         Preconditions.requirePositive(maximumNodes, "maximumNodes");
         Objects.requireNonNull(collections, "collections");
         Preconditions.requireNonnegative(maximumStringBytes, "maximumStringBytes");
-        Preconditions.requireNonnegative(maximumIntegerBytes, "maximumIntegerBytes");
+        Objects.requireNonNull(integers, "integers");
     }
 
     /** Returns these limits with other collection limits. */
     public ExpressionLimits withCollections(CollectionLimits limits) {
         return new ExpressionLimits(maximumTypeDepth, maximumExpressionDepth, maximumNodes, limits,
-                maximumStringBytes, maximumIntegerBytes);
+                maximumStringBytes, integers);
     }
 
     public static ExpressionLimits defaults() {
@@ -53,6 +52,6 @@ public record ExpressionLimits(
                 DEFAULT_MAXIMUM_NODES,
                 CollectionLimits.defaults(),
                 DEFAULT_MAXIMUM_STRING_BYTES,
-                DEFAULT_MAXIMUM_INTEGER_BYTES);
+                IntegerLimits.defaults());
     }
 }

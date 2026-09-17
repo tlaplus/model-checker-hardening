@@ -53,7 +53,7 @@ class ApplicativeExprGenFactoryTest {
         var nested = new SequenceType(RECORD);
         // The applied type is the record type inside `s`, keeping its field names, rather than a
         // fresh record; at depth zero its operand is that type's closed terminal.
-        assertForm("[f |-> FALSE, g |-> 0][\"g\"]", ApplicativeExpressionKind.RECORD_ACCESS,
+        assertForm("[f |-> FALSE, g |-> 1][\"g\"]", ApplicativeExpressionKind.RECORD_ACCESS,
                 PrimitiveType.INT, List.of(ScopedName.binder("s", nested)), 1, 1, 42);
         var reachable = new Draw(new byte[0]).draw(context.withBinding(
                 ScopedName.binder("s", nested), ignored -> context.reachableTypes()));
@@ -62,9 +62,9 @@ class ApplicativeExprGenFactoryTest {
 
     @Test
     void anEvenMarkerOrAnEmptyScopeDrawsAFreshType() {
-        assertForm("<<0>>[1]", ApplicativeExpressionKind.TUPLE_ACCESS, PrimitiveType.INT,
+        assertForm("<<1>>[1]", ApplicativeExpressionKind.TUPLE_ACCESS, PrimitiveType.INT,
                 List.of(ScopedName.binder("t", TUPLE)), 1, 0, 0, 42);
-        assertForm("<<0>>[1]", ApplicativeExpressionKind.TUPLE_ACCESS, PrimitiveType.INT,
+        assertForm("<<1>>[1]", ApplicativeExpressionKind.TUPLE_ACCESS, PrimitiveType.INT,
                 List.of(), 1, 1, 0, 42);
     }
 
@@ -72,14 +72,14 @@ class ApplicativeExprGenFactoryTest {
     void aFreshRecordPlacesTheRequestedFieldAmongDrawnOnes() {
         // Fresh: one more field of the first primitive type (Boolean), and the requested
         // field second. Field names come from the run's fresh supply.
-        assertForm("[field0 |-> FALSE, field1 |-> 0][\"field1\"]",
+        assertForm("[field0 |-> FALSE, field1 |-> 1][\"field1\"]",
                 ApplicativeExpressionKind.RECORD_ACCESS, PrimitiveType.INT,
                 List.of(), 1, 0, 1, 0, 0, 1, 42);
     }
 
     @Test
     void aSequenceReadDrawsAnIntegerIndex() {
-        assertForm("s[0]", ApplicativeExpressionKind.SEQUENCE_ACCESS, PrimitiveType.INT,
+        assertForm("s[1]", ApplicativeExpressionKind.SEQUENCE_ACCESS, PrimitiveType.INT,
                 List.of(ScopedName.binder("s", SEQUENCE)), 1, 1, 42);
     }
 
@@ -87,9 +87,9 @@ class ApplicativeExprGenFactoryTest {
     void updatesReplaceOneComponentOfTheRequestedValue() {
         assertForm("[ x EXCEPT ![\"f\"] = FALSE ]", ApplicativeExpressionKind.RECORD_EXCEPT, RECORD,
                 List.of(ScopedName.stateVariable("x", RECORD)), 1, 0, 42);
-        assertForm("[ t EXCEPT ![2] = 0 ]", ApplicativeExpressionKind.TUPLE_EXCEPT, TUPLE,
+        assertForm("[ t EXCEPT ![2] = 1 ]", ApplicativeExpressionKind.TUPLE_EXCEPT, TUPLE,
                 List.of(ScopedName.binder("t", TUPLE)), 1, 1, 42);
-        assertForm("[ s EXCEPT ![0] = 0 ]", ApplicativeExpressionKind.SEQUENCE_EXCEPT, SEQUENCE,
+        assertForm("[ s EXCEPT ![1] = 1 ]", ApplicativeExpressionKind.SEQUENCE_EXCEPT, SEQUENCE,
                 List.of(ScopedName.binder("s", SEQUENCE)), 1, 42);
     }
 

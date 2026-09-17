@@ -25,6 +25,12 @@ description = "Apalache preprocessing reports 0 ^ 0 as undefined, even in a bran
 match = ['(POW 0 0)']
 
 [[signature]]
+id = "integer-literal-outside-tlc-range"
+references = ["../conformance/integer-outside-tlc-range.md"]
+description = "TLC rejects an integer literal outside the signed 32-bit range; these are the out-of-range boundary literals."
+match = ['2147483648', '-2147483649', '9223372036854775807']
+
+[[signature]]
 id = "sequence-set"
 references = ["../conformance/sequence-set-unsupported.md"]
 description = "Apalache reports Seq(S) as unsupported when it reaches it."
