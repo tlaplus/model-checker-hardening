@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.CollectionLimits;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
@@ -48,7 +49,11 @@ class TomlConfigTest {
         TomlConfig.writeNew(path, FuzzTlaConfig.defaults());
 
         assertEquals(FuzzTlaConfig.defaults(), TomlConfig.read(path));
-        assertTrue(Files.readString(path).contains("max_entries = 1000"));
+        assertTrue(Files.readString(path)
+                .contains("[workflow]\n"
+                        + "# Maximum number of unique entries across every workflow directory.\n"
+                        + "# A stage table that omits max_entries inherits this value.\n"
+                        + "max_entries = 1000"));
         assertTrue(Files.readString(path).contains("timeout_sec = 30"));
         assertTrue(Files.readString(path).contains("max_nodes = 128"));
         assertTrue(Files.readString(path).contains("max_action_operators = 2"));
@@ -63,7 +68,8 @@ class TomlConfigTest {
         assertTrue(Files.readString(path)
                 .contains("[workflow.apalache]\n"
                         + "# Maximum combined occupancy of the Apalache result directories.\n"
-                        + "max_entries = 1000\n"
+                        + "# Defaults to workflow.max_entries.\n"
+                        + "# max_entries = 1000\n"
                         + "# Wall-clock limit for checking one generated specification.\n"
                         + "timeout_sec = 30\n"
                         + "# Maximum heap allocated to each persistent Apalache worker JVM.\n"
@@ -79,13 +85,15 @@ class TomlConfigTest {
 
     /**
      * Pins the three views of a key together: a key declared in the schema must be rendered, and
-     * dropping its rendered line must be rejected as a missing key. A key that drifts out of
+     * dropping its rendered line must be rejected as a missing key when the key is required, or
+     * read back as the inherited value when the key declares a fallback. A key that drifts out of
      * validation, out of reading, or out of rendering fails here.
      */
     @Test
-    void everyDeclaredKeyIsRenderedAndRequired(@TempDir Path directory) throws Exception {
+    void everyDeclaredKeyIsRenderedAndValidated(@TempDir Path directory) throws Exception {
+        var defaults = FuzzTlaConfig.defaults();
         var blocks = new ArrayList<>(
-                List.of(TomlConfig.render(FuzzTlaConfig.defaults()).split("\n\n")));
+                List.of(TomlConfig.render(defaults).split("\n\n")));
         assertEquals(ConfigSchema.TABLES.size(), blocks.size());
 
         for (var index = 0; index < ConfigSchema.TABLES.size(); index++) {
@@ -97,7 +105,8 @@ class TomlConfigTest {
 
             for (var key : table.keys()) {
                 var assignment = block.lines()
-                        .filter(line -> line.startsWith(key.name() + " = "))
+                        .filter(line -> line.startsWith(key.name() + " = ")
+                                || line.startsWith("# " + key.name() + " = "))
                         .toList();
                 assertEquals(
                         1, assignment.size(), key.path() + " is not rendered exactly once");
@@ -108,14 +117,71 @@ class TomlConfigTest {
                         block.lines()
                                 .filter(line -> !line.equals(assignment.get(0)))
                                 .collect(Collectors.joining("\n")));
-                var failure =
-                        assertInvalid(directory, String.join("\n\n", withoutKey));
-                assertTrue(
-                        failure.getMessage()
-                                .contains("missing " + table.path() + " keys: " + key.name()),
-                        "dropping " + key.path() + " reported: " + failure.getMessage());
+                var document = String.join("\n\n", withoutKey);
+                if (key.fallback() == null) {
+                    var failure = assertInvalid(directory, document);
+                    assertTrue(
+                            failure.getMessage()
+                                    .contains("missing " + table.path() + " keys: " + key.name()),
+                            "dropping " + key.path() + " reported: " + failure.getMessage());
+                } else {
+                    assertEquals(
+                            defaults, readConfig(directory, document),
+                            "dropping " + key.path() + " changed the configuration");
+                }
             }
         }
+    }
+
+    @Test
+    void stageLimitsInheritTheWorkflowLimit(@TempDir Path directory) throws Exception {
+        // The rendered defaults comment the inherited stage limits out, so raising the global
+        // limit alone retunes every stage.
+        var config = readConfig(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(
+                                "# A stage table that omits max_entries inherits this value.\nmax_entries = 1000",
+                                "# A stage table that omits max_entries inherits this value.\nmax_entries = 5000"));
+
+        assertEquals(5000, config.workflow().maximumEntries());
+        assertEquals(5000, config.workflow().inputs().maximumEntries());
+        assertEquals(5000, config.workflow().limits(CorpusStage.PARSER).maximumEntries());
+        for (var stage : CorpusStage.checkerBranches()) {
+            assertEquals(5000, config.workflow().checker(stage).maximumEntries());
+        }
+    }
+
+    @Test
+    void aDeviatingStageLimitOverridesAndRoundTrips(@TempDir Path directory) throws Exception {
+        var inheritedParserLimit = "# Maximum combined occupancy of the parser result directories.\n"
+                + "# Defaults to workflow.max_entries.\n"
+                + "# max_entries = 1000";
+        var deviatingParserLimit = inheritedParserLimit.replace("# max_entries", "max_entries")
+                .replace("1000", "500");
+        var config = readConfig(
+                directory,
+                TomlConfig.render(FuzzTlaConfig.defaults())
+                        .replace(inheritedParserLimit, deviatingParserLimit));
+
+        assertEquals(500, config.workflow().limits(CorpusStage.PARSER).maximumEntries());
+        assertEquals(1000, config.workflow().inputs().maximumEntries());
+        assertEquals(1000, config.workflow().limits(CorpusStage.TLC).maximumEntries());
+        assertEquals(1000, config.workflow().limits(CorpusStage.APALACHE).maximumEntries());
+
+        // A deviating value renders live while the inheriting stages stay commented out.
+        var rendered = TomlConfig.render(config);
+        assertTrue(rendered.contains(deviatingParserLimit));
+        assertTrue(rendered.contains(inheritedParserLimit.replace(
+                "parser result directories", "TLC result directories")));
+        assertEquals(config, readConfig(directory, rendered));
+
+        // A stage limit may not exceed the global one.
+        var aboveGlobal = assertInvalid(
+                directory, rendered.replace(deviatingParserLimit, deviatingParserLimit.replace("500", "5000")));
+        assertTrue(
+                aboveGlobal.getMessage().contains("must not exceed workflow.maximumEntries"),
+                aboveGlobal.getMessage());
     }
 
     @Test
@@ -344,8 +410,8 @@ class TomlConfigTest {
                 directory,
                 TomlConfig.render(FuzzTlaConfig.defaults())
                         .replace(
-                                "# Maximum number of unique entries across every workflow directory.\nmax_entries = 1000",
-                                "# Maximum number of unique entries across every workflow directory.\nmax_entries = \"many\""));
+                                "# A stage table that omits max_entries inherits this value.\nmax_entries = 1000",
+                                "# A stage table that omits max_entries inherits this value.\nmax_entries = \"many\""));
         assertTrue(wrongType.getMessage().contains("workflow.max_entries"));
 
         var tooLarge = assertInvalid(
