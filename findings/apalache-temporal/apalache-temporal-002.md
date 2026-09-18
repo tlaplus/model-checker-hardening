@@ -136,10 +136,8 @@ defect: `Inliner.getSubstitution` builds the message as
 second string is not interpolated, so the actual call-site type never
 appears.
 
-corpus29 has two Apalache crashes with this diagnostic,
-[`69b942b4...`](../../corpus29/02apa-crash/69b942b4f455b3b540ed3f47da0ac5d93ff20d037f8db158d417378f9644f2cf.cbor)
-and
-[`d7c2e2fd...`](../../corpus29/02apa-crash/d7c2e2fd2d7d61038323cddd93372bf9ecece5590a4df9df3b4ea0414c254042.cbor).
+corpus29 has two Apalache crashes with this diagnostic, `69b942b4` and
+`d7c2e2fd`.
 The triager's signature for this finding matched only the `FoldSet` message,
 so both were left unclassified; it now covers this diagnostic as well.
 `69b942b4` was reduced from its typed IR JSON to the module above; `d7c2e2fd`

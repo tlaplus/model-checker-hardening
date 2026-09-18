@@ -5,8 +5,10 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 29 modules made TLC crash with one of the two diagnostics below; in the
 1000-module corpus20, generated with the same categories and the first five
 signatures below, another 6 did; corpus22, with all seven signatures, left 57
-more, corpus23 76, corpus24 69, corpus25 125, corpus26 66 and corpus28 34 (see
-[Signature precision](#signature-precision)). SANY accepted all of them.
+more, corpus23 76, corpus24 69, corpus25 125, corpus26 66, corpus28 34 and
+corpus29 42 (see [Signature precision](#signature-precision)). SANY accepted all
+of them. corpus29's four `cannot handle` crashes are all the row with a
+state-dependent bounded quantifier domain.
 
 TLC checks a temporal property by translating it into its liveness formulas
 (`tlc2.tool.liveness.Liveness`). The translation has no case for several

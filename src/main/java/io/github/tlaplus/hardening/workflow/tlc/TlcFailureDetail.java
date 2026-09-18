@@ -87,6 +87,8 @@ final class TlcFailureDetail {
     private enum Wrapper {
         /** An error raised while evaluating the invariant. */
         INVARIANT("Evaluating invariant \\w+ failed\\.\\s*"),
+        /** An error raised while evaluating a {@code [][A]_v} property. */
+        ACTION_PROPERTY("Evaluating action property \\w+ failed\\.\\s*"),
         /** An error that escaped as a generic exception; see findings/TLC/tlc-001.md. */
         UNEXPECTED_EXCEPTION(
                 "TLC threw an unexpected exception\\..*?The exception was an? \\S+\\s*:?\\s*"),

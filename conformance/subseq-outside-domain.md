@@ -22,3 +22,9 @@ Inv == TRUE
 
 Portable uses constrain the requested interval to the source sequence's valid
 indices.
+
+An upper bound past the end fails the same way with `The third argument of SubSeq
+must be in the domain of its first argument:`, for example
+`SubSeq(<<1>>, 1, 2)`; TLC exits 75. corpus29 has two such deviations:
+Apalache passed `343b4004` and reported a counterexample for `dcffb35f`. The
+signature covers both messages.

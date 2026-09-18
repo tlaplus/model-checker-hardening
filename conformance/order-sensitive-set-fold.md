@@ -54,8 +54,11 @@ whose combinator makes the result order-dependent:
   `Lambda12(a, b) == b` over `{TRUE, FALSE}`.
 - `3c195332`, `dfae0a5c` and `e9821e2a` use combinators that rebuild the result
   from the element argument, such as `[p1 EXCEPT ![var0] = p2]`.
-- The remaining 16 match the same shape: an `ApaFoldSet` combinator whose body
-  is the element parameter. They were rerun but not individually reduced.
+- The remaining 16 match the same shape: an `ApaFoldSet` over a set of at least
+  two elements with a combinator that returns its element parameter, as in 15
+  of them, or wraps it, as `<<p2>>` does in `60938f17`. They were rerun but not
+  individually reduced; several also carry other folds, so the order-sensitive
+  one is the likely, not the demonstrated, cause.
 
 Of the other four, `47a267be` is
 [`CHOOSE` with more than one witness](choose-multiple-witnesses.md), and
