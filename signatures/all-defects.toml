@@ -1,0 +1,1102 @@
+# Recall-first known-defect signatures.
+#
+# This database is a superset of known-defects.toml: its first signatures are those of
+# known-defects.toml, in the same order and with the same ids, descriptions and patterns. List it
+# in a corpus's [workflow.inputs] known_defects *instead of* known-defects.toml, not next to it,
+# because an id may be defined only once across the listed databases.
+#
+# The goal is a fast corpus: quarantine every candidate that could trigger a defect recorded in
+# ../findings or ../conformance, and spend checking time only on candidates that can show new
+# behavior. Where a defect depends on run-time values, a signature matches the operator when it
+# is uncommon in generated code (Int, Nat, SUBSET, .., ^, \div, ENABLED, WF, SF), and only literal
+# or special shapes when the operator is frequent or useful ([S -> T], f[x], CHOOSE, CASE, Head,
+# Tail, SubSeq, %). The
+# signatures after the shipped ones are not measured for precision.
+# docs/manual/known-defect-signatures.md describes the format and this database.
+#
+# Documents without a signature, because no pattern can express them:
+# - constant-false-invariant, constant-property-tlc-rejects: a pattern cannot be anchored to Inv
+#   or Prop, and FALSE alone would match nearly every candidate.
+# - label-inside-except, sany-002, labeled rows of tlc-temporal-formula-limits: labels are skipped.
+# - Values known only at run time: arithmetic overflow (integer-outside-tlc-range beyond the
+#   literals), partial operators beyond the literal shapes, apalache-cli-001's non-existing variant
+#   option and z3 UNKNOWN, tlc-007's pair of errors, apalache-builder-001's deep nesting.
+# - Frequent operators whose defect depends on the operand values: order-sensitive-set-fold (the
+#   combinator's order sensitivity) and tlc-004 (a CHOOSE over a set of 10^5 functions; the large
+#   sets it needs are caught by powerset, function-set-expansion and integer-range).
+# - vacuous-initial-predicate: both tools pass.
+# - apalache-printer-001 to 007, apalache-json-001 and 002: fixed.
+#
+# References are relative to this file.
+
+[[signature]]
+id = "modulo-by-literal-zero"
+references = ["../conformance/modulo-by-zero-apalache-fails.md", "../findings/TLC/tlc-002.md"]
+description = "Apalache preprocessing reports Mod by zero for a literal-zero modulus, even in a branch TLC never evaluates."
+match = ['(MOD _ 0)']
+
+[[signature]]
+id = "division-by-literal-zero"
+references = ["../conformance/division-by-zero-apalache-fails.md", "../conformance/division-by-zero-tlc-fails.md", "../findings/TLC/tlc-002.md"]
+description = "Apalache preprocessing reports Division by zero for a literal-zero divisor, even in a branch TLC never evaluates."
+match = ['(DIV _ 0)']
+
+[[signature]]
+id = "zero-power-zero"
+references = ["../conformance/zero-power-zero-apalache-fails.md", "../conformance/zero-power-zero-tlc-fails.md", "../findings/TLC/tlc-002.md"]
+description = "Apalache preprocessing reports 0 ^ 0 as undefined, even in a branch TLC never evaluates."
+match = ['(POW 0 0)']
+
+[[signature]]
+id = "integer-literal-outside-tlc-range"
+references = ["../conformance/integer-outside-tlc-range.md"]
+description = "TLC rejects an integer literal outside the signed 32-bit range; these are the out-of-range boundary literals."
+match = ['2147483648', '-2147483649', '9223372036854775807']
+
+[[signature]]
+id = "sequence-set"
+references = ["../conformance/sequence-set-unsupported.md", "../findings/TLC/tlc-003.md"]
+description = "Apalache reports Seq(S) as unsupported when it reaches it."
+match = ['(Sequences!Seq _)']
+
+[[signature]]
+id = "string-set"
+references = ["../conformance/string-set-unsupported.md", "../conformance/string-set-tlc-fails.md", "../findings/TLC/tlc-003.md"]
+description = "Apalache reports the predefined set STRING as unsupported when it reaches it."
+match = ['STRING']
+
+[[signature]]
+id = "tlc-temporal-equivalence"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC reports that it cannot handle a temporal formula under <=> (tlaplus/tlaplus#1029)."
+match = [
+  '(& (EQUIV ...) (.. (GLOBALLY ...)))',
+  '(& (EQUIV ...) (.. (EVENTUALLY ...)))',
+  '(& (EQUIV ...) (.. (LEADS_TO ...)))',
+  '(& (EQUIV ...) (.. (GUARANTEES ...)))',
+  '(& (EQUIV ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EQUIV ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (EQUIV ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (EQUIV ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "tlc-temporal-case"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC reports that it cannot handle a temporal formula in a CASE arm."
+match = [
+  '(& (CASE ...) (.. (GLOBALLY ...)))',
+  '(& (CASE ...) (.. (EVENTUALLY ...)))',
+  '(& (CASE ...) (.. (LEADS_TO ...)))',
+  '(& (CASE ...) (.. (GUARANTEES ...)))',
+  '(& (CASE ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (CASE ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (CASE ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (CASE ...) (.. (TEMPORAL_FORALL ...)))',
+  '(& (CASE_OTHER ...) (.. (GLOBALLY ...)))',
+  '(& (CASE_OTHER ...) (.. (EVENTUALLY ...)))',
+  '(& (CASE_OTHER ...) (.. (LEADS_TO ...)))',
+  '(& (CASE_OTHER ...) (.. (GUARANTEES ...)))',
+  '(& (CASE_OTHER ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (CASE_OTHER ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (CASE_OTHER ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (CASE_OTHER ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "tlc-temporal-unbounded-quantifier"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC reports that it cannot handle a temporal formula under an unbounded quantifier."
+match = [
+  '(& (FORALL2 ...) (.. (GLOBALLY ...)))',
+  '(& (FORALL2 ...) (.. (EVENTUALLY ...)))',
+  '(& (FORALL2 ...) (.. (LEADS_TO ...)))',
+  '(& (FORALL2 ...) (.. (GUARANTEES ...)))',
+  '(& (FORALL2 ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (FORALL2 ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (FORALL2 ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (FORALL2 ...) (.. (TEMPORAL_FORALL ...)))',
+  '(& (EXISTS2 ...) (.. (GLOBALLY ...)))',
+  '(& (EXISTS2 ...) (.. (EVENTUALLY ...)))',
+  '(& (EXISTS2 ...) (.. (LEADS_TO ...)))',
+  '(& (EXISTS2 ...) (.. (GUARANTEES ...)))',
+  '(& (EXISTS2 ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EXISTS2 ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (EXISTS2 ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (EXISTS2 ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "tlc-eventually-action"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects <><<A>>_v, accepting actions in temporal formulas only as <>[]A or []<>A; also matches []<><<A>>_v, which TLC checks."
+match = [
+  '(EVENTUALLY (NO_STUTTER ...))',
+]
+
+[[signature]]
+id = "tlc-always-action-under-temporal"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects [][A]_v under <>, ~> or [], accepting actions in temporal formulas only as <>[]A or []<>A."
+match = [
+  '(& (EVENTUALLY ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(& (LEADS_TO ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(GLOBALLY (.. (GLOBALLY (STUTTER ...))))',
+]
+
+[[signature]]
+id = "tlc-fairness-under-eventuality"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects WF or SF under <> or ~>, accepting actions in temporal formulas only as <>[]A or []<>A."
+match = [
+  '(& (EVENTUALLY ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EVENTUALLY ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (LEADS_TO ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (LEADS_TO ...) (.. (STRONG_FAIRNESS ...)))',
+]
+
+[[signature]]
+id = "tlc-always-action-under-connective"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC rejects [][A]_v under ~, => or \\/, accepting actions in temporal formulas only as <>[]A or []<>A; also matches <>[][A]_v there, which TLC checks."
+match = [
+  '(& (NOT ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(& (IMPLIES ...) (.. (GLOBALLY (STUTTER ...))))',
+  '(& (OR ...) (.. (GLOBALLY (STUTTER ...))))',
+]
+
+[[signature]]
+id = "infinite-integer-set"
+references = [
+  "../conformance/cardinality-of-infinite-set.md",
+  "../conformance/cartesian-product-with-infinite-set.md",
+  "../conformance/choose-over-infinite-set.md",
+  "../conformance/difference-with-infinite-set.md",
+  "../conformance/filter-over-infinite-set.md",
+  "../conformance/finite-set-containing-infinite-set.md",
+  "../conformance/function-over-infinite-domain.md",
+  "../conformance/function-set-over-infinite-set.md",
+  "../conformance/infinite-set-as-membership-element.md",
+  "../conformance/infinite-set-as-state-value.md",
+  "../conformance/intersection-of-infinite-sets.md",
+  "../conformance/non-enumerable-initial-assignment.md",
+  "../conformance/quantification-over-infinite-set.md",
+  "../conformance/set-filter-symbolic-set.md",
+  "../conformance/subset-test-over-infinite-set.md",
+  "../conformance/union-containing-infinite-set.md",
+  "../findings/apalache-bmc/apalache-bmc-001.md",
+  "../findings/apalache-bmc/apalache-bmc-005.md",
+  "../findings/apalache-bmc/apalache-bmc-007.md",
+  "../findings/apalache-bmc/apalache-bmc-009.md",
+  "../findings/apalache-bmc/apalache-bmc-012.md",
+  "../findings/apalache-bmc/apalache-bmc-015.md",
+  "../findings/apalache-bmc/apalache-bmc-016.md",
+  "../findings/apalache-cli/apalache-cli-001.md",
+]
+description = "TLC cannot enumerate or represent Int and Nat in most positions, and Apalache mishandles them in filters, quantifiers, unions, IsFiniteSet and function domains."
+match = [
+  'Int',
+  'Nat',
+]
+
+[[signature]]
+id = "powerset"
+references = [
+  "../conformance/choose-symbolic-set-element.md",
+  "../conformance/symbolic-set-equality.md",
+  "../conformance/set-filter-symbolic-set.md",
+  "../conformance/infinite-set-as-membership-element.md",
+  "../findings/apalache-bmc/apalache-bmc-001.md",
+  "../findings/apalache-bmc/apalache-bmc-003.md",
+  "../findings/apalache-bmc/apalache-bmc-006.md",
+  "../findings/apalache-bmc/apalache-bmc-010.md",
+  "../findings/apalache-bmc/apalache-bmc-014.md",
+  "../findings/apalache-optimizer/apalache-optimizer-001.md",
+  "../findings/TLC/tlc-004.md",
+]
+description = "Apalache crashes on SUBSET S in set filters, set maps, equality, UNION and CHOOSE, which reach it through names this pattern cannot follow."
+match = ['(SET_POWERSET _)']
+
+[[signature]]
+id = "function-set-empty-component"
+references = [
+  "../conformance/empty-function-set.md",
+  "../findings/apalache-bmc/apalache-bmc-002.md",
+  "../findings/apalache-bmc/apalache-bmc-017.md",
+  "../findings/apalache-bmc/apalache-bmc-018.md",
+]
+description = "Apalache violates reflexive equality on [{} -> T], loses the initial states of [D -> {}] for a computed empty D, and crashes on a co-domain computed by a fold."
+match = [
+  '(FUN_SET (SET_ENUM) _)',
+  '(FUN_SET _ (SET_ENUM))',
+  '(FUN_SET _ (Apalache!ApaFoldSet ...))',
+  '(FUN_SET _ (Apalache!ApaFoldSeqLeft ...))',
+]
+
+[[signature]]
+id = "function-set-equality"
+references = ["../findings/apalache-bmc/apalache-bmc-003.md", "../findings/apalache-bmc/apalache-bmc-011.md"]
+description = "Apalache's bounded checker fails on an equality test whose operand is a symbolic function set."
+match = [
+  '(EQ (FUN_SET _ _) _)',
+  '(EQ (IF_THEN_ELSE _ (FUN_SET _ _) _) _)',
+  '(EQ (IF_THEN_ELSE _ _ (FUN_SET _ _)) _)',
+  '(EQ (SET_UNION2 (FUN_SET _ _) _) _)',
+  '(EQ (SET_UNION2 _ (FUN_SET _ _)) _)',
+  '(EQ (SET_INTERSECT (FUN_SET _ _) _) _)',
+  '(EQ (SET_INTERSECT _ (FUN_SET _ _)) _)',
+  '(EQ (SET_MINUS (FUN_SET _ _) _) _)',
+  '(NE (FUN_SET _ _) _)',
+  '(NE (IF_THEN_ELSE _ (FUN_SET _ _) _) _)',
+  '(NE (IF_THEN_ELSE _ _ (FUN_SET _ _)) _)',
+  '(NE (SET_UNION2 (FUN_SET _ _) _) _)',
+  '(NE (SET_UNION2 _ (FUN_SET _ _)) _)',
+  '(NE (SET_INTERSECT (FUN_SET _ _) _) _)',
+  '(NE (SET_INTERSECT _ (FUN_SET _ _)) _)',
+  '(NE (SET_MINUS (FUN_SET _ _) _) _)',
+  '(EQ _ (FUN_SET _ _))',
+  '(EQ _ (IF_THEN_ELSE _ (FUN_SET _ _) _))',
+  '(EQ _ (IF_THEN_ELSE _ _ (FUN_SET _ _)))',
+  '(EQ _ (SET_UNION2 (FUN_SET _ _) _))',
+  '(EQ _ (SET_UNION2 _ (FUN_SET _ _)))',
+  '(EQ _ (SET_INTERSECT (FUN_SET _ _) _))',
+  '(EQ _ (SET_INTERSECT _ (FUN_SET _ _)))',
+  '(EQ _ (SET_MINUS (FUN_SET _ _) _))',
+  '(NE _ (FUN_SET _ _))',
+  '(NE _ (IF_THEN_ELSE _ (FUN_SET _ _) _))',
+  '(NE _ (IF_THEN_ELSE _ _ (FUN_SET _ _)))',
+  '(NE _ (SET_UNION2 (FUN_SET _ _) _))',
+  '(NE _ (SET_UNION2 _ (FUN_SET _ _)))',
+  '(NE _ (SET_INTERSECT (FUN_SET _ _) _))',
+  '(NE _ (SET_INTERSECT _ (FUN_SET _ _)))',
+  '(NE _ (SET_MINUS (FUN_SET _ _) _))',
+]
+
+[[signature]]
+id = "function-set-expansion"
+references = [
+  "../conformance/function-set-expansion-guard.md",
+  "../conformance/set-filter-symbolic-set.md",
+  "../findings/apalache-bmc/apalache-bmc-001.md",
+  "../findings/apalache-cli/apalache-cli-001.md",
+  "../findings/TLC/tlc-004.md",
+]
+description = "Apalache refuses to expand, or cannot filter, a function set that is folded, mapped, filtered, counted or unioned; TLC can exhaust the heap applying a CHOOSE from one."
+match = [
+  '(Apalache!ApaFoldSet _ _ (FUN_SET _ _))',
+  '(SET_MAP _ _ (FUN_SET _ _) ...)',
+  '(SET_FILTER _ (FUN_SET _ _) _)',
+  '(FiniteSets!Cardinality (FUN_SET _ _))',
+  '(SET_UNARY_UNION (SET_ENUM (FUN_SET _ _) ...))',
+  '(FUN_APP (CHOOSE3 _ (FUN_SET _ _) _) _)',
+  '(Apalache!ApaFoldSet _ _ (IF_THEN_ELSE _ (FUN_SET _ _) _))',
+  '(SET_MAP _ _ (IF_THEN_ELSE _ (FUN_SET _ _) _) ...)',
+  '(SET_FILTER _ (IF_THEN_ELSE _ (FUN_SET _ _) _) _)',
+  '(FiniteSets!Cardinality (IF_THEN_ELSE _ (FUN_SET _ _) _))',
+  '(SET_UNARY_UNION (SET_ENUM (IF_THEN_ELSE _ (FUN_SET _ _) _) ...))',
+  '(FUN_APP (CHOOSE3 _ (IF_THEN_ELSE _ (FUN_SET _ _) _) _) _)',
+  '(Apalache!ApaFoldSet _ _ (IF_THEN_ELSE _ _ (FUN_SET _ _)))',
+  '(SET_MAP _ _ (IF_THEN_ELSE _ _ (FUN_SET _ _)) ...)',
+  '(SET_FILTER _ (IF_THEN_ELSE _ _ (FUN_SET _ _)) _)',
+  '(FiniteSets!Cardinality (IF_THEN_ELSE _ _ (FUN_SET _ _)))',
+  '(SET_UNARY_UNION (SET_ENUM (IF_THEN_ELSE _ _ (FUN_SET _ _)) ...))',
+  '(FUN_APP (CHOOSE3 _ (IF_THEN_ELSE _ _ (FUN_SET _ _)) _) _)',
+  '(Apalache!ApaFoldSet _ _ (SET_UNION2 (FUN_SET _ _) _))',
+  '(SET_MAP _ _ (SET_UNION2 (FUN_SET _ _) _) ...)',
+  '(SET_FILTER _ (SET_UNION2 (FUN_SET _ _) _) _)',
+  '(FiniteSets!Cardinality (SET_UNION2 (FUN_SET _ _) _))',
+  '(SET_UNARY_UNION (SET_ENUM (SET_UNION2 (FUN_SET _ _) _) ...))',
+  '(FUN_APP (CHOOSE3 _ (SET_UNION2 (FUN_SET _ _) _) _) _)',
+  '(Apalache!ApaFoldSet _ _ (SET_UNION2 _ (FUN_SET _ _)))',
+  '(SET_MAP _ _ (SET_UNION2 _ (FUN_SET _ _)) ...)',
+  '(SET_FILTER _ (SET_UNION2 _ (FUN_SET _ _)) _)',
+  '(FiniteSets!Cardinality (SET_UNION2 _ (FUN_SET _ _)))',
+  '(SET_UNARY_UNION (SET_ENUM (SET_UNION2 _ (FUN_SET _ _)) ...))',
+  '(FUN_APP (CHOOSE3 _ (SET_UNION2 _ (FUN_SET _ _)) _) _)',
+  '(Apalache!ApaFoldSet _ _ (SET_INTERSECT (FUN_SET _ _) _))',
+  '(SET_MAP _ _ (SET_INTERSECT (FUN_SET _ _) _) ...)',
+  '(SET_FILTER _ (SET_INTERSECT (FUN_SET _ _) _) _)',
+  '(FiniteSets!Cardinality (SET_INTERSECT (FUN_SET _ _) _))',
+  '(SET_UNARY_UNION (SET_ENUM (SET_INTERSECT (FUN_SET _ _) _) ...))',
+  '(FUN_APP (CHOOSE3 _ (SET_INTERSECT (FUN_SET _ _) _) _) _)',
+  '(Apalache!ApaFoldSet _ _ (SET_INTERSECT _ (FUN_SET _ _)))',
+  '(SET_MAP _ _ (SET_INTERSECT _ (FUN_SET _ _)) ...)',
+  '(SET_FILTER _ (SET_INTERSECT _ (FUN_SET _ _)) _)',
+  '(FiniteSets!Cardinality (SET_INTERSECT _ (FUN_SET _ _)))',
+  '(SET_UNARY_UNION (SET_ENUM (SET_INTERSECT _ (FUN_SET _ _)) ...))',
+  '(FUN_APP (CHOOSE3 _ (SET_INTERSECT _ (FUN_SET _ _)) _) _)',
+  '(Apalache!ApaFoldSet _ _ (SET_MINUS (FUN_SET _ _) _))',
+  '(SET_MAP _ _ (SET_MINUS (FUN_SET _ _) _) ...)',
+  '(SET_FILTER _ (SET_MINUS (FUN_SET _ _) _) _)',
+  '(FiniteSets!Cardinality (SET_MINUS (FUN_SET _ _) _))',
+  '(SET_UNARY_UNION (SET_ENUM (SET_MINUS (FUN_SET _ _) _) ...))',
+  '(FUN_APP (CHOOSE3 _ (SET_MINUS (FUN_SET _ _) _) _) _)',
+]
+
+[[signature]]
+id = "integer-range"
+references = [
+  "../conformance/nonconstant-integer-range.md",
+  "../findings/apalache-builder/apalache-builder-001.md",
+  "../findings/apalache-cli/apalache-cli-001.md",
+  "../findings/TLC/tlc-004.md",
+  "../findings/TLC/tlc-005.md",
+  "../findings/TLC/tlc-006.md",
+]
+description = "Apalache requires constant, small interval bounds, and TLC materializes an interval bound of CHOOSE or \\E without its enumeration limit."
+match = ['(INT_RANGE _ _)']
+
+[[signature]]
+id = "power"
+references = [
+  "../conformance/negative-exponent-tlc-fails.md",
+  "../conformance/negative-power-apalache-fails.md",
+  "../conformance/zero-power-zero-tlc-fails.md",
+  "../findings/apalache-bmc/apalache-bmc-004.md",
+  "../findings/apalache-cli/apalache-cli-001.md",
+  "../findings/TLC/tlc-002.md",
+]
+description = "Both tools reject a negative exponent and 0 ^ 0 at run time, and Apalache crashes on a symbolic exponent."
+match = ['(POW _ _)']
+
+[[signature]]
+id = "division"
+references = [
+  "../conformance/division-by-zero-tlc-fails.md",
+  "../conformance/division-negative-divisor.md",
+  "../findings/apalache-bmc/apalache-bmc-008.md",
+  "../findings/TLC/tlc-002.md",
+]
+description = "TLC rejects a divisor that evaluates to zero, and Apalache truncates \\div toward zero for a negative divisor."
+match = ['(DIV _ _)']
+
+[[signature]]
+id = "modulo-negative-divisor"
+references = ["../conformance/modulo-nonpositive-divisor.md", "../findings/TLC/tlc-002.md"]
+description = "TLC rejects % with a nonpositive divisor; matches a divisor written as a negation or a difference."
+match = [
+  '(MOD _ (UNARY_MINUS _))',
+  '(MOD _ (MINUS ...))',
+]
+
+[[signature]]
+id = "enabled"
+references = [
+  "../conformance/enabled-apalache-unsupported.md",
+  "../findings/apalache-bmc/apalache-bmc-019.md",
+  "../findings/TLC/tlc-012.md",
+]
+description = "Apalache does not support ENABLED and gives a wrong verdict for ENABLED in a CASE guard; TLC fails on ENABLED UNCHANGED of a non-variable."
+match = ['(ENABLED _)']
+
+[[signature]]
+id = "fairness"
+references = [
+  "../conformance/fairness-apalache-unsupported.md",
+  "../conformance/tlc-temporal-formula-limits.md",
+  "../findings/TLC/tlc-010.md",
+]
+description = "Apalache does not support fairness, and TLC reports an evaluation error while checking fairness as error 1000."
+match = [
+  '(WEAK_FAIRNESS ...)',
+  '(STRONG_FAIRNESS ...)',
+]
+
+[[signature]]
+id = "empty-sequence-head-or-tail"
+references = [
+  "../conformance/head-of-empty-sequence.md",
+  "../conformance/tail-of-empty-sequence.md",
+  "../findings/TLC/tlc-002.md",
+  "../findings/TLC/tlc-007.md",
+]
+description = "TLC rejects Head and Tail of the literal empty sequence when it evaluates them."
+match = [
+  '(Sequences!Head (TUPLE))',
+  '(Sequences!Tail (TUPLE))',
+]
+
+[[signature]]
+id = "subseq-literal-outside-domain"
+references = ["../conformance/subseq-outside-domain.md", "../findings/TLC/tlc-002.md"]
+description = "TLC rejects SubSeq with a literal start index 0 or of the literal empty sequence when it evaluates it."
+match = [
+  '(Sequences!SubSeq _ 0 _)',
+  '(Sequences!SubSeq (TUPLE) _ _)',
+]
+
+[[signature]]
+id = "function-application-literal-outside-domain"
+references = ["../conformance/function-application-outside-domain.md"]
+description = "TLC rejects applying the empty tuple, a sequence at index 0, or a function over the empty set when it evaluates it."
+match = [
+  '(FUN_APP (TUPLE) _)',
+  '(FUN_APP (: _ "Seq(a)") 0)',
+  '(FUN_APP (FUN_CTOR _ _ (SET_ENUM)) _)',
+]
+
+[[signature]]
+id = "choose-literal-without-witness"
+references = ["../conformance/choose-without-witness.md", "../findings/TLC/tlc-007.md"]
+description = "TLC rejects CHOOSE over the empty set or with the predicate FALSE when it evaluates it."
+match = [
+  '(CHOOSE3 _ (SET_ENUM) _)',
+  '(CHOOSE3 _ _ FALSE)',
+  '(CHOOSE2 _ FALSE)',
+]
+
+[[signature]]
+id = "choose-literal-several-witnesses"
+references = ["../conformance/choose-multiple-witnesses.md"]
+description = "TLC and Apalache may pick different witnesses of CHOOSE with the predicate TRUE."
+match = ['(CHOOSE3 _ _ TRUE)']
+
+[[signature]]
+id = "case-literal-guards"
+references = ["../conformance/case-without-matching-arm.md", "../conformance/case-multiple-true-guards.md"]
+description = "TLC rejects CASE whose only guard is FALSE, and the tools may pick different arms when two guards are TRUE."
+match = [
+  '(CASE FALSE _)',
+  '(CASE TRUE _ TRUE _ ...)',
+]
+
+[[signature]]
+id = "tlc-partial-operator-in-filter"
+references = ["../findings/TLC/tlc-001.md"]
+description = "TLC reports an evaluation error in a set-filter predicate as error 1000."
+match = [
+  '(SET_FILTER _ _ (.. (FUN_APP ...)))',
+  '(SET_FILTER _ _ (.. (CHOOSE3 ...)))',
+  '(SET_FILTER _ _ (.. (CASE ...)))',
+  '(SET_FILTER _ _ (.. (Variants!VariantGetUnsafe ...)))',
+]
+
+[[signature]]
+id = "tlc-union-nonenumerable"
+references = ["../findings/TLC/tlc-003.md"]
+description = "TLC reports UNION of a set with a nonenumerable element as error 1000."
+match = [
+  '(SET_UNARY_UNION (.. STRING))',
+  '(SET_UNARY_UNION (.. (Sequences!Seq _)))',
+]
+
+[[signature]]
+id = "tlc-partial-operator-under-eventuality"
+references = [
+  "../findings/TLC/tlc-008.md",
+  "../findings/TLC/tlc-009.md",
+  "../findings/TLC/tlc-010.md",
+]
+description = "TLC exits with status 0 or error 1000 on an evaluation error inside <> or ~>."
+match = [
+  '(& (EVENTUALLY ...) (.. (FUN_APP ...)))',
+  '(& (EVENTUALLY ...) (.. (CHOOSE3 ...)))',
+  '(& (EVENTUALLY ...) (.. (CHOOSE2 ...)))',
+  '(& (EVENTUALLY ...) (.. (CASE ...)))',
+  '(& (EVENTUALLY ...) (.. (CASE_OTHER ...)))',
+  '(& (EVENTUALLY ...) (.. (Sequences!Head ...)))',
+  '(& (EVENTUALLY ...) (.. (Sequences!Tail ...)))',
+  '(& (EVENTUALLY ...) (.. (Sequences!SubSeq ...)))',
+  '(& (EVENTUALLY ...) (.. (DIV ...)))',
+  '(& (EVENTUALLY ...) (.. (MOD ...)))',
+  '(& (EVENTUALLY ...) (.. (POW ...)))',
+  '(& (EVENTUALLY ...) (.. (FiniteSets!Cardinality ...)))',
+  '(& (EVENTUALLY ...) (.. (Variants!VariantGetUnsafe ...)))',
+  '(& (LEADS_TO ...) (.. (FUN_APP ...)))',
+  '(& (LEADS_TO ...) (.. (CHOOSE3 ...)))',
+  '(& (LEADS_TO ...) (.. (CHOOSE2 ...)))',
+  '(& (LEADS_TO ...) (.. (CASE ...)))',
+  '(& (LEADS_TO ...) (.. (CASE_OTHER ...)))',
+  '(& (LEADS_TO ...) (.. (Sequences!Head ...)))',
+  '(& (LEADS_TO ...) (.. (Sequences!Tail ...)))',
+  '(& (LEADS_TO ...) (.. (Sequences!SubSeq ...)))',
+  '(& (LEADS_TO ...) (.. (DIV ...)))',
+  '(& (LEADS_TO ...) (.. (MOD ...)))',
+  '(& (LEADS_TO ...) (.. (POW ...)))',
+  '(& (LEADS_TO ...) (.. (FiniteSets!Cardinality ...)))',
+  '(& (LEADS_TO ...) (.. (Variants!VariantGetUnsafe ...)))',
+]
+
+[[signature]]
+id = "temporal-under-bounded-quantifier"
+references = [
+  "../conformance/tlc-temporal-formula-limits.md",
+  "../findings/TLC/tlc-011.md",
+  "../findings/apalache-temporal/apalache-temporal-003.md",
+]
+description = "TLC cannot handle a temporal formula under a bounded quantifier whose domain fails, and Apalache leaves the bound variable unassigned."
+match = [
+  '(& (EXISTS3 ...) (.. (GLOBALLY ...)))',
+  '(& (EXISTS3 ...) (.. (EVENTUALLY ...)))',
+  '(& (EXISTS3 ...) (.. (LEADS_TO ...)))',
+  '(& (EXISTS3 ...) (.. (GUARANTEES ...)))',
+  '(& (EXISTS3 ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (EXISTS3 ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (EXISTS3 ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (EXISTS3 ...) (.. (TEMPORAL_FORALL ...)))',
+  '(& (FORALL3 ...) (.. (GLOBALLY ...)))',
+  '(& (FORALL3 ...) (.. (EVENTUALLY ...)))',
+  '(& (FORALL3 ...) (.. (LEADS_TO ...)))',
+  '(& (FORALL3 ...) (.. (GUARANTEES ...)))',
+  '(& (FORALL3 ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (FORALL3 ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (FORALL3 ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (FORALL3 ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "temporal-under-if"
+references = ["../conformance/tlc-temporal-formula-limits.md"]
+description = "TLC cannot handle some temporal formulas in an IF branch or under a negated constant IF."
+match = [
+  '(& (IF_THEN_ELSE ...) (.. (GLOBALLY ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (EVENTUALLY ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (LEADS_TO ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (GUARANTEES ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (IF_THEN_ELSE ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "sany-temporal-under-modulo"
+references = ["../findings/SANY/sany-001.md"]
+description = "SANY crashes while formatting the level error for % applied to a temporal formula."
+match = [
+  '(& (MOD ...) (.. (GLOBALLY ...)))',
+  '(& (MOD ...) (.. (EVENTUALLY ...)))',
+  '(& (MOD ...) (.. (LEADS_TO ...)))',
+  '(& (MOD ...) (.. (GUARANTEES ...)))',
+  '(& (MOD ...) (.. (WEAK_FAIRNESS ...)))',
+  '(& (MOD ...) (.. (STRONG_FAIRNESS ...)))',
+  '(& (MOD ...) (.. (TEMPORAL_EXISTS ...)))',
+  '(& (MOD ...) (.. (TEMPORAL_FORALL ...)))',
+]
+
+[[signature]]
+id = "apalache-nested-leads-to"
+references = ["../findings/apalache-temporal/apalache-temporal-001.md"]
+description = "Apalache fails TemporalPass with an empty diagnostic on ~> nested in ~>."
+match = [
+  '(LEADS_TO (.. (LEADS_TO _ _)) _)',
+  '(LEADS_TO _ (.. (LEADS_TO _ _)))',
+]
+
+[[signature]]
+id = "apalache-leads-to-two-binder-function"
+references = ["../findings/apalache-temporal/apalache-temporal-004.md"]
+description = "Apalache's renamer crashes on a function constructor with two bound variables under ~>."
+match = [
+  '(LEADS_TO (.. (FUN_CTOR _ _ _ _ _ ...)) _)',
+  '(LEADS_TO _ (.. (FUN_CTOR _ _ _ _ _ ...)))',
+]
+
+[[signature]]
+id = "apalache-nested-one-conjunct"
+references = ["../findings/apalache-temporal/apalache-temporal-002.md"]
+description = "Apalache fails type checking under --temporal on a nested one-conjunct list in a fold lambda."
+match = ['(AND (AND _))']
+
+[[signature]]
+id = "apalache-fold-singleton-membership"
+references = ["../findings/apalache-bmc/apalache-bmc-013.md"]
+description = "Apalache crashes in SetInRule when a fold combinator tests membership in a singleton set literal."
+match = [
+  '(Apalache!ApaFoldSet (.. (SET_IN _ (SET_ENUM _))) _ _)',
+  '(Apalache!ApaFoldSet (.. (SET_NOT_IN _ (SET_ENUM _))) _ _)',
+  '(Apalache!ApaFoldSeqLeft (.. (SET_IN _ (SET_ENUM _))) _ _)',
+  '(Apalache!ApaFoldSeqLeft (.. (SET_NOT_IN _ (SET_ENUM _))) _ _)',
+]
+
+[[signature]]
+id = "apalache-unchanged-after-assignment"
+references = ["../findings/apalache-assignments/apalache-assignments-001.md"]
+description = "Apalache rejects UNCHANGED, [A]_v or <<A>>_v used as a guard after the variable is assigned."
+match = [
+  '(& (AND ...) (.. (PRIME _)) (.. (NOT (.. (UNCHANGED _)))))',
+  '(IF_THEN_ELSE (.. (UNCHANGED _)) _ _)',
+  '(CASE (.. (UNCHANGED _)) ...)',
+  '(& (AND ...) (.. (PRIME _)) (.. (NO_STUTTER ...)))',
+]
+
+[[signature]]
+id = "printer-fold-in-left-operand"
+references = ["../findings/apalache-printer/apalache-printer-008.md", "../conformance/let-operand-grouping.md"]
+description = "PrettyWriter does not delimit the LET it synthesizes for a fold lambda, so the operand that follows is absorbed; matches a fold that ends an operand directly or one infix level down."
+match = [
+  '(AND (Apalache!ApaFoldSet ...) _ ...)',
+  '(AND (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(OR (Apalache!ApaFoldSet ...) _ ...)',
+  '(OR (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(IMPLIES (Apalache!ApaFoldSet ...) _ ...)',
+  '(IMPLIES (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(EQUIV (Apalache!ApaFoldSet ...) _ ...)',
+  '(EQUIV (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(EQ (Apalache!ApaFoldSet ...) _ ...)',
+  '(EQ (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(NE (Apalache!ApaFoldSet ...) _ ...)',
+  '(NE (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(LT (Apalache!ApaFoldSet ...) _ ...)',
+  '(LT (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(LE (Apalache!ApaFoldSet ...) _ ...)',
+  '(LE (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(GT (Apalache!ApaFoldSet ...) _ ...)',
+  '(GT (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(GE (Apalache!ApaFoldSet ...) _ ...)',
+  '(GE (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_IN (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_IN (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_NOT_IN (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_NOT_IN (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_UNION2 (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_UNION2 (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_INTERSECT (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_INTERSECT (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_MINUS (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_MINUS (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_SUBSET_EQ (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_SUBSET_EQ (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(SET_TIMES (Apalache!ApaFoldSet ...) _ ...)',
+  '(SET_TIMES (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(PLUS (Apalache!ApaFoldSet ...) _ ...)',
+  '(PLUS (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(MINUS (Apalache!ApaFoldSet ...) _ ...)',
+  '(MINUS (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(MULT (Apalache!ApaFoldSet ...) _ ...)',
+  '(MULT (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(DIV (Apalache!ApaFoldSet ...) _ ...)',
+  '(DIV (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(MOD (Apalache!ApaFoldSet ...) _ ...)',
+  '(MOD (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(POW (Apalache!ApaFoldSet ...) _ ...)',
+  '(POW (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(Sequences!Concat (Apalache!ApaFoldSet ...) _ ...)',
+  '(Sequences!Concat (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(AND _ (Apalache!ApaFoldSet ...) _ ...)',
+  '(AND _ (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(AND _ _ (Apalache!ApaFoldSet ...) _ ...)',
+  '(AND _ _ (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(OR _ (Apalache!ApaFoldSet ...) _ ...)',
+  '(OR _ (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(OR _ _ (Apalache!ApaFoldSet ...) _ ...)',
+  '(OR _ _ (Apalache!ApaFoldSeqLeft ...) _ ...)',
+  '(AND (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND _ _ (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(AND (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(AND _ _ (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR _ _ (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(OR (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(OR _ _ (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(IMPLIES (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(IMPLIES (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (IMPLIES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (EQUIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (NE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (LT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (LE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (GT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (GE _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_NOT_IN _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_UNION2 _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_INTERSECT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_SUBSET_EQ _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (SET_TIMES _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (PLUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (MINUS _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (MULT _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (DIV _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (MOD _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (POW _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (Sequences!Concat _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (AND _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (OR _ (Apalache!ApaFoldSet ...)) _ ...)',
+  '(EQUIV (IMPLIES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (EQUIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (NE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (LT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (LE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (GT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (GE _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_NOT_IN _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_UNION2 _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_INTERSECT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_SUBSET_EQ _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (SET_TIMES _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (PLUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (MINUS _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (MULT _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (DIV _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (MOD _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (POW _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (Sequences!Concat _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (AND _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+  '(EQUIV (OR _ (Apalache!ApaFoldSeqLeft ...)) _ ...)',
+]
+
+[[signature]]
+id = "printer-nested-case-arm"
+references = ["../findings/apalache-printer/apalache-printer-009.md"]
+description = "PrettyWriter lets a CASE nested in a non-last arm absorb the enclosing CASE's later arms."
+match = [
+  '(CASE _ (.. (CASE ...)) _ ...)',
+  '(CASE_OTHER _ _ (.. (CASE ...)) ...)',
+  '(CASE _ _ _ (.. (CASE ...)) _ ...)',
+  '(CASE_OTHER _ _ _ _ (.. (CASE ...)) ...)',
+  '(CASE _ _ _ _ _ (.. (CASE ...)) _ ...)',
+  '(CASE_OTHER _ _ _ _ _ _ (.. (CASE ...)) ...)',
+  '(CASE _ _ _ _ _ _ _ (.. (CASE ...)) _ ...)',
+  '(CASE_OTHER _ _ _ _ _ _ _ _ (.. (CASE ...)) ...)',
+  '(CASE _ (.. (CASE_OTHER ...)) _ ...)',
+  '(CASE_OTHER _ _ (.. (CASE_OTHER ...)) ...)',
+  '(CASE _ _ _ (.. (CASE_OTHER ...)) _ ...)',
+  '(CASE_OTHER _ _ _ _ (.. (CASE_OTHER ...)) ...)',
+  '(CASE _ _ _ _ _ (.. (CASE_OTHER ...)) _ ...)',
+  '(CASE_OTHER _ _ _ _ _ _ (.. (CASE_OTHER ...)) ...)',
+  '(CASE _ _ _ _ _ _ _ (.. (CASE_OTHER ...)) _ ...)',
+  '(CASE_OTHER _ _ _ _ _ _ _ _ (.. (CASE_OTHER ...)) ...)',
+]
+
+[[signature]]
+id = "printer-set-map-connective-body"
+references = ["../findings/apalache-printer/apalache-printer-010.md"]
+description = "PrettyWriter does not delimit a set-map body wrapped in a one-argument conjunction or disjunction."
+match = [
+  '(SET_MAP (AND (.. (SET_IN ...))) ...)',
+  '(SET_MAP (AND (.. (SET_NOT_IN ...))) ...)',
+  '(SET_MAP (OR (.. (SET_IN ...))) ...)',
+  '(SET_MAP (OR (.. (SET_NOT_IN ...))) ...)',
+]

@@ -18,6 +18,12 @@ public final class KnownDefectDatabase {
     /** The database the repository ships, relative to the project directory. */
     public static final Path SHIPPED = Path.of("signatures", "known-defects.toml");
 
+    /**
+     * The recall-first superset of {@link #SHIPPED}, relative to the project directory. It
+     * replaces {@code SHIPPED} in a configuration; listing both defines every shipped id twice.
+     */
+    public static final Path ALL = Path.of("signatures", "all-defects.toml");
+
     private static final KnownDefectDatabase EMPTY = new KnownDefectDatabase(List.of());
 
     private final List<KnownDefect> signatures;
