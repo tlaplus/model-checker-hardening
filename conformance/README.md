@@ -75,8 +75,10 @@ to 100%.
 | Aggregator (corpus6) | 0.01% | Counterexample | 🟢 Pass | Division with a negative divisor | [MWE](division-negative-divisor.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-008.md) |
 | Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
 | Aggregator (corpus9) | <0.01% | 🟢 Pass | Counterexample | `CHOOSE` with several witnesses | [MWE](choose-multiple-witnesses.md#representative-mwe) | Known semantic difference |
+| Aggregator (corpus29) | 0.05% | 🟢 Pass | Counterexample | Order-sensitive fold over a set | [MWE](order-sensitive-set-fold.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus9) | <0.01% | Counterexample | 🟢 Pass | `DOMAIN` of an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
 | Aggregator (corpus10) | <0.01% | Counterexample | 🟢 Pass | Union with `Int` or `Nat` | [Finding](../findings/apalache-bmc/apalache-bmc-016.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-016.md) |
+| Aggregator (corpus29) | <0.01% | Counterexample | 🟢 Pass | Order-sensitive fold over a set | [MWE](order-sensitive-set-fold.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus12) | <0.01% | 🟢 Pass | Counterexample | `IsFiniteSet` of `Int` or `Nat`, negated | [Finding](../findings/apalache-bmc/apalache-bmc-007.md#the-dual-direction-observed-in-a-corpus) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-007.md) |
 | Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | `CASE` with several true guards | [MWE](case-multiple-true-guards.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | Computed empty function-set domain | [Finding](../findings/apalache-bmc/apalache-bmc-017.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-017.md) |

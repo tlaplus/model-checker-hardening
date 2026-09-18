@@ -3,7 +3,7 @@ state: open
 labels: [apalache]
 ---
 
-# A nested one-conjunct list in an `ApaFoldSet` lambda fails type checking under `--temporal`
+# A nested one-conjunct list in a fold lambda fails type checking under `--temporal`
 
 ## Summary
 
@@ -15,6 +15,11 @@ argument Lam$1 should have the tag ((Bool, Int) => Bool), found Bool", a Java
 stack trace and a request to report an issue. It exits with status 255. The same
 module is checked without `--temporal`, and the fold is checked with the body
 `/\ a`, `(a)` or `a`.
+
+`ApaFoldSeqLeft` with the same nested-list body fails the same way, through a
+different guard: the bounded checker reports "Inliner: Unable to unify the
+signature Bool of L$1 with the type $callSiteType at call site". See
+[the `ApaFoldSeqLeft` variant](#the-same-defect-through-apafoldseqleft).
 
 Observed with Apalache 0.62.2 (build `f0dec98`).
 
@@ -78,6 +83,68 @@ subexpressions of its Apalache JSON IR with literals, to a property
 nested in another; the crash persisted only while that nesting was kept. The
 other crashes were not reduced, and the `Next` placements were not reproduced:
 a fold with `/\ /\ a` in `Next` was checked without the crash.
+
+## The same defect through `ApaFoldSeqLeft`
+
+Replacing `ApaFoldSet` with `ApaFoldSeqLeft` reaches a different guard for the
+same nested list. The bounded checker reports `Inliner: Unable to unify the
+signature Bool of L$1 with the type $callSiteType at call site` and exits 255.
+The fold's combinator may also be a module-level operator; the `LET` form is
+not required.
+
+`FuzzInput.tla`:
+
+```tla
+---- MODULE FuzzInput ----
+EXTENDS Integers, Apalache
+VARIABLE
+  \* @type: Int;
+  x
+\* @type: (Int, Int) => Int;
+L(f, s) == IF (/\ (/\ TRUE)) THEN 0 ELSE 0
+\* @type: () => Bool;
+Init == x = ApaFoldSeqLeft(L, 0, <<0>>)
+\* @type: () => Bool;
+Next == UNCHANGED x
+\* @type: () => Bool;
+Inv == TRUE
+\* @type: () => Bool;
+Fairness == TRUE
+\* @type: () => Bool;
+Prop == TRUE
+\* @type: () => Bool;
+Liveness == Fairness => Prop
+====
+```
+
+```sh
+apalache-mc check --init=Init --next=Next --inv=Inv --temporal=Liveness --length=2 --no-deadlock FuzzInput.tla
+```
+
+```text
+<unknown>: internal error in type checking: Inliner: Unable to unify the signature Bool of L$1 with the type $callSiteType at call site
+EXITCODE: ERROR (255)
+```
+
+The crash needs `--temporal` (any property, even `Liveness == TRUE`), a
+conjunction list of one conjunct nested in another, and either fold operator;
+`/\ TRUE` alone is checked, and three nestings crash like two.
+
+The literal text `$callSiteType` in the diagnostic is a second, smaller
+defect: `Inliner.getSubstitution` builds the message as
+`s"... $calleeType ..." + "with the type $callSiteType at call site"`, and the
+second string is not interpolated, so the actual call-site type never
+appears.
+
+corpus29 has two Apalache crashes with this diagnostic,
+[`69b942b4...`](../../corpus29/02apa-crash/69b942b4f455b3b540ed3f47da0ac5d93ff20d037f8db158d417378f9644f2cf.cbor)
+and
+[`d7c2e2fd...`](../../corpus29/02apa-crash/d7c2e2fd2d7d61038323cddd93372bf9ecece5590a4df9df3b4ea0414c254042.cbor).
+The triager's signature for this finding matched only the `FoldSet` message,
+so both were left unclassified; it now covers this diagnostic as well.
+`69b942b4` was reduced from its typed IR JSON to the module above; `d7c2e2fd`
+was not reduced. FuzzTLA is `bfc3a25`, the
+Apalache build is 0.62.2 (`f0dec98`).
 
 ## Expected behavior
 

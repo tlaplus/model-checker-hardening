@@ -286,7 +286,8 @@ SIGNATURES = (
             apalache_error(r"^PASS #\d+: TemporalPass\b(?:(?!^PASS #)[\s\S])*"
                            r"^<unknown>: unexpected expression: +E@")),
     finding("apalache-temporal-002.md", CrashKind.APALACHE,
-            apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\.")),
+            apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\."),
+            apalache_error(r"internal error in type checking: Inliner: Unable to unify the signature \S+ of \S+ with the type ")),
     # Without a temporal property, the same SubstRule message is the uninitialized
     # CONSTANTS case that its hint names; generated modules declare no constants.
     finding("apalache-temporal-003.md", CrashKind.APALACHE,

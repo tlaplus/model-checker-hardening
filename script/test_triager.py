@@ -800,6 +800,21 @@ class Corpus22CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
         )
 
+    def test_inliner_unification_error_is_temporal_002(self) -> None:
+        """corpus29 69b942b4: the ApaFoldSeqLeft variant of the nested one-conjunct list."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@19:01:46.403",
+                "<unknown>: internal error in type checking: Inliner: Unable to unify the signature "
+                "Bool of Lambda108$1 with the type $callSiteType at call site E@19:01:46.224",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-002.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
     def test_unassigned_quantified_variable_in_temporal_property_is_temporal_003(self) -> None:
         """corpus23 99aa1906: \\E q27 \\in {} around <> and ~>."""
         diagnostic = "\n".join(
