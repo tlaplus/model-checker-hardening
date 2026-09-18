@@ -46,6 +46,21 @@ class TlcFailureDetailTest {
     }
 
     @Test
+    void unwrapsAnActionPropertyEvaluationFailure() {
+        var diagnostic = """
+                Error: Evaluating action property Prop failed.
+                Attempted to compute the value of an expression of form
+                CHOOSE x \\in S: P, but no element of S satisfied P.
+                line 72, col 8 to line 72, col 73 of module FuzzInput
+                Error: The behavior up to this point is:
+                """;
+
+        assertEquals(
+                "Attempted to compute the value of an expression of form",
+                TlcFailureDetail.extract(diagnostic).orElseThrow());
+    }
+
+    @Test
     void unwrapsAnErrorThatEscapedAsAGenericException() {
         var diagnostic = """
                 Error: TLC threw an unexpected exception.

@@ -142,7 +142,7 @@ TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES = (
 # (tlc-002), printed on the line after an "Evaluating ... failed." wrapper.
 TLC_MODULE_ERROR_MESSAGE = (
     r"(?:Overflow when computing |Attempted to apply (?:Head|Tail) to the empty sequence\."
-    r"|The second argument of |0\^0 is undefined\.)"
+    r"|The (?:second|third) argument of |0\^0 is undefined\.)"
 )
 
 
@@ -186,7 +186,7 @@ SIGNATURES = (
             all_of(r"^TLC error code 2184 mapped to exit status 255$",
                    r"Error: Attempted to apply (?:Head|Tail) to the empty sequence\."),
             all_of(r"^TLC error code 2183 mapped to exit status 255$",
-                   r"Error: The second argument of SubSeq must be in the domain of its first argument:"),
+                   r"Error: The (?:second|third) argument of SubSeq must be in the domain of its first argument:"),
             all_of(r"^TLC error code 2180 mapped to exit status 255$", r"Error: 0\^0 is undefined\."),
             all_of(r"^TLC error code 2179 mapped to exit status 255$", r"Error: The second argument of \\div is 0\."),
             all_of(r"^TLC error code 2169 mapped to exit status 255$",
@@ -197,9 +197,11 @@ SIGNATURES = (
                    r"Overflow when computing "),
             all_of(r"^TLC error code 2181 mapped to exit status 255$",
                    r"Error: Attempted to compute cardinality of the value"),
-            # The same module errors raised while TLC evaluates [][A]_v.
+            # The same module errors raised while TLC evaluates the invariant or [][A]_v,
+            # printed without their own "Error:" prefix after the wrapper.
             all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
-                   rf"^Error: Evaluating action property \w+ failed\.\n{TLC_MODULE_ERROR_MESSAGE}")),
+                   rf"^Error: Evaluating (?:invariant|action property) \w+ failed\.\n"
+                   rf"{TLC_MODULE_ERROR_MESSAGE}")),
     finding("tlc-003.md", CrashKind.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
@@ -286,7 +288,8 @@ SIGNATURES = (
             apalache_error(r"^PASS #\d+: TemporalPass\b(?:(?!^PASS #)[\s\S])*"
                            r"^<unknown>: unexpected expression: +E@")),
     finding("apalache-temporal-002.md", CrashKind.APALACHE,
-            apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\.")),
+            apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\."),
+            apalache_error(r"internal error in type checking: Inliner: Unable to unify the signature \S+ of \S+ with the type ")),
     # Without a temporal property, the same SubstRule message is the uninitialized
     # CONSTANTS case that its hint names; generated modules declare no constants.
     finding("apalache-temporal-003.md", CrashKind.APALACHE,
@@ -335,7 +338,7 @@ AGGREGATOR_SIGNATURES = (
             r"^Attempted to evaluate a CASE with no conditions true\.$",
             r"^In computing (?:next states|ENABLED), TLC encountered a CASE with no conditions true\.$"),
     failure("subseq-outside-domain.md", Checker.TLC,
-            r"^The second argument of SubSeq must be in the domain of its first argument:$"),
+            r"^The (?:second|third) argument of SubSeq must be in the domain of its first argument:$"),
     failure("tail-of-empty-sequence.md", Checker.TLC,
             r"^Attempted to apply Tail to the empty sequence\.$"),
     failure("zero-power-zero-tlc-fails.md", Checker.TLC, r"^0\^0 is undefined\.$"),

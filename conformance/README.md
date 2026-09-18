@@ -26,6 +26,7 @@ Rows marked `Aggregator (corpus9)` use corpus9's 250,189 aggregator deviations.
 Rows marked `Aggregator (corpus10)` use corpus10's 257,852 aggregator
 deviations. Rows marked `Aggregator (corpus12)` use corpus12's 50,545
 aggregator deviations. Rows marked `Aggregator (corpus14)` use corpus14's 62,487
+aggregator deviations. Rows marked `Aggregator (corpus29)` use corpus29's 41,688
 aggregator deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
@@ -75,8 +76,10 @@ to 100%.
 | Aggregator (corpus6) | 0.01% | Counterexample | 🟢 Pass | Division with a negative divisor | [MWE](division-negative-divisor.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-008.md) |
 | Aggregator | 0.06% | 🟢 Pass | Counterexample | Empty-domain function set | [MWE](empty-function-set.md#representative-mwe) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-002.md) |
 | Aggregator (corpus9) | <0.01% | 🟢 Pass | Counterexample | `CHOOSE` with several witnesses | [MWE](choose-multiple-witnesses.md#representative-mwe) | Known semantic difference |
+| Aggregator (corpus29) | 0.05% | 🟢 Pass | Counterexample | Order-sensitive fold over a set | [MWE](order-sensitive-set-fold.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus9) | <0.01% | Counterexample | 🟢 Pass | `DOMAIN` of an infinite-domain function | [Finding](../findings/apalache-bmc/apalache-bmc-015.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-015.md) |
 | Aggregator (corpus10) | <0.01% | Counterexample | 🟢 Pass | Union with `Int` or `Nat` | [Finding](../findings/apalache-bmc/apalache-bmc-016.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-016.md) |
+| Aggregator (corpus29) | <0.01% | Counterexample | 🟢 Pass | Order-sensitive fold over a set | [MWE](order-sensitive-set-fold.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus12) | <0.01% | 🟢 Pass | Counterexample | `IsFiniteSet` of `Int` or `Nat`, negated | [Finding](../findings/apalache-bmc/apalache-bmc-007.md#the-dual-direction-observed-in-a-corpus) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-007.md) |
 | Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | `CASE` with several true guards | [MWE](case-multiple-true-guards.md#representative-mwe) | Known semantic difference |
 | Aggregator (corpus12) | <0.01% | Counterexample | 🟢 Pass | Computed empty function-set domain | [Finding](../findings/apalache-bmc/apalache-bmc-017.md#reproduction) | [Soundness defect](../findings/apalache-bmc/apalache-bmc-017.md) |
@@ -422,6 +425,55 @@ shape of this residual: `IsFiniteSet`, `CHOOSE`, the union defect and the
 function-set defect are all wrong-answer deviations with no diagnostic on either
 side, and no aggregator signature can ever retire them.
 
+## corpus29 residuals
+
+corpus29 was generated with FuzzTLA `bfc3a25`. Its first triage left 3 Apalache
+crashes, 46 TLC crashes and 111 aggregator deviations as `NEW`. Each was
+re-checked with `fuzztla print --corpus corpus29` and TLC commit `142d0ba`
+(tla2tools `1.8.0-20260917.033119-76`) or Apalache 0.62.2 (build `f0dec98`).
+With the signatures added since, 1 Apalache crash, 45 TLC crashes and 109
+deviations remain `NEW`:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 42 | TLC crash | temporal formula TLC cannot translate; the four `cannot handle` ones quantify over a state-dependent domain | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 2 | TLC crash | `StackOverflowError` (1005) on a 2,000- and a 4,000-line module | not reduced, see below |
+| 1 | TLC crash | `OutOfMemoryError` after an initial-state evaluation error | not reduced, see below |
+| 1 | Apalache crash | `SetInRule.powSetIn is not implemented for infinite type`, from `Nat \notin SUBSET (...)` | not reduced; the message is noted in [infinite-set-as-membership-element](infinite-set-as-membership-element.md) |
+| 37 | aggregator | TLC pass, Apalache counterexample: an eventuality fails in the initial state | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 22 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 16 | aggregator | TLC counterexample, Apalache pass: `ENABLED` in a `CASE` guard | [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` with several witnesses | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 3 | aggregator | TLC pass, Apalache counterexample: `23d225ff`, `34ca0062`, `64f6a67d` | not reduced |
+| 29 | aggregator | TLC fail with the `Evaluating action property` wrapper | [function-application-outside-domain](function-application-outside-domain.md#under-a-temporal-property) |
+
+The triage that followed the first run reclassified the other three: the
+`ApaFoldSeqLeft` form of
+[`apalache-temporal-002`](../findings/apalache-temporal/apalache-temporal-002.md)
+(2 crashes), a `%` error inside the invariant that TLC printed without its own
+`Error:` prefix ([`tlc-002`](../findings/TLC/tlc-002.md), `5ec18198`), and
+`SubSeq` with an upper bound past the end
+([subseq-outside-domain](subseq-outside-domain.md), 2 deviations).
+
+The crashes that were not reduced:
+
+- `08a3eb9a` and `2097bfa0` overflowed the stack after the first initial state.
+  On a rerun with the default thread stack on another host, TLC reports an
+  ordinary evaluation error instead (`CHOOSE` without a witness and a function
+  application outside its domain) and exits 75. The overflow depends on the
+  stack size, not on the specification alone.
+- `8382764e` reports `In applying the function ... which is not in its domain`
+  while computing the initial states and then runs out of memory, with a 512 MB
+  or a 4 GB heap alike, and exits 255. After the error `ModelChecker` replays
+  `Init` with a `CallStackTool` to print the nested expressions. A class
+  histogram during the replay shows 400 MB in two `SemanticNode[]` arrays, the
+  `CallStack`, and the error surfaces in `CallStack.toString`. A plausible
+  mechanism is that `FcnLambdaValue.toString` swallows an exception while it
+  formats the message: the `CallStackTool` froze the stack when the exception
+  passed, so every later push is kept. A small module that follows this path
+  did not reproduce the growth, so the mechanism is unconfirmed.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
@@ -478,6 +530,8 @@ majority of this stage's budget.
 `fuzztla print` renders an entry with the generator settings it is given, so
 `--corpus <dir>` is required to reproduce what the workflow checked. Without it
 the defaults apply and an entry that declares action operators prints a module
-missing them, which parses and checks but is not the input the corpus recorded.
+missing them, and since integer literals decode around the corpus's
+`integer_base`, an entry can print different constants. Either parses and
+checks but is not the input the corpus recorded.
 Three corpus14 entries were first mis-triaged that way: the truncated modules
 made two deviations disappear and changed the diagnostic of a third.

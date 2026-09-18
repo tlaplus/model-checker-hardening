@@ -56,6 +56,17 @@ class AggregatorClassificationTest(unittest.TestCase):
         )
         self.assertEqual("head-of-empty-sequence.md", actual)
 
+    def test_classifies_subseq_third_argument_outside_domain(self) -> None:
+        """corpus29 343b4004 and dcffb35f."""
+        actual = triager.classify_aggregator(
+            results(
+                triager.Checker.TLC,
+                "The third argument of SubSeq must be in the domain of its first argument:",
+            ),
+            HASH_A,
+        )
+        self.assertEqual("subseq-outside-domain.md", actual)
+
     def test_classifies_apalache_failure(self) -> None:
         actual = triager.classify_aggregator(
             results(
@@ -732,6 +743,30 @@ class Corpus22CrashTest(unittest.TestCase):
                     classify_quietly(self, triager.CrashKind.TLC, diagnostic),
                 )
 
+    def test_module_error_in_invariant_without_error_prefix_is_tlc_002(self) -> None:
+        """corpus29 5ec18198: % by 0 in Inv, printed without its own "Error:" prefix."""
+        for code, message in (
+            (2169, "The second argument of % should be a positive number, but instead it is:"),
+            (2183, "The third argument of SubSeq must be in the domain of its first argument:"),
+        ):
+            diagnostic = "\n".join(
+                (
+                    f"TLC error code {code} mapped to exit status 255",
+                    "Error: Evaluating invariant Inv failed.",
+                    message,
+                    "0",
+                    "Error: The behavior up to this point is:",
+                    "Error: The error occurred when TLC was evaluating the nested",
+                    "expressions at the following positions:",
+                    "0. Line 60, column 3 to line 60, column 76 in FuzzInput",
+                )
+            )
+            with self.subTest(code=code):
+                self.assertEqual(
+                    "tlc-002.md",
+                    classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+                )
+
     def test_classifies_apalache_assignment_errors(self) -> None:
         """corpus22 7d93a530 and a spurious manual assignment."""
         for message in (
@@ -793,6 +828,21 @@ class Corpus22CrashTest(unittest.TestCase):
                 "PASS #13: BoundedChecker                                          I@21:27:55.900",
                 "<unknown>: internal error in type checking: FoldSet argument Lambda26$1 should "
                 "have the tag ((Bool, MODEL) => Bool), found Bool. E@21:27:56.125",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-002.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
+    def test_inliner_unification_error_is_temporal_002(self) -> None:
+        """corpus29 69b942b4: the ApaFoldSeqLeft variant of the nested one-conjunct list."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@19:01:46.403",
+                "<unknown>: internal error in type checking: Inliner: Unable to unify the signature "
+                "Bool of Lambda108$1 with the type $callSiteType at call site E@19:01:46.224",
             )
         )
         self.assertEqual(

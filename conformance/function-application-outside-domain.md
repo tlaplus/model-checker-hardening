@@ -61,3 +61,11 @@ its domain, and `d4308ac1` reports `Attempted to access index 0 of tuple <<>>`.
 Apalache 0.62.2 (build `f0dec98`), rerun on the IR, reports `NoError` for all
 four. Three are `copy` mutants; `f1512c5e` came from
 PBT. The FuzzTLA commit is `41bda26`.
+
+The wrapper is not specific to function application. corpus29 has 29 such
+deviations; rerun with TLC commit `142d0ba`, they report a `CHOOSE` without a
+witness (10), a function application outside the domain (8), a tuple index out
+of range (7) and a `CASE` with no true guard (4), each already a documented
+class. `TlcFailureDetail` now removes this wrapper as it removes the invariant
+one, so corpora recorded from now on store the wrapped message and the triager
+classifies them; corpus28 and corpus29 keep the wrapper.
