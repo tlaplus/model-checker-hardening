@@ -324,3 +324,78 @@ seventeenth match failed an evaluation before TLC reached the property.
 which TLC checks. The last two signatures were measured on corpus20, where the
 earlier ones already quarantined their shapes, and on the smoke corpus; their
 fourth matches failed an evaluation before TLC reached the property.
+
+### 7.1. Recall-first database
+
+`signatures/all-defects.toml` is for building a corpus fast. It quarantines every
+candidate whose code matches a defect recorded in `findings/` or `conformance/`,
+so that checking time goes only to candidates that can show new behavior.
+
+It is a superset of `known-defects.toml`. Its first 13 signatures are the shipped
+ones, in the same order, with the same ids, descriptions and patterns, so
+primary signatures do not change. Use it *instead of* `known-defects.toml`;
+listing both defines every shipped id twice, which is an error:
+
+```toml
+[workflow.inputs]
+known_defects = ["../signatures/all-defects.toml"]
+```
+
+The added signatures follow one rule:
+- **Uncommon operators.** When a defect depends on run-time values and the
+  operator is uncommon in generated code, the signature matches every use of
+  the operator. Examples are `Int`, `Nat`, `SUBSET`, `..`, `^`, `\div`,
+  `ENABLED`, `WF` and `SF`.
+- **Frequent operators.** When the operator is frequent, the signature matches
+  only the literal shapes that fail whenever they are evaluated. Examples are
+  `f[x]`, `CHOOSE`, `CASE`, `Head`, `Tail`, `SubSeq` and `%`.
+- **Function sets.** `[S -> T]` stays admitted except in its failing special
+  cases. A function set here is `[S -> T]` itself, or one `IF` branch, `\union`,
+  `\intersect` or `\` operand of it. The special cases are:
+  - `function-set-empty-component`: a literal empty domain or range, or a range
+    computed by a fold;
+  - `function-set-equality`: a function set compared with `=` or `#`;
+  - `function-set-expansion`: a function set that is folded, mapped, filtered,
+    counted, unioned by `UNION`, or the set of an applied `CHOOSE`.
+
+The remaining signatures match fixed shapes:
+- the TLC findings about temporal formulas;
+- the SANY `%` level-error crash;
+- the Apalache temporal and assignment findings;
+- the open `PrettyWriter` findings. `printer-fold-in-left-operand` matches a fold
+  that ends an operand, directly or one infix level down, followed by another
+  operand.
+
+The database header and `AllDefectsTest` list the documents that no pattern can
+express:
+- A constant `FALSE` invariant or property: a pattern cannot be anchored to a
+  definition.
+- Labels in `EXCEPT` (`sany-002`): labels are skipped.
+- The order sensitivity of a fold combinator, and TLC heap exhaustion in an
+  applied `CHOOSE`: these depend on operand values.
+- Fixed findings.
+
+The test fails when a new finding or conformance document is neither
+referenced by a signature nor listed as uncovered.
+
+Measurements, taken on 2026-09-18:
+- **corpus29 sample.** The database matched 73.3% of a sample of 600 corpus29
+  entries. corpus29 was generated with `known-defects.toml`, so every entry in
+  the sample had already passed the shipped signatures. The top matches by
+  share:
+  - `choose-literal-without-witness`, 57%: the generator often writes
+    `CHOOSE x \in S : FALSE`;
+  - `printer-fold-in-left-operand`, 48%;
+  - `enabled`, 37%;
+  - `power`, 33%;
+  - `division`, 32%.
+- **Function sets.** Of the 34 sampled entries that contain `[S -> T]`, 10 match a
+  function-set signature. Every one of the 34 also matches another signature,
+  so the total stays at 73.3%.
+- **Fresh corpus with all categories enabled.** 313 of 373 candidates above the
+  richness threshold were quarantined, and generation completed.
+- **Remaining disagreements.** The admitted entries still produced 29
+  aggregator disagreements:
+  - 16 constant `FALSE` invariants or properties;
+  - 13 function applications, `CASE`s and `CHOOSE`s that failed on run-time
+    values.
