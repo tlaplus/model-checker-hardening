@@ -96,12 +96,28 @@ came from PBT, not mutation. Entries with a name on the left of the membership
 would parse and reach both checkers with different meanings, and they are not
 distinguishable in the corpus without replaying the IR.
 
+corpus33 entry `044bf489`, a `bitflip` mutant, shows the same defect with a
+binary wrapper. Its set-map body is `EQUIV(SET_IN(var0, S), FALSE)`. `<=>` binds
+more loosely than `\in`, so the writer prints the membership bare as the left
+operand:
+
+```tla
+{ var0 \in { "1", "2", "3" } <=> FALSE: mapped14 \in {...} }
+```
+
+SANY parses this as a filter that binds `var0`, and rejects the module with
+`Multiply-defined symbol 'var0'` because `var0` is a state variable. With a fresh
+name on the left, SANY would accept the filter silently. The fix has to test
+the leftmost operand of the printed body, not just unary wrappers. Reproduced
+with FuzzTLA `d4f274c` and `org.apalache-mc:tla-io_2.13:0.62.3-SNAPSHOT`.
+
 ## Expected behavior
 
 `PrettyWriter` should delimit a set-map body whenever its printed form starts
 with a membership test, not only when the body's own operator is `\in`. The
-fix should handle unary `/\` and `\/`, and any other wrapper that prints its
-single argument unchanged. A regression test should compare the reparsed tree
+fix should handle unary `/\` and `\/`, any other wrapper that prints its
+single argument unchanged, and a binary operator that binds more loosely than
+`\in`, such as `<=>`, whose left operand is a membership. A regression test should compare the reparsed tree
 with the input, since SANY accepts the corrupted form when the element is a
 name.
 

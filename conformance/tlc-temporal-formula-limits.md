@@ -6,8 +6,8 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 1000-module corpus20, generated with the same categories and the first five
 signatures below, another 6 did; corpus22, with all seven signatures, left 57
 more, corpus23 76, corpus24 69, corpus25 125, corpus26 66, corpus28 34,
-corpus29 42 and corpus30 28 (see [Signature precision](#signature-precision)); corpus32 adds 5,
-all of the label row below. SANY accepted all of them. corpus29's four `cannot handle` crashes are all the row with a
+corpus29 42 and corpus30 28 (see [Signature precision](#signature-precision)); corpus32 adds 5
+and corpus33 12, all of the label row below. SANY accepted all of them. corpus29's four `cannot handle` crashes are all the row with a
 state-dependent bounded quantifier domain. corpus30 has 26 `must be of forms`
 crashes and 2 `cannot handle` ones, `6279a66a` with the state-dependent
 `identifier var0 is either undefined or not an operator` tail and `9f62c5a3`
