@@ -524,6 +524,43 @@ property is `P ~> FALSE` where `P` reads `var1` inside an `ApaFoldSeqLeft`
 lambda; a rerun reports the message with error 2280, which maps to exit status
 150.
 
+## corpus31 residuals
+
+corpus31 was generated with FuzzTLA `80f63a5`, the first run that quarantines
+candidates against `signatures/all-defects.toml` (3,239 entries in
+`00-known-defects`). Its triage left 17 TLC crashes and 42 aggregator deviations
+as `NEW`; the Apalache crashes all matched the catalog or were worker timeouts.
+Each `NEW` deviation was rerun with FuzzTLA `66a1262`, TLC commit `142d0ba`
+(tla2tools `1.8.0-20260917.033119-76`) and Apalache 0.62.2 (build `f0dec98`);
+all 42 reproduced their verdicts. No entry needs a new finding or class:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 17 | TLC crash | temporal formula TLC cannot translate: `must be of forms` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 31 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` in `Inv` or `Prop` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` in `Next` | [order-sensitive-set-fold](order-sensitive-set-fold.md#in-the-next-state-action) |
+| 1 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` in `Init`, `a6d495e7` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: an evaluation error in the initial state exits 0; `611e21df` also masks an initial invariant violation | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` in `Next` with several witnesses, `2af3949d` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 3 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet` in `Init` (`1dbd8909`), `Inv` (`b8c1da55`) and `Prop` (`fb460876`) | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+
+The 31 `Inv`/`Prop` folds were rerun but not individually reduced. Every
+combinator returns its element argument or a value built only from it, such as
+`VariantGetOrElse("Tag0", b, FALSE)`, `<<b>>`, `IF a /= b <=> FALSE THEN a ELSE b`,
+or an inner fold seeded with `b`. In `b489b9be` the combinator is
+`CHOOSE r \in R : b`: TLC never evaluates the no-witness case `b = FALSE`, because
+the combinator ignores its accumulator and TLC passes arguments lazily.
+
+In `2af3949d` the only transition quantifies over
+`CHOOSE s \in {{}, {"1"}, {"1", "2"}} : var0`. TLC picks `{}`, so the transition
+is disabled and `Inv == var0` holds; Apalache picks a non-empty set and reaches
+`var0 = FALSE` in state 1.
+
+`fb460876` nests an `ApaFoldSeqLeft` whose combinator returns its accumulator in
+an `ApaFoldSet` combinator, so the set fold returns its last element. An MWE with
+`Init == flag = ApaFoldSet(L8, FALSE, {TRUE, FALSE})` confirms TLC computes `TRUE`
+and Apalache `FALSE`; the property `<>fold ~> FALSE` then fails only in TLC.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

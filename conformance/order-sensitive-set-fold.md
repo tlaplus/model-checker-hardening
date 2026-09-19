@@ -72,6 +72,22 @@ All 27 deviations were rerun with the workflow's arguments: TLC commit
 `e2dbe490`; Apalache 0.62.2 (build `f0dec98`) reports a counterexample for the
 26 and `NoError` for `e2dbe490`. FuzzTLA is `bfc3a25`.
 
+### In the next-state action
+
+corpus31 adds four deviations in which the fold sits in `Next`, so the two
+tools reach different states rather than evaluate an invariant differently.
+In `36808942`, `4c20bbe3`, `4cb60178` and `96fd2e43`, `var1` starts as
+`{TRUE, FALSE}` and `Next` may set it to
+`ApaFoldSet(L, _, {TRUE, FALSE})` with `L(a, b) == {b, FALSE}` (in `4cb60178`,
+`{b, FALSE} \ var1`). TLC's fold yields `{TRUE, FALSE}`, Apalache's `{FALSE}`,
+and `Inv` distinguishes `{FALSE}` from `var1`. Apalache reports the violation in
+state 1 (state 2 for `4cb60178`, whose fold first yields `{}`); TLC never reaches
+`var1 = {FALSE}` and passes. In `4c20bbe3` and `96fd2e43` the invariant contains
+a second fold, `ApaFoldSet(L, FALSE, var1)` with `L(a, b) == ~a`. That
+combinator computes the parity of `Cardinality(var1)`, which does not depend on
+order, so it only observes the state that the `Next` fold reached. Rerun with
+FuzzTLA `66a1262`, TLC commit `142d0ba` and Apalache 0.62.2 (build `f0dec98`).
+
 Specifications that must be checked by both tools should only fold over a set
 with an order-insensitive combinator, or fold over a sequence with
 `ApaFoldSeqLeft`, where the order is fixed.
