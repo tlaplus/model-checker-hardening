@@ -12,6 +12,7 @@ import io.github.tlaplus.hardening.workflow.input.MutantCandidates;
 import io.github.tlaplus.hardening.workflow.input.ParentPool;
 import io.github.tlaplus.hardening.workflow.input.PbtCandidates;
 import io.github.tlaplus.hardening.workflow.quality.QualityGate;
+import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -74,7 +75,8 @@ final class GenerationLoop {
             }
             new QualityGate(
                             invocation.corpus(),
-                            setup.config().mutator(),
+                            setup.config().mutator().gate(),
+                            new EvaluatedExprs(setup.decoders())::count,
                             graph.counters(CorpusStage.QUALITY))
                     .run(generation.number());
             // Startup validated every payload, and this build wrote every entry since.

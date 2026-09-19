@@ -259,14 +259,20 @@ This workflow specializes the general workflow as follows:
   invariant was violated. Failure codes are diagnostic metadata and do not affect
   this verdict-level comparison. A crash in either checker is not aggregated and
   remains in the checker result directories.
-- **Quality gate.** The gate ranks the agreeing entries of a settled generation
-  and keeps the best `[mutator] select_fraction` of them in `04quality-pass`;
-  the rest move to `04quality-fail` ([ADR 0010][]). An entry is admissible when
-  its TLC verdict is not `fail`, TLC measured its exploration, and it matches
-  none of the enabled shallow patterns of [ADR 0008][]. Admissible entries are
-  ranked lexicographically by projected depth, projected states, discovering
-  actions and state shape. The gate commits every pass in rank order before any
-  fail, so rerunning it after an interruption completes the same placement.
+- **Quality gate.** The gate walks the admissible entries of a settled
+  generation in rank order and keeps those that show a behaviour or cover code
+  the kept entries lack, up to `[mutator] select_fraction` of the generation, in
+  `04quality-pass`; the rest move to `04quality-fail` ([ADR 0010][],
+  [ADR 0013][]). An entry is admissible when its TLC verdict is not `fail`, TLC
+  measured its exploration, and it matches none of the enabled shallow patterns
+  of [ADR 0008][]. Admissible entries are ranked lexicographically by projected
+  depth, projected states, discovering actions and state shape. An entry is
+  kept if its behaviour cell (TLC verdict and bucketed rank key) holds fewer
+  than `cell_capacity` kept entries, over every generation, or if `feature_coverage` is
+  enabled and it adds an operator-edge feature of its evaluated code. The
+  gate replays inputs through the generator to compute these features. It
+  commits every pass in rank order before any fail, so rerunning it after an
+  interruption completes the same placement.
 - **Mutator.** The mutator derives `[mutator] feedback_ratio` of each
   generation from `04quality-pass` by byte-level edits; PBT supplies the rest.
   With `feedback_ratio = 0`, or before any entry passes the gate, a generation
@@ -599,6 +605,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0008]: ../decisions/0008-exploration-metrics.md
 [ADR 0009]: ../decisions/0009-corpus-database.md
 [ADR 0010]: ../decisions/0010-mutation.md
+[ADR 0013]: ../decisions/0013-behaviour-archive-and-operator-coverage.md
 [database manual]: ../manual/corpus-database.md
 [mutation manual]: ../manual/mutation.md
 [metrics manual]: ../manual/exploration-metrics.md

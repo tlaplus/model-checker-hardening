@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.database;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.InputAnalysis;
 import java.util.Objects;
 
 /** The result of analysing one input: its counts, or why the input could not be replayed. */

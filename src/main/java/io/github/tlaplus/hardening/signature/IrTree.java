@@ -13,6 +13,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
@@ -37,11 +38,32 @@ final class IrTree {
     private IrTree() {}
 
     /**
+     * One subexpression the walk reaches, with the expression it is an immediate subexpression of:
+     * an operator application or a {@code LET-IN}, labels removed. The body of a definition has no
+     * parent, since it is reached through a name or as a root.
+     */
+    record Visit(TlaEx node, Optional<TlaEx> parent) {
+        Visit {
+            Objects.requireNonNull(node, "node");
+            Objects.requireNonNull(parent, "parent");
+        }
+    }
+
+    /**
      * Returns the subexpressions reachable from the root definitions, in pre-order.
      *
      * @throws IllegalArgumentException if the module does not define a root
      */
     static List<TlaEx> evaluatedSubexpressions(TlaModule module, List<String> roots) {
+        return evaluatedVisits(module, roots).stream().map(Visit::node).toList();
+    }
+
+    /**
+     * Returns the visits of the subexpressions reachable from the root definitions, in pre-order.
+     *
+     * @throws IllegalArgumentException if the module does not define a root
+     */
+    static List<Visit> evaluatedVisits(TlaModule module, List<String> roots) {
         Objects.requireNonNull(module, "module");
         var definitions = new HashMap<String, TlaOperDecl>();
         for (var declaration : TlaModules.declarations(module)) {
@@ -78,24 +100,24 @@ final class IrTree {
     private record Scope(Map<String, TlaOperDecl> definitions, Scope enclosing) {}
 
     private static final class Walk {
-        private final List<TlaEx> result = new ArrayList<>();
+        private final List<Visit> result = new ArrayList<>();
         private final Set<TlaOperDecl> visited = Collections.newSetFromMap(new IdentityHashMap<>());
 
         /** Walks a definition's body once, resolving its references where it is defined. */
         void definition(TlaOperDecl definition, Scope scope) {
             if (visited.add(definition)) {
-                expression(definition.body(), scope);
+                expression(definition.body(), scope, Optional.empty());
             }
         }
 
-        void expression(TlaEx expression, Scope scope) {
+        void expression(TlaEx expression, Scope scope, Optional<TlaEx> parent) {
             var node = unlabeled(expression);
-            result.add(node);
+            result.add(new Visit(node, parent));
             switch (node) {
                 case NameEx name -> reference(name.name(), scope);
                 case OperEx application -> {
                     for (var argument : TlaExpressions.arguments(application)) {
-                        expression(argument, scope);
+                        expression(argument, scope, Optional.of(node));
                     }
                 }
                 case LetInEx letIn -> {
@@ -104,7 +126,7 @@ final class IrTree {
                     declarations.forEach(declaration -> local.put(declaration.name(), declaration));
                     var letScope = new Scope(local, scope);
                     declarations.forEach(declaration -> definition(declaration, letScope));
-                    expression(letIn.body(), letScope);
+                    expression(letIn.body(), letScope, Optional.of(node));
                 }
                 default -> {
                     // A literal has no subexpressions.

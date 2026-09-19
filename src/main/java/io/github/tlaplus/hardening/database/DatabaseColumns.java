@@ -47,6 +47,8 @@ final class DatabaseColumns {
 
     static final Column NAME = required("name", SqlType.TEXT);
     static final Column OCCURRENCES = required("occurrences", SqlType.INTEGER);
+    static final Column PARENT_NAME = required("parentName", SqlType.TEXT);
+    static final Column CHILD_NAME = required("childName", SqlType.TEXT);
 
     static final Column ERROR = required("error", SqlType.TEXT);
 

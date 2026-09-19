@@ -12,6 +12,7 @@ import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.InputStageConfig;
 import io.github.tlaplus.hardening.config.MutatorConfig;
+import io.github.tlaplus.hardening.config.QualityGateConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
@@ -607,7 +608,8 @@ class WorkflowRunnerTest {
                 base.generator(),
                 base.workflow(),
                 new PbtConfig(8, 1, 2.0, 1.5),
-                new MutatorConfig(4, 1.0, 0.5, 1, Map.of(MutationOperator.INSERT, 1), Set.of()),
+                new MutatorConfig(
+                        4, 0.5, 1, Map.of(MutationOperator.INSERT, 1), new QualityGateConfig(1.0, Set.of(), 0, false)),
                 base.libraries());
     }
 

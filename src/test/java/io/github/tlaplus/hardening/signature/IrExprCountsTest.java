@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.signature;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.github.tlaplus.hardening.common.ExprEdge;
 import java.util.List;
 import java.util.Map;
 import org.apalache_mc.tla.jir.TlaModules;
@@ -42,6 +43,16 @@ class IrExprCountsTest {
                         "TlaBool", 1L),
                 counts.exprs());
         assertEquals(IrTree.evaluatedSubexpressions(module, List.of("Inv")).size(), counts.nodes());
+        // Edges skip names: the bodies of Helper and Local have no parent, and the arguments of EQ
+        // are names. The label between Helper and PLUS is transparent.
+        assertEquals(
+                Map.of(
+                        new ExprEdge("AND", "EQ"), 1L,
+                        new ExprEdge("AND", IrExprCounts.LET_IN), 1L,
+                        new ExprEdge(IrExprCounts.LET_IN, "TlaBool"), 1L,
+                        new ExprEdge("PLUS", "TlaInt"), 2L,
+                        new ExprEdge("MINUS", "TlaInt"), 2L),
+                counts.edges());
     }
 
     @Test

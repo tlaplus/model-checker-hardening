@@ -128,11 +128,14 @@ public final class TomlConfig {
 
         var mutatorConfig = new MutatorConfig(
                 ConfigSchema.GENERATION_SIZE.read(tables),
-                ConfigSchema.SELECT_FRACTION.read(tables),
                 ConfigSchema.FEEDBACK_RATIO.read(tables),
                 ConfigSchema.MAXIMUM_EDITS.read(tables),
                 ConfigSchema.OPERATOR_WEIGHTS.read(tables),
-                ConfigSchema.SHALLOW_PATTERNS.read(tables));
+                new QualityGateConfig(
+                        ConfigSchema.SELECT_FRACTION.read(tables),
+                        ConfigSchema.SHALLOW_PATTERNS.read(tables),
+                        ConfigSchema.CELL_CAPACITY.read(tables),
+                        ConfigSchema.FEATURE_COVERAGE.read(tables)));
 
         var libraries = new OperatorLibraryConfig(
                 ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))

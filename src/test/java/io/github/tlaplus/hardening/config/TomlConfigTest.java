@@ -286,13 +286,16 @@ class TomlConfigTest {
         var config = readConfig(directory, rendered
                 .replace(DEFAULT_OPERATOR_WEIGHTS, "weights = { splice = 2 }")
                 .replace(DEFAULT_SHALLOW_PATTERNS, "shallow_patterns = [\"early_failure\"]")
-                .replace("select_fraction = 0.05", "select_fraction = 1"));
+                .replace("select_fraction = 0.05", "select_fraction = 1")
+                .replace("cell_capacity = 4", "cell_capacity = 0")
+                .replace("feature_coverage = true", "feature_coverage = false"));
 
         var weights = config.mutator().weights();
         assertEquals(2, weights.get(MutationOperator.SPLICE));
         assertEquals(0, weights.get(MutationOperator.RANDOM_BYTE));
-        assertEquals(Set.of(ShallowPattern.EARLY_FAILURE), config.mutator().shallowPatterns());
-        assertEquals(1.0, config.mutator().selectFraction());
+        assertEquals(
+                new QualityGateConfig(1.0, Set.of(ShallowPattern.EARLY_FAILURE), 0, false),
+                config.mutator().gate());
         assertEquals(config, readConfig(directory, TomlConfig.render(config)));
     }
 
@@ -317,6 +320,13 @@ class TomlConfigTest {
         var noSelection = assertInvalid(
                 directory, rendered.replace("select_fraction = 0.05", "select_fraction = 0"));
         assertTrue(noSelection.getMessage().contains("selectFraction"), noSelection.getMessage());
+
+        var capacity = assertInvalid(
+                directory, rendered.replace("cell_capacity = 4", "cell_capacity = -1"));
+        assertTrue(capacity.getMessage().contains("cellCapacity"), capacity.getMessage());
+
+        var coverage = assertInvalid(directory, rendered.replace("feature_coverage = true", "feature_coverage = 1"));
+        assertTrue(coverage.getMessage().contains("to be a boolean"), coverage.getMessage());
 
         var ratio = assertInvalid(
                 directory, rendered.replace("feedback_ratio = 0.5", "feedback_ratio = 1.5"));

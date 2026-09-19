@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `5`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `6`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -196,7 +196,25 @@ counted; they count towards `entry.evaluatedNodes` only.
 | `name` | TEXT | no | Operator name, `LetInEx`, or literal value kind, as in Apalache's IR JSON | replayed `input` |
 | `occurrences` | INTEGER | no | Occurrences of the construct in the evaluated code | replayed `input` |
 
-### 2.7. `unreadable`
+### 2.7. `exprEdge`
+
+One row per edge between constructs of an entry's evaluated code, as the walk
+of section 2.6 visits it. An edge joins a construct to a construct that is its
+immediate argument, or to the body of a `LET-IN`, once labels are removed.
+Names are not constructs, so an edge never passes through a name: the body of
+a referenced definition has no parent. The key is
+`(entryId, parentName, childName)`. The quality gate's coverage features are
+derived from these edges and from `expr`
+([ADR 0013][adr-0013]).
+
+| Column | Type | Null | Meaning | Source |
+| --- | --- | --- | --- | --- |
+| `entryId` | INTEGER | no | `entry.id` | – |
+| `parentName` | TEXT | no | The enclosing construct, named as in `expr.name` | replayed `input` |
+| `childName` | TEXT | no | The argument construct, named as in `expr.name` | replayed `input` |
+| `occurrences` | INTEGER | no | Occurrences of the edge in the evaluated code | replayed `input` |
+
+### 2.8. `unreadable`
 
 One row per entry file that does not decode as a corpus envelope. The export
 continues past such files. The key is `(directory, hash)`.
@@ -207,7 +225,7 @@ continues past such files. The key is `(directory, hash)`.
 | `hash` | TEXT | no | Digest from the file name | file name |
 | `error` | TEXT | no | The decoder's diagnostic | – |
 
-### 2.8. `verdictPair`
+### 2.9. `verdictPair`
 
 A view with one row per entry that has an `aggregator` stage record. It puts the
 two checkers' results side by side.
@@ -225,7 +243,7 @@ two checkers' results side by side.
 | `apalacheCode` | INTEGER | yes | Apalache failure code | `stage.code` |
 | `apalacheTraceLength` | INTEGER | yes | Apalache counterexample length | `stage.traceLength` |
 
-### 2.9. Indexes
+### 2.10. Indexes
 
 Besides the keys, `stage(stage, verdict)` is indexed. `expr` has no index on
 `name`: on corpus22 it would add 61 MB and save at most 0.1 s per query. The unique key
@@ -361,3 +379,4 @@ The column names of the imported table come from the CSV header.
 [adr-0003]: ../decisions/0003-checker-failure-codes.md
 [adr-0008]: ../decisions/0008-exploration-metrics.md
 [adr-0010]: ../decisions/0010-mutation.md
+[adr-0013]: ../decisions/0013-behaviour-archive-and-operator-coverage.md

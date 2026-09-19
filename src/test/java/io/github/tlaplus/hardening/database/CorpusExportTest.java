@@ -15,10 +15,12 @@ import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.common.Digests;
 import io.github.tlaplus.hardening.common.ExprCounts;
+import io.github.tlaplus.hardening.common.ExprEdge;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.InputAnalysis;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
@@ -116,6 +118,11 @@ class CorpusExportTest {
                     rows(connection,
                             "SELECT o.name, o.occurrences FROM expr o JOIN entry e ON e.id = o.entryId"
                                     + " WHERE e.hash = '" + aggregated + "' ORDER BY o.name"));
+            assertEquals(
+                    List.of(row("EQ", "SET_ENUM", 10L)),
+                    rows(connection,
+                            "SELECT x.parentName, x.childName, x.occurrences FROM exprEdge x"
+                                    + " JOIN entry e ON e.id = x.entryId WHERE e.hash = '" + aggregated + "'"));
             assertEquals(
                     List.of(row("modulo-by-zero", 0L), row("string-set", 1L)),
                     rows(connection, "SELECT signature, position FROM knownDefect ORDER BY position"));
@@ -357,11 +364,14 @@ class CorpusExportTest {
                 var tables = new ArrayList<List<Object>>();
                 tables.addAll(rows(connection, "SELECT * FROM entry ORDER BY id"));
                 tables.addAll(rows(connection, "SELECT * FROM expr ORDER BY entryId, name"));
+                tables.addAll(rows(connection,
+                        "SELECT * FROM exprEdge ORDER BY entryId, parentName, childName"));
                 contents.add(tables);
             }
         }
 
-        assertEquals(EntryBatchExporter.CHUNK_SIZE + 7 + 2 * (EntryBatchExporter.CHUNK_SIZE + 7),
+        // Per entry: one entry row, two expr rows and one exprEdge row.
+        assertEquals(EntryBatchExporter.CHUNK_SIZE + 7 + 3 * (EntryBatchExporter.CHUNK_SIZE + 7),
                 contents.getFirst().size());
         assertEquals(contents.getFirst(), contents.getLast());
     }
@@ -375,7 +385,8 @@ class CorpusExportTest {
 
     /**
      * A stand-in for replay: the node count is the payload length, and every payload has one
-     * equality and a set enumeration per byte. Payloads {@code boom} and {@code deep} fail.
+     * equality and a set enumeration per byte, each an argument of the equality. Payloads {@code
+     * boom} and {@code deep} fail.
      */
     private static ExprCounts analyze(CorpusInput input) {
         var payload = new String(input.input(), StandardCharsets.UTF_8);
@@ -384,7 +395,8 @@ class CorpusExportTest {
             case "deep" -> throw new StackOverflowError();
             default -> new ExprCounts(
                     payload.length(),
-                    new TreeMap<>(Map.of("EQ", 1L, "SET_ENUM", (long) payload.length())));
+                    new TreeMap<>(Map.of("EQ", 1L, "SET_ENUM", (long) payload.length())),
+                    new TreeMap<>(Map.of(new ExprEdge("EQ", "SET_ENUM"), (long) payload.length())));
         };
     }
 
