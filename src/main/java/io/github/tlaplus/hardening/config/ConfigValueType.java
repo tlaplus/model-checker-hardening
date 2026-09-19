@@ -53,6 +53,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<Double> NUMBER =
             new ConfigValueType<>(ConfigValueType::readDouble, Object::toString);
 
+    static final ConfigValueType<Boolean> BOOLEAN =
+            new ConfigValueType<>(ConfigValueType::readBoolean, String::valueOf);
+
     static final ConfigValueType<Set<ExpressionCategory>> CATEGORIES =
             names(ExpressionCategory.class, ExpressionCategory::configName, "expression category");
 
@@ -104,6 +107,13 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             return table.getLong(key);
         }
         throw new ConfigException("expected '" + path + "' to be a number");
+    }
+
+    private static boolean readBoolean(TomlTable table, String path, String key) throws ConfigException {
+        if (!table.isBoolean(key)) {
+            throw new ConfigException("expected '" + path + "' to be a boolean");
+        }
+        return table.getBoolean(key);
     }
 
     /** Reads one TOML array, naming it by its document path in any diagnostic. */

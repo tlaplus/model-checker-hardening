@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.InputAnalysis;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;

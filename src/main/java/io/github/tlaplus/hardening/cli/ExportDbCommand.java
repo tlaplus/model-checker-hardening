@@ -7,7 +7,7 @@ import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
-import io.github.tlaplus.hardening.database.InputAnalysis;
+import io.github.tlaplus.hardening.corpus.InputAnalysis;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;

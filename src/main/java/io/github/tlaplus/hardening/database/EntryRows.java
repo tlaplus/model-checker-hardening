@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.database;
 
+import static io.github.tlaplus.hardening.database.DatabaseColumns.CHILD_NAME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.CODE;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.COHORT;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.DETAIL;
@@ -19,6 +20,7 @@ import static io.github.tlaplus.hardening.database.DatabaseColumns.NAME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.OCCURRENCES;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.OPERATOR;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PARENT;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.PARENT_NAME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PHASE;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.POSITION;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.REPLAY_ERROR;
@@ -40,8 +42,8 @@ import java.util.List;
 /**
  * The rows that one decoded corpus entry contributes: its {@code entry} row, followed by the rows
  * that reference it: one {@code knownDefect} row per signature, one {@code mutationOperator} row
- * per operator, one {@code stage} row per stage record and one {@code expr} row per expression
- * construct of its replayed input.
+ * per operator, one {@code stage} row per stage record, one {@code expr} row per expression
+ * construct of its replayed input and one {@code exprEdge} row per edge between constructs.
  */
 record EntryRows(Row entry, List<Row> dependents) {
     EntryRows {
@@ -82,6 +84,12 @@ record EntryRows(Row entry, List<Row> dependents) {
                         new Row(DatabaseTable.EXPR)
                                 .set(ENTRY_ID, id)
                                 .set(NAME, name)
+                                .set(OCCURRENCES, occurrences)));
+                counts.edges().forEach((edge, occurrences) -> dependents.add(
+                        new Row(DatabaseTable.EXPR_EDGE)
+                                .set(ENTRY_ID, id)
+                                .set(PARENT_NAME, edge.parent())
+                                .set(CHILD_NAME, edge.child())
                                 .set(OCCURRENCES, occurrences)));
             }
             case ReplayOutcome.Failed(var error) -> entry.set(REPLAY_ERROR, error);

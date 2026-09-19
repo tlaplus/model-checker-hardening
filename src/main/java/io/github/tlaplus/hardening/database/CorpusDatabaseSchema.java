@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  */
 final class CorpusDatabaseSchema {
     /** Stored in {@code PRAGMA user_version}. */
-    static final int VERSION = 5;
+    static final int VERSION = 6;
 
     static final String VERDICT_PAIR_VIEW = "verdictPair";
 

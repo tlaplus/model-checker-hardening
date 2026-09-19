@@ -145,6 +145,23 @@ The export adds a table `exprEdge (entryId, parentName, childName,
 occurrences)`, so the coverage of a corpus is a query, and raises the schema
 version to 6.
 
+### Replay on corpus31
+
+Replaying corpus31's generations through the gate, with `select_fraction = 0.25`, shows how selective each rule is. The
+replay is not counterfactual: under a different gate the mutants would have
+different parents. With `cell_capacity = 0` and `coverage = false`, it
+reproduces the recorded pool exactly.
+
+| `cell_capacity`, `coverage` | pool | cells | PBT entries | kept by coverage |
+| --- | ---: | ---: | ---: | ---: |
+| 0, `false` (ADR 0010) | 15,682 | 122 | 144 | – |
+| 4, `false` | 682 | 223 | 178 | – |
+| 4, `true` | 1,914 | 223 | 553 | 1,232 |
+
+With both rules, coverage keeps 689, 272, 160 and 111 entries in generations
+0–49, 50–99, 100–149 and 150–199, over 2,540 features. The edge signal does not
+saturate.
+
 ## Alternatives considered
 
 - **Lower `select_fraction`.** It shrinks the pool but keeps choosing the same

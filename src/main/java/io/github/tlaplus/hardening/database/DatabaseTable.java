@@ -48,6 +48,12 @@ enum DatabaseTable {
             List.of(ENTRY_ID, NAME),
             List.of(),
             true),
+    EXPR_EDGE(
+            "exprEdge",
+            List.of(ENTRY_ID, PARENT_NAME, CHILD_NAME, OCCURRENCES),
+            List.of(ENTRY_ID, PARENT_NAME, CHILD_NAME),
+            List.of(),
+            true),
     UNREADABLE(
             "unreadable", List.of(DIRECTORY, HASH, ERROR), List.of(DIRECTORY, HASH), List.of(), false);
 

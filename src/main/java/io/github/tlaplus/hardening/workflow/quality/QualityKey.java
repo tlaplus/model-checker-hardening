@@ -57,6 +57,11 @@ final class QualityKey {
         }
     }
 
+    /** Returns the value of every component, in comparison order. */
+    static List<Long> components(ExplorationMetrics metrics) {
+        return COMPONENTS.stream().map(component -> component.value(metrics)).toList();
+    }
+
     /** Orders the best entry first. */
     static final Comparator<Ranked> BEST_FIRST = bestFirst();
 
