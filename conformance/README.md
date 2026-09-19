@@ -474,6 +474,47 @@ The crashes that were not reduced:
   passed, so every later push is kept. A small module that follows this path
   did not reproduce the growth, so the mechanism is unconfirmed.
 
+## corpus30 residuals
+
+corpus30 was generated with FuzzTLA `80f63a5` and TLC commit `142d0ba`
+(tla2tools `1.8.0-20260917.033119-76`). Its triage left 30 TLC crashes and 83
+aggregator deviations as `NEW`; the Apalache crashes all matched the catalog or
+were worker timeouts (6,954 of 7,486). Each `NEW` entry was re-checked with
+`fuzztla print --corpus corpus30` and the same TLC, or Apalache 0.62.2 (build
+`f0dec98`):
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 26 | TLC crash | temporal formula TLC cannot translate: `must be of forms` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 2 | TLC crash | temporal formula TLC cannot translate: `cannot handle` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 2 | TLC crash | `StackOverflowError` (1005) after the initial states | not reduced; the corpus29 section covers the class |
+| 33 | aggregator | TLC pass, Apalache counterexample: an evaluation error in the initial state exits 0; 16 also mask an initial invariant violation | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 12 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` in `Inv` or `Prop` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `IsFiniteSet(Nat)` in `Inv`, `9522bda4` | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` over `DOMAIN <<...>>` with a vacuous predicate, `a6befd0a` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 13 | aggregator | TLC fail with the `Evaluating action property Prop failed.` wrapper (11 Apalache pass, 2 counterexample) | [function-application-outside-domain](function-application-outside-domain.md#under-a-temporal-property) |
+| 2 | aggregator | TLC fail storing a `StackOverflowError` detail; a rerun reports an ordinary evaluation error and exits 75 | stack-size dependent, see the corpus29 section |
+| 12 | aggregator | TLC counterexample, Apalache pass: a `CASE` with an `ENABLED` guard and no `OTHER` | [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet` in `Init`, `f1dcd41c` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: a `SUBSET`-valued fold combinator, `05b268ce` | [`apalache-bmc-020`](../findings/apalache-bmc/apalache-bmc-020.md) |
+| 6 | aggregator | TLC counterexample, Apalache pass: `ENABLED` in a non-`CASE` position (an `IF` condition, a set-filter predicate, a tuple element) | not reduced; possible variants of [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md) |
+| 1 | aggregator | TLC fail, exit 150, `the identifier var1 is either undefined or not an operator` raised while TLC prepares liveness checking, `abb1ffd8` | not reduced |
+
+The 12 `CASE` rows carry the `apalache-bmc-019` shape in the text of the
+invariant's operator tree but were not individually reduced. Of the two
+`cannot handle` crashes, `6279a66a` adds the state-dependent `identifier var0
+is either undefined or not an operator` tail; `9f62c5a3` prints the bare line.
+
+`abb1ffd8` is the one deviation whose detail has a catalog text at a new exit
+status: the triager's signature for
+`In evaluation, the identifier \w+ is either undefined or not an operator.`
+expects exit 75 ([`apalache-printer-008`](../findings/apalache-printer/apalache-printer-008.md)),
+and the state-dependent-domain rows of
+[tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) are crashes. Its
+property is `P ~> FALSE` where `P` reads `var1` inside an `ApaFoldSeqLeft`
+lambda; a rerun reports the message with error 2280, which maps to exit status
+150.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
