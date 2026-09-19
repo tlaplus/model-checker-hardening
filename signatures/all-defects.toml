@@ -211,10 +211,11 @@ references = [
   "../findings/apalache-bmc/apalache-bmc-006.md",
   "../findings/apalache-bmc/apalache-bmc-010.md",
   "../findings/apalache-bmc/apalache-bmc-014.md",
+  "../findings/apalache-bmc/apalache-bmc-020.md",
   "../findings/apalache-optimizer/apalache-optimizer-001.md",
   "../findings/TLC/tlc-004.md",
 ]
-description = "Apalache crashes on SUBSET S in set filters, set maps, equality, UNION and CHOOSE, which reach it through names this pattern cannot follow."
+description = "Apalache crashes on SUBSET S in set filters, set maps, equality, UNION and CHOOSE, and silently evaluates a SUBSET-valued fold combinator to the empty set; these reach it through names this pattern cannot follow."
 match = ['(SET_POWERSET _)']
 
 [[signature]]
