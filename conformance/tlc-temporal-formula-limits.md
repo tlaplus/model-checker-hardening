@@ -6,8 +6,8 @@ Observed share: in a 1600-module smoke corpus generated with every category but
 1000-module corpus20, generated with the same categories and the first five
 signatures below, another 6 did; corpus22, with all seven signatures, left 57
 more, corpus23 76, corpus24 69, corpus25 125, corpus26 66, corpus28 34,
-corpus29 42 and corpus30 28 (see [Signature precision](#signature-precision)). SANY accepted all
-of them. corpus29's four `cannot handle` crashes are all the row with a
+corpus29 42 and corpus30 28 (see [Signature precision](#signature-precision)); corpus32 adds 5,
+all of the label row below. SANY accepted all of them. corpus29's four `cannot handle` crashes are all the row with a
 state-dependent bounded quantifier domain. corpus30 has 26 `must be of forms`
 crashes and 2 `cannot handle` ones, `6279a66a` with the state-dependent
 `identifier var0 is either undefined or not an operator` tail and `9f62c5a3`
@@ -38,16 +38,16 @@ quarantine them, so neither checker spends time on them.
 | Temporal formula under bounded `\A` or `\E` over `Int` or `Nat` | `\E q \in Nat : <>(x = q)` | cannot handle | crash, [apalache-bmc-005](../findings/apalache-bmc/apalache-bmc-005.md) | none |
 | `[][A]_v` under `\/`, `=>` or `~` | `[][x' > x]_x \/ <>(x = 3)` | must be of forms | pass | `tlc-always-action-under-connective` |
 | `[][A]_v` in an `IF` branch | `IF x = 0 THEN [][x' >= x]_x ELSE TRUE` | must be of forms | pass | none |
-| A label directly on `[][A]_v` or on `[A]_v` | `lbl :: [][x' >= x]_x` | must be of forms | pass | none |
+| A label directly on `[][A]_v` or on `[A]_v` ([tlc-013](../findings/TLC/tlc-013.md)) | `lbl :: [][x' >= x]_x` | must be of forms | pass | none |
 | `WF_v(A)` or `SF_v(A)` under `<>` or `~>` | `<>SF_x(A)`, `WF_x(A) ~> (x = 3)` | must be of forms | fail, fairness | `tlc-fairness-under-eventuality` |
 | `SF_v(A)` under `[]` | `[]SF_x(x' = x + 1)` | must be of forms | fail, fairness | none |
 | A negated `WF_v(A)` under `[]` | `[](~WF_x(A))` | must be of forms | fail, fairness | none |
 | A negated `IF` around a temporal formula whose constant condition selects a constant branch | `~(IF FALSE THEN <>(x = 3) ELSE FALSE)` | must be of forms | pass | none |
 
 TLC checks the unlabeled `[][x' >= x]_x` and `[]WF_x(x' = x + 1)`. A label is only
-a name for a subexpression, so the labeled row is arguably a TLC defect rather
-than a missing case; it is listed here with the other shapes TLC's liveness
-translation does not handle.
+a name for a subexpression, so the labeled row is a TLC defect,
+[tlc-013](../findings/TLC/tlc-013.md), rather than a missing case; it is listed
+here with the other shapes TLC's liveness translation does not handle.
 
 The examples use the module below with `SPECIFICATION Spec` and `PROPERTY Prop`
 for TLC, and `--temporal=Liveness --length=4` for Apalache.
