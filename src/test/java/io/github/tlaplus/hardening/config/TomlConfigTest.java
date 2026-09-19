@@ -288,7 +288,7 @@ class TomlConfigTest {
                 .replace(DEFAULT_SHALLOW_PATTERNS, "shallow_patterns = [\"early_failure\"]")
                 .replace("select_fraction = 0.05", "select_fraction = 1")
                 .replace("cell_capacity = 4", "cell_capacity = 0")
-                .replace("coverage = true", "coverage = false"));
+                .replace("feature_coverage = true", "feature_coverage = false"));
 
         var weights = config.mutator().weights();
         assertEquals(2, weights.get(MutationOperator.SPLICE));
@@ -325,7 +325,7 @@ class TomlConfigTest {
                 directory, rendered.replace("cell_capacity = 4", "cell_capacity = -1"));
         assertTrue(capacity.getMessage().contains("cellCapacity"), capacity.getMessage());
 
-        var coverage = assertInvalid(directory, rendered.replace("coverage = true", "coverage = 1"));
+        var coverage = assertInvalid(directory, rendered.replace("feature_coverage = true", "feature_coverage = 1"));
         assertTrue(coverage.getMessage().contains("to be a boolean"), coverage.getMessage());
 
         var ratio = assertInvalid(

@@ -268,7 +268,7 @@ This workflow specializes the general workflow as follows:
   of [ADR 0008][]. Admissible entries are ranked lexicographically by projected
   depth, projected states, discovering actions and state shape. An entry is
   kept if its behaviour cell (TLC verdict and bucketed rank key) holds fewer
-  than `cell_capacity` kept entries, over every generation, or if `coverage` is
+  than `cell_capacity` kept entries, over every generation, or if `feature_coverage` is
   enabled and it adds an operator-edge feature of its evaluated code. The
   gate replays inputs through the generator to compute these features. It
   commits every pass in rank order before any fail, so rerunning it after an

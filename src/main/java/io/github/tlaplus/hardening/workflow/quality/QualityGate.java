@@ -51,7 +51,7 @@ public final class QualityGate {
 
     /**
      * @param analysis replays an input into the counts its coverage features derive from; called
-     *     only when cells are bounded and coverage is enabled
+     *     only when cells are bounded and feature coverage is enabled
      */
     public QualityGate(
             CorpusDirectory corpus, QualityGateConfig config, InputAnalysis analysis, StageCounters counters) {

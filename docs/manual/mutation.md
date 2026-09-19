@@ -62,7 +62,7 @@ max_edits = 1
 weights = { random_byte = 8, bitflip = 8, parity_flip = 8, copy = 4, duplicate = 1, insert = 1, erase = 1, splice = 1 }
 shallow_patterns = ["vacuous_pass", "initial_state_violation", "early_failure", "no_discovering_action", "counter_only_progress"]
 cell_capacity = 4
-coverage = true
+feature_coverage = true
 ```
 
 | Key | Meaning |
@@ -74,9 +74,9 @@ coverage = true
 | `weights` | Relative weight of each operator. An omitted operator has weight 0. |
 | `shallow_patterns` | Patterns of the [exploration-metrics manual][metrics] that exclude an entry from `04quality-pass`. |
 | `cell_capacity` | Entries of `04quality-pass` per behaviour cell (section 3). `0` removes the bound. |
-| `coverage` | Also keep an entry that adds an operator-edge coverage feature (section 3). |
+| `feature_coverage` | Also keep an entry that adds an operator-edge coverage feature (section 3). |
 
-With `cell_capacity = 0` and `coverage = false`, the gate keeps the best
+With `cell_capacity = 0` and `feature_coverage = false`, the gate keeps the best
 `select_fraction` of every generation, as before ADR 0013.
 
 The defaults come from one experiment on one corpus. Calibrate `select_fraction`
@@ -110,7 +110,7 @@ and either of these holds:
   entries. The cell is the TLC verdict together with the six metrics above,
   each compared as in the ranking (states, nodes and cardinality by power of
   two).
-- **Coverage.** `coverage` is enabled and the entry has a *feature* that no kept
+- **Coverage.** `feature_coverage` is enabled and the entry has a *feature* that no kept
   entry has.
 
 "Kept" counts `04quality-pass` over every earlier generation plus the entries

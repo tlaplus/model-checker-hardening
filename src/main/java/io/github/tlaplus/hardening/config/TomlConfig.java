@@ -135,7 +135,7 @@ public final class TomlConfig {
                         ConfigSchema.SELECT_FRACTION.read(tables),
                         ConfigSchema.SHALLOW_PATTERNS.read(tables),
                         ConfigSchema.CELL_CAPACITY.read(tables),
-                        ConfigSchema.COVERAGE.read(tables)));
+                        ConfigSchema.FEATURE_COVERAGE.read(tables)));
 
         var libraries = new OperatorLibraryConfig(
                 ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))

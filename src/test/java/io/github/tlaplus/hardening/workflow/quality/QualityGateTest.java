@@ -229,8 +229,8 @@ class QualityGateTest {
     }
 
     /** Bounded cells, with or without coverage, keeping at most every admissible entry. */
-    private static QualityGateConfig cells(int capacity, boolean coverage) {
-        return new QualityGateConfig(1.0, MutatorConfig.defaults().gate().shallowPatterns(), capacity, coverage);
+    private static QualityGateConfig cells(int capacity, boolean featureCoverage) {
+        return new QualityGateConfig(1.0, MutatorConfig.defaults().gate().shallowPatterns(), capacity, featureCoverage);
     }
 
     /** Returns an input of {@code code} that ranks {@code length}-th among inputs of one cell. */

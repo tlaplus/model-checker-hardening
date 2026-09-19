@@ -88,7 +88,7 @@ The coverage features of an entry are:
 The per-construct features cost nothing extra and cover a construct that
 appears only at the root of a definition.
 
-`[mutator] coverage` enables the rule. The features derive from the input, like
+`[mutator] feature_coverage` enables the rule. The features derive from the input, like
 `expr`, so the envelope does not change: the gate replays each input it needs
 through the generator, at about 1.2 ms per entry.
 
@@ -101,7 +101,7 @@ entries of g have passed and either of these holds:
 
 1. its cell holds fewer than `cell_capacity` entries of the pool and of the
    passes of g so far; or
-2. `coverage` is enabled and the entry has a feature that no entry of the pool
+2. `feature_coverage` is enabled and the entry has a feature that no entry of the pool
    or of the passes of g so far has.
 
 The entry then joins the pool's cells and coverage. Every other entry of g fails.
@@ -133,9 +133,9 @@ approximates a draw that is uniform over behaviours.
 | Key | Default | Meaning |
 | --- | ---: | --- |
 | `cell_capacity` | 4 | Pool entries per behaviour cell; `0` disables the bound. |
-| `coverage` | `true` | Pass an entry that adds an operator-edge coverage feature. |
+| `feature_coverage` | `true` | Pass an entry that adds an operator-edge coverage feature. |
 
-`cell_capacity = 0` with `coverage = false` reproduces ADR 0010's gate. The
+`cell_capacity = 0` with `feature_feature_coverage = false` reproduces ADR 0010's gate. The
 defaults follow from the corpus31 and corpus32 measurements. They are not
 calibrated.
 
@@ -149,10 +149,10 @@ version to 6.
 
 Replaying corpus31's generations through the gate, with `select_fraction = 0.25`, shows how selective each rule is. The
 replay is not counterfactual: under a different gate the mutants would have
-different parents. With `cell_capacity = 0` and `coverage = false`, it
+different parents. With `cell_capacity = 0` and `feature_feature_coverage = false`, it
 reproduces the recorded pool exactly.
 
-| `cell_capacity`, `coverage` | pool | cells | PBT entries | kept by coverage |
+| `cell_capacity`, `feature_coverage` | pool | cells | PBT entries | kept by coverage |
 | --- | ---: | ---: | ---: | ---: |
 | 0, `false` (ADR 0010) | 15,682 | 122 | 144 | – |
 | 4, `false` | 682 | 223 | 178 | – |
@@ -194,7 +194,7 @@ saturate.
   coverage.
 - `exprEdge` makes coverage-per-generation and coverage-per-operator queries
   possible. Calibrating `cell_capacity` and evaluating coverage need an A/B run:
-  a baseline (`cell_capacity = 0`, `coverage = false`), cells alone, and cells
+  a baseline (`cell_capacity = 0`, `feature_feature_coverage = false`), cells alone, and cells
   with coverage. The measure is untriaged deviations per checker-hour.
 - This revises the quality gate of ADR 0010. The mutator, its operators, and the
   ranking key are unchanged.

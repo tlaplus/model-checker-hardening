@@ -240,8 +240,8 @@ final class ConfigSchema {
     static final Key<Integer> CELL_CAPACITY = GATE.integer(
             "cell_capacity", QualityGateConfig::cellCapacity,
             "Entries of 04quality-pass per behaviour cell of ADR 0013; 0 removes the bound.");
-    static final Key<Boolean> COVERAGE = GATE.key(
-            "coverage", ConfigValueType.BOOLEAN, QualityGateConfig::coverage,
+    static final Key<Boolean> FEATURE_COVERAGE = GATE.key(
+            "feature_coverage", ConfigValueType.BOOLEAN, QualityGateConfig::featureCoverage,
             "Also keep an entry that adds an operator-edge coverage feature (ADR 0013).");
 
     /** Every table of the document, in the order a configuration file declares them. */

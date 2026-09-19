@@ -15,10 +15,10 @@ import java.util.Set;
  *     04quality-pass}
  * @param shallowPatterns the patterns that make an entry inadmissible to the gate
  * @param cellCapacity the kept entries per behaviour cell; 0 removes the bound
- * @param coverage whether an entry that adds an operator-edge coverage feature is kept
+ * @param featureCoverage whether an entry that adds an operator-edge coverage feature is kept
  */
 public record QualityGateConfig(
-        double selectFraction, Set<ShallowPattern> shallowPatterns, int cellCapacity, boolean coverage) {
+        double selectFraction, Set<ShallowPattern> shallowPatterns, int cellCapacity, boolean featureCoverage) {
     public QualityGateConfig {
         Preconditions.require(selectFraction > 0.0 && selectFraction <= 1.0,
                 "selectFraction must be in the range (0, 1]");

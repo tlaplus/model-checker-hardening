@@ -11,7 +11,7 @@ import java.util.Set;
  * The behaviour cells and coverage features of the entries the gate has kept (ADR 0013), and the
  * rule that decides whether one more entry is kept.
  *
- * <p>Features matter only when cells are bounded and coverage is enabled; otherwise callers may
+ * <p>Features matter only when cells are bounded and feature coverage is enabled; otherwise callers may
  * pass none.
  */
 final class SelectionArchive {
@@ -25,7 +25,7 @@ final class SelectionArchive {
 
     /** Returns whether the gate needs an entry's coverage features. */
     boolean usesCoverage() {
-        return config.boundsCells() && config.coverage();
+        return config.boundsCells() && config.featureCoverage();
     }
 
     /** Returns whether an entry of {@code cell} and {@code features} shows something the kept entries lack. */

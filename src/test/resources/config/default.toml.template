@@ -121,4 +121,4 @@ shallow_patterns = ["vacuous_pass", "initial_state_violation", "early_failure", 
 # Entries of 04quality-pass per behaviour cell of ADR 0013; 0 removes the bound.
 cell_capacity = 4
 # Also keep an entry that adds an operator-edge coverage feature (ADR 0013).
-coverage = true
+feature_coverage = true
