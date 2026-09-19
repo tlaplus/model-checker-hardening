@@ -487,7 +487,7 @@ were worker timeouts (6,954 of 7,486). Each `NEW` entry was re-checked with
 |---:|---|---|---|
 | 26 | TLC crash | temporal formula TLC cannot translate: `must be of forms` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
 | 2 | TLC crash | temporal formula TLC cannot translate: `cannot handle` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
-| 2 | TLC crash | `StackOverflowError` (1005) after the initial states | not reduced; the corpus29 section covers the class |
+| 2 | TLC crash | `StackOverflowError` (1005) after the initial states; both rerun to ordinary evaluation errors at a 1 MB stack and overflow only at 512 KB or less | stack-size dependent, see below |
 | 33 | aggregator | TLC pass, Apalache counterexample: an evaluation error in the initial state exits 0; 16 also mask an initial invariant violation | [`tlc-008`](../findings/TLC/tlc-008.md) |
 | 12 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` in `Inv` or `Prop` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
 | 1 | aggregator | TLC pass, Apalache counterexample: `IsFiniteSet(Nat)` in `Inv`, `9522bda4` | [`apalache-bmc-007`](../findings/apalache-bmc/apalache-bmc-007.md) |
@@ -504,6 +504,15 @@ The 12 `CASE` rows carry the `apalache-bmc-019` shape in the text of the
 invariant's operator tree but were not individually reduced. Of the two
 `cannot handle` crashes, `6279a66a` adds the state-dependent `identifier var0
 is either undefined or not an operator` tail; `9f62c5a3` prints the bare line.
+
+The two `StackOverflowError` crashes are the corpus29 class. With a 1 MB
+thread stack, `f36f1791` reports `CHOOSE x \in S: P, but no element of S
+satisfied P` and `fa4216c8` reports a function application outside its domain;
+both overflow at 512 KB or less. The deepest observed frames are ordinary
+expression evaluation, `Tool.evalImpl`/`evalApplImpl` recursion past 1,000
+frames, so the producer is expression depth, not a specific operator: a
+synthetic invariant of 1,000 nested `(1 + ...)` additions overflows at 512 KB
+and passes at 1 MB.
 
 `abb1ffd8` is the one deviation whose detail has a catalog text at a new exit
 status: the triager's signature for
