@@ -596,6 +596,45 @@ variable, SANY would read the same text as a filter.
 predates the `feature_coverage` rename. `fuzztla print` without `--corpus`
 decodes the entries.
 
+## corpus35 residuals
+
+corpus35 quarantined 3,252 candidates in `00-known-defects`. Its triage left 13
+TLC crashes, 1 Apalache crash and 36 of the 37,675 aggregator deviations as
+`NEW`; the parser reports were empty. Each `NEW` entry was rerun with FuzzTLA
+`ef6df80` and TLC commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`), with
+`SPECIFICATION Spec`, `INVARIANT Inv` and `PROPERTY Prop`. The Apalache verdicts
+are those recorded by Apalache 0.62.2 (build `f0dec98`). One entry needs a new
+finding:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 13 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 1 | Apalache crash | `OutOfMemoryError` in `BoundedChecker` at step 2 on a 1.4 MB IR, `4503a44d` | resource exhaustion, not a tool diagnosis |
+| 30 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet`, in `Inv` for `46f201a4` and in `Prop` for `9f739ce8` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: `Next` picks with a `CHOOSE` whose predicate is true for both elements, `4bfacb8a` and `9a8c3677` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: a function applied outside its domain in an eventuality of the initial state masks an initial invariant violation, exit 0, `e89ad464` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `Prop == <>(~(FALSE ~> FALSE)) => FALSE`, a valid property, exit 12, `c9e9762e` | new, [`tlc-014`](../findings/TLC/tlc-014.md) |
+
+Every recorded verdict reproduced. 32 of the 36 deviations rerun to a clean
+pass, `46f201a4` reports `Invariant Inv is violated by the initial state` with
+exit 12, `9f739ce8` a violated temporal property with exit 13, `c9e9762e` a
+violated temporal property with exit 12, and `e89ad464` prints its evaluation
+error and the masked invariant violation while exiting 0.
+
+The fold combinators were read but not individually reduced; most return their
+element argument, directly or through an inner fold seeded with it. In 14 of the
+32 the order-sensitive fold occurs only in `Prop`, so the deviation is reached
+through the temporal property rather than through the invariant.
+
+The Apalache `OutOfMemoryError` carries no stack: the worker JVM prints
+`Terminating due to java.lang.OutOfMemoryError: Java heap space` and exits.
+Rerunning the stored IR with the configured 1 GiB heap reproduces it inside
+`PASS #13: BoundedChecker`, after 4m35s in the original run, on an input whose
+IR is 1.4 MB. corpus34 has one entry of the same kind. Like the 3 worker
+timeouts in the same report, it establishes no conformance difference; unlike
+them it has no bucket, so it lands in `NEW`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
