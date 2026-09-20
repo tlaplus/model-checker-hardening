@@ -561,6 +561,41 @@ an `ApaFoldSet` combinator, so the set fold returns its last element. An MWE wit
 `Init == flag = ApaFoldSet(L8, FALSE, {TRUE, FALSE})` confirms TLC computes `TRUE`
 and Apalache `FALSE`; the property `<>fold ~> FALSE` then fails only in TLC.
 
+## corpus33 residuals
+
+corpus33 quarantined 3,243 candidates in `00-known-defects`. Its triage left 12
+TLC crashes and 43 aggregator deviations as `NEW`. Every Apalache crash (67)
+matched the catalog or was a worker timeout (38). Each `NEW` deviation was
+rerun with FuzzTLA `d4f274c` and TLC commit `142d0ba` (tla2tools
+`1.8.0-20260917.033119-76`), with `SPECIFICATION Spec`, `INVARIANT Inv` and
+`PROPERTY Prop`. The Apalache verdicts are those recorded by Apalache 0.62.2
+(build `f0dec98`). No entry needs a new finding or class:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 12 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 1 | parser fail | set-map body `var0 \in S <=> FALSE` printed without parentheses, `044bf489` | [`apalache-printer-010`](../findings/apalache-printer/apalache-printer-010.md) |
+| 37 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet` in `Inv`, `2a9e4c79` and `341992c0` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `Inv` negates `CHOOSE` over `{TRUE, FALSE}` with a predicate true for both, `e89bc48f` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `[](P) => var0` raises `CHOOSE` without a witness and masks an initial invariant violation, exit 0, `a3b8df93` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 2 | aggregator | TLC fail storing a `StackOverflowError` detail; with a 4 MB stack both report `CHOOSE` without a witness in `Inv` and exit 75, `20a64241` and `30f63219` | stack-size dependent, see the corpus30 section |
+
+On TLC's side, 39 of the 43 deviations rerun to a clean pass. The other two
+reproduce their counterexamples with exit 12. The fold combinators were read
+but not individually reduced. Most return their element argument, directly or
+through an inner fold seeded with it. `341992c0` and `b9f8856f` fold with
+`a => b`, and `26b07768` with `<<b>>`. `e89bc48f` also contains folds, but its
+combinators produce a constant, so the fold order does not decide its verdict.
+
+`044bf489` is a `bitflip` mutant. SANY rejects it with
+`Multiply-defined symbol 'var0'`. With a fresh bound name in place of the state
+variable, SANY would read the same text as a filter.
+
+`fuzztla print --corpus corpus33` fails because the corpus configuration
+predates the `feature_coverage` rename. `fuzztla print` without `--corpus`
+decodes the entries.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
