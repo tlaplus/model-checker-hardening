@@ -635,6 +635,49 @@ IR is 1.4 MB. corpus34 has one entry of the same kind. Like the 3 worker
 timeouts in the same report, it establishes no conformance difference; unlike
 them it has no bucket, so it lands in `NEW`.
 
+## corpus36 residuals
+
+corpus36 quarantined 3,258 candidates in `00-known-defects`. Its triage left 9
+TLC crashes and 34 of the 37,827 aggregator deviations as `NEW`; the parser
+reports were empty, and the 33 Apalache crash outcomes all matched the catalog
+or were worker timeouts (5). Each `NEW` entry was rerun with FuzzTLA `3f4ce33`
+and TLC commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`), with
+`SPECIFICATION Spec`, `INVARIANT Inv` and `PROPERTY Prop`, and Apalache 0.62.2
+(build `f0dec98`). One entry needs a new finding:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 9 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 25 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet` in `Prop`, `3953dd8f` and `b87f6eae` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass, Apalache counterexample: an out-of-bounds tuple index under a labeled or negated `[]` exits 0, `216d4b2e`, `68ea3716`, `a6d4f140` and `e2ea7704` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` in `Inv` whose predicate is true for every element, `050ed260` and `91f493fb` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `\E p \in ApaFoldSet(...)` over a constant, function-set-valued fold keeps the transition disabled, `eebf3287` | new, [`apalache-bmc-021`](../findings/apalache-bmc/apalache-bmc-021.md) |
+
+Every recorded verdict reproduced. 31 of the 34 deviations rerun to a clean
+pass, `3953dd8f` and `b87f6eae` report a violated temporal property with exit
+13, and `eebf3287` reports `Invariant Inv is violated` with exit 12. The four
+`tlc-008` entries exit 0 after printing `Attempted to access index 0 of tuple`;
+none of them also masks an invariant violation.
+
+The nine TLC crashes are one shape, `label :: [][A]_v`, the row that corpus32,
+corpus33 and corpus35 also contributed. Five of the nine wrap a constant action,
+`label :: [][FALSE]_FALSE`.
+
+The fold combinators of the 27 order-sensitive entries were read but not
+individually reduced; all return their element argument, directly or wrapped in
+a one-element tuple, a record field, a singleton function application or a
+`CASE`. `eebf3287` also carries a fold, but its combinator ignores both
+parameters, so the fold is order-insensitive and the deviation is the new
+encoding defect rather than this class.
+
+TLC2 prints its run date as its `Version`, not a build stamp, so the corpus's
+stacktraces do not identify the tla2tools snapshot. The workflow shades
+tla2tools into `fuzztla.jar`, with no Maven metadata for it; the 862 shaded
+`tlc2`, `tla2sany`, `util` and `pcal` entries are byte-identical to
+`1.8.0-20260917.033119-76`, which fixes the TLC commit above. The two extra
+entries are FuzzTLA's `Apalache.tla` and `Variants.tla`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

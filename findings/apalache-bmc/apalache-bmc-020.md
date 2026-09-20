@@ -20,7 +20,10 @@ silently compares equal to `{}` instead.
 A plausible mechanism is that the fold's result cell carries the expanded
 result type of the combinator, `Set(Set(Str))`, while the combinator produces a
 `PowSet` arena cell; reads of the result then misinterpret the cell. The
-mechanism is unconfirmed.
+mechanism is unconfirmed, and it does not cover the whole defect:
+[apalache-bmc-021](apalache-bmc-021.md) reproduces the rows below with an `IF`
+in place of the fold, and with `[S -> T]` in place of the `SUBSET`. This
+finding is that general defect restricted to a `SUBSET`-valued fold.
 
 Observed with Apalache 0.62.2 (build `f0dec98`); TLC is tla2tools
 `1.8.0-20260917.033119-76` (tlaplus commit `142d0ba`); FuzzTLA is `80f63a5`.
