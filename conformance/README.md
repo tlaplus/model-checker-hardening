@@ -678,6 +678,55 @@ tla2tools into `fuzztla.jar`, with no Maven metadata for it; the 862 shaded
 `1.8.0-20260917.033119-76`, which fixes the TLC commit above. The two extra
 entries are FuzzTLA's `Apalache.tla` and `Variants.tla`.
 
+## corpus40 residuals
+
+corpus40 quarantined 3,258 candidates in `00-known-defects`. Its triage left 10
+TLC crashes and 31 of the 40,069 aggregator deviations as `NEW`; the parser
+reports were empty, and the 31 Apalache crash outcomes all matched the catalog
+or were worker timeouts (7). Each `NEW` entry was rerun with FuzzTLA `56933a3`
+and TLC commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`), with
+`SPECIFICATION Spec`, `INVARIANT Inv` and `PROPERTY Prop`. Apalache 0.62.2
+(build `f0dec98`) was rerun on `cadd3b01`, `6f624d7f` and `e6a186ec`; the other
+Apalache verdicts are the recorded ones. One entry needs a new finding:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 10 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 20 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet`, in `Inv` for `5e7948ee` and in `Prop` for `52f42327` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` whose predicate is true for several elements, in a `Next` guard for `8c2d5e43` and `a848f8da`, in `Prop` for `ba47e906` and `e6a186ec` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: an evaluation error in an eventuality of the initial state masks an initial invariant violation, exit 0, `319127dc` and `9d2522df` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: a fold combinator `CASE var0 -> FALSE [] TRUE -> var0` in `Prop` with both guards true, `cadd3b01` | [case-multiple-true-guards](case-multiple-true-guards.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `\E p \in ApaFoldSet(...)` over a function-set-valued fold keeps the transition disabled, `6f624d7f` | [`apalache-bmc-021`](../findings/apalache-bmc/apalache-bmc-021.md) |
+| 1 | aggregator | TLC fail, Apalache counterexample: `step` reported undefined in a `~>` property whose fold combinator computes `parameter10 * step`, error 2280, `db6bd5b4` | new, [`tlc-015`](../findings/TLC/tlc-015.md) |
+
+Every recorded TLC verdict reproduced. 25 of the 31 deviations rerun to a clean
+pass; `319127dc` and `9d2522df` print their evaluation error and
+`Invariant Inv is violated by the initial state` and still exit 0.
+`5e7948ee` reports the initial invariant violation with error 2107,
+`52f42327` a violated temporal property with error 2116, `6f624d7f`
+`Invariant Inv is violated` with error 2110, and `db6bd5b4` fails with error
+2280.
+
+The ten TLC crashes are the `label :: [][A]_v` row of corpus32 to corpus36.
+Seven have the subscript `FALSE`, such as `label3 :: [][FALSE]_FALSE` in
+`a57df571`; `72b2a90b` and `cc5b2792` have `var0`, and `70aeb893` an
+`ApaFoldSeqLeft`.
+
+The fold combinators of the 22 order-sensitive entries were read but not
+individually reduced. All return their element argument, directly, through an
+inner fold seeded with it, through `EXCEPT ![step] = p`, or through an `IF`
+whose condition is constant `FALSE` in context. `cadd3b01` and `9d2522df` fold
+only over sequences, and their deviations have the causes in the table.
+`e6a186ec` has an order-insensitive fold under an unused `LET` in `Inv`.
+
+`db6bd5b4` is the corpus30 `abb1ffd8` diagnostic, which that section left
+unreduced. It reduces to a `RECURSIVE` operator whose operator argument
+multiplies a state variable. The `Naturals.tla` stub `a*b == TRUE` makes that
+argument constant-level for SANY, and TLC's liveness translation does not look
+inside operator arguments when it recomputes the level; `tlc-015` gives the
+reproduction and the code path.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
