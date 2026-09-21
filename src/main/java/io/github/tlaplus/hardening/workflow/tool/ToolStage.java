@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.tool;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
@@ -60,7 +61,8 @@ public final class ToolStage implements WorkflowStage {
                 routing.priority(),
                 backend.cpuPermits(),
                 counters,
-                environment.control());
+                environment.control(),
+                path -> environment.events().generationOf(EntryName.of(path)));
         workers = new WorkerGroup("fuzztla-" + stage.metadataName() + "-");
     }
 
@@ -143,6 +145,11 @@ public final class ToolStage implements WorkflowStage {
                             result.metrics(),
                             result.diagnostic()));
             counters.record(verdict);
+            // Reported only after routing.complete has durably moved the entry. The move is already
+            // visible, so a downstream stage may act on it before this report arrives: the
+            // aggregator can overtake a checker's report (see GenerationProgress). The report must
+            // still precede forward, which is what keeps the parser's report ahead of the checkers'.
+            environment.events().completed(EntryName.of(path), backend.stage(), verdict);
             routing.forward(corpus, destination, verdict);
         }
 

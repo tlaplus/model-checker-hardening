@@ -161,7 +161,8 @@ final class InventoryScan {
                         ungated,
                         gatedResults.snapshot(),
                         gatedEntries));
-        return new CorpusInventory(stages, logicalEntries.generations());
+        return new CorpusInventory(
+                stages, logicalEntries.generations(), logicalEntries.unsettled());
     }
 
     /** Validates one result directory and reports how many entries it holds. */
@@ -297,7 +298,13 @@ final class InventoryScan {
                     CorpusEntries.requireSameParserOutput(name, reference, candidate);
                 }
             }
-            logicalEntries.add(reference);
+            // Each branch copy records only its own checker, so the branches are merged here.
+            var branchVerdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
+            for (var checker : CorpusStage.checkerBranches()) {
+                branches.get(checker).entries().get(name).envelope().stage(checker)
+                        .ifPresent(outcome -> branchVerdicts.put(checker, outcome.verdict()));
+            }
+            logicalEntries.add(reference, branchVerdicts);
         }
         return names.size();
     }
@@ -335,24 +342,52 @@ final class InventoryScan {
      * how many of them, and of their mutants, each generation admitted.
      */
     private static final class LogicalEntries {
-        private final Set<String> names = new HashSet<>();
+        private final Set<EntryName> names = new HashSet<>();
         private final SortedMap<Integer, CorpusInventory.GenerationEntries> generations = new TreeMap<>();
+        private final Map<EntryName, EntryProgress> unsettled = new HashMap<>();
 
         void add(Entry entry) throws CorpusException {
-            var name = entry.path().getFileName().toString();
+            add(entry, Map.of());
+        }
+
+        /**
+         * Registers one logical entry. {@code branchVerdicts} carries what the checker branches
+         * recorded on their own copies, which no single envelope holds while an entry is still in
+         * the pipeline; {@link EntryProgress} then decides what the entry's position means.
+         */
+        void add(Entry entry, Map<CorpusStage, CorpusVerdict> branchVerdicts) throws CorpusException {
+            var name = EntryName.of(entry.path());
             if (!names.add(name)) {
                 throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
             }
             entry.envelope().generation().ifPresent(metadata -> metadata.generation().ifPresent(
-                    generation -> generations.merge(
-                            generation,
-                            new CorpusInventory.GenerationEntries(1, metadata.mutation().isPresent() ? 1 : 0),
-                            (left, right) -> new CorpusInventory.GenerationEntries(
-                                    left.entries() + right.entries(), left.mutants() + right.mutants()))));
+                    generation -> {
+                        var progress = EntryProgress.of(generation, entry.envelope());
+                        for (var branch : branchVerdicts.entrySet()) {
+                            progress = progress.with(branch.getKey(), branch.getValue());
+                        }
+                        generations.merge(
+                                generation,
+                                new CorpusInventory.GenerationEntries(
+                                        1,
+                                        metadata.mutation().isPresent() ? 1 : 0,
+                                        progress.isUngated() ? 1 : 0),
+                                (left, right) -> new CorpusInventory.GenerationEntries(
+                                        left.entries() + right.entries(),
+                                        left.mutants() + right.mutants(),
+                                        left.ungated() + right.ungated()));
+                        if (!progress.isSettled()) {
+                            unsettled.put(name, progress);
+                        }
+                    }));
         }
 
         SortedMap<Integer, CorpusInventory.GenerationEntries> generations() {
             return generations;
+        }
+
+        Map<EntryName, EntryProgress> unsettled() {
+            return unsettled;
         }
     }
 

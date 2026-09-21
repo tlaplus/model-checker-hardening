@@ -31,11 +31,11 @@ import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
+import io.github.tlaplus.hardening.workflow.execution.IgnoredEvents;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -53,6 +53,8 @@ class InputStageTest {
     private static final TlaEx EMPTY = expression(0);
     private static final TlaEx RICH = expression(32);
     private static final Generator<TlaEx> ACCEPT = _ -> RICH;
+    /** The seed a summary is attributed to; these tests assert on counts, not on the seed. */
+    private static final long SEED = 0;
 
     @Test
     void fillsTheGlobalTargetWithOneWorker(@TempDir Path directory) throws Exception {
@@ -142,10 +144,10 @@ class InputStageTest {
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(config(1)),
                 plan(99, 2, 1, config(1)),
-                new StageEnvironment(corpus, decoders(acceptOnce), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(acceptOnce), new CpuBudget(1), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(2)),
                 metrics(0));
 
@@ -153,9 +155,9 @@ class InputStageTest {
         stage.await();
 
         assertTrue(control.hasFailed());
-        assertEquals(10_001, stage.summary().aggregate().attempts());
-        assertEquals(1, stage.summary().generated());
-        assertEquals(10_000, stage.summary().aggregate().rejected());
+        assertEquals(10_001, stage.summary(SEED).aggregate().attempts());
+        assertEquals(1, stage.summary(SEED).generated());
+        assertEquals(10_000, stage.summary(SEED).aggregate().rejected());
         assertTrue(control.failure().getMessage().contains("richness cohort 0"));
         assertTrue(control.failure().getMessage().contains("within 10000 attempts"));
         assertTrue(control.failure().getMessage().contains("best richness was 0.0"));
@@ -171,10 +173,10 @@ class InputStageTest {
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(config(8)),
                 plan(42, 1, 1, config(8)),
-                new StageEnvironment(corpus, decoders(overflow), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(overflow), new CpuBudget(1), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
 
@@ -183,7 +185,7 @@ class InputStageTest {
 
         assertTrue(control.hasFailed());
         assertInstanceOf(WorkflowException.class, control.failure());
-        assertEquals(1, stage.summary().aggregate().attempts());
+        assertEquals(1, stage.summary(SEED).aggregate().attempts());
         try (var paths = Files.list(corpus.resolve(CorpusPath.GENERATOR_CRASH))) {
             var files = paths.toList();
             var candidate = files.stream()
@@ -274,10 +276,10 @@ class InputStageTest {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var target = 12;
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(config(32)),
                 plan(42, target, 4, config(32)),
-                new StageEnvironment(corpus, decoders(observed), new CpuBudget(2), control),
+                new StageEnvironment(corpus, decoders(observed), new CpuBudget(2), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(target)),
                 metrics(0));
 
@@ -291,7 +293,7 @@ class InputStageTest {
 
         assertFalse(control.hasFailed());
         assertEquals(2, maximumActive.get());
-        assertEquals(target, stage.summary().generated());
+        assertEquals(target, stage.summary(SEED).generated());
         assertEquals(target, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
         var queued = 0;
         while (queue.take() != null) {
@@ -321,10 +323,10 @@ class InputStageTest {
         };
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(config(32)),
                 plan(42, 20, 4, config(32)),
-                new StageEnvironment(corpus, decoders(oneWorkerCrashes), new CpuBudget(4), control),
+                new StageEnvironment(corpus, decoders(oneWorkerCrashes), new CpuBudget(4), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(20)),
                 metrics(0));
 
@@ -355,13 +357,13 @@ class InputStageTest {
         Generator<TlaEx> defectsThenClean = _ -> calls.getAndIncrement() < 5 ? RICH : EMPTY;
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new InputStage(
+        var stage = admitting(
                 new InputAdmission(
                         config(16),
                         KnownDefectDatabase.load(List.of(database)),
                         KnownDefectQuarantine.open(corpus, 2)),
                 plan(7, 1, 1, config(16)),
-                new StageEnvironment(corpus, decoders(defectsThenClean), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(defectsThenClean), new CpuBudget(1), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
 
@@ -369,8 +371,8 @@ class InputStageTest {
         stage.await();
 
         assertFalse(control.hasFailed());
-        assertEquals(1, stage.summary().generated());
-        assertEquals(Map.of("sequence-from-zero", 5L), stage.summary().aggregate().knownDefects());
+        assertEquals(1, stage.summary(SEED).generated());
+        assertEquals(Map.of("sequence-from-zero", 5L), stage.summary(SEED).aggregate().knownDefects());
         assertEquals(Map.of("sequence-from-zero", 2L), corpus.knownDefectSamples());
         assertEquals(1, corpus.recoverAndValidate(CorpusEntryValidator.NONE).pendingEntries(CorpusStage.PARSER));
         try (var quarantined = Files.list(corpus.resolve(CorpusPath.KNOWN_DEFECTS))) {
@@ -399,7 +401,7 @@ class InputStageTest {
         var pool = pool(corpus, decoder, parent, 6);
         var mutants = new MutantCandidates(pool, new ByteMutator(Map.of(MutationOperator.INSERT, 1), 1, 64));
 
-        var stage = runPlan(corpus, decoder, new GenerationPlan(InputKind.EXPRESSION, 3, 11, 0, 1, List.of(
+        var stage = runPlan(corpus, decoder, new GenerationPlan(InputKind.EXPRESSION, 3, 11, 0, 1, 0, List.of(
                 new GenerationPlan.Quota(mutants, 3),
                 new GenerationPlan.Quota(new PbtCandidates(config(32)), 2))));
 
@@ -415,7 +417,7 @@ class InputStageTest {
             assertEquals(List.of(MutationOperator.INSERT), entry.mutation().orElseThrow().operators());
             assertEquals(6, entry.cohort());
         }
-        assertEquals(0, stage.summary().aggregate().clones());
+        assertEquals(0, stage.summary(SEED).aggregate().clones());
     }
 
     @Test
@@ -427,10 +429,10 @@ class InputStageTest {
         var mutants = new MutantCandidates(pool, new ByteMutator(Map.of(MutationOperator.BITFLIP, 1), 1, 64));
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(config(8)),
-                new GenerationPlan(InputKind.EXPRESSION, 1, 5, 0, 1, List.of(new GenerationPlan.Quota(mutants, 1))),
-                new StageEnvironment(corpus, decoder, new CpuBudget(1), control),
+                new GenerationPlan(InputKind.EXPRESSION, 1, 5, 0, 1, 0, List.of(new GenerationPlan.Quota(mutants, 1))),
+                new StageEnvironment(corpus, decoder, new CpuBudget(1), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(1)),
                 metrics(0));
 
@@ -438,11 +440,11 @@ class InputStageTest {
         stage.await();
 
         assertTrue(control.hasFailed());
-        assertEquals(10_000, stage.summary().aggregate().clones());
+        assertEquals(10_000, stage.summary(SEED).aggregate().clones());
         assertTrue(control.failure().getMessage().contains("a mutant of a parent pool of 1 entries"),
                 control.failure().getMessage());
         assertTrue(control.failure().getMessage().contains("10000 were clones of their parent"));
-        assertEquals(0, stage.summary().generated());
+        assertEquals(0, stage.summary(SEED).generated());
     }
 
     @Test
@@ -510,38 +512,70 @@ class InputStageTest {
             throws Exception {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(config),
                 plan(seed, target, 1, config),
-                new StageEnvironment(corpus, decoders(generator), new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders(generator), new CpuBudget(1), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(target)),
                 metrics(0));
         stage.start();
         stage.await();
         assertFalse(control.hasFailed());
-        return stage.summary();
+        return stage.summary(SEED);
+    }
+
+    /**
+     * Builds an invocation-long stage, hands it one plan and closes admission, which is what the
+     * coordinator does for a stage that admits a single range.
+     */
+    private static Admitted admitting(
+            InputAdmission admission,
+            GenerationPlan plan,
+            StageEnvironment environment,
+            InputHandoff handoff,
+            GeneratorStatistics statistics) {
+        var stage = new InputStage(
+                admission, plan.workerLimit(), environment, handoff, statistics);
+        stage.submit(plan);
+        stage.finish();
+        return new Admitted(stage, statistics);
+    }
+
+    /** One stage and the statistics it records into, which the stage itself does not expose. */
+    private record Admitted(InputStage stage, GeneratorStatistics statistics) {
+        void start() {
+            stage.start();
+        }
+
+        void await() throws InterruptedException {
+            stage.await();
+        }
+
+        GeneratorSummary summary(long seed) {
+            return statistics.summary(seed);
+        }
     }
 
     private static GenerationPlan plan(long seed, long target, int workers, PbtConfig config) {
-        return new GenerationPlan(InputKind.EXPRESSION, 0, seed, 0, workers,
+        return new GenerationPlan(InputKind.EXPRESSION, 0, seed, 0, workers, 0,
                 List.of(new GenerationPlan.Quota(new PbtCandidates(config), target)));
     }
 
-    private InputStage runPlan(CorpusDirectory corpus, SpecDecoders decoders, GenerationPlan plan)
+    private Admitted runPlan(CorpusDirectory corpus, SpecDecoders decoders, GenerationPlan plan)
             throws Exception {
         return runPlan(corpus, decoders, config(32), plan, 1);
     }
 
-    private InputStage runPlan(
+    private Admitted runPlan(
             CorpusDirectory corpus, SpecDecoders decoders, PbtConfig pbt, GenerationPlan plan, int cpus)
             throws Exception {
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var entries = Math.toIntExact(plan.missingEntries());
-        var stage = new InputStage(
+        var stage = admitting(
                 InputAdmission.withoutKnownDefects(pbt),
                 plan,
-                new StageEnvironment(corpus, decoders, new CpuBudget(cpus), control),
+                new StageEnvironment(corpus, decoders, new CpuBudget(cpus), control, IgnoredEvents.INSTANCE),
                 new InputHandoff(queue, new Semaphore(entries)),
                 metrics(0));
         stage.start();

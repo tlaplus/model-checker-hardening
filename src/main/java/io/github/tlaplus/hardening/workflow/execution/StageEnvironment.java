@@ -13,11 +13,13 @@ public record StageEnvironment(
         CorpusDirectory corpus,
         SpecDecoders decoders,
         CpuBudget cpuBudget,
-        WorkflowControl control) {
+        WorkflowControl control,
+        WorkflowEvents events) {
     public StageEnvironment {
         Objects.requireNonNull(corpus, "corpus");
         Objects.requireNonNull(decoders, "decoders");
         Objects.requireNonNull(cpuBudget, "cpuBudget");
         Objects.requireNonNull(control, "control");
+        Objects.requireNonNull(events, "events");
     }
 }

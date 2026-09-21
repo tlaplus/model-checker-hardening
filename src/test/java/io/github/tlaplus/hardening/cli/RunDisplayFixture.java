@@ -87,7 +87,7 @@ final class RunDisplayFixture {
                     source.stage(stage).processed()));
         }
         return new WorkflowRunSummary(WorkflowRunSummary.StopReason.COMPLETED, source.generator(),
-                source.stages(), new CorpusInventory(stages, new TreeMap<>()), source.totalElapsed());
+                source.stages(), new CorpusInventory(stages, new TreeMap<>(), Map.of()), source.totalElapsed());
     }
 
     static Map<RunMetric, RunValue> values(WorkflowProgress source) {

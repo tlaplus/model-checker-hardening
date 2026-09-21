@@ -19,6 +19,7 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.workflow.checker.CheckerRouting;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
+import io.github.tlaplus.hardening.workflow.execution.IgnoredEvents;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
@@ -68,7 +69,7 @@ class ToolStageTest {
                 backend,
                 new CheckerRouting(new OccupancyGate(0, 2), output),
                 new StageCounters(initial, new ElapsedTimeAccumulator()),
-                new StageEnvironment(corpus, decoders, new CpuBudget(1), control),
+                new StageEnvironment(corpus, decoders, new CpuBudget(1), control, IgnoredEvents.INSTANCE),
                 input);
         try {
             stage.start();

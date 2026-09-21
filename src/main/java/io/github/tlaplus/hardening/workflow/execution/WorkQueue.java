@@ -1,16 +1,27 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.Objects;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-/** A close-aware multi-producer, multi-consumer FIFO queue. */
+/** A close-aware multi-producer, multi-consumer queue; optionally ordered by priority. */
 public final class WorkQueue<T> {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition available = lock.newCondition();
-    private final ArrayDeque<T> elements = new ArrayDeque<>();
+    private final Queue<T> elements;
     private boolean closed;
+
+    public WorkQueue() {
+        elements = new ArrayDeque<>();
+    }
+
+    public WorkQueue(Comparator<? super T> priority) {
+        elements = new PriorityQueue<>(Objects.requireNonNull(priority, "priority"));
+    }
 
     public boolean submit(T element) {
         Objects.requireNonNull(element, "element");
@@ -19,7 +30,7 @@ public final class WorkQueue<T> {
             if (closed) {
                 return false;
             }
-            elements.addLast(element);
+            elements.add(element);
             available.signal();
             return true;
         } finally {
@@ -34,7 +45,7 @@ public final class WorkQueue<T> {
             while (elements.isEmpty() && !closed) {
                 available.await();
             }
-            return elements.pollFirst();
+            return elements.poll();
         } finally {
             lock.unlock();
         }

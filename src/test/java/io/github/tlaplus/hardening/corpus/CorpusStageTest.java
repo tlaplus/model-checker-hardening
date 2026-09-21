@@ -4,7 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.github.tlaplus.hardening.corpus.CorpusStage.PipelineRole;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class CorpusStageTest {
@@ -47,6 +51,36 @@ class CorpusStageTest {
                         CorpusStage.AGGREGATOR,
                         CorpusStage.QUALITY),
                 List.of(CorpusStage.values()));
+    }
+
+    /**
+     * Generation scheduling (ADR 0010) reads a stage's role instead of naming stages: which queues
+     * are ordered oldest generation first, which verdicts settle an entry, and which stage runs
+     * outside the per-entry pipeline all follow from it. A stage added without a considered role
+     * would silently join the wrong group, so the roles are pinned here.
+     */
+    @Test
+    void everyStageDeclaresThePipelineRoleGenerationSchedulingReadsIt() {
+        assertEquals(
+                Map.of(
+                        CorpusStage.PARSER, PipelineRole.PARSING,
+                        CorpusStage.TLC, PipelineRole.CHECKING,
+                        CorpusStage.APALACHE, PipelineRole.CHECKING,
+                        CorpusStage.AGGREGATOR, PipelineRole.AGGREGATION,
+                        CorpusStage.QUALITY, PipelineRole.SELECTION),
+                Arrays.stream(CorpusStage.values())
+                        .collect(Collectors.toMap(stage -> stage, CorpusStage::role)));
+    }
+
+    @Test
+    void theCheckerBranchesAreExactlyTheStagesThatCheck() {
+        assertEquals(List.of(CorpusStage.TLC, CorpusStage.APALACHE), CorpusStage.checkerBranches());
+        for (var stage : CorpusStage.values()) {
+            assertEquals(
+                    stage.role() == PipelineRole.CHECKING,
+                    CorpusStage.checkerBranches().contains(stage),
+                    stage.displayName());
+        }
     }
 
     @Test

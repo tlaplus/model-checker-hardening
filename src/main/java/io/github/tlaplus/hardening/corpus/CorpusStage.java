@@ -27,7 +27,7 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.PARSER_PASS,
                             CorpusVerdict.FAIL, CorpusPath.PARSER_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.PARSER_CRASH)),
-            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN),
+            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN, PipelineRole.PARSING),
             Map.of(
                     CorpusVerdict.PASS, ResultMeaning.PASS,
                     CorpusVerdict.FAIL, ResultMeaning.FAIL,
@@ -43,7 +43,7 @@ public enum CorpusStage {
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLC_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.TLC_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.TLC_CRASH)),
-            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL),
+            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING),
             Map.of(
                     CorpusVerdict.PASS, ResultMeaning.PASS,
                     CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
@@ -60,7 +60,7 @@ public enum CorpusStage {
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.APALACHE_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.APALACHE_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH)),
-            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL),
+            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING),
             Map.of(
                     CorpusVerdict.PASS, ResultMeaning.PASS,
                     CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
@@ -75,7 +75,7 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.AGGREGATOR_PASS,
                             CorpusVerdict.FAIL, CorpusPath.AGGREGATOR_FAIL)),
-            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN, PipelineRole.AGGREGATION),
             Map.of(CorpusVerdict.PASS, ResultMeaning.AGREE, CorpusVerdict.FAIL, ResultMeaning.DIFFER)),
     /**
      * The quality gate of ADR 0010. It consumes the aggregator's passes, which are its input
@@ -90,7 +90,7 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.QUALITY_PASS,
                             CorpusVerdict.FAIL, CorpusPath.QUALITY_FAIL)),
-            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN, PipelineRole.SELECTION),
             Map.of(CorpusVerdict.PASS, ResultMeaning.KEEP, CorpusVerdict.FAIL, ResultMeaning.DROP));
 
     /**
@@ -110,6 +110,22 @@ public enum CorpusStage {
         public String label() {
             return label;
         }
+    }
+
+    /**
+     * What a stage contributes to one entry's journey through the pipeline. Generation scheduling
+     * (ADR 0010) asks a stage for its role instead of naming stages, so adding a stage is a change
+     * to this file alone.
+     */
+    public enum PipelineRole {
+        /** Judges an admitted entry and fans its pass out to the checker branches. */
+        PARSING,
+        /** One branch that checks a parser pass; the branches run concurrently. */
+        CHECKING,
+        /** Compares the finished branches and gives the entry its terminal verdict. */
+        AGGREGATION,
+        /** Selects among entries that already settled; runs outside the per-entry pipeline. */
+        SELECTION
     }
 
     /** What becomes of an entry this stage passes. */
@@ -140,9 +156,11 @@ public enum CorpusStage {
     private record StagePolicy(
             Passes passes,
             boolean configuredResultCapacity,
-            FailureMetadata failureMetadata) {}
+            FailureMetadata failureMetadata,
+            PipelineRole role) {}
 
-    private static final List<CorpusStage> CHECKER_BRANCHES = List.of(TLC, APALACHE);
+    private static final List<CorpusStage> CHECKER_BRANCHES =
+            Arrays.stream(values()).filter(stage -> stage.role() == PipelineRole.CHECKING).toList();
 
     private final String metadataName;
     private final String displayName;
@@ -169,6 +187,11 @@ public enum CorpusStage {
             throw new IllegalArgumentException(displayName + " does not record " + verdict);
         }
         return meaning;
+    }
+
+    /** Returns what this stage contributes to an entry's journey through the pipeline. */
+    public PipelineRole role() {
+        return policy.role();
     }
 
     /** Returns the stages that check a parser pass, in the order the parser fans out to them. */

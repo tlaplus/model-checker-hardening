@@ -3,14 +3,14 @@ package io.github.tlaplus.hardening.workflow.input;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusException;
-import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
-import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageWorker;
+import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkerGroup;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
@@ -22,7 +22,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Concurrent input stage: admits one generation's entries from its candidate sources.
+ * Concurrent input stage: admits reserved target ranges from adjacent generations.
+ *
+ * <p>The stage lives for the whole invocation. The coordinator {@link #submit}s one
+ * {@link GenerationPlan} per contiguous target range — a generation's mutant prefix or PBT suffix
+ * (ADR 0010) — and calls {@link #finish} when there will be no more. Ranges from two adjacent
+ * generations may be open at once.
  *
  * <p>Workers claim target entries dynamically. The plan names the source of each target; a worker
  * claims the target from that source, then draws candidates until one is stored in {@code
@@ -38,26 +43,26 @@ public final class InputStage implements WorkflowStage {
     private static final long MAXIMUM_ATTEMPTS_PER_ENTRY = 10_000;
 
     private final InputAdmission admission;
-    private final GenerationPlan plan;
-    private final Generator<SpecArtifact> decoder;
+    private final int workerLimit;
+    private final WorkQueue<TargetRange> targets = new WorkQueue<>();
     private final StageEnvironment environment;
     private final InputHandoff handoff;
     private final GeneratorStatistics statistics;
-    private final AtomicLong nextTarget = new AtomicLong();
     private final WorkerGroup workers = new WorkerGroup("fuzztla-input-");
 
     public InputStage(
             InputAdmission admission,
-            GenerationPlan plan,
+            int workerLimit,
             StageEnvironment environment,
             InputHandoff handoff,
             GeneratorStatistics statistics) {
         this.admission = Objects.requireNonNull(admission, "admission");
-        this.plan = Objects.requireNonNull(plan, "plan");
+        Preconditions.requirePositive(workerLimit, "workerLimit");
+        this.workerLimit = workerLimit;
         this.environment = Objects.requireNonNull(environment, "environment");
-        decoder = environment.decoders().decoder(plan.kind());
         this.handoff = Objects.requireNonNull(handoff, "handoff");
         this.statistics = Objects.requireNonNull(statistics, "statistics");
+        environment.control().onStop(targets::close);
     }
 
     @Override
@@ -67,8 +72,31 @@ public final class InputStage implements WorkflowStage {
 
     @Override
     public void start() {
-        var workerCount = Math.toIntExact(Math.min(plan.workerLimit(), plan.missingEntries()));
-        workers.start(workerCount, workerId -> () -> runWorker(workerId), handoff.queue()::close);
+        workers.start(workerLimit, workerId -> () -> runWorker(workerId), handoff.queue()::close);
+    }
+
+    /**
+     * Adds one contiguous target range without changing its generation-local ordinals.
+     *
+     * <p>The same range is queued once per worker that may share it, up to {@code workerLimit}
+     * copies, because workers claim targets from it concurrently through {@link TargetRange}'s
+     * counter. Queuing it once would let only one worker fill it. A worker that draws an exhausted
+     * copy takes the next one, so extra copies cost only a queue round.
+     */
+    public void submit(GenerationPlan plan) {
+        Objects.requireNonNull(plan, "plan");
+        var range = new TargetRange(plan);
+        for (long worker = 0; worker < Math.min(workerLimit, plan.missingEntries()); worker++) {
+            if (!targets.submit(range)) {
+                // The run is stopping; the workers are on their way out and need no more work.
+                return;
+            }
+        }
+    }
+
+    /** Signals that the coordinator will submit no more targets. */
+    public void finish() {
+        targets.close();
     }
 
     @Override
@@ -76,12 +104,9 @@ public final class InputStage implements WorkflowStage {
         workers.await();
     }
 
-    public GeneratorSummary summary() {
-        return statistics.summary(plan.seed());
-    }
-
     @Override
     public void close() {
+        targets.close();
         handoff.queue().close();
         workers.close();
     }
@@ -96,18 +121,24 @@ public final class InputStage implements WorkflowStage {
     /** Claims target entries until every one is claimed or the workflow stops. */
     private void generateInputs(int workerId) throws Exception {
         while (!environment.control().shouldStop()) {
-            var target = nextTarget.getAndIncrement();
-            if (target >= plan.missingEntries()) {
+            var range = targets.take();
+            if (range == null) {
                 return;
             }
-            var targetSeed = derivedSeed(plan.seed(), target);
-            var random = new SplittableRandom(targetSeed);
-            var claimRandom = random.split();
-            var inputRandom = random.split();
-            var entry = new EntryTarget(
-                    workerId, targetSeed, target, plan.source(target).claim(claimRandom));
-            if (!generateEntry(entry, inputRandom)) {
-                return;
+            var plan = range.plan;
+            while (!environment.control().shouldStop()) {
+                var target = range.nextTarget.getAndIncrement();
+                if (target >= plan.missingEntries()) {
+                    break;
+                }
+                var targetSeed = derivedSeed(plan.seed(), plan.firstTarget() + target);
+                var random = new SplittableRandom(targetSeed);
+                var entry = new EntryTarget(
+                        workerId, targetSeed, plan.firstTarget() + target, plan,
+                        plan.source(target).claim(random.split()));
+                if (!generateEntry(entry, random.split())) {
+                    return;
+                }
             }
         }
     }
@@ -153,7 +184,8 @@ public final class InputStage implements WorkflowStage {
             EntryTarget entry, SplittableRandom inputRandom, EntryProgress progress)
             throws Exception {
         if (!environment.cpuBudget().acquire(
-                CpuBudget.Priority.GENERATOR, 1, environment.control()::shouldStop)) {
+                CpuBudget.Priority.GENERATOR, entry.plan().generation(), 1,
+                environment.control()::shouldStop)) {
             return Attempt.STOPPED;
         }
         statistics.elapsed().start();
@@ -180,7 +212,7 @@ public final class InputStage implements WorkflowStage {
             progress.attempts++;
             var draft = entry.claimed().draw(inputRandom);
             try {
-                var artifact = decoder.generate(draft.input());
+                var artifact = environment.decoders().decoder(entry.plan().kind()).generate(draft.input());
                 if (draft.isClone().test(artifact)) {
                     statistics.recordClone();
                     progress.clones++;
@@ -204,6 +236,7 @@ public final class InputStage implements WorkflowStage {
     private Attempt admit(EntryTarget entry, Candidate candidate, EntryProgress progress)
             throws IOException, CorpusException {
         progress.bestRichness = Math.max(progress.bestRichness, candidate.richness());
+        var plan = entry.plan();
         var generation = candidate.draft().metadata(plan.generation(), candidate.richness());
         var input = candidate.draft().input();
         switch (admission.decide(
@@ -232,7 +265,12 @@ public final class InputStage implements WorkflowStage {
         return switch (corpus.store(plan.kind(), input, generation)) {
             case ADDED -> {
                 statistics.recordAdmission(candidate.richness());
-                handoff.queue().submit(corpus.inputPath(input));
+                var path = corpus.inputPath(input);
+                // Reported only now: store() has written the entry, so the coordinator that counts
+                // admissions never counts one that is not yet durable.
+                environment.events().admitted(
+                        EntryName.of(path), plan.generation(), generation.mutation().isPresent());
+                handoff.queue().submit(path);
                 yield Attempt.STORED;
             }
             case DUPLICATE -> {
@@ -270,14 +308,18 @@ public final class InputStage implements WorkflowStage {
                 + ": "
                 + Diagnostics.message(failure);
         var diagnostic = environment.corpus()
-                .preserveGeneratorCrash(plan.kind(), input, failure)
+                .preserveGeneratorCrash(entry.plan().kind(), input, failure)
                 .appendTo(message);
         return new WorkflowException(diagnostic, failure);
     }
 
-    /** Returns the one-based ordinal of a target entry within the whole corpus. */
+    /**
+     * Returns the one-based ordinal a target entry occupies in the corpus, counted nominally: its
+     * generation's first ordinal plus its position in that generation. Generations that admitted
+     * fewer entries than {@code generation_size} leave gaps.
+     */
     private long entryNumber(EntryTarget entry) {
-        return plan.initialEntries() + entry.target() + 1;
+        return entry.plan().initialEntries() + entry.target() + 1;
     }
 
     /** Returns the seed of one generation's input stage, derived from the run seed. */
@@ -315,10 +357,20 @@ public final class InputStage implements WorkflowStage {
 
     /** One target entry a worker has claimed from its source, and the seed of its stream. */
     private record EntryTarget(
-            int workerId, long targetSeed, long target, CandidateSource.Target claimed) {
+            int workerId, long targetSeed, long target, GenerationPlan plan,
+            CandidateSource.Target claimed) {
         /** Names the worker, and the seed that replays the target, in a diagnostic. */
         String worker() {
             return "input generator worker " + workerId + " (target seed " + targetSeed + ")";
+        }
+    }
+
+    private static final class TargetRange {
+        final GenerationPlan plan;
+        final AtomicLong nextTarget = new AtomicLong();
+
+        TargetRange(GenerationPlan plan) {
+            this.plan = plan;
         }
     }
 

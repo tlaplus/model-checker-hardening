@@ -18,15 +18,23 @@ import java.util.TreeMap;
  * for the input-directory-free aggregator. Counts are verdicts the stage has already recorded.
  *
  * @param generations what each generation admitted, for the generations that admitted any
+ * @param unsettled the entries no stage has finished with, keyed by name, for a run that resumes
  */
 public record CorpusInventory(
-        Map<CorpusStage, StageEntries> stages, SortedMap<Integer, GenerationEntries> generations) {
-    /** How many logical entries one generation admitted, and how many of them are mutants. */
-    public record GenerationEntries(long entries, long mutants) {
+        Map<CorpusStage, StageEntries> stages,
+        SortedMap<Integer, GenerationEntries> generations,
+        Map<EntryName, EntryProgress> unsettled) {
+    /**
+     * What one generation holds: the logical entries it admitted, how many of them are mutants, and
+     * how many the aggregator passed but the quality gate has not judged.
+     */
+    public record GenerationEntries(long entries, long mutants, long ungated) {
         public GenerationEntries {
             Preconditions.requirePositive(Math.toIntExact(entries), "entries");
             Preconditions.require(mutants >= 0 && mutants <= entries,
                     "mutants must be in the range 0..entries");
+            Preconditions.require(ungated >= 0 && ungated <= entries,
+                    "ungated must be in the range 0..entries");
         }
     }
 
@@ -44,6 +52,7 @@ public record CorpusInventory(
         stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "inventory");
         generations = Collections.unmodifiableSortedMap(
                 new TreeMap<>(Objects.requireNonNull(generations, "generations")));
+        unsettled = Map.copyOf(Objects.requireNonNull(unsettled, "unsettled"));
         for (var generation : generations.keySet()) {
             Preconditions.requireNonnegative(generation, "generation");
         }
@@ -111,6 +120,17 @@ public record CorpusInventory(
     public long mutants(int generation) {
         var admitted = generations.get(generation);
         return admitted == null ? 0 : admitted.mutants();
+    }
+
+    /** Returns how many of one generation's entries the aggregator passed and the gate has not judged. */
+    public long ungated(int generation) {
+        var admitted = generations.get(generation);
+        return admitted == null ? 0 : admitted.ungated();
+    }
+
+    /** Returns the entries of one generation that no stage has finished with. */
+    public long unsettled(int generation) {
+        return unsettled.values().stream().filter(entry -> entry.generation() == generation).count();
     }
 
     /** Counts one logical input once despite the two physical checker-branch copies. */
