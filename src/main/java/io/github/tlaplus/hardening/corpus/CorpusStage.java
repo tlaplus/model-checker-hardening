@@ -194,15 +194,6 @@ public enum CorpusStage {
         return policy.role();
     }
 
-    /**
-     * Reports whether this stage claims per-entry work that competes for the CPU budget, so its
-     * queue and its budget requests are served oldest generation first (ADR 0010). Aggregation is
-     * a single cheap worker and selection runs between generations, so neither is ordered.
-     */
-    public boolean ordersWorkByGeneration() {
-        return role() == PipelineRole.PARSING || role() == PipelineRole.CHECKING;
-    }
-
     /** Returns the stages that check a parser pass, in the order the parser fans out to them. */
     public static List<CorpusStage> checkerBranches() {
         return CHECKER_BRANCHES;

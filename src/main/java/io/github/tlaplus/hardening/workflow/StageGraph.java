@@ -94,7 +94,7 @@ final class StageGraph {
         var workflow = setup.config().workflow();
         for (var stage : CorpusStage.values()) {
             // The comparator reads `progress`, which is built below; nothing is queued until then.
-            var queue = stage.ordersWorkByGeneration()
+            var queue = ordersWorkByGeneration(stage)
                     ? new WorkQueue<Path>(Comparator.comparingInt(this::generationOf))
                     : new WorkQueue<Path>();
             queues.put(stage, queue);
@@ -275,6 +275,19 @@ final class StageGraph {
         result.addAll(checkers.values());
         result.add(aggregator);
         return result;
+    }
+
+    /**
+     * Reports whether a stage's queue serves the oldest generation first (ADR 0010). Parsing and
+     * checking claim per-entry work that competes for the CPU budget. Aggregation is a single cheap
+     * worker whose queue stays FIFO, and selection runs between generations. The switch is
+     * exhaustive, so a new role does not compile until it is placed here.
+     */
+    static boolean ordersWorkByGeneration(CorpusStage stage) {
+        return switch (stage.role()) {
+            case PARSING, CHECKING -> true;
+            case AGGREGATION, SELECTION -> false;
+        };
     }
 
     /** Orders queued work oldest generation first; an entry the tracker lost sorts last. */

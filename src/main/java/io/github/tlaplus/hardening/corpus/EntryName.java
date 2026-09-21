@@ -12,7 +12,7 @@ import java.util.Objects;
  * entry. Anything that tracks an entry across stages — the startup scan and the running workflow
  * both do — keys on this instead.
  */
-public record EntryName(String value) implements Comparable<EntryName> {
+public record EntryName(String value) {
     public EntryName {
         Objects.requireNonNull(value, "value");
         Preconditions.require(!value.isBlank(), "an entry name must not be blank");
@@ -21,11 +21,6 @@ public record EntryName(String value) implements Comparable<EntryName> {
     /** Returns the entry a path names, wherever the path points. */
     public static EntryName of(Path path) {
         return new EntryName(Objects.requireNonNull(path, "path").getFileName().toString());
-    }
-
-    @Override
-    public int compareTo(EntryName other) {
-        return value.compareTo(other.value);
     }
 
     @Override

@@ -1,10 +1,8 @@
 package io.github.tlaplus.hardening.corpus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage.PipelineRole;
 import java.util.Arrays;
@@ -83,15 +81,6 @@ class CorpusStageTest {
                     CorpusStage.checkerBranches().contains(stage),
                     stage.displayName());
         }
-    }
-
-    @Test
-    void onlyTheStagesThatClaimPerEntryWorkOrderItByGeneration() {
-        assertTrue(CorpusStage.PARSER.ordersWorkByGeneration());
-        assertTrue(CorpusStage.TLC.ordersWorkByGeneration());
-        assertTrue(CorpusStage.APALACHE.ordersWorkByGeneration());
-        assertFalse(CorpusStage.AGGREGATOR.ordersWorkByGeneration());
-        assertFalse(CorpusStage.QUALITY.ordersWorkByGeneration());
     }
 
     @Test

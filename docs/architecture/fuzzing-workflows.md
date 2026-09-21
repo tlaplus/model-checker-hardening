@@ -74,9 +74,12 @@ generation from the existing corpus format. Durable admission and stage
 transitions update that state in memory during the invocation; no full-corpus
 inventory scan occurs between generations. `corpus.EntryProgress` is the one
 definition of what recovery reads and what the run accumulates, so the two cannot
-disagree. A corpus with an unfinished generation more than one before its latest
-stops the run: the loop admits at most one generation ahead, so nothing older can
-have been left open. A final validation runs after the workers stop. The progress
+disagree. A corpus with entries still in flight or ungated in a generation more
+than one before its latest stops the run: the loop admits at most one generation
+ahead, so nothing older can have been left open. A generation that is merely
+short of `generation_size` does not, since raising `generation_size` between runs
+makes every finished generation look short. A final validation runs after the
+workers stop. The progress
 display names the oldest ungated generation.
 
 **Implemented architectural extension.** Admission ends with the known-defect

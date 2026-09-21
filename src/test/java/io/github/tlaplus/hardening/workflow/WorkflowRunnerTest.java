@@ -290,6 +290,22 @@ class WorkflowRunnerTest {
     }
 
     @Test
+    void continuesAFinishedCorpusAfterGenerationSizeIsRaised(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var first = runner(generationalConfig(12), BY_LENGTH).run(corpus, 42, 1);
+        assertEquals(2, first.corpus().latestGeneration());
+
+        // Every generation is gated, but each now looks short of the new size. Being short is not
+        // evidence of an unfinished generation, so the run continues instead of refusing.
+        var second = runner(withGenerationSize(generationalConfig(24), 8), BY_LENGTH).run(corpus, 42, 1);
+
+        assertEquals(WorkflowRunSummary.StopReason.COMPLETED, second.stopReason());
+        assertEquals(0, second.corpus().unsettled().size());
+        assertEquals(0, corpus.resultEntries(CorpusStage.AGGREGATOR, CorpusVerdict.PASS).size());
+    }
+
+    @Test
     void refusesACorpusWhoseUnfinishedGenerationIsMoreThanOneBehindItsLatest(@TempDir Path directory)
             throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
@@ -302,7 +318,8 @@ class WorkflowRunnerTest {
         var runner = runner(generationalConfig(12), BY_LENGTH);
         var exception = assertThrows(CorpusException.class, () -> runner.run(corpus, 42, 1));
 
-        assertTrue(exception.getMessage().contains("generation 0 is unfinished"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("generation 0 has unfinished or ungated entries"),
+                exception.getMessage());
     }
 
     @Test
@@ -706,6 +723,22 @@ class WorkflowRunnerTest {
                 new PbtConfig(8, 1, 2.0, 1.5),
                 new MutatorConfig(
                         4, 0.5, 1, Map.of(MutationOperator.INSERT, 1), new QualityGateConfig(1.0, Set.of(), 0, false)),
+                base.libraries());
+    }
+
+    private static FuzzTlaConfig withGenerationSize(FuzzTlaConfig base, int generationSize) {
+        var mutator = base.mutator();
+        return new FuzzTlaConfig(
+                base.generatedKind(),
+                base.generator(),
+                base.workflow(),
+                base.pbt(),
+                new MutatorConfig(
+                        generationSize,
+                        mutator.feedbackRatio(),
+                        mutator.maximumEdits(),
+                        mutator.weights(),
+                        mutator.gate()),
                 base.libraries());
     }
 

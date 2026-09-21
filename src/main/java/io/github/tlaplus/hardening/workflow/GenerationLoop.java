@@ -142,27 +142,33 @@ final class GenerationLoop {
     /**
      * Returns the oldest generation a restart may still need to complete or gate.
      *
-     * <p>Only the generation before the latest one can be unfinished: the loop admits at most one
-     * generation ahead of the one it is gating, so nothing older can have been left open. An older
-     * corpus that breaks that bound would have a generation silently skipped, so it is rejected.
+     * <p>Only the generation before the latest one can have been left open: the loop admits at
+     * most one generation ahead of the one it is gating. An older generation with work in flight or
+     * entries still ungated would be skipped silently, so such a corpus is rejected. Being short of
+     * {@code generation_size} is not evidence of that — raising {@code generation_size} between
+     * runs makes every finished generation look short — so an older generation is judged only by
+     * what it left open.
      */
     private int oldestIncomplete(CorpusInventory initial) throws CorpusException {
         var latest = initial.latestGeneration();
         for (var generation = 0; generation < latest - 1; generation++) {
-            if (incomplete(initial, generation)) {
+            if (leftOpen(initial, generation)) {
                 throw new CorpusException(
-                        "generation " + generation + " is unfinished but generation " + latest
-                                + " has been admitted; this corpus was not written by this workflow");
+                        "generation " + generation + " has unfinished or ungated entries but"
+                                + " generation " + latest + " has been admitted; this corpus was not"
+                                + " written by this workflow");
             }
         }
-        return latest > 0 && incomplete(initial, latest - 1) ? latest - 1 : latest;
+        if (latest > 0
+                && (initial.entries(latest - 1) < size(latest - 1) || leftOpen(initial, latest - 1))) {
+            return latest - 1;
+        }
+        return latest;
     }
 
-    /** Reports whether a generation still lacks entries, has work in flight, or is ungated. */
-    private boolean incomplete(CorpusInventory initial, int generation) {
-        return initial.entries(generation) < size(generation)
-                || initial.unsettled(generation) > 0
-                || initial.ungated(generation) > 0;
+    /** Reports whether a generation has entries in flight or entries the gate has not judged. */
+    private static boolean leftOpen(CorpusInventory initial, int generation) {
+        return initial.unsettled(generation) > 0 || initial.ungated(generation) > 0;
     }
 
     /**
