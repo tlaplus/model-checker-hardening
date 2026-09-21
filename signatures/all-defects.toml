@@ -24,6 +24,8 @@
 # - Frequent operators whose defect depends on the operand values: order-sensitive-set-fold (the
 #   combinator's order sensitivity) and tlc-004 (a CHOOSE over a set of 10^5 functions; the large
 #   sets it needs are caught by powerset, function-set-expansion and integer-range).
+# - tlc-performance-001: stack exhaustion depends on the run-time sequence length and JVM stack
+#   size, which cannot be expressed by a structural signature.
 # - vacuous-initial-predicate: both tools pass.
 # - apalache-printer-001 to 007, apalache-json-001 and 002: fixed.
 #

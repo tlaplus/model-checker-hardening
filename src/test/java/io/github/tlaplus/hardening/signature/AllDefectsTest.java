@@ -43,7 +43,8 @@ class AllDefectsTest {
             "findings/apalache-printer/apalache-printer-005.md",
             "findings/apalache-printer/apalache-printer-006.md",
             "findings/apalache-printer/apalache-printer-007.md",
-            "findings/TLC/tlc-013.md");
+            "findings/TLC/tlc-013.md",
+            "findings/tlc-performance/tlc-performance-001.md");
 
     private final SignatureShapes shapes = new SignatureShapes();
     private final TlaTypedScopeUncheckedBuilder builder = shapes.builder;
