@@ -17,7 +17,7 @@ class ProgressLayoutTest {
     void flowFitsOneScreenAndShowsFanOutJoinAndFeedback() {
         var lines = RunDisplayFixture.render(RunDisplayFixture.sample(), new Size(80, 24));
         var output = RunDisplayFixture.plain(lines);
-        assertEquals(22, lines.size());
+        assertEquals(23, lines.size());
         assertTrue(lines.stream().allMatch(line -> line.columnLength() <= 79));
         // Each count reserves one column for its change marker; elapsed times never get one.
         assertEquals("FuzzTLA RUNNING  Gen 3   Entries 1240   Elapsed 2m17s", lines.getFirst().toString());
@@ -28,9 +28,9 @@ class ProgressLayoutTest {
         assertTrue(output.contains("PARSER  Queued 40   Pass 1180   Fail 18   Crash 2   Work 8s"));
         assertTrue(output.contains("AGGREGATOR  Agree 1060   Differ 28   Work 1s"));
         assertTrue(output.contains("QUALITY  Keep 220   Drop 500   Work 2s"));
-        var title = lines.get(11).toString();
+        var title = lines.get(12).toString();
         assertEquals(39, title.indexOf("APALACHE"));
-        assertTrue(lines.get(13).toString().contains("Cex 45"));
+        assertTrue(lines.get(14).toString().contains("Cex 45"));
         assertFalse(output.contains("AGGREGATOR  Queued"));
         assertFalse(output.contains("QUALITY  Queued"));
     }
@@ -41,19 +41,20 @@ class ProgressLayoutTest {
             var lines = render(glyphs, new Size(80, 24)).stream().map(AttributedString::toString).toList();
             var horizontal = glyphs.junction(false, false, true, true).charAt(0);
             var arrow = glyphs.arrowDown().charAt(0);
-            var fanOut = lines.get(9);
-            var branches = lines.get(10);
+            var fanOut = lines.get(10);
+            var branches = lines.get(11);
             for (var column = 0; column < Math.max(fanOut.length(), branches.length()); column++) {
                 var junction = column < fanOut.length() && fanOut.charAt(column) != horizontal
                         && fanOut.charAt(column) != ' ';
                 var branch = column < branches.length() && branches.charAt(column) == arrow;
                 assertEquals(junction, branch, glyphs + " column " + column);
             }
-            assertEquals(arrow, lines.get(6).charAt(3));
-            assertEquals(glyphs.vertical().charAt(0), lines.get(8).charAt(3));
-            var joinArrow = lines.get(17).indexOf(arrow);
-            assertNotEquals(horizontal, lines.get(16).charAt(joinArrow), glyphs.name());
-            assertEquals(joinArrow, lines.get(19).indexOf(arrow));
+            assertEquals(glyphs.vertical().charAt(0), lines.get(6).charAt(3));
+            assertEquals(arrow, lines.get(7).charAt(3));
+            assertEquals(glyphs.vertical().charAt(0), lines.get(9).charAt(3));
+            var joinArrow = lines.get(18).indexOf(arrow);
+            assertNotEquals(horizontal, lines.get(17).charAt(joinArrow), glyphs.name());
+            assertEquals(joinArrow, lines.get(20).indexOf(arrow));
         }
     }
 
@@ -61,10 +62,11 @@ class ProgressLayoutTest {
     void unicodeDrawsTheSameDiagramWithBoxLines() {
         var lines = render(Glyphs.UNICODE, new Size(80, 24)).stream().map(AttributedString::toString).toList();
         var ascii = render(Glyphs.ASCII, new Size(80, 24));
-        assertEquals("   \u25bc", lines.get(6));
-        assertEquals("   \u251c" + "\u2500".repeat(38) + "\u2510", lines.get(9));
-        assertEquals("   \u2514" + "\u2500".repeat(14) + "\u252c" + "\u2500".repeat(23) + "\u2518", lines.get(16));
-        assertTrue(lines.get(21).startsWith(
+        assertEquals("   \u2502", lines.get(6));
+        assertEquals("   \u25bc", lines.get(7));
+        assertEquals("   \u251c" + "\u2500".repeat(38) + "\u2510", lines.get(10));
+        assertEquals("   \u2514" + "\u2500".repeat(14) + "\u252c" + "\u2500".repeat(23) + "\u2518", lines.get(17));
+        assertTrue(lines.get(22).startsWith(
                 "             \u2514\u2500\u2500\u25b6 mutation parents \u2500\u2500\u25b6 next generation"));
         for (var row = 0; row < lines.size(); row++) {
             assertEquals(ascii.get(row).columnLength(), new AttributedString(lines.get(row)).columnLength());
@@ -82,7 +84,7 @@ class ProgressLayoutTest {
     @Test
     void compactSnapshotPreservesStageAndVerdictIdentities() {
         var lines = RunDisplayFixture.render(RunDisplayFixture.sample(), new Size(60, 16));
-        assertEquals(13, lines.size());
+        assertEquals(12, lines.size());
         assertTrue(lines.stream().allMatch(line -> line.columnLength() <= 59));
         assertEquals("""
                 FuzzTLA RUNNING  Gen 3   Entries 1240
@@ -96,7 +98,6 @@ class ProgressLayoutTest {
                 AGGREGATOR  Agree 1060   Differ 28
                 QUALITY  Keep 220   Drop 500
                 `--> mutation parents --> next generation INPUTS
-                Queued: waiting now; Cex: counterexamples
                 Full statistics at completion""", RunDisplayFixture.plain(lines));
     }
 
@@ -130,10 +131,10 @@ class ProgressLayoutTest {
         var marked = ProgressLayout.render(new RunText(values, Precision.COMPACT, new RunPalette(false, false, Glyphs.UNICODE),
                 RunText.Highlights.live(Map.of(queue, RunValue.Direction.DOWN, pass, RunValue.Direction.UP))),
                 new Size(80, 24), true);
-        assertEquals("PARSER  Queued 40\u2193  Pass 1180\u2191  Fail 18   Crash 2   Work 8s", marked.get(7).toString());
-        assertEquals(quiet.get(7).columnLength(), marked.get(7).columnLength());
+        assertEquals("PARSER  Queued 40\u2193  Pass 1180\u2191  Fail 18   Crash 2   Work 8s", marked.get(8).toString());
+        assertEquals(quiet.get(8).columnLength(), marked.get(8).columnLength());
         for (var row = 0; row < quiet.size(); row++) {
-            if (row != 7) {
+            if (row != 8) {
                 assertEquals(quiet.get(row), marked.get(row));
             }
         }

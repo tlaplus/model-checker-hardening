@@ -29,9 +29,6 @@ final class ProgressLayout {
     private static final int TABLE_FIRST_RESULT_COLUMN = 23;
     private static final int TABLE_RESULT_WIDTH = 8;
 
-    private static final String LIVE_LEGEND = RunMetric.Queue.LABEL + ": waiting now; "
-            + RunText.COUNTEREXAMPLE_LEGEND;
-
     private ProgressLayout() {}
 
     static List<AttributedString> render(RunText text, Size size, boolean feedback) {
@@ -58,8 +55,9 @@ final class ProgressLayout {
         var glyphs = text.palette().glyphs();
         var lines = new ArrayList<AttributedString>();
         lines.add(header(text).field("  ", GENERATION).field("  ", ENTRIES).field("  ", TOTAL_ELAPSED).build());
-        lines.add(text.line().text("Cumulative totals / time; " + LIVE_LEGEND).build());
+        lines.add(text.line().text("Cumulative totals / time").build());
         inputDetails(lines, text);
+        lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.vertical()).build());
         lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.arrowDown()).build());
         lines.add(stageSummary(text, CorpusStage.PARSER));
         lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.vertical() + " each pass goes to every checker").build());
@@ -178,7 +176,6 @@ final class ProgressLayout {
             lines.add(line.build());
         }
         lines.add(text.line().text(feedback(text.palette().glyphs(), feedback)).build());
-        lines.add(text.line().text(LIVE_LEGEND).build());
         lines.add(text.line().text("Full statistics at completion").build());
         return lines;
     }
