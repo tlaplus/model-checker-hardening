@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.tool;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
@@ -61,7 +62,7 @@ public final class ToolStage implements WorkflowStage {
                 backend.cpuPermits(),
                 counters,
                 environment.control(),
-                environment.events()::generationOf);
+                path -> environment.events().generationOf(EntryName.of(path)));
         workers = new WorkerGroup("fuzztla-" + stage.metadataName() + "-");
     }
 
@@ -144,7 +145,9 @@ public final class ToolStage implements WorkflowStage {
                             result.metrics(),
                             result.diagnostic()));
             counters.record(verdict);
-            environment.events().completed(path, backend.stage(), verdict);
+            // Reported only now: routing.complete has moved the entry out of this stage's input
+            // directory, so an observer that acts on this never races the move.
+            environment.events().completed(EntryName.of(path), backend.stage(), verdict);
             routing.forward(corpus, destination, verdict);
         }
 

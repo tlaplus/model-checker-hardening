@@ -3,145 +3,161 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.EntryName;
+import io.github.tlaplus.hardening.corpus.EntryProgress;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowEvents;
-import java.nio.file.Path;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Tracks only entries that have not reached a terminal stage outcome. */
+/**
+ * Where every generation of a run stands, tracked from stage events instead of a corpus rescan
+ * (ADR 0010).
+ *
+ * <p>Only entries that have not settled are held, so the tracked set is bounded by what is in
+ * flight rather than by the size of the corpus. {@link EntryProgress} decides what "settled" means,
+ * and startup recovery reads the same rule from stored envelopes, so a resumed run and a fresh one
+ * agree.
+ *
+ * <p><strong>Threading.</strong> Stage workers call {@link #admitted}, {@link #completed} and
+ * {@link #generationOf}; the coordinator thread calls {@link #awaitAdmitted} and
+ * {@link #awaitSettled}. Every method synchronizes on a private lock, so no caller can interfere
+ * with the waits by locking the instance. {@link #generationOf} is called from inside a
+ * {@link io.github.tlaplus.hardening.workflow.execution.WorkQueue} comparator and never throws.
+ */
 final class GenerationProgress implements WorkflowEvents {
-    private final Map<String, Entry> unsettled = new HashMap<>();
+    private final Object lock = new Object();
+    private final Map<EntryName, EntryProgress> unsettled = new HashMap<>();
     private final Map<Integer, Counts> generations = new HashMap<>();
     private final WorkflowControl control;
 
     GenerationProgress(CorpusInventory initial, WorkflowControl control) {
         this.control = Objects.requireNonNull(control, "control");
-        initial.generations().forEach((generation, admitted) -> {
-            var counts = counts(generation);
-            counts.admitted = admitted.entries();
-            counts.mutants = admitted.mutants();
-        });
-        initial.unsettled().forEach((name, progress) -> {
-            unsettled.put(name, new Entry(progress));
-            counts(progress.generation()).unsettled++;
-        });
+        Objects.requireNonNull(initial, "initial");
+        synchronized (lock) {
+            initial.generations().forEach((generation, admitted) -> {
+                var counts = counts(generation);
+                counts.admitted = admitted.entries();
+                counts.mutants = admitted.mutants();
+            });
+            initial.unsettled().forEach((name, progress) -> {
+                unsettled.put(name, progress);
+                counts(progress.generation()).unsettled++;
+            });
+        }
         control.onStop(this::signal);
     }
 
     @Override
-    public synchronized void admitted(Path path, int generation, boolean mutant) {
-        var name = name(path);
-        if (unsettled.putIfAbsent(name, new Entry(generation)) != null) {
-            throw new IllegalStateException("entry admitted twice: " + path);
+    public void admitted(EntryName entry, int generation, boolean mutant) {
+        Objects.requireNonNull(entry, "entry");
+        synchronized (lock) {
+            if (unsettled.putIfAbsent(entry, EntryProgress.admitted(generation)) != null) {
+                throw new IllegalStateException("entry admitted twice: " + entry);
+            }
+            var counts = counts(generation);
+            counts.admitted++;
+            counts.unsettled++;
+            if (mutant) {
+                counts.mutants++;
+            }
+            lock.notifyAll();
         }
-        var counts = counts(generation);
-        counts.admitted++;
-        counts.unsettled++;
-        if (mutant) {
-            counts.mutants++;
-        }
-        notifyAll();
     }
 
     @Override
-    public synchronized void completed(Path path, CorpusStage stage, CorpusVerdict verdict) {
-        var entry = require(path);
-        if (stage == CorpusStage.PARSER) {
-            if (verdict != CorpusVerdict.PASS) {
-                settle(path, entry);
-            }
-        } else if (CorpusStage.checkerBranches().contains(stage)) {
-            entry.checkers.add(stage);
-            entry.crashed |= verdict == CorpusVerdict.CRASH;
-            if (entry.crashed && entry.checkers.size() == CorpusStage.checkerBranches().size()) {
-                settle(path, entry);
-            }
-        } else if (stage == CorpusStage.AGGREGATOR) {
-            settle(path, entry);
-        } else {
+    public void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict) {
+        Objects.requireNonNull(entry, "entry");
+        Objects.requireNonNull(stage, "stage");
+        if (stage.role() == CorpusStage.PipelineRole.SELECTION) {
             throw new IllegalArgumentException("not a pipeline stage: " + stage);
         }
+        synchronized (lock) {
+            var previous = unsettled.get(entry);
+            if (previous == null) {
+                throw new IllegalStateException("no unsettled entry for " + entry);
+            }
+            var updated = previous.with(stage, verdict);
+            if (updated.isSettled()) {
+                unsettled.remove(entry);
+                counts(updated.generation()).unsettled--;
+                lock.notifyAll();
+            } else {
+                unsettled.put(entry, updated);
+            }
+        }
     }
 
     @Override
-    public synchronized int generationOf(Path path) {
-        return require(path).generation;
-    }
-
-    synchronized long admitted(int generation) {
-        return counts(generation).admitted;
-    }
-
-    synchronized long mutants(int generation) {
-        return counts(generation).mutants;
-    }
-
-    synchronized long unsettled(int generation) {
-        return counts(generation).unsettled;
-    }
-
-    synchronized boolean awaitAdmitted(int generation, long target) throws InterruptedException {
-        while (admitted(generation) < target && !control.shouldStop()) {
-            wait();
+    public int generationOf(EntryName entry) {
+        Objects.requireNonNull(entry, "entry");
+        synchronized (lock) {
+            var progress = unsettled.get(entry);
+            return progress == null ? UNKNOWN_GENERATION : progress.generation();
         }
-        return !control.shouldStop();
     }
 
-    synchronized boolean awaitSettled(int generation) throws InterruptedException {
-        while (unsettled(generation) > 0 && !control.shouldStop()) {
-            wait();
+    /** Returns how many entries one generation has admitted, over the whole corpus. */
+    long admitted(int generation) {
+        synchronized (lock) {
+            return counts(generation).admitted;
         }
-        return !control.shouldStop();
     }
 
-    private void settle(Path path, Entry entry) {
-        unsettled.remove(name(path));
-        counts(entry.generation).unsettled--;
-        notifyAll();
-    }
-
-    private Entry require(Path path) {
-        var entry = unsettled.get(name(path));
-        if (entry == null) {
-            throw new IllegalStateException("no unsettled entry for " + path);
+    /** Returns how many of one generation's admitted entries are mutants. */
+    long mutants(int generation) {
+        synchronized (lock) {
+            return counts(generation).mutants;
         }
-        return entry;
+    }
+
+    /** Returns how many of one generation's entries no stage has finished with. */
+    long unsettled(int generation) {
+        synchronized (lock) {
+            return counts(generation).unsettled;
+        }
+    }
+
+    /**
+     * Waits until one generation has admitted {@code target} entries. Returns {@code false} when the
+     * run stopped first, in which case the target may never be reached.
+     */
+    boolean awaitAdmitted(int generation, long target) throws InterruptedException {
+        synchronized (lock) {
+            while (counts(generation).admitted < target && !control.shouldStop()) {
+                lock.wait();
+            }
+            return !control.shouldStop();
+        }
+    }
+
+    /**
+     * Waits until every entry of one generation has settled, so the quality gate may select from it.
+     * Returns {@code false} when the run stopped first.
+     */
+    boolean awaitSettled(int generation) throws InterruptedException {
+        synchronized (lock) {
+            while (counts(generation).unsettled > 0 && !control.shouldStop()) {
+                lock.wait();
+            }
+            return !control.shouldStop();
+        }
     }
 
     private Counts counts(int generation) {
         return generations.computeIfAbsent(generation, _ -> new Counts());
     }
 
-    private static String name(Path path) {
-        return path.getFileName().toString();
-    }
-
-    private synchronized void signal() {
-        notifyAll();
+    private void signal() {
+        synchronized (lock) {
+            lock.notifyAll();
+        }
     }
 
     private static final class Counts {
         long admitted;
         long mutants;
         long unsettled;
-    }
-
-    private static final class Entry {
-        final int generation;
-        final EnumSet<CorpusStage> checkers = EnumSet.noneOf(CorpusStage.class);
-        boolean crashed;
-
-        Entry(int generation) {
-            this.generation = generation;
-        }
-
-        Entry(CorpusInventory.PendingGenerationEntry progress) {
-            this(progress.generation());
-            checkers.addAll(progress.completedCheckers());
-            crashed = progress.crashed();
-        }
     }
 }

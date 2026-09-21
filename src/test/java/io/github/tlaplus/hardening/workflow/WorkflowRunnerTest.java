@@ -17,6 +17,7 @@ import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -48,8 +49,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class WorkflowRunnerTest {
@@ -286,6 +287,22 @@ class WorkflowRunnerTest {
         assertEquals(4, summary.corpus().entries(1));
         assertEquals(2, summary.corpus().mutants(1));
         assertEquals(0, summary.corpus().unsettled().size());
+    }
+
+    @Test
+    void refusesACorpusWhoseUnfinishedGenerationIsMoreThanOneBehindItsLatest(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        // Generation 0 is two entries short while generation 2 has been admitted, which this
+        // workflow never produces: it admits at most one generation ahead of the one it gates.
+        corpus.store(InputKind.EXPRESSION, new byte[] {0}, GenerationMetadata.generated(0, 0, 0));
+        corpus.store(InputKind.EXPRESSION, new byte[] {1, 1}, GenerationMetadata.generated(0, 0, 0));
+        corpus.store(InputKind.EXPRESSION, new byte[] {2, 2, 2}, GenerationMetadata.generated(2, 0, 0));
+
+        var runner = runner(generationalConfig(12), BY_LENGTH);
+        var exception = assertThrows(CorpusException.class, () -> runner.run(corpus, 42, 1));
+
+        assertTrue(exception.getMessage().contains("generation 0 is unfinished"), exception.getMessage());
     }
 
     @Test

@@ -2,17 +2,32 @@ package io.github.tlaplus.hardening.workflow.execution;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
-import java.nio.file.Path;
+import io.github.tlaplus.hardening.corpus.EntryName;
 
-/** Durable admission and stage-transition notifications used by generation scheduling. */
+/**
+ * Durable admission and stage transitions, reported to whatever schedules generations (ADR 0010).
+ *
+ * <p>Every method is called from a stage worker thread, and an implementation must tolerate
+ * concurrent calls. A stage reports a transition <em>after</em> it has durably moved the entry, so
+ * an observer that acts on the report always finds the entry in its new directory.
+ */
 public interface WorkflowEvents {
-    WorkflowEvents NONE = new WorkflowEvents() {};
+    /**
+     * The generation reported for an entry the implementation does not track. Ordering is total, so
+     * an untracked entry must still compare: it sorts last, behind every known generation.
+     */
+    int UNKNOWN_GENERATION = Integer.MAX_VALUE;
 
-    default void admitted(Path path, int generation, boolean mutant) {}
+    /** Reports that an entry was stored in the corpus and belongs to {@code generation}. */
+    void admitted(EntryName entry, int generation, boolean mutant);
 
-    default void completed(Path path, CorpusStage stage, CorpusVerdict verdict) {}
+    /** Reports the verdict one stage durably recorded on an entry. */
+    void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict);
 
-    default int generationOf(Path path) {
-        return 0;
-    }
+    /**
+     * Returns the generation an entry belongs to, for ordering work oldest generation first, or
+     * {@link #UNKNOWN_GENERATION} for an entry this implementation does not track. This is a
+     * comparison key used inside queue locks, so it never throws.
+     */
+    int generationOf(EntryName entry);
 }

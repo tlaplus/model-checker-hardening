@@ -3,12 +3,11 @@ package io.github.tlaplus.hardening.workflow.input;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusException;
-import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics;
-import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageWorker;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
@@ -25,6 +24,11 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Concurrent input stage: admits reserved target ranges from adjacent generations.
  *
+ * <p>The stage lives for the whole invocation. The coordinator {@link #submit}s one
+ * {@link GenerationPlan} per contiguous target range — a generation's mutant prefix or PBT suffix
+ * (ADR 0010) — and calls {@link #finish} when there will be no more. Ranges from two adjacent
+ * generations may be open at once.
+ *
  * <p>Workers claim target entries dynamically. The plan names the source of each target; a worker
  * claims the target from that source, then draws candidates until one is stored in {@code
  * 00-inputs}. Each candidate holds an input slot while it is judged and keeps it only when it is
@@ -39,7 +43,6 @@ public final class InputStage implements WorkflowStage {
     private static final long MAXIMUM_ATTEMPTS_PER_ENTRY = 10_000;
 
     private final InputAdmission admission;
-    private final GenerationPlan initialPlan;
     private final int workerLimit;
     private final WorkQueue<TargetRange> targets = new WorkQueue<>();
     private final StageEnvironment environment;
@@ -49,32 +52,11 @@ public final class InputStage implements WorkflowStage {
 
     public InputStage(
             InputAdmission admission,
-            GenerationPlan plan,
-            StageEnvironment environment,
-            InputHandoff handoff,
-            GeneratorStatistics statistics) {
-        this(admission, plan, plan.workerLimit(), environment, handoff, statistics);
-    }
-
-    /** Constructs an invocation-long input stage that accepts generation segments after start. */
-    public InputStage(
-            InputAdmission admission,
-            int workerLimit,
-            StageEnvironment environment,
-            InputHandoff handoff,
-            GeneratorStatistics statistics) {
-        this(admission, null, workerLimit, environment, handoff, statistics);
-    }
-
-    private InputStage(
-            InputAdmission admission,
-            GenerationPlan initialPlan,
             int workerLimit,
             StageEnvironment environment,
             InputHandoff handoff,
             GeneratorStatistics statistics) {
         this.admission = Objects.requireNonNull(admission, "admission");
-        this.initialPlan = initialPlan;
         Preconditions.requirePositive(workerLimit, "workerLimit");
         this.workerLimit = workerLimit;
         this.environment = Objects.requireNonNull(environment, "environment");
@@ -90,22 +72,23 @@ public final class InputStage implements WorkflowStage {
 
     @Override
     public void start() {
-        if (initialPlan != null) {
-            submit(initialPlan);
-            finish();
-        }
-        var workerCount = initialPlan == null
-                ? workerLimit
-                : Math.toIntExact(Math.min(workerLimit, initialPlan.missingEntries()));
-        workers.start(workerCount, workerId -> () -> runWorker(workerId), handoff.queue()::close);
+        workers.start(workerLimit, workerId -> () -> runWorker(workerId), handoff.queue()::close);
     }
 
-    /** Adds one contiguous target range without changing its generation-local ordinals. */
+    /**
+     * Adds one contiguous target range without changing its generation-local ordinals.
+     *
+     * <p>The same range is queued once per worker that may share it, up to {@code workerLimit}
+     * copies, because workers claim targets from it concurrently through {@link TargetRange}'s
+     * counter. Queuing it once would let only one worker fill it. A worker that draws an exhausted
+     * copy takes the next one, so extra copies cost only a queue round.
+     */
     public void submit(GenerationPlan plan) {
         Objects.requireNonNull(plan, "plan");
         var range = new TargetRange(plan);
         for (long worker = 0; worker < Math.min(workerLimit, plan.missingEntries()); worker++) {
             if (!targets.submit(range)) {
+                // The run is stopping; the workers are on their way out and need no more work.
                 return;
             }
         }
@@ -119,10 +102,6 @@ public final class InputStage implements WorkflowStage {
     @Override
     public void await() throws InterruptedException {
         workers.await();
-    }
-
-    public GeneratorSummary summary() {
-        return statistics.summary(initialPlan == null ? 0 : initialPlan.seed());
     }
 
     @Override
@@ -287,7 +266,10 @@ public final class InputStage implements WorkflowStage {
             case ADDED -> {
                 statistics.recordAdmission(candidate.richness());
                 var path = corpus.inputPath(input);
-                environment.events().admitted(path, plan.generation(), generation.mutation().isPresent());
+                // Reported only now: store() has written the entry, so the coordinator that counts
+                // admissions never counts one that is not yet durable.
+                environment.events().admitted(
+                        EntryName.of(path), plan.generation(), generation.mutation().isPresent());
                 handoff.queue().submit(path);
                 yield Attempt.STORED;
             }
@@ -331,7 +313,11 @@ public final class InputStage implements WorkflowStage {
         return new WorkflowException(diagnostic, failure);
     }
 
-    /** Returns the one-based ordinal of a target entry within the whole corpus. */
+    /**
+     * Returns the one-based ordinal a target entry occupies in the corpus, counted nominally: its
+     * generation's first ordinal plus its position in that generation. Generations that admitted
+     * fewer entries than {@code generation_size} leave gaps.
+     */
     private long entryNumber(EntryTarget entry) {
         return entry.plan().initialEntries() + entry.target() + 1;
     }

@@ -52,8 +52,12 @@ checker tail runs. It gates g only after every one of its entries reaches a
 terminal stage outcome, then admits the mutant share of g + 1 from the selected
 parents.
 Queued parser and checker work, and CPU-budget requests, from the older
-generation take priority. The loop continues until the corpus holds
-`workflow.max_entries` entries. The input stage draws each target entry from a
+generation take priority; the aggregator is exempt, since aggregating an entry
+releases the checker capacity every generation needs. A stage reports a
+transition only after it has durably moved the entry. `corpus.CorpusStage`
+carries the pipeline role these rules key on, so adding a stage does not mean
+editing them. The loop runs one generation per `generation_size` entries of
+`workflow.max_entries`. The input stage draws each target entry from a
 `CandidateSource`: `PbtCandidates` implements the cohort policy above, and
 `MutantCandidates` mutates a parent from `04quality-pass` with the byte
 operators of the `mutation` package. `[mutator] feedback_ratio` fixes the share
@@ -65,8 +69,12 @@ is not a stage: it records no verdict and owns no directory.
 Startup recovery reconstructs unfinished entries and the oldest incomplete
 generation from the existing corpus format. Durable admission and stage
 transitions update that state in memory during the invocation; no full-corpus
-inventory scan occurs between generations. A final validation runs after the
-workers stop. The progress display names the oldest ungated generation.
+inventory scan occurs between generations. `corpus.EntryProgress` is the one
+definition of what recovery reads and what the run accumulates, so the two cannot
+disagree. A corpus with an unfinished generation more than one before its latest
+stops the run: the loop admits at most one generation ahead, so nothing older can
+have been left open. A final validation runs after the workers stop. The progress
+display names the oldest ungated generation.
 
 **Implemented architectural extension.** Admission ends with the known-defect
 signatures listed in `[workflow.inputs] known_defects` ([ADR 0006][]). A

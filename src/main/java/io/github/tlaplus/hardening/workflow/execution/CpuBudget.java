@@ -12,10 +12,10 @@ import java.util.function.BooleanSupplier;
 /**
  * Priority-aware logical CPU budget shared by all stage workers.
  *
- * <p>Pending requests are served by generation, then downstream-first stage priority and FIFO.
- * If the first waiting request cannot yet be satisfied, available permits
- * are reserved for it instead of being granted to upstream work. This prevents a multi-permit
- * checker request from being starved by smaller requests.
+ * <p>Pending requests are served oldest generation first, then downstream-first stage priority,
+ * then FIFO (ADR 0010). If the first waiting request cannot yet be satisfied, available permits are
+ * reserved for it instead of being granted to later work. This prevents a multi-permit checker
+ * request from being starved by smaller requests.
  */
 public final class CpuBudget {
     /** Workflow priorities, from the most downstream work to the most upstream work. */
@@ -25,6 +25,13 @@ public final class CpuBudget {
         PARSER,
         GENERATOR
     }
+
+    /**
+     * The generation a stage reports when its work must not wait behind any other generation's.
+     * The aggregator uses it: aggregating an entry releases the checker capacity every generation
+     * needs, so holding it behind older upstream work would stall the checkers.
+     */
+    public static final int UNORDERED_GENERATION = 0;
 
     private static final long CANCELLATION_POLL_MILLISECONDS = 100;
 
@@ -45,13 +52,12 @@ public final class CpuBudget {
         availablePermits = maximumCpus;
     }
 
-    public boolean acquire(
-            Priority priority, int requestedPermits, BooleanSupplier cancelled)
-            throws InterruptedException {
-        return acquire(priority, 0, requestedPermits, cancelled);
-    }
-
-    /** Acquires permits after earlier-generation and higher-stage-priority waiters. */
+    /**
+     * Acquires permits behind every waiter of an older generation, and behind every waiter of the
+     * same generation at a more downstream stage. Returns {@code false} when {@code cancelled}
+     * became true before the permits were granted; a caller that gets {@code true} must
+     * {@link #release} them.
+     */
     public boolean acquire(
             Priority priority, int generation, int requestedPermits, BooleanSupplier cancelled)
             throws InterruptedException {
@@ -73,6 +79,7 @@ public final class CpuBudget {
             enqueued = true;
 
             while (!cancelled.getAsBoolean()) {
+                // The sequence number makes every request distinct, so identity and equality agree.
                 if (requests.peek() == request && requestedPermits <= availablePermits) {
                     requests.remove();
                     availablePermits -= requestedPermits;

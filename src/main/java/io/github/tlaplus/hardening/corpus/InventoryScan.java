@@ -162,10 +162,7 @@ final class InventoryScan {
                         gatedResults.snapshot(),
                         gatedEntries));
         return new CorpusInventory(
-                stages,
-                logicalEntries.generations(),
-                logicalEntries.unsettled(),
-                logicalEntries.ungated());
+                stages, logicalEntries.generations(), logicalEntries.unsettled());
     }
 
     /** Validates one result directory and reports how many entries it holds. */
@@ -301,16 +298,13 @@ final class InventoryScan {
                     CorpusEntries.requireSameParserOutput(name, reference, candidate);
                 }
             }
-            var completed = new HashSet<CorpusStage>();
-            var crashed = false;
+            // Each branch copy records only its own checker, so the branches are merged here.
+            var branchVerdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
             for (var checker : CorpusStage.checkerBranches()) {
-                var outcome = branches.get(checker).entries().get(name).envelope().stage(checker);
-                if (outcome.isPresent()) {
-                    completed.add(checker);
-                    crashed |= outcome.orElseThrow().verdict() == CorpusVerdict.CRASH;
-                }
+                branches.get(checker).entries().get(name).envelope().stage(checker)
+                        .ifPresent(outcome -> branchVerdicts.put(checker, outcome.verdict()));
             }
-            logicalEntries.add(reference, completed, crashed);
+            logicalEntries.add(reference, branchVerdicts);
         }
         return names.size();
     }
@@ -348,42 +342,42 @@ final class InventoryScan {
      * how many of them, and of their mutants, each generation admitted.
      */
     private static final class LogicalEntries {
-        private final Set<String> names = new HashSet<>();
+        private final Set<EntryName> names = new HashSet<>();
         private final SortedMap<Integer, CorpusInventory.GenerationEntries> generations = new TreeMap<>();
-        private final Map<String, CorpusInventory.PendingGenerationEntry> unsettled = new HashMap<>();
-        private final Map<Integer, Long> ungated = new HashMap<>();
+        private final Map<EntryName, EntryProgress> unsettled = new HashMap<>();
 
         void add(Entry entry) throws CorpusException {
-            add(entry, Set.of(), false);
+            add(entry, Map.of());
         }
 
-        void add(Entry entry, Set<CorpusStage> checkers, boolean crashed) throws CorpusException {
-            var name = entry.path().getFileName().toString();
+        /**
+         * Registers one logical entry. {@code branchVerdicts} carries what the checker branches
+         * recorded on their own copies, which no single envelope holds while an entry is still in
+         * the pipeline; {@link EntryProgress} then decides what the entry's position means.
+         */
+        void add(Entry entry, Map<CorpusStage, CorpusVerdict> branchVerdicts) throws CorpusException {
+            var name = EntryName.of(entry.path());
             if (!names.add(name)) {
                 throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
             }
             entry.envelope().generation().ifPresent(metadata -> metadata.generation().ifPresent(
                     generation -> {
+                        var progress = EntryProgress.of(generation, entry.envelope());
+                        for (var branch : branchVerdicts.entrySet()) {
+                            progress = progress.with(branch.getKey(), branch.getValue());
+                        }
                         generations.merge(
                                 generation,
-                                new CorpusInventory.GenerationEntries(1, metadata.mutation().isPresent() ? 1 : 0),
+                                new CorpusInventory.GenerationEntries(
+                                        1,
+                                        metadata.mutation().isPresent() ? 1 : 0,
+                                        progress.isUngated() ? 1 : 0),
                                 (left, right) -> new CorpusInventory.GenerationEntries(
-                                        left.entries() + right.entries(), left.mutants() + right.mutants()));
-                        var envelope = entry.envelope();
-                        if (envelope.stage(CorpusStage.AGGREGATOR)
-                                        .filter(result -> result.verdict() == CorpusVerdict.PASS).isPresent()
-                                && envelope.stage(CorpusStage.QUALITY).isEmpty()) {
-                            ungated.merge(generation, 1L, Long::sum);
-                        }
-                        var parser = envelope.stage(CorpusStage.PARSER);
-                        var terminal = parser.filter(result -> result.verdict() != CorpusVerdict.PASS).isPresent()
-                                || envelope.stage(CorpusStage.AGGREGATOR).isPresent()
-                                || (crashed && checkers.size() == CorpusStage.checkerBranches().size());
-                        if (!terminal) {
-                            unsettled.put(name, new CorpusInventory.PendingGenerationEntry(
-                                    generation,
-                                    checkers,
-                                    crashed));
+                                        left.entries() + right.entries(),
+                                        left.mutants() + right.mutants(),
+                                        left.ungated() + right.ungated()));
+                        if (!progress.isSettled()) {
+                            unsettled.put(name, progress);
                         }
                     }));
         }
@@ -392,12 +386,8 @@ final class InventoryScan {
             return generations;
         }
 
-        Map<String, CorpusInventory.PendingGenerationEntry> unsettled() {
+        Map<EntryName, EntryProgress> unsettled() {
             return unsettled;
-        }
-
-        Map<Integer, Long> ungated() {
-            return ungated;
         }
     }
 

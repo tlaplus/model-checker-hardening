@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
@@ -24,8 +25,8 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
 import io.github.tlaplus.hardening.workflow.input.InputAdmission;
 import io.github.tlaplus.hardening.workflow.input.InputHandoff;
 import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
-import io.github.tlaplus.hardening.workflow.input.InputStage;
 import io.github.tlaplus.hardening.workflow.input.GenerationPlan;
+import io.github.tlaplus.hardening.workflow.input.InputStage;
 import io.github.tlaplus.hardening.workflow.parser.ParserBackend;
 import io.github.tlaplus.hardening.workflow.parser.ParserRouting;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
@@ -41,8 +42,13 @@ import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 /**
- * The stages that run one workflow invocation, wired to their queues, result
- * capacities, and shared collaborators, and the order in which they start and stop.
+ * The stages that run one workflow invocation, wired to their queues, result capacities, and shared
+ * collaborators, and the order in which they start and stop.
+ *
+ * <p>One graph serves the whole invocation (ADR 0010): {@link GenerationLoop} decides what its
+ * input stage admits, and {@link GenerationProgress} tracks where each generation stands. The
+ * queues of the stages that claim per-entry work are ordered oldest generation first, so an older
+ * generation's tail drains while a newer one is already being admitted.
  */
 final class StageGraph {
     /** What every invocation of one runner shares. */
@@ -87,9 +93,10 @@ final class StageGraph {
         var initial = startup.initial();
         var workflow = setup.config().workflow();
         for (var stage : CorpusStage.values()) {
-            var queue = stage == CorpusStage.QUALITY || stage == CorpusStage.AGGREGATOR
-                    ? new WorkQueue<Path>()
-                    : new WorkQueue<Path>(Comparator.comparingInt(this::generationOf));
+            // The comparator reads `progress`, which is built below; nothing is queued until then.
+            var queue = stage.ordersWorkByGeneration()
+                    ? new WorkQueue<Path>(Comparator.comparingInt(this::generationOf))
+                    : new WorkQueue<Path>();
             queues.put(stage, queue);
             counters.put(
                     stage,
@@ -98,6 +105,7 @@ final class StageGraph {
                             startup.metrics().clocks().of(stage)));
         }
         control = new WorkflowControl(queues.values().toArray(WorkQueue<?>[]::new));
+        // Built before anything is queued: a generation-ordered queue compares through it.
         progress = new GenerationProgress(initial, control);
         for (var stage : CorpusStage.values()) {
             initial.pending(stage).forEach(queues.get(stage)::submit);
@@ -167,10 +175,12 @@ final class StageGraph {
         return control;
     }
 
+    /** Returns where each generation stands, which the coordinator waits on. */
     GenerationProgress progress() {
         return progress;
     }
 
+    /** Hands the input stage one more range of targets to admit. */
     void admit(GenerationPlan plan) {
         inputs.submit(plan);
     }
@@ -267,8 +277,9 @@ final class StageGraph {
         return result;
     }
 
+    /** Orders queued work oldest generation first; an entry the tracker lost sorts last. */
     private int generationOf(Path path) {
-        return progress.generationOf(path);
+        return progress.generationOf(EntryName.of(path));
     }
 
     /** Returns the queue each checker branch takes its work from. */

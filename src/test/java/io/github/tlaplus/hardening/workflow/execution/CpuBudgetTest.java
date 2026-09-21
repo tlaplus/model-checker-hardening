@@ -21,13 +21,15 @@ import org.junit.jupiter.api.Test;
 
 class CpuBudgetTest {
     private static final BooleanSupplier NEVER_CANCELLED = () -> false;
+    /** The generation the tests that are not about generation ordering all request from. */
+    private static final int ONE_GENERATION = 0;
     private static final long COMPLETION_TIMEOUT_SECONDS = 5;
     private static final long PENDING_OBSERVATION_MILLISECONDS = 250;
 
     @Test
     void servesDownstreamPrioritiesFirst() throws Exception {
         var budget = new CpuBudget(1);
-        assertTrue(budget.acquire(Priority.GENERATOR, 1, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.GENERATOR, ONE_GENERATION, 1, NEVER_CANCELLED));
         var order = Collections.synchronizedList(new ArrayList<String>());
 
         var generator = autoReleasingRequest(budget, Priority.GENERATOR, 1, "generator", order);
@@ -52,7 +54,7 @@ class CpuBudgetTest {
     @Test
     void preservesFifoOrderWithinAPriority() throws Exception {
         var budget = new CpuBudget(1);
-        assertTrue(budget.acquire(Priority.CHECKER, 1, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.CHECKER, ONE_GENERATION, 1, NEVER_CANCELLED));
         var order = Collections.synchronizedList(new ArrayList<String>());
 
         var first = autoReleasingRequest(budget, Priority.CHECKER, 1, "first", order);
@@ -73,7 +75,7 @@ class CpuBudgetTest {
     @Test
     void servesOlderGenerationBeforeNewerDownstreamWork() throws Exception {
         var budget = new CpuBudget(1);
-        assertTrue(budget.acquire(Priority.GENERATOR, 1, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.GENERATOR, ONE_GENERATION, 1, NEVER_CANCELLED));
         var order = Collections.synchronizedList(new ArrayList<String>());
         var newer = new BudgetRequest(budget, Priority.CHECKER, 1, 1,
                 NEVER_CANCELLED, () -> {
@@ -98,7 +100,7 @@ class CpuBudgetTest {
     @Test
     void reservesPartialCapacityForAMultiPermitChecker() throws Exception {
         var budget = new CpuBudget(2);
-        assertTrue(budget.acquire(Priority.GENERATOR, 2, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.GENERATOR, ONE_GENERATION, 2, NEVER_CANCELLED));
 
         var checker = new BudgetRequest(budget, Priority.CHECKER, 2, NEVER_CANCELLED, () -> {});
         checker.awaitQueued();
@@ -125,7 +127,7 @@ class CpuBudgetTest {
     @Test
     void removesCancelledRequestsAndResumesUpstreamWork() throws Exception {
         var budget = new CpuBudget(1);
-        assertTrue(budget.acquire(Priority.GENERATOR, 1, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.GENERATOR, ONE_GENERATION, 1, NEVER_CANCELLED));
         var cancelled = new AtomicBoolean();
 
         var checker =
@@ -148,7 +150,7 @@ class CpuBudgetTest {
     @Test
     void removesInterruptedRequests() throws Exception {
         var budget = new CpuBudget(1);
-        assertTrue(budget.acquire(Priority.GENERATOR, 1, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.GENERATOR, ONE_GENERATION, 1, NEVER_CANCELLED));
 
         var checker =
                 new BudgetRequest(budget, Priority.CHECKER, 1, NEVER_CANCELLED, () -> {});
@@ -175,18 +177,20 @@ class CpuBudgetTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> budget.acquire(Priority.GENERATOR, 0, NEVER_CANCELLED));
+                () -> budget.acquire(Priority.GENERATOR, ONE_GENERATION, 0, NEVER_CANCELLED));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> budget.acquire(Priority.GENERATOR, 3, NEVER_CANCELLED));
+                () -> budget.acquire(Priority.GENERATOR, ONE_GENERATION, 3, NEVER_CANCELLED));
         assertThrows(
-                NullPointerException.class, () -> budget.acquire(null, 1, NEVER_CANCELLED));
+                NullPointerException.class, () -> budget.acquire(null, ONE_GENERATION, 1, NEVER_CANCELLED));
         assertThrows(
-                NullPointerException.class, () -> budget.acquire(Priority.GENERATOR, 1, null));
+                NullPointerException.class, () -> budget.acquire(Priority.GENERATOR, ONE_GENERATION, 1, null));
+        assertThrows(
+                IllegalArgumentException.class, () -> budget.acquire(Priority.GENERATOR, -1, 1, NEVER_CANCELLED));
         assertThrows(IllegalArgumentException.class, () -> budget.release(0));
         assertThrows(IllegalStateException.class, () -> budget.release(1));
 
-        assertTrue(budget.acquire(Priority.CHECKER, 1, NEVER_CANCELLED));
+        assertTrue(budget.acquire(Priority.CHECKER, ONE_GENERATION, 1, NEVER_CANCELLED));
         assertThrows(IllegalStateException.class, () -> budget.release(2));
         budget.release(1);
         assertThrows(IllegalStateException.class, () -> budget.release(1));
@@ -214,7 +218,7 @@ class CpuBudgetTest {
                 int permits,
                 BooleanSupplier cancelled,
                 Runnable acquired) {
-            this(budget, priority, 0, permits, cancelled, acquired);
+            this(budget, priority, ONE_GENERATION, permits, cancelled, acquired);
         }
 
         private BudgetRequest(

@@ -21,16 +21,11 @@ public final class StageJobLoop<T> {
     private final WorkflowControl control;
     private final ToIntFunction<T> generationOf;
 
-    public StageJobLoop(
-            WorkQueue<T> queue,
-            CpuBudget cpuBudget,
-            CpuBudget.Priority priority,
-            int permits,
-            StageCounters counters,
-            WorkflowControl control) {
-        this(queue, cpuBudget, priority, permits, counters, control, _ -> 0);
-    }
-
+    /**
+     * @param generationOf the generation each item belongs to, which decides the order requests are
+     *     served in; a stage whose work must not wait behind another generation reports
+     *     {@link CpuBudget#UNORDERED_GENERATION}
+     */
     public StageJobLoop(
             WorkQueue<T> queue,
             CpuBudget cpuBudget,

@@ -6,12 +6,19 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * What one generation's input stage admits: which input kind, for which generation, from which
- * seed, how many entries from each candidate source, and with at most how many workers.
+ * One contiguous range of target entries the input stage admits: which input kind, for which
+ * generation, from which seed, how many entries from each candidate source, and with at most how
+ * many workers.
+ *
+ * <p>A generation is admitted as one or more ranges — its mutant prefix and its PBT suffix
+ * (ADR 0010) — which is what {@code firstTarget} distinguishes. Two ranges of one generation must
+ * not overlap: a target's ordinal seeds its candidate stream, so two targets with the same ordinal
+ * replay the same stream.
  *
  * @param generation the generation every admitted entry records
- * @param initialEntries the entries the corpus already held at startup, for diagnostics
- * @param workerLimit the most generator workers the stage starts
+ * @param initialEntries the entries before this generation, for the entry numbers in diagnostics
+ * @param workerLimit the most generator workers that may share this range
+ * @param firstTarget the ordinal of this range's first target within its generation
  * @param quotas the sources in the order their targets are numbered, each with its entry count
  */
 public record GenerationPlan(
@@ -22,12 +29,6 @@ public record GenerationPlan(
         int workerLimit,
         long firstTarget,
         List<Quota> quotas) {
-    public GenerationPlan(
-            InputKind kind, int generation, long seed, long initialEntries,
-            int workerLimit, List<Quota> quotas) {
-        this(kind, generation, seed, initialEntries, workerLimit, 0, quotas);
-    }
-
     /** How many entries one candidate source contributes. */
     public record Quota(CandidateSource source, long entries) {
         public Quota {

@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.aggregator;
 import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
 import io.github.tlaplus.hardening.workflow.execution.OccupancyGate;
@@ -57,7 +58,10 @@ public final class AggregatorStage implements WorkflowStage {
                 CpuBudget.Priority.AGGREGATOR,
                 1,
                 counters,
-                environment.control());
+                environment.control(),
+                // Aggregation releases the checker capacity every generation needs, so it must not
+                // queue behind an older generation's upstream work.
+                _ -> CpuBudget.UNORDERED_GENERATION);
     }
 
     @Override
@@ -112,7 +116,10 @@ public final class AggregatorStage implements WorkflowStage {
                 checkerCapacities.get(checker).release();
             }
             counters.record(verdict);
-            environment.events().completed(candidate, CorpusStage.AGGREGATOR, verdict);
+            // Reported only now: completeAggregation has moved the entry, so an observer that acts
+            // on this — the quality gate does — finds it in the aggregator's result directory.
+            environment.events().completed(
+                    EntryName.of(candidate), CorpusStage.AGGREGATOR, verdict);
         } finally {
             completeRecoveredCandidate();
         }
