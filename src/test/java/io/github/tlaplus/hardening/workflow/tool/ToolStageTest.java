@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.workflow.tool;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
@@ -27,6 +26,7 @@ import io.github.tlaplus.hardening.workflow.execution.StageEnvironment;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -121,8 +121,8 @@ class ToolStageTest {
         }
 
         @Override
-        public Function<TlaModule, String> renderer() {
-            return module -> {
+        public Function<SpecArtifact, String> renderer() {
+            return artifact -> {
                 renders.incrementAndGet();
                 return "backend-specific input";
             };

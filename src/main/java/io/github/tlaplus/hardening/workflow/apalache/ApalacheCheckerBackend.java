@@ -1,9 +1,9 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
-import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import java.nio.file.Path;
@@ -40,8 +40,9 @@ public final class ApalacheCheckerBackend implements ToolBackend {
     }
 
     @Override
-    public Function<TlaModule, String> renderer() {
-        return ApalacheIrJson::render;
+    public Function<SpecArtifact, String> renderer() {
+        // Apalache evaluates the self-contained module, never instance aliases (ADR 0014).
+        return artifact -> ApalacheIrJson.render(artifact.module());
     }
 
     @Override

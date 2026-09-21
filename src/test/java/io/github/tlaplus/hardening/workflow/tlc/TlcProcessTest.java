@@ -10,6 +10,7 @@ import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,8 +25,8 @@ class TlcProcessTest {
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var pass = TlcProcess.check(scratch, new ToolInput(source("exprValue = FALSE"), 0), CONFIG, TIMEOUT);
-        var fail = TlcProcess.check(scratch, new ToolInput(source("exprValue # FALSE"), 0), CONFIG, TIMEOUT);
+        var pass = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), CONFIG, TIMEOUT);
+        var fail = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
@@ -88,8 +89,7 @@ class TlcProcessTest {
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var result = TlcProcess.check(
-                scratch,
+        var result = TlcProcess.check(scratch, List.of(),
                 new ToolInput(expressionSource("161520805147"), 0),
                 CONFIG,
                 TIMEOUT);
@@ -119,8 +119,7 @@ class TlcProcessTest {
             @TempDir Path directory) throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var result = TlcProcess.check(
-                scratch, new ToolInput(expressionSource("Head(<<>>)"), 0), CONFIG, TIMEOUT);
+        var result = TlcProcess.check(scratch, List.of(), new ToolInput(expressionSource("Head(<<>>)"), 0), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
         assertEquals(

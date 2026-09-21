@@ -28,6 +28,8 @@
 #   size, which cannot be expressed by a structural signature.
 # - vacuous-initial-predicate: both tools pass.
 # - apalache-printer-001 to 007, apalache-json-001 and 002: fixed.
+# - apalache-json-003: occurs in library preparation, not in generated inputs; library JSON is
+#   pruned and the affected operators are not selected.
 #
 # References are relative to this file.
 

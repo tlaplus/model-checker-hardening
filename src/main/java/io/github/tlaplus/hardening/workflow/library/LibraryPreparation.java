@@ -5,12 +5,16 @@ import io.github.tlaplus.hardening.common.TemporaryDirectory;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Set;
 
 /** Prepares custom libraries once before decoding; no importer/typechecker Maven dependency. */
 public final class LibraryPreparation {
@@ -32,24 +36,56 @@ public final class LibraryPreparation {
             LibrarySources.snapshot(config.libraries().classpath(), sources, jar);
             var settings = config.workflow().checker(CorpusStage.APALACHE);
             var typechecker = new LibraryTypechecker(jar, scratch, settings);
+            // The manifest covers the user's sources only, not the wrappers written below.
+            var manifest = LibraryManifest.create(sources, jar, config.libraries());
             var modules = new LinkedHashMap<String, TlaModule>();
+            var linkages = new HashMap<String, LibraryLinkage>();
             for (var selection : config.libraries().modules()) {
                 var module = selection.module();
-                var source = sources.resolve(module + ".tla");
-                if (!Files.isRegularFile(source)) {
-                    throw new WorkflowException("custom module not found on generator.classpath: " + module);
-                }
-                modules.put(module, typechecker.check(source, module));
+                linkages.put(module, selection.linkage());
+                var roots = Set.copyOf(selection.operators());
+                modules.put(module, switch (selection.linkage()) {
+                    case INLINE -> typechecker.check(requireSource(sources, module), Set.of(module), roots);
+                    case INSTANCE -> {
+                        var wrapper = wrapperName(module);
+                        yield typechecker.check(writeWrapper(sources, wrapper, module), Set.of(wrapper, module), roots);
+                    }
+                });
             }
             var selected = config.libraries().operators();
             return new Prepared(
-                    config.generator().withLibrary(OperatorLibrary.fromModules(modules, selected)),
-                    LibraryManifest.create(sources, jar, selected));
+                    config.generator().withLibrary(OperatorLibrary.fromModules(modules, selected, linkages)),
+                    manifest);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new WorkflowException("custom library preparation interrupted", exception);
         } catch (IOException | RuntimeException exception) {
             throw new WorkflowException("cannot prepare custom operators: " + exception.getMessage(), exception);
         }
+    }
+
+    private static Path requireSource(Path sources, String module) throws WorkflowException {
+        var source = sources.resolve(module + ".tla");
+        if (!Files.isRegularFile(source)) {
+            throw new WorkflowException("custom module not found on generator.classpath: " + module);
+        }
+        return source;
+    }
+
+    private static String wrapperName(String module) {
+        return "FuzzTlaInstanceOf" + module;
+    }
+
+    /**
+     * Writes a module that only extends {@code module}, so Apalache imports what it would evaluate
+     * for {@code EXTENDS module}, including its own definitions for the modules it rewires.
+     */
+    private static Path writeWrapper(Path sources, String wrapper, String module)
+            throws IOException, WorkflowException {
+        var path = sources.resolve(wrapper + ".tla");
+        if (Files.exists(path)) {
+            throw new WorkflowException("generator.classpath must not contain " + path.getFileName());
+        }
+        return Files.writeString(path, "---- MODULE " + wrapper + " ----\nEXTENDS " + module + "\n====\n");
     }
 }

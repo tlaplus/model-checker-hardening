@@ -218,8 +218,9 @@ prepares the modules selected by `generator.custom_operators`. `generator.classp
 is an ordered list of directories or JARs; paths read from TOML are resolved against
 that file's directory. Directory roots and JAR root resources contain `Module.tla`;
 JARs may also use `tla2sany/StandardModules/Module.tla`. First occurrence wins.
-Bundled standard module names cannot be overridden. JARs supply source resources,
-not executable Java operator overrides.
+Bundled standard module names cannot be overridden. For inline-linked modules, JARs
+supply source resources, not executable Java operator overrides; instance-linked
+modules (below) put the classpath, overrides included, on the parser and TLC.
 
 `workflow.library.LibrarySources` copies the source search path into a private
 snapshot, bounded to 32 MiB. The snapshot includes unselected source files so SANY
@@ -230,7 +231,9 @@ to the replay identity.
 
 `LibraryTypechecker` invokes that distribution as an isolated CLI process:
 `typecheck --infer-poly=true --output=<module.json> <module.tla>`. It runs once per
-configured root module, not per candidate or stage. It uses a private working
+configured root module, not per candidate or stage. For an instance-linked module,
+the root is a generated wrapper `EXTENDS <Module>`, so the library holds what
+Apalache itself imports, including its rewired Community Modules. It uses a private working
 directory, explicit Apalache configuration and row typing, bounded diagnostics,
 and the Apalache stage's heap and timeout settings. Cancellation interrupts the
 wait and terminates the child; it does not poll the process. All scratch files are
@@ -238,7 +241,10 @@ removed on completion or failure. No Maven importer/typechecker dependency is
 introduced. With no selected modules, preparation does not inspect paths or launch
 a process.
 
-The Java I/O facade's direct typed-IR JSON reader loads output of at most 64 MiB.
+The Java I/O facade's direct typed-IR JSON reader loads output of at most 64 MiB,
+after `LibraryJson` prunes operator declarations that no selected operator reaches:
+the reader rejects a whole module when one declaration uses an internal operator it
+does not know ([apalache-json-003](../../findings/apalache-json/apalache-json-003.md)).
 Its builder-backed alternative is deliberately not used: it incorrectly
 reconstructs a polymorphic empty set as a set of sets. Library validation then
 checks supported types, dependency closure, first-order signatures and state-free
@@ -247,19 +253,30 @@ checker-stage verdicts.
 
 `SpecDecoders` captures the prepared library for both input kinds. `OperatorLibrary`
 links each used definition closure into the assembled module with fresh IR
-identities. TLA+ and Apalache JSON outputs are self-contained and require no custom
-classpath in checker workers. Standalone expression printing uses a surrounding
-`LET`; richness scoring retains the unlinked generated expressions.
+identities. Apalache's JSON input is always self-contained. Each `custom_operators`
+entry has a linkage ([ADR 0014](../decisions/0014-per-checker-library-linking.md)):
+with `link = "inline"` (default), the TLA+ source of the parser and TLC is the same
+self-contained module and needs no checker classpath. With `link = "instance"`,
+`SpecArtifact.source()` replaces each used export by an alias
+`<export>(p1, …) == <instance>!<Operator>(p1, …)`, and `SpecText` splices the named
+`INSTANCE` and alias declarations after `EXTENDS` as text. The parser and TLC workers
+then receive `generator.classpath` in front of their class path. **Deviation:** this
+revises the earlier rule that every checker input is self-contained; instance-linked
+TLA+ sources resolve on the corpus's `tla/` directory. Standalone expression printing
+uses a surrounding `LET`; richness scoring and known-defect matching retain the
+self-contained IR, so admission does not depend on linkage.
 
 The first custom-library run records `.operator-library` atomically under the
-corpus lock, before admitting inputs. It contains the ordered export selection,
-source filenames and SHA-256 digests, and the pinned Apalache JAR digest. Subsequent
+corpus lock, before admitting inputs. It contains the ordered export selection
+with non-default linkages, source filenames and SHA-256 digests, the pinned Apalache
+JAR digest, and, with instance linkage, the digest of every classpath file. Subsequent
 runs and `print --corpus` require an exact match. Paths may move without changing
 identity. A missing manifest cannot be initialized over existing inputs, and
 read-only printing never creates one. Removing the custom library from the config
 also fails verification if a manifest exists. To change a library, initialize a
-new corpus. Storage reads and writes opaque bytes; this validation policy belongs
-to the workflow.
+new corpus. `fuzztla init --library FILE` copies a library's classpath into
+`<corpus>/tla/` so that each corpus keeps its release. Storage reads and writes opaque
+bytes; this validation policy belongs to the workflow.
 
 ### 1.3. Conformance testing of TLC vs. Apalache with random inputs
 

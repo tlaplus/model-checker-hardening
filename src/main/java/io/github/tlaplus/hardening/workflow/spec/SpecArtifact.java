@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.util.List;
 import java.util.Objects;
@@ -24,19 +25,27 @@ import java.util.Optional;
  *
  * <p>An expression artifact also retains that standalone expression for the CLI's default
  * rendering. A generated module has no single expression that represents it.
+ *
+ * <p>{@link #module()} is self-contained: Apalache evaluates it, and admission scores and matches
+ * it. {@link #source()} is what the parser and TLC evaluate; it differs only when the library links
+ * a used module by instance (ADR 0014).
  */
 public final class SpecArtifact {
     private final TlaModule module;
+    private final SourceLink source;
     private final CheckRequest request;
     private final List<TlaEx> generated;
     private final TlaEx standaloneExpression;
 
     private SpecArtifact(
-            TlaModule module,
+            TlaModule skeleton,
+            OperatorLibrary library,
             CheckRequest request,
             List<TlaEx> generated,
             TlaEx standaloneExpression) {
-        this.module = Objects.requireNonNull(module, "module");
+        this.source = library.linkSource(skeleton, generated);
+        // Without aliases the source form is the self-contained module; link only once.
+        this.module = source.aliases().isEmpty() ? source.module() : library.link(skeleton, generated);
         this.request = Objects.requireNonNull(request, "request");
         this.generated = List.copyOf(Objects.requireNonNull(generated, "generated"));
         this.standaloneExpression = standaloneExpression;
@@ -45,21 +54,23 @@ public final class SpecArtifact {
     /** Wraps one generated expression, and the library definitions it uses, in the checker module. */
     public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
-        return new SpecArtifact(
-                library.link(FuzzInputModule.create(expression), List.of(expression)),
+        return new SpecArtifact(FuzzInputModule.create(expression), library,
                 CheckRequest.invariant(0), List.of(expression), library.close(expression));
     }
 
     /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
-        return new SpecArtifact(
-                library.link(FuzzInputModule.create(spec), spec.generated()),
+        return new SpecArtifact(FuzzInputModule.create(spec), library,
                 new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(), null);
     }
 
     public TlaModule module() {
         return module;
+    }
+
+    public SourceLink source() {
+        return source;
     }
 
     public CheckRequest request() {

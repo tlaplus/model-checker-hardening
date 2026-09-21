@@ -1,0 +1,29 @@
+# Community Modules that Apalache rewires, linked by instance (ADR 0014): the parser and TLC
+# evaluate CommunityModules.jar, with its Java overrides; Apalache evaluates its own definitions.
+#
+#   make community-modules
+#   ./bin/fuzztla init --corpus <dir> --library libraries/community-modules.toml
+#
+# Selected: the rewired first-order operators that pass library validation. Excluded until
+# apalache-json-003 is fixed: SequencesExt Reverse, ReplaceAll, InsertAt, Zip, IsSuffix,
+# IsStrictSuffix, SeqOf, TupleOf, BoundedSeq, ReplaceAllSubSeqs. Functions!IsSurjective is an
+# Apalache-only extension without a community counterpart.
+[generator]
+classpath = ["community-modules/CommunityModules.jar"]
+custom_operators = [
+  { module = "SequencesExt", link = "instance", operators = [
+    "ToSet", "SetToSeq", "Contains", "Remove", "ReplaceAt", "RemoveAt", "Cons", "Front", "Last",
+    "IsPrefix", "IsStrictPrefix", "Prefixes", "CommonPrefixes", "LongestCommonPrefix", "SeqMod",
+    "FlattenSeq", "SubSeqs", "IndexFirstSubSeq", "ReplaceSubSeqAt", "ReplaceFirstSubSeq",
+  ] },
+  { module = "FiniteSetsExt", link = "instance", operators = [
+    "SumSet", "ProductSet", "FlattenSet", "SymDiff", "Max", "Min", "Choices",
+  ] },
+  { module = "Functions", link = "instance", operators = [
+    "Restrict", "Range", "Inverse", "AntiFunction", "IsInjective", "Injection",
+    "Surjection", "Bijection", "ExistsInjection", "ExistsSurjection", "ExistsBijection",
+  ] },
+  { module = "BagsExt", link = "instance", operators = [
+    "BagAdd", "BagRemove", "BagRemoveAll", "SumBag", "ProductBag",
+  ] },
+]

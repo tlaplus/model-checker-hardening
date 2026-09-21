@@ -48,6 +48,7 @@ weights = { name = 8, enum_set = 16 }
 # Ordered TLA+ source directories or JARs, relative to this config file.
 classpath = []
 # Additional operator kinds: { module = "MyModule", operators = ["MyOp"] }.
+# Optional link = "instance" calls the module through INSTANCE in TLA+ source (ADR 0014).
 custom_operators = []
 
 [workflow]

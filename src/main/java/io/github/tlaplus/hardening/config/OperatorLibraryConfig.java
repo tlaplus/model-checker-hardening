@@ -1,16 +1,19 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 /** Source-only library settings. Parsing this record never loads or typechecks a module. */
 public record OperatorLibraryConfig(List<Path> classpath, List<Module> modules) {
-    public record Module(String module, List<String> operators) {
+    public record Module(String module, List<String> operators, LibraryLinkage linkage) {
         public Module {
             OperatorId.requireIdentifier(module);
+            Objects.requireNonNull(linkage, "linkage");
             operators = List.copyOf(operators);
             if (operators.isEmpty()) {
                 throw new IllegalArgumentException("custom module " + module + " has no selected operators");
@@ -19,6 +22,11 @@ public record OperatorLibraryConfig(List<Path> classpath, List<Module> modules) 
             if (new HashSet<>(operators).size() != operators.size()) {
                 throw new IllegalArgumentException("duplicate operator in custom module " + module);
             }
+        }
+
+        /** A module whose definitions every checker evaluates inlined. */
+        public Module(String module, List<String> operators) {
+            this(module, operators, LibraryLinkage.INLINE);
         }
     }
 
@@ -39,6 +47,20 @@ public record OperatorLibraryConfig(List<Path> classpath, List<Module> modules) 
             module.operators().forEach(name -> result.add(new OperatorId(module.module(), name)));
         }
         return List.copyOf(result);
+    }
+
+    /** Whether any module is linked by instance, which puts the classpath on the TLA+ checkers. */
+    public boolean hasInstanceLinkage() {
+        return modules.stream().anyMatch(module -> module.linkage() == LibraryLinkage.INSTANCE);
+    }
+
+    /**
+     * What goes in front of the class path of the workers that read TLA+ source: the parser and
+     * TLC. They resolve instance-linked modules, and TLC their Java overrides, from it. Apalache
+     * reads self-contained JSON and needs none.
+     */
+    public List<Path> sourceCheckerClasspath() {
+        return hasInstanceLinkage() ? classpath : List.of();
     }
 
     public OperatorLibraryConfig relativeTo(Path directory) {

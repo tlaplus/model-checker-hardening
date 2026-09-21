@@ -225,8 +225,8 @@ weights = { name = 8, enum_set = 16, "MyOperators!Contains" = 8 }
 
 Names are case-sensitive TLA+ identifiers. Paths are relative to `config.toml`;
 directories and JARs are searched in order. A JAR may contain `Module.tla` at its
-root or under `tla2sany/StandardModules/`. Standard module overrides and Java
-operator overrides are not supported.
+root or under `tla2sany/StandardModules/`. Standard module overrides are not
+supported; Java operator overrides apply only to instance-linked modules (below).
 
 FuzzTLA runs the pinned Apalache CLI's `typecheck --infer-poly=true --output`
 once per module before generation. Inferred types and ordinary `@type` annotations
@@ -248,6 +248,15 @@ empty corpus, pinning source contents, selected operators and the Apalache JAR.
 Subsequent runs and `print --corpus` reject mismatches. Keep the same sources to
 replay inputs; initialize a new corpus when changing a library. No subprocess is
 launched for library preparation when `custom_operators = []`.
+
+A module entry may add `link = "instance"`: Apalache still receives inlined
+definitions (for modules it rewires, its own), while the parser and TLC call the
+module through a named `INSTANCE` resolved on `generator.classpath`, including its
+Java overrides ([ADR 0014](docs/decisions/0014-per-checker-library-linking.md)).
+`./bin/fuzztla init --library FILE` initializes a corpus with the `classpath` and
+`custom_operators` of FILE and copies the classpath into the corpus. For the TLA+
+Community Modules, run `make community-modules` and use
+`libraries/community-modules.toml` ([manual](docs/manual/community-modules.md)).
 
 ### Running
 

@@ -1,9 +1,15 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.library.InstanceAlias;
+import io.github.tlaplus.hardening.gen.library.OperatorId;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.gen.library.SourceLink;
+import java.util.List;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -39,5 +45,24 @@ class SpecTextTest {
         var module = FuzzInputModule.create(new TlaTypedScopeUncheckedBuilder().str(literal));
 
         assertFalse(SpecText.withinWorkerProtocolLimit(module));
+    }
+
+    @Test
+    void definesInstanceAliasesDirectlyAfterExtends() {
+        var module = FuzzInputModule.create(new TlaTypedScopeUncheckedBuilder().bool(true));
+        var instance = OperatorLibrary.instanceName("Mods");
+        var aliases = List.of(
+                new InstanceAlias("CustomA", new OperatorId("Mods", "Pair"), 2),
+                new InstanceAlias("CustomB", new OperatorId("Mods", "Empty"), 0));
+        var plain = SpecText.render(module);
+        var text = SpecText.render(new SourceLink(module, aliases));
+
+        var extendsEnd = plain.indexOf("\n\n", plain.indexOf("EXTENDS ")) + 1;
+        assertEquals(plain.substring(0, extendsEnd) + "\n"
+                + instance + " == INSTANCE Mods\n"
+                + "CustomA(CustomP1, CustomP2) == " + instance + "!Pair(CustomP1, CustomP2)\n"
+                + "CustomB == " + instance + "!Empty\n"
+                + plain.substring(extendsEnd), text);
+        assertEquals(plain, SpecText.render(new SourceLink(module, List.of())));
     }
 }

@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.library;
 
 import io.github.tlaplus.hardening.config.*;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.nio.file.Files;
@@ -15,9 +16,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LibraryPreparationTest {
     static FuzzTlaConfig config(List<Path> classpath, String module, String... operators) {
-        var defaults = FuzzTlaConfig.defaults();
-        return new FuzzTlaConfig(defaults.generatedKind(), defaults.generator(), defaults.workflow(), defaults.pbt(), defaults.mutator(),
-                new OperatorLibraryConfig(classpath, List.of(new OperatorLibraryConfig.Module(module, List.of(operators)))));
+        return config(classpath, module, LibraryLinkage.INLINE, operators);
+    }
+
+    static FuzzTlaConfig config(List<Path> classpath, String module, LibraryLinkage linkage, String... operators) {
+        return FuzzTlaConfig.defaults().withLibraries(new OperatorLibraryConfig(classpath,
+                List.of(new OperatorLibraryConfig.Module(module, List.of(operators), linkage))));
+    }
+
+    @Test
+    void instanceLinkageImportsApalacheRewiredDefinitionsWithoutCommunitySources() throws Exception {
+        // FlattenSeq is Apalache's fold in its rewiring, but SequencesExt's other declarations use
+        // internal operators its JSON reader rejects (apalache-json-003); pruning drops them.
+        var prepared = LibraryPreparation.prepare(
+                config(List.of(), "SequencesExt", LibraryLinkage.INSTANCE, "FlattenSeq"));
+        var library = prepared.generator().library();
+        var export = library.get(new OperatorId("SequencesExt", "FlattenSeq"));
+        assertEquals(LibraryLinkage.INSTANCE, export.linkage());
+        var call = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
+        var body = library.declarationsFor(List.of(call)).toString();
+        assertTrue(body.contains("ApaFoldSeqLeft"), body);
+        assertTrue(prepared.manifest().contains("operator SequencesExt!FlattenSeq instance\n"), prepared.manifest());
     }
 
     @Test

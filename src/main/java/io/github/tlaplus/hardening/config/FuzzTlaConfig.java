@@ -57,6 +57,11 @@ public record FuzzTlaConfig(
                 OperatorLibraryConfig.empty());
     }
 
+    /** Returns this configuration with the given custom operator library. */
+    public FuzzTlaConfig withLibraries(OperatorLibraryConfig libraries) {
+        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries);
+    }
+
     /** Returns this configuration with the input stage consulting the given known-defect databases. */
     public FuzzTlaConfig withKnownDefects(List<Path> databases) {
         var inputs = workflow.inputs().withKnownDefects(databases);

@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -17,12 +18,16 @@ import java.util.Set;
  * entry here; loading this class fails if a checker branch has none.
  */
 final class CheckerBackends {
-    /** What one invocation provides to the backends it builds. */
-    record Resources(int maximumCpus, StageScratchSet scratch, Path apalacheJar) {
+    /**
+     * What one invocation provides to the backends it builds. {@code sourceClasspath} precedes the
+     * class path of checkers that read TLA+ source.
+     */
+    record Resources(int maximumCpus, StageScratchSet scratch, Path apalacheJar, List<Path> sourceClasspath) {
         Resources {
             Preconditions.requirePositive(maximumCpus, "maximumCpus");
             Objects.requireNonNull(scratch, "scratch");
             Objects.requireNonNull(apalacheJar, "apalacheJar");
+            sourceClasspath = List.copyOf(sourceClasspath);
         }
     }
 
@@ -36,7 +41,8 @@ final class CheckerBackends {
             (config, resources) -> new TlcCheckerBackend(
                     config,
                     resources.maximumCpus() / config.workers(),
-                    resources.scratch().directory(CorpusStage.TLC)),
+                    resources.scratch().directory(CorpusStage.TLC),
+                    resources.sourceClasspath()),
             CorpusStage.APALACHE,
             (config, resources) -> new ApalacheCheckerBackend(
                     config,

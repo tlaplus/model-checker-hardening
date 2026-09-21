@@ -182,7 +182,8 @@ final class ConfigSchema {
             "Ordered TLA+ source directories or JARs, relative to this config file.");
     static final Key<List<OperatorLibraryConfig.Module>> CUSTOM_OPERATORS = GENERATOR.key(
             "custom_operators", ConfigValueType.MODULES, config -> config.libraries().modules(),
-            "Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }.");
+            "Additional operator kinds: { module = \"MyModule\", operators = [\"MyOp\"] }.",
+            "Optional link = \"instance\" calls the module through INSTANCE in TLA+ source (ADR 0014).");
     static final Key<Integer> WORKFLOW_MAXIMUM_ENTRIES = WORKFLOW.integer(
             "max_entries", WorkflowConfig::maximumEntries,
             "Maximum number of unique entries across every workflow directory.",

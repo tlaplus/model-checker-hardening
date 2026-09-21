@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class ParserProcessTest {
         var syntaxFailure = valid.replace("FALSE", "ENABLED TRUE'");
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.PASS,
                     worker.request(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
@@ -75,7 +76,7 @@ class ParserProcessTest {
                 """;
 
         var scratch = Files.createDirectory(directory.resolve("scratch"));
-        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.PASS,
                     worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT).outcome());
@@ -88,12 +89,12 @@ class ParserProcessTest {
         var valid = validSource();
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.CRASH,
                     worker.request(new ToolInput(valid, 0), Duration.ZERO).outcome());
         }
-        try (var replacement = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var replacement = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             assertEquals(
                     StageOutcome.PASS,
                     replacement.request(new ToolInput(valid, 0), STARTUP_TIMEOUT).outcome());
@@ -123,7 +124,7 @@ class ParserProcessTest {
         var parsed = 0;
         var generated = 0;
 
-        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             for (var sample = 0; sample < 40; sample++) {
                 var input = new byte[64 + random.nextInt(448)];
                 random.nextBytes(input);
@@ -157,7 +158,7 @@ class ParserProcessTest {
         var samples = GeneratedSpecSamples.collect(config, 0x1e7e15L, 1600, 96, spec -> spec.property().isPresent());
         assertEquals(96, samples.size(), "too few modules with a property were generated");
         var scratch = Files.createDirectory(directory.resolve("scratch"));
-        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             for (var spec : samples) {
                 var source = SpecText.render(FuzzInputModule.create(spec));
                 var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
@@ -177,7 +178,7 @@ class ParserProcessTest {
                 GeneratedSpecSamples::readsVariantName));
         assertEquals(16, samples.size(), "too few modules with the shapes were generated");
         var scratch = Files.createDirectory(directory.resolve("scratch"));
-        try (var worker = ParserProcess.start(scratch, STARTUP_TIMEOUT)) {
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
             for (var spec : samples) {
                 var source = SpecText.render(FuzzInputModule.create(spec));
                 var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);

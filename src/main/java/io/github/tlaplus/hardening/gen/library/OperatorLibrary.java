@@ -13,8 +13,11 @@ import org.apalache_mc.tla.jir.TlaTypes;
 /** Immutable prepared library. Mutable Apalache declarations never escape without a fresh copy. */
 public final class OperatorLibrary {
     public record Export(OperatorId id, String name, OperT1 signature,
-            Set<ExpressionCategory> categories) {
-        public Export { categories = Set.copyOf(categories); }
+            Set<ExpressionCategory> categories, LibraryLinkage linkage) {
+        public Export {
+            categories = Set.copyOf(categories);
+            Objects.requireNonNull(linkage, "linkage");
+        }
 
         /** Whether the whole definition closure avoids every excluded category. */
         public boolean isEnabledWith(Set<ExpressionCategory> ignoredCategories) {
@@ -46,8 +49,17 @@ public final class OperatorLibrary {
     public List<Export> exports() { return exports; }
     public Export get(OperatorId id) { return byId.get(id); }
 
-    /** Retains only selected operators and their dependency closure. Selection order is decoder order. */
+    /** Links every module inline; see {@link #fromModules(Map, List, Map)}. */
     public static OperatorLibrary fromModules(Map<String, TlaModule> modules, List<OperatorId> selected) {
+        return fromModules(modules, selected, Map.of());
+    }
+
+    /**
+     * Retains only selected operators and their dependency closure. Selection order is decoder
+     * order. A module absent from {@code linkages} is linked inline.
+     */
+    public static OperatorLibrary fromModules(Map<String, TlaModule> modules, List<OperatorId> selected,
+            Map<String, LibraryLinkage> linkages) {
         var definitions = new LinkedHashMap<String, Definition>();
         var exports = new ArrayList<Export>();
         var indexes = new HashMap<String, Map<String, TlaOperDecl>>();
@@ -65,7 +77,8 @@ public final class OperatorLibrary {
             var categories = EnumSet.noneOf(ExpressionCategory.class);
             closure(definition.declaration().name(), definitions, new LinkedHashSet<>())
                     .forEach(name -> categories.addAll(definitions.get(name).categories()));
-            exports.add(new Export(id, definition.declaration().name(), signature, categories));
+            exports.add(new Export(id, definition.declaration().name(), signature, categories,
+                    linkages.getOrDefault(id.module(), LibraryLinkage.INLINE)));
         }
         return new OperatorLibrary(exports, definitions);
     }
@@ -131,6 +144,11 @@ public final class OperatorLibrary {
         return reached;
     }
 
+    /** The named instance through which the TLA+ source calls an instance-linked module. */
+    public static String instanceName(String module) {
+        return "Custom" + hex(module) + "I";
+    }
+
     private static UnaryOperator<String> names(String module) {
         var prefix = "Custom" + hex(module) + "N";
         return name -> prefix + hex(name);
@@ -142,15 +160,27 @@ public final class OperatorLibrary {
 
     /** Returns fresh declarations for the used closure, in stable dependency order. */
     public List<TlaOperDecl> declarationsFor(List<TlaEx> expressions) {
+        return declarationsFor(expressions, Set.of());
+    }
+
+    /** Fresh declarations for the used closure, omitting the closures of {@code aliased} exports. */
+    private List<TlaOperDecl> declarationsFor(List<TlaEx> expressions, Set<String> aliased) {
         // Library names live in a namespace no generated binder uses, so every name reference
         // that matches a definition is one.
         var needed = new LinkedHashSet<String>();
-        expressions.forEach(expression -> TlaExpressions.forEach(expression, node -> {
-            if (node instanceof NameEx name) closure(name.name(), definitions, needed);
-        }));
+        usedNames(expressions).stream().filter(name -> !aliased.contains(name))
+                .forEach(name -> closure(name, definitions, needed));
         return definitions.entrySet().stream().filter(entry -> needed.contains(entry.getKey()))
                 .map(entry -> TlaDeclarations.deepCopy(entry.getValue().declaration()))
                 .toList();
+    }
+
+    private static Set<String> usedNames(List<TlaEx> expressions) {
+        var names = new LinkedHashSet<String>();
+        expressions.forEach(expression -> TlaExpressions.forEach(expression, node -> {
+            if (node instanceof NameEx name) names.add(name.name());
+        }));
+        return names;
     }
 
     /** A closed standalone expression, without copying library bodies into richness scoring. */
@@ -159,9 +189,29 @@ public final class OperatorLibrary {
         return declarations.isEmpty() ? expression : TlaExpressions.letIn(expression, declarations);
     }
 
+    /** The self-contained module Apalache evaluates: every used definition is inlined. */
     public TlaModule link(TlaModule module, List<TlaEx> generated) {
-        var declarations = new ArrayList<TlaDecl>(declarationsFor(generated));
-        if (declarations.isEmpty()) return module;
+        return prepend(module, declarationsFor(generated));
+    }
+
+    /**
+     * The module the parser and TLC evaluate. Inline exports are linked as by {@link #link}; each
+     * used instance-linked export becomes an alias that the renderer defines through its module's
+     * named instance, so generated call sites are unchanged.
+     */
+    public SourceLink linkSource(TlaModule module, List<TlaEx> generated) {
+        var used = usedNames(generated);
+        var aliases = exports.stream()
+                .filter(export -> export.linkage() == LibraryLinkage.INSTANCE && used.contains(export.name()))
+                .map(export -> new InstanceAlias(export.name(), export.id(), TlaTypes.operatorArguments(export.signature()).size()))
+                .toList();
+        var aliased = aliases.stream().map(InstanceAlias::name).collect(java.util.stream.Collectors.toSet());
+        return new SourceLink(prepend(module, declarationsFor(generated, aliased)), aliases);
+    }
+
+    private static TlaModule prepend(TlaModule module, List<TlaOperDecl> library) {
+        if (library.isEmpty()) return module;
+        var declarations = new ArrayList<TlaDecl>(library);
         declarations.addAll(TlaModules.declarations(module));
         return TlaModules.create(module.name(), declarations);
     }

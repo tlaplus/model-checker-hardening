@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
-import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
@@ -15,13 +14,13 @@ public final class GeneratedInputPreparation {
     private final String stage;
     private final CorpusDirectory corpus;
     private final SpecDecoders decoders;
-    private final Function<TlaModule, String> renderer;
+    private final Function<SpecArtifact, String> renderer;
 
     public GeneratedInputPreparation(
             String stage,
             CorpusDirectory corpus,
             SpecDecoders decoders,
-            Function<TlaModule, String> renderer) {
+            Function<SpecArtifact, String> renderer) {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.corpus = Objects.requireNonNull(corpus, "corpus");
         this.decoders = Objects.requireNonNull(decoders, "decoders");
@@ -39,7 +38,7 @@ public final class GeneratedInputPreparation {
         Objects.requireNonNull(input, "input");
         try {
             var artifact = decoders.decode(input);
-            return new ToolInput(renderer.apply(artifact.module()), artifact.request());
+            return new ToolInput(renderer.apply(artifact), artifact.request());
         } catch (RuntimeException | StackOverflowError failure) {
             throw new WorkflowException(recordCrash(path, input, failure), failure);
         }

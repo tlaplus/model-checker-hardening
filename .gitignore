@@ -3,3 +3,4 @@
 /corpus*/
 _apalache-out/
 __pycache__
+/libraries/community-modules/

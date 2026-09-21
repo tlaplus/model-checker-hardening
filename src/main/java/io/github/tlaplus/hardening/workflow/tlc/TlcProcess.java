@@ -18,6 +18,7 @@ final class TlcProcess {
 
     static ToolResult check(
             Path scratchDirectory,
+            List<Path> classpath,
             ToolInput source,
             CheckerStageConfig config,
             Duration timeout)
@@ -26,7 +27,7 @@ final class TlcProcess {
                 scratchDirectory,
                 timeout,
                 TlcWorkerMain.class,
-                List.of(),
+                classpath,
                 new ChildJvm(
                         config.workers(),
                         ChildJvm.Compilation.QUICK,

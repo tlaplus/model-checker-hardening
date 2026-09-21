@@ -133,7 +133,8 @@ final class StageGraph {
                                     new CheckerBackends.Resources(
                                             invocation.maximumCpus(),
                                             startup.scratch(),
-                                            invocation.apalacheJar())),
+                                            invocation.apalacheJar(),
+                                            setup.config().libraries().sourceCheckerClasspath())),
                             new CheckerRouting(
                                     checkerCapacities.get(checker),
                                     queues.get(CorpusStage.AGGREGATOR)),
@@ -151,7 +152,8 @@ final class StageGraph {
                 new ParserBackend(
                         workflow.parser(),
                         invocation.maximumCpus(),
-                        startup.scratch().directory(CorpusStage.PARSER)),
+                        startup.scratch().directory(CorpusStage.PARSER),
+                        setup.config().libraries().sourceCheckerClasspath()),
                 new ParserRouting(
                         resultCapacity(workflow, initial, CorpusStage.PARSER),
                         checkerQueues(),

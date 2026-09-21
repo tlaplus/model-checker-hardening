@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.tomlj.Toml;
+import org.tomlj.TomlParseResult;
 import org.tomlj.TomlTable;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 
@@ -33,13 +34,7 @@ public final class TomlConfig {
 
     /** Reads and validates a complete configuration from {@code path}. */
     public static FuzzTlaConfig read(Path path) throws IOException, ConfigException {
-        var result = Toml.parse(path);
-        if (result.hasErrors()) {
-            var errors = result.errors().stream()
-                    .map(Object::toString)
-                    .collect(Collectors.joining(System.lineSeparator()));
-            throw new ConfigException("invalid TOML:" + System.lineSeparator() + errors);
-        }
+        var result = parse(path);
 
         requireKeys(
                 result,
@@ -60,6 +55,37 @@ public final class TomlConfig {
         } catch (IllegalArgumentException exception) {
             throw new ConfigException(exception.getMessage(), exception);
         }
+    }
+
+    /**
+     * Reads a library file: a {@code [generator]} table holding exactly {@code classpath} and
+     * {@code custom_operators}, with paths relative to the file's directory.
+     */
+    public static OperatorLibraryConfig readLibrary(Path path) throws IOException, ConfigException {
+        var result = parse(path);
+        var generator = ConfigSchema.CLASSPATH.tablePath();
+        var keys = Set.of(ConfigSchema.CLASSPATH.name(), ConfigSchema.CUSTOM_OPERATORS.name());
+        requireKeys(result, Set.of(generator), Set.of(generator), ROOT_LOCATION);
+        var tables = Map.of(generator, requireTable(result, generator));
+        requireKeys(tables.get(generator), keys, keys, generator);
+        try {
+            return new OperatorLibraryConfig(
+                    ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))
+                    .relativeTo(path.toAbsolutePath().normalize().getParent());
+        } catch (IllegalArgumentException exception) {
+            throw new ConfigException(exception.getMessage(), exception);
+        }
+    }
+
+    private static TomlParseResult parse(Path path) throws IOException, ConfigException {
+        var result = Toml.parse(path);
+        if (result.hasErrors()) {
+            var errors = result.errors().stream()
+                    .map(Object::toString)
+                    .collect(Collectors.joining(System.lineSeparator()));
+            throw new ConfigException("invalid TOML:" + System.lineSeparator() + errors);
+        }
+        return result;
     }
 
     /** Writes {@code config} as UTF-8 without replacing an existing file. */
