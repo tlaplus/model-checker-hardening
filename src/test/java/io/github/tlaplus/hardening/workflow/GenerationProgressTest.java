@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
@@ -64,6 +65,53 @@ class GenerationProgressTest {
             control.capacityReached();
             assertFalse(admission.get(1, TimeUnit.SECONDS));
         }
+    }
+
+    /**
+     * A checker makes its result visible before it reports it, and every checker hands the entry to
+     * the aggregator. The faster checker's hand-off can therefore let the aggregator find both
+     * results and report before the slower checker's own report arrives.
+     */
+    @Test
+    void theAggregatorMayOvertakeTheSlowerCheckersReport() throws Exception {
+        var control = new WorkflowControl(new WorkQueue<>());
+        var progress = new GenerationProgress(emptyInventory(), control);
+        var entry = new EntryName("entry.cbor");
+        progress.admitted(entry, 0, false);
+        progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
+        progress.completed(entry, CorpusStage.APALACHE, CorpusVerdict.PASS);
+
+        progress.completed(entry, CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
+        assertEquals(0, progress.unsettled(0));
+        assertTrue(progress.awaitSettled(0));
+
+        progress.completed(entry, CorpusStage.TLC, CorpusVerdict.PASS);
+        assertEquals(0, progress.unsettled(0));
+        assertFalse(control.hasFailed());
+    }
+
+    @Test
+    void aLateCheckerReportIsAcceptedOnceAndStrayReportsStillFail() {
+        var control = new WorkflowControl(new WorkQueue<>());
+        var progress = new GenerationProgress(emptyInventory(), control);
+        var entry = new EntryName("entry.cbor");
+        progress.admitted(entry, 0, false);
+        progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
+        progress.completed(entry, CorpusStage.TLC, CorpusVerdict.PASS);
+        progress.completed(entry, CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
+
+        // A checker that already reported cannot report again.
+        assertThrows(IllegalStateException.class,
+                () -> progress.completed(entry, CorpusStage.TLC, CorpusVerdict.PASS));
+        // Nor can a stage that is not a late checker.
+        assertThrows(IllegalStateException.class,
+                () -> progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS));
+        progress.completed(entry, CorpusStage.APALACHE, CorpusVerdict.PASS);
+        // Once every checker has reported, the entry is forgotten entirely.
+        assertThrows(IllegalStateException.class,
+                () -> progress.completed(entry, CorpusStage.APALACHE, CorpusVerdict.PASS));
+        assertThrows(IllegalStateException.class,
+                () -> progress.completed(new EntryName("never.cbor"), CorpusStage.TLC, CorpusVerdict.PASS));
     }
 
     @Test

@@ -10,6 +10,12 @@ import io.github.tlaplus.hardening.corpus.EntryName;
  * <p>Every method is called from a stage worker thread, and an implementation must tolerate
  * concurrent calls. A stage reports a transition <em>after</em> it has durably moved the entry, so
  * an observer that acts on the report always finds the entry in its new directory.
+ *
+ * <p>That is the only ordering guaranteed. One entry's reports from different stages may arrive
+ * out of pipeline order: a moved entry is visible before its report, so a downstream stage can
+ * act on it and report first. In the current pipeline the aggregator can overtake the slower
+ * checker's report; the parser's report always precedes the checkers', because a stage reports
+ * before it forwards.
  */
 public interface WorkflowEvents {
     /**

@@ -7,9 +7,11 @@ import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.EntryProgress;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowEvents;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Where every generation of a run stands, tracked from stage events instead of a corpus rescan
@@ -20,6 +22,13 @@ import java.util.Objects;
  * and startup recovery reads the same rule from stored envelopes, so a resumed run and a fresh one
  * agree.
  *
+ * <p><strong>Event order.</strong> One entry's events do not arrive in pipeline order. A checker
+ * makes its result visible before it reports it, and every checker hands the entry to the
+ * aggregator, so the aggregator can find both results, aggregate, and report before the slower
+ * checker's own report arrives. The aggregator's verdict settles the entry regardless; the
+ * checkers still to report are remembered until they do, and their late reports are accepted.
+ * Every other report about an entry that is not tracked is a bug and throws.
+ *
  * <p><strong>Threading.</strong> Stage workers call {@link #admitted}, {@link #completed} and
  * {@link #generationOf}; the coordinator thread calls {@link #awaitAdmitted} and
  * {@link #awaitSettled}. Every method synchronizes on a private lock, so no caller can interfere
@@ -29,6 +38,11 @@ import java.util.Objects;
 final class GenerationProgress implements WorkflowEvents {
     private final Object lock = new Object();
     private final Map<EntryName, EntryProgress> unsettled = new HashMap<>();
+    /**
+     * For entries the aggregator settled before every checker reported, the checkers still to
+     * report. Bounded by what is in flight: an entry leaves once its last checker reports.
+     */
+    private final Map<EntryName, Set<CorpusStage>> lateCheckers = new HashMap<>();
     private final Map<Integer, Counts> generations = new HashMap<>();
     private final WorkflowControl control;
 
@@ -76,16 +90,45 @@ final class GenerationProgress implements WorkflowEvents {
         synchronized (lock) {
             var previous = unsettled.get(entry);
             if (previous == null) {
-                throw new IllegalStateException("no unsettled entry for " + entry);
+                acceptLateChecker(entry, stage);
+                return;
             }
             var updated = previous.with(stage, verdict);
             if (updated.isSettled()) {
                 unsettled.remove(entry);
+                rememberLateCheckers(entry, updated);
                 counts(updated.generation()).unsettled--;
                 lock.notifyAll();
             } else {
                 unsettled.put(entry, updated);
             }
+        }
+    }
+
+    /** Remembers the checkers that have not reported on an entry the aggregator just settled. */
+    private void rememberLateCheckers(EntryName entry, EntryProgress settled) {
+        if (settled.verdict(CorpusStage.AGGREGATOR).isEmpty()) {
+            return;
+        }
+        var missing = EnumSet.noneOf(CorpusStage.class);
+        for (var checker : CorpusStage.checkerBranches()) {
+            if (settled.verdict(checker).isEmpty()) {
+                missing.add(checker);
+            }
+        }
+        if (!missing.isEmpty()) {
+            lateCheckers.put(entry, missing);
+        }
+    }
+
+    /** Accepts a checker's report that the aggregator overtook, or rejects any other stray report. */
+    private void acceptLateChecker(EntryName entry, CorpusStage stage) {
+        var missing = lateCheckers.get(entry);
+        if (missing == null || !missing.remove(stage)) {
+            throw new IllegalStateException("no unsettled entry for " + entry + " at " + stage);
+        }
+        if (missing.isEmpty()) {
+            lateCheckers.remove(entry);
         }
     }
 

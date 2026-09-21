@@ -54,7 +54,10 @@ parents.
 Queued parser and checker work, and CPU-budget requests, from the older
 generation take priority; the aggregator is exempt, since aggregating an entry
 releases the checker capacity every generation needs. A stage reports a
-transition only after it has durably moved the entry. `corpus.CorpusStage`
+transition only after it has durably moved the entry, and before it forwards it.
+Reports from different stages are otherwise unordered: the aggregator can report
+an entry before the slower checker does, and the generation tracker accepts that
+late checker report. `corpus.CorpusStage`
 carries the pipeline role these rules key on, so adding a stage does not mean
 editing them. The loop runs one generation per `generation_size` entries of
 `workflow.max_entries`. The input stage draws each target entry from a

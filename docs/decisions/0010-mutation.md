@@ -91,7 +91,10 @@ The terminal-outcome rule and the "aggregated but not yet gated" rule are one
 definition, read both from a stored envelope during startup recovery and from
 stage events during a run, so a resumed run and a fresh one cannot disagree about
 where a generation stands. A stage reports a transition only after it has durably
-moved the entry.
+moved the entry and before it forwards it. Because the move is visible before the
+report, the aggregator can settle an entry before the slower checker reports on
+it; the tracker remembers which checkers are still due and accepts their late
+reports, and treats any other report about an untracked entry as a bug.
 
 A run ends after every generation that fits in `max_entries` has been gated,
 which is `ceil(max_entries / generation_size)` generations. The budget is counted

@@ -52,6 +52,17 @@ class EntryProgressTest {
     }
 
     @Test
+    void anAggregatorVerdictSettlesAnEntryWhoseSlowerCheckerHasNotReported() {
+        var overtaken = EntryProgress.admitted(0)
+                .with(CorpusStage.PARSER, CorpusVerdict.PASS)
+                .with(CorpusStage.APALACHE, CorpusVerdict.PASS)
+                .with(CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
+
+        assertTrue(overtaken.isSettled());
+        assertTrue(overtaken.with(CorpusStage.TLC, CorpusVerdict.PASS).isSettled());
+    }
+
+    @Test
     void onlyAnAggregatorPassThatTheGateHasNotJudgedIsUngated() {
         var aggregated = EntryProgress.admitted(1).with(CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
 
