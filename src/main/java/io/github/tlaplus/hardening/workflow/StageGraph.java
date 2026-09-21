@@ -21,11 +21,11 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
-import io.github.tlaplus.hardening.workflow.input.GenerationPlan;
 import io.github.tlaplus.hardening.workflow.input.InputAdmission;
 import io.github.tlaplus.hardening.workflow.input.InputHandoff;
 import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
 import io.github.tlaplus.hardening.workflow.input.InputStage;
+import io.github.tlaplus.hardening.workflow.input.GenerationPlan;
 import io.github.tlaplus.hardening.workflow.parser.ParserBackend;
 import io.github.tlaplus.hardening.workflow.parser.ParserRouting;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
@@ -33,6 +33,7 @@ import io.github.tlaplus.hardening.workflow.tool.ToolStage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,7 @@ import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 /**
- * The stages that run one generation of a workflow invocation, wired to their queues, result
+ * The stages that run one workflow invocation, wired to their queues, result
  * capacities, and shared collaborators, and the order in which they start and stop.
  */
 final class StageGraph {
@@ -76,21 +77,19 @@ final class StageGraph {
     private final Map<CorpusStage, StageCounters> counters = new EnumMap<>(CorpusStage.class);
     private final Map<CorpusStage, ToolStage> checkers = new EnumMap<>(CorpusStage.class);
     private final WorkflowControl control;
+    private final GenerationProgress progress;
     private final AggregatorStage aggregator;
     private final ToolStage parser;
     private final InputStage inputs;
 
-    /**
-     * @param plan what the input stage admits in this generation
-     */
-    StageGraph(Setup setup, Invocation invocation, Startup startup, GenerationPlan plan)
+    StageGraph(Setup setup, Invocation invocation, Startup startup)
             throws IOException, CorpusException {
-        Objects.requireNonNull(plan, "plan");
         var initial = startup.initial();
         var workflow = setup.config().workflow();
         for (var stage : CorpusStage.values()) {
-            var queue = new WorkQueue<Path>();
-            initial.pending(stage).forEach(queue::submit);
+            var queue = stage == CorpusStage.QUALITY || stage == CorpusStage.AGGREGATOR
+                    ? new WorkQueue<Path>()
+                    : new WorkQueue<Path>(Comparator.comparingInt(this::generationOf));
             queues.put(stage, queue);
             counters.put(
                     stage,
@@ -99,11 +98,16 @@ final class StageGraph {
                             startup.metrics().clocks().of(stage)));
         }
         control = new WorkflowControl(queues.values().toArray(WorkQueue<?>[]::new));
+        progress = new GenerationProgress(initial, control);
+        for (var stage : CorpusStage.values()) {
+            initial.pending(stage).forEach(queues.get(stage)::submit);
+        }
         var environment = new StageEnvironment(
                 invocation.corpus(),
                 setup.decoders(),
                 new CpuBudget(invocation.maximumCpus()),
-                control);
+                control,
+                progress);
         var inputCapacity = new Semaphore(
                 workflow.inputs().maximumEntries()
                         - Math.toIntExact(initial.pendingEntries(CorpusStage.PARSER)),
@@ -153,7 +157,7 @@ final class StageGraph {
                         setup.knownDefects(),
                         KnownDefectQuarantine.open(
                                 invocation.corpus(), workflow.inputs().knownDefectSamples())),
-                plan,
+                invocation.maximumCpus(),
                 environment,
                 new InputHandoff(queues.get(CorpusStage.PARSER), inputCapacity),
                 startup.metrics().generator());
@@ -163,16 +167,21 @@ final class StageGraph {
         return control;
     }
 
+    GenerationProgress progress() {
+        return progress;
+    }
+
+    void admit(GenerationPlan plan) {
+        inputs.submit(plan);
+    }
+
     /** Returns the verdict counters of one stage, including a stage that runs outside the graph. */
     StageCounters counters(CorpusStage stage) {
         return counters.get(Objects.requireNonNull(stage, "stage"));
     }
 
-    /**
-     * Runs every stage to completion and closes them. A stage failure is left in {@link #control()}
-     * and reported by {@link #throwIfFailed()}.
-     */
-    void run() throws WorkflowException {
+    /** Starts downstream workers first so recovered work can drain before admission begins. */
+    void start() throws WorkflowException {
         try {
             // Drain recovered fan-in before checkers inspect their current result capacity.
             aggregator.start();
@@ -184,6 +193,20 @@ final class StageGraph {
             }
             parser.start();
             inputs.start();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            control.fail(exception);
+            throwIfFailed();
+        } catch (RuntimeException | Error exception) {
+            control.fail(exception);
+            throw exception;
+        }
+    }
+
+    /** Finishes admission and drains every stage in pipeline order. */
+    void finish() {
+        inputs.finish();
+        try {
             inputs.await();
             parser.await();
             for (var stage : checkers.values()) {
@@ -194,9 +217,11 @@ final class StageGraph {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             control.fail(exception);
-        } finally {
-            stages().forEach(WorkflowStage::close);
         }
+    }
+
+    void close() {
+        stages().forEach(WorkflowStage::close);
     }
 
     /** Rethrows the failure that stopped a stage, if any. */
@@ -240,6 +265,10 @@ final class StageGraph {
         result.addAll(checkers.values());
         result.add(aggregator);
         return result;
+    }
+
+    private int generationOf(Path path) {
+        return progress.generationOf(path);
     }
 
     /** Returns the queue each checker branch takes its work from. */

@@ -161,7 +161,11 @@ final class InventoryScan {
                         ungated,
                         gatedResults.snapshot(),
                         gatedEntries));
-        return new CorpusInventory(stages, logicalEntries.generations());
+        return new CorpusInventory(
+                stages,
+                logicalEntries.generations(),
+                logicalEntries.unsettled(),
+                logicalEntries.ungated());
     }
 
     /** Validates one result directory and reports how many entries it holds. */
@@ -297,7 +301,16 @@ final class InventoryScan {
                     CorpusEntries.requireSameParserOutput(name, reference, candidate);
                 }
             }
-            logicalEntries.add(reference);
+            var completed = new HashSet<CorpusStage>();
+            var crashed = false;
+            for (var checker : CorpusStage.checkerBranches()) {
+                var outcome = branches.get(checker).entries().get(name).envelope().stage(checker);
+                if (outcome.isPresent()) {
+                    completed.add(checker);
+                    crashed |= outcome.orElseThrow().verdict() == CorpusVerdict.CRASH;
+                }
+            }
+            logicalEntries.add(reference, completed, crashed);
         }
         return names.size();
     }
@@ -337,22 +350,54 @@ final class InventoryScan {
     private static final class LogicalEntries {
         private final Set<String> names = new HashSet<>();
         private final SortedMap<Integer, CorpusInventory.GenerationEntries> generations = new TreeMap<>();
+        private final Map<String, CorpusInventory.PendingGenerationEntry> unsettled = new HashMap<>();
+        private final Map<Integer, Long> ungated = new HashMap<>();
 
         void add(Entry entry) throws CorpusException {
+            add(entry, Set.of(), false);
+        }
+
+        void add(Entry entry, Set<CorpusStage> checkers, boolean crashed) throws CorpusException {
             var name = entry.path().getFileName().toString();
             if (!names.add(name)) {
                 throw new CorpusException("corpus entry appears in multiple workflow stages: " + name);
             }
             entry.envelope().generation().ifPresent(metadata -> metadata.generation().ifPresent(
-                    generation -> generations.merge(
-                            generation,
-                            new CorpusInventory.GenerationEntries(1, metadata.mutation().isPresent() ? 1 : 0),
-                            (left, right) -> new CorpusInventory.GenerationEntries(
-                                    left.entries() + right.entries(), left.mutants() + right.mutants()))));
+                    generation -> {
+                        generations.merge(
+                                generation,
+                                new CorpusInventory.GenerationEntries(1, metadata.mutation().isPresent() ? 1 : 0),
+                                (left, right) -> new CorpusInventory.GenerationEntries(
+                                        left.entries() + right.entries(), left.mutants() + right.mutants()));
+                        var envelope = entry.envelope();
+                        if (envelope.stage(CorpusStage.AGGREGATOR)
+                                        .filter(result -> result.verdict() == CorpusVerdict.PASS).isPresent()
+                                && envelope.stage(CorpusStage.QUALITY).isEmpty()) {
+                            ungated.merge(generation, 1L, Long::sum);
+                        }
+                        var parser = envelope.stage(CorpusStage.PARSER);
+                        var terminal = parser.filter(result -> result.verdict() != CorpusVerdict.PASS).isPresent()
+                                || envelope.stage(CorpusStage.AGGREGATOR).isPresent()
+                                || (crashed && checkers.size() == CorpusStage.checkerBranches().size());
+                        if (!terminal) {
+                            unsettled.put(name, new CorpusInventory.PendingGenerationEntry(
+                                    generation,
+                                    checkers,
+                                    crashed));
+                        }
+                    }));
         }
 
         SortedMap<Integer, CorpusInventory.GenerationEntries> generations() {
             return generations;
+        }
+
+        Map<String, CorpusInventory.PendingGenerationEntry> unsettled() {
+            return unsettled;
+        }
+
+        Map<Integer, Long> ungated() {
+            return ungated;
         }
     }
 

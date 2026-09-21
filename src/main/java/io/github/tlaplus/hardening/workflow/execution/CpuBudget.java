@@ -1,9 +1,9 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
 import io.github.tlaplus.hardening.common.Preconditions;
-import java.util.ArrayDeque;
-import java.util.EnumMap;
+import java.util.Comparator;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -12,8 +12,8 @@ import java.util.function.BooleanSupplier;
 /**
  * Priority-aware logical CPU budget shared by all stage workers.
  *
- * <p>Pending requests are served in downstream-first order and FIFO order within one priority.
- * If the first request at the highest waiting priority cannot yet be satisfied, available permits
+ * <p>Pending requests are served by generation, then downstream-first stage priority and FIFO.
+ * If the first waiting request cannot yet be satisfied, available permits
  * are reserved for it instead of being granted to upstream work. This prevents a multi-permit
  * checker request from being starved by smaller requests.
  */
@@ -31,41 +31,50 @@ public final class CpuBudget {
     private final int maximumCpus;
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition changed = lock.newCondition();
-    private final EnumMap<Priority, ArrayDeque<Request>> requests =
-            new EnumMap<>(Priority.class);
+    private final PriorityQueue<Request> requests = new PriorityQueue<>(Comparator
+            .comparingInt((Request request) -> request.generation)
+            .thenComparing(request -> request.priority)
+            .thenComparingLong(request -> request.sequence));
 
     private int availablePermits;
+    private long nextSequence;
 
     public CpuBudget(int maximumCpus) {
         Preconditions.requirePositive(maximumCpus, "maximumCpus");
         this.maximumCpus = maximumCpus;
         availablePermits = maximumCpus;
-        for (var priority : Priority.values()) {
-            requests.put(priority, new ArrayDeque<>());
-        }
     }
 
     public boolean acquire(
             Priority priority, int requestedPermits, BooleanSupplier cancelled)
             throws InterruptedException {
+        return acquire(priority, 0, requestedPermits, cancelled);
+    }
+
+    /** Acquires permits after earlier-generation and higher-stage-priority waiters. */
+    public boolean acquire(
+            Priority priority, int generation, int requestedPermits, BooleanSupplier cancelled)
+            throws InterruptedException {
         Objects.requireNonNull(priority, "priority");
         Objects.requireNonNull(cancelled, "cancelled");
+        Preconditions.requireNonnegative(generation, "generation");
         Preconditions.require(requestedPermits > 0 && requestedPermits <= maximumCpus,
                 "requestedPermits must be in the range 1.." + maximumCpus);
 
-        var request = new Request(requestedPermits);
+        Request request = null;
         var enqueued = false;
         lock.lockInterruptibly();
         try {
             if (cancelled.getAsBoolean()) {
                 return false;
             }
-            requests.get(priority).addLast(request);
+            request = new Request(generation, priority, nextSequence++, requestedPermits);
+            requests.add(request);
             enqueued = true;
 
             while (!cancelled.getAsBoolean()) {
-                if (canAcquire(priority, request)) {
-                    requests.get(priority).removeFirst();
+                if (requests.peek() == request && requestedPermits <= availablePermits) {
+                    requests.remove();
                     availablePermits -= requestedPermits;
                     enqueued = false;
                     changed.signalAll();
@@ -76,7 +85,7 @@ public final class CpuBudget {
             return false;
         } finally {
             if (enqueued) {
-                requests.get(priority).remove(request);
+                requests.remove(request);
                 changed.signalAll();
             }
             lock.unlock();
@@ -98,30 +107,5 @@ public final class CpuBudget {
         }
     }
 
-    private boolean canAcquire(Priority priority, Request request) {
-        if (requests.get(priority).peekFirst() != request || hasHigherPriorityRequest(priority)) {
-            return false;
-        }
-        return request.permits <= availablePermits;
-    }
-
-    private boolean hasHigherPriorityRequest(Priority priority) {
-        for (var candidate : Priority.values()) {
-            if (candidate == priority) {
-                return false;
-            }
-            if (!requests.get(candidate).isEmpty()) {
-                return true;
-            }
-        }
-        throw new IllegalStateException("unknown CPU priority " + priority);
-    }
-
-    private static final class Request {
-        private final int permits;
-
-        private Request(int permits) {
-            this.permits = permits;
-        }
-    }
+    private record Request(int generation, Priority priority, long sequence, int permits) {}
 }

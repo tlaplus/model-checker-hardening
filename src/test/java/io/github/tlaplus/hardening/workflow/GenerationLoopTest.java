@@ -6,19 +6,16 @@ import org.junit.jupiter.api.Test;
 
 class GenerationLoopTest {
     @Test
-    void aFreshGenerationMutatesTheConfiguredShare() {
-        assertEquals(40, GenerationLoop.missingMutants(80, 0, 80, 0.5));
-        assertEquals(0, GenerationLoop.missingMutants(80, 0, 80, 0.0));
-        assertEquals(80, GenerationLoop.missingMutants(80, 0, 80, 1.0));
+    void generationZeroIsPbtAndLaterGenerationsReserveTheConfiguredMutantShare() {
+        assertEquals(0, GenerationLoop.mutantTarget(80, 0, 0.5));
+        assertEquals(40, GenerationLoop.mutantTarget(80, 1, 0.5));
+        assertEquals(0, GenerationLoop.mutantTarget(80, 1, 0.0));
+        assertEquals(80, GenerationLoop.mutantTarget(80, 1, 1.0));
     }
 
     @Test
-    void aResumedGenerationAdmitsOnlyTheMutantsItStillLacks() {
-        // 46 entries were admitted before the interruption, 40 of them mutants.
-        assertEquals(0, GenerationLoop.missingMutants(80, 40, 34, 0.5));
-        // 46 entries were admitted, 6 of them mutants.
-        assertEquals(34, GenerationLoop.missingMutants(80, 6, 34, 0.5));
-        // 46 entries were admitted, 30 of them mutants.
-        assertEquals(10, GenerationLoop.missingMutants(80, 30, 34, 0.5));
+    void roundsTheMutantShareOfAPartialFinalGeneration() {
+        assertEquals(2, GenerationLoop.mutantTarget(3, 1, 0.5));
+        assertEquals(1, GenerationLoop.mutantTarget(2, 1, 0.5));
     }
 }

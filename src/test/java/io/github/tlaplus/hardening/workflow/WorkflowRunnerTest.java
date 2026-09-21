@@ -42,11 +42,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.TempDir;
 
 class WorkflowRunnerTest {
@@ -263,6 +266,82 @@ class WorkflowRunnerTest {
         assertEquals(4, second.corpus().entries(1));
         assertEquals(8, second.corpus().totalEntries());
         assertEquals(0, corpus.resultEntries(CorpusStage.AGGREGATOR, CorpusVerdict.PASS).size());
+    }
+
+    @Test
+    void resumesAnUnfinishedGenerationWithPbtAlreadyAdmittedAhead(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        for (var index = 0; index < 4; index++) {
+            corpus.store(InputKind.EXPRESSION, new byte[] {(byte) index},
+                    GenerationMetadata.generated(0, 0, 0));
+        }
+        corpus.store(InputKind.EXPRESSION, new byte[] {10, 11},
+                GenerationMetadata.generated(1, 0, 0));
+
+        var summary = runner(generationalConfig(8), BY_LENGTH).run(corpus, 42, 1);
+
+        assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
+        assertEquals(4, summary.corpus().entries(0));
+        assertEquals(4, summary.corpus().entries(1));
+        assertEquals(2, summary.corpus().mutants(1));
+        assertEquals(0, summary.corpus().unsettled().size());
+    }
+
+    @Test
+    void startsNextGenerationPbtWhileAnOlderCheckerIsStillRunning(@TempDir Path directory)
+            throws Exception {
+        Assumptions.assumeTrue(Runtime.getRuntime().availableProcessors() >= 2);
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        corpus.store(InputKind.EXPRESSION, new byte[] {0}, GenerationMetadata.generated(0, 0, 0));
+        corpus.store(InputKind.EXPRESSION, new byte[] {1, 2}, GenerationMetadata.generated(0, 0, 0));
+        corpus.store(InputKind.EXPRESSION, new byte[] {2, 3, 4}, GenerationMetadata.generated(0, 0, 0));
+        var base = generationalConfig(6);
+        var config = new FuzzTlaConfig(
+                base.generatedKind(), base.generator(), base.workflow(), base.pbt(),
+                new MutatorConfig(3, 2.0 / 3.0, 1, Map.of(MutationOperator.INSERT, 1),
+                        base.mutator().gate()),
+                base.libraries());
+        var checkerEntered = new CountDownLatch(1);
+        var releaseChecker = new CountDownLatch(1);
+        var lookaheadStarted = new CountDownLatch(1);
+        var held = new AtomicBoolean();
+        Generator<TlaEx> delayed = draw -> {
+            var marker = draw.drawByte();
+            var thread = Thread.currentThread().getName();
+            try {
+                if (thread.startsWith("fuzztla-tlc-") && marker == 0
+                        && held.compareAndSet(false, true)) {
+                    checkerEntered.countDown();
+                    if (!releaseChecker.await(30, TimeUnit.SECONDS)) {
+                        throw new AssertionError("checker was not released");
+                    }
+                }
+                if (thread.startsWith("fuzztla-input-")) {
+                    if (!checkerEntered.await(30, TimeUnit.SECONDS)) {
+                        throw new AssertionError("older checker did not start");
+                    }
+                    lookaheadStarted.countDown();
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(exception);
+            }
+            return BY_LENGTH.generate(draw);
+        };
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var run = executor.submit(() -> runner(config, delayed).run(corpus, 42, 2));
+            try {
+                assertTrue(checkerEntered.await(30, TimeUnit.SECONDS));
+                assertTrue(lookaheadStarted.await(30, TimeUnit.SECONDS));
+                assertFalse(run.isDone(), "the older checker must still be running");
+            } finally {
+                releaseChecker.countDown();
+            }
+            assertEquals(WorkflowRunSummary.StopReason.COMPLETED,
+                    run.get(60, TimeUnit.SECONDS).stopReason());
+        }
     }
 
     @Test

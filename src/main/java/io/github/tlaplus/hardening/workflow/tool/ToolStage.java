@@ -60,7 +60,8 @@ public final class ToolStage implements WorkflowStage {
                 routing.priority(),
                 backend.cpuPermits(),
                 counters,
-                environment.control());
+                environment.control(),
+                environment.events()::generationOf);
         workers = new WorkerGroup("fuzztla-" + stage.metadataName() + "-");
     }
 
@@ -143,6 +144,7 @@ public final class ToolStage implements WorkflowStage {
                             result.metrics(),
                             result.diagnostic()));
             counters.record(verdict);
+            environment.events().completed(path, backend.stage(), verdict);
             routing.forward(corpus, destination, verdict);
         }
 

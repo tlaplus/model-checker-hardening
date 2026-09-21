@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented; generation scheduling revised 2026-09-21
 
 **Date:** 2026-09-16
 
@@ -70,25 +70,27 @@ parents performs like PBT. Four further measurements drive the decision:
 ### Generations
 
 A run proceeds in generations. Generation 0 is PBT as it exists today. A
-generation ends when every entry it admitted has left the aggregator. The quality
+generation settles when every entry it admitted has a terminal stage outcome. The quality
 gate then selects from that generation, the mutator derives inputs from the
 selection, and the inputs stage admits the next generation from two sources: the
 mutator's output and fresh PBT candidates. A corpus entry records its generation,
 so a generation is a property of the entry, not of the run that produced it.
 
-The workflow runs one stage graph per generation. `GenerationLoop` builds a
-`StageGraph` whose input stage admits the generation's missing entries, runs it
-until every queue has drained, inventories the corpus, and runs the gate in
-process. A generation is *settled* when its graph returns without a failure or
-a capacity stop; entries a checker crashed on stay in the checker directories,
-as they do today. The loop then advances to the next generation until the corpus
-holds `workflow.max_entries` entries. No stage tracks generations: the boundary
-is the completion of a graph, which already exists.
+The workflow runs one stage graph per invocation. Once generation g fills its
+quota, the input stage admits the PBT suffix of g+1 while the checker tail of g
+remains active. The quality gate runs when every entry of g has a terminal
+outcome: parser failure or crash, aggregation, or completed checker branches
+with a crash. Only then may the input stage admit g+1's mutant prefix. Stage
+queues and CPU-budget requests prioritize older generations. At most one
+generation is admitted ahead of the oldest ungated generation. A checker crash remains in its checker
+directory, as before.
 
-A run resumes at the highest generation in the corpus. It admits that
-generation's missing entries, drains whatever is pending, and reruns the gate,
-which is idempotent (below). The workflow requires `gen.generation` on every
-entry of a stage directory; an entry without it, such as one written before this
+Startup recovery reconstructs the oldest incomplete generation and unfinished
+entries, including an already admitted PBT suffix of the next generation. The
+coordinator reserves target ranges before submitting them, and durable stage
+transitions signal completion. It does not inventory the whole corpus at each
+generation boundary. The gate is idempotent on restart (below). The workflow
+requires `gen.generation` on every entry of a stage directory; an entry without it, such as one written before this
 ADR, stops the run at startup. The envelope codec still reads such entries, so
 `fuzztla print` and `fuzztla export-db` keep working on older corpora.
 
@@ -280,9 +282,11 @@ source per run, worker streams replayed in practice. With two sources the
 ordinal decides the source, so the number of targets a worker fills from each
 source varied with scheduling: two runs with the same seed and `--max-cpus`
 selected the same generation-0 parents but shared only 9 of 40 PBT entries of
-generation 1. A resumed generation numbers its targets from 0 again, so it
-replays the streams of the interrupted run's first targets; a candidate the
-interrupted run already admitted is then a duplicate, and the target draws on.
+generation 1. Mutant targets occupy the prefix and PBT targets the suffix of
+each generation's ordinal range. On restart, admitted entries reserve their
+source's portion of that range. An older corpus does not store target ordinals,
+so its exact target streams cannot always be reconstructed after interruption;
+already admitted entries remain unchanged.
 
 ## Alternatives considered
 
@@ -318,11 +322,10 @@ interrupted run already admitted is then a duplicate, and the target draws on.
   mutator and `00-inputs` would need its own recovery, inventory and occupancy
   rules, and it would hold entries that no stage has judged. Admission already
   gives the mutator everything the directory would.
-- **One long-lived stage graph.** Stages would keep running while the input
-  stage waits for a "generation settled" signal counted across the parser,
-  checker and aggregator routings. That adds cross-stage bookkeeping to save
-  one stage-graph restart and corpus rescan per generation, which is small
-  against a generation's checking time.
+- **One graph per generation.** The initial implementation used this simpler
+  boundary. It left CPUs idle during long checker tails and required a complete
+  corpus scan before every next generation. The 2026-09-21 revision replaced it
+  with one invocation-long graph and bounded PBT lookahead.
 - **Weighted numeric score in the gate.** Needs units and calibration for six
   metrics that share none.
 

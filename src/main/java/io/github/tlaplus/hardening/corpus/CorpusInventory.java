@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,7 +21,23 @@ import java.util.TreeMap;
  * @param generations what each generation admitted, for the generations that admitted any
  */
 public record CorpusInventory(
-        Map<CorpusStage, StageEntries> stages, SortedMap<Integer, GenerationEntries> generations) {
+        Map<CorpusStage, StageEntries> stages,
+        SortedMap<Integer, GenerationEntries> generations,
+        Map<String, PendingGenerationEntry> unsettled,
+        Map<Integer, Long> ungated) {
+    /** The durable stage progress of one logical entry that has not reached a terminal outcome. */
+    public record PendingGenerationEntry(
+            int generation, Set<CorpusStage> completedCheckers, boolean crashed) {
+        public PendingGenerationEntry {
+            Preconditions.requireNonnegative(generation, "generation");
+            completedCheckers = Set.copyOf(completedCheckers);
+        }
+    }
+
+    public CorpusInventory(
+            Map<CorpusStage, StageEntries> stages, SortedMap<Integer, GenerationEntries> generations) {
+        this(stages, generations, Map.of(), Map.of());
+    }
     /** How many logical entries one generation admitted, and how many of them are mutants. */
     public record GenerationEntries(long entries, long mutants) {
         public GenerationEntries {
@@ -44,6 +61,8 @@ public record CorpusInventory(
         stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "inventory");
         generations = Collections.unmodifiableSortedMap(
                 new TreeMap<>(Objects.requireNonNull(generations, "generations")));
+        unsettled = Map.copyOf(Objects.requireNonNull(unsettled, "unsettled"));
+        ungated = Map.copyOf(Objects.requireNonNull(ungated, "ungated"));
         for (var generation : generations.keySet()) {
             Preconditions.requireNonnegative(generation, "generation");
         }

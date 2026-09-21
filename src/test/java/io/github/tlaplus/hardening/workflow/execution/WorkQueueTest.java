@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Comparator;
 import org.junit.jupiter.api.Test;
 
 class WorkQueueTest {
@@ -17,6 +18,18 @@ class WorkQueueTest {
         queue.close();
 
         assertFalse(queue.submit(3));
+        assertEquals(1, queue.take());
+        assertEquals(2, queue.take());
+        assertNull(queue.take());
+    }
+
+    @Test
+    void servesOlderGenerationFirstWhenPrioritized() throws Exception {
+        var queue = new WorkQueue<Integer>(Comparator.naturalOrder());
+        queue.submit(2);
+        queue.submit(1);
+        queue.close();
+
         assertEquals(1, queue.take());
         assertEquals(2, queue.take());
         assertNull(queue.take());

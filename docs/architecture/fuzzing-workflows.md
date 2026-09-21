@@ -45,10 +45,14 @@ than one worker request frame holds, so no stored entry can only be crashed on b
 the parser and TLC.
 
 **Implemented architectural extension.** A run proceeds in generations
-([ADR 0010][]). `workflow.GenerationLoop` runs one `StageGraph` per generation:
-the input stage admits the generation's missing entries and every stage drains.
-The quality gate, `workflow.quality.QualityGate`, then runs in process over the
-settled generation, and the next generation starts until the corpus holds
+([ADR 0010][]). One invocation-long `StageGraph` processes stage work from at
+most two adjacent generations. After generation g fills its admission quota,
+`workflow.GenerationLoop` admits the PBT share of generation g + 1 while g's
+checker tail runs. It gates g only after every one of its entries reaches a
+terminal stage outcome, then admits the mutant share of g + 1 from the selected
+parents.
+Queued parser and checker work, and CPU-budget requests, from the older
+generation take priority. The loop continues until the corpus holds
 `workflow.max_entries` entries. The input stage draws each target entry from a
 `CandidateSource`: `PbtCandidates` implements the cohort policy above, and
 `MutantCandidates` mutates a parent from `04quality-pass` with the byte
@@ -57,6 +61,12 @@ of mutant targets. Both sources share one attempt loop, so a mutant is decoded,
 admitted, deduplicated, quarantined and stored exactly like a PBT candidate. A
 mutant that renders to its parent's module is rejected as a clone. The mutator
 is not a stage: it records no verdict and owns no directory.
+
+Startup recovery reconstructs unfinished entries and the oldest incomplete
+generation from the existing corpus format. Durable admission and stage
+transitions update that state in memory during the invocation; no full-corpus
+inventory scan occurs between generations. A final validation runs after the
+workers stop. The progress display names the oldest ungated generation.
 
 **Implemented architectural extension.** Admission ends with the known-defect
 signatures listed in `[workflow.inputs] known_defects` ([ADR 0006][]). A

@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.execution;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.ThrowingConsumer;
 import java.util.Objects;
+import java.util.function.ToIntFunction;
 
 /**
  * Claims queued items on behalf of one stage worker under the shared CPU budget. The loop reserves
@@ -18,6 +19,7 @@ public final class StageJobLoop<T> {
     private final int permits;
     private final StageCounters counters;
     private final WorkflowControl control;
+    private final ToIntFunction<T> generationOf;
 
     public StageJobLoop(
             WorkQueue<T> queue,
@@ -26,6 +28,17 @@ public final class StageJobLoop<T> {
             int permits,
             StageCounters counters,
             WorkflowControl control) {
+        this(queue, cpuBudget, priority, permits, counters, control, _ -> 0);
+    }
+
+    public StageJobLoop(
+            WorkQueue<T> queue,
+            CpuBudget cpuBudget,
+            CpuBudget.Priority priority,
+            int permits,
+            StageCounters counters,
+            WorkflowControl control,
+            ToIntFunction<T> generationOf) {
         this.queue = Objects.requireNonNull(queue, "queue");
         this.cpuBudget = Objects.requireNonNull(cpuBudget, "cpuBudget");
         this.priority = Objects.requireNonNull(priority, "priority");
@@ -33,6 +46,7 @@ public final class StageJobLoop<T> {
         this.permits = permits;
         this.counters = Objects.requireNonNull(counters, "counters");
         this.control = Objects.requireNonNull(control, "control");
+        this.generationOf = Objects.requireNonNull(generationOf, "generationOf");
     }
 
     /**
@@ -49,7 +63,7 @@ public final class StageJobLoop<T> {
             if (item == null) {
                 return;
             }
-            if (!cpuBudget.acquire(priority, permits, control::shouldStop)) {
+            if (!cpuBudget.acquire(priority, generationOf.applyAsInt(item), permits, control::shouldStop)) {
                 return;
             }
             counters.elapsed().start();

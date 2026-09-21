@@ -71,6 +71,31 @@ class CpuBudgetTest {
     }
 
     @Test
+    void servesOlderGenerationBeforeNewerDownstreamWork() throws Exception {
+        var budget = new CpuBudget(1);
+        assertTrue(budget.acquire(Priority.GENERATOR, 1, NEVER_CANCELLED));
+        var order = Collections.synchronizedList(new ArrayList<String>());
+        var newer = new BudgetRequest(budget, Priority.CHECKER, 1, 1,
+                NEVER_CANCELLED, () -> {
+                    order.add("newer");
+                    budget.release(1);
+                });
+        newer.awaitQueued();
+        var older = new BudgetRequest(budget, Priority.GENERATOR, 0, 1,
+                NEVER_CANCELLED, () -> {
+                    order.add("older");
+                    budget.release(1);
+                });
+        older.awaitQueued();
+
+        budget.release(1);
+
+        assertTrue(older.await());
+        assertTrue(newer.await());
+        assertEquals(List.of("older", "newer"), order);
+    }
+
+    @Test
     void reservesPartialCapacityForAMultiPermitChecker() throws Exception {
         var budget = new CpuBudget(2);
         assertTrue(budget.acquire(Priority.GENERATOR, 2, NEVER_CANCELLED));
@@ -189,9 +214,19 @@ class CpuBudgetTest {
                 int permits,
                 BooleanSupplier cancelled,
                 Runnable acquired) {
+            this(budget, priority, 0, permits, cancelled, acquired);
+        }
+
+        private BudgetRequest(
+                CpuBudget budget,
+                Priority priority,
+                int generation,
+                int permits,
+                BooleanSupplier cancelled,
+                Runnable acquired) {
             thread = Thread.ofPlatform().daemon().name("cpu-budget-test").start(() -> {
                 try {
-                    var didAcquire = budget.acquire(priority, permits, cancelled);
+                    var didAcquire = budget.acquire(priority, generation, permits, cancelled);
                     if (didAcquire) {
                         acquired.run();
                     }

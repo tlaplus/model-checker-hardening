@@ -20,7 +20,14 @@ public record GenerationPlan(
         long seed,
         long initialEntries,
         int workerLimit,
+        long firstTarget,
         List<Quota> quotas) {
+    public GenerationPlan(
+            InputKind kind, int generation, long seed, long initialEntries,
+            int workerLimit, List<Quota> quotas) {
+        this(kind, generation, seed, initialEntries, workerLimit, 0, quotas);
+    }
+
     /** How many entries one candidate source contributes. */
     public record Quota(CandidateSource source, long entries) {
         public Quota {
@@ -35,6 +42,7 @@ public record GenerationPlan(
         Preconditions.requireNonnegative(initialEntries, "initialEntries");
         Preconditions.requireNonnegative(seed, "seed");
         Preconditions.requirePositive(workerLimit, "workerLimit");
+        Preconditions.requireNonnegative(firstTarget, "firstTarget");
         quotas = List.copyOf(Objects.requireNonNull(quotas, "quotas"));
     }
 

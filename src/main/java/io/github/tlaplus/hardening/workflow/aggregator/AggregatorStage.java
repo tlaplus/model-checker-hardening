@@ -112,6 +112,7 @@ public final class AggregatorStage implements WorkflowStage {
                 checkerCapacities.get(checker).release();
             }
             counters.record(verdict);
+            environment.events().completed(candidate, CorpusStage.AGGREGATOR, verdict);
         } finally {
             completeRecoveredCandidate();
         }
