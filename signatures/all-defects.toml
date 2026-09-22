@@ -1174,3 +1174,14 @@ match = [
   '(& (TEMPORAL_FORALL ...) (.. (NOT (NOT (.. (TEMPORAL_EXISTS ...))))))',
   '(& (TEMPORAL_FORALL ...) (.. (NOT (NOT (.. (TEMPORAL_FORALL ...))))))',
 ]
+
+[[signature]]
+id = "tlc-multiplication-in-fold-under-eventuality"
+references = ["../findings/TLC/tlc-015.md"]
+description = "TLC evaluates a fold whose combinator multiplies, under <> or ~>, as constant-level and reports a state variable as undefined."
+match = [
+  '(& (EVENTUALLY ...) (.. (Apalache!ApaFoldSet (.. (MULT ...)) ...)))',
+  '(& (EVENTUALLY ...) (.. (Apalache!ApaFoldSeqLeft (.. (MULT ...)) ...)))',
+  '(& (LEADS_TO ...) (.. (Apalache!ApaFoldSet (.. (MULT ...)) ...)))',
+  '(& (LEADS_TO ...) (.. (Apalache!ApaFoldSeqLeft (.. (MULT ...)) ...)))',
+]

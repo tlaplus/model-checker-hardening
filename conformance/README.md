@@ -727,6 +727,65 @@ argument constant-level for SANY, and TLC's liveness translation does not look
 inside operator arguments when it recomputes the level; `tlc-015` gives the
 reproduction and the code path.
 
+## corpus41 residuals
+
+corpus41 quarantined 3,343 candidates in `00-known-defects`. Its triage left 22
+TLC crashes and 67 of the 60,471 aggregator deviations as `NEW`; the parser
+report was empty, and the 146 Apalache crash outcomes all matched the catalog
+or were worker timeouts (98). Each `NEW` entry was rerun with FuzzTLA `af10a91`
+and TLC commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`, shaded into
+`fuzztla.jar`), with `SPECIFICATION Spec`, `INVARIANT Inv` and `PROPERTY Prop`.
+Apalache 0.62.2 (build `f0dec98`) was rerun on `01ef2cc4`; the other Apalache
+verdicts are the recorded ones. No entry needs a new finding:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 20 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 2 | TLC crash | `StackOverflowError` (1005) in the recursive `ApaFoldSeqLeft` of `Apalache.tla` over an exponentially growing sequence; with a 4 MB stack the run exhausts the heap in `Sequences.Concat` | resource limit, see below |
+| 56 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 3 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet`, in `Inv` for `40498b3a` and `79d122aa` and in `Prop` for `8ebe61e4` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 3 | aggregator | TLC pass, Apalache counterexample: an evaluation error in the initial state exits 0; `06c8d6ea` and `cbbcda02` negate a `[]` property through `=>` and also mask an initial invariant violation, `d5483d29` has a labeled `[]` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` whose predicate is true for several elements, in `Inv` for `240770dd` and in a `Next` guard for `4f23e165` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `Inv == ~(CASE var0 -> FALSE [] TRUE -> var0)` with both guards true at `var0 = TRUE`, `01ef2cc4` | [case-multiple-true-guards](case-multiple-true-guards.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `\E p \in ApaFoldSet(...)` over a function-set-valued fold keeps the transition disabled, `8dd6ee9e` | [`apalache-bmc-021`](../findings/apalache-bmc/apalache-bmc-021.md) |
+| 1 | aggregator | TLC fail, Apalache counterexample: `Attempted to construct a set with too many elements (>1000000)` for a `CHOOSE` without a witness over a finite function set, `e2c03d31` | [choose-without-witness](choose-without-witness.md), see below |
+
+Every recorded TLC verdict reproduced. The 59 order-sensitive entries were
+confirmed by rerunning TLC with a local `Apalache.tla` whose `ApaFoldSet`
+applies the combinator in the reverse order,
+`__Op(ApaFoldSet(__Op, __v, __T), __w)`. All 59 change their TLC verdict. 56
+move to Apalache's verdict: the three TLC counterexamples pass, and the others
+report a violation, `The invariant of Inv is equal to FALSE` or `The property
+of Prop is equal to FALSE`. `297eb9e9`, `5766e077` and `de888de8` reach an
+evaluation error instead. The other eight deviations keep their TLC verdict
+under the reversed fold and have the causes in the table.
+
+The 20 TLC crashes with error 2214 are the `label :: [][A]_v` row of corpus32
+to corpus40. Fourteen have the subscript `FALSE`, such as
+`label3 :: [][(FALSE <=> FALSE)]_FALSE` in `8508b195`; four have `var0`, and
+`16c1aa75` and `52ce1b0d` a function and a record constructor.
+
+`d5483d29` is the labeled `[]` case of `tlc-008`: its property
+`label10 :: [](CASE <<TRUE, FALSE>>[step] -> FALSE)` fails on index 0 in the
+initial state and TLC exits 0. In a reduced module,
+`lbl :: [](<<TRUE, FALSE>>[x] = TRUE)` exits 0, and the same property without
+the label exits 12 on the initial invariant violation.
+
+The two `StackOverflowError` crashes, `0c11b981` and `b933c6f6`, render to the
+same specification. Its `Next` folds `var1` with a combinator that doubles its
+accumulator, so the length of `var1` grows exponentially with the step. With
+the 1 MB default stack TLC overflows in the recursive `ApaFoldSeqLeft`; with 4
+MB or 64 MB it fails with `Java heap space` in `Sequences.Concat`, exit 75. The
+producer is the specification's value size, not a TLC defect.
+
+`e2c03d31` evaluates `CHOOSE b \in [[S -> T] -> {1, 2, 3}] : acc` with
+`|[S -> T]| = 27`, so the bound has 3^27 elements, and the fold's accumulator
+`acc` is `FALSE`. TLC stops at its enumeration limit before evaluating the
+predicate. With `S` reduced to one element, TLC reports `CHOOSE x \in S: P, but
+no element of S satisfied P` and exits 75, the choose-without-witness class.
+The conformance documents describe the enumeration limit only for infinite
+sets; the triager has no signature for it on a finite set.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

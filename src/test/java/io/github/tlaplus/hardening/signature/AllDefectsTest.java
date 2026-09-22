@@ -127,6 +127,7 @@ class AllDefectsTest {
         var pairFunction = builder.name("g",
                 TlaTypes.function(TlaTypes.tuple(TlaTypes.INT, TlaTypes.INT), TlaTypes.INT));
         var acc = builder.name("acc", TlaTypes.BOOL);
+        var element = builder.name("b", TlaTypes.INT);
         return Map.ofEntries(
                 Map.entry("infinite-integer-set",
                         List.of(builder.in(step, builder.intSet()), builder.in(step, one))),
@@ -216,6 +217,9 @@ class AllDefectsTest {
                 Map.entry("apalache-unchanged-after-assignment",
                         List.of(builder.and(shapes.action(), builder.not(builder.unchanged(flag))),
                                 builder.and(shapes.action(), builder.unchanged(step)))),
+                Map.entry("tlc-multiplication-in-fold-under-eventuality",
+                        List.of(builder.leadsTo(stepFold(builder.mult(element, step)), flag),
+                                builder.leadsTo(stepFold(builder.plus(element, step)), flag))),
                 Map.entry("printer-fold-in-left-operand",
                         List.of(builder.and(builder.eql(step, fold), flag),
                                 builder.and(flag, builder.eql(step, fold)))),
@@ -238,6 +242,14 @@ class AllDefectsTest {
     private TlaEx combinator(TlaEx body) {
         return builder.lambda("Step", body,
                 builder.param("acc", TlaTypes.BOOL), builder.param("elem", TlaTypes.BOOL));
+    }
+
+    /** A fold over {@code {1}} whose combinator compares {@code term} of its element {@code b} with 1. */
+    private TlaEx stepFold(TlaEx term) {
+        return builder.foldSet(
+                builder.lambda("Below", builder.lt(term, builder.integer(1)),
+                        builder.param("a", TlaTypes.BOOL), builder.param("b", TlaTypes.INT)),
+                builder.bool(false), builder.enumSet(builder.integer(1)));
     }
 
     /** The finding or conformance documents under a repository directory, relative to its root. */
