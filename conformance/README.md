@@ -786,6 +786,61 @@ no element of S satisfied P` and exits 75, the choose-without-witness class.
 The conformance documents describe the enumeration limit only for infinite
 sets; the triager has no signature for it on a finite set.
 
+## corpus42 residuals
+
+corpus42 quarantined 3,295 candidates in `00-known-defects`. Its triage left 12
+of the 139 TLC crashes and 62 of the 40,567 aggregator deviations as `NEW`; the
+parser report was empty, and the 61 Apalache crash outcomes all matched the
+catalog or were worker timeouts (30). Each `NEW` entry was rendered with FuzzTLA
+`a13a4d1` and rerun with TLC commit `142d0ba` (tla2tools
+`1.8.0-20260917.033119-76`), with `SPECIFICATION Spec`, `INVARIANT Inv` and
+`PROPERTY Prop`. The Apalache 0.62.2 verdicts are the recorded ones. No entry
+needs a new finding:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 11 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 1 | TLC crash | `CHOOSE` without a witness escapes as error 1000 while TLC fingerprints the initial state, `3e2b8922` | [`tlc-001`](../findings/TLC/tlc-001.md), see below |
+| 53 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 6 | aggregator | TLC counterexample, Apalache pass: order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` whose predicate is true for several elements, in `Inv` for `8cd1b7d5` and in a `Next` guard for `03ab4962` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `Prop == ~[](...)` fails on a function application outside the domain in the initial state; TLC prints the initial `Inv` violation and exits 0, `db7bc163` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+
+Every recorded TLC verdict reproduced. The 59 order-sensitive entries were
+confirmed as in corpus41, with a local `Apalache.tla` whose `ApaFoldSet`
+applies the combinator in the reverse order. All 59 change their TLC verdict.
+The six TLC counterexamples: five pass, and `dadcbb0b` reaches an unmatched
+`CASE`. Of the 53 TLC passes, 52 report a violation of `Inv` or `Prop`, and
+`2c526202` reaches a `CHOOSE` without a witness. The three other deviations
+contain no `ApaFoldSet`, keep their TLC verdict under the reversed fold and
+have the causes in the table.
+
+The eleven error-2214 crashes are the `label :: [][A]_v` row of corpus32 to
+corpus41, for example `label6 :: [][FALSE]_var0` in `1a74aa18`.
+
+`3e2b8922` is a new surfacing of `tlc-001`, not a new defect. Its `Init`
+assigns `var0` a set whose first element is a record field holding
+`Variant("Tag0", <<ApaFoldSeqLeft(L, FALSE, ...)>>)`, where `L` evaluates
+`CHOOSE b \in {1, 2, 3}: acc` with the accumulator `FALSE`. `Variant` is a
+function constructor, which TLC keeps as a lazy `FcnLambdaValue`. It reduces to
+
+```tla
+Init == x = { <<[t \in {1} |-> CHOOSE i \in {1}: FALSE]>>[1], [t \in {1} |-> TRUE] }
+```
+
+which exits 255 with `The exception was a java.lang.RuntimeException` and the
+`CHOOSE` message. With `-debug`, the error is raised in
+`FcnLambdaValue.toFcnRcd`, called from `FcnRcdValue.compareTo` while
+`SetEnumValue.normalize` sorts the set for `TLCStateMut.fingerPrint` in
+`ModelChecker$DoInitFunctor.addElement`. The `tlc-001` reproduction takes the
+same path through `UnionValue.fingerPrint` and a lazy `SetPredValue`: an
+evaluation error in a lazy value forced by fingerprinting escapes the evaluator's
+error classification. Replacing the `CHOOSE` with `<<5>>[2]` gives the same
+wrapper with an out-of-bounds message; without the second function in the set,
+or without the tuple around the first, TLC reports the ordinary error and exits
+75. The `tlc-001` signature matches only the function-domain message, so the
+triager leaves this entry `NEW`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
