@@ -365,6 +365,12 @@ The remaining signatures match fixed shapes:
 - the open `PrettyWriter` findings. `printer-fold-in-left-operand` matches a fold
   that ends an operand, directly or one infix level down, followed by another
   operand.
+- the Community Modules operators whose defects depend on argument values:
+  `IsInjective`, `AntiFunction`, `IndexFirstSubSeq`, `LongestCommonPrefix`,
+  `SumBag` and `ProductBag`. A generated module applies a library operator
+  through an alias named `Custom<hex(module)>N<hex(operator)>`, so a pattern
+  names that alias as the first argument of `OPER_APP`, as in
+  `(OPER_APP Custom42616773457874N53756d426167 _)` for `SumBag`.
 
 The database header and `AllDefectsTest` list the documents that no pattern can
 express:

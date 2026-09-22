@@ -1187,3 +1187,45 @@ match = [
   '(& (LEADS_TO ...) (.. (Apalache!ApaFoldSet (.. (MULT ...)) ...)))',
   '(& (LEADS_TO ...) (.. (Apalache!ApaFoldSeqLeft (.. (MULT ...)) ...)))',
 ]
+
+# Community Modules operators. A generated module calls a library operator through an alias
+# named Custom<hex(module)>N<hex(operator)> (OperatorLibrary), which the IR applies with OPER_APP.
+# Each defect below depends on run-time argument values, and the operators are uncommon, so the
+# signatures match every application.
+
+[[signature]]
+id = "community-is-injective"
+references = ["../findings/TLC/tlc-016.md"]
+description = "TLC's IsInjective override rejects a record or an unevaluated function constructor as not a function."
+match = ['(OPER_APP Custom46756e6374696f6e73N4973496e6a656374697665 _)']
+
+[[signature]]
+id = "community-anti-function"
+references = ["../findings/TLC/tlc-017.md"]
+description = "TLC's AntiFunction override fails on a function that is not injective."
+match = ['(OPER_APP Custom46756e6374696f6e73N416e746946756e6374696f6e _)']
+
+[[signature]]
+id = "community-index-first-subseq"
+references = ["../findings/apalache-rewiring/apalache-rewiring-001.md"]
+description = "Apalache's IndexFirstSubSeq returns 0 for the empty needle, where the Community Modules definition returns 1."
+match = ['(OPER_APP Custom53657175656e636573457874N496e6465784669727374537562536571 _ _)']
+
+[[signature]]
+id = "community-longest-common-prefix"
+references = [
+  "../findings/apalache-performance/apalache-performance-001.md",
+  "../conformance/choose-without-witness.md",
+  "../findings/TLC/tlc-002.md",
+]
+description = "Apalache can exhaust its heap on LongestCommonPrefix of a computed set, and TLC rejects LongestCommonPrefix({})."
+match = ['(OPER_APP Custom53657175656e636573457874N4c6f6e67657374436f6d6d6f6e507265666978 _)']
+
+[[signature]]
+id = "community-bag-fold"
+references = ["../conformance/bag-nonpositive-multiplicity.md", "../findings/TLC/tlc-002.md"]
+description = "TLC rejects SumBag and ProductBag of a function with a non-positive multiplicity, which Apalache evaluates."
+match = [
+  '(OPER_APP Custom42616773457874N53756d426167 _)',
+  '(OPER_APP Custom42616773457874N50726f64756374426167 _)',
+]

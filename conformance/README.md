@@ -27,7 +27,8 @@ Rows marked `Aggregator (corpus10)` use corpus10's 257,852 aggregator
 deviations. Rows marked `Aggregator (corpus12)` use corpus12's 50,545
 aggregator deviations. Rows marked `Aggregator (corpus14)` use corpus14's 62,487
 aggregator deviations. Rows marked `Aggregator (corpus29)` use corpus29's 41,688
-aggregator deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
+aggregator deviations. Rows marked `Aggregator (corpus43)` use corpus43's
+41,895 aggregator deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
 | Origin | Share | TLC | Apalache | Short title | Representative example | Assessment |
@@ -41,6 +42,7 @@ to 100%.
 | Aggregator | 0.86% | 🔴 Fail | 🟢 Pass | TLC reaches `0^0` | [MWE](zero-power-zero-tlc-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 0.41% | 🔴 Fail | 🟢 Pass | Integer outside TLC range | [MWE](integer-outside-tlc-range.md#representative-mwe) | TLC capability limit |
 | Aggregator | 0.29% | 🔴 Fail | 🟢 Pass | Nonpositive modulo divisor | [MWE](modulo-nonpositive-divisor.md#representative-mwe) | Operator-domain difference |
+| Aggregator (corpus43) | 0.50% | 🔴 Fail | 🟢 Pass | Bag with a non-positive multiplicity | [MWE](bag-nonpositive-multiplicity.md#representative-mwe) | Undefined expression |
 | Aggregator | 0.18% | 🔴 Fail | 🟢 Pass | TLC reaches division by zero | [MWE](division-by-zero-tlc-fails.md#representative-mwe) | Evaluation order |
 | Aggregator | 0.15% | 🔴 Fail | 🟢 Pass | `CHOOSE` over `Int` or `Nat` | [MWE](choose-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
 | Aggregator | 0.09% | 🔴 Fail | 🟢 Pass | Infinite-domain quantification | [MWE](quantification-over-infinite-set.md#representative-mwe) | TLC enumeration limit |
@@ -840,6 +842,101 @@ wrapper with an out-of-bounds message; without the second function in the set,
 or without the tuple around the first, TLC reports the ordinary error and exits
 75. The `tlc-001` signature matches only the function-domain message, so the
 triager leaves this entry `NEW`.
+
+## corpus43 residuals
+
+corpus43 is the first corpus that applies Community Modules operators
+(CommunityModules release `202609120237`, commit `9aae8ea`), linked with
+`link = "instance"` as described in the
+[community-modules manual](../docs/manual/community-modules.md). It quarantined
+3,069 candidates in `00-known-defects`. Its triage left 58 of the 248 TLC
+crashes, 54 of the 472 Apalache crash outcomes and 938 of the 41,895 aggregator
+deviations as `NEW`; the parser report was empty, and the other Apalache crash
+outcomes matched the catalog or were worker timeouts (353). The `NEW` TLC
+crashes were classified from their stored transcripts. The rerun entries were
+rendered with FuzzTLA `a13a4d1` and checked with TLC commit `142d0ba`
+(tla2tools `1.8.0-20260917.033119-76`) and `CommunityModules.jar` on the class
+path, with `SPECIFICATION Spec`, `INVARIANT Inv` and `PROPERTY Prop`. Apalache
+0.62.2 (build `f0dec98`) was rerun on `075a7ff4` and `377f54ed`; the other
+Apalache verdicts are the recorded ones. Four
+entry groups need new findings:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 39 | TLC crash | `IsInjective` override rejects a record or an unevaluated function constructor, error 2283 | [`tlc-016`](../findings/TLC/tlc-016.md), exit 255 as in [`tlc-002`](../findings/TLC/tlc-002.md) |
+| 10 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 7 | TLC crash | `LongestCommonPrefix({})`, error 2283 | [choose-without-witness](choose-without-witness.md), exit 255 as in `tlc-002` |
+| 1 | TLC crash | `AntiFunction` of a non-injective function in a temporal property, error 2154, `3914df96` | [`tlc-017`](../findings/TLC/tlc-017.md), exit 255 as in `tlc-002` |
+| 1 | TLC crash | `SumBag` of a function with multiplicity 0 under `[][...]_FALSE`, error 2176, `932e82c8` | [bag-nonpositive-multiplicity](bag-nonpositive-multiplicity.md), exit 255 as in `tlc-002` |
+| 54 | Apalache crash | `OutOfMemoryError: Java heap space` at 1 GB, no stack trace | [`apalache-performance-001`](../findings/apalache-performance/apalache-performance-001.md), see below |
+| 427 | aggregator | TLC fail: `AntiFunction` of a non-injective function; Apalache counterexample (223) or pass (204) | [`tlc-017`](../findings/TLC/tlc-017.md) |
+| 209 | aggregator | TLC fail: `FoldBag` of a value not in `Nat`, through `SumBag` or `ProductBag`; Apalache counterexample (164) or pass (45) | [bag-nonpositive-multiplicity](bag-nonpositive-multiplicity.md) |
+| 173 | aggregator | TLC fail: `IsInjective` rejects its argument; Apalache counterexample (134) or pass (39) | [`tlc-016`](../findings/TLC/tlc-016.md) |
+| 59 | aggregator | TLC fail: `LongestCommonPrefix` of `{}`; Apalache counterexample (49) or pass (10) | [choose-without-witness](choose-without-witness.md) |
+| 35 | aggregator | TLC pass and Apalache counterexample (22), or the reverse (13): the order of `SetToSeq` | [order-sensitive-set-fold](order-sensitive-set-fold.md), see below |
+| 25 | aggregator | TLC pass and Apalache counterexample (21), or the reverse (4): order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 5 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` with several witnesses, `4c1fe437`, `6d4a9f23`, `be938c32`, `e3faf71f` and `f2edbd22` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 2 | aggregator | `IndexFirstSubSeq(<<>>, t)` is 1 in TLC and 0 in Apalache, `0081cf2a` and `e06e2dbe` | [`apalache-rewiring-001`](../findings/apalache-rewiring/apalache-rewiring-001.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: an evaluation error in the initial state exits 0, under `<>` in `faa6c649` and under nested `[]` in `ffc934bc` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `Prop == CASE var0 -> FALSE [] IsFiniteSet(...) -> var0` with both guards true, `22c43654` | [case-multiple-true-guards](case-multiple-true-guards.md) |
+
+The four error-message groups of the aggregator are identified by TLC's stored
+diagnostic line: `The value` for `AntiFunction`, which is the line after the
+override wrapper, and the `IsInjective`, `LongestCommonPrefix` and `FoldBag`
+messages. Four `AntiFunction` entries (`0051805f`, `012c6491`, `02a570ec`,
+`01433fbe`) and two `FoldBag` entries (`01a17416`, `05e43a7e`) were rerun, and
+of the TLC crashes `177b83d4`, the source of the `tlc-016` reduction. The TLC
+crashes report the same messages as the aggregator entries
+but exit 255, because the error constants 2283
+(`TLC_MODULE_ONE_ARGUMENT_ERROR`), 2154 (`TLC_MODULE_VALUE_JAVA_METHOD_OVERRIDE`)
+and 2176 (`TLC_MODULE_APPLYING_TO_WRONG_VALUE`) are unmapped, the `tlc-002`
+defect; `tlc-002` now lists them. `LongestCommonPrefix` is
+defined as a `CHOOSE` over `CommonPrefixes(S)`, which is empty for `S = {}`;
+Apalache evaluates the same definition. The ten error-2214 crashes are the
+`label :: [][A]_v` row of corpus32 to corpus42.
+
+All 70 pass/counterexample deviations were rerun, and the recorded TLC verdict
+reproduced for 68. The two others are the `tlc-008` entries, for which the
+rerun prints the evaluation error that the recorded pass hides. Each entry was
+then rerun twice more: with `ApaFoldSet` applying the combinator in reverse
+order, as in corpus41, and with the `SetToSeq` alias of the specification
+replaced by `Reverse(SetToSeq(...))`. The reversed fold changes the TLC
+verdict of the 25 fold entries: 23 move to Apalache's verdict, and `4b2090cb`
+and `772a075a` reach a `CHOOSE` without a witness. The reversed sequence
+changes the verdict of 35 of the 37 entries that apply `SetToSeq`: 33 move to
+Apalache's verdict and 2 reach an evaluation error. Apalache defines `SetToSeq`
+as `__ApalacheFoldSet` with `Append`, so the order of the sequence is the
+order of the fold, while TLC's Java override returns one fixed order. The two
+other `SetToSeq` entries also apply `IndexFirstSubSeq` to `<<>>` and keep their
+verdict under both reversals; they are the `apalache-rewiring-001` rows.
+
+A bag with a non-positive multiplicity is a new class, documented in
+[bag-nonpositive-multiplicity](bag-nonpositive-multiplicity.md). The generator types a bag as `a -> Int`, so a multiplicity can be 0 or
+negative, and the rerun entries have multiplicity 0, as in
+`SumBag([x \in {1, 2, 3} |-> step])` with `step = 0` (`932e82c8`). Such a
+function is not a bag. The Community Modules definition of `FoldBag` then
+applies `pow[B[x]]` outside the domain `Nat \ {0}` of `pow`, so TLC's error
+follows the definition. Its message, `which is not an element of Nat: 0 (in:
+1:>0)`, names the wrong set. Apalache rewires `SumBag(B)` as the sum of
+`y * B[y]` and `ProductBag(B)` as the product of `y ^ B[y]`, which are defined
+for every multiplicity.
+
+The 54 Apalache crashes share heavy use of `SubSeq` and `\o`, which the
+rewired `SequencesExt` operators produce: 94% and 93% of them against 31% and
+22% of the other entries past the parser. `075a7ff4` runs out of heap memory in
+a fresh JVM with `-Xmx1g`, so the crash is not caused by state accumulated in
+the worker. The smallest entry, `377f54ed`, reduces to
+`LongestCommonPrefix(SubSeqs(<<1, 2, 3>>))`, which is the reproduction of
+`apalache-performance-001`. 20 of the 54 entries apply `LongestCommonPrefix`;
+the other 34 were not reduced.
+
+The triager now classifies the four error-message groups and their TLC
+crashes: `IsInjective` as `tlc-016`, `AntiFunction` as `tlc-017`,
+`LongestCommonPrefix({})` as choose-without-witness (crashes as `tlc-002`), and
+`FoldBag` as bag-nonpositive-multiplicity (crashes as `tlc-002`). Rerun on
+corpus43, it leaves 10 TLC crashes (the `tlc-013` labels), the 54 Apalache
+out-of-memory exits, which print no stack trace to match, and the 70
+pass/counterexample deviations as `NEW`.
 
 ## Auditing the classified entries
 

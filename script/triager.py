@@ -197,11 +197,27 @@ SIGNATURES = (
                    r"Overflow when computing "),
             all_of(r"^TLC error code 2181 mapped to exit status 255$",
                    r"Error: Attempted to compute cardinality of the value"),
+            # Community Modules overrides whose errors follow the TLA+ definition:
+            # LongestCommonPrefix({}) is a CHOOSE over an empty set, and FoldBag of
+            # a multiplicity outside Nat \ {0} applies pow outside its domain.
+            all_of(r"^TLC error code 2283 mapped to exit status 255$",
+                   r"^(?:Error: )?The argument of LongestCommonPrefix should be a non-empty set, but instead it is:"),
+            all_of(r"^TLC error code 2176 mapped to exit status 255$",
+                   r"^(?:Error: )?Applying FoldBag to the following value,$"),
             # The same module errors raised while TLC evaluates the invariant or [][A]_v,
             # printed without their own "Error:" prefix after the wrapper.
             all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
                    rf"^Error: Evaluating (?:invariant|action property) \w+ failed\.\n"
                    rf"{TLC_MODULE_ERROR_MESSAGE}")),
+    # Community Modules overrides that reject arguments their TLA+ definitions
+    # accept. The exit status is tlc-002's, but the error itself is the defect.
+    finding("tlc-016.md", CrashKind.TLC,
+            all_of(r"^TLC error code 2283 mapped to exit status 255$",
+                   r"^(?:Error: )?The argument of IsInjective should be a function, but instead it is:$")),
+    finding("tlc-017.md", CrashKind.TLC,
+            all_of(r"^TLC error code 2154 mapped to exit status 255$",
+                   r"tlc2\.overrides\.Functions\.antiFunction\(",
+                   r"^occurs multiple times in the function domain\.$")),
     finding("tlc-003.md", CrashKind.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
@@ -329,7 +345,19 @@ AGGREGATOR_SIGNATURES = (
     # non-enumerable set; 40 sampled corpus14 entries were all the first, so it
     # stays here, but a reruns check is the only way to split it further.
     failure("choose-without-witness.md", Checker.TLC,
-            r"^Attempted to compute the value of an expression of form$"),
+            r"^Attempted to compute the value of an expression of form$",
+            # The Community Modules override of LongestCommonPrefix rejects {}, for
+            # which the definition is a CHOOSE over an empty set of common prefixes.
+            r"^The argument of LongestCommonPrefix should be a non-empty set, but instead it i"),
+    failure("tlc-016.md", Checker.TLC,
+            r"^The argument of IsInjective should be a function, but instead it is:$"),
+    # TLC stores the line after the override wrapper. In tla2tools only FcnRcdValue
+    # prints "The value" on a line of its own, for a function domain with
+    # duplicates. Of the Community Modules overrides, only AntiFunction and the
+    # SVG module, which no library selects, construct a FcnRcdValue.
+    failure("tlc-017.md", Checker.TLC, r"^The value$"),
+    failure("bag-nonpositive-multiplicity.md", Checker.TLC,
+            r"^Applying FoldBag to the following value,$"),
     failure("choose-over-infinite-set.md", Checker.TLC,
             r"^Attempted to compute the value of an expression of$"),
     failure("head-of-empty-sequence.md", Checker.TLC,

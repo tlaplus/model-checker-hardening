@@ -620,6 +620,24 @@ class AggregatorClassificationTest(unittest.TestCase):
                         results(triager.Checker.TLC, detail, other_verdict=other), HASH_A),
                 )
 
+    def test_classifies_community_modules_override_details(self) -> None:
+        """corpus43: 0014d801, 0051805f, 021b351f and 01a17416."""
+        for detail, expected in (
+            ("The argument of IsInjective should be a function, but instead it is:",
+             "tlc-016.md"),
+            ("The value", "tlc-017.md"),
+            ("The argument of LongestCommonPrefix should be a non-empty set, but instead it i\u2026",
+             "choose-without-witness.md"),
+            ("Applying FoldBag to the following value,", "bag-nonpositive-multiplicity.md"),
+        ):
+            for other in ("pass", "counterexample"):
+                with self.subTest(detail=detail, other=other):
+                    with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                        actual = triager.classify_aggregator(
+                            results(triager.Checker.TLC, detail, other_verdict=other), HASH_A)
+                    self.assertEqual(expected, actual)
+                    self.assertEqual("", stderr.getvalue())
+
     def test_reports_ambiguous_matches(self) -> None:
         duplicate = triager.AggregatorSignature(
             "duplicate.md",
@@ -910,6 +928,54 @@ class Corpus22CrashTest(unittest.TestCase):
         self.assertEqual(
             "apalache-builder-001.md",
             classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
+    def test_community_modules_override_errors(self) -> None:
+        """corpus43 177b83d4, 3914df96, 070a0d4b and 932e82c8."""
+        for expected, lines in (
+            ("tlc-016.md", (
+                "TLC error code 2283 mapped to exit status 255",
+                "Error: The argument of IsInjective should be a function, but instead it is:",
+                "(FALSE :> FALSE @@ TRUE :> FALSE)",
+                "Error: The behavior up to this point is:",
+            )),
+            ("tlc-017.md", (
+                "TLC error code 2154 mapped to exit status 255",
+                "Error: Attempted to apply the operator overridden by the Java method",
+                "public static tlc2.value.impl.Value tlc2.overrides.Functions.antiFunction(tlc2.value.impl.Value),",
+                "but it produced the following error:",
+                "The value",
+                "{{FALSE}, {TRUE}}",
+                "occurs multiple times in the function domain.",
+            )),
+            ("tlc-002.md", (
+                "TLC error code 2283 mapped to exit status 255",
+                "Error: The argument of LongestCommonPrefix should be a non-empty set, but instead it is:",
+                "{}",
+            )),
+            ("tlc-002.md", (
+                "TLC error code 2176 mapped to exit status 255",
+                "Error: Evaluating action property Prop failed.",
+                "Applying FoldBag to the following value,",
+                "which is not an element of Nat:",
+                "0 (in: 1:>0)",
+            )),
+        ):
+            with self.subTest(expected=expected, first=lines[1]):
+                self.assertEqual(
+                    expected,
+                    classify_quietly(self, triager.CrashKind.TLC, "\n".join(lines)),
+                )
+
+    def test_foreign_error_under_a_community_modules_constant_stays_new(self) -> None:
+        """Error 2283 alone does not identify an override."""
+        diagnostic = "\n".join((
+            "TLC error code 2283 mapped to exit status 255",
+            "Error: The argument of SumSet should be a set of integers, but instead it is:",
+        ))
+        self.assertEqual(
+            triager.NEW_FINDING,
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
 
 

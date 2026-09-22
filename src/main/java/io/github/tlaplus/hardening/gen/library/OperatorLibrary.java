@@ -149,6 +149,14 @@ public final class OperatorLibrary {
         return "Custom" + hex(module) + "I";
     }
 
+    /**
+     * The name under which generated code applies the selected operator {@code id}. Known-defect
+     * signatures name Community Modules operators by it, so it is part of the signature format.
+     */
+    public static String exportName(OperatorId id) {
+        return names(id.module()).apply(id.operator());
+    }
+
     private static UnaryOperator<String> names(String module) {
         var prefix = "Custom" + hex(module) + "N";
         return name -> prefix + hex(name);

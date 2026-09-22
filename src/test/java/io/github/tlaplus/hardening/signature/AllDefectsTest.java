@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaType1;
+import io.github.tlaplus.hardening.gen.library.OperatorId;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -118,6 +121,9 @@ class AllDefectsTest {
         var one = builder.enumSet(builder.integer(1));
         var sequence = builder.name("s", TlaTypes.sequence(TlaTypes.INT));
         var function = builder.name("f", TlaTypes.function(TlaTypes.INT, TlaTypes.INT));
+        var intFunction = TlaTypes.function(TlaTypes.INT, TlaTypes.INT);
+        var intSequence = TlaTypes.sequence(TlaTypes.INT);
+        var sequences = builder.name("ss", TlaTypes.set(intSequence));
         var applied = builder.eql(builder.funApply(function, builder.integer(1)), builder.integer(1));
         var fold = builder.foldSet(
                 builder.lambda("Keep", builder.name("a", TlaTypes.INT),
@@ -232,7 +238,42 @@ class AllDefectsTest {
                 Map.entry("printer-set-map-connective-body",
                         List.of(builder.map(builder.and(builder.in(x, one)),
                                         new ExpressionPair<>(x, one)),
-                                builder.map(builder.in(x, one), new ExpressionPair<>(x, one)))));
+                                builder.map(builder.in(x, one), new ExpressionPair<>(x, one)))),
+                Map.entry("community-is-injective",
+                        List.of(library("Functions", "IsInjective",
+                                        TlaTypes.operator(TlaTypes.BOOL, intFunction), function),
+                                library("Functions", "Range",
+                                        TlaTypes.operator(TlaTypes.set(TlaTypes.INT), intFunction), function))),
+                Map.entry("community-anti-function",
+                        List.of(library("Functions", "AntiFunction",
+                                        TlaTypes.operator(intFunction, intFunction), function),
+                                library("Functions", "Range",
+                                        TlaTypes.operator(TlaTypes.set(TlaTypes.INT), intFunction), function))),
+                Map.entry("community-index-first-subseq",
+                        List.of(library("SequencesExt", "IndexFirstSubSeq",
+                                        TlaTypes.operator(TlaTypes.INT, intSequence, intSequence),
+                                        sequence, sequence),
+                                library("SequencesExt", "IsPrefix",
+                                        TlaTypes.operator(TlaTypes.BOOL, intSequence, intSequence),
+                                        sequence, sequence))),
+                Map.entry("community-longest-common-prefix",
+                        List.of(library("SequencesExt", "LongestCommonPrefix",
+                                        TlaTypes.operator(intSequence, TlaTypes.set(intSequence)), sequences),
+                                library("SequencesExt", "CommonPrefixes",
+                                        TlaTypes.operator(TlaTypes.set(intSequence), TlaTypes.set(intSequence)),
+                                        sequences))),
+                Map.entry("community-bag-fold",
+                        List.of(library("BagsExt", "SumBag",
+                                        TlaTypes.operator(TlaTypes.INT, intFunction), function),
+                                library("BagsExt", "BagRemoveAll",
+                                        TlaTypes.operator(intFunction, intFunction, TlaTypes.INT),
+                                        function, builder.integer(1)))));
+    }
+
+    /** An application of a selected Community Modules operator, as generated code writes it. */
+    private TlaEx library(String module, String operator, TlaType1 type, TlaEx... arguments) {
+        var name = OperatorLibrary.exportName(new OperatorId(module, operator));
+        return builder.operApply(builder.name(name, type), arguments);
     }
 
     private static ExpressionPair<TlaEx> arm(TlaEx guard, TlaEx value) {
