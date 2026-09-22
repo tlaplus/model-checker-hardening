@@ -938,6 +938,78 @@ corpus43, it leaves 10 TLC crashes (the `tlc-013` labels), the 54 Apalache
 out-of-memory exits, which print no stack trace to match, and the 70
 pass/counterexample deviations as `NEW`.
 
+## corpus44 residuals
+
+corpus44 repeats the corpus43 configuration with Community Modules operators
+and the recall-first `signatures/all-defects.toml`, which quarantined 3,629
+candidates in `00-known-defects`. Its triage left 10 of the 168 TLC crashes, 2
+of the 144 Apalache crash outcomes and 77 of the 39,853 aggregator deviations
+as `NEW`. The parser report was empty, and the other Apalache crash outcomes
+matched the catalog or were worker timeouts (78). Every `NEW` entry was
+rendered with FuzzTLA `91871fd`. The aggregator entries were rerun with TLC
+commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`) and
+`CommunityModules.jar` (commit `9aae8ea`) on the class path, with
+`SPECIFICATION Spec`, `INVARIANT Inv`, and `PROPERTY Prop` unless `Prop` is
+`TRUE`. Apalache 0.62.2 (build `f0dec98`) was rerun on the crashes and on
+`41ca4840`. Two entry groups need new findings:
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 10 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 2 | Apalache crash | `OutOfMemoryError: Java heap space` at 1 GB, no stack trace, `041ad8a7` and `ed052a2b` | not reduced, see below |
+| 41 | aggregator | TLC pass and Apalache counterexample (36), or the reverse (5): the order of `SetToSeq` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 25 | aggregator | TLC pass and Apalache counterexample (24), or the reverse (1): order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 3 | aggregator | the other order reaches an undefined expression: `Head(<<>>)` through `SetToSeq` in `ea69bae0`, an unmatched `CASE` through `SetToSeq` in `c860a666`, a `CHOOSE` without a witness through `ApaFoldSet` in `e3f84a75` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 3 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` with several witnesses, `b5623fe7`, and through `Inverse` in `3889be64` and `f06cd79a` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 3 | aggregator | TLC counterexample, Apalache pass: `ExistsSurjection(S, {})` with `S # {}`, `5ae1c837`, `531d2ddf` and `d6adcdd4` | [`apalache-rewiring-002`](../findings/apalache-rewiring/apalache-rewiring-002.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `VariantFilter` of a set with a `FALSE` payload and another tag leaves no initial state, `41ca4840` | [`apalache-bmc-022`](../findings/apalache-bmc/apalache-bmc-022.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `SeqMod(_, 0)` on the left of `~>` in the initial state exits 0, `c7308e5a` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+
+All 77 aggregator deviations are pass/counterexample pairs. Each was rerun
+three times: as recorded, with `ApaFoldSet` applying the combinator in reverse
+order, and with the `SetToSeq` alias replaced by `Reverse(SetToSeq(...))`, as
+for corpus43. The recorded TLC verdict reproduced for 76 entries. The
+exception is `c7308e5a`, whose rerun prints the modulo error that the recorded
+pass hides, which is the `tlc-008` defect. A reversal moves 66 entries to
+Apalache's verdict, where TLC's `The invariant of Inv is equal to FALSE` and
+`The property of Prop is equal to FALSE` count as counterexamples. In 3 more
+entries, a reversal reaches an evaluation error at the operation named in
+the table. For these entries, Apalache's order reaches the same undefined
+expression. The three `CHOOSE` rows were classified by inspection: in
+`b5623fe7`, the predicate of `CHOOSE` is the state variable `var0`, and in the
+other two `Inverse(f, S, T)` is applied where `f` is not injective or misses
+`T`, so every choice satisfies the predicate of the `CHOOSE` in its definition.
+
+The two new findings were reduced by hand. `ExistsSurjection({1, 2, 3}, {})`
+is `FALSE` in TLC and `TRUE` in Apalache, which rewires it as
+`Cardinality(S) >= Cardinality(T)`. In `41ca4840`, `Init` contains
+`var0 \in VariantFilter("Tag3", {Variant("Tag3", FALSE), Variant("Tag2", ...), ...})`
+and `var1 = FALSE`, with `Inv == var1`. Apalache's filter encoding asserts both
+that the shared `FALSE` cell is in the filtered set and that it is not, so
+`Init` has no model and the `--no-deadlock` run passes.
+
+Both Apalache crashes also run out of heap memory in a fresh JVM with
+`-Xmx1g` (`041ad8a7` after 169 seconds, `ed052a2b` after 320 seconds in state
+3), so the long-lived worker does not cause them. Neither applies
+`LongestCommonPrefix`, so they are not the
+[`apalache-performance-001`](../findings/apalache-performance/apalache-performance-001.md)
+reduction, and they may belong to its 34 unreduced corpus43 entries. In
+`041ad8a7`, `Init` alone runs out of memory at `--length=0`. Replacing
+subterms of the IR places the cost in a nest of four folds (`ApaFoldSet` and
+`ApaFoldSeqLeft`) over sets of functions with set and sequence domains, with a
+`Tag18(<<Int -> Int>>)` accumulator. Without the enclosing `Inverse` and
+outer fold, the nest checks in about 300 seconds. Without the nest, `Init`
+checks in 9 seconds. Replacing the innermost `ReplaceSubSeqAt` call in `Init`
+by its literal argument still runs out of memory. Hand-written constant versions of the nest check in seconds, so no
+reproduction exists yet. `ed052a2b` was not reduced.
+
+The triager classifies by the failing checker's diagnostic, and the
+pass/counterexample pairs have none, so it still leaves the 77 aggregator
+deviations as `NEW`, as well as the 10 TLC crashes (the `tlc-013` labels) and
+the 2 Apalache out-of-memory exits. `all-defects.toml` now has the signatures
+`community-exists-surjection` and `variant-filter`, which quarantine future
+candidates that apply `ExistsSurjection` or `VariantFilter`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
