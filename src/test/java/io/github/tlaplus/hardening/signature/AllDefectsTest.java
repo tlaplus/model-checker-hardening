@@ -36,6 +36,7 @@ class AllDefectsTest {
             "findings/apalache-bmc/apalache-bmc-021.md",
             "findings/apalache-json/apalache-json-001.md",
             "findings/apalache-json/apalache-json-002.md",
+            "findings/apalache-json/apalache-json-003.md",
             "findings/apalache-printer/apalache-printer-001.md",
             "findings/apalache-printer/apalache-printer-002.md",
             "findings/apalache-printer/apalache-printer-003.md",

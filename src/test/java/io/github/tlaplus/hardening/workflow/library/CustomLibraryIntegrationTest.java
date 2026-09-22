@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaType1;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
@@ -45,7 +46,23 @@ class CustomLibraryIntegrationTest {
                 call(library, new OperatorId("PolyOps", "ReadValue"), TlaTypes.INT, record),
                 call(library, new OperatorId("PolyOps", "Local"), TlaTypes.BOOL, BUILDER.bool(false)),
                 call(library, new OperatorId("PolyOps", "Init"), TlaTypes.INT, BUILDER.integer(2)));
-        assertAllTools(SpecArtifact.fromExpression(expression, library), directory);
+        assertAllTools(SpecArtifact.fromExpression(expression, library), directory, List.of());
+    }
+
+    @Test
+    void instanceLinkedCallsReachTheModuleThroughTheClasspath(@TempDir Path directory) throws Exception {
+        var classpath = List.of(Path.of("src/test/resources/custom").toAbsolutePath());
+        var config = LibraryPreparationTest.config(classpath, "PolyOps", LibraryLinkage.INSTANCE,
+                "Wrapped", "Empty");
+        var library = LibraryPreparation.prepare(config).generator().library();
+        var expression = BUILDER.tuple(
+                call(library, new OperatorId("PolyOps", "Wrapped"), TlaTypes.INT, BUILDER.integer(1)),
+                call(library, new OperatorId("PolyOps", "Empty"), TlaTypes.set(TlaTypes.INT)));
+        var artifact = SpecArtifact.fromExpression(expression, library);
+        var source = SpecText.render(artifact);
+        assertTrue(source.contains(OperatorLibrary.instanceName("PolyOps") + " == INSTANCE PolyOps"), source);
+        assertEquals(2, artifact.source().aliases().size());
+        assertAllTools(artifact, directory, classpath);
     }
 
     @Test
@@ -58,25 +75,26 @@ class CustomLibraryIntegrationTest {
         var spec = new GeneratedSpec(List.of(state), List.of(),
                 BUILDER.eql(BUILDER.varDeclAsNameEx(state), BUILDER.bool(true)),
                 BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, java.util.Optional.empty(), 0);
-        assertAllTools(SpecArtifact.fromGeneratedSpec(spec, library), directory);
+        assertAllTools(SpecArtifact.fromGeneratedSpec(spec, library), directory, List.of());
     }
 
-    private static void assertAllTools(SpecArtifact artifact, Path directory) throws Exception {
+    private static void assertAllTools(SpecArtifact artifact, Path directory, List<Path> classpath)
+            throws Exception {
         var timeout = Duration.ofSeconds(30);
         var parserScratch = Files.createDirectory(directory.resolve("parser"));
         try (var parser = IsolatedWorkerProcess.start(new WorkerSpec(parserScratch, timeout,
-                ParserWorkerMain.class, "custom library parser"))) {
-            var result = parser.request(new ToolInput(SpecText.render(artifact.module()), 0), timeout);
+                ParserWorkerMain.class, classpath, ChildJvm.singleProcessor(), "custom library parser"))) {
+            var result = parser.request(new ToolInput(SpecText.render(artifact), 0), timeout);
             assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic());
         }
         var settings = new CheckerStageConfig(10, 30, 512, 1);
         var backends = List.<ToolBackend>of(
-                new TlcCheckerBackend(settings, 1, Files.createDirectory(directory.resolve("tlc"))),
+                new TlcCheckerBackend(settings, 1, Files.createDirectory(directory.resolve("tlc")), classpath),
                 new ApalacheCheckerBackend(settings, ApalacheDistribution.locate(),
                         Files.createDirectory(directory.resolve("apalache"))));
         for (var backend : backends) {
             try (var worker = backend.startWorker()) {
-                var result = worker.check(new ToolInput(backend.renderer().apply(artifact.module()), 0));
+                var result = worker.check(new ToolInput(backend.renderer().apply(artifact), 0));
                 assertEquals(StageOutcome.PASS, result.outcome(), backend.stage().displayName() + ": " + result.diagnostic());
             }
         }

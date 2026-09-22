@@ -21,8 +21,8 @@ final class DecodedInputRenderer {
         return switch (mode) {
             case DEFAULT -> artifact.standaloneExpression()
                     .map(EnvelopeReport::expression)
-                    .orElseGet(() -> SpecText.render(artifact.module()));
-            case SPECIFICATION -> SpecText.render(artifact.module());
+                    .orElseGet(() -> SpecText.render(artifact));
+            case SPECIFICATION -> SpecText.render(artifact);
             case APALACHE_IR -> ApalacheIrJson.render(artifact.module());
         };
     }

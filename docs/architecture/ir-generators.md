@@ -1083,5 +1083,13 @@ the generated applications and their arguments are scored normally. Rendering
 admission limits include the linked definitions. Every assembled artifact owns
 fresh library IR identities and cannot mutate the prepared snapshot.
 
+Each export carries a `LibraryLinkage`. `link` always inlines the used closure; it
+is what Apalache evaluates and what admission scores and matches. `linkSource`
+produces what the parser and TLC evaluate: the same module, except that each used
+instance-linked export is returned as an `InstanceAlias` instead of a definition,
+for the renderer to define through the named instance `instanceName(module)`
+([ADR 0014](../decisions/0014-per-checker-library-linking.md)). Decoding does not
+depend on linkage.
+
 [adr-0011]: ../decisions/0011-collection-base-size.md
 [adr-0012]: ../decisions/0012-integer-literals.md

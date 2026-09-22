@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 
 /** Finite, isolated Snowcat invocation producing a typed module rather than a checker verdict. */
 final class LibraryTypechecker {
@@ -28,7 +29,15 @@ final class LibraryTypechecker {
         Files.writeString(toolConfig, "{}");
     }
 
-    TlaModule check(Path source, String module) throws IOException, InterruptedException, WorkflowException {
+    /**
+     * Typechecks {@code source} and decodes the declarations reachable from {@code roots}. The
+     * typed module must be named by one of {@code names}: Apalache names a wrapper that only
+     * extends one module after that module.
+     */
+    TlaModule check(Path source, Set<String> names, Set<String> roots)
+            throws IOException, InterruptedException, WorkflowException {
+        var file = source.getFileName().toString();
+        var module = file.substring(0, file.length() - ".tla".length());
         var output = scratch.resolve(module + ".json");
         var command = List.of(
                 JavaLaunch.executable(),
@@ -43,8 +52,9 @@ final class LibraryTypechecker {
             throw new WorkflowException("typechecking custom module " + module + " failed (exit "
                     + result.exitCode() + "):\n" + result.diagnostics());
         }
-        var decoded = ApalacheIrJson.parse(output, MAXIMUM_JSON_BYTES);
-        if (!decoded.name().equals(module)) {
+        var decoded = ApalacheIrJson.parse(
+                LibraryJson.prune(ApalacheIrJson.readBounded(output, MAXIMUM_JSON_BYTES), roots));
+        if (!names.contains(decoded.name())) {
             throw new WorkflowException("expected typed module " + module + ", found " + decoded.name());
         }
         return decoded;

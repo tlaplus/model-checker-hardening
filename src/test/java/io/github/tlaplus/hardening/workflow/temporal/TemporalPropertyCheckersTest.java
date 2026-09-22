@@ -110,7 +110,7 @@ class TemporalPropertyCheckersTest {
         assertEquals(12, samples.size(), "too few unquarantined modules with a property were generated");
         assertTrue(quarantined[0] > 0, "no generated property matched a temporal signature");
 
-        var tlc = new TlcCheckerBackend(SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")));
+        var tlc = new TlcCheckerBackend(SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
         for (var spec : samples) {
             var result = check(tlc, SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty()));
             assertFalse(result.diagnostic().contains("TLC cannot handle the temporal formula"), result.diagnostic());
@@ -124,7 +124,7 @@ class TemporalPropertyCheckersTest {
     private static Results checkBoth(Path directory, GeneratedSpec spec) throws Exception {
         var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
         assertTrue(artifact.request().temporalProperty());
-        var tlc = new TlcCheckerBackend(SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")));
+        var tlc = new TlcCheckerBackend(SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
         var apalache = new ApalacheCheckerBackend(SETTINGS, ApalacheDistribution.locate(),
                 Files.createDirectory(directory.resolve("apalache")));
         return new Results(check(tlc, artifact), check(apalache, artifact));
@@ -132,7 +132,7 @@ class TemporalPropertyCheckersTest {
 
     private static ToolResult check(ToolBackend backend, SpecArtifact artifact) throws Exception {
         try (var worker = backend.startWorker()) {
-            return worker.check(new ToolInput(backend.renderer().apply(artifact.module()), artifact.request()));
+            return worker.check(new ToolInput(backend.renderer().apply(artifact), artifact.request()));
         }
     }
 

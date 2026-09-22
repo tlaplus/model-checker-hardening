@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 
 /** Runs SANY in persistent isolated JVMs, one per stage worker, each replaced after a crash. */
@@ -15,12 +16,15 @@ public final class ParserBackend implements ToolBackend {
     private final ParserStageConfig config;
     private final int workerCount;
     private final Path scratchDirectory;
+    private final List<Path> classpath;
 
-    public ParserBackend(ParserStageConfig config, int workerCount, Path scratchDirectory) {
+    /** {@code classpath} precedes SANY's own, so it can resolve instance-linked modules. */
+    public ParserBackend(ParserStageConfig config, int workerCount, Path scratchDirectory, List<Path> classpath) {
         this.config = Objects.requireNonNull(config, "config");
         Preconditions.requirePositive(workerCount, "workerCount");
         this.workerCount = workerCount;
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
+        this.classpath = List.copyOf(classpath);
     }
 
     @Override
@@ -41,6 +45,6 @@ public final class ParserBackend implements ToolBackend {
     @Override
     public ToolWorker startWorker() throws WorkflowException, InterruptedException {
         return new ProcessToolWorker(
-                ParserProcess.start(scratchDirectory, config.timeout()), config.timeout());
+                ParserProcess.start(scratchDirectory, classpath, config.timeout()), config.timeout());
     }
 }

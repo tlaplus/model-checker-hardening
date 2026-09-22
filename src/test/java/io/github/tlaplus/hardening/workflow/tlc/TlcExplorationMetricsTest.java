@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -174,8 +175,7 @@ class TlcExplorationMetricsTest {
 
     private ToolResult check(String source, boolean temporalProperty) throws Exception {
         var scratch = Files.createTempDirectory(directory, "scratch");
-        return TlcProcess.check(
-                scratch, new ToolInput(source, new CheckRequest(3, temporalProperty)), CONFIG, TIMEOUT);
+        return TlcProcess.check(scratch, List.of(), new ToolInput(source, new CheckRequest(3, temporalProperty)), CONFIG, TIMEOUT);
     }
 
     private static ExplorationMetrics metrics(ToolResult result) {

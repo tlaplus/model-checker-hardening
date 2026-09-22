@@ -41,11 +41,21 @@ public final class ApalacheIrJson {
      * relies on.
      */
     public static TlaModule parse(Path path, int maximumBytes) throws IOException {
+        return parse(readBounded(path, maximumBytes));
+    }
+
+    /** Reads a typechecker output file as text, rejecting a missing or oversized file. */
+    public static String readBounded(Path path, int maximumBytes) throws IOException {
         if (!Files.isRegularFile(path) || Files.size(path) > maximumBytes) {
             throw new IOException("missing or oversized typechecker output: " + path);
         }
+        return Files.readString(path);
+    }
+
+    /** Reads one typed module from Apalache's JSON IR text. */
+    public static TlaModule parse(String json) throws IOException {
         try {
-            return TlaJson.readModule(Files.readString(path));
+            return TlaJson.readModule(json);
         } catch (TlaJsonException exception) {
             throw new IOException("invalid typechecker IR: " + exception.getMessage(), exception);
         }

@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,13 +15,16 @@ public final class TlcCheckerBackend implements ToolBackend {
     private final CheckerStageConfig config;
     private final int workerCount;
     private final Path scratchDirectory;
+    private final List<Path> classpath;
 
+    /** {@code classpath} precedes TLC's own, so it can supply modules and their Java overrides. */
     public TlcCheckerBackend(
-            CheckerStageConfig config, int workerCount, Path scratchDirectory) {
+            CheckerStageConfig config, int workerCount, Path scratchDirectory, List<Path> classpath) {
         this.config = Objects.requireNonNull(config, "config");
         Preconditions.requirePositive(workerCount, "workerCount");
         this.workerCount = workerCount;
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
+        this.classpath = List.copyOf(classpath);
     }
 
     @Override
@@ -40,7 +44,7 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public ToolWorker startWorker() {
-        return source -> TlcProcess.check(scratchDirectory, source, config, config.timeout());
+        return source -> TlcProcess.check(scratchDirectory, classpath, source, config, config.timeout());
     }
 
     @Override

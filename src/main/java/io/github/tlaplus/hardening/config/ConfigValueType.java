@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Path;
@@ -38,6 +39,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     private static final String MODULE = "module";
     private static final String OPERATORS = "operators";
+    private static final String LINK = "link";
 
     private static final Map<String, ExpressionKind> KINDS_BY_CONFIG_NAME =
             ExpressionKind.all().stream()
@@ -79,8 +81,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<List<OperatorLibraryConfig.Module>> MODULES = new ConfigValueType<>(
             ConfigValueType::readModules,
             modules -> modules.stream()
-                    .map(module -> "{ " + MODULE + " = " + quote(module.module())
-                            + ", " + OPERATORS + " = " + formatList(module.operators()) + " }")
+                    .map(ConfigValueType::formatModule)
                     .collect(Collectors.joining(", ", "[", "]")));
 
     /** Reads one TOML integer and narrows it only when it fits in a Java {@code int}. */
@@ -145,15 +146,37 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
         for (var index = 0; index < array.size(); index++) {
             var location = path + "[" + index + "]";
             if (!(array.get(index) instanceof TomlTable module)
-                    || !module.keySet().equals(Set.of(MODULE, OPERATORS))
+                    || !module.keySet().containsAll(Set.of(MODULE, OPERATORS))
+                    || !Set.of(MODULE, OPERATORS, LINK).containsAll(module.keySet())
                     || !module.isString(MODULE)) {
                 throw new ConfigException("expected '" + location
-                        + "' to contain exactly module (string) and operators (array)");
+                        + "' to contain module (string), operators (array) and optionally link (string)");
             }
             result.add(new OperatorLibraryConfig.Module(module.getString(MODULE),
-                    strings(array(module, location + "." + OPERATORS, OPERATORS), location)));
+                    strings(array(module, location + "." + OPERATORS, OPERATORS), location),
+                    readLinkage(module, location + "." + LINK)));
         }
         return List.copyOf(result);
+    }
+
+    private static LibraryLinkage readLinkage(TomlTable module, String path) throws ConfigException {
+        if (!module.contains(LINK)) return LibraryLinkage.INLINE;
+        if (!module.isString(LINK)) throw new ConfigException("expected '" + path + "' to be a string");
+        var name = module.getString(LINK);
+        return LibraryLinkage.fromEncodedName(name).orElseThrow(() -> new ConfigException(
+                "unknown linkage '" + name + "' in '" + path + "'; expected one of "
+                        + Arrays.stream(LibraryLinkage.values()).map(LibraryLinkage::encodedName)
+                                .collect(Collectors.joining(", "))));
+    }
+
+    /** Omits the default linkage, so inline-only configurations render as before. */
+    private static String formatModule(OperatorLibraryConfig.Module module) {
+        var text = new StringBuilder("{ ").append(MODULE).append(" = ").append(quote(module.module()))
+                .append(", ").append(OPERATORS).append(" = ").append(formatList(module.operators()));
+        if (module.linkage() != LibraryLinkage.INLINE) {
+            text.append(", ").append(LINK).append(" = ").append(quote(module.linkage().encodedName()));
+        }
+        return text.append(" }").toString();
     }
 
     /**

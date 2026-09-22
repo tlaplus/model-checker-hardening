@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tool;
 
-import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.util.Optional;
 import java.util.function.Function;
@@ -33,8 +33,8 @@ public interface ToolBackend {
     /** Returns the CPU permits one input occupies while this tool runs. */
     int cpuPermits();
 
-    /** Returns this tool's representation of an assembled module. */
-    default Function<TlaModule, String> renderer() {
+    /** Returns this tool's representation of an assembled module; TLA+ source by default. */
+    default Function<SpecArtifact, String> renderer() {
         return SpecText::render;
     }
 
