@@ -1244,3 +1244,19 @@ id = "variant-filter"
 references = ["../findings/apalache-bmc/apalache-bmc-022.md"]
 description = "Apalache's VariantFilter makes the constraints unsatisfiable when a selected payload shares its cell with the default payload of another tag, such as FALSE or 0."
 match = ['(Variants!VariantFilter _ _)']
+
+# A set map counts the elements of a bound set before duplicates are removed. A set computed by a
+# map with two or more bound variables therefore counts one element per tuple, and a fold that
+# maps its accumulator multiplies the count at every step. The guard fires at run-time sizes, so
+# the signature matches the shapes that compound the count.
+
+[[signature]]
+id = "set-map-duplicate-product"
+references = ["../conformance/set-map-product-guard.md"]
+description = "Apalache refuses a set map whose bound sets count more than 1,000,000 tuples, counting a mapped set by its tuples rather than its distinct values."
+match = [
+  '(Apalache!ApaFoldSet (.. (SET_MAP _ _ _ _ _ ...)) _ _)',
+  '(Apalache!ApaFoldSeqLeft (.. (SET_MAP _ _ _ _ _ ...)) _ _)',
+  '(SET_MAP _ _ (.. (SET_MAP _ _ _ _ _ ...)) _ _ ...)',
+  '(SET_MAP _ _ _ _ (.. (SET_MAP _ _ _ _ _ ...)) ...)',
+]

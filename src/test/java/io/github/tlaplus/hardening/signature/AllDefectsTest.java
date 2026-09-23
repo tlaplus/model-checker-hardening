@@ -126,6 +126,7 @@ class AllDefectsTest {
         var intFunction = TlaTypes.function(TlaTypes.INT, TlaTypes.INT);
         var intSequence = TlaTypes.sequence(TlaTypes.INT);
         var sequences = builder.name("ss", TlaTypes.set(intSequence));
+        var grown = builder.name("grown", TlaTypes.set(TlaTypes.INT));
         var applied = builder.eql(builder.funApply(function, builder.integer(1)), builder.integer(1));
         var fold = builder.foldSet(
                 builder.lambda("Keep", builder.name("a", TlaTypes.INT),
@@ -283,7 +284,20 @@ class AllDefectsTest {
                                         one, one))),
                 Map.entry("variant-filter",
                         List.of(builder.variantFilter("B", builder.name("vs", TlaTypes.set(variant))),
-                                builder.variantGetUnsafe("B", builder.name("v", variant)))));
+                                builder.variantGetUnsafe("B", builder.name("v", variant)))),
+                Map.entry("set-map-duplicate-product",
+                        List.of(mapFold(new ExpressionPair<>(x, grown), new ExpressionPair<>(y, one)),
+                                mapFold(new ExpressionPair<>(x, grown)))));
+    }
+
+    /** A fold over {@code {1}} whose combinator maps its accumulator {@code grown} with the given binders. */
+    @SafeVarargs
+    private TlaEx mapFold(ExpressionPair<TlaEx>... binders) {
+        var x = builder.name("x", TlaTypes.INT);
+        return builder.foldSet(
+                builder.lambda("Grow", builder.map(x, binders),
+                        builder.param("grown", TlaTypes.set(TlaTypes.INT)), builder.param("e", TlaTypes.INT)),
+                builder.enumSet(builder.integer(1)), builder.enumSet(builder.integer(1)));
     }
 
     /** An application of a selected Community Modules operator, as generated code writes it. */
