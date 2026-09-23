@@ -1010,6 +1010,78 @@ the 2 Apalache out-of-memory exits. `all-defects.toml` now has the signatures
 `community-exists-surjection` and `variant-filter`, which quarantine future
 candidates that apply `ExistsSurjection` or `VariantFilter`.
 
+## corpus46 residuals
+
+corpus46 repeats the corpus44 configuration unchanged.
+`00-known-defects` quarantined 3,671 candidates, and none of them records
+`community-exists-surjection` or `variant-filter`. Since 12 of the `NEW`
+aggregator entries apply `ExistsSurjection` and 10 apply `VariantFilter`, the run
+most likely read a signature database older than `eda9f1a`. Triage left 8 of the
+154 TLC crashes, 5 of the 131 Apalache crash outcomes and 87 of the 39,639
+aggregator deviations as `NEW`. The parser report was empty. The other Apalache
+crash outcomes matched the catalog or were worker timeouts (69). No entry needs
+a new finding or conformance report.
+
+Every `NEW` entry was rendered with FuzzTLA `f08b942` plus the working-tree
+changes later committed as `e2fc51b`. The aggregator entries were rerun with TLC
+commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`) and
+`CommunityModules.jar` (commit `9aae8ea`) as for corpus44. Apalache 0.62.2 (build
+`f0dec98`) was rerun on the stack overflow and on the `CHOOSE` entry
+`a6f3fea4`.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 8 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 1 | Apalache crash | `StackOverflowError` in `BoundedChecker` under `ConstSimplifierForSmt`, `fd8ffc38` | [`apalache-builder-001`](../findings/apalache-builder/apalache-builder-001.md) |
+| 4 | Apalache crash | `OutOfMemoryError: Java heap space` at 1 GB, no stack trace, `4342c4b0`, `4bf3be79`, `8cf6140f` and `ad7f8560` | not reduced, see below |
+| 24 | aggregator | TLC pass and Apalache counterexample (18), or the reverse (6, each a `~>` property): order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 46 | aggregator | TLC pass and Apalache counterexample (36), or the reverse (10): the order of `SetToSeq` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | the other order reaches an undefined expression: `Head(<<>>)` through `ApaFoldSet` in `c9f4326c`, a `CHOOSE` without a witness through `SetToSeq` in `76094df9`, a function applied outside its domain through `SetToSeq` in `aa6beb02` and `fe0bac6c` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `SetToSeq({step, 1, step})` fails at `step = 2` in TLC's order and at `step = 0` in the reverse order, `128e5fba` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` with several witnesses, `0e9a5fe1`, `310444ca`, `a6f3fea4` and `edd23c19` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 3 | aggregator | TLC pass, Apalache counterexample: `Inverse` of the constant function `[x \in {TRUE, FALSE} \|-> FALSE]`, `3dba77b2`, `83040138` and `f3f1facc` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 5 | aggregator | TLC counterexample, Apalache pass: `ExistsSurjection(S, var0)` with `var0 = {}` in the TLC trace, `2a825460`, `60218500`, `7433d6e0`, `aabfade6` and `b5470c03` | [`apalache-rewiring-002`](../findings/apalache-rewiring/apalache-rewiring-002.md) |
+
+All 87 aggregator deviations are pass/counterexample pairs: 63 TLC passes with
+an Apalache counterexample and 24 the other way round. Each was rerun three
+times, as for corpus44: as recorded, with `ApaFoldSet` applying the combinator
+in reverse order, and with `Reverse(SetToSeq(...))`. The recorded TLC verdict
+reproduced for all 87. A reversal moves 70 entries to Apalache's verdict. TLC's
+`The invariant of Inv is equal to FALSE`, `The property of Prop is equal to
+FALSE` and `Temporal property Prop was violated` count as counterexamples. For 4
+more entries, a reversal reaches the evaluation error named in the table.
+
+In `128e5fba`, neither order agrees with Apalache, which keeps the written
+element order: `<<0, 1>>` at `step = 0` and `<<2, 1>>` at `step = 2`. Both
+orders satisfy `IsPrefix(RemoveAt(SetToSeq(...), 1), <<1, 2, 3>>)`. The seven
+`CHOOSE` rows were classified by inspection. In `0e9a5fe1` and `310444ca`, the
+predicate of the `CHOOSE` is the state variable `var0`. In `a6f3fea4`, the
+initial-state `Prop` is
+`(IF CHOOSE b \in {FALSE, var0, FALSE}: var0 THEN step ELSE 1) > step`, and
+Apalache's rerun violates it in its liveness encoding, not in `Inv`. In
+`edd23c19`, both `<<TRUE>>` and `<<FALSE>>` satisfy `IsStrictPrefix(<<>>, b)`.
+For the three `Inverse` rows, every element of the domain satisfies the
+`CHOOSE` in the definition of `Inverse`.
+
+In a fresh JVM, `fd8ffc38` overflows the default 1 MB thread stack and exits
+255, while with `-Xss8m` Apalache reports an invariant violation in state 0. The
+trace is cut at 1,024 frames. Below `ConstSimplifierForSmt.simplifyShallow`,
+which is mapped over the builder `State`, it contains only the
+`IndexedStateT.apply` / `Id.bind` chain of `apalache-builder-001`, with no
+`typecomp` frame. The triager's `apalache-builder-001` signature now also
+accepts a trace that reaches `scalaz.IndexedStateT` frames. The only earlier
+crash traces with such frames, corpus40's `16cdb28d` and `2f30e2a6`, are
+already `apalache-builder-001`.
+
+The four out-of-memory crashes are dominated by `SequencesExt` slicing, like the
+unreduced entries of
+[`apalache-performance-001`](../findings/apalache-performance/apalache-performance-001.md).
+`4342c4b0` computes `CommonPrefixes(SubSeqs(ReplaceSubSeqAt(...)))` in `Init`, and
+`8cf6140f` folds `CommonPrefixes(CommonPrefixes(_))` over a set with `ApaFoldSet`.
+`4bf3be79` applies `Inverse`, `Restrict` and `BagRemove`. `ad7f8560` applies
+`ReplaceSubSeqAt`, `ReplaceAt`, `Remove` and `FlattenSeq`. None was rerun or
+reduced.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
