@@ -1154,6 +1154,62 @@ The three out-of-memory crashes were not rerun or reduced. The triager still
 leaves the pass/counterexample pairs, the `tlc-013` crashes and the
 out-of-memory exits as `NEW`.
 
+## corpus48 residuals
+
+corpus48 repeats the corpus44 configuration. `00-known-defects` quarantined
+2,744 candidates, and, as in corpus46 and corpus47, none of them records
+`community-exists-surjection` or `variant-filter`, while signatures from
+`3f593bd` are recorded. The run therefore read a signature database older than
+`eda9f1a`. Current signatures match seven entries outside quarantine:
+`variant-filter` matches `2293f827`, `aff95064`, `1ecc92e6`, `5f3ce434` and
+`8e117211`, and `community-exists-surjection` matches `50e3dff5` and
+`b885fdff`. A match does not mean that the operator caused the outcome. Triage
+classified all 8 TLC crashes and 7 of the 13 Apalache crash outcomes. The other
+6 Apalache outcomes are worker timeouts. It left 13 of the 4,915 aggregator
+deviations as `NEW`. The parser report was empty. No entry needs a new finding
+or conformance report.
+
+Every entry was rendered with FuzzTLA `267741a`. The Apalache crashes and
+timeouts were rerun with Apalache 0.62.2 (build `f0dec98`), and `a1bd3093` with
+TLC commit `142d0ba` (tla2tools `1.8.0-20260917.033119-76`) and
+`CommunityModules.jar` (commit `9aae8ea`).
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 4 | TLC crash | `Head` of a computed empty sequence, `1348b79b`, `18306416`, `1ecc92e6` and `246622d6` | [head-of-empty-sequence](head-of-empty-sequence.md), exit 255 as in [`tlc-002`](../findings/TLC/tlc-002.md) |
+| 4 | TLC crash | `SubSeq` outside the domain, directly in `5f3ce434`, `8e117211` and `f28166ea`, and through `ReplaceSubSeqAt` in `3d46811c` | [subseq-outside-domain](subseq-outside-domain.md), exit 255 as in [`tlc-002`](../findings/TLC/tlc-002.md) |
+| 4 | Apalache crash | `Do not know how pick an element` from a `FinFunSet`: a function set is the first element of a set enumeration, `28b1c06a`, `3e359e93`, `57dd40f2` and `955aa98f` | [`apalache-bmc-006`](../findings/apalache-bmc/apalache-bmc-006.md#function-sets) |
+| 1 | Apalache crash | `Unexpected equality test` from `[f EXCEPT ![[S -> T]] = e]`, `2bc7df5d` | [`apalache-bmc-003`](../findings/apalache-bmc/apalache-bmc-003.md) |
+| 2 | Apalache crash | `Trying to expand a set of functions`: a filter over `ApaFoldSeqLeft(_, [S -> T], _)` in `34c313b9`, and `[S -> T] \union E` as a set element in `aff95064` | [`apalache-cli-001`](../findings/apalache-cli/apalache-cli-001.md), [function-set-expansion-guard](function-set-expansion-guard.md) |
+| 6 | Apalache timeout | out of heap at 1 GB (`50e3dff5`, `ac48e97e`), invariant violation in state 0 after 212 s (`8fe5b6c5`), still unrolling after 7 minutes (`1453162f`, `2293f827`, `6bee23dd`) | not reduced |
+| 6 | aggregator | TLC pass, Apalache counterexample: order-sensitive `ApaFoldSet` whose combinator returns its element, `acd634f8`, `e11ef591`, `ed13d50b`, `f00ed00b`, `f1444ba4` and `fb5f0a0b` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass and Apalache counterexample (3), or the reverse (`990e5fb0`): the order of `SetToSeq`, `00f1bb25`, `342c14bc` and `e935bb09` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `Inverse` of the constant function `[x \in {TRUE, FALSE} \|-> FALSE]`, `b6ba7f8f` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `ExistsSurjection`, `b885fdff` | [`apalache-rewiring-002`](../findings/apalache-rewiring/apalache-rewiring-002.md) |
+| 1 | aggregator | TLC pass, Apalache counterexample: `Min({})` under `<>` in the initial state exits 0 and hides the violation of `Inv`, `a1bd3093` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+
+The aggregator rows were classified by inspection. Unlike the earlier corpora,
+they were not rerun with reversed fold or `SetToSeq` orders. In the fold rows,
+the invariant or property is `ApaFoldSet(LAMBDA a, x: x, FALSE, {TRUE, FALSE})`
+or a nest of folds that returns the last element. The TLC rerun of `a1bd3093`
+prints `CHOOSE x \in S: P, but no element of S satisfied P` in `FiniteSetsExt`
+and `Invariant Inv is violated by the initial state`, and exits 0.
+
+The six timeouts were rerun in a fresh JVM with `-Xmx1g`, `--length=5` and a
+7-minute limit. They are resource limits, not verdicts that contradict TLC.
+`8fe5b6c5` agrees with TLC, which fails on an unmatched `CASE` in `Inv`.
+
+The four Apalache crash shapes reproduce in hand-written modules.
+`x \in {[BOOLEAN -> BOOLEAN], {[b \in {TRUE} |-> TRUE]}}` crashes in `CherryPick`,
+while the same enumeration with the function set second checks. Both
+`[[s \in {{[b \in {TRUE} |-> TRUE]}} |-> 1] EXCEPT ![[{FALSE} -> BOOLEAN]] = 2]`
+and `\E p \in [{1} -> BOOLEAN] \union {[i \in {2} |-> TRUE]}: ...` crash, and so
+does `{f \in ApaFoldSeqLeft(Keep, [{1, 2} -> BOOLEAN], <<1>>): FALSE}`. None of
+these shapes had a signature. `all-defects.toml` now has the signature
+`function-set-first-set-element`. It also adds the `EXCEPT` shape to
+`function-set-equality`, and the union and fold-filter shapes to
+`function-set-expansion`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
