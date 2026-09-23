@@ -623,6 +623,12 @@ description = "Apalache fails type checking under --temporal on a nested one-con
 match = ['(AND (AND _))']
 
 [[signature]]
+id = "apalache-always-action-bound"
+references = ["../findings/apalache-temporal/apalache-temporal-005.md"]
+description = "Apalache needs one more step than the lasso to report a [][A]_v violation under a Boolean connective, such as the workflow's Fairness => Prop."
+match = ['(GLOBALLY (STUTTER ...))']
+
+[[signature]]
 id = "apalache-fold-singleton-membership"
 references = ["../findings/apalache-bmc/apalache-bmc-013.md"]
 description = "Apalache crashes in SetInRule when a fold combinator tests membership in a singleton set literal."
@@ -1278,4 +1284,13 @@ match = [
   '(Apalache!ApaFoldSeqLeft (.. (SET_MAP _ _ _ _ _ ...)) _ _)',
   '(SET_MAP _ _ (.. (SET_MAP _ _ _ _ _ ...)) _ _ ...)',
   '(SET_MAP _ _ _ _ (.. (SET_MAP _ _ _ _ _ ...)) ...)',
+]
+
+[[signature]]
+id = "recursion-insertion-sort"
+references = ["../findings/apalache-performance/apalache-performance-002.md"]
+description = "Apalache can exhaust its heap on the recursion library's insertion sort, which nests ApaFoldSeqLeft, from about nine elements or when a sorted result is sorted again."
+match = [
+  '(OPER_APP Custom526563757273696f6e4170616c61636865N536571496e73657274696f6e536f7274 _)',
+  '(OPER_APP Custom526563757273696f6e4170616c61636865N536574546f536f72746564536571 _)',
 ]
