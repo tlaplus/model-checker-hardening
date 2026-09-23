@@ -24,7 +24,7 @@ The consequences depend on the mode:
 
 Observed with Apalache 0.62.2 (build `f0dec98`), tla2tools 1.8.0-SNAPSHOT (Maven
 snapshot `1.8.0-20260917.033119-76`, tlaplus/tlaplus commit `142d0ba`), and FuzzTLA
-`f08b942` with the diff-linked recursion library of
+`e2fc51b`, which adds the diff-linked recursion library of
 [ADR 0015](../../docs/decisions/0015-diff-linked-libraries.md).
 
 ## Reproduction
