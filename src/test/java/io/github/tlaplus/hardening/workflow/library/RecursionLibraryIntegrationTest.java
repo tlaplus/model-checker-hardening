@@ -13,6 +13,7 @@ import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
@@ -57,11 +58,21 @@ class RecursionLibraryIntegrationTest {
         // The TLC worker checks FuzzInput.tla against Spec and Inv; the assumptions are the test.
         var text = Files.readString(PAIRS)
                 .replace("MODULE RecursionPairs", "MODULE " + FuzzInputModule.MODULE_NAME);
+        // TLC overflows while evaluating all assumptions as one conjunction on CI-sized stacks.
+        // Each assertion is independent, so check it in isolation and report its operator on error.
+        var assertions = text.lines().filter(line -> line.startsWith("ASSUME ")).toList();
         var backend = new TlcCheckerBackend(new CheckerStageConfig(10, 120, 1024, 1), 1, directory,
                 libraries.classpath().stream().map(Path::toAbsolutePath).toList());
         try (var worker = backend.startWorker()) {
-            var result = worker.check(new ToolInput(text, 0));
-            assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic());
+            for (var assertion : assertions) {
+                var isolated = text.lines()
+                        .map(line -> line.startsWith("ASSUME ") && !line.equals(assertion)
+                                ? "\\* omitted for isolated pairwise check"
+                                : line)
+                        .collect(Collectors.joining("\n"));
+                var result = worker.check(new ToolInput(isolated, 0));
+                assertEquals(StageOutcome.PASS, result.outcome(), assertion + "\n" + result.diagnostic());
+            }
         }
     }
 }

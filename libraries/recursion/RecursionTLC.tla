@@ -196,14 +196,14 @@ IntFactorial(n) ==
     LET fact[k \in 0..Clamp(n, 12)] == IF k = 0 THEN 1 ELSE k * fact[k - 1]
     IN fact[Clamp(n, 12)]
 
-\* Doubly recursive, so keep the clamp low enough for small TLC worker stacks.
+\* Doubly recursive, so the clamp keeps the number of calls near 20 000.
 RECURSIVE Fib(_)
 Fib(k) == IF k < 2 THEN k ELSE Fib(k - 1) + Fib(k - 2)
-IntFib(n) == Fib(Clamp(n, 12))
+IntFib(n) == Fib(Clamp(n, 20))
 
 IntFibFun(n) ==
-    LET fib[k \in 0..Clamp(n, 12)] == IF k < 2 THEN k ELSE fib[k - 1] + fib[k - 2]
-    IN fib[Clamp(n, 12)]
+    LET fib[k \in 0..Clamp(n, 20)] == IF k < 2 THEN k ELSE fib[k - 1] + fib[k - 2]
+    IN fib[Clamp(n, 20)]
 
 IntDigitSum(n) ==
     LET RECURSIVE Digits(_)

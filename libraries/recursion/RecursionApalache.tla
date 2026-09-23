@@ -126,7 +126,7 @@ IntFactorial(n) ==
 IntFib(n) ==
     LET \* @type: (<<Int, Int>>, Int) => <<Int, Int>>;
         Step(p, i) == <<p[2], p[1] + p[2]>>
-    IN ApaFoldSet(Step, <<0, 1>>, Iterations(Clamp(n, 12), 12))[1]
+    IN ApaFoldSet(Step, <<0, 1>>, Iterations(Clamp(n, 20), 20))[1]
 IntFibFun(n) == IntFib(n)
 
 \* The decimal digits of |n|, which has at most 10 in TLC's integer range.

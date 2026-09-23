@@ -123,7 +123,7 @@ table shows.
 | Functions | `FunSumValues`, `FunIncrementAll` | `LET RECURSIVE` over `DOMAIN`, the latter through `EXCEPT` with `@` | fold, function constructor |
 | | `FunTriangles` | `LET RECURSIVE` inside a function constructor | closed form |
 | Relations | `TransitiveClosure`, `Reachable(R, x)` | fixed point, frontier search | Warshall fold over the nodes |
-| Integers | `IntTriangle` (≤ 30), `IntPow2` (≤ 20), `IntFactorial` (≤ 12), `IntFib` (≤ 12), `IntFibFun` (≤ 12) | `LET RECURSIVE`, `RECURSIVE`, recursive functions, double recursion | closed forms, folds over constant ranges |
+| Integers | `IntTriangle` (≤ 30), `IntPow2` (≤ 20), `IntFactorial` (≤ 12), `IntFib` (≤ 20), `IntFibFun` (≤ 20) | `LET RECURSIVE`, `RECURSIVE`, recursive functions, double recursion | closed forms, folds over constant ranges |
 | | `IntDigitSum`, `IntGcd(a, b)`, `IntIsEven` | recursion on `\div 10`, Euclid, mutual recursion on `n % 64` | fold over `0..9`, 48 Euclid steps, `n % 2 = 0` |
 
 The bound in parentheses is the clamp. The first argument is clamped to `0..bound`, with
