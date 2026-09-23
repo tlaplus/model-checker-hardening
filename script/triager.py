@@ -315,9 +315,12 @@ SIGNATURES = (
     finding("apalache-temporal-004.md", CrashKind.APALACHE,
             apalache_error(r"^java\.lang\.IllegalArgumentException: Variable names should never contain more than one separator$")),
     # The builder's stack-unsafe State.run, reached from the bounded checker's
-    # encoding; the trace may start in collection or type-unifier frames above typecomp.
+    # encoding; the trace may start in collection or type-unifier frames above typecomp,
+    # or in a simplifier mapped over the State, where the 1,024 printed frames below it
+    # are only the IndexedStateT bind chain.
     finding("apalache-builder-001.md", CrashKind.APALACHE,
-            apalache_error(r"^java\.lang\.StackOverflowError\n(?:\tat .+\n)*?\tat at\.forsyte\.apalache\.tla\.typecomp\.")),
+            apalache_error(r"^java\.lang\.StackOverflowError\n(?:\tat .+\n)*?"
+                           r"\tat (?:at\.forsyte\.apalache\.tla\.typecomp\.|scalaz\.IndexedStateT\.)")),
 )
 
 # These signatures intentionally use only diagnostics that uniquely identify a

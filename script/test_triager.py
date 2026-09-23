@@ -930,6 +930,27 @@ class Corpus22CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
         )
 
+    def test_builder_state_chain_without_typecomp_is_builder_001(self) -> None:
+        """corpus46 fd8ffc38: the printed trace ends inside the IndexedStateT chain."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@05:46:49.192",
+                "Unhandled exception                                               E@05:46:49.631",
+                "java.lang.StackOverflowError",
+                "\tat scala.collection.immutable.List.filterNot(List.scala:505)",
+                "\tat at.forsyte.apalache.tla.pp.ConstSimplifierBase.$anonfun$simplifyShallow$1(ConstSimplifierBase.scala:181)",
+                "\tat at.forsyte.apalache.tla.bmcmt.rewriter.ConstSimplifierForSmt.$anonfun$simplifyShallow$1(ConstSimplifierForSmt.scala:70)",
+                "\tat scalaz.IndexedStateT.$anonfun$map$3(StateT.scala:89)",
+                "\tat scalaz.IdInstances$$anon$1.point(Id.scala:20)",
+                "\tat scalaz.IndexedStateT.apply(StateT.scala:14)",
+            )
+        )
+        self.assertEqual(
+            "apalache-builder-001.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
     def test_community_modules_override_errors(self) -> None:
         """corpus43 177b83d4, 3914df96, 070a0d4b and 932e82c8."""
         for expected, lines in (
