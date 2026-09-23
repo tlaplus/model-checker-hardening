@@ -6,8 +6,8 @@ import java.util.Objects;
 
 /**
  * The module the parser and TLC evaluate, and the aliases its renderer must define through named
- * instances. Without instance-linked exports in use, the aliases are empty and the module equals
- * the self-contained one.
+ * instances. Without aliased (instance- or diff-linked) exports in use, the aliases are empty and
+ * the module equals the self-contained one.
  */
 public record SourceLink(TlaModule module, List<InstanceAlias> aliases) {
     public SourceLink {

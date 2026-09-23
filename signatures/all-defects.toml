@@ -30,6 +30,9 @@
 # - apalache-printer-001 to 007, apalache-json-001 and 002: fixed.
 # - apalache-json-003: occurs in library preparation, not in generated inputs; library JSON is
 #   pruned and the affected operators are not selected.
+# - apalache-typechecker-001: occurs when a custom-operator library is typechecked, not in
+#   generated inputs, whose definitions carry @type annotations; the recursion library annotates
+#   the affected operators.
 #
 # References are relative to this file.
 

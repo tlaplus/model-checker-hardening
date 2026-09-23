@@ -2,7 +2,6 @@ package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.gen.library.InstanceAlias;
-import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import java.nio.charset.StandardCharsets;
@@ -53,11 +52,18 @@ public final class SpecText {
                 + text.substring(extendsEnd + 1);
     }
 
+    /**
+     * A module that only defines {@code aliases}, named like every parser input. Parsing it checks
+     * that the instantiated modules resolve and define each target with the alias's arity.
+     */
+    public static String aliasProbe(List<InstanceAlias> aliases) {
+        return "---- MODULE " + FuzzInputModule.MODULE_NAME + " ----\n" + instanceDeclarations(aliases) + "====\n";
+    }
+
     private static String instanceDeclarations(List<InstanceAlias> aliases) {
         var text = new StringBuilder();
-        aliases.stream().map(alias -> alias.target().module()).distinct().forEach(module -> text
-                .append(OperatorLibrary.instanceName(module)).append(" == INSTANCE ").append(module)
-                .append('\n'));
+        aliases.stream().map(alias -> alias.instance() + " == INSTANCE " + alias.sourceModule()).distinct()
+                .forEach(instance -> text.append(instance).append('\n'));
         for (var alias : aliases) {
             var call = alias.instance() + "!" + alias.target().operator();
             if (alias.arity() == 0) {

@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
+import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Path;
@@ -40,6 +41,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     private static final String MODULE = "module";
     private static final String OPERATORS = "operators";
     private static final String LINK = "link";
+    private static final String TLC_MODULE = "tlc_module";
 
     private static final Map<String, ExpressionKind> KINDS_BY_CONFIG_NAME =
             ExpressionKind.all().stream()
@@ -147,16 +149,31 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             var location = path + "[" + index + "]";
             if (!(array.get(index) instanceof TomlTable module)
                     || !module.keySet().containsAll(Set.of(MODULE, OPERATORS))
-                    || !Set.of(MODULE, OPERATORS, LINK).containsAll(module.keySet())
+                    || !Set.of(MODULE, OPERATORS, LINK, TLC_MODULE).containsAll(module.keySet())
                     || !module.isString(MODULE)) {
-                throw new ConfigException("expected '" + location
-                        + "' to contain module (string), operators (array) and optionally link (string)");
+                throw new ConfigException("expected '" + location + "' to contain module (string), "
+                        + "operators (array) and optionally link (string) and tlc_module (string)");
             }
-            result.add(new OperatorLibraryConfig.Module(module.getString(MODULE),
+            var name = module.getString(MODULE);
+            result.add(new OperatorLibraryConfig.Module(name,
                     strings(array(module, location + "." + OPERATORS, OPERATORS), location),
-                    readLinkage(module, location + "." + LINK)));
+                    readLink(module, name, location)));
         }
         return List.copyOf(result);
+    }
+
+    /** Reads the linkage and, exactly for a linkage that names one, the separate TLC module. */
+    private static ModuleLink readLink(TomlTable module, String name, String path) throws ConfigException {
+        var linkage = readLinkage(module, path + "." + LINK);
+        var tlcModulePath = path + "." + TLC_MODULE;
+        if (linkage.namesTlcModule() != module.contains(TLC_MODULE)) {
+            throw new ConfigException("'" + tlcModulePath + "' is required with, and only with, link = "
+                    + Arrays.stream(LibraryLinkage.values()).filter(LibraryLinkage::namesTlcModule)
+                            .map(value -> quote(value.encodedName())).collect(Collectors.joining(" or ")));
+        }
+        if (!linkage.namesTlcModule()) return ModuleLink.of(name, linkage);
+        if (!module.isString(TLC_MODULE)) throw new ConfigException("expected '" + tlcModulePath + "' to be a string");
+        return new ModuleLink(linkage, module.getString(TLC_MODULE));
     }
 
     private static LibraryLinkage readLinkage(TomlTable module, String path) throws ConfigException {
@@ -175,6 +192,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                 .append(", ").append(OPERATORS).append(" = ").append(formatList(module.operators()));
         if (module.linkage() != LibraryLinkage.INLINE) {
             text.append(", ").append(LINK).append(" = ").append(quote(module.linkage().encodedName()));
+        }
+        if (module.linkage().namesTlcModule()) {
+            text.append(", ").append(TLC_MODULE).append(" = ").append(quote(module.link().sourceModule()));
         }
         return text.append(" }").toString();
     }

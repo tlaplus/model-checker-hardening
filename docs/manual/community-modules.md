@@ -39,6 +39,7 @@ custom_operators = [
 | --- | --- | --- |
 | `"inline"` (default) | the module's definitions | the same definitions |
 | `"instance"` | the definitions Apalache imports for `EXTENDS <Module>`, which are its rewired ones for the modules it rewires | `INSTANCE <Module>` resolved on `generator.classpath`, with its Java overrides |
+| `"diff"` | the definitions of `<Module>`, typechecked as root | `INSTANCE <tlc_module>`, a different module with the same operators ([recursive operators](recursive-operators.md)) |
 
 With `link = "instance"`, the TLC source declares one named instance per module
 and one alias per operator, for example:

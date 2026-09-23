@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
+import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +38,12 @@ class OperatorLibraryConfigTest {
                 "[{ module = \"Mine\", operators = [\"Op\"], extra = 3 }]",
                 "[{ module = \"Mine\", operators = [\"Op\"], link = \"extends\" }]",
                 "[{ module = \"Mine\", operators = [\"Op\"], link = 1 }]",
+                "[{ module = \"Mine\", operators = [\"Op\"], link = \"diff\" }]",
+                "[{ module = \"Mine\", operators = [\"Op\"], link = \"diff\", tlc_module = \"Mine\" }]",
+                "[{ module = \"Mine\", operators = [\"Op\"], link = \"diff\", tlc_module = 1 }]",
+                "[{ module = \"Mine\", operators = [\"Op\"], link = \"diff\", tlc_module = \"../T\" }]",
+                "[{ module = \"Mine\", operators = [\"Op\"], link = \"instance\", tlc_module = \"T\" }]",
+                "[{ module = \"Mine\", operators = [\"Op\"], tlc_module = \"T\" }]",
                 "[{ module = \"Mine\", operators = [\"Op\"] }, { module = \"Mine\", operators = [\"Other\"] }]",
                 "[4]");
         var path = directory.resolve("config.toml");
@@ -60,8 +67,33 @@ class OperatorLibraryConfigTest {
         var rendered = TomlConfig.render(config);
         assertTrue(rendered.contains("{ module = \"A\", operators = [\"X\"], link = \"instance\" },"
                 + " { module = \"B\", operators = [\"Y\"] }"), rendered);
-        assertTrue(config.libraries().hasInstanceLinkage());
+        assertTrue(config.libraries().hasSourceAliases());
         assertEquals(config.libraries().classpath(), config.libraries().sourceCheckerClasspath());
+    }
+
+    @Test
+    void roundTripsDiffLinkageWithItsTlcModule(@TempDir Path directory) throws Exception {
+        var path = directory.resolve("config.toml");
+        var selection = "{ module = \"A\", operators = [\"X\"], link = \"diff\", tlc_module = \"ATLC\" }";
+        Files.writeString(path, TomlConfig.render(FuzzTlaConfig.defaults())
+                .replace("custom_operators = []", "custom_operators = [" + selection + "]"));
+        var config = TomlConfig.read(path);
+        var module = config.libraries().modules().getFirst();
+        assertEquals(new ModuleLink(LibraryLinkage.DIFF, "ATLC"), module.link());
+        var rendered = TomlConfig.render(config);
+        assertTrue(rendered.contains(selection), rendered);
+        assertTrue(config.libraries().hasSourceAliases());
+        assertEquals(config.libraries().classpath(), config.libraries().sourceCheckerClasspath());
+    }
+
+    @Test
+    void onlyDiffLinkageNamesASeparateTlcModule() {
+        assertThrows(IllegalArgumentException.class, () -> ModuleLink.of("A", LibraryLinkage.DIFF));
+        assertThrows(IllegalArgumentException.class,
+                () -> new OperatorLibraryConfig.Module("A", List.of("X"), new ModuleLink(LibraryLinkage.DIFF, "A")));
+        assertThrows(IllegalArgumentException.class,
+                () -> new OperatorLibraryConfig.Module("A", List.of("X"), new ModuleLink(LibraryLinkage.INSTANCE, "B")));
+        assertEquals("A", new OperatorLibraryConfig.Module("A", List.of("X"), LibraryLinkage.INSTANCE).link().sourceModule());
     }
 
     @Test
@@ -74,7 +106,7 @@ class OperatorLibraryConfigTest {
     @Test
     void linkageNamesArePartOfTheConfigurationAndManifestFormat() {
         // Stored in config.toml and in .operator-library; renaming one breaks existing corpora.
-        assertEquals(List.of("inline", "instance"),
+        assertEquals(List.of("inline", "instance", "diff"),
                 java.util.Arrays.stream(LibraryLinkage.values()).map(LibraryLinkage::encodedName).toList());
     }
 

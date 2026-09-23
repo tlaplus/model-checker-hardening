@@ -66,6 +66,28 @@ class CustomLibraryIntegrationTest {
     }
 
     @Test
+    void diffLinkedCallsReachRecursiveDefinitionsInTlcAndFoldsInApalache(@TempDir Path directory) throws Exception {
+        var classpath = List.of(Path.of("src/test/resources/custom").toAbsolutePath());
+        var config = LibraryPreparationTest.diffConfig(classpath, "DiffOpsApalache", "DiffOpsTLC", "Sum", "Length");
+        var library = LibraryPreparation.prepare(config).generator().library();
+        var sum = call(library, new OperatorId("DiffOpsApalache", "Sum"), TlaTypes.INT,
+                BUILDER.enumSet(BUILDER.integer(1), BUILDER.integer(2), BUILDER.integer(3)));
+        var length = call(library, new OperatorId("DiffOpsApalache", "Length"), TlaTypes.INT,
+                BUILDER.seq(BUILDER.bool(true), BUILDER.bool(false)));
+        var invariant = BUILDER.and(BUILDER.eql(sum, BUILDER.integer(6)), BUILDER.eql(length, BUILDER.integer(2)));
+        var state = TlaDeclarations.variable("state", TlaTypes.BOOL);
+        var spec = new GeneratedSpec(List.of(state), List.of(),
+                BUILDER.eql(BUILDER.varDeclAsNameEx(state), BUILDER.bool(true)),
+                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, java.util.Optional.empty(), 0);
+        var artifact = SpecArtifact.fromGeneratedSpec(spec, library);
+        var source = SpecText.render(artifact);
+        assertTrue(source.contains(OperatorLibrary.instanceName("DiffOpsApalache") + " == INSTANCE DiffOpsTLC"), source);
+        assertFalse(source.contains("ApaFoldSet"), source);
+        assertTrue(SpecText.render(artifact.module()).contains("ApaFoldSet"));
+        assertAllTools(artifact, directory, classpath);
+    }
+
+    @Test
     void usefulOperatorsSatisfyTheirContractsAcrossTypes(@TempDir Path directory) throws Exception {
         var config = LibraryPreparationTest.config(List.of(Path.of("src/test/resources/custom")),
                 "CustomOperatorsChecks", "Check");

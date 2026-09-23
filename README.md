@@ -258,6 +258,13 @@ Java overrides ([ADR 0014](docs/decisions/0014-per-checker-library-linking.md)).
 Community Modules, run `make community-modules` and use
 `libraries/community-modules.toml` ([manual](docs/manual/community-modules.md)).
 
+With `link = "diff"` and `tlc_module = "M"`, the parser and TLC instead instantiate a
+different module `M` that defines the same operators, while Apalache evaluates the
+entry's own module ([ADR 0015](docs/decisions/0015-diff-linked-libraries.md)). Only the
+Apalache side must pass library validation, so the TLC side may be recursive.
+`libraries/recursion.toml` pairs 39 recursive operators with folds and closed forms
+([manual](docs/manual/recursive-operators.md)).
+
 ### Running
 
 Populate the corpus with property-based inputs by running:
