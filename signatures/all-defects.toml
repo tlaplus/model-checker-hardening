@@ -1229,3 +1229,18 @@ match = [
   '(OPER_APP Custom42616773457874N53756d426167 _)',
   '(OPER_APP Custom42616773457874N50726f64756374426167 _)',
 ]
+
+[[signature]]
+id = "community-exists-surjection"
+references = ["../findings/apalache-rewiring/apalache-rewiring-002.md"]
+description = "Apalache's ExistsSurjection(S, T) is TRUE for a non-empty S and an empty T, where no surjection exists."
+match = ['(OPER_APP Custom46756e6374696f6e73N4578697374735375726a656374696f6e _ _)']
+
+# VariantFilter is a generated set form, not a library operator. Its defect depends on run-time
+# payload values and on the other tags in the set, so the signature matches every application.
+
+[[signature]]
+id = "variant-filter"
+references = ["../findings/apalache-bmc/apalache-bmc-022.md"]
+description = "Apalache's VariantFilter makes the constraints unsatisfiable when a selected payload shares its cell with the default payload of another tag, such as FALSE or 0."
+match = ['(Variants!VariantFilter _ _)']

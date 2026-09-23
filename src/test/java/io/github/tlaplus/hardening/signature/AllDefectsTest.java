@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaType1;
+import at.forsyte.apalache.tla.lir.VariantT1;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apalache_mc.tla.jir.ExpressionPair;
+import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
@@ -135,6 +137,8 @@ class AllDefectsTest {
                 TlaTypes.function(TlaTypes.tuple(TlaTypes.INT, TlaTypes.INT), TlaTypes.INT));
         var acc = builder.name("acc", TlaTypes.BOOL);
         var element = builder.name("b", TlaTypes.INT);
+        var variant = (VariantT1) TlaTypes.variant(
+                new NamedType("A", TlaTypes.BOOL), new NamedType("B", TlaTypes.BOOL));
         return Map.ofEntries(
                 Map.entry("infinite-integer-set",
                         List.of(builder.in(step, builder.intSet()), builder.in(step, one))),
@@ -267,7 +271,19 @@ class AllDefectsTest {
                                         TlaTypes.operator(TlaTypes.INT, intFunction), function),
                                 library("BagsExt", "BagRemoveAll",
                                         TlaTypes.operator(intFunction, intFunction, TlaTypes.INT),
-                                        function, builder.integer(1)))));
+                                        function, builder.integer(1)))),
+                Map.entry("community-exists-surjection",
+                        List.of(library("Functions", "ExistsSurjection",
+                                        TlaTypes.operator(TlaTypes.BOOL, TlaTypes.set(TlaTypes.INT),
+                                                TlaTypes.set(TlaTypes.INT)),
+                                        one, one),
+                                library("Functions", "ExistsInjection",
+                                        TlaTypes.operator(TlaTypes.BOOL, TlaTypes.set(TlaTypes.INT),
+                                                TlaTypes.set(TlaTypes.INT)),
+                                        one, one))),
+                Map.entry("variant-filter",
+                        List.of(builder.variantFilter("B", builder.name("vs", TlaTypes.set(variant))),
+                                builder.variantGetUnsafe("B", builder.name("v", variant)))));
     }
 
     /** An application of a selected Community Modules operator, as generated code writes it. */

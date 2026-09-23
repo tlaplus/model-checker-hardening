@@ -367,10 +367,13 @@ The remaining signatures match fixed shapes:
   operand.
 - the Community Modules operators whose defects depend on argument values:
   `IsInjective`, `AntiFunction`, `IndexFirstSubSeq`, `LongestCommonPrefix`,
-  `SumBag` and `ProductBag`. A generated module applies a library operator
+  `ExistsSurjection`, `SumBag` and `ProductBag`. A generated module applies a library operator
   through an alias named `Custom<hex(module)>N<hex(operator)>`, so a pattern
   names that alias as the first argument of `OPER_APP`, as in
   `(OPER_APP Custom42616773457874N53756d426167 _)` for `SumBag`.
+- `variant-filter`: every `VariantFilter`, whose Apalache encoding fails on
+  run-time payload values
+  ([`apalache-bmc-022`](../../findings/apalache-bmc/apalache-bmc-022.md)).
 
 The database header and `AllDefectsTest` list the documents that no pattern can
 express:
