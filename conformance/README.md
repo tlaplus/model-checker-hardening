@@ -28,7 +28,8 @@ deviations. Rows marked `Aggregator (corpus12)` use corpus12's 50,545
 aggregator deviations. Rows marked `Aggregator (corpus14)` use corpus14's 62,487
 aggregator deviations. Rows marked `Aggregator (corpus29)` use corpus29's 41,688
 aggregator deviations. Rows marked `Aggregator (corpus43)` use corpus43's
-41,895 aggregator deviations. Percentages are rounded to two decimal places, so table rows may not sum exactly
+41,895 aggregator deviations. The `Apalache crash (corpus47)` row uses corpus47's 126
+Apalache crash outcomes. Percentages are rounded to two decimal places, so table rows may not sum exactly
 to 100%.
 
 | Origin | Share | TLC | Apalache | Short title | Representative example | Assessment |
@@ -94,6 +95,7 @@ to 100%.
 | Apalache crash | 1.05% | Varies | Crash | Symbolic-set filtering | [MWE](set-filter-symbolic-set.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-001.md) |
 | Apalache crash | 0.16% | Varies | Crash | Symbolic-set equality | [MWE](symbolic-set-equality.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-003.md) |
 | Apalache crash | 0.05% | Varies | Guard | Function-set expansion | [MWE](function-set-expansion-guard.md#representative-mwe) | Intentional resource guard |
+| Apalache crash (corpus47) | 0.79% | 🟢 Pass | Guard | Set map over a mapped set | [MWE](set-map-product-guard.md#representative-mwe) | Intentional resource guard |
 | Apalache crash (corpus2) | 1.47% | Varies | Crash | Choosing a symbolic-set value | [MWE](choose-symbolic-set-element.md#representative-mwe) | [Unhandled defect](../findings/apalache-bmc/apalache-bmc-006.md) |
 
 Resource-only timeouts and heap exhaustion are excluded because they do not
@@ -1081,6 +1083,76 @@ unreduced entries of
 `4bf3be79` applies `Inverse`, `Restrict` and `BagRemove`. `ad7f8560` applies
 `ReplaceSubSeqAt`, `ReplaceAt`, `Remove` and `FlattenSeq`. None was rerun or
 reduced.
+
+## corpus47 residuals
+
+corpus47 repeats the corpus44 configuration and was generated on another
+machine. `00-known-defects` quarantined 3,669 candidates, and none of them
+records `community-exists-surjection` or `variant-filter`. Since 9 of the `NEW`
+aggregator entries apply `ExistsSurjection` and 5 apply `VariantFilter`, the run,
+like corpus46, most likely read a signature database older than `eda9f1a`.
+Triage left 16 of the 205 TLC crashes, 4 of the 126 Apalache crash outcomes and
+110 of the 40,213 aggregator deviations as `NEW`. The parser report was empty.
+The other Apalache crash outcomes matched the catalog or were worker timeouts
+(64). One entry needs a new conformance report,
+[set-map guard over duplicate elements](set-map-product-guard.md).
+
+Every `NEW` entry was rendered with FuzzTLA `d943ec2` plus working-tree changes.
+The aggregator entries were rerun with TLC commit `142d0ba` (tla2tools
+`1.8.0-20260917.033119-76`) and `CommunityModules.jar` (commit `9aae8ea`), as
+for corpus44. Apalache 0.62.2 (build `f0dec98`) was rerun on the reductions of
+`f4eead9b`.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 16 | TLC crash | a label directly on `[][A]_v`: `must be of forms` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 1 | Apalache crash | `Too many elements to enumerate: 2519424` for a set map that a fold applies to its accumulator, `f4eead9b` | [set-map-product-guard](set-map-product-guard.md) |
+| 3 | Apalache crash | `OutOfMemoryError: Java heap space` at 1 GB, no stack trace, `696bf86c`, `717170d2` and `b31946ad` | not reduced |
+| 75 | aggregator | TLC pass and Apalache counterexample (68), or the reverse (7): the order of `SetToSeq` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 20 | aggregator | TLC pass and Apalache counterexample (18), or the reverse (2): order-sensitive `ApaFoldSet` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | the other order reaches an undefined expression: a `CHOOSE` without a witness through `SetToSeq` in `31e2d52b` and `8048ff34` and through `ApaFoldSet` in `144ece6d`, a function applied outside its domain through `SetToSeq` in `a79961e4` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass, Apalache counterexample: a `CHOOSE` with several witnesses, `4319c0a6` and `9cef3979`, and through `Inverse` in `bf743091` and `f5ba4213` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 4 | aggregator | `ExistsSurjection(S, {})` with `S # {}`: TLC counterexample and Apalache pass in `3ec3dda3`, `4b2f478b` and `770821e1`; the reverse under `=> var1` with `var1 = FALSE` in `1cdbe12c` | [`apalache-rewiring-002`](../findings/apalache-rewiring/apalache-rewiring-002.md) |
+| 3 | aggregator | TLC pass, Apalache counterexample: an evaluation error in the initial state exits 0, under `[](P) => FALSE` in `0f2f227d` and `21ce5187` and in `P ~> FALSE` in `a4f0a4e1` | [`tlc-008`](../findings/TLC/tlc-008.md) |
+
+All 110 aggregator deviations are pass/counterexample pairs: 97 TLC passes
+with an Apalache counterexample and 13 the other way round. Each was rerun
+three times, as for corpus44: as recorded, with `ApaFoldSet` applying the
+combinator in reverse order, and with `Reverse(SetToSeq(...))`. The recorded
+TLC verdict reproduced for 107 entries. The exceptions are the three `tlc-008`
+entries, whose reruns print the evaluation error that the recorded pass hides;
+`TLC.process()` returns 0 for each of them. TLC `142d0ba` still has the defect,
+which [tlaplus/tlaplus#1440](https://github.com/tlaplus/tlaplus/pull/1440)
+fixes. A reversal moves 95 entries to
+Apalache's verdict. For 4 more entries, a reversal reaches the evaluation error
+named in the table. Three of the TLC counterexamples, `30eb94e1`, `4b2f478b`
+and `f9c6167b`, violate `Prop`, not `Inv`, and reproduce only with
+`PROPERTY Prop` in the configuration.
+
+The `CHOOSE` rows were classified by rerunning or by inspection. In `4319c0a6`,
+a conjunct of the next-state action is a `CHOOSE` over `{TRUE, FALSE}` whose
+predicate reduces to `Front(<<TRUE, FALSE>>)[1]`, which holds for both values. In `9cef3979`, the invariant is
+`(CHOOSE b \in ToSet(<<TRUE, FALSE>>): Head(<<TRUE, FALSE>>)) <=> FALSE`.
+TLC chooses `FALSE` in both. Replacing the conjunct by `TRUE` in `4319c0a6`, and
+restricting the bound set to `{TRUE}` in `9cef3979`, moves TLC to Apalache's
+counterexample. `bf743091` and `f5ba4213` apply `Inverse` to a constant
+function, so every element of the domain satisfies the `CHOOSE` in its
+definition.
+
+`f4eead9b` is the first Apalache crash with `Too many elements to enumerate`.
+Its next-state action quantifies over an `ApaFoldSet` whose combinator maps the
+accumulator with five more bound variables, 108 combinations per step. Apalache
+counts the mapped accumulator by its tuples, 2, 216 and 23,328, and refuses the
+third step at 23,328 × 108 = 2,519,424. The accumulator stays equal to its
+two-element initial value, and TLC, rerun on the entry, reports no error. The
+reduction and the guard are described in
+[set-map-product-guard](set-map-product-guard.md). The new `all-defects.toml`
+signature `set-map-duplicate-product` matches this shape. It also matches
+`68056c1e`, an Apalache worker timeout.
+
+The three out-of-memory crashes were not rerun or reduced. The triager still
+leaves the pass/counterexample pairs, the `tlc-013` crashes and the
+out-of-memory exits as `NEW`.
 
 ## Auditing the classified entries
 

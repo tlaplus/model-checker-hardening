@@ -374,6 +374,11 @@ The remaining signatures match fixed shapes:
 - `variant-filter`: every `VariantFilter`, whose Apalache encoding fails on
   run-time payload values
   ([`apalache-bmc-022`](../../findings/apalache-bmc/apalache-bmc-022.md)).
+- `set-map-duplicate-product`: a set map with at least two bound variables in a
+  fold combinator, or in the first or second bound set of another such map.
+  Apalache counts a mapped set by its tuples rather than its distinct values,
+  so these shapes can exceed its product guard of 1,000,000
+  ([set-map-product-guard](../../conformance/set-map-product-guard.md)).
 
 The database header and `AllDefectsTest` list the documents that no pattern can
 express:
