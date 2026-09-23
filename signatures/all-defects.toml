@@ -278,6 +278,7 @@ match = [
   '(NE _ (SET_INTERSECT (FUN_SET _ _) _))',
   '(NE _ (SET_INTERSECT _ (FUN_SET _ _)))',
   '(NE _ (SET_MINUS (FUN_SET _ _) _))',
+  '(EXCEPT _ (TUPLE (FUN_SET _ _)) ...)',
 ]
 
 [[signature]]
@@ -289,7 +290,7 @@ references = [
   "../findings/apalache-cli/apalache-cli-001.md",
   "../findings/TLC/tlc-004.md",
 ]
-description = "Apalache refuses to expand, or cannot filter, a function set that is folded, mapped, filtered, counted or unioned; TLC can exhaust the heap applying a CHOOSE from one."
+description = "Apalache refuses to expand, or cannot filter, a function set that is folded, mapped, filtered, counted, unioned, or in a union that bounds a quantifier or is a set element; TLC can exhaust the heap applying a CHOOSE from one."
 match = [
   '(Apalache!ApaFoldSet _ _ (FUN_SET _ _))',
   '(SET_MAP _ _ (FUN_SET _ _) ...)',
@@ -339,7 +340,22 @@ match = [
   '(FiniteSets!Cardinality (SET_MINUS (FUN_SET _ _) _))',
   '(SET_UNARY_UNION (SET_ENUM (SET_MINUS (FUN_SET _ _) _) ...))',
   '(FUN_APP (CHOOSE3 _ (SET_MINUS (FUN_SET _ _) _) _) _)',
+  '(EXISTS3 _ (SET_UNION2 (FUN_SET _ _) _) _)',
+  '(EXISTS3 _ (SET_UNION2 _ (FUN_SET _ _)) _)',
+  '(SET_ENUM (SET_UNION2 (FUN_SET _ _) _) ...)',
+  '(SET_ENUM (SET_UNION2 _ (FUN_SET _ _)) ...)',
+  '(SET_FILTER _ (Apalache!ApaFoldSet _ (FUN_SET _ _) _) _)',
+  '(SET_FILTER _ (Apalache!ApaFoldSeqLeft _ (FUN_SET _ _) _) _)',
 ]
+
+[[signature]]
+id = "function-set-first-set-element"
+references = [
+  "../conformance/choose-symbolic-set-element.md",
+  "../findings/apalache-bmc/apalache-bmc-006.md",
+]
+description = "Apalache cannot pick an element of a set enumeration whose first element is a function set."
+match = ['(SET_ENUM (FUN_SET _ _) ...)']
 
 [[signature]]
 id = "integer-range"
