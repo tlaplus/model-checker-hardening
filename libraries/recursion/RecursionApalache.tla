@@ -136,11 +136,28 @@ IntDigitSum(n) ==
         Digit(sum, i) == sum + ((a \div 10 ^ i) % 10)
     IN ApaFoldSet(Digit, 0, 0..9)
 
-\* Euclid's step, applied more often than any pair in TLC's integer range needs.
+\* Euclid's step, applied 48 times, more often than any pair in TLC's integer range needs.
+\* TLC passes a fold's accumulator unevaluated, so evaluating one fold over 1..48 in the
+\* self-test nests 48 steps on TLC's stack. Six folds of 8 steps, each forced by testing
+\* its remainder before the next fold starts, keep that depth at 8.
+\* @type: (Int, Int) => Int;
 IntGcd(a, b) ==
     LET \* @type: (<<Int, Int>>, Int) => <<Int, Int>>;
         Step(p, i) == IF p[2] = 0 THEN p ELSE <<p[2], p[1] % p[2]>>
-    IN ApaFoldSet(Step, <<IF a < 0 THEN -a ELSE a, IF b < 0 THEN -b ELSE b>>, 1..48)[1]
+        \* @type: (<<Int, Int>>) => <<Int, Int>>;
+        Steps(p) == ApaFoldSet(Step, p, 1..8)
+        p1 == Steps(<<IF a < 0 THEN -a ELSE a, IF b < 0 THEN -b ELSE b>>)
+        p2 == Steps(p1)
+        p3 == Steps(p2)
+        p4 == Steps(p3)
+        p5 == Steps(p4)
+        p6 == Steps(p5)
+    IN IF p1[2] = 0 THEN p1[1]
+       ELSE IF p2[2] = 0 THEN p2[1]
+       ELSE IF p3[2] = 0 THEN p3[1]
+       ELSE IF p4[2] = 0 THEN p4[1]
+       ELSE IF p5[2] = 0 THEN p5[1]
+       ELSE p6[1]
 
 IntIsEven(n) == n % 2 = 0
 

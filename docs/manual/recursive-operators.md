@@ -124,7 +124,7 @@ table shows.
 | | `FunTriangles` | `LET RECURSIVE` inside a function constructor | closed form |
 | Relations | `TransitiveClosure`, `Reachable(R, x)` | fixed point, frontier search | Warshall fold over the nodes |
 | Integers | `IntTriangle` (≤ 30), `IntPow2` (≤ 20), `IntFactorial` (≤ 12), `IntFib` (≤ 20), `IntFibFun` (≤ 20) | `LET RECURSIVE`, `RECURSIVE`, recursive functions, double recursion | closed forms, folds over constant ranges |
-| | `IntDigitSum`, `IntGcd(a, b)`, `IntIsEven` | recursion on `\div 10`, Euclid, mutual recursion on `n % 64` | fold over `0..9`, 48 Euclid steps, `n % 2 = 0` |
+| | `IntDigitSum`, `IntGcd(a, b)`, `IntIsEven` | recursion on `\div 10`, Euclid, mutual recursion on `n % 64` | fold over `0..9`, six folds of 8 Euclid steps, `n % 2 = 0` |
 
 The bound in parentheses is the clamp. The first argument is clamped to `0..bound`, with
 the same clamp on both sides. The Apalache folds over integer ranges apply one step
