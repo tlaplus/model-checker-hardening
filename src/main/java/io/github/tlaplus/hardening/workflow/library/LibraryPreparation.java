@@ -5,7 +5,7 @@ import io.github.tlaplus.hardening.common.TemporaryDirectory;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
-import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
+import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
@@ -39,23 +39,25 @@ public final class LibraryPreparation {
             // The manifest covers the user's sources only, not the wrappers written below.
             var manifest = LibraryManifest.create(sources, jar, config.libraries());
             var modules = new LinkedHashMap<String, TlaModule>();
-            var linkages = new HashMap<String, LibraryLinkage>();
+            var links = new HashMap<String, ModuleLink>();
             for (var selection : config.libraries().modules()) {
                 var module = selection.module();
-                linkages.put(module, selection.linkage());
+                var link = selection.link();
+                links.put(module, link);
+                // The TLC module is never imported; the source probe below checks its interface.
+                if (link.linkage().namesTlcModule()) requireSource(sources, link.sourceModule());
                 var roots = Set.copyOf(selection.operators());
-                modules.put(module, switch (selection.linkage()) {
-                    case INLINE -> typechecker.check(requireSource(sources, module), Set.of(module), roots);
-                    case INSTANCE -> {
-                        var wrapper = wrapperName(module);
-                        yield typechecker.check(writeWrapper(sources, wrapper, module), Set.of(wrapper, module), roots);
-                    }
-                });
+                if (link.linkage().typechecksThroughWrapper()) {
+                    var wrapper = wrapperName(module);
+                    modules.put(module, typechecker.check(writeWrapper(sources, wrapper, module), Set.of(wrapper, module), roots));
+                } else {
+                    modules.put(module, typechecker.check(requireSource(sources, module), Set.of(module), roots));
+                }
             }
-            var selected = config.libraries().operators();
-            return new Prepared(
-                    config.generator().withLibrary(OperatorLibrary.fromModules(modules, selected, linkages)),
-                    manifest);
+            var library = OperatorLibrary.fromModules(modules, config.libraries().operators(), links);
+            LibrarySourceProbe.check(library.sourceAliases(), config.workflow().parser(), scratch.resolve("parser"),
+                    config.libraries().sourceCheckerClasspath());
+            return new Prepared(config.generator().withLibrary(library), manifest);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new WorkflowException("custom library preparation interrupted", exception);

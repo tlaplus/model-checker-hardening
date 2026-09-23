@@ -18,9 +18,10 @@ public final class LibraryManifest {
     private LibraryManifest() {}
 
     /**
-     * Names the Apalache distribution, the source snapshot and the selection. An instance-linked
-     * module also pins every classpath file, whose class files now reach TLC (ADR 0014); inline-only
-     * manifests are unchanged from before linkage existed.
+     * Names the Apalache distribution, the source snapshot and the selection. An instance- or
+     * diff-linked module also pins every classpath file, whose class files now reach TLC (ADR 0014),
+     * and a diff-linked one names its TLC module (ADR 0015); inline-only manifests are unchanged
+     * from before linkage existed.
      */
     static String create(Path sources, Path jar, OperatorLibraryConfig libraries) throws IOException {
         var text = new StringBuilder("fuzztla-library-v1\napalache ").append(Digests.digest(jar)).append('\n');
@@ -29,7 +30,7 @@ public final class LibraryManifest {
                 text.append("source ").append(path.getFileName()).append(' ').append(Digests.digest(path)).append('\n');
             }
         }
-        if (libraries.hasInstanceLinkage()) {
+        if (libraries.hasSourceAliases()) {
             for (var entry : libraries.classpath()) {
                 if (Files.isRegularFile(entry)) {
                     text.append("classpath ").append(entry.getFileName()).append(' ')
@@ -41,6 +42,7 @@ public final class LibraryManifest {
             for (var operator : module.operators()) {
                 text.append("operator ").append(new OperatorId(module.module(), operator));
                 if (module.linkage() != LibraryLinkage.INLINE) text.append(' ').append(module.linkage().encodedName());
+                if (module.linkage().namesTlcModule()) text.append(' ').append(module.link().sourceModule());
                 text.append('\n');
             }
         }

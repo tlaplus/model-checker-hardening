@@ -1,0 +1,27 @@
+# Recursive operators, linked by diff (ADR 0015): the parser and TLC evaluate the recursive
+# definitions of RecursionTLC, and Apalache the folds and closed forms of RecursionApalache,
+# which also type the generated calls.
+#
+#   ./bin/fuzztla init --corpus <dir> --library libraries/recursion.toml
+#
+# Operators that share an Apalache definition differ only in TLC's recursion mechanism: a
+# top-level RECURSIVE operator (no suffix), LET RECURSIVE (LetRec), a recursive function
+# definition (Fun) or a higher-order RECURSIVE helper (HO). Integer operators clamp their
+# argument on both sides. src/test/resources/recursion/RecursionPairs.tla checks every pair
+# under TLC; add a new operator there too.
+[generator]
+classpath = ["recursion"]
+custom_operators = [
+  { module = "RecursionApalache", link = "diff", tlc_module = "RecursionTLC", operators = [
+    "SetSum", "SetSumLetRec", "SetSumFun", "SetSumHO", "SetCount", "SetUnionAll", "SetPowerset",
+    "SetMaxWith", "SetAllPositive", "SetMapDouble", "SetFilterPositive", "SetToSortedSeq",
+    "SetTriangles",
+    "SeqSum", "SeqSumLetRec", "SeqSumFun", "SeqReverse", "SeqToSet", "SeqFlatten",
+    "SeqMapDouble", "SeqMapDoubleHO", "SeqFilterPositive", "SeqCountOf", "SeqIsSorted",
+    "SeqInsertionSort", "SeqEvenLength",
+    "FunSumValues", "FunIncrementAll", "FunTriangles",
+    "TransitiveClosure", "Reachable",
+    "IntTriangle", "IntPow2", "IntFactorial", "IntFib", "IntFibFun", "IntDigitSum", "IntGcd",
+    "IntIsEven",
+  ] },
+]

@@ -294,7 +294,10 @@ the modules a generated specification extends define:
 - `SelectSeq`, `FunAsSeq` and recursive function definitions exist in the
   Apalache IR, but `TlaTypedScopeUncheckedBuilder` exposes no method for them.
 - TLC's `:>` and `@@` are definitions in `TLC.tla`, not IR operators.
-- `RECURSIVE` operators, which Apalache does not support.
+- `RECURSIVE` operators, which Apalache does not support. Recursion is exercised
+  instead through diff-linked library operators, whose TLC definitions are
+  recursive and whose Apalache definitions are not
+  ([ADR 0015](../decisions/0015-diff-linked-libraries.md)).
 - The builder supports these `Apalache.tla` operators, but they are not
   generated. `Guess` is nondeterministic in Apalache and a `CHOOSE` in TLC, and
   `Gen` erases to an ill-typed `{}` under TLC, so either would report a verdict
@@ -1090,6 +1093,12 @@ instance-linked export is returned as an `InstanceAlias` instead of a definition
 for the renderer to define through the named instance `instanceName(module)`
 ([ADR 0014](../decisions/0014-per-checker-library-linking.md)). Decoding does not
 depend on linkage.
+
+**Implemented** ([ADR 0015](../decisions/0015-diff-linked-libraries.md)). A diff-linked
+export is aliased like an instance-linked one, but the alias instantiates a different
+module. A `ModuleLink(linkage, sourceModule)` on the export names that module. The
+importer sees only the reference module. The rules above, including the rejection of
+recursion, therefore constrain the Apalache side only.
 
 [adr-0011]: ../decisions/0011-collection-base-size.md
 [adr-0012]: ../decisions/0012-integer-literals.md

@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.*;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
@@ -13,10 +14,10 @@ import org.apalache_mc.tla.jir.TlaTypes;
 /** Immutable prepared library. Mutable Apalache declarations never escape without a fresh copy. */
 public final class OperatorLibrary {
     public record Export(OperatorId id, String name, OperT1 signature,
-            Set<ExpressionCategory> categories, LibraryLinkage linkage) {
+            Set<ExpressionCategory> categories, ModuleLink link) {
         public Export {
             categories = Set.copyOf(categories);
-            Objects.requireNonNull(linkage, "linkage");
+            Objects.requireNonNull(link, "link");
         }
 
         /** Whether the whole definition closure avoids every excluded category. */
@@ -56,10 +57,10 @@ public final class OperatorLibrary {
 
     /**
      * Retains only selected operators and their dependency closure. Selection order is decoder
-     * order. A module absent from {@code linkages} is linked inline.
+     * order. A module absent from {@code links} is linked inline.
      */
     public static OperatorLibrary fromModules(Map<String, TlaModule> modules, List<OperatorId> selected,
-            Map<String, LibraryLinkage> linkages) {
+            Map<String, ModuleLink> links) {
         var definitions = new LinkedHashMap<String, Definition>();
         var exports = new ArrayList<Export>();
         var indexes = new HashMap<String, Map<String, TlaOperDecl>>();
@@ -78,7 +79,8 @@ public final class OperatorLibrary {
             closure(definition.declaration().name(), definitions, new LinkedHashSet<>())
                     .forEach(name -> categories.addAll(definitions.get(name).categories()));
             exports.add(new Export(id, definition.declaration().name(), signature, categories,
-                    linkages.getOrDefault(id.module(), LibraryLinkage.INLINE)));
+                    links.getOrDefault(id.module(), ModuleLink.of(id.module(), LibraryLinkage.INLINE))
+                            .requireFor(id.module())));
         }
         return new OperatorLibrary(exports, definitions);
     }
@@ -144,7 +146,7 @@ public final class OperatorLibrary {
         return reached;
     }
 
-    /** The named instance through which the TLA+ source calls an instance-linked module. */
+    /** The named instance through which the TLA+ source calls an aliased module's exports. */
     public static String instanceName(String module) {
         return "Custom" + hex(module) + "I";
     }
@@ -204,17 +206,30 @@ public final class OperatorLibrary {
 
     /**
      * The module the parser and TLC evaluate. Inline exports are linked as by {@link #link}; each
-     * used instance-linked export becomes an alias that the renderer defines through its module's
-     * named instance, so generated call sites are unchanged.
+     * used export whose linkage aliases the source becomes an alias that the renderer defines
+     * through its module's named instance, so generated call sites are unchanged.
      */
     public SourceLink linkSource(TlaModule module, List<TlaEx> generated) {
         var used = usedNames(generated);
-        var aliases = exports.stream()
-                .filter(export -> export.linkage() == LibraryLinkage.INSTANCE && used.contains(export.name()))
-                .map(export -> new InstanceAlias(export.name(), export.id(), TlaTypes.operatorArguments(export.signature()).size()))
-                .toList();
+        var aliases = aliases(export -> used.contains(export.name()));
         var aliased = aliases.stream().map(InstanceAlias::name).collect(java.util.stream.Collectors.toSet());
         return new SourceLink(prepend(module, declarationsFor(generated, aliased)), aliases);
+    }
+
+    /**
+     * The aliases of every export whose linkage aliases the source, used or not, so preparation
+     * can check once that the parser resolves them all.
+     */
+    public List<InstanceAlias> sourceAliases() {
+        return aliases(export -> true);
+    }
+
+    private List<InstanceAlias> aliases(Predicate<Export> filter) {
+        return exports.stream()
+                .filter(export -> export.link().linkage().aliasesSource() && filter.test(export))
+                .map(export -> new InstanceAlias(export.name(), export.id(), export.link().sourceModule(),
+                        TlaTypes.operatorArguments(export.signature()).size()))
+                .toList();
     }
 
     private static TlaModule prepend(TlaModule module, List<TlaOperDecl> library) {

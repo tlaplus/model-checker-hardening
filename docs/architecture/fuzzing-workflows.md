@@ -266,10 +266,28 @@ TLA+ sources resolve on the corpus's `tla/` directory. Standalone expression pri
 uses a surrounding `LET`; richness scoring and known-defect matching retain the
 self-contained IR, so admission does not depend on linkage.
 
+**Implemented architectural extension** ([ADR 0015](../decisions/0015-diff-linked-libraries.md)).
+`link = "diff"` requires a key `tlc_module`, which names a different module with the same
+operators and arities.
+
+- Apalache typechecks `module` as root, without a wrapper. It supplies the signatures,
+  the mangled names and the self-contained IR.
+- The TLA+ source defines the aliases through `INSTANCE <tlc_module>`, which fuzztla never
+  imports. The TLC side may therefore use `RECURSIVE` and recursive functions, and the
+  aggregator compares them with the Apalache side's folds.
+- Preparation parses the instance and alias declarations of every instance- or
+  diff-linked module once with SANY. Unresolvable aliases therefore stop the invocation
+  instead of failing every input.
+
+**Deviation:** library validation covers only the Apalache side of a diff-linked
+operator. The TLC side is checked only for its interface: the module exists and
+exports each operator with the right arity.
+
 The first custom-library run records `.operator-library` atomically under the
 corpus lock, before admitting inputs. It contains the ordered export selection
-with non-default linkages, source filenames and SHA-256 digests, the pinned Apalache
-JAR digest, and, with instance linkage, the digest of every classpath file. Subsequent
+with non-default linkages and the `tlc_module` of each diff-linked module,
+source filenames and SHA-256 digests, the pinned Apalache JAR digest, and, with
+instance or diff linkage, the digest of every classpath file. Subsequent
 runs and `print --corpus` require an exact match. Paths may move without changing
 identity. A missing manifest cannot be initialized over existing inputs, and
 read-only printing never creates one. Removing the custom library from the config

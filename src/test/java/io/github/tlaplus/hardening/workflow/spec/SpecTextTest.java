@@ -52,8 +52,8 @@ class SpecTextTest {
         var module = FuzzInputModule.create(new TlaTypedScopeUncheckedBuilder().bool(true));
         var instance = OperatorLibrary.instanceName("Mods");
         var aliases = List.of(
-                new InstanceAlias("CustomA", new OperatorId("Mods", "Pair"), 2),
-                new InstanceAlias("CustomB", new OperatorId("Mods", "Empty"), 0));
+                new InstanceAlias("CustomA", new OperatorId("Mods", "Pair"), "Mods", 2),
+                new InstanceAlias("CustomB", new OperatorId("Mods", "Empty"), "Mods", 0));
         var plain = SpecText.render(module);
         var text = SpecText.render(new SourceLink(module, aliases));
 
@@ -64,5 +64,32 @@ class SpecTextTest {
                 + "CustomB == " + instance + "!Empty\n"
                 + plain.substring(extendsEnd), text);
         assertEquals(plain, SpecText.render(new SourceLink(module, List.of())));
+    }
+
+    @Test
+    void diffLinkedAliasesInstantiateTheTlcModuleUnderTheModulesInstanceName() {
+        var module = FuzzInputModule.create(new TlaTypedScopeUncheckedBuilder().bool(true));
+        var instance = OperatorLibrary.instanceName("Folds");
+        var aliases = List.of(
+                new InstanceAlias("CustomA", new OperatorId("Folds", "Sum"), "Recursion", 1),
+                new InstanceAlias("CustomB", new OperatorId("Folds", "Count"), "Recursion", 1));
+
+        var text = SpecText.render(new SourceLink(module, aliases));
+
+        assertEquals(1, text.split(" == INSTANCE ", -1).length - 1, text);
+        assertTrue(text.contains(instance + " == INSTANCE Recursion\n"
+                + "CustomA(CustomP1) == " + instance + "!Sum(CustomP1)\n"
+                + "CustomB(CustomP1) == " + instance + "!Count(CustomP1)\n"), text);
+    }
+
+    @Test
+    void theAliasProbeIsAParserInputThatOnlyDefinesTheAliases() {
+        var instance = OperatorLibrary.instanceName("Folds");
+        var aliases = List.of(new InstanceAlias("CustomA", new OperatorId("Folds", "Sum"), "Recursion", 1));
+
+        assertEquals("---- MODULE " + FuzzInputModule.MODULE_NAME + " ----\n"
+                + instance + " == INSTANCE Recursion\n"
+                + "CustomA(CustomP1) == " + instance + "!Sum(CustomP1)\n"
+                + "====\n", SpecText.aliasProbe(aliases));
     }
 }

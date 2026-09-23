@@ -2,7 +2,9 @@ package io.github.tlaplus.hardening.workflow.library;
 
 import io.github.tlaplus.hardening.config.*;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
+import io.github.tlaplus.hardening.gen.library.InstanceAlias;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
+import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.nio.file.Files;
@@ -25,18 +27,62 @@ class LibraryPreparationTest {
     }
 
     @Test
-    void instanceLinkageImportsApalacheRewiredDefinitionsWithoutCommunitySources() throws Exception {
+    void instanceLinkageImportsApalacheRewiredDefinitionsRatherThanClasspathSources(@TempDir Path directory)
+            throws Exception {
         // FlattenSeq is Apalache's fold in its rewiring, but SequencesExt's other declarations use
-        // internal operators its JSON reader rejects (apalache-json-003); pruning drops them.
+        // internal operators its JSON reader rejects (apalache-json-003); pruning drops them. The
+        // classpath module is what TLC instantiates, so the source probe needs it.
+        assertTrue(assertThrows(WorkflowException.class, () -> LibraryPreparation.prepare(
+                config(List.of(), "SequencesExt", LibraryLinkage.INSTANCE, "FlattenSeq")))
+                .getMessage().contains("SequencesExt"));
+        Files.writeString(directory.resolve("SequencesExt.tla"),
+                "---- MODULE SequencesExt ----\nFlattenSeq(seqs) == seqs\n====\n");
         var prepared = LibraryPreparation.prepare(
-                config(List.of(), "SequencesExt", LibraryLinkage.INSTANCE, "FlattenSeq"));
+                config(List.of(directory), "SequencesExt", LibraryLinkage.INSTANCE, "FlattenSeq"));
         var library = prepared.generator().library();
         var export = library.get(new OperatorId("SequencesExt", "FlattenSeq"));
-        assertEquals(LibraryLinkage.INSTANCE, export.linkage());
+        assertEquals(ModuleLink.of("SequencesExt", LibraryLinkage.INSTANCE), export.link());
         var call = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
         var body = library.declarationsFor(List.of(call)).toString();
         assertTrue(body.contains("ApaFoldSeqLeft"), body);
         assertTrue(prepared.manifest().contains("operator SequencesExt!FlattenSeq instance\n"), prepared.manifest());
+    }
+
+    static FuzzTlaConfig diffConfig(List<Path> classpath, String module, String tlcModule, String... operators) {
+        return FuzzTlaConfig.defaults().withLibraries(new OperatorLibraryConfig(classpath, List.of(
+                new OperatorLibraryConfig.Module(module, List.of(operators), new ModuleLink(LibraryLinkage.DIFF, tlcModule)))));
+    }
+
+    @Test
+    void diffLinkageTypechecksTheModuleAndNeverImportsTheTlcModule() throws Exception {
+        var classpath = List.of(Path.of("src/test/resources/custom").toAbsolutePath());
+        var prepared = LibraryPreparation.prepare(diffConfig(classpath, "DiffOpsApalache", "DiffOpsTLC", "Sum", "Length"));
+        var library = prepared.generator().library();
+        var export = library.get(new OperatorId("DiffOpsApalache", "Sum"));
+        assertEquals(new ModuleLink(LibraryLinkage.DIFF, "DiffOpsTLC"), export.link());
+        var call = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
+        var body = library.declarationsFor(List.of(call)).toString();
+        assertTrue(body.contains("ApaFoldSet"), body);
+        assertTrue(prepared.manifest().contains("operator DiffOpsApalache!Sum diff DiffOpsTLC\n"), prepared.manifest());
+        assertEquals(List.of("DiffOpsTLC", "DiffOpsTLC"),
+                library.sourceAliases().stream().map(InstanceAlias::sourceModule).toList());
+    }
+
+    @Test
+    void diffLinkageFailsPreparationWhenTheTlcModuleDoesNotMatch(@TempDir Path directory) throws Exception {
+        var apalache = Files.readString(Path.of("src/test/resources/custom/DiffOpsApalache.tla"));
+        Files.writeString(directory.resolve("DiffOpsApalache.tla"), apalache);
+        var classpath = List.of(directory);
+        var config = diffConfig(classpath, "DiffOpsApalache", "DiffOpsTLC", "Sum");
+        assertTrue(assertThrows(WorkflowException.class, () -> LibraryPreparation.prepare(config))
+                .getMessage().contains("DiffOpsTLC"));
+        for (var body : List.of("Other(S) == 0", "Sum(S, T) == 0", "Sum(S) == ")) {
+            Files.writeString(directory.resolve("DiffOpsTLC.tla"), "---- MODULE DiffOpsTLC ----\n" + body + "\n====\n");
+            var failure = assertThrows(WorkflowException.class, () -> LibraryPreparation.prepare(config), body);
+            assertTrue(failure.getMessage().contains("instance aliases"), failure.getMessage());
+        }
+        Files.writeString(directory.resolve("DiffOpsTLC.tla"), "---- MODULE DiffOpsTLC ----\nSum(S) == 0\n====\n");
+        assertEquals(1, LibraryPreparation.prepare(config).generator().library().exports().size());
     }
 
     @Test
