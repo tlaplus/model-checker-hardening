@@ -16,7 +16,7 @@ import java.util.Optional;
 /** Binary framing shared by isolated parser and model-checker workers. */
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 6;
+    static final int VERSION = 7;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 128 * 1024 * 1024;
@@ -60,12 +60,13 @@ public final class ToolWorkerProtocol {
             throw new IOException("invalid worker request exploration length: " + transitions);
         }
         var temporalProperty = input.readBoolean();
+        var actionInvariant = input.readBoolean();
         var bytes = input.readNBytes(byteCount);
         if (bytes.length != byteCount) {
             throw new IOException("truncated worker request");
         }
         return new ToolInput(new String(bytes, StandardCharsets.UTF_8),
-                new CheckRequest(transitions, temporalProperty));
+                new CheckRequest(transitions, temporalProperty, actionInvariant));
     }
 
     public static void writeResult(DataOutputStream output, ToolResult result) throws IOException {

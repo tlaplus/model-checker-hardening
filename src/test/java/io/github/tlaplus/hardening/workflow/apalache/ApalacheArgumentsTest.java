@@ -26,4 +26,12 @@ class ApalacheArgumentsTest {
                         "--temporal=Liveness", "--length=6", "--no-deadlock", SPECIFICATION.toString()),
                 List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, true))));
     }
+
+    @Test
+    void checksTheActionInvariantBesideTheInvariant() {
+        assertEquals(
+                List.of("--out-dir=" + JOB.resolve("out"), "check", "--init=Init", "--next=Next",
+                        "--inv=Inv,Step", "--length=5", "--no-deadlock", SPECIFICATION.toString()),
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, false, true))));
+    }
 }

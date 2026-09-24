@@ -57,6 +57,18 @@ public final class FuzzInputModule {
      */
     public static final String LIVENESS = "Liveness";
 
+    /**
+     * The action invariant of a metamorphic module (ADR 0016 §3): {@code [AC]_vars}, which every
+     * transition of the explored side must satisfy. Apalache checks it as an action invariant.
+     */
+    public static final String STEP = "Step";
+
+    /**
+     * {@code [][Step]_vars}, the form in which TLC checks {@link #STEP}: TLC has no action invariant,
+     * but checks an action property on every transition, without a tableau.
+     */
+    public static final String STEP_PROPERTY = "StepProperty";
+
     /** Every definition some tool evaluates directly; everything else is reached through them. */
     public static final List<String> ENTRY_POINTS = List.of(INIT, NEXT, INV, SPEC, PROP, LIVENESS);
 

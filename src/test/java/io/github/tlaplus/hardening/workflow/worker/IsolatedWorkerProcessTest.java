@@ -117,15 +117,15 @@ class IsolatedWorkerProcessTest {
         ToolResult withoutProperty;
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, EchoRequestWorker.class, DESCRIPTION))) {
-            withProperty = worker.request(new ToolInput("text", new CheckRequest(5, true)), TIMEOUT);
+            withProperty = worker.request(new ToolInput("text", new CheckRequest(5, true, true)), TIMEOUT);
         }
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, EchoRequestWorker.class, DESCRIPTION))) {
             withoutProperty = worker.request(new ToolInput("text", 3), TIMEOUT);
         }
 
-        assertEquals("5 true text", withProperty.diagnostic());
-        assertEquals("3 false text", withoutProperty.diagnostic());
+        assertEquals("5 true true text", withProperty.diagnostic());
+        assertEquals("3 false false text", withoutProperty.diagnostic());
         assertScratchIsEmpty(scratch);
     }
 
@@ -239,7 +239,8 @@ class IsolatedWorkerProcessTest {
                 var input = ToolWorkerProtocol.readRequest(connection.input());
                 var request = input.request();
                 ToolWorkerProtocol.writeResult(connection.output(), new ToolResult(StageOutcome.PASS,
-                        request.transitions() + " " + request.temporalProperty() + " " + input.text()));
+                        request.transitions() + " " + request.temporalProperty() + " "
+                                + request.actionInvariant() + " " + input.text()));
             }
         }
     }
