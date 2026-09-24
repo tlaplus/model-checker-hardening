@@ -222,7 +222,7 @@ class MainTest {
         assertTrue(result.out().contains("--seed=SEED"));
         assertTrue(result.out().contains("--max-cpus=N"));
         assertTrue(result.out().contains("Nonnegative 64-bit seed"));
-        assertTrue(result.out().contains("currently: pbt"));
+        assertTrue(result.out().contains("pbt, or mt for metamorphic testing"));
         assertFalse(result.out().contains("--version"));
         assertEquals("", result.err());
     }
@@ -240,7 +240,7 @@ class MainTest {
         var result = execute("run", "--how=random");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
-        assertTrue(result.err().contains("expected one of: pbt"));
+        assertTrue(result.err().contains("expected one of: pbt, mt"));
     }
 
     @Test

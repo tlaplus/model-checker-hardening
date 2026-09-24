@@ -5,6 +5,7 @@ import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
+import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.util.List;
 import java.util.Objects;
@@ -36,33 +37,47 @@ public final class SpecArtifact {
     private final CheckRequest request;
     private final List<TlaEx> generated;
     private final TlaEx standaloneExpression;
+    private final Rewrite<?> rewrite;
 
-    private SpecArtifact(
-            TlaModule skeleton,
-            OperatorLibrary library,
-            CheckRequest request,
-            List<TlaEx> generated,
-            TlaEx standaloneExpression) {
-        this.source = library.linkSource(skeleton, generated);
+    /** What a decoder assembled, before the library is linked. */
+    private record Parts(
+            TlaModule skeleton, CheckRequest request, List<TlaEx> generated, TlaEx standaloneExpression,
+            Rewrite<?> rewrite) {}
+
+    private SpecArtifact(Parts parts, OperatorLibrary library) {
+        this.source = library.linkSource(parts.skeleton(), parts.generated());
         // Without aliases the source form is the self-contained module; link only once.
-        this.module = source.aliases().isEmpty() ? source.module() : library.link(skeleton, generated);
-        this.request = Objects.requireNonNull(request, "request");
-        this.generated = List.copyOf(Objects.requireNonNull(generated, "generated"));
-        this.standaloneExpression = standaloneExpression;
+        this.module = source.aliases().isEmpty() ? source.module() : library.link(parts.skeleton(), parts.generated());
+        this.request = Objects.requireNonNull(parts.request(), "request");
+        this.generated = List.copyOf(Objects.requireNonNull(parts.generated(), "generated"));
+        this.standaloneExpression = parts.standaloneExpression();
+        this.rewrite = parts.rewrite();
     }
 
     /** Wraps one generated expression, and the library definitions it uses, in the checker module. */
     public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
-        return new SpecArtifact(FuzzInputModule.create(expression), library,
-                CheckRequest.invariant(0), List.of(expression), library.close(expression));
+        return new SpecArtifact(new Parts(FuzzInputModule.create(expression),
+                CheckRequest.invariant(0), List.of(expression), library.close(expression), null), library);
+    }
+
+    /**
+     * Wraps a metamorphic pair of expressions in the checker module (ADR 0016 §3): the explored
+     * side initializes {@code exprValue}, and the invariant asserts the checked side.
+     */
+    public static SpecArtifact fromExpressionRewrite(Rewrite<TlaEx> rewrite, OperatorLibrary library) {
+        Objects.requireNonNull(rewrite, "rewrite");
+        var explored = rewrite.explored();
+        var checked = rewrite.checked();
+        return new SpecArtifact(new Parts(FuzzInputModule.create(explored, checked), CheckRequest.invariant(0),
+                List.of(explored, checked), library.close(rewrite.original()), rewrite), library);
     }
 
     /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
-        return new SpecArtifact(FuzzInputModule.create(spec), library,
-                new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(), null);
+        return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
+                new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(), null, null), library);
     }
 
     public TlaModule module() {
@@ -79,6 +94,11 @@ public final class SpecArtifact {
 
     public List<TlaEx> generated() {
         return generated;
+    }
+
+    /** Returns the metamorphic pair this artifact relates, when it came from a metamorphic decoder. */
+    public Optional<Rewrite<?>> rewrite() {
+        return Optional.ofNullable(rewrite);
     }
 
     /** Returns the input expression when this artifact came from the expression decoder. */

@@ -12,7 +12,10 @@ import java.util.Optional;
  * <p>The encoded name is part of the corpus format and of the command line.
  */
 public enum Technique {
-    PBT("pbt", Oracle.CONFORMANCE);
+    /** Property-based generation and mutation, judged by conformance of TLC and Apalache. */
+    PBT("pbt", Oracle.CONFORMANCE),
+    /** Metamorphic testing: a base and its rewrite, judged by the metamorphic relation (ADR 0016). */
+    MT("mt", Oracle.METAMORPHIC);
 
     /** The technique of a corpus that records none, which every corpus did before ADR 0016. */
     public static final Technique UNRECORDED = PBT;

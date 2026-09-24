@@ -34,7 +34,7 @@ final class RunCommand implements Callable<Integer> {
             required = true,
             converter = TechniqueConverter.class,
             paramLabel = "TECHNIQUE",
-            description = "Fuzzing technique to use (currently: pbt).")
+            description = "Fuzzing technique: pbt, or mt for metamorphic testing (ADR 0016).")
     private Technique technique;
 
     @Option(
@@ -65,20 +65,15 @@ final class RunCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        return switch (technique) {
-            case PBT -> runPbt();
-        };
-    }
-
-    /** Runs property-based generation, parsing, TLC, and Apalache as one concurrent workflow. */
-    private int runPbt() {
+        // Every technique runs the same workflow; the corpus records which one it runs.
         // Shutdown waits until terminal restoration and diagnostics have completed as well.
         try (var shutdown = RunShutdownHook.install()) {
-            return executePbt();
+            return execute();
         }
     }
 
-    private int executePbt() {
+    /** Runs generation, parsing, the checkers, aggregation and the quality gate as one workflow. */
+    private int execute() {
         try {
             var effectiveSeed = seed == null ? randomSeed() : seed;
             spec.commandLine().getOut().printf("Random seed: %d%n", effectiveSeed);

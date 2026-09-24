@@ -11,8 +11,9 @@ class TechniqueTest {
     /** The encoded names are stored in `.technique` and accepted by `--how`. */
     @Test
     void pinsEncodedNamesAndOracles() {
-        assertEquals(List.of("pbt"), Technique.encodedNames());
+        assertEquals(List.of("pbt", "mt"), Technique.encodedNames());
         assertEquals(Oracle.CONFORMANCE, Technique.PBT.oracle());
+        assertEquals(Oracle.METAMORPHIC, Technique.MT.oracle());
         assertEquals(Technique.PBT, Technique.UNRECORDED);
     }
 

@@ -14,7 +14,8 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
+import io.github.tlaplus.hardening.corpus.Technique;
+import io.github.tlaplus.hardening.workflow.CorpusReplay;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
@@ -115,11 +116,10 @@ final class PrintCommand implements Callable<Integer> {
             return CommandLine.ExitCode.SOFTWARE;
         }
         try (var shutdown = RunShutdownHook.install()) {
-            var decoders = SpecDecoders.prepare(config);
-            if (corpusDirectory != null) {
-                LibraryManifest.verify(
-                        corpusDirectory, decoders.libraryManifest(), false);
-            }
+            // Without a corpus there is no record to replay, so the input decodes as a pbt entry.
+            var decoders = corpusDirectory != null
+                    ? CorpusReplay.decoders(corpusDirectory, config)
+                    : SpecDecoders.prepare(config, Technique.PBT);
             var artifact = decoders.decode(corpusInput);
             if (!knownDefects.isEmpty()) {
                 print(KnownDefectReport.render(

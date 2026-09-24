@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -174,7 +175,8 @@ public final class TomlConfig {
                 ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))
                 .relativeTo(directory);
         var metamorphic = new MetamorphicConfig(
-                ConfigSchema.RULES.read(tables), ConfigSchema.RULE_WEIGHTS.read(tables))
+                ConfigSchema.RULES.read(tables), ConfigSchema.RULE_WEIGHTS.read(tables),
+                new RewriteLimits(ConfigSchema.MAXIMUM_REWRITES.read(tables), ConfigSchema.MAXIMUM_REWRITE_DEPTH.read(tables)))
                 .relativeTo(directory);
         return new FuzzTlaConfig(
                 generatedKind, generationConfig, workflowConfig, pbtConfig, mutatorConfig, libraries, metamorphic);

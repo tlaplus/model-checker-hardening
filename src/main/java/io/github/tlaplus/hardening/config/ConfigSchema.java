@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
+import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -332,6 +333,13 @@ final class ConfigSchema {
     static final Key<Map<String, Integer>> RULE_WEIGHTS = METAMORPHIC.optional(
             "weights", ConfigValueType.RULE_WEIGHTS, MetamorphicConfig::weights, new Constant<>(Map.of()),
             "Selection slots per rewrite rule; an omitted rule has weight 1, and 0 disables it.");
+    private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
+    static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
+            "max_rewrites", RewriteLimits::maximumRewrites, RewriteLimits.defaults().maximumRewrites(),
+            "Rewrites applied to one body of a base (Init, Next, Inv, an operator or an expression).");
+    static final Key<Integer> MAXIMUM_REWRITE_DEPTH = REWRITE_LIMITS.defaultedInteger(
+            "max_rewrite_depth", RewriteLimits::maximumRewriteDepth, RewriteLimits.defaults().maximumRewriteDepth(),
+            "Rewrites stacked on one node.");
 
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();
