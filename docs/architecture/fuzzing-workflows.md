@@ -339,19 +339,50 @@ This workflow specializes the general workflow as follows:
 
 ### 1.4. Metamorphic testing of TLC and Apalache
 
-In this workflow, the goal is to collect a metamorphic test suite. This test suite contains two kinds of test inputs:
+**Proposed architectural extension** ([ADR 0016][]; [manual][metamorphic manual]).
+Nothing in this section is implemented.
 
-- **Positive tests.** These tests demonstrate that the model checker preserves equivalent transformations, as expected.
-- **Negative tests.** These tests demonstrate soundness issues in the model checker. They present two equivalent
-  expressions that are not equal in the model checker's interpretation.
+In this workflow, the goal is to collect a metamorphic test suite. Each input pairs a
+generated module M with a rewrite M2 that is equivalent in TLA<sup>+</sup>. One checker
+checks a module that relates the two, so no second checker is the oracle. The test
+suite contains three kinds of test inputs:
+
+- **Positive tests.** The checker preserves the relation.
+- **Negative tests.** The checker reports a violation: it evaluates two equivalent
+  specifications differently, or a rewrite rule is unsound.
 - **Crash tests.** The model checker crashes on the input.
 
-This workflow specializes the general workflow as follows:
+The workflow reuses every stage. Only the technique, the payload, the assembled module
+and the aggregator's policy differ:
 
-- **Aggregator.** At this stage, the input is move to `pass`, when both TLC and Apalache pass.
-- **Mutator.** The mutator applies equivalent transformations to some operators of the specification that corresponds to
-  the input.
-- **Quality gate.** Good quality gates are to be found.
+- **Technique.** `fuzztla run --how=mt` enables the workflow. The first run records
+  the technique in the corpus file `.technique`, and later runs must match it. Entries
+  keep their kind, `expr` or `module`.
+- **Inputs.** Under `mt`, a payload is a two-byte base length, the payload of an
+  `expr` or `module` entry, and a rewrite payload. A byte-directed rewriter in
+  `gen.rewrite` decodes the rewrite payload into an orientation bit and rule
+  applications. A rule is an operator `F(x, y) == A = B` of a TLA<sup>+</sup> rule
+  module ([ADR 0017][]). The rule catalog is the subject of a later ADR.
+- **Relation module.** The orientation chooses the explored side E and the checked
+  side C among M and M2, which share one copy of the variables. For `module`,
+  `FuzzInputModule` assembles an implication:
+  - `Init == InitE` and `Next == AE \/ UNCHANGED vars`;
+  - `Inv == (step = 0 => InitC) /\ (Inv1 <=> Inv2)`, which checks `InitE => InitC`;
+  - the action invariant `Step == [AC]_vars`, which checks `AE => AC` on every
+    transition. TLC checks it as `PROPERTY [][Step]_vars`, and Apalache as
+    `--inv=Inv,Step`.
+
+  Deadlock detection stays off. For a temporal property, `Prop` is
+  `(F1 => F2) /\ (F2 => F1)`. For `expr`, `Inv` is `v = eC` with `Init` `v = eE`.
+- **Checkers.** `[workflow] checkers` selects the model-checker stages. A TLC-only
+  corpus can check rewrites into recursive definitions, which Apalache rejects.
+- **Aggregator.** The corpus technique selects the oracle. A metamorphic entry passes
+  when the configured checkers agree and none reports a counterexample.
+- **Candidate sources.** PBT and the mutator apply unchanged. A third source lifts
+  the `04quality-pass` entries of a read-only `pbt` base corpus by appending random
+  rewrite payloads.
+- **Quality gate.** Unchanged. The relation reaches exactly the states of the
+  explored module, so its exploration metrics are that module's.
 
 ### 1.5. Coverage-based fuzzing
 
@@ -665,6 +696,9 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0009]: ../decisions/0009-corpus-database.md
 [ADR 0010]: ../decisions/0010-mutation.md
 [ADR 0013]: ../decisions/0013-behaviour-archive-and-operator-coverage.md
+[ADR 0016]: ../decisions/0016-metamorphic-testing.md
+[ADR 0017]: ../decisions/0017-rewrite-rule-library.md
+[metamorphic manual]: ../manual/metamorphic-testing.md
 [database manual]: ../manual/corpus-database.md
 [mutation manual]: ../manual/mutation.md
 [metrics manual]: ../manual/exploration-metrics.md
