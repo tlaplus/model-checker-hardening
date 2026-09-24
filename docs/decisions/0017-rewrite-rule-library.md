@@ -233,8 +233,9 @@ checks items 2–4.
 3. **Assignment-preserving.** TLC treats `x' = e` as an assignment only in certain
    positions: under `/\` and `\/`, in an `IF` branch, in an `\E` body, and in a `LET`
    body. TLC evaluates conjuncts from left to right, so their order matters as well.
-   The loader records, for each Boolean matched parameter, whether B keeps it in such
-   a position, exactly once. It also records whether B preserves the left-to-right
+   In `Init`, TLC assigns the unprimed variables in the same positions, so there the
+   rewriter treats a variable like a primed name. The loader records, for each Boolean
+   matched parameter, whether B keeps it in such a position, exactly once. It also records whether B preserves the left-to-right
    order of those parameters. The rewriter skips a match that binds a parameter to a
    primed subterm unless both facts hold. This rules out:
    - `DoubleNeg` on `x' = 1` ([ADR 0016][adr-0016] probe P5);

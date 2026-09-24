@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypeSubstitution;
@@ -137,7 +138,10 @@ public final class Rewriter {
         actionScope.addAll(variables);
         var stateScope = new ArrayList<>(actionScope);
         stateScope.add(Objects.requireNonNull(step, "step"));
-        var init = walk.body(spec.initPredicate(), auxiliaries);
+        var initialized = new java.util.HashSet<String>();
+        spec.variables().forEach(variable -> initialized.add(variable.name()));
+        // Init assigns the unprimed variables, so they keep their assigning positions there.
+        var init = walk.body(spec.initPredicate(), auxiliaries, initialized);
         var next = walk.body(spec.nextAction(), actionScope);
         var invariant = walk.body(spec.invariant(), stateScope);
         var rewritten = new GeneratedSpec(spec.variables(), operators, init, next, invariant, spec.property(), spec.stepBound());
@@ -159,14 +163,24 @@ public final class Rewriter {
         private int rewrites;
         private int bodySize;
         private int sizeLimit;
+        private Set<String> assigned = Set.of();
 
         Walk(Draw draw, OperandGenerator operands) {
             this.draw = Objects.requireNonNull(draw, "draw");
             this.operands = operands;
         }
 
-        /** Rewrites one body under its own budget of rewrites. */
+        /** Rewrites one body of an action or a state predicate under its own budget of rewrites. */
         TlaEx body(TlaEx expression, List<OperandGenerator.Name> scope) {
+            return body(expression, scope, Set.of());
+        }
+
+        /**
+         * Rewrites one body under its own budget of rewrites; {@code assigned} names the unprimed
+         * variables TLC assigns in it, which are those of {@code Init}.
+         */
+        TlaEx body(TlaEx expression, List<OperandGenerator.Name> scope, Set<String> assigned) {
+            this.assigned = assigned;
             rewrites = 0;
             bodySize = size(expression);
             sizeLimit = bodySize * limits.maximumGrowth() + freshSize();
@@ -178,7 +192,7 @@ public final class Rewriter {
             var stacked = continued ? stack.depth() : 0;
             var current = node;
             for (; stacked < limits.maximumRewriteDepth()
-                    && rewrites < limits.maximumRewrites() && RewritePositions.rewritable(current); stacked++) {
+                    && rewrites < limits.maximumRewrites() && RewritePositions.rewritable(current, assigned); stacked++) {
                 var options = applicable(current);
                 var slots = options.stream().mapToInt(Option::weight).sum();
                 if (slots == 0 || !draw.drawBoolean()) {
@@ -251,7 +265,7 @@ public final class Rewriter {
                 if (rule.weight() == 0) {
                     continue;
                 }
-                RuleMatcher.match(rule, node).ifPresent(match -> {
+                RuleMatcher.match(rule, node, assigned).ifPresent(match -> {
                     if (bodySize - size(node) + estimatedSize(match) > sizeLimit) {
                         return;
                     }

@@ -134,6 +134,29 @@ class RewriterTest {
                 nodes[0] + " nodes after " + rewrite.appliedRules().size() + " rewrites");
     }
 
+    /** Init assigns unprimed variables: var0 \in S must keep its variable and its position. */
+    @Test
+    void aRewriteKeepsTheAssignmentsOfInit() {
+        var sets = TlaTypes.set(TlaTypes.INT);
+        var x = B.name("var0", sets);
+        var step = B.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
+        var init = B.and(B.in(x, B.enumSet(B.enumSet(B.integer(1)), B.enumSet(B.integer(2)))),
+                B.eql(step, B.integer(0)));
+        var spec = new io.github.tlaplus.hardening.gen.GeneratedSpec(
+                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", sets),
+                        org.apalache_mc.tla.jir.TlaDeclarations.variable("step", TlaTypes.INT)),
+                List.of(), init,
+                B.and(B.primeEq(B.name("var0", sets), B.name("var0", sets)), B.primeEq(step, B.integer(1))),
+                B.bool(true), java.util.Optional.empty(), 3);
+        var ones = new byte[256];
+        java.util.Arrays.fill(ones, (byte) 1);
+        var rewritten = rewriter(library(unionSelf(), doubleNeg())).rewriteSpec(spec, new Draw(ones)).rewritten();
+        var conjuncts = TlaExpressions.arguments((OperEx) rewritten.initPredicate());
+        assertEquals(TlaOperators.SET_IN, ((OperEx) conjuncts.get(0)).oper(), rewritten.initPredicate().toString());
+        assertEquals(x, TlaExpressions.arguments((OperEx) conjuncts.get(0)).getFirst());
+        assertEquals(B.eql(step, B.integer(0)), conjuncts.get(1));
+    }
+
     @Test
     void isDeterministic() {
         var bytes = new byte[] {1, 1, 0, 1, 1, 7, 1, 0, 0, 1};
