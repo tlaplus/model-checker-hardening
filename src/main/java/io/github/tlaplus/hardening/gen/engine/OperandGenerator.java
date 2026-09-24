@@ -84,6 +84,14 @@ public final class OperandGenerator {
     }
 
     /**
+     * Returns a name no expression of the module uses and no other name of this supply repeats,
+     * for a variable a rewrite binds.
+     */
+    public String freshName(String prefix) {
+        return context.fresh(Objects.requireNonNull(prefix, "prefix"));
+    }
+
+    /**
      * Returns a generator that instantiates every type variable of {@code template} within the
      * configured limits, as a custom operator's residual variables are drawn, or empty when no
      * instantiation fits them.
