@@ -296,8 +296,8 @@ compares the two sides.
 **IR plumbing.**
 - Rewriting uses the facade's `TlaExpressions.rewrite`, `forEach` and `deepCopy`.
 - M2's generated operators are renamed; its state variables are not.
-  Renaming generalizes `gen/library/LibraryExpressions.rename` into one shared
-  helper; it is not copied.
+  Renaming, the binder layout, alpha-equivalence, substitution and beta-reduction
+  live in `gen.ir`, which the library importer shares; they are not copied.
 - The facade builder gains methods for recursive operators and recursive functions
   (probe P3), which the recursive rules of the catalog ADR need.
 
