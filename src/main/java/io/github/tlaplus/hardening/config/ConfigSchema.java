@@ -16,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -59,6 +60,22 @@ final class ConfigSchema {
         @Override
         public boolean inherits(T rendered, FuzzTlaConfig config) {
             return rendered.equals(key.value().apply(config));
+        }
+    }
+
+    /**
+     * Reads nothing: the setting is absent. Rendering shows an example, commented out, while the
+     * value is absent.
+     */
+    record Absent<T>() implements Default<Optional<T>> {
+        @Override
+        public Optional<T> read(Map<String, TomlTable> tables) {
+            return Optional.empty();
+        }
+
+        @Override
+        public boolean inherits(Optional<T> rendered, FuzzTlaConfig config) {
+            return rendered.isEmpty();
         }
     }
 
@@ -217,6 +234,8 @@ final class ConfigSchema {
     private static final ConfigTableBuilder<MutatorConfig> MUTATOR =
             new ConfigTableBuilder<>("mutator", FuzzTlaConfig::mutator);
     private static final ConfigTableBuilder<QualityGateConfig> GATE = MUTATOR.project(MutatorConfig::gate);
+    private static final ConfigTableBuilder<MetamorphicConfig> METAMORPHIC =
+            new ConfigTableBuilder<>("metamorphic", FuzzTlaConfig::metamorphic);
     private static final Map<CorpusStage, Table> CHECKER_TABLES = new EnumMap<>(CorpusStage.class);
 
     static final Key<InputKind> GENERATED_KIND = GENERATOR.key(
@@ -306,6 +325,14 @@ final class ConfigSchema {
             "feature_coverage", ConfigValueType.BOOLEAN, QualityGateConfig::featureCoverage,
             "Also keep an entry that adds an operator-edge coverage feature (ADR 0013).");
 
+    static final Key<Optional<MetamorphicConfig.RuleModule>> RULES = METAMORPHIC.optional(
+            "rules", ConfigValueType.RULE_MODULE, MetamorphicConfig::rules, new Absent<>(),
+            "Rule module of --how=mt, relative to this config file (ADR 0017): every top-level",
+            "definition F(p1, ..., pn) == A = B of the module is a rewrite rule.");
+    static final Key<Map<String, Integer>> RULE_WEIGHTS = METAMORPHIC.optional(
+            "weights", ConfigValueType.RULE_WEIGHTS, MetamorphicConfig::weights, new Constant<>(Map.of()),
+            "Selection slots per rewrite rule; an omitted rule has weight 1, and 0 disables it.");
+
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();
 
@@ -366,6 +393,7 @@ final class ConfigSchema {
         CorpusStage.checkerBranches().forEach(stage -> tables.add(CHECKER_TABLES.get(stage)));
         tables.add(PBT.build());
         tables.add(MUTATOR.build());
+        tables.add(METAMORPHIC.buildOptional());
         return List.copyOf(tables);
     }
 

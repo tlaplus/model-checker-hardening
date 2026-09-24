@@ -21,7 +21,9 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.tomlj.TomlArray;
@@ -44,6 +46,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     private static final String OPERATORS = "operators";
     private static final String LINK = "link";
     private static final String TLC_MODULE = "tlc_module";
+    private static final String CLASSPATH = "classpath";
 
     private static final Map<String, ExpressionKind> KINDS_BY_CONFIG_NAME =
             ExpressionKind.all().stream()
@@ -75,6 +78,20 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             ConfigValueType::readWeights, ConfigValueType::formatWeights);
 
     static final ConfigValueType<CheckerSet> CHECKERS = checkers();
+
+    /** The example a configuration without a rule module shows, commented out. */
+    static final MetamorphicConfig.RuleModule EXAMPLE_RULES =
+            new MetamorphicConfig.RuleModule("Rewrites", List.of(Path.of("../libraries/rewrites")));
+
+    static final ConfigValueType<Optional<MetamorphicConfig.RuleModule>> RULE_MODULE = new ConfigValueType<>(
+            ConfigValueType::readRuleModule,
+            rules -> formatRuleModule(rules.orElse(EXAMPLE_RULES)));
+
+    static final ConfigValueType<Map<String, Integer>> RULE_WEIGHTS = new ConfigValueType<>(
+            ConfigValueType::readRuleWeights,
+            weights -> weights.isEmpty() ? "{}" : new TreeMap<>(weights).entrySet().stream()
+                    .map(entry -> entry.getKey() + " = " + entry.getValue())
+                    .collect(Collectors.joining(", ", "{ ", " }")));
 
     static final ConfigValueType<InputKind> INPUT_KIND = new ConfigValueType<>(
             ConfigValueType::readInputKind, kind -> quote(kind.encodedName()));
@@ -145,6 +162,35 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     }
 
     /** Reads the ordered module selections, each an inline table of a name and its operators. */
+    private static Optional<MetamorphicConfig.RuleModule> readRuleModule(TomlTable table, String path, String key)
+            throws ConfigException {
+        if (!(table.get(List.of(key)) instanceof TomlTable rules)
+                || !Set.of(MODULE, CLASSPATH).equals(rules.keySet()) || !rules.isString(MODULE)) {
+            throw new ConfigException("expected '" + path + "' to contain module (string) and classpath (array)");
+        }
+        return Optional.of(new MetamorphicConfig.RuleModule(rules.getString(MODULE),
+                strings(array(rules, path + "." + CLASSPATH, CLASSPATH), path).stream().map(Path::of).toList()));
+    }
+
+    private static String formatRuleModule(MetamorphicConfig.RuleModule rules) {
+        return "{ module = " + quote(rules.module()) + ", classpath = "
+                + formatList(rules.classpath().stream().map(Path::toString).toList()) + " }";
+    }
+
+    /** Reads rule weights keyed by rule name; which names exist is known only once the rules are loaded. */
+    private static Map<String, Integer> readRuleWeights(TomlTable table, String path, String key)
+            throws ConfigException {
+        if (!table.isTable(key)) {
+            throw new ConfigException("expected '" + path + "' to be a table");
+        }
+        var entries = table.getTable(key);
+        var weights = new TreeMap<String, Integer>();
+        for (var name : entries.keySet()) {
+            weights.put(name, readInt(entries, path + "." + name, name));
+        }
+        return Collections.unmodifiableMap(weights);
+    }
+
     private static List<OperatorLibraryConfig.Module> readModules(
             TomlTable table, String path, String key) throws ConfigException {
         var array = array(table, path, key);

@@ -24,12 +24,7 @@ public final class LibraryManifest {
      * from before linkage existed.
      */
     static String create(Path sources, Path jar, OperatorLibraryConfig libraries) throws IOException {
-        var text = new StringBuilder("fuzztla-library-v1\napalache ").append(Digests.digest(jar)).append('\n');
-        try (var paths = Files.list(sources)) {
-            for (var path : paths.sorted().toList()) {
-                text.append("source ").append(path.getFileName()).append(' ').append(Digests.digest(path)).append('\n');
-            }
-        }
+        var text = snapshot("fuzztla-library-v1", sources, jar);
         if (libraries.hasSourceAliases()) {
             for (var entry : libraries.classpath()) {
                 if (Files.isRegularFile(entry)) {
@@ -47,6 +42,20 @@ public final class LibraryManifest {
             }
         }
         return text.toString();
+    }
+
+    /**
+     * Starts a manifest with its format line, the Apalache distribution and a digest of every file of
+     * the source snapshot, in name order.
+     */
+    static StringBuilder snapshot(String format, Path sources, Path jar) throws IOException {
+        var text = new StringBuilder(format).append("\napalache ").append(Digests.digest(jar)).append('\n');
+        try (var paths = Files.list(sources)) {
+            for (var path : paths.sorted().toList()) {
+                text.append("source ").append(path.getFileName()).append(' ').append(Digests.digest(path)).append('\n');
+            }
+        }
+        return text;
     }
 
     private static final ReplayRecord<String> RECORD = new ReplayRecord<>(
