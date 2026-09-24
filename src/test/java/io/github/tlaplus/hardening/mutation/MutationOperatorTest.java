@@ -20,7 +20,7 @@ class MutationOperatorTest {
     void encodedNamesArePartOfTheCorpusFormat() {
         assertEquals(
                 List.of("random_byte", "bitflip", "parity_flip", "copy", "duplicate", "insert",
-                        "erase", "splice"),
+                        "erase", "splice", "lift"),
                 Arrays.stream(MutationOperator.values()).map(MutationOperator::encodedName).toList());
         for (var operator : MutationOperator.values()) {
             assertEquals(Optional.of(operator), MutationOperator.fromEncodedName(operator.encodedName()));
@@ -29,8 +29,17 @@ class MutationOperatorTest {
     }
 
     @Test
+    void liftRecordsProvenanceButIsNeverApplied() {
+        assertEquals(List.of(MutationOperator.LIFT), Arrays.stream(MutationOperator.values())
+                .filter(operator -> !operator.isByteEdit()).toList());
+        assertEquals(0, MutationOperator.LIFT.defaultWeight());
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+                () -> MutationOperator.LIFT.apply(new byte[] {1}, NO_DONOR, new SplittableRandom(1)));
+    }
+
+    @Test
     void anEmptyInputIsReturnedUnchanged() {
-        for (var operator : MutationOperator.values()) {
+        for (var operator : MutationOperator.byteEdits()) {
             assertArrayEquals(new byte[0], operator.apply(new byte[0], NO_DONOR, new SplittableRandom(1)));
         }
     }
@@ -116,7 +125,7 @@ class MutationOperatorTest {
     void doesNotModifyItsArguments() {
         var input = input(3, 20);
         var original = input.clone();
-        for (var operator : MutationOperator.values()) {
+        for (var operator : MutationOperator.byteEdits()) {
             operator.apply(input, () -> input(4, 20), new SplittableRandom(5));
             assertArrayEquals(original, input);
         }

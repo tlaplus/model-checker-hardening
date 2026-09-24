@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.mutation;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -12,6 +13,10 @@ import java.util.random.RandomGenerator;
  * <p>The encoded name is part of the corpus format ({@code gen.operators}) and of the
  * configuration ({@code [mutator] weights}). Declaration order is only the order in which weights
  * are rendered and a weighted choice scans the operators.
+ *
+ * <p>{@link #LIFT} is provenance, not an edit (ADR 0016 §6): the lift source records it for an
+ * entry whose base payload it copied from a parent. The mutator never draws it, and the
+ * configuration gives it no weight.
  */
 public enum MutationOperator {
     /** Replaces one byte at a uniformly chosen offset with a uniform byte. */
@@ -73,7 +78,9 @@ public enum MutationOperator {
         var prefix = random.nextInt(input.length + 1);
         var suffix = random.nextInt(other.length + 1);
         return concat(Arrays.copyOf(input, prefix), Arrays.copyOfRange(other, suffix, other.length));
-    });
+    }),
+    /** Copies a conformance parent as the base of a metamorphic entry; not a byte edit. */
+    LIFT("lift", 0, null);
 
     /** Block sizes, held apart because enum constants cannot refer forward to their own fields. */
     private static final class Bounds {
@@ -103,6 +110,16 @@ public enum MutationOperator {
         return encodedName;
     }
 
+    /** Whether the mutator applies this operator; {@link #LIFT} only records provenance. */
+    public boolean isByteEdit() {
+        return edit != null;
+    }
+
+    /** Returns every operator the mutator may draw, in declaration order. */
+    public static List<MutationOperator> byteEdits() {
+        return Arrays.stream(values()).filter(MutationOperator::isByteEdit).toList();
+    }
+
     /** Returns the weight {@code fuzztla init} writes for this operator. */
     public int defaultWeight() {
         return defaultWeight;
@@ -118,6 +135,9 @@ public enum MutationOperator {
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(donor, "donor");
         Objects.requireNonNull(random, "random");
+        if (!isByteEdit()) {
+            throw new UnsupportedOperationException(encodedName + " is not a byte edit");
+        }
         return input.length == 0 ? input.clone() : edit.apply(input, donor, random);
     }
 
