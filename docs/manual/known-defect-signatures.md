@@ -113,12 +113,13 @@ argument.
 | `(: p "T")` | An expression that matches `p` and whose type matches `T`. | `(: _ "Set(Str)")` |
 | `(.. p)` | An expression that matches `p`, or that has a subexpression matching `p` at any depth. | `(EQUIV (.. (GLOBALLY _)) _)` |
 | `(& p1 … pn)` | An expression that matches every `p1 … pn`. | `(& (CASE ...) (.. (GLOBALLY _)))` |
+| `(~ p)` | An expression that does not match `p`. | `(STUTTER (~ (OPER_APP Next)) _)` |
 
 An identifier consists of letters, digits, `_`, `!` and `$`, and does not
 start with a digit. In head position it names an operator, which must exist;
 anywhere else it names a variable, parameter or definition. The words `_`,
-`TRUE`, `FALSE`, `STRING`, `Int`, `Nat` and `BOOLEAN` are reserved, and `..`
-and `&` are reserved as heads.
+`TRUE`, `FALSE`, `STRING`, `Int`, `Nat` and `BOOLEAN` are reserved, and `..`,
+`&` and `~` are reserved as heads.
 
 `(.. p)` searches operator arguments and the declarations and body of a `LET`,
 skipping labels. It does not follow a name to the definition it refers to: a
@@ -156,12 +157,17 @@ cardinality of any set of sequences.
 
   A top-level definition that nothing references is skipped. A pattern is never
   anchored to the root.
+- **Scaffolding.** Every input has the same `Spec == Init /\ [][Next]_vars /\
+  Fairness` and `Liveness == Fairness => Prop`. A pattern that matches them,
+  such as `(GLOBALLY (STUTTER ...))`, matches every input; exclude them with
+  `(~ p)`. `KnownDefectScaffoldingTest` fails on such a signature.
 - **Alternatives.** The alternatives in `match` are independent. Bindings do
   not carry from one alternative to another.
 - **Metavariables.** Two occurrences of `?x` must match structurally equal
   expressions. Type annotations are not compared; use a type constraint for that.
   Inside `(.. p)`, the first subexpression in pre-order that matches `p`
   determines the bindings; the parts of `(& p1 … pn)` bind from left to right.
+  `(~ p)` reads the bindings made to its left but binds nothing.
 - **Arity.** An application matches only its exact argument count unless the
   pattern ends in `...`.
 - **Labels.** Labels are skipped, just as `print --apalache-ir` omits them. A
@@ -383,6 +389,10 @@ The remaining signatures match fixed shapes:
   `SeqInsertionSort` or `SetToSortedSeq`, whose Apalache definitions nest
   `ApaFoldSeqLeft` and can exhaust the heap from about nine elements
   ([`apalache-performance-002`](../../findings/apalache-performance/apalache-performance-002.md)).
+- `apalache-always-action-bound`: every `[][A]_v` other than `Spec`'s
+  `[][Next]_vars`. The workflow checks `Prop` under `Fairness => Prop`, where
+  Apalache needs one more step than the lasso to report a violation of `[][A]_v`
+  ([`apalache-temporal-005`](../../findings/apalache-temporal/apalache-temporal-005.md)).
 
 The database header and `AllDefectsTest` list the documents that no pattern can
 express:

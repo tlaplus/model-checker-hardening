@@ -189,6 +189,21 @@ sealed interface IrPattern {
         }
     }
 
+    /**
+     * {@code (~ p)}: an expression that {@code pattern} does not match. The attempt reads the
+     * bindings made so far but binds nothing, whatever its outcome.
+     */
+    record Negation(IrPattern pattern) implements IrPattern {
+        public Negation {
+            Objects.requireNonNull(pattern, "pattern");
+        }
+
+        @Override
+        public boolean matches(TlaEx expression, Bindings bindings) {
+            return !pattern.matches(expression, bindings.copy());
+        }
+    }
+
     /** {@code (: p "T")}: an expression that matches {@code pattern} and has a type matching T. */
     record Typed(IrPattern pattern, TypePattern type) implements IrPattern {
         public Typed {

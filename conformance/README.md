@@ -1249,6 +1249,44 @@ the violated formula is `Prop`, for example
 reports it only at `--length=7`, because the workflow checks it under
 `Fairness => Prop`.
 
+## corpus50 residuals
+
+corpus50 repeats the corpus49 configuration. It read `all-defects.toml` from
+before the corpus49 triage, without `apalache-always-action-bound` or
+`recursion-insertion-sort`: no quarantined entry records either signature.
+`00-known-defects` quarantined 3,123 candidates, and the known-defect
+signatures rejected 153,021 of the 324,585 generation attempts. Triage
+classified 165 of the 169 TLC crashes and 57 of the 101 Apalache crash outcomes.
+Another 12 Apalache outcomes are worker timeouts. It left 38 of the 32,165
+aggregator deviations as `NEW`. The parser report was empty. Every residual
+belongs to a known class, so there is no new finding or conformance report.
+
+Every entry was rendered with FuzzTLA `3ce623d`. Apalache reruns used 0.62.2
+(build `f0dec98`) with `-Xmx1g`. TLC was not rerun: its rows are classified from
+the diagnostics stored with the entries, which do not record the TLC commit.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 32 | Apalache crash | out of heap at 1 GB; 31 apply `SeqInsertionSort`, `7de57303` applies `SetToSortedSeq` | [`apalache-performance-002`](../findings/apalache-performance/apalache-performance-002.md) |
+| 12 | Apalache timeout | worker timeouts | not rerun |
+| 3 | TLC crash | a label directly on `[][A]_v` in `Prop`: `must be of forms`, `6e54a44a`, `a2b2658b` and `c8970e74` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 1 | TLC crash | `StackOverflowError` (1005) in nested `ApaFoldSeqLeft` over `var1`, which grows fourfold in every step, `ea55848e` | [`tlc-performance-001`](../findings/tlc-performance/tlc-performance-001.md) |
+| 34 | aggregator | TLC pass, Apalache counterexample (33), or the reverse (`9559dd1e`): order-sensitive `ApaFoldSet` whose combinator returns its element, directly or through a nested fold, `Head(SeqReverse(x))` or `(FALSE => acc) <=> x` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: `CHOOSE b \in BOOLEAN` with a predicate both values satisfy, in `Inv` (`25860454`) and in `Next` (`b0338bdc`) | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass: `\E p \in ApaFoldSeqLeft(...)` whose combinator returns a function set keeps the transition disabled, `4c30c8a0` and `ab6d1a21` | [`apalache-bmc-021`](../findings/apalache-bmc/apalache-bmc-021.md) |
+
+The aggregator rows were classified by rerunning Apalache on the rendered JSON
+with the workflow's arguments, `--inv=Inv --temporal=Liveness --length=6
+--no-deadlock`. All 38 reproduce the corpus verdict.
+
+The current `recursion-insertion-sort` signature matches all 32 heap
+exhaustions. The corpus49 signature `apalache-always-action-bound`,
+`(GLOBALLY (STUTTER ...))`, also matched `Spec`'s `[][Next]_vars` and hence
+every input: 40 of 40 sampled `04quality-pass` entries. It is now
+`(GLOBALLY (STUTTER (~ (OPER_APP Next)) _))`, which uses the negation pattern
+added to the signature language for this purpose. It matches none of the 40 and
+still matches the three `tlc-013` entries, whose `Prop` is `[][A]_v`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

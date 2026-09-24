@@ -46,6 +46,9 @@ class PatternParserTest {
                 new IrPattern.Conjunction(List.of(
                         new IrPattern.Application(TlaOperators.CASE, List.of(), true), zero)),
                 PatternParser.parse("(& (CASE ...) 0)"));
+        assertEquals(
+                new IrPattern.Negation(new IrPattern.Application(TlaOperators.CASE, List.of(), true)),
+                PatternParser.parse("(~ (CASE ...))"));
     }
 
     @Test
@@ -69,6 +72,8 @@ class PatternParserTest {
         assertError("(.. _ _)", 1, "a descendant pattern takes one pattern");
         assertError("(&)", 1, "a conjunction takes at least one pattern");
         assertError("(& _", 1, "missing ')'");
+        assertError("(~)", 1, "a negation takes one pattern");
+        assertError("(~ _ _)", 1, "a negation takes one pattern");
     }
 
     private static void assertError(String pattern, int column, String message) {
