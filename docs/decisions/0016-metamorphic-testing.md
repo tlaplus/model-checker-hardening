@@ -268,7 +268,9 @@ The rewriter needs package access to `gen.engine`, whose `GenerationContext` and
   ([ir-generators.md §5][generators]).
 - The walk continues into the rewritten node, so rewrites stack. `max_rewrites`
   bounds the number of rewrites per body, and `max_rewrite_depth` bounds the
-  rewrites stacked on one node.
+  rewrites stacked on one node. `max_rewrite_growth` bounds the size of a rewritten
+  body: a rule that duplicates a parameter, such as `S = S \union S`, would otherwise
+  double the body with every rewrite. A first run produced a 635 MB Apalache input.
 - Once the input is exhausted, every marker reads even, so the rest of the tree is
   left unchanged, and M is explored.
 - Rewritable bodies are the operator definitions, `Init`, the next-state action,
@@ -428,6 +430,7 @@ A top-level `[metamorphic]` table, read only under `--how=mt`:
 | `lift_ratio` | 0.5 | Share of a generation admitted from lifted parents. |
 | `max_rewrites` | 16 | Rewrites per rewritable body. |
 | `max_rewrite_depth` | 4 | Rewrites stacked on one node. |
+| `max_rewrite_growth` | 2 | Times its original size a rewritten body may grow. |
 | `rules` | none | Rule module and its classpath ([ADR 0017][adr-0017]). |
 | `weights` | 1 per rule | Rule weights, keyed by rule name; 0 disables a rule, and their sum must be positive. |
 

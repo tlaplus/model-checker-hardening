@@ -44,15 +44,15 @@ class RewriterTest {
     void theLimitsBoundStackingAndRewritesPerBody() {
         var ones = new byte[64];
         java.util.Arrays.fill(ones, (byte) 1);
-        var shallow = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(16, 1))
+        var shallow = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(16, 1, 2))
                 .rewriteExpression(B.integer(7), new Draw(ones));
         // 7 becomes 7 + 0 once; the copy of 7 continues its stack, while the new 0 may become 0 + 0.
         assertEquals(B.plus(B.integer(7), B.plus(B.integer(0), B.integer(0))), shallow.rewritten());
         assertEquals(List.of("PlusZero", "PlusZero"), shallow.appliedRules());
-        var none = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(0, 4))
+        var none = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(0, 4, 2))
                 .rewriteExpression(SUM, new Draw(ones));
         assertTrue(none.isIdentity());
-        var bounded = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(3, 4))
+        var bounded = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(3, 4, 2))
                 .rewriteExpression(SUM, new Draw(ones));
         assertEquals(3, bounded.appliedRules().size());
     }
@@ -117,6 +117,21 @@ class RewriterTest {
         assertEquals(B.plus(B.integer(1), B.integer(0)), rewrite.rewritten().operators().getFirst().declaration().body());
         assertEquals(spec.initPredicate(), rewrite.rewritten().initPredicate());
         assertEquals(spec.nextAction(), rewrite.rewritten().nextAction());
+    }
+
+    /** UnionSelf duplicates its set; repeated, it would double the body with every rewrite. */
+    @Test
+    void aBodyGrowsAtMostByTheGrowthFactor() {
+        var ones = new byte[256];
+        java.util.Arrays.fill(ones, (byte) 1);
+        var set = B.enumSet(B.integer(1), B.integer(2), B.integer(3));
+        var rewrite = new Rewriter(library(unionSelf()), IrGenerationConfig.defaults(), new RewriteLimits(64, 4, 2))
+                .rewriteExpression(set, new Draw(ones));
+        var nodes = new int[1];
+        TlaExpressions.forEach(rewrite.rewritten(), ignored -> nodes[0]++);
+        assertTrue(!rewrite.isIdentity());
+        assertTrue(nodes[0] <= 4 * 2 + IrGenerationConfig.defaults().expressions().maximumNodes(),
+                nodes[0] + " nodes after " + rewrite.appliedRules().size() + " rewrites");
     }
 
     @Test

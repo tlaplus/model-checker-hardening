@@ -43,6 +43,11 @@ import org.apalache_mc.tla.jir.TlaTypes;
  *       RewriteLimits#maximumRewriteDepth()}, and then continues into it. A copy of the rewritten
  *       node inside its replacement, like the x of x + 0, is the same node and continues its stack.
  *       {@link RewriteLimits#maximumRewrites()} bounds the rewrites of one body.
+ *   <li>A rule applies only while the body stays within {@link RewriteLimits#maximumGrowth()}
+ *       times its original size, plus the node budget of one fresh operand. The size of a
+ *       replacement is estimated without bytes: each parameter counts the size of its binding, and
+ *       a fresh parameter one node, so the rewrite that crosses the bound overshoots it by its
+ *       fresh operands at most, and no rule applies to the body after it.
  *   <li>Exhausted input reads even markers, so the rest of the body stays as it is.
  * </ul>
  *
@@ -152,6 +157,8 @@ public final class Rewriter {
         private final OperandGenerator operands;
         private final List<String> applied = new ArrayList<>();
         private int rewrites;
+        private int bodySize;
+        private int sizeLimit;
 
         Walk(Draw draw, OperandGenerator operands) {
             this.draw = Objects.requireNonNull(draw, "draw");
@@ -161,6 +168,8 @@ public final class Rewriter {
         /** Rewrites one body under its own budget of rewrites. */
         TlaEx body(TlaEx expression, List<OperandGenerator.Name> scope) {
             rewrites = 0;
+            bodySize = size(expression);
+            sizeLimit = bodySize * limits.maximumGrowth() + freshSize();
             return visit(expression, scope, null);
         }
 
@@ -176,7 +185,9 @@ public final class Rewriter {
                     break;
                 }
                 var chosen = select(options, draw.drawIndex(slots, SELECTION_BYTES));
+                var replaced = current;
                 current = apply(chosen, scope);
+                bodySize += size(current) - size(replaced);
                 rewrites++;
                 applied.add(chosen.match().rule().name());
             }
@@ -241,6 +252,9 @@ public final class Rewriter {
                     continue;
                 }
                 RuleMatcher.match(rule, node).ifPresent(match -> {
+                    if (bodySize - size(node) + estimatedSize(match) > sizeLimit) {
+                        return;
+                    }
                     var residual = residual(match);
                     if (residual == null) {
                         options.add(new Option(match, null, Optional.empty()));
@@ -281,6 +295,23 @@ public final class Rewriter {
                     name -> operands.freshName(name.replaceAll("\\d+$", "")));
         }
 
+        /** Bounds the size of a match's replacement, before any fresh operand is drawn. */
+        private int estimatedSize(RuleMatch match) {
+            var rule = match.rule();
+            var total = new int[1];
+            TlaExpressions.forEach(rule.replacement(), node -> {
+                var parameter = node instanceof at.forsyte.apalache.tla.lir.NameEx name
+                        ? rule.parameter(name.name()) : Optional.<RuleParameter>empty();
+                total[0] += parameter.map(value -> value.kind() == RuleParameter.Kind.FRESH
+                        ? 1 : size(match.bindings().get(value.name()))).orElse(1);
+            });
+            return total[0];
+        }
+
+        private int freshSize() {
+            return generation.expressions().maximumNodes();
+        }
+
         /**
          * Returns an operator type over the type variables the match leaves open in the fresh
          * parameters and the replacement, or null when it leaves none.
@@ -298,5 +329,12 @@ public final class Rewriter {
             return TlaTypes.operator(TlaTypes.BOOL,
                     open.stream().map(TlaTypes::typeVariable).toArray(TlaType1[]::new));
         }
+    }
+
+    /** Counts the nodes of an expression. */
+    private static int size(TlaEx expression) {
+        var count = new int[1];
+        TlaExpressions.forEach(expression, ignored -> count[0]++);
+        return count[0];
     }
 }

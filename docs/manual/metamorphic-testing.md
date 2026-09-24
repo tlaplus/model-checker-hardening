@@ -41,6 +41,7 @@ base_corpus = "../corpus-conf"
 lift_ratio = 0.5
 max_rewrites = 16
 max_rewrite_depth = 4
+max_rewrite_growth = 2
 ```
 
 - **The technique is fixed.** The first run records `mt` in `.technique`. Later runs
