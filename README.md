@@ -181,6 +181,9 @@ richness_nesting_base = 2.0
 richness_threshold_base = 1.5
 ```
 
+A checker table (`[workflow.tlc]` or `[workflow.apalache]`), and any of its keys,
+may be omitted. An omitted key takes that checker's default, shown above.
+
 Every generated expression form has one category. `generator.ignore` excludes
 the selected categories, the structural types that require them, and forms that
 depend on their syntax. The available excludable categories are `action`,

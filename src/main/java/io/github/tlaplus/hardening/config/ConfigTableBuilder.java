@@ -42,14 +42,33 @@ final class ConfigTableBuilder<T> {
     ConfigSchema.Key<Integer> optionalInteger(
             String name, Function<T, Integer> field, ConfigSchema.Key<Integer> fallback,
             String... documentation) {
+        return optional(name, ConfigValueType.INTEGER, field,
+                new ConfigSchema.Inherited<>(Objects.requireNonNull(fallback, "fallback")), documentation);
+    }
+
+    /** An integer key a table may omit, in which case the key reads {@code absent}. */
+    ConfigSchema.Key<Integer> defaultedInteger(
+            String name, Function<T, Integer> field, int absent, String... documentation) {
+        return optional(name, ConfigValueType.INTEGER, field, new ConfigSchema.Constant<>(absent), documentation);
+    }
+
+    /** A key a table may omit, in which case the key reads {@code absent}. */
+    <U> ConfigSchema.Key<U> optional(
+            String name, ConfigValueType<U> type, Function<T, U> field, ConfigSchema.Default<U> absent,
+            String... documentation) {
         var key = new ConfigSchema.Key<>(
-                path, name, ConfigValueType.INTEGER, List.of(documentation), value.andThen(field),
-                Objects.requireNonNull(fallback, "fallback"));
+                path, name, type, List.of(documentation), value.andThen(field),
+                Objects.requireNonNull(absent, "absent"));
         keys.add(key);
         return key;
     }
 
     ConfigSchema.Table build() {
-        return new ConfigSchema.Table(path, keys);
+        return new ConfigSchema.Table(path, keys, false);
+    }
+
+    /** Builds a table the document may omit; every key must then be optional. */
+    ConfigSchema.Table buildOptional() {
+        return new ConfigSchema.Table(path, keys, true);
     }
 }
