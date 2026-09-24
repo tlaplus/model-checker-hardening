@@ -2,9 +2,26 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented, except the temporal relation of phase 4
 
 **Date:** 2026-09-24
+
+**Implementation.** Phases 1–3 and 5 are implemented on the branches
+`igor/mt-a-checkers` to `igor/mt-g-triage` (FuzzTLA `dc3faf4`, TLC `4260e47`, Apalache 0.62.2
+`f0dec98`). A module's property and fairness are left out of the relation, and no
+temporal rule is loaded, until phase 4. Running the implementation changed three
+details, recorded where they apply:
+
+- `max_rewrite_growth` bounds the size of a rewritten body (section 2): a first run
+  produced a 635 MB Apalache input.
+- A rewrite keeps the assignments of `Init`, where TLC assigns unprimed variables,
+  and binds a primed or UNCHANGED parameter only to a name ([ADR 0017][adr-0017] §5).
+- A pair in which no rule applied is rejected by the decoder (section 2).
+
+On generated modules the relation holds two copies of the module, so Apalache times
+out more often than on conformance inputs at the default 30 s. Apalache also gives
+the two copies of a partial term such as `CHOOSE x \in {} : TRUE` arbitrary values
+that may differ; such a counterexample is not a defect, as in conformance corpora.
 
 ## Context
 

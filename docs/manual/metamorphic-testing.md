@@ -1,6 +1,6 @@
 # Metamorphic testing
 
-> **Status:** Proposed. Nothing on this page is implemented yet.
+> **Status:** Implemented, except temporal properties (section 6).
 > [ADR 0016](../decisions/0016-metamorphic-testing.md) records the design and the probes
 > behind it, and [ADR 0017](../decisions/0017-rewrite-rule-library.md) the rule format.
 > The rule catalog will be specified in a later ADR.

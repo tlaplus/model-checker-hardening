@@ -2,9 +2,16 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented, except temporal rules and TLC-only recursive rules
 
 **Date:** 2026-09-24
+
+**Implementation.** The loader, matcher and rewriter are implemented as proposed
+(FuzzTLA `dc3faf4`). `libraries/rewrites/Rewrites.tla` ships the six non-temporal seed
+rules; `AlwaysTwice` waits for temporal rewriting, and the loader rejects a rule whose
+pattern is temporal. TLC-only recursive rules wait for the catalog ADR. Section 5.2 now
+compares level classes, so `UnchangedPrime` passes, and section 5.3 covers `Init` and
+primed parameters.
 
 ## Context
 
