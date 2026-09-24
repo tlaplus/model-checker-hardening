@@ -16,7 +16,6 @@ import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.workflow.CorpusReplay;
-import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -123,7 +122,7 @@ final class PrintCommand implements Callable<Integer> {
             var artifact = decoders.decode(corpusInput);
             if (!knownDefects.isEmpty()) {
                 print(KnownDefectReport.render(
-                        database.matches(artifact.module(), FuzzInputModule.ENTRY_POINTS)));
+                        database.matches(artifact.module(), artifact.entryPoints())));
                 return CommandLine.ExitCode.OK;
             }
             var rendered = DecodedInputRenderer.render(artifact, renderMode());

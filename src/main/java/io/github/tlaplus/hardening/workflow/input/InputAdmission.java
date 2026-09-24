@@ -6,7 +6,6 @@ import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.signature.KnownDefectMatch;
-import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.io.IOException;
@@ -77,7 +76,7 @@ public final class InputAdmission {
         if (!SpecText.withinWorkerProtocolLimit(artifact.module())) {
             return new Decision.ExceedsRequestFrame();
         }
-        var matches = knownDefects.matches(artifact.module(), FuzzInputModule.ENTRY_POINTS);
+        var matches = knownDefects.matches(artifact.module(), artifact.entryPoints());
         if (!matches.isEmpty()) {
             return new Decision.KnownDefect(
                     matches.stream().map(KnownDefectMatch::defect).map(defect -> defect.id()).toList());

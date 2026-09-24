@@ -7,7 +7,7 @@ import java.util.Objects;
 
 /**
  * Replays a stored input and counts the expression constructs of the code the checkers evaluate: the
- * definitions reachable from {@link FuzzInputModule#ENTRY_POINTS}.
+ * definitions reachable from {@link SpecArtifact#entryPoints()}.
  *
  * <p>Instances hold no mutable state and may be called from several threads, as the workflow
  * stages share one {@link SpecDecoders}.
@@ -27,7 +27,7 @@ public final class EvaluatedExprs {
      */
     public ExprCounts count(CorpusInput input) {
         Objects.requireNonNull(input, "input");
-        return IrExprCounts.evaluated(
-                decoders.decode(input).module(), FuzzInputModule.ENTRY_POINTS);
+        var artifact = decoders.decode(input);
+        return IrExprCounts.evaluated(artifact.module(), artifact.entryPoints());
     }
 }
