@@ -62,14 +62,14 @@ public record EntryProgress(int generation, Map<CorpusStage, CorpusVerdict> verd
      * judged it, or every checker branch finished and at least one crashed — a crash leaves the
      * entry in that checker's directory and never reaches the aggregator.
      */
-    public boolean isSettled() {
+    public boolean isSettled(CheckerSet checkers) {
         if (verdict(CorpusStage.PARSER).filter(verdict -> verdict != CorpusVerdict.PASS).isPresent()) {
             return true;
         }
         if (verdicts.containsKey(CorpusStage.AGGREGATOR)) {
             return true;
         }
-        var branches = CorpusStage.checkerBranches();
+        var branches = checkers.stages();
         return branches.stream().allMatch(verdicts::containsKey)
                 && branches.stream().anyMatch(branch -> verdicts.get(branch) == CorpusVerdict.CRASH);
     }

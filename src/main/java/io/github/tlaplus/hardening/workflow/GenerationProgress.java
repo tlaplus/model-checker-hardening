@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 
 /**
  * Where every generation of a run stands, tracked from stage events instead of a corpus rescan
@@ -45,9 +46,11 @@ final class GenerationProgress implements WorkflowEvents {
     private final Map<EntryName, Set<CorpusStage>> lateCheckers = new HashMap<>();
     private final Map<Integer, Counts> generations = new HashMap<>();
     private final WorkflowControl control;
+    private final CheckerSet checkers;
 
-    GenerationProgress(CorpusInventory initial, WorkflowControl control) {
+    GenerationProgress(CorpusInventory initial, WorkflowControl control, CheckerSet checkers) {
         this.control = Objects.requireNonNull(control, "control");
+        this.checkers = Objects.requireNonNull(checkers, "checkers");
         Objects.requireNonNull(initial, "initial");
         synchronized (lock) {
             initial.generations().forEach((generation, admitted) -> {
@@ -94,7 +97,7 @@ final class GenerationProgress implements WorkflowEvents {
                 return;
             }
             var updated = previous.with(stage, verdict);
-            if (updated.isSettled()) {
+            if (updated.isSettled(checkers)) {
                 unsettled.remove(entry);
                 rememberLateCheckers(entry, updated);
                 counts(updated.generation()).unsettled--;
@@ -111,7 +114,7 @@ final class GenerationProgress implements WorkflowEvents {
             return;
         }
         var missing = EnumSet.noneOf(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             if (settled.verdict(checker).isEmpty()) {
                 missing.add(checker);
             }

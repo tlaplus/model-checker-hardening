@@ -66,13 +66,15 @@ public record CorpusInventory(
             }
         }
 
-        // A parser pass exists once per checker branch, so each branch accounts for all of them.
+        // A parser pass exists once per checker branch the corpus runs, so each such branch accounts
+        // for all of them; a branch the corpus does not run holds nothing.
         var parserPasses = stages.get(CorpusStage.PARSER)
                 .counts()
                 .count(CorpusVerdict.PASS);
         for (var checker : CorpusStage.checkerBranches()) {
             var branch = stages.get(checker);
-            Preconditions.require(parserPasses == branch.pending().size() + branch.counts().processed(),
+            var held = branch.pending().size() + branch.counts().processed();
+            Preconditions.require(held == 0 || parserPasses == held,
                     "each parser pass must have one entry in each checker branch");
         }
     }

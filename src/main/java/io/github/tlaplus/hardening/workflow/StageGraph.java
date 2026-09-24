@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 
 /**
  * The stages that run one workflow invocation, wired to their queues, result capacities, and shared
@@ -52,11 +53,13 @@ import java.util.concurrent.Semaphore;
  */
 final class StageGraph {
     /** What every invocation of one runner shares. */
-    record Setup(FuzzTlaConfig config, SpecDecoders decoders, KnownDefectDatabase knownDefects) {
+    record Setup(
+            FuzzTlaConfig config, SpecDecoders decoders, KnownDefectDatabase knownDefects, CheckerSet checkers) {
         Setup {
             Objects.requireNonNull(config, "config");
             Objects.requireNonNull(decoders, "decoders");
             Objects.requireNonNull(knownDefects, "knownDefects");
+            Objects.requireNonNull(checkers, "checkers");
         }
     }
 
@@ -106,7 +109,7 @@ final class StageGraph {
         }
         control = new WorkflowControl(queues.values().toArray(WorkQueue<?>[]::new));
         // Built before anything is queued: a generation-ordered queue compares through it.
-        progress = new GenerationProgress(initial, control);
+        progress = new GenerationProgress(initial, control, setup.checkers());
         for (var stage : CorpusStage.values()) {
             initial.pending(stage).forEach(queues.get(stage)::submit);
         }
@@ -122,7 +125,7 @@ final class StageGraph {
                 true);
 
         var checkerCapacities = new EnumMap<CorpusStage, OccupancyGate>(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : setup.checkers()) {
             checkerCapacities.put(checker, resultCapacity(workflow, initial, checker));
             checkers.put(
                     checker,
@@ -156,7 +159,7 @@ final class StageGraph {
                         setup.config().libraries().sourceCheckerClasspath()),
                 new ParserRouting(
                         resultCapacity(workflow, initial, CorpusStage.PARSER),
-                        checkerQueues(),
+                        checkerQueues(setup.checkers()),
                         inputCapacity),
                 counters.get(CorpusStage.PARSER),
                 environment,
@@ -297,10 +300,10 @@ final class StageGraph {
         return progress.generationOf(EntryName.of(path));
     }
 
-    /** Returns the queue each checker branch takes its work from. */
-    private Map<CorpusStage, WorkQueue<Path>> checkerQueues() {
+    /** Returns the queue each checker branch the corpus runs takes its work from. */
+    private Map<CorpusStage, WorkQueue<Path>> checkerQueues(CheckerSet checkers) {
         var result = new EnumMap<CorpusStage, WorkQueue<Path>>(CorpusStage.class);
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             result.put(checker, queues.get(checker));
         }
         return result;

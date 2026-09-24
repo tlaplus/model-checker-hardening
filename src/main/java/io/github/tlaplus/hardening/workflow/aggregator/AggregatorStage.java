@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Collections;
+import java.util.EnumMap;
 
 /** Joins completed TLC and Apalache results with one in-process worker. */
 public final class AggregatorStage implements WorkflowStage {
@@ -42,14 +44,11 @@ public final class AggregatorStage implements WorkflowStage {
         this.environment = Objects.requireNonNull(environment, "environment");
         this.counters = Objects.requireNonNull(counters, "counters");
         this.input = Objects.requireNonNull(input, "input");
-        this.checkerCapacities = EnumMaps.requireKeys(
-                CorpusStage.class,
-                checkerCapacities,
-                CorpusStage.checkerBranches(),
-                "checkerCapacities");
-        Preconditions.require(
-                this.checkerCapacities.size() == CorpusStage.checkerBranches().size(),
-                "checkerCapacities must name only checker branches");
+        Objects.requireNonNull(checkerCapacities, "checkerCapacities");
+        Preconditions.require(!checkerCapacities.isEmpty()
+                        && CorpusStage.checkerBranches().containsAll(checkerCapacities.keySet()),
+                "checkerCapacities must name the checker branches the corpus runs");
+        this.checkerCapacities = Collections.unmodifiableMap(new EnumMap<>(checkerCapacities));
         recoveredRemaining = new AtomicInteger(Math.toIntExact(recoveredCandidates));
         recoveredDrained = new CountDownLatch(recoveredCandidates == 0 ? 0 : 1);
         jobs = new StageJobLoop<>(
@@ -112,9 +111,7 @@ public final class AggregatorStage implements WorkflowStage {
             environment.corpus().completeAggregation(
                     input,
                     new StageResult(verdict, startTime, StageResult.endedNow(startTime)));
-            for (var checker : CorpusStage.checkerBranches()) {
-                checkerCapacities.get(checker).release();
-            }
+            checkerCapacities.values().forEach(OccupancyGate::release);
             counters.record(verdict);
             // Reported only now: completeAggregation has moved the entry, so an observer that acts
             // on this — the quality gate does — finds it in the aggregator's result directory.

@@ -3,7 +3,8 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
-import io.github.tlaplus.hardening.corpus.AggregationPolicy;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
+import io.github.tlaplus.hardening.corpus.CheckingPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -42,6 +43,7 @@ public final class WorkflowRunner {
     private final StageGraph.Setup setup;
     private final OccupancyLimits limits;
     private final Technique technique;
+    private final CheckingPolicy checking;
 
     public WorkflowRunner(FuzzTlaConfig config, Technique technique) throws WorkflowException {
         this(config, technique, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
@@ -52,6 +54,7 @@ public final class WorkflowRunner {
             throws WorkflowException {
         Objects.requireNonNull(config, "config");
         this.technique = Objects.requireNonNull(technique, "technique");
+        checking = CheckingPolicy.of(technique, CheckerSet.ALL);
         final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
@@ -59,8 +62,8 @@ public final class WorkflowRunner {
             throw new WorkflowException(
                     "invalid known-defect database: " + exception.getMessage(), exception);
         }
-        setup = new StageGraph.Setup(config, decoders, knownDefects);
-        limits = new OccupancyLimits(config.workflow());
+        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers());
+        limits = new OccupancyLimits(config.workflow(), checking.checkers());
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
@@ -103,8 +106,7 @@ public final class WorkflowRunner {
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             CorpusTechnique.verify(corpus, technique, true);
             LibraryManifest.verify(corpus, setup.decoders().libraryManifest(), true);
-            var initial = corpus.recoverAndValidate(
-                    entryValidator(), AggregationPolicy.of(technique));
+            var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
             var statistics = new RunStatisticsOnExit(corpus, metrics, invocationElapsed);

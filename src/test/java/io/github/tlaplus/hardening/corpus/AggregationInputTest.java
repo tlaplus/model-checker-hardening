@@ -55,7 +55,7 @@ class AggregationInputTest {
                 () -> new AggregationInput(
                         Path.of("candidate.cbor"),
                         Map.of(CorpusStage.TLC, CorpusVerdict.PASS),
-                        Oracle.CONFORMANCE));
+                        CheckingPolicy.DEFAULT));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> input(CorpusVerdict.CRASH, CorpusVerdict.PASS));
@@ -69,6 +69,6 @@ class AggregationInputTest {
                         tlc,
                         CorpusStage.APALACHE,
                         apalache),
-                Oracle.CONFORMANCE);
+                CheckingPolicy.DEFAULT);
     }
 }

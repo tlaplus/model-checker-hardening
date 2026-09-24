@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.config.WorkflowConfig;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.util.Objects;
@@ -8,9 +9,11 @@ import java.util.Objects;
 /** Checks an invocation and a recovered corpus against the configured capacity limits. */
 final class OccupancyLimits {
     private final WorkflowConfig workflow;
+    private final CheckerSet checkers;
 
-    OccupancyLimits(WorkflowConfig workflow) {
+    OccupancyLimits(WorkflowConfig workflow, CheckerSet checkers) {
         this.workflow = Objects.requireNonNull(workflow, "workflow");
+        this.checkers = Objects.requireNonNull(checkers, "checkers");
     }
 
     /** Rejects a CPU limit this host cannot provide or a checker cannot run within. */
@@ -20,7 +23,7 @@ final class OccupancyLimits {
             throw new IllegalArgumentException(
                     "maximumCpus must be in the range 1.." + availableCpus);
         }
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             if (workflow.checker(checker).workers() > maximumCpus) {
                 throw new WorkflowException(
                         "workflow."
@@ -56,7 +59,7 @@ final class OccupancyLimits {
      */
     boolean exhausted(CorpusInventory initial) {
         var aggregationCanReleaseCapacity = initial.pendingEntries(CorpusStage.AGGREGATOR) > 0;
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             if (initial.resultEntries(checker) >= workflow.maximumEntries(checker)
                     && initial.pendingEntries(checker) > 0
                     && !aggregationCanReleaseCapacity) {
