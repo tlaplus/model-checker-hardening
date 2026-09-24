@@ -1,18 +1,20 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.EntryName;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.corpus.EntryProgress;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowEvents;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import io.github.tlaplus.hardening.corpus.CheckerSet;
 
 /**
  * Where every generation of a run stands, tracked from stage events instead of a corpus rescan
@@ -56,7 +58,7 @@ final class GenerationProgress implements WorkflowEvents {
             initial.generations().forEach((generation, admitted) -> {
                 var counts = counts(generation);
                 counts.admitted = admitted.entries();
-                counts.mutants = admitted.mutants();
+                counts.origins.putAll(admitted.admitted());
             });
             initial.unsettled().forEach((name, progress) -> {
                 unsettled.put(name, progress);
@@ -67,7 +69,8 @@ final class GenerationProgress implements WorkflowEvents {
     }
 
     @Override
-    public void admitted(EntryName entry, int generation, boolean mutant) {
+    public void admitted(EntryName entry, int generation, EntryOrigin origin) {
+        Objects.requireNonNull(origin, "origin");
         Objects.requireNonNull(entry, "entry");
         synchronized (lock) {
             if (unsettled.putIfAbsent(entry, EntryProgress.admitted(generation)) != null) {
@@ -76,9 +79,7 @@ final class GenerationProgress implements WorkflowEvents {
             var counts = counts(generation);
             counts.admitted++;
             counts.unsettled++;
-            if (mutant) {
-                counts.mutants++;
-            }
+            counts.origins.merge(origin, 1L, Long::sum);
             lock.notifyAll();
         }
     }
@@ -151,10 +152,10 @@ final class GenerationProgress implements WorkflowEvents {
         }
     }
 
-    /** Returns how many of one generation's admitted entries are mutants. */
-    long mutants(int generation) {
+    /** Returns how many of one generation's admitted entries came from each origin. */
+    Map<EntryOrigin, Long> admittedByOrigin(int generation) {
         synchronized (lock) {
-            return counts(generation).mutants;
+            return Map.copyOf(counts(generation).origins);
         }
     }
 
@@ -203,7 +204,7 @@ final class GenerationProgress implements WorkflowEvents {
 
     private static final class Counts {
         long admitted;
-        long mutants;
+        final Map<EntryOrigin, Long> origins = new EnumMap<>(EntryOrigin.class);
         long unsettled;
     }
 }

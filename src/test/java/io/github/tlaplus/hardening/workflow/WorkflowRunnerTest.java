@@ -18,6 +18,7 @@ import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
@@ -363,7 +364,7 @@ class WorkflowRunnerTest {
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
         assertEquals(4, summary.corpus().entries(0));
         assertEquals(4, summary.corpus().entries(1));
-        assertEquals(2, summary.corpus().mutants(1));
+        assertEquals(2, summary.corpus().admitted(1, EntryOrigin.MUTANT));
         assertEquals(0, summary.corpus().unsettled().size());
     }
 

@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.mutation.ByteMutator;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.input.CandidateSource;
@@ -26,9 +27,10 @@ import java.util.Objects;
  * stage admits and when the quality gate runs. For each generation g it
  *
  * <ol>
- *   <li>admits what g still lacks — its mutant prefix from the parents {@code 04quality-pass} holds,
- *       then its PBT suffix — and waits until every one of those entries is stored;
- *   <li>admits the PBT suffix of g + 1 while g's checker tail is still running, which is what keeps
+ *   <li>admits what g still lacks, one {@link EntryOrigin} range after the other — mutants of the
+ *       parents {@code 04quality-pass} holds, lifted entries, then PBT — and waits until every one
+ *       of those entries is stored;
+ *   <li>admits the PBT range of g + 1 while g's checker tail is still running, which is what keeps
  *       the CPUs busy across a generation boundary;
  *   <li>waits until every entry of g has settled, runs the gate over g, and moves on.
  * </ol>
@@ -183,42 +185,44 @@ final class GenerationLoop {
         return Math.max(0, Math.min(setup.config().mutator().generationSize(), remaining));
     }
 
-    /** Admits everything a generation still lacks: its mutant prefix first, then its PBT suffix. */
+    /** Admits everything a generation still lacks, one origin's range after the other. */
     private void admit(int generation) throws IOException, CorpusException {
         var targets = targets(generation);
-        if (targets.remaining() <= 0) {
-            return;
+        for (var origin : EntryOrigin.values()) {
+            var count = targets.remaining(origin);
+            if (count > 0) {
+                submit(generation, targets.reserve(origin, count), count, source(origin));
+            }
         }
-        var prefix = targets.prefixRemaining();
-        if (prefix > 0) {
-            var source = prefixSource();
-            submit(generation, targets.reservePrefix(prefix), prefix, source);
-        }
-        var suffix = targets.suffixRemaining();
-        if (suffix > 0) {
-            submit(generation, targets.reserveSuffix(suffix), suffix, new PbtCandidates(setup.config().pbt()));
-        }
+    }
+
+    /** Returns the source that fills the range of {@code origin}. */
+    private CandidateSource source(EntryOrigin origin) throws IOException, CorpusException {
+        return switch (origin) {
+            case MUTANT -> mutantSource();
+            case LIFTED, PBT -> new PbtCandidates(setup.config().pbt());
+        };
     }
 
     /**
      * Admits the PBT suffix of the generation after the current one, so its entries parse and check
-     * while the current generation's checker tail runs. Its mutant prefix cannot follow yet: the
+     * while the current generation's checker tail runs. Its mutant range cannot follow yet: the
      * parents it would mutate are whatever the pending quality gate selects.
      */
     private void admitPbtAhead(int generation) {
         var targets = targets(generation);
-        var suffix = targets.suffixRemaining();
-        if (suffix > 0) {
-            submit(generation, targets.reserveSuffix(suffix), suffix, new PbtCandidates(setup.config().pbt()));
+        var count = targets.remaining(EntryOrigin.PBT);
+        if (count > 0) {
+            submit(generation, targets.reserve(EntryOrigin.PBT, count), count, new PbtCandidates(setup.config().pbt()));
         }
     }
 
     /**
-     * Returns the source that fills a generation's mutant prefix. Until an entry has passed the
+     * Returns the source that fills a generation's mutant range. Until an entry has passed the
      * quality gate there is nothing to mutate — generation 0 never reaches here, but a later
-     * generation whose predecessors were all dropped can — and PBT fills the prefix instead.
+     * generation whose predecessors were all dropped can — and PBT fills the range instead.
      */
-    private CandidateSource prefixSource() throws IOException, CorpusException {
+    private CandidateSource mutantSource() throws IOException, CorpusException {
         var kind = setup.config().generatedKind();
         var parents = ParentPool.load(invocation.corpus(), kind, setup.decoders().decoder(kind));
         if (parents.isEmpty()) {
@@ -246,9 +250,8 @@ final class GenerationLoop {
     private GenerationTargets targets(int generation) {
         return reservations.computeIfAbsent(generation, number -> GenerationTargets.resuming(
                 size(number),
-                GenerationTargets.mutantShare(
-                        size(number), number, setup.config().mutator().feedbackRatio()),
-                progress.admitted(number),
-                progress.mutants(number)));
+                Map.of(EntryOrigin.MUTANT, GenerationTargets.mutantShare(
+                        size(number), number, setup.config().mutator().feedbackRatio())),
+                progress.admittedByOrigin(number)));
     }
 }

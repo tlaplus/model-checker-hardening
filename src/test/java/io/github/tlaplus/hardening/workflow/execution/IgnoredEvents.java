@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.execution;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.EntryName;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 
 /**
  * A {@link WorkflowEvents} that tracks nothing, for stages exercised outside generation scheduling.
@@ -14,7 +15,7 @@ public final class IgnoredEvents implements WorkflowEvents {
     private IgnoredEvents() {}
 
     @Override
-    public void admitted(EntryName entry, int generation, boolean mutant) {}
+    public void admitted(EntryName entry, int generation, EntryOrigin origin) {}
 
     @Override
     public void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict) {}

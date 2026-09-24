@@ -350,7 +350,7 @@ final class InventoryScan {
 
     /**
      * The logical entries seen so far: each name once, however many physical copies it has, and
-     * how many of them, and of their mutants, each generation admitted.
+     * how many of them each generation admitted, by origin.
      */
     private static final class LogicalEntries {
         private final CheckerSet checkers;
@@ -384,14 +384,9 @@ final class InventoryScan {
                         }
                         generations.merge(
                                 generation,
-                                new CorpusInventory.GenerationEntries(
-                                        1,
-                                        metadata.mutation().isPresent() ? 1 : 0,
-                                        progress.isUngated() ? 1 : 0),
-                                (left, right) -> new CorpusInventory.GenerationEntries(
-                                        left.entries() + right.entries(),
-                                        left.mutants() + right.mutants(),
-                                        left.ungated() + right.ungated()));
+                                CorpusInventory.GenerationEntries.of(
+                                        EntryOrigin.of(metadata.mutation()), progress.isUngated()),
+                                CorpusInventory.GenerationEntries::plus);
                         if (!progress.isSettled(checkers)) {
                             unsettled.put(name, progress);
                         }

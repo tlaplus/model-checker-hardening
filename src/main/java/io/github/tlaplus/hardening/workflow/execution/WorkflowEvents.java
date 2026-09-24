@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.execution;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.EntryName;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 
 /**
  * Durable admission and stage transitions, reported to whatever schedules generations (ADR 0010).
@@ -25,7 +26,7 @@ public interface WorkflowEvents {
     int UNKNOWN_GENERATION = Integer.MAX_VALUE;
 
     /** Reports that an entry was stored in the corpus and belongs to {@code generation}. */
-    void admitted(EntryName entry, int generation, boolean mutant);
+    void admitted(EntryName entry, int generation, EntryOrigin origin);
 
     /** Reports the verdict one stage durably recorded on an entry. */
     void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict);

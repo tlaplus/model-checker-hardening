@@ -1004,7 +1004,7 @@ class CorpusDirectoryTest {
         assertEquals(3, inventory.latestGeneration());
         assertEquals(2, inventory.entries(2));
         assertEquals(1, inventory.entries(3));
-        assertEquals(0, inventory.mutants(3));
+        assertEquals(0, inventory.admitted(3, EntryOrigin.MUTANT));
     }
 
     @Test

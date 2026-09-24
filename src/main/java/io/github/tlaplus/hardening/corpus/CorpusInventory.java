@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.common.Preconditions;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,16 +26,44 @@ public record CorpusInventory(
         SortedMap<Integer, GenerationEntries> generations,
         Map<EntryName, EntryProgress> unsettled) {
     /**
-     * What one generation holds: the logical entries it admitted, how many of them are mutants, and
-     * how many the aggregator passed but the quality gate has not judged.
+     * What one generation holds: the logical entries it admitted by origin, and how many the
+     * aggregator passed but the quality gate has not judged.
      */
-    public record GenerationEntries(long entries, long mutants, long ungated) {
+    public record GenerationEntries(Map<EntryOrigin, Long> admitted, long ungated) {
         public GenerationEntries {
+            var copy = new EnumMap<EntryOrigin, Long>(EntryOrigin.class);
+            Objects.requireNonNull(admitted, "admitted").forEach((origin, count) -> {
+                Preconditions.requireNonnegative(count, "admitted " + origin);
+                if (count > 0) copy.put(origin, count);
+            });
+            admitted = Collections.unmodifiableMap(copy);
+            var entries = copy.values().stream().mapToLong(Long::longValue).sum();
             Preconditions.requirePositive(Math.toIntExact(entries), "entries");
-            Preconditions.require(mutants >= 0 && mutants <= entries,
-                    "mutants must be in the range 0..entries");
             Preconditions.require(ungated >= 0 && ungated <= entries,
                     "ungated must be in the range 0..entries");
+        }
+
+        /** One admitted entry of {@code origin}, ungated or not. */
+        public static GenerationEntries of(EntryOrigin origin, boolean ungated) {
+            return new GenerationEntries(Map.of(origin, 1L), ungated ? 1 : 0);
+        }
+
+        /** Returns how many logical entries the generation admitted. */
+        public long entries() {
+            return admitted.values().stream().mapToLong(Long::longValue).sum();
+        }
+
+        /** Returns how many of them one source admitted. */
+        public long admitted(EntryOrigin origin) {
+            return admitted.getOrDefault(origin, 0L);
+        }
+
+        /** Adds the entries of {@code other}. */
+        public GenerationEntries plus(GenerationEntries other) {
+            var sum = new EnumMap<EntryOrigin, Long>(EntryOrigin.class);
+            sum.putAll(admitted);
+            other.admitted.forEach((origin, count) -> sum.merge(origin, count, Long::sum));
+            return new GenerationEntries(sum, ungated + other.ungated);
         }
     }
 
@@ -118,10 +147,10 @@ public record CorpusInventory(
         return admitted == null ? 0 : admitted.entries();
     }
 
-    /** Returns how many of the logical entries one generation admitted are mutants. */
-    public long mutants(int generation) {
+    /** Returns how many of the logical entries one generation admitted came from {@code origin}. */
+    public long admitted(int generation, EntryOrigin origin) {
         var admitted = generations.get(generation);
-        return admitted == null ? 0 : admitted.mutants();
+        return admitted == null ? 0 : admitted.admitted(origin);
     }
 
     /** Returns how many of one generation's entries the aggregator passed and the gate has not judged. */
