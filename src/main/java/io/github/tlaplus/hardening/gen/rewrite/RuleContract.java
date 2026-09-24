@@ -154,8 +154,7 @@ final class RuleContract {
     /** Precomputes where the Boolean matched parameters end up in the replacement (ADR 0017 §5.3). */
     private static AssignmentFacts assignments(TlaEx pattern, TlaEx replacement, List<RuleParameter> parameters) {
         var booleans = parameters.stream()
-                .filter(parameter -> parameter.kind() == RuleParameter.Kind.MATCHED)
-                .filter(parameter -> parameter.type().equals(TlaTypes.BOOL))
+                .filter(RuleContract::carriesFormulas)
                 .map(RuleParameter::name)
                 .collect(java.util.stream.Collectors.toSet());
         var occurrences = new HashMap<String, List<Boolean>>();
@@ -194,10 +193,26 @@ final class RuleContract {
         }
     }
 
+    /**
+     * Whether a match can bind the parameter to a formula that assigns: a Boolean matched parameter,
+     * or a higher-order parameter whose applications are Boolean.
+     */
+    static boolean carriesFormulas(RuleParameter parameter) {
+        return switch (parameter.kind()) {
+            case MATCHED -> parameter.type().equals(TlaTypes.BOOL);
+            case HIGHER_ORDER -> ((OperT1) parameter.type()).res().equals(TlaTypes.BOOL);
+            case FRESH -> false;
+        };
+    }
+
     /** Whether TLC treats an equation in argument {@code index} of {@code operator} as an assignment. */
     private static boolean keepsAssignments(TlaOper operator, int index) {
         if (operator == AND || operator == OR) {
             return true;
+        }
+        if (operator == OPER_APP) {
+            // The applied parameter stands for its application, where the lambda body lands.
+            return index == 0;
         }
         if (operator == IF_THEN_ELSE) {
             return index > 0;

@@ -37,6 +37,22 @@ public final class IrNames {
         return Set.copyOf(free);
     }
 
+    /** Returns every name {@code expression} binds: quantified variables, LET definitions and their parameters. */
+    public static Set<String> bound(TlaEx expression) {
+        var bound = new LinkedHashSet<String>();
+        TlaExpressions.forEach(expression, node -> {
+            if (node instanceof OperEx application) {
+                IrBinding.boundNames(application).forEach(name -> bound.add(name.name()));
+            } else if (node instanceof LetInEx let) {
+                for (var declaration : TlaExpressions.localDeclarations(let)) {
+                    bound.add(declaration.name());
+                    TlaDeclarations.parameters(declaration).forEach(parameter -> bound.add(parameter.name()));
+                }
+            }
+        });
+        return Set.copyOf(bound);
+    }
+
     private static void collectFree(TlaEx expression, Set<String> bound, Set<String> free) {
         switch (expression) {
             case NameEx name -> {
