@@ -150,7 +150,8 @@ public final class TomlConfig {
                 new ParserStageConfig(
                         ConfigSchema.PARSER_MAXIMUM_ENTRIES.read(tables),
                         ConfigSchema.PARSER_TIMEOUT_SECONDS.read(tables)),
-                checkers);
+                checkers,
+                ConfigSchema.ENABLED_CHECKERS.read(tables));
 
         var pbtConfig = new PbtConfig(
                 ConfigSchema.MAXIMUM_INPUT_BYTES.read(tables),

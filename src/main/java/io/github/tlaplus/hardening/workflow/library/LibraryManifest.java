@@ -49,8 +49,8 @@ public final class LibraryManifest {
         return text.toString();
     }
 
-    private static final ReplayRecord RECORD = new ReplayRecord(
-            CorpusRecord.LIBRARY_MANIFEST, "", (saved, expected) -> saved.isEmpty()
+    private static final ReplayRecord<String> RECORD = new ReplayRecord<>(
+            CorpusRecord.LIBRARY_MANIFEST, "", ReplayRecord.Codec.TEXT, (saved, expected) -> saved.isEmpty()
                     ? "custom operator replay manifest is missing; start with an empty corpus"
                     : "custom operator library changed: restore its sources, classpath files, selections and "
                             + "Apalache distribution, or initialize a new corpus");

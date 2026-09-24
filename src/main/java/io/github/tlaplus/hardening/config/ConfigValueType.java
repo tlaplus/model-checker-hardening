@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.corpus.CheckerSet;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputKind;
@@ -71,6 +73,8 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     static final ConfigValueType<Map<ExpressionKind, Integer>> WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readWeights, ConfigValueType::formatWeights);
+
+    static final ConfigValueType<CheckerSet> CHECKERS = checkers();
 
     static final ConfigValueType<InputKind> INPUT_KIND = new ConfigValueType<>(
             ConfigValueType::readInputKind, kind -> quote(kind.encodedName()));
@@ -258,6 +262,31 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                                 + Arrays.stream(InputKind.values())
                                         .map(InputKind::encodedName)
                                         .collect(Collectors.joining(", "))));
+    }
+
+    /**
+     * Returns the type of a checker set written as an array of checker names, such as {@code
+     * ["tlc"]}, rendered in stage order.
+     */
+    private static ConfigValueType<CheckerSet> checkers() {
+        var byName = CorpusStage.checkerBranches().stream()
+                .collect(Collectors.toUnmodifiableMap(CorpusStage::metadataName, stage -> stage));
+        return new ConfigValueType<>(
+                (table, path, key) -> {
+                    var stages = new ArrayList<CorpusStage>();
+                    for (var text : strings(array(table, path, key), path)) {
+                        var stage = constant(byName, text, path, "checker");
+                        if (stages.contains(stage)) {
+                            throw new ConfigException("checker '" + text + "' is listed twice in '" + path + "'");
+                        }
+                        stages.add(stage);
+                    }
+                    if (stages.isEmpty()) {
+                        throw new ConfigException("expected '" + path + "' to name at least one checker");
+                    }
+                    return new CheckerSet(stages);
+                },
+                checkers -> formatList(checkers.stages().stream().map(CorpusStage::metadataName).toList()));
     }
 
     /** Returns the type of one enum constant written as its name. */

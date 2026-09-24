@@ -8,7 +8,9 @@ public enum CorpusRecord {
     /** The Apalache distribution, sources and selection of a custom operator library. */
     LIBRARY_MANIFEST(CorpusPath.LIBRARY_MANIFEST, "library-", "library manifest"),
     /** The fuzzing technique the corpus runs (ADR 0016 §1). */
-    TECHNIQUE(CorpusPath.TECHNIQUE, "technique-", "technique record");
+    TECHNIQUE(CorpusPath.TECHNIQUE, "technique-", "technique record"),
+    /** The checker branches the corpus runs (ADR 0016 §5). */
+    CHECKERS(CorpusPath.CHECKERS, "checkers-", "checker record");
 
     private final CorpusPath path;
     private final String temporaryPrefix;

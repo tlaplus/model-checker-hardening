@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
@@ -243,6 +244,11 @@ final class ConfigSchema {
             "max_entries", WorkflowConfig::maximumEntries,
             "Maximum number of unique entries across every workflow directory.",
             "A stage table that omits max_entries inherits this value.");
+    static final Key<CheckerSet> ENABLED_CHECKERS = WORKFLOW.optional(
+            "checkers", ConfigValueType.CHECKERS, WorkflowConfig::enabledCheckers,
+            new Constant<>(CheckerSet.ALL),
+            "Model checkers to run: \"tlc\" and \"apalache\" (ADR 0016 §5).",
+            "A corpus with one checker compares no verdicts; the first run records the list.");
     static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.optionalInteger(
             "max_entries", InputStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,
             "Maximum current occupancy of 00-inputs.", INHERITS_MAXIMUM_ENTRIES);

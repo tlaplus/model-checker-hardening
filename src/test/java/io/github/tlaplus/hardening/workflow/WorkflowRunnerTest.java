@@ -16,6 +16,7 @@ import io.github.tlaplus.hardening.config.QualityGateConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
@@ -56,6 +57,27 @@ import org.junit.jupiter.api.io.TempDir;
 
 class WorkflowRunnerTest {
     private static final GenerationMetadata ADMITTED = GenerationMetadata.generated(0, 0, 0.0);
+
+    /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */
+    @Test
+    void runsOnlyTheConfiguredCheckers(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var both = config(8, 3, 8, 16);
+        var tlcOnly = both.withWorkflow(both.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
+
+        var summary = new WorkflowRunner(tlcOnly, Technique.PBT).run(corpus, 42, 1);
+
+        var inventory = summary.corpus();
+        assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
+        assertEquals(0, inventory.processedEntries(CorpusStage.APALACHE));
+        assertEquals(
+                inventory.counts(CorpusStage.TLC).processed() - inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH),
+                inventory.processedEntries(CorpusStage.AGGREGATOR) + inventory.pendingEntries(CorpusStage.AGGREGATOR));
+        assertEquals(CheckerSet.of(CorpusStage.TLC), CorpusRecords.CHECKERS.read(corpus));
+        var refused = assertThrows(WorkflowException.class,
+                () -> new WorkflowRunner(both, Technique.PBT).run(corpus, 42, 1));
+        assertTrue(refused.getMessage().contains("runs the checkers tlc"), refused.getMessage());
+    }
 
     @Test
     void reportsInitialAndFinalProgressSnapshots(@TempDir Path directory) throws Exception {

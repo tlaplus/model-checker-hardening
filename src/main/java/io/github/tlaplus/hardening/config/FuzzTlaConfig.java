@@ -62,15 +62,13 @@ public record FuzzTlaConfig(
         return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries);
     }
 
+    /** Returns this configuration with the given workflow limits and checkers. */
+    public FuzzTlaConfig withWorkflow(WorkflowConfig replacement) {
+        return new FuzzTlaConfig(generatedKind, generator, replacement, pbt, mutator, libraries);
+    }
+
     /** Returns this configuration with the input stage consulting the given known-defect databases. */
     public FuzzTlaConfig withKnownDefects(List<Path> databases) {
-        var inputs = workflow.inputs().withKnownDefects(databases);
-        return new FuzzTlaConfig(
-                generatedKind,
-                generator,
-                new WorkflowConfig(workflow.maximumEntries(), inputs, workflow.parser(), workflow.checkers()),
-                pbt,
-                mutator,
-                libraries);
+        return withWorkflow(workflow.withInputs(workflow.inputs().withKnownDefects(databases)));
     }
 }

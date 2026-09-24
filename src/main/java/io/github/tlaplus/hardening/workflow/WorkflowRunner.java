@@ -3,7 +3,6 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
-import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CheckingPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
@@ -54,7 +53,7 @@ public final class WorkflowRunner {
             throws WorkflowException {
         Objects.requireNonNull(config, "config");
         this.technique = Objects.requireNonNull(technique, "technique");
-        checking = CheckingPolicy.of(technique, CheckerSet.ALL);
+        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers());
         final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
@@ -104,7 +103,8 @@ public final class WorkflowRunner {
                 corpus, seed, maximumCpus, ApalacheDistribution.locate());
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
-            CorpusTechnique.verify(corpus, technique, true);
+            CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
+            CorpusRecords.CHECKERS.verify(corpus, checking.checkers(), true);
             LibraryManifest.verify(corpus, setup.decoders().libraryManifest(), true);
             var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);
