@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -53,13 +54,20 @@ import io.github.tlaplus.hardening.corpus.CheckerSet;
  */
 final class StageGraph {
     /** What every invocation of one runner shares. */
+    /**
+     * What every invocation of one runner shares.
+     *
+     * @param lifting the base corpus the run lifts from; none unless the technique is metamorphic
+     */
     record Setup(
-            FuzzTlaConfig config, SpecDecoders decoders, KnownDefectDatabase knownDefects, CheckerSet checkers) {
+            FuzzTlaConfig config, SpecDecoders decoders, KnownDefectDatabase knownDefects, CheckerSet checkers,
+            MetamorphicConfig.Lifting lifting) {
         Setup {
             Objects.requireNonNull(config, "config");
             Objects.requireNonNull(decoders, "decoders");
             Objects.requireNonNull(knownDefects, "knownDefects");
             Objects.requireNonNull(checkers, "checkers");
+            Objects.requireNonNull(lifting, "lifting");
         }
     }
 

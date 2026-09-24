@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.corpus.CheckingPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
@@ -25,6 +26,7 @@ import java.time.Duration;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -60,7 +62,11 @@ public final class WorkflowRunner {
             throw new WorkflowException(
                     "invalid known-defect database: " + exception.getMessage(), exception);
         }
-        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers());
+        // Only a metamorphic run lifts; another technique ignores [metamorphic].
+        var lifting = technique == Technique.MT
+                ? config.metamorphic().lifting()
+                : new MetamorphicConfig.Lifting(Optional.empty(), 0.0);
+        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers(), lifting);
         limits = new OccupancyLimits(config.workflow(), checking.checkers());
     }
 
@@ -100,6 +106,7 @@ public final class WorkflowRunner {
         limits.requireCpus(maximumCpus);
         var invocation = new StageGraph.Invocation(
                 corpus, seed, maximumCpus, ApalacheDistribution.locate());
+        requireLiftableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
@@ -118,6 +125,19 @@ public final class WorkflowRunner {
                         progressListener);
             }
             return result.summary(statistics.totalElapsed());
+        }
+    }
+
+    /** Requires the base corpus of a lift to hold conformance entries, whose payloads lift as bases. */
+    private void requireLiftableBase() throws IOException, CorpusException, WorkflowException {
+        var base = setup.lifting().baseCorpus();
+        if (base.isEmpty()) {
+            return;
+        }
+        var technique = CorpusRecords.TECHNIQUE.read(CorpusDirectory.openExisting(base.get()));
+        if (technique != Technique.PBT) {
+            throw new WorkflowException("metamorphic.base_corpus must be a pbt corpus, but '" + base.get()
+                    + "' runs --how=" + technique.encodedName());
         }
     }
 

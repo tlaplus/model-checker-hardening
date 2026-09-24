@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.Digests;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
@@ -23,6 +24,8 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
@@ -75,7 +78,7 @@ class WorkflowRunnerTest {
         var config = base.withWorkflow(base.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)))
                 .withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                        Map.of(), RewriteLimits.defaults()));
+                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Lifting.defaults()));
 
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
 
@@ -104,7 +107,7 @@ class WorkflowRunnerTest {
                 expressions.pbt(), expressions.mutator(), expressions.libraries(),
                 new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                        Map.of(), RewriteLimits.defaults()));
+                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Lifting.defaults()));
 
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
 
@@ -112,6 +115,51 @@ class WorkflowRunnerTest {
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
         assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
                 "a valid rule violated the metamorphic relation");
+    }
+
+    /**
+     * A metamorphic corpus lifts the entries a pbt corpus's quality gate kept (ADR 0016 §6): the
+     * lifted range of a generation is filled from them, each recording its parent and {@code lift}.
+     */
+    @Test
+    void liftsTheSelectedEntriesOfAPbtCorpus(@TempDir Path directory) throws Exception {
+        // The base corpus is a pbt corpus whose quality gate kept three expressions.
+        var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var random = new java.util.Random(11);
+        var parents = new HashSet<String>();
+        for (var parent = 0; parent < 3; parent++) {
+            var payload = new byte[32];
+            random.nextBytes(payload);
+            Files.write(base.resolve(CorpusPath.QUALITY_PASS).resolve(Digests.digest(payload) + ".cbor"),
+                    CorpusInputCodec.encode(new CorpusInput(InputKind.EXPRESSION, payload),
+                            GenerationMetadata.generated(0, 0, 1.0)));
+            parents.add(Digests.digest(payload));
+        }
+        var expressions = config(8, 3, 8, 64);
+        var tlcOnly = expressions.withWorkflow(expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
+
+        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var config = tlcOnly.withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                        "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
+                Map.of(), RewriteLimits.defaults(),
+                new MetamorphicConfig.Lifting(Optional.of(directory.resolve("base")), 0.5)));
+        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1);
+
+        assertEquals(4, summary.corpus().admitted(0, EntryOrigin.LIFTED));
+        var lifted = 0;
+        for (var entry : corpus.storedEntries()) {
+            var metadata = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(entry.path())).generation().orElseThrow();
+            if (EntryOrigin.of(metadata.mutation()) == EntryOrigin.LIFTED) {
+                assertTrue(parents.contains(metadata.mutation().orElseThrow().parent()));
+                lifted++;
+            }
+        }
+        assertEquals(4, lifted);
+        var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(
+                config.withMetamorphic(new MetamorphicConfig(config.metamorphic().rules(), Map.of(), RewriteLimits.defaults(),
+                        new MetamorphicConfig.Lifting(Optional.of(directory.resolve("mt")), 0.5))),
+                Technique.MT).run(corpus, 7, 1));
+        assertTrue(refused.getMessage().contains("must be a pbt corpus"), refused.getMessage());
     }
 
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */

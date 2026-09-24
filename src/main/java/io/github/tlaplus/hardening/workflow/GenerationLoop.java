@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
+import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.mutation.ByteMutator;
@@ -9,6 +10,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.input.CandidateSource;
 import io.github.tlaplus.hardening.workflow.input.GenerationPlan;
 import io.github.tlaplus.hardening.workflow.input.InputStage;
+import io.github.tlaplus.hardening.workflow.input.MetamorphicCandidates;
 import io.github.tlaplus.hardening.workflow.input.MutantCandidates;
 import io.github.tlaplus.hardening.workflow.input.ParentPool;
 import io.github.tlaplus.hardening.workflow.input.PbtCandidates;
@@ -200,7 +202,8 @@ final class GenerationLoop {
     private CandidateSource source(EntryOrigin origin) throws IOException, CorpusException {
         return switch (origin) {
             case MUTANT -> mutantSource();
-            case LIFTED, PBT -> new PbtCandidates(setup.config().pbt());
+            case LIFTED -> liftSource();
+            case PBT -> new PbtCandidates(setup.config().pbt());
         };
     }
 
@@ -224,14 +227,25 @@ final class GenerationLoop {
      */
     private CandidateSource mutantSource() throws IOException, CorpusException {
         var kind = setup.config().generatedKind();
-        var parents = ParentPool.load(invocation.corpus(), kind, setup.decoders().decoder(kind));
+        var parents = ParentPool.load(invocation.corpus(), kind);
         if (parents.isEmpty()) {
             return new PbtCandidates(setup.config().pbt());
         }
-        return new MutantCandidates(parents, new ByteMutator(
+        return new MutantCandidates(parents, setup.decoders().decoder(kind), new ByteMutator(
                 setup.config().mutator().weights(),
                 setup.config().mutator().maximumEdits(),
                 setup.config().pbt().maximumInputBytes()));
+    }
+
+    /**
+     * Returns the source that fills a generation's lifted range: the base corpus's {@code
+     * 04quality-pass} entries, read once per generation and never written. PBT fills the range while
+     * the base corpus has none.
+     */
+    private CandidateSource liftSource() throws IOException, CorpusException {
+        var base = setup.lifting().baseCorpus().orElseThrow();
+        var parents = ParentPool.load(CorpusDirectory.openExisting(base), setup.config().generatedKind());
+        return parents.isEmpty() ? new PbtCandidates(setup.config().pbt()) : new MetamorphicCandidates(parents);
     }
 
     /** Hands the input stage one contiguous range of a generation's targets. */
@@ -251,7 +265,9 @@ final class GenerationLoop {
         return reservations.computeIfAbsent(generation, number -> GenerationTargets.resuming(
                 size(number),
                 Map.of(EntryOrigin.MUTANT, GenerationTargets.mutantShare(
-                        size(number), number, setup.config().mutator().feedbackRatio())),
+                                size(number), number, setup.config().mutator().feedbackRatio()),
+                        EntryOrigin.LIFTED, setup.lifting().baseCorpus().isEmpty()
+                                ? 0L : GenerationTargets.liftShare(size(number), setup.lifting().ratio())),
                 progress.admittedByOrigin(number)));
     }
 }

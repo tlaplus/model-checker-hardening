@@ -344,6 +344,15 @@ final class ConfigSchema {
             "max_rewrite_growth", RewriteLimits::maximumGrowth, RewriteLimits.defaults().maximumGrowth(),
             "Times its original size a rewritten body may grow, so rules that duplicate a parameter",
             "cannot double a body with every rewrite.");
+    private static final ConfigTableBuilder<MetamorphicConfig.Lifting> LIFTING = METAMORPHIC.project(MetamorphicConfig::lifting);
+    static final Key<Optional<Path>> BASE_CORPUS = LIFTING.optional(
+            "base_corpus", ConfigValueType.OPTIONAL_PATH, MetamorphicConfig.Lifting::baseCorpus, new Absent<>(),
+            "pbt corpus, relative to this config file, whose 04quality-pass entries are lifted:",
+            "each is combined with random rewrite bytes (ADR 0016 §6). It is read, never written.");
+    static final Key<Double> LIFT_RATIO = LIFTING.optional(
+            "lift_ratio", ConfigValueType.NUMBER, MetamorphicConfig.Lifting::ratio,
+            new Constant<>(MetamorphicConfig.Lifting.defaults().ratio()),
+            "Share of a generation lifted from base_corpus; the mutator and PBT fill the rest.");
 
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();

@@ -88,6 +88,18 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             ConfigValueType::readRuleModule,
             rules -> formatRuleModule(rules.orElse(EXAMPLE_RULES)));
 
+    /** The example a configuration without a base corpus shows, commented out. */
+    static final Path EXAMPLE_BASE_CORPUS = Path.of("../corpus-conf");
+
+    static final ConfigValueType<Optional<Path>> OPTIONAL_PATH = new ConfigValueType<>(
+            (table, path, key) -> {
+                if (!table.isString(key)) {
+                    throw new ConfigException("expected '" + path + "' to be a string");
+                }
+                return Optional.of(Path.of(table.getString(key)));
+            },
+            value -> quote(value.orElse(EXAMPLE_BASE_CORPUS).toString()));
+
     static final ConfigValueType<Map<String, Integer>> RULE_WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readRuleWeights,
             weights -> weights.isEmpty() ? "{}" : new TreeMap<>(weights).entrySet().stream()

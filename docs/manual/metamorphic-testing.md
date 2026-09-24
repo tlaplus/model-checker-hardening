@@ -53,7 +53,10 @@ max_rewrite_growth = 2
   PBT fills the rest.
 - **The base corpus is read-only.** It must be a `pbt` corpus. It is never written
   to, and an entry keeps its parent's bytes, so `base_corpus` is not needed to replay
-  it.
+  it. Use the base corpus's `[generator]` settings: a lifted payload decodes under the
+  metamorphic corpus's settings, and decodes to the parent's module only if they agree.
+- **Lifted entries record their parent.** `gen.parent` is the parent's digest in the
+  base corpus, and `gen.operators` is `["lift"]`.
 - **The checker set is fixed.** The first run records `checkers` in `.checkers`, and
   later runs must use the same list.
 - **The rules are fixed.** The first run records the rule module's sources and the

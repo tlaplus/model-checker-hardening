@@ -1,7 +1,9 @@
 package io.github.tlaplus.hardening.workflow.input;
 
 import io.github.tlaplus.hardening.corpus.Mutation;
+import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.mutation.ByteMutator;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.random.RandomGenerator;
@@ -13,10 +15,13 @@ import java.util.random.RandomGenerator;
  */
 public final class MutantCandidates implements CandidateSource {
     private final ParentPool parents;
+    private final Generator<SpecArtifact> decoder;
     private final ByteMutator mutator;
 
-    public MutantCandidates(ParentPool parents, ByteMutator mutator) {
+    /** @param decoder decodes a parent, which a clone renders to */
+    public MutantCandidates(ParentPool parents, Generator<SpecArtifact> decoder, ByteMutator mutator) {
         this.parents = Objects.requireNonNull(parents, "parents");
+        this.decoder = Objects.requireNonNull(decoder, "decoder");
         this.mutator = Objects.requireNonNull(mutator, "mutator");
     }
 
@@ -32,7 +37,7 @@ public final class MutantCandidates implements CandidateSource {
                         mutant.input(),
                         parent.cohort(),
                         Optional.of(new Mutation(parent.digest(), mutant.operators())),
-                        parent::rendersAs);
+                        candidate -> parent.rendersAs(candidate, decoder));
             }
 
             @Override
