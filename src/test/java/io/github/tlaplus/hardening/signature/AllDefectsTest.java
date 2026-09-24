@@ -291,7 +291,15 @@ class AllDefectsTest {
                                 builder.variantGetUnsafe("B", builder.name("v", variant)))),
                 Map.entry("set-map-duplicate-product",
                         List.of(mapFold(new ExpressionPair<>(x, grown), new ExpressionPair<>(y, one)),
-                                mapFold(new ExpressionPair<>(x, grown)))));
+                                mapFold(new ExpressionPair<>(x, grown)))),
+                Map.entry("apalache-always-action-bound",
+                        List.of(builder.always(builder.stutter(shapes.action(), flag)),
+                                builder.always(flag))),
+                Map.entry("recursion-insertion-sort",
+                        List.of(library("RecursionApalache", "SeqInsertionSort",
+                                        TlaTypes.operator(intSequence, intSequence), sequence),
+                                library("RecursionApalache", "SeqReverse",
+                                        TlaTypes.operator(intSequence, intSequence), sequence))));
     }
 
     /** A fold over {@code {1}} whose combinator maps its accumulator {@code grown} with the given binders. */

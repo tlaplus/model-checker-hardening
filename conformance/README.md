@@ -1210,6 +1210,45 @@ these shapes had a signature. `all-defects.toml` now has the signature
 `function-set-equality`, and the union and fold-filter shapes to
 `function-set-expansion`.
 
+## corpus49 residuals
+
+corpus49 is the first `module` run with the recursion library
+(`classpath = ["tla/recursion"]`, `link = "diff"`). The run read
+`all-defects.toml`, and `00-known-defects` quarantined 3,134 candidates. Triage
+classified 180 of the 199 TLC crashes and 22 of the 122 Apalache crash outcomes.
+Another 27 Apalache outcomes are worker timeouts. It left 20 of the 30,566
+aggregator deviations as `NEW`. The parser report was empty. The residuals yield two new
+findings,
+[`apalache-temporal-005`](../findings/apalache-temporal/apalache-temporal-005.md)
+and
+[`apalache-performance-002`](../findings/apalache-performance/apalache-performance-002.md).
+No entry needs a new conformance report.
+
+Every entry was rendered with FuzzTLA `1fd3fe9`. Apalache reruns used 0.62.2
+(build `f0dec98`) with `-Xmx1g`. TLC reruns used the standalone tla2tools
+(commit `5dbdb42`) with the corpus's `tla/recursion` modules.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 69 | Apalache crash | out of heap at 1 GB in `SeqInsertionSort` or `SetToSortedSeq`, whose Apalache definitions nest `ApaFoldSeqLeft` | [`apalache-performance-002`](../findings/apalache-performance/apalache-performance-002.md) |
+| 4 | Apalache crash | out of heap at 1 GB in `SeqReverse` of a sequence that doubles in every step, `9ac47c6f`, `ac2a9ab9`, `ba01d4f2` and `e08f6b6a` | not reduced |
+| 27 | Apalache timeout | worker timeouts | not rerun |
+| 9 | TLC crash | temporal formula TLC cannot translate: `must be of forms` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 8 | TLC crash | `StackOverflowError` (1005) in a recursive `RecursionTLC` operator over a sequence of about 50 to 250 elements; `021fc64e` passes with `-Xss16m` | [`tlc-performance-001`](../findings/tlc-performance/tlc-performance-001.md) |
+| 2 | TLC crash | `Attempted to access index 0 of tuple`, a sequence applied to `step` under `[]` in `Prop`, `a729c9f7` and `f0d39021` | [function-application-outside-domain](function-application-outside-domain.md#under-a-temporal-property), exit 255 as in [`tlc-002`](../findings/TLC/tlc-002.md) |
+| 17 | aggregator | TLC pass, Apalache counterexample (16), or the reverse (`edac0346`, in a `Next` guard): order-sensitive `ApaFoldSet` or `ApaFoldSeqLeft` whose combinator returns its element | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 2 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` with several witnesses, in `Prop` (`1eb9dbdf`) and in a `Next` bound (`2fd931c8`) | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 1 | aggregator | TLC counterexample, Apalache pass: `[][A]_var0` violated by the last transition, `c0a82824` | [`apalache-temporal-005`](../findings/apalache-temporal/apalache-temporal-005.md) |
+
+The aggregator rows were classified by rerunning Apalache on the rendered JSON
+with the workflow's arguments, `--temporal=Liveness --length=6 --no-deadlock`.
+Several invariants print as constants, such as `IsFiniteSet({TRUE, FALSE})`, but
+the violated formula is `Prop`, for example
+`<>ApaFoldSet(LAMBDA a, x: x, var0, {TRUE, FALSE})` in `b6b7a4ea`. In
+`c0a82824`, TLC reports the violation of `Prop` after 5 transitions. Apalache
+reports it only at `--length=7`, because the workflow checks it under
+`Fairness => Prop`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

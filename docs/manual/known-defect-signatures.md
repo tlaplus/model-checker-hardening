@@ -379,6 +379,10 @@ The remaining signatures match fixed shapes:
   Apalache counts a mapped set by its tuples rather than its distinct values,
   so these shapes can exceed its product guard of 1,000,000
   ([set-map-product-guard](../../conformance/set-map-product-guard.md)).
+- `recursion-insertion-sort`: every application of the recursion library's
+  `SeqInsertionSort` or `SetToSortedSeq`, whose Apalache definitions nest
+  `ApaFoldSeqLeft` and can exhaust the heap from about nine elements
+  ([`apalache-performance-002`](../../findings/apalache-performance/apalache-performance-002.md)).
 
 The database header and `AllDefectsTest` list the documents that no pattern can
 express:
