@@ -41,6 +41,12 @@ enum DatabaseTable {
             List.of(ENTRY_ID, POSITION),
             List.of(),
             true),
+    REWRITE_RULE(
+            "rewriteRule",
+            List.of(ENTRY_ID, POSITION, RULE),
+            List.of(ENTRY_ID, POSITION),
+            List.of(),
+            true),
     STAGE("stage", stageColumns(), List.of(ENTRY_ID, STAGE_NAME), List.of(), true),
     EXPR(
             "expr",

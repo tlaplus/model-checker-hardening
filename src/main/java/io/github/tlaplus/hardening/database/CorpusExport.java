@@ -10,6 +10,7 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
+import io.github.tlaplus.hardening.corpus.Technique;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -54,11 +55,13 @@ public final class CorpusExport {
      *
      * @param fuzztlaVersion the {@code fuzztla --version} string
      * @param exportedAt when the export started
+     * @param technique the technique the corpus records, which decides how its entries replay
      */
-    public record Provenance(String fuzztlaVersion, Instant exportedAt) {
+    public record Provenance(String fuzztlaVersion, Instant exportedAt, Technique technique) {
         public Provenance {
             Objects.requireNonNull(fuzztlaVersion, "fuzztlaVersion");
             Objects.requireNonNull(exportedAt, "exportedAt");
+            Objects.requireNonNull(technique, "technique");
         }
     }
 
@@ -183,6 +186,7 @@ public final class CorpusExport {
         properties.put("corpus", corpus.resolve(CorpusPath.ROOT).toString());
         properties.put("exportedAt", Row.timestamp(provenance.exportedAt()));
         properties.put("fuzztlaVersion", provenance.fuzztlaVersion());
+        properties.put("technique", provenance.technique().encodedName());
         return properties;
     }
 }

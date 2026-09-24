@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
+import io.github.tlaplus.hardening.workflow.CorpusRecords;
 import io.github.tlaplus.hardening.workflow.CorpusReplay;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
@@ -64,15 +65,17 @@ final class ExportDbCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        var options = new CorpusExport.Options(
-                corpus,
-                output == null ? CorpusExport.defaultOutput(corpus) : output,
-                force,
-                !noLock,
-                new CorpusExport.Provenance(
-                        new FuzzTlaCommand.VersionProvider().getVersion()[0], Instant.now()));
+        var exportedAt = Instant.now();
         try (var shutdown = RunShutdownHook.install()) {
-            var analysis = new CorpusExport.Analysis(replay(), maximumCpus);
+            var directory = CorpusDirectory.openExisting(corpus);
+            var options = new CorpusExport.Options(
+                    corpus,
+                    output == null ? CorpusExport.defaultOutput(corpus) : output,
+                    force,
+                    !noLock,
+                    new CorpusExport.Provenance(new FuzzTlaCommand.VersionProvider().getVersion()[0], exportedAt,
+                            CorpusRecords.TECHNIQUE.read(directory)));
+            var analysis = new CorpusExport.Analysis(replay(directory), maximumCpus);
             var summary = CorpusExport.run(options, analysis);
             spec.commandLine().getOut().print(ExportDbReport.render(summary));
             spec.commandLine().getOut().flush();
@@ -92,10 +95,9 @@ final class ExportDbCommand implements Callable<Integer> {
     }
 
     /** Replays inputs under the corpus's own generator settings and operator library. */
-    private InputAnalysis replay()
+    private static InputAnalysis replay(CorpusDirectory directory)
             throws IOException, ConfigException, CorpusException, WorkflowException {
-        var directory = CorpusDirectory.openExisting(corpus);
         var decoders = CorpusReplay.decoders(directory, TomlConfig.read(directory.resolve(CorpusPath.CONFIG)));
-        return new EvaluatedExprs(decoders)::count;
+        return new EvaluatedExprs(decoders)::analyze;
     }
 }

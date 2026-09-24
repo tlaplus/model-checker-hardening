@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `7`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `8`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -78,8 +78,8 @@ One row per property of the export.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
-| `key` | TEXT | no | `corpus`, `exportedAt` or `fuzztlaVersion` | – |
-| `value` | TEXT | no | The corpus's absolute path, the export start time, or the `fuzztla --version` string | – |
+| `key` | TEXT | no | `corpus`, `exportedAt`, `fuzztlaVersion` or `technique` | – |
+| `value` | TEXT | no | The corpus's absolute path, the export start time, the `fuzztla --version` string, or the technique the corpus runs (`pbt` or `mt`) | – |
 
 ### 2.2. `entry`
 
@@ -98,7 +98,7 @@ records.
 | `cohort` | INTEGER | yes | Richness cohort of the admission | `gen.cohort` |
 | `richness` | REAL | yes | Richness score of the admission | `gen.richness` |
 | `generation` | INTEGER | yes | Generation that admitted the entry ([ADR 0010][adr-0010]) | `gen.generation` |
-| `parent` | TEXT | yes | For a mutant, the `hash` of the entry it was mutated from | `gen.parent` |
+| `parent` | TEXT | yes | For a mutant, the `hash` of the entry it was mutated from; for an adopted entry, of its parent in the base corpus | `gen.parent` |
 | `evaluatedNodes` | INTEGER | yes | Subexpressions the checkers evaluate (section 2.6); `NULL` when replay failed | replayed `input` |
 | `replayError` | TEXT | yes | Why replaying the input failed; `NULL` when it succeeded | replayed `input` |
 
@@ -124,7 +124,19 @@ is `(entryId, position)`. An entry that was not mutated has no rows.
 | `position` | INTEGER | no | Position in the list; 0 is the first edit | `gen.operators` |
 | `operator` | TEXT | no | Operator name, such as `random_byte` or `splice` | `gen.operators` |
 
-### 2.5. `stage`
+### 2.5. `rewriteRule`
+
+One row per rewrite rule a metamorphic entry applied (ADR 0016, ADR 0017), in the
+order applied. The key is `(entryId, position)`. An entry of a `pbt` corpus, and one
+that could not be replayed, has no rows.
+
+| Column | Type | Null | Meaning | Source |
+| --- | --- | --- | --- | --- |
+| `entryId` | INTEGER | no | `entry.id` | – |
+| `position` | INTEGER | no | Position in the list; 0 is the first rewrite | replay |
+| `rule` | TEXT | no | Rule name, a definition of the rule module such as `PlusZero` | replay |
+
+### 2.6. `stage`
 
 One row per stage record of an entry. The key is `(entryId, stage)`. An entry in
 `03aggregator-pass` has four rows: `parser`, `tlc`, `apalache` and `aggregator`;
@@ -163,7 +175,7 @@ The metric columns, from `initStates` to `traceLength`, follow section 2 of the
 metric the checker did not measure is `NULL`, not 0. Entries checked before
 exploration metrics existed have `NULL` in every metric column.
 
-### 2.6. `expr`
+### 2.7. `expr`
 
 One row per construct that occurs in an entry's evaluated code: an operator
 application, a `LET-IN`, or a literal. The key is `(entryId, name)`.
@@ -196,7 +208,7 @@ counted; they count towards `entry.evaluatedNodes` only.
 | `name` | TEXT | no | Operator name, `LetInEx`, or literal value kind, as in Apalache's IR JSON | replayed `input` |
 | `occurrences` | INTEGER | no | Occurrences of the construct in the evaluated code | replayed `input` |
 
-### 2.7. `exprEdge`
+### 2.8. `exprEdge`
 
 One row per edge between constructs of an entry's evaluated code, as the walk
 of section 2.6 visits it. An edge joins a construct to a construct that is its
@@ -214,7 +226,7 @@ derived from these edges and from `expr`
 | `childName` | TEXT | no | The argument construct, named as in `expr.name` | replayed `input` |
 | `occurrences` | INTEGER | no | Occurrences of the edge in the evaluated code | replayed `input` |
 
-### 2.8. `unreadable`
+### 2.9. `unreadable`
 
 One row per entry file that does not decode as a corpus envelope. The export
 continues past such files. The key is `(directory, hash)`.
@@ -225,7 +237,7 @@ continues past such files. The key is `(directory, hash)`.
 | `hash` | TEXT | no | Digest from the file name | file name |
 | `error` | TEXT | no | The decoder's diagnostic | – |
 
-### 2.9. `verdictPair`
+### 2.10. `verdictPair`
 
 A view with one row per entry that has an `aggregator` stage record. It puts the
 two checkers' results side by side. A corpus that runs one checker
@@ -244,7 +256,7 @@ two checkers' results side by side. A corpus that runs one checker
 | `apalacheCode` | INTEGER | yes | Apalache failure code | `stage.code` |
 | `apalacheTraceLength` | INTEGER | yes | Apalache counterexample length | `stage.traceLength` |
 
-### 2.10. Indexes
+### 2.11. Indexes
 
 Besides the keys, `stage(stage, verdict)` is indexed. `expr` has no index on
 `name`: on corpus22 it would add 61 MB and save at most 0.1 s per query. The unique key

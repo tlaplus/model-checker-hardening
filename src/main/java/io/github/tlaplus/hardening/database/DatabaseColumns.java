@@ -32,6 +32,7 @@ final class DatabaseColumns {
     static final Column POSITION = required("position", SqlType.INTEGER);
     static final Column SIGNATURE = required("signature", SqlType.TEXT);
     static final Column OPERATOR = required("operator", SqlType.TEXT);
+    static final Column RULE = required("rule", SqlType.TEXT);
 
     static final Column STAGE_NAME = required("stage", SqlType.TEXT);
     static final Column VERDICT = required("verdict", SqlType.TEXT);
