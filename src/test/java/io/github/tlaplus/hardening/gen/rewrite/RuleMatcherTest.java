@@ -54,6 +54,15 @@ class RuleMatcherTest {
                 "two primed conjuncts must keep their order");
     }
 
+    /** TLC assigns x' = x only for a variable x, so UNCHANGED <<a, b>> keeps its form. */
+    @Test
+    void aPrimedParameterMustBindAName() {
+        var single = B.unchanged(integer("a"));
+        assertEquals(B.primeEq(integer("a"), integer("a")), rewrite(unchangedPrime(), single).orElseThrow());
+        var tuple = B.unchanged(B.tuple(integer("a"), integer("b")));
+        assertTrue(RuleMatcher.match(checked(unchangedPrime()), tuple).isEmpty());
+    }
+
     @Test
     void aRepeatedParameterRequiresEquivalentSubterms() {
         var subSelf = rule("SubSelf", B.eql(B.minus(integer("x"), integer("x")), B.integer(0)), B.param("x", TlaTypes.INT));

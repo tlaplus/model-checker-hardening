@@ -94,6 +94,31 @@ class RewriterTest {
         }
     }
 
+    /**
+     * A module's bodies are rewritten in a fixed order, which is part of the byte encoding: the
+     * operators, then Init, the next-state action and the invariant. The property is not rewritten.
+     */
+    @Test
+    void rewritesTheBodiesOfAModuleInOrder() {
+        var x = B.name("var0", TlaTypes.INT);
+        var step = B.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
+        var op = B.decl("Op1", B.integer(1));
+        var spec = new io.github.tlaplus.hardening.gen.GeneratedSpec(
+                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", TlaTypes.INT),
+                        org.apalache_mc.tla.jir.TlaDeclarations.variable("step", TlaTypes.INT)),
+                List.<io.github.tlaplus.hardening.gen.GeneratedOperator>of(
+                        new io.github.tlaplus.hardening.gen.GeneratedOperator.Auxiliary(op)),
+                B.and(B.eql(x, B.integer(0)), B.eql(step, B.integer(0))),
+                B.and(B.primeEq(B.name("var0", TlaTypes.INT), B.integer(2)), B.primeEq(step, B.integer(1))),
+                B.bool(true), java.util.Optional.empty(), 3);
+        // Orientation, then one rewrite at the root of Op1's body; every later marker is even.
+        var rewrite = rewriter(library(plusZero())).rewriteSpec(spec, new Draw(new byte[] {0, 1, 0, 0}));
+        assertEquals(List.of("PlusZero"), rewrite.appliedRules());
+        assertEquals(B.plus(B.integer(1), B.integer(0)), rewrite.rewritten().operators().getFirst().declaration().body());
+        assertEquals(spec.initPredicate(), rewrite.rewritten().initPredicate());
+        assertEquals(spec.nextAction(), rewrite.rewritten().nextAction());
+    }
+
     @Test
     void isDeterministic() {
         var bytes = new byte[] {1, 1, 0, 1, 1, 7, 1, 0, 0, 1};

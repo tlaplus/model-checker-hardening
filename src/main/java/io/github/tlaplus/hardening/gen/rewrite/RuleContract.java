@@ -165,7 +165,20 @@ final class RuleContract {
                 preserved.add(parameter);
             }
         });
-        return new AssignmentFacts(preserved, firstOccurrences(pattern, booleans), firstOccurrences(replacement, booleans));
+        return new AssignmentFacts(preserved, firstOccurrences(pattern, booleans), firstOccurrences(replacement, booleans),
+                operands(replacement, PRIME), operands(replacement, UNCHANGED));
+    }
+
+    /** Returns the parameters {@code operator} applies to directly in {@code expression}. */
+    private static Set<String> operands(TlaEx expression, TlaOper operator) {
+        var result = new HashSet<String>();
+        TlaExpressions.forEach(expression, node -> {
+            if (node instanceof OperEx application && application.oper() == operator
+                    && TlaExpressions.arguments(application).getFirst() instanceof NameEx name) {
+                result.add(name.name());
+            }
+        });
+        return result;
     }
 
     /** Records, for each occurrence of a parameter, whether TLC would treat an equation there as an assignment. */

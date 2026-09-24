@@ -40,8 +40,11 @@ import org.apalache_mc.tla.jir.TypedParameter;
  *       at every type it admits.
  * </ul>
  *
- * <p>A match at a Boolean node is refused when it would move an assigning equation out of a
- * position where TLC treats it as an assignment (ADR 0017 §5.3).
+ * <p>A match is refused when it would take away one of TLC's assignments (ADR 0017 §5.3): at a
+ * Boolean node, when it would move an assigning equation out of an assigning position; anywhere,
+ * when the replacement would prime a parameter bound to something other than a name, or keep one
+ * UNCHANGED that is neither a name nor a tuple of names. {@code <<a, b>>' = <<a, b>>} is valid TLA+
+ * but assigns nothing in TLC.
  */
 public final class RuleMatcher {
     /** The name of every lambda a match builds; instantiation beta-reduces it away. */
@@ -67,6 +70,17 @@ public final class RuleMatcher {
      * variable must be a formula the rule keeps in an assigning position, in the same order.
      */
     private static boolean admitsAssignments(RuleMatch match, TlaEx node) {
+        var facts = match.rule().assignments();
+        for (var parameter : facts.primed()) {
+            if (!(match.bindings().get(parameter) instanceof NameEx)) {
+                return false;
+            }
+        }
+        for (var parameter : facts.unchanged()) {
+            if (!isVariables(match.bindings().get(parameter))) {
+                return false;
+            }
+        }
         if (!TlaTypes.typeOf(node).equals(TlaTypes.BOOL)) {
             return true;
         }
@@ -82,6 +96,15 @@ public final class RuleMatcher {
             primed.add(parameter.name());
         }
         return match.rule().assignments().admits(primed);
+    }
+
+    /** Whether {@code expression} is a name or a tuple of names, as UNCHANGED requires for TLC. */
+    private static boolean isVariables(TlaEx expression) {
+        if (expression instanceof NameEx) {
+            return true;
+        }
+        return expression instanceof OperEx tuple && tuple.oper() == org.apalache_mc.tla.jir.TlaOperators.TUPLE
+                && TlaExpressions.arguments(tuple).stream().allMatch(RuleMatcher::isVariables);
     }
 
     private static boolean readsNextState(TlaEx expression) {

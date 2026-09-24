@@ -89,6 +89,30 @@ class WorkflowRunnerTest {
         assertTrue(refused.getMessage().contains("this corpus runs --how=mt"), refused.getMessage());
     }
 
+    /**
+     * A metamorphic corpus of modules (ADR 0016 phase 3): TLC explores one side of each pair and
+     * checks the other's initial states and transitions. The shipped rules are valid, so no
+     * relation may be violated.
+     */
+    @Test
+    void runsAMetamorphicModuleCorpus(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var expressions = config(8, 3, 8, 512);
+        var config = new FuzzTlaConfig(InputKind.MODULE, IrGenerationConfig.defaults(),
+                expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)),
+                expressions.pbt(), expressions.mutator(), expressions.libraries(),
+                new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                        "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
+                        Map.of(), RewriteLimits.defaults()));
+
+        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
+
+        var inventory = summary.corpus();
+        assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
+        assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
+                "a valid rule violated the metamorphic relation");
+    }
+
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */
     @Test
     void runsOnlyTheConfiguredCheckers(@TempDir Path directory) throws Exception {

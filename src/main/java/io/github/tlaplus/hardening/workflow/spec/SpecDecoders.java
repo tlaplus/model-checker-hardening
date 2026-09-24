@@ -78,9 +78,6 @@ public final class SpecDecoders {
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("--how=mt needs rewrite rules: set metamorphic.rules");
                     }
-                    if (config.generatedKind() == InputKind.MODULE) {
-                        throw new WorkflowException("--how=mt decodes [generator] kind = \"expr\" only so far");
-                    }
                     yield metamorphic(prepared.generator(),
                             new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),
                             new Manifests(prepared.manifest(), rules.manifest()));
@@ -123,6 +120,7 @@ public final class SpecDecoders {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(rewriter, "rewriter");
         var expressions = IrGenerators.expressions(config);
+        var specs = IrGenerators.specs(config);
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(InputKind.EXPRESSION, draw -> {
             var parts = MetamorphicPayload.split(draw);
@@ -133,7 +131,12 @@ public final class SpecDecoders {
             return SpecArtifact.fromExpressionRewrite(rewrite, config.library());
         });
         decoders.put(InputKind.MODULE, draw -> {
-            throw new InputRejectedException("metamorphic modules are not decoded yet");
+            var parts = MetamorphicPayload.split(draw);
+            var rewrite = rewriter.rewriteSpec(parts.base().draw(specs), parts.rewrite());
+            if (rewrite.isIdentity()) {
+                throw new InputRejectedException("no rewrite rule applied");
+            }
+            return SpecArtifact.fromSpecRewrite(rewrite, config.library());
         });
         return new SpecDecoders(decoders, config.library(), manifests);
     }
