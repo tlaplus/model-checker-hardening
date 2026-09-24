@@ -29,6 +29,11 @@ public final class MetamorphicPayload {
         return new Parts(base, draw.slice(draw.remaining()));
     }
 
+    /** Returns the offset of the rewrite payload in {@code input}: after the header and the base. */
+    public static int rewriteOffset(byte[] input) {
+        return input.length - split(new Draw(Objects.requireNonNull(input, "input"))).rewrite().remaining();
+    }
+
     /** Encodes a base payload and a rewrite payload as one input. */
     public static byte[] encode(byte[] base, byte[] rewrite) {
         Objects.requireNonNull(base, "base");
