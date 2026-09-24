@@ -25,6 +25,7 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.StageResult;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -62,7 +63,7 @@ class WorkflowRunnerTest {
         var config = config(8, 3, 8, 16);
         var observed = new CopyOnWriteArrayList<WorkflowProgress>();
 
-        var summary = new WorkflowRunner(config).run(corpus, 42, 1, observed::add);
+        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1, observed::add);
 
         assertTrue(observed.size() >= 2);
         var initial = observed.getFirst();
@@ -188,7 +189,7 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 IOException.class,
-                () -> new WorkflowRunner(config).run(corpus, 42, 1, _ -> {
+                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1, _ -> {
                     try {
                         Files.createDirectory(statisticsPath);
                     } catch (java.nio.file.FileAlreadyExistsException ignored) {
@@ -208,7 +209,7 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(12, 3, 12, 16);
 
-        var summary = new WorkflowRunner(config)
+        var summary = new WorkflowRunner(config, Technique.PBT)
                 .run(corpus, 42, Math.min(2, Runtime.getRuntime().availableProcessors()));
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
@@ -515,7 +516,7 @@ class WorkflowRunnerTest {
                                 new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(4, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
-        var summary = new WorkflowRunner(config).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
         assertEquals(2, summary.stage(CorpusStage.PARSER).count(CorpusVerdict.PASS));
@@ -542,7 +543,7 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 WorkflowException.class,
-                () -> new WorkflowRunner(config).run(corpus, 42, 1));
+                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1));
 
         assertTrue(failure.getMessage().contains("workflow.tlc.workers"));
         assertTrue(failure.getMessage().contains("--max-cpus"));
@@ -568,7 +569,7 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 WorkflowException.class,
-                () -> new WorkflowRunner(config).run(corpus, 42, 1));
+                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1));
 
         assertTrue(failure.getMessage().contains("workflow.apalache.workers"));
         assertTrue(failure.getMessage().contains("--max-cpus"));
@@ -609,7 +610,7 @@ class WorkflowRunnerTest {
         var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
 
-        var summary = new WorkflowRunner(config).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
         assertEquals(1, summary.corpus().pendingEntries(CorpusStage.TLC));
@@ -652,7 +653,7 @@ class WorkflowRunnerTest {
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
 
-        var summary = new WorkflowRunner(config).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
         assertEquals(1, summary.corpus().pendingEntries(CorpusStage.APALACHE));
@@ -701,6 +702,7 @@ class WorkflowRunnerTest {
             throws WorkflowException {
         return new WorkflowRunner(
                 config,
+                Technique.PBT,
                 SpecDecoders.of(config.generator()).replacingExpressions(expressions));
     }
 

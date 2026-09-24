@@ -29,8 +29,8 @@ class LibraryReplayIntegrationTest {
                 new WorkflowConfig(0, InputStageConfig.of(0), new ParserStageConfig(0, 30), checkers),
                 defaults.pbt(), defaults.mutator(), defaults.libraries());
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(config));
-        new WorkflowRunner(config).run(corpus, 42, 1);
-        assertTrue(corpus.readLibraryManifest().isPresent());
+        new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
+        assertTrue(corpus.readRecord(CorpusRecord.LIBRARY_MANIFEST).isPresent());
         corpus.store(InputKind.EXPRESSION, new byte[0]);
         var input = corpus.inputPath(new byte[0]);
         var out = new StringWriter();

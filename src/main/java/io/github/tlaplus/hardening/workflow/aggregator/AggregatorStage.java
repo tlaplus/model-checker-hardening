@@ -108,7 +108,7 @@ public final class AggregatorStage implements WorkflowStage {
                 return;
             }
             var input = found.orElseThrow();
-            var verdict = input.conformanceVerdict();
+            var verdict = input.verdict();
             environment.corpus().completeAggregation(
                     input,
                     new StageResult(verdict, startTime, StageResult.endedNow(startTime)));

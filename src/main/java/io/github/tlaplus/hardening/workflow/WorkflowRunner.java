@@ -3,11 +3,13 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.corpus.AggregationPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
@@ -39,14 +41,17 @@ public final class WorkflowRunner {
 
     private final StageGraph.Setup setup;
     private final OccupancyLimits limits;
+    private final Technique technique;
 
-    public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
-        this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
+    public WorkflowRunner(FuzzTlaConfig config, Technique technique) throws WorkflowException {
+        this(config, technique, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
     }
 
     /** Reads the configured known-defect databases before any corpus is locked. */
-    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
+    WorkflowRunner(FuzzTlaConfig config, Technique technique, SpecDecoders decoders)
+            throws WorkflowException {
         Objects.requireNonNull(config, "config");
+        this.technique = Objects.requireNonNull(technique, "technique");
         final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
@@ -96,8 +101,10 @@ public final class WorkflowRunner {
                 corpus, seed, maximumCpus, ApalacheDistribution.locate());
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
+            CorpusTechnique.verify(corpus, technique, true);
             LibraryManifest.verify(corpus, setup.decoders().libraryManifest(), true);
-            var initial = corpus.recoverAndValidate(entryValidator());
+            var initial = corpus.recoverAndValidate(
+                    entryValidator(), AggregationPolicy.of(technique));
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
             var statistics = new RunStatisticsOnExit(corpus, metrics, invocationElapsed);

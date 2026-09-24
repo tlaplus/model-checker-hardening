@@ -12,40 +12,40 @@ class AggregationInputTest {
     void passesWhenTheCheckersAgree() {
         assertEquals(
                 CorpusVerdict.PASS,
-                input(CorpusVerdict.PASS, CorpusVerdict.PASS).conformanceVerdict());
+                input(CorpusVerdict.PASS, CorpusVerdict.PASS).verdict());
         assertEquals(
                 CorpusVerdict.PASS,
                 input(CorpusVerdict.COUNTEREXAMPLE, CorpusVerdict.COUNTEREXAMPLE)
-                        .conformanceVerdict());
+                        .verdict());
         assertEquals(
                 CorpusVerdict.PASS,
-                input(CorpusVerdict.FAIL, CorpusVerdict.FAIL).conformanceVerdict());
+                input(CorpusVerdict.FAIL, CorpusVerdict.FAIL).verdict());
     }
 
     @Test
     void failsWhenTheCheckersDisagree() {
         assertEquals(
                 CorpusVerdict.FAIL,
-                input(CorpusVerdict.PASS, CorpusVerdict.FAIL).conformanceVerdict());
+                input(CorpusVerdict.PASS, CorpusVerdict.FAIL).verdict());
         assertEquals(
                 CorpusVerdict.FAIL,
-                input(CorpusVerdict.FAIL, CorpusVerdict.PASS).conformanceVerdict());
+                input(CorpusVerdict.FAIL, CorpusVerdict.PASS).verdict());
         assertEquals(
                 CorpusVerdict.FAIL,
                 input(CorpusVerdict.COUNTEREXAMPLE, CorpusVerdict.PASS)
-                        .conformanceVerdict());
+                        .verdict());
         assertEquals(
                 CorpusVerdict.FAIL,
                 input(CorpusVerdict.PASS, CorpusVerdict.COUNTEREXAMPLE)
-                        .conformanceVerdict());
+                        .verdict());
         assertEquals(
                 CorpusVerdict.FAIL,
                 input(CorpusVerdict.COUNTEREXAMPLE, CorpusVerdict.FAIL)
-                        .conformanceVerdict());
+                        .verdict());
         assertEquals(
                 CorpusVerdict.FAIL,
                 input(CorpusVerdict.FAIL, CorpusVerdict.COUNTEREXAMPLE)
-                        .conformanceVerdict());
+                        .verdict());
     }
 
     @Test
@@ -54,7 +54,8 @@ class AggregationInputTest {
                 IllegalArgumentException.class,
                 () -> new AggregationInput(
                         Path.of("candidate.cbor"),
-                        Map.of(CorpusStage.TLC, CorpusVerdict.PASS)));
+                        Map.of(CorpusStage.TLC, CorpusVerdict.PASS),
+                        Oracle.CONFORMANCE));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> input(CorpusVerdict.CRASH, CorpusVerdict.PASS));
@@ -67,6 +68,7 @@ class AggregationInputTest {
                         CorpusStage.TLC,
                         tlc,
                         CorpusStage.APALACHE,
-                        apalache));
+                        apalache),
+                Oracle.CONFORMANCE);
     }
 }

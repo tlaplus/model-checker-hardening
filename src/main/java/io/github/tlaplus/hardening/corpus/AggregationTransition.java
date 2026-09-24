@@ -26,7 +26,8 @@ final class AggregationTransition {
     }
 
     /** Returns a ready non-crash pair named by a checker completion notification. */
-    Optional<AggregationInput> find(Path candidate) throws IOException, CorpusException {
+    Optional<AggregationInput> find(Path candidate, AggregationPolicy policy)
+            throws IOException, CorpusException {
         Objects.requireNonNull(candidate, "candidate");
         var name = candidate.getFileName().toString();
         if (!ENTRY_FILE_NAME.matcher(name).matches()) {
@@ -40,7 +41,7 @@ final class AggregationTransition {
         requireCompatibleBranches(name, branches);
         var verdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
         branches.forEach(branch -> verdicts.put(branch.stage(), branch.verdict()));
-        return Optional.of(new AggregationInput(candidate, verdicts));
+        return Optional.of(new AggregationInput(candidate, verdicts, policy.oracle()));
     }
 
     /** Installs one merged result before removing either checker source. */
@@ -49,7 +50,7 @@ final class AggregationTransition {
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(result, "result");
         CorpusStage.AGGREGATOR.requireValidResult(result);
-        if (result.verdict() != input.conformanceVerdict()) {
+        if (result.verdict() != input.verdict()) {
             throw new CorpusException(
                     "aggregator verdict does not match checker verdicts: "
                             + input.candidate().getFileName());

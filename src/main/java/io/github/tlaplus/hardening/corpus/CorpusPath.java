@@ -38,7 +38,8 @@ public enum CorpusPath {
     APALACHE_SCRATCH(".work/apalache-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     LOCK(".workflow.lock", Kind.FILE, Presence.LAZY, Contents.NONE),
     WORKFLOW_STATISTICS(".workflow-stats.cbor", Kind.FILE, Presence.LAZY, Contents.NONE),
-    LIBRARY_MANIFEST(".operator-library", Kind.FILE, Presence.LAZY, Contents.NONE);
+    LIBRARY_MANIFEST(".operator-library", Kind.FILE, Presence.LAZY, Contents.NONE),
+    TECHNIQUE(".technique", Kind.FILE, Presence.LAZY, Contents.NONE);
 
     private final Path relativePath;
     private final Kind kind;
