@@ -626,7 +626,8 @@ match = ['(AND (AND _))']
 id = "apalache-always-action-bound"
 references = ["../findings/apalache-temporal/apalache-temporal-005.md"]
 description = "Apalache needs one more step than the lasso to report a [][A]_v violation under a Boolean connective, such as the workflow's Fairness => Prop."
-match = ['(GLOBALLY (STUTTER ...))']
+# Spec's [][Next]_vars, which every input has, is excluded.
+match = ['(GLOBALLY (STUTTER (~ (OPER_APP Next)) _))']
 
 [[signature]]
 id = "apalache-fold-singleton-membership"

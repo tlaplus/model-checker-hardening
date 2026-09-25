@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  * <pre>
  * pattern := _ | ?name | integer | "string" | TRUE | FALSE | STRING | Int | Nat | BOOLEAN
  *          | identifier | (OPER pattern* [...]) | (: pattern "Type1") | (.. pattern)
- *          | (&amp; pattern pattern*)
+ *          | (&amp; pattern pattern*) | (~ pattern)
  * </pre>
  *
  * <p>Operator names are checked against {@link OperatorNames} and types are parsed here, so a
@@ -24,6 +24,7 @@ final class PatternParser {
     private static final String TYPE_CONSTRAINT = ":";
     private static final String DESCENDANT = "..";
     private static final String CONJUNCTION = "&";
+    private static final String NEGATION = "~";
     private static final char METAVARIABLE = '?';
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_!$]*");
     private static final Pattern INTEGER = Pattern.compile("-?[0-9]+");
@@ -72,11 +73,7 @@ final class PatternParser {
             return typed(open);
         }
         if (head.equals(DESCENDANT)) {
-            var patterns = patterns(open);
-            if (patterns.size() != 1) {
-                throw new PatternException(open + 1, "a descendant pattern takes one pattern");
-            }
-            return new IrPattern.Descendant(patterns.getFirst());
+            return new IrPattern.Descendant(onePattern(open, "a descendant pattern"));
         }
         if (head.equals(CONJUNCTION)) {
             var patterns = patterns(open);
@@ -84,6 +81,9 @@ final class PatternParser {
                 throw new PatternException(open + 1, "a conjunction takes at least one pattern");
             }
             return new IrPattern.Conjunction(patterns);
+        }
+        if (head.equals(NEGATION)) {
+            return new IrPattern.Negation(onePattern(open, "a negation"));
         }
         var operator = OperatorNames.find(head)
                 .orElseThrow(() -> new PatternException(headColumn, "unknown operator '" + head + "'"));
@@ -109,6 +109,15 @@ final class PatternParser {
             }
             arguments.add(pattern());
         }
+    }
+
+    /** Reads the only pattern of the form opened at {@code open}, which {@code form} names. */
+    private IrPattern onePattern(int open, String form) throws PatternException {
+        var patterns = patterns(open);
+        if (patterns.size() != 1) {
+            throw new PatternException(open + 1, form + " takes one pattern");
+        }
+        return patterns.getFirst();
     }
 
     /** Reads the patterns up to the closing parenthesis of the form opened at {@code open}. */

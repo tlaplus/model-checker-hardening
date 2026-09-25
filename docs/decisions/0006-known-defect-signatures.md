@@ -131,6 +131,13 @@ conjunction `(& p1 ... pn)` matches an expression every part matches. A
 descendant attempt matches against a copy of the bindings and keeps it only on
 success, so matching still needs no backtracking across alternatives.
 
+*Revision.* The `(GLOBALLY (STUTTER ...))` signature for
+[`apalache-temporal-005`](../../findings/apalache-temporal/apalache-temporal-005.md)
+also matched `Spec`'s `[][Next]_vars`, so it matched every input. A positive
+pattern cannot exclude one fixed shape, so a negation `(~ p)` was added. It
+matches an expression that `p` does not match. Its attempt runs on a copy of the
+bindings, which it discards, so it reads earlier bindings and binds nothing.
+
 In-process `TlaOper.name()`
 equals the JSON `oper` field, so a pattern names the same operator a user sees
 in the printed IR. Unknown operator names are load errors, so a typo cannot

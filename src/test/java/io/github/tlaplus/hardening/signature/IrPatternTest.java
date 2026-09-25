@@ -82,6 +82,21 @@ class IrPatternTest {
     }
 
     @Test
+    void negatesAPatternWithoutBindingItsMetavariables() throws Exception {
+        var one = builder.integer(1);
+        var two = builder.integer(2);
+        var sum = builder.plus(one, two);
+        assertTrue(matches("(~ (MINUS ...))", sum));
+        assertFalse(matches("(~ (PLUS ...))", sum));
+        assertTrue(matches("(PLUS _ (~ 1))", sum));
+        // The negation reads the binding of ?x made to its left.
+        assertTrue(matches("(PLUS ?x (~ ?x))", sum));
+        assertFalse(matches("(PLUS ?x (~ ?x))", builder.plus(one, builder.integer(1))));
+        // The failed attempt inside the negation binds ?x to 1 before it fails; the binding is dropped.
+        assertTrue(matches("(& (~ (PLUS ?x 1)) (PLUS _ ?x))", sum));
+    }
+
+    @Test
     void requiresEveryOccurrenceOfAMetavariableToMatchEqualExpressions() throws Exception {
         var x = builder.name("x", TlaTypes.INT);
         assertTrue(matches("(EQ ?x ?x)", builder.eql(x, builder.name("x", TlaTypes.INT))));
