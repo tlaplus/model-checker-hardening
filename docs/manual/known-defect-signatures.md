@@ -393,6 +393,14 @@ The remaining signatures match fixed shapes:
   `[][Next]_vars`. The workflow checks `Prop` under `Fairness => Prop`, where
   Apalache needs one more step than the lasso to report a violation of `[][A]_v`
   ([`apalache-temporal-005`](../../findings/apalache-temporal/apalache-temporal-005.md)).
+- `fold-concatenation`: every application of the recursion library's
+  `SeqReverse` or `SeqFlatten`, and every `ApaFoldSet` or `ApaFoldSeqLeft` whose
+  combinator contains `\o`. Apalache can exhaust a 1 GB heap on such a fold over
+  a few hundred elements
+  ([`apalache-performance-003`](../../findings/apalache-performance/apalache-performance-003.md)).
+  On the 787 corpus53 entries with an Apalache result, it matches all 58 heap
+  exhaustions, 178 of the 223 timeouts, and 228 of the 443 entries that
+  Apalache completed.
 
 The database header and `AllDefectsTest` list the documents that no pattern can
 express:

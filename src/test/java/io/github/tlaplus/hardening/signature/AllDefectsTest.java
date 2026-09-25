@@ -128,6 +128,7 @@ class AllDefectsTest {
         var intSequence = TlaTypes.sequence(TlaTypes.INT);
         var sequences = builder.name("ss", TlaTypes.set(intSequence));
         var grown = builder.name("grown", TlaTypes.set(TlaTypes.INT));
+        var reversed = builder.name("r", intSequence);
         var applied = builder.eql(builder.funApply(function, builder.integer(1)), builder.integer(1));
         var fold = builder.foldSet(
                 builder.lambda("Keep", builder.name("a", TlaTypes.INT),
@@ -299,7 +300,19 @@ class AllDefectsTest {
                         List.of(library("RecursionApalache", "SeqInsertionSort",
                                         TlaTypes.operator(intSequence, intSequence), sequence),
                                 library("RecursionApalache", "SeqReverse",
-                                        TlaTypes.operator(intSequence, intSequence), sequence))));
+                                        TlaTypes.operator(intSequence, intSequence), sequence))),
+                Map.entry("fold-concatenation",
+                        List.of(sequenceFold(builder.concat(builder.seq(x), reversed)),
+                                sequenceFold(builder.append(reversed, x)))));
+    }
+
+    /** A fold over {@code s} whose combinator builds {@code body} from its accumulator {@code r} and element {@code x}. */
+    private TlaEx sequenceFold(TlaEx body) {
+        var intSequence = TlaTypes.sequence(TlaTypes.INT);
+        return builder.foldSeq(
+                builder.lambda("Step", body,
+                        builder.param("r", intSequence), builder.param("x", TlaTypes.INT)),
+                builder.emptySeq(TlaTypes.INT), builder.name("s", intSequence));
     }
 
     /** A fold over {@code {1}} whose combinator maps its accumulator {@code grown} with the given binders. */
