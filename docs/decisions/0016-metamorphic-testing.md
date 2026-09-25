@@ -14,9 +14,9 @@ one checker evaluates, such as TLC's recursion, and it misses a defect that both
 checkers share.
 
 Metamorphic testing (MT) replaces the second checker by a second specification. A
-*rewrite* maps a module M to a module M2 that is equivalent under TLA<sup>+</sup>
-semantics, for example by replacing `x` with `x + y - y`. One checker then checks a
-module that relates M and M2. Any violation of that relation is a defect of that
+*rewrite* maps a generated module M1 to a module M2 that is equivalent under
+TLA<sup>+</sup> semantics, for example by replacing `x` with `x + y - y`. One checker
+then checks a module that relates M1 and M2. Any violation of that relation is a defect of that
 checker, or of the rewrite. Single rewrites rarely surface defects, so rewrites
 stack.
 
@@ -33,30 +33,32 @@ into families, with their weights. The families it will cover are arithmetic, se
 Boolean, temporal, TLA<sup>+</sup>-specific, operator stacking, context-specific and
 recursive.
 
+### Notation
+
+An entry's orientation designates one of M1 and M2 as the *explored side* E and the
+other as the *checked side* C. For a side X, the relation module contains the following
+definitions, copied from X:
+
+| Definition | Meaning |
+| --- | --- |
+| `InitX` | initial predicate |
+| `ActionX` | next-state action without its stuttering disjunct |
+| `InvX` | state invariant |
+| `PropX` | temporal property |
+| `FairnessX` | fairness conditions |
+| `exprX` | the expression of an `expr` entry |
+
+X ranges over the roles E and C in the decision, and over the modules 1 and 2 in the
+probes, which also compare relations without an orientation. `vars` is the tuple of
+state variables, which M1 and M2 share.
+
 ### Relation
 
-The package proposal relates the two modules by a product. Given a deadlock-free
-specification `Init /\ [][Next]_vars` and its rewrite `Init2 /\ [][Next2]_vars2`, the
-checker checks
-
-```tla
-(Init /\ Init2 /\ vars = vars2) /\ [][Next /\ Next2 /\ vars' = vars2']_<<vars, vars2>>
-```
-
-for deadlocks. The product does not fit the pipeline. Every generated `Next` ends with
-a stuttering disjunct (`workflow/spec/FuzzInputModule.java`), every generated action
-is guarded by `step < maximumSteps` ([ir-generators.md §9.3][generators]), and both
-checkers run with deadlock detection off. The product therefore needs deadlock
-detection per input, and a joint stutter step exactly where neither side has a
-successor. The joint stutter needs `ENABLED`, which Apalache does not support.
-Probe P1 also shows that the product detects few disagreements.
-
-This ADR checks an implication instead: `Init ⇒ Init2` and `Next ⇒ Next2`, over one
-copy of the variables. The checker explores one side. It checks the other side's
-initial predicate as an invariant in the states where `step = 0`, which are exactly
-the initial states, and the other side's next-state action as an action invariant
-on every transition. Which side is explored is chosen per entry, so a corpus covers
-both directions.
+This ADR checks an implication over one copy of the variables: `InitE ⇒ InitC` and
+`ActionE ⇒ ActionC`. The checker explores E. It checks `InitC` as an invariant in the
+states where `step = 0`, which are exactly the initial states, and `ActionC` as an
+action invariant on every transition. Which side is explored is chosen per entry, so
+a corpus covers both directions.
 
 ### Probes
 
@@ -72,56 +74,42 @@ both directions.
 - The probe program assembled modules through the facade builder and rendered them
   with `SpecText`, as the pipeline does.
 
-**P1: relations.** Each relation was checked twice. In the *identity* run, the
-second side is a copy of the first. In the *perturbed* run, `A2` is `A1` with every
-integer literal incremented, except the operands beside `step`. The perturbation
-applies to 301 of the 500 entries. Three relations were compared:
+**P1: relations.** Each relation was checked twice. In the *identity* run, M2 is a
+copy of M1. In the *perturbed* run, `Action2` is `Action1` with every integer literal
+incremented, except the operands beside `step`. The perturbation applies to 301 of the
+500 entries. Two relations were compared:
 
-- **Product:** the proposal's product over a renamed copy, where every state variable
-  (including `step`) and every generated operator is renamed. The generated actions
-  lose their stuttering disjuncts, and a joint stutter
-  `~ENABLED A1 /\ ~ENABLED A2 /\ UNCHANGED <<vars, vars2>>` is added. Deadlock
-  detection is on.
-- **Union:** `Next == A1 \/ A2 \/ UNCHANGED vars` over one copy of the variables, with
-  `PROPERTY [][A1 <=> A2]_vars`.
+- **Union:** `Next == Action1 \/ Action2 \/ UNCHANGED vars`, with
+  `PROPERTY [][Action1 <=> Action2]_vars`.
 - **Implication,** as decided in section 3:
-  - `Init == InitE` and `Next == AE \/ UNCHANGED vars`;
-  - `Inv == (step = 0 => InitC) /\ (Inv1 <=> Inv2)`;
-  - `PROPERTY [][Step]_vars` with `Step == [AC]_vars`;
+  - `Init == InitE` and `Next == ActionE \/ UNCHANGED vars`;
+  - `Inv == (step = 0 => InitC) /\ (InvE <=> InvC)`;
+  - `PROPERTY [][Step]_vars` with `Step == [ActionC]_vars`;
   - only M2's operators are renamed.
 
-  *Forward* explores M and checks M2 (E = 1, C = 2). *Backward* explores the
-  perturbed M2 and checks M.
+  *Forward* explores M1 and checks M2 (E = M1, C = M2). *Backward* explores the
+  perturbed M2 and checks M1 (E = M2, C = M1).
 
 | Relation | identity: pass | identity: fail | perturbed: violation | perturbed: pass | perturbed: fail |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Product | 496 | 4 | 60 | 169 | 72 |
 | Union | – | – | 110 | 119 | 72 |
 | Implication, forward | 496 | 4 | 108 | 121 | 72 |
 | Implication, backward | – | – | 108 | 122 | 71 |
 | Implication, either direction | – | – | 111 | – | – |
 
-- **The implication detects at least what the other two detect.** Each direction
-  alone detects 108 perturbations, and 105 are detected in both directions. Together,
-  the two directions detect 111. That set contains every union detection and every
-  product detection. The one extra entry is `5bf681ad9426`, where the perturbed `A2`
-  indexes a tuple out of its domain. The union and the forward implication fail while
-  evaluating it, but the backward implication, which generates successors from `A2`,
-  reports a violation.
+- **The implication detects at least what the union detects.** Each direction alone
+  detects 108 perturbations, and 105 are detected in both directions. Together, the
+  two directions detect 111. That set contains every union detection. The one extra
+  entry is `5bf681ad9426`, where the perturbed `Action2` indexes a tuple out of its
+  domain. The union and the forward implication fail while evaluating it, but the
+  backward implication, which generates successors from `Action2`, reports a
+  violation.
 - **The implication reports no false violation.** The identity implication passes
-  exactly where the identity product passes. Its 4 failures are the product's 4.
-- **The product detects a disagreement only if the successor sets are disjoint.** It
-  detects one only in a state where the successor sets of `A1` and `A2` are disjoint
-  and not both empty. It misses successor sets that overlap but differ. Every product
-  detection is also a union detection.
-- **The product needs `ENABLED`.** With the step-bound stutter
-  `step = maximumSteps /\ UNCHANGED <<vars, vars2>>` in place of the `ENABLED` guard,
-  the identity product reports 3 false deadlocks. In each, the base spec reaches a
-  state at `step` 0 or 1 of 5 where no action is enabled.
+  496 entries and reports no violation on the other 4, which fail.
 - **Failures are partial evaluations,** such as `CHOOSE` without a witness, a `CASE`
   with no true arm, or a function applied outside its domain. On its own, each base
   spec reports an invariant violation first and stops. A relation replaces the
-  invariant with `Inv1 <=> Inv2`, so it explores past that state and reaches the
+  invariant with `InvE <=> InvC`, so it explores past that state and reaches the
   error. The relation therefore reaches states that conformance runs never examine:
   TLC stops at the first invariant violation, so a corpus entry with a counterexample
   verdict has been explored only up to that state.
@@ -144,10 +132,10 @@ different mechanisms:
   action-level operator as an action invariant (`bmcmt.ActionInvariant`).
 
 **Apalache on the implication.** Apalache checked the implication for 60 of the
-entries whose `A2` the perturbation changes. It read typed JSON, as it does in the
+entries whose `Action2` the perturbation changes. It read typed JSON, as it does in the
 pipeline, ran with `--inv=Inv,Step --length=6 --no-deadlock`, and had a 300 s timeout.
-The sample holds the first 30 entries whose perturbation the product detects and the
-first 30 whose perturbation it misses. Apalache's log reports `Step` under "Checking 1
+The sample holds 30 entries whose perturbation a preliminary TLC check detected and
+30 whose perturbation it missed. Apalache's log reports `Step` under "Checking 1
 action invariants".
 
 | Module | pass | violation | other |
@@ -159,8 +147,7 @@ action invariants".
 - **Apalache and TLC agree** on every module that both decided, in both directions.
 - **The typecheck error was not investigated.** Both errors are `245f6a134412`,
   whose identity module passes. Apalache reports "Error when computing the type of
-  Lambda6". The perturbed product fails on the same entry, naming a lambda passed to
-  `ApaFoldSeqLeft`.
+  Lambda6".
 
 **P3: recursion in the IR.** The facade IR carries all three recursive forms:
 - a top-level `RECURSIVE` operator (`TlaOperDecl.isRecursive`);
@@ -172,28 +159,28 @@ factorial as a recursive function, and a `LET RECURSIVE` counter correctly.
 `TlaTypedScopeUncheckedBuilder` has no method for any of these forms: the probe set
 the Scala field and built the operator applications directly.
 
-**P4: temporal relation.** 133 of the 500 entries have a property. For each, `F2`
-was a fresh copy of the property `F1`.
-- Base spec with `Prop == F1`: 85 pass, 48 liveness violations.
-- `Prop == F1 <=> F2`: 67 pass. The other 66 fail with "TLC cannot handle the
+**P4: temporal relation.** 133 of the 500 entries have a property. For each, `Prop2`
+was a fresh copy of the property `Prop1`.
+- Base spec with `Prop == Prop1`: 85 pass, 48 liveness violations.
+- `Prop == Prop1 <=> Prop2`: 67 pass. The other 66 fail with "TLC cannot handle the
   temporal formula". Those entries include formulas as simple as
   `[]<>(\E q \in S : FALSE)`.
-- `Prop == (F1 => F2) /\ (F2 => F1)`: 127 pass. The other 6 fail with "Temporal
+- `Prop == (Prop1 => Prop2) /\ (Prop2 => Prop1)`: 127 pass. The other 6 fail with "Temporal
   formulas containing actions must be of forms <>[]A or []<>A", because the
   implication negates a `[][A]_v` subformula.
 
 TLC's rejection of `<=>` between formulas whose implications it accepts is a
 candidate TLC finding. It is not triaged here.
 
-**P5: placeholder rules.** On 200 of the entries, the second side of the identity
-product also received two rewrites: `k → k + 0` on every integer literal, and
-`P → ~~P` on every conjunction and disjunction. In the product, TLC generates
-successors from both sides, as it does from M2 when the implication explores M2.
+**P5: placeholder rules.** On 200 of the entries, M2 received two rewrites:
+`k → k + 0` on every integer literal, and `P → ~~P` on every conjunction and
+disjunction. TLC generated successors from `Action2`, as it does when the implication
+explores M2.
 - **Applied everywhere: all 200 fail.** TLC reports "identifier var0_2 is either
   undefined or not an operator", because an equation under negation is not an
   assignment, so the primed variable stays undefined.
 - **`~~` restricted to formulas without a prime: 198 pass.** The 2 failures are
-  the entries that also fail as identity products.
+  the entries that also fail without the rewrites.
 
 A rewrite can therefore be valid in TLA<sup>+</sup> and still take away TLC's
 assignments. The rule contract below forbids that.
@@ -250,7 +237,7 @@ that it could collide with.
 ### 2. Rewriter
 
 The rewriter lives in the new package `io.github.tlaplus.hardening.gen.rewrite`. It
-is a decoder from bytes to a pair (M, M2) and an orientation. The requirements of
+is a decoder from bytes to a pair (M1, M2) and an orientation. The requirements of
 [ir-generators.md §1][generators] therefore apply:
 - it is deterministic and has no hidden randomness;
 - exhausted input decodes to no rewrite;
@@ -270,7 +257,7 @@ The rewriter needs package access to `gen.engine`, whose `GenerationContext` and
   bounds the number of rewrites per body, and `max_rewrite_depth` bounds the
   rewrites stacked on one node.
 - Once the input is exhausted, every marker reads even, so the rest of the tree is
-  left unchanged, and M is explored.
+  left unchanged, and M1 is explored.
 - Rewritable bodies are the operator definitions, `Init`, the next-state action,
   the invariant, and the property formula, including its fairness conditions.
 - The walk tracks lexical scope. A fresh operand, such as the `y` of `x + (y - y)`,
@@ -289,7 +276,7 @@ The rewriter needs package access to `gen.engine`, whose `GenerationContext` and
   M2, so TLC generates successors from rewritten actions (probe P5).
 
 **Identity rejection.** A decoded pair whose M2 renders to the same TLA<sup>+</sup> as
-M is rejected. The input stage already rejects a mutant clone through
+M1 is rejected. The input stage already rejects a mutant clone through
 `CandidateSource.Draft.isClone`; a metamorphic draft supplies a predicate that
 compares the two sides.
 
@@ -307,34 +294,33 @@ compares the two sides.
 stay as they are ([fuzzing-workflows.md §1.1][workflows]), with one more entry point
 for the action invariant.
 
-**Side definitions.** Each side's body is a definition of its own: `Init1`, `Init2`,
-`Inv1`, `Inv2`, `A1`, `A2`, `F1` and `F2`. SANY scopes labels per definition, and a
-copied body repeats its labels (probe P1). M2's generated operators are renamed
-injectively into a namespace that the decoder never binds, and so are the side
-definitions.
-
 **Orientation.** The orientation marker selects the explored side E and the checked
-side C: (E, C) is (M, M2) when the marker is even, and (M2, M) when it is odd.
-Exploring only M would check `M ⇒ M2` alone, and it would never run M2's actions in
+side C: (E, C) is (M1, M2) when the marker is even, and (M2, M1) when it is odd.
+Exploring only M1 would check `M1 ⇒ M2` alone, and it would never run M2's actions in
 TLC's successor-generating mode.
 
-**`module` under `mt`.** Over the variables `vars` of M, which M2 shares:
+**Side definitions.** Each side's body is a definition of its own, named by its role
+as in the notation table: `InitE`, `InitC`, `ActionE`, `ActionC`, `InvE`, `InvC`,
+`PropE`, `PropC` and `FairnessE`. SANY scopes labels per definition, and a copied body
+repeats its labels (probe P1). M2's generated operators are renamed injectively into a
+namespace that the decoder never binds, and so are the side definitions.
+
+**`module` under `mt`.** Over the variables `vars` of M1, which M2 shares:
 
 ```tla
 Init         == InitE
-Next         == AE \/ UNCHANGED vars
-Inv          == (step = 0 => InitC) /\ (Inv1 <=> Inv2)
-Step         == [AC]_vars
+Next         == ActionE \/ UNCHANGED vars
+Inv          == (step = 0 => InitC) /\ (InvE <=> InvC)
+Step         == [ActionC]_vars
 StepProperty == [][Step]_vars
 Spec         == Init /\ [][Next]_vars /\ FairnessE
 ```
 
 - **Initial states.** `step = 0` holds exactly in the initial states, since every
-  transition of `AE` increments `step`. `Inv` therefore checks `InitE ⇒ InitC`.
-- **Transitions.** `AE` and `AC` are the generated next-state actions without their
-  stuttering disjuncts. `Step` checks `AE ⇒ AC` on every transition that changes a
-  variable. TLC generates successors from `AE` and evaluates `AC` as a predicate on
-  each of them.
+  transition of `ActionE` increments `step`. `Inv` therefore checks `InitE ⇒ InitC`.
+- **Transitions.** `Step` checks `ActionE ⇒ ActionC` on every transition that changes
+  a variable. TLC generates successors from `ActionE` and evaluates `ActionC` as a
+  predicate on each of them.
 - **Invariant.** The base invariant's truth is not checked; only its equivalence
   with its rewrite is.
 - **Action invariant.** TLC gets `PROPERTY StepProperty`, and Apalache gets
@@ -348,17 +334,17 @@ Spec         == Init /\ [][Next]_vars /\ FairnessE
   module. The projections of [ADR 0008][adr-0008] and the quality gate therefore
   apply unchanged.
 
-**`expr` under `mt`.** The single-state case: `Init == v = eE`, `Inv == v = eC` and
-`Next == UNCHANGED v`. The orientation decides which side is evaluated as an
+**`expr` under `mt`.** The single-state case: `Init == v = exprE`,
+`Inv == v = exprC` and `Next == UNCHANGED v`. The orientation decides which side is evaluated as an
 assignment.
 
 **Temporal properties.** For a module with a property,
-`Prop == (F1 => F2) /\ (F2 => F1)`. The conjunction of implications, not `<=>`, is
+`Prop == (PropE => PropC) /\ (PropC => PropE)`. The conjunction of implications, not `<=>`, is
 required (probe P4).
 - `Spec` conjoins the explored side's fairness conditions, `FairnessE`.
 - `Liveness == FairnessE => Prop` for Apalache, as before.
 
-`F1 <=> F2` holds on every behavior, so the specification decides only which
+`PropE <=> PropC` holds on every behavior, so the specification decides only which
 behaviors are examined, not whether a violation is a defect. The checked side's
 fairness conditions are not compared; a fairness rewrite takes effect only in entries
 that explore its side.
@@ -449,7 +435,7 @@ A top-level `[metamorphic]` table, read only under `--how=mt`:
    table.
 4. The temporal relation.
 5. Triage:
-   - `fuzztla print` shows M, M2, the orientation and the applied rules by replay;
+   - `fuzztla print` shows M1, M2, the orientation and the applied rules by replay;
    - a shrinker clears rewrite markers one at a time;
    - `export-db` stores the technique and the applied rules ([ADR 0009][adr-0009]
      schema bump).
@@ -458,33 +444,22 @@ The rule catalog follows in its own ADR.
 
 ## Alternatives considered
 
-- **The product relation.** This is the proposal's relation, and an earlier draft of
-  this ADR adopted it (probe P1). It has three costs:
-  - it needs deadlock detection per input, which means dropping TLC's `-deadlock`
-    flag, because the flag overrides `CHECK_DEADLOCK TRUE`;
-  - it needs a joint stutter that differs per checker: `ENABLED` for TLC, and the step
-    bound for Apalache, which yields false deadlocks where the base spec deadlocks
-    before the bound;
-  - it detects only disjoint successor sets: 60 of 301 perturbations.
-
-  Its one advantage is that both sides generate successors in every entry. The
-  orientation provides that across entries.
-- **Union encoding.** Explore `A1 \/ A2` over one copy of the variables, and assert
-  `[][A1 <=> A2]_vars`. It checks both directions in one entry and detected 110 of the
-  301 perturbations. Its behaviors, however, belong to neither module: a
+- **Union encoding.** Explore `Action1 \/ Action2` over one copy of the variables, and
+  assert `[][Action1 <=> Action2]_vars`. It checks both directions in one entry and
+  detected 110 of the 301 perturbations. Its behaviors, however, belong to neither module: a
   counterexample may mix steps of both sides, and the quality gate would rank a module
   that was never generated. The implication explores one generated module, and it
   shows the rest of the difference in entries with the other orientation.
 - **History variables.** Keep the predecessor state in a copy `pvars` and check
-  `step /= 0 => A2` as a state invariant, with `x` read as `px` and `x'` as `x`. This
-  would be a state invariant on both checkers. However:
+  `step /= 0 => ActionC` as a state invariant, with `x` read as `px` and `x'` as `x`.
+  This would be a state invariant on both checkers. However:
   - every reachable transition becomes a state;
   - the substitution must keep the primes that `ENABLED` binds, and it has no
     syntactic form for `\cdot`;
   - action operators need shifted copies.
-- **Metamorphic input kinds.** An earlier draft added the kinds `mt-expr` and
-  `mt-module`, with `InputKind.base()` and `InputKind.oracle()`. That doubles every
-  kind, lets one corpus mix oracles, and makes every consumer of `InputKind` aware of
+- **Metamorphic input kinds.** Add the kinds `mt-expr` and `mt-module`, with
+  `InputKind.base()` and `InputKind.oracle()`. That doubles every kind, lets one
+  corpus mix oracles, and makes every consumer of `InputKind` aware of
   MT. A corpus has one technique, so the technique belongs to the corpus.
 - **The rewrite as envelope metadata.** The digest of the input identifies an entry,
   so two rewrites of one parent would collide. A replay would also depend on metadata
@@ -512,13 +487,13 @@ The rule catalog follows in its own ADR.
   only by entries that explore M2. Within an entry, the checked side is evaluated
   only as a predicate. In probe P1, one direction detected 108 of 301 perturbations,
   and both directions together detected 111.
-- **The first TLC candidate finding already exists.** TLC rejects `F1 <=> F2` where
-  it accepts `(F1 => F2) /\ (F2 => F1)` (probe P4). It needs triage and a findings
+- **The first TLC candidate finding already exists.** TLC rejects `Prop1 <=> Prop2`
+  where it accepts `(Prop1 => Prop2) /\ (Prop2 => Prop1)` (probe P4). It needs triage and a findings
   document of its own.
 - **Triage attributes a violation to the rules applied.** It replays the entry to
   list them and its orientation. Findings cite the rule module and the FuzzTLA
   commit, besides the TLC and Apalache commits.
-- **Cost.** The relation adds no state. Per explored transition, it evaluates `AC`
+- **Cost.** The relation adds no state. Per explored transition, it evaluates `ActionC`
   once more, and per initial state, `InitC`. The probe did not measure the time
   overhead.
 

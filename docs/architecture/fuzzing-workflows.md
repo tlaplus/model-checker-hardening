@@ -343,7 +343,7 @@ This workflow specializes the general workflow as follows:
 Nothing in this section is implemented.
 
 In this workflow, the goal is to collect a metamorphic test suite. Each input pairs a
-generated module M with a rewrite M2 that is equivalent in TLA<sup>+</sup>. One checker
+generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>. One checker
 checks a module that relates the two, so no second checker is the oracle. The test
 suite contains three kinds of test inputs:
 
@@ -351,6 +351,21 @@ suite contains three kinds of test inputs:
 - **Negative tests.** The checker reports a violation: it evaluates two equivalent
   specifications differently, or a rewrite rule is unsound.
 - **Crash tests.** The model checker crashes on the input.
+
+**Notation.** An entry's orientation designates one of M1 and M2 as the *explored side*
+E and the other as the *checked side* C. For a side X ∈ {E, C}, the relation module
+contains the following definitions, copied from X:
+
+| Definition | Meaning |
+| --- | --- |
+| `InitX` | initial predicate |
+| `ActionX` | next-state action without its stuttering disjunct |
+| `InvX` | state invariant |
+| `PropX` | temporal property |
+| `FairnessX` | fairness conditions |
+| `exprX` | the expression of an `expr` entry |
+
+`vars` is the tuple of state variables, which M1 and M2 share.
 
 The workflow reuses every stage. Only the technique, the payload, the assembled module
 and the aggregator's policy differ:
@@ -363,17 +378,19 @@ and the aggregator's policy differ:
   `gen.rewrite` decodes the rewrite payload into an orientation bit and rule
   applications. A rule is an operator `F(x, y) == A = B` of a TLA<sup>+</sup> rule
   module ([ADR 0017][]). The rule catalog is the subject of a later ADR.
-- **Relation module.** The orientation chooses the explored side E and the checked
-  side C among M and M2, which share one copy of the variables. For `module`,
-  `FuzzInputModule` assembles an implication:
-  - `Init == InitE` and `Next == AE \/ UNCHANGED vars`;
-  - `Inv == (step = 0 => InitC) /\ (Inv1 <=> Inv2)`, which checks `InitE => InitC`;
-  - the action invariant `Step == [AC]_vars`, which checks `AE => AC` on every
-    transition. TLC checks it as `PROPERTY [][Step]_vars`, and Apalache as
-    `--inv=Inv,Step`.
+- **Relation module.** `FuzzInputModule` assembles an implication `E ⇒ C`. For
+  `module`:
+  - `Init == InitE` and `Next == ActionE \/ UNCHANGED vars`;
+  - `Inv == (step = 0 => InitC) /\ (InvE <=> InvC)`, which checks `InitE ⇒ InitC`,
+    since `step = 0` holds exactly in the initial states;
+  - the action invariant `Step == [ActionC]_vars`, which checks `ActionE ⇒ ActionC`
+    on every transition. TLC checks it as `PROPERTY [][Step]_vars`, and Apalache as
+    `--inv=Inv,Step`;
+  - for a module with a property, `Prop == (PropE => PropC) /\ (PropC => PropE)`
+    under the fairness conditions `FairnessE`.
 
-  Deadlock detection stays off. For a temporal property, `Prop` is
-  `(F1 => F2) /\ (F2 => F1)`. For `expr`, `Inv` is `v = eC` with `Init` `v = eE`.
+  Deadlock detection stays off. For `expr`, `Init == v = exprE`,
+  `Next == UNCHANGED v` and `Inv == v = exprC`.
 - **Checkers.** `[workflow] checkers` selects the model-checker stages. A TLC-only
   corpus can check rewrites into recursive definitions, which Apalache rejects.
 - **Aggregator.** The corpus technique selects the oracle. A metamorphic entry passes
