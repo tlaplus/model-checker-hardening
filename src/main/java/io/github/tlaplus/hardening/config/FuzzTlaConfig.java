@@ -21,8 +21,10 @@ public record FuzzTlaConfig(
         WorkflowConfig workflow,
         PbtConfig pbt,
         MutatorConfig mutator,
-        OperatorLibraryConfig libraries) {
+        OperatorLibraryConfig libraries,
+        MetamorphicConfig metamorphic) {
     public FuzzTlaConfig {
+        Objects.requireNonNull(metamorphic, "metamorphic");
         Objects.requireNonNull(generatedKind, "generatedKind");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(workflow, "workflow");
@@ -42,6 +44,17 @@ public record FuzzTlaConfig(
         }
     }
 
+    /** A configuration without metamorphic settings, which only {@code --how=mt} reads. */
+    public FuzzTlaConfig(
+            InputKind generatedKind,
+            IrGenerationConfig generator,
+            WorkflowConfig workflow,
+            PbtConfig pbt,
+            MutatorConfig mutator,
+            OperatorLibraryConfig libraries) {
+        this(generatedKind, generator, workflow, pbt, mutator, libraries, MetamorphicConfig.defaults());
+    }
+
     /**
      * Returns the default configuration, which consults no known-defect database. {@code fuzztla
      * init} writes it with the repository's shipped database enabled, because only the command
@@ -59,12 +72,17 @@ public record FuzzTlaConfig(
 
     /** Returns this configuration with the given custom operator library. */
     public FuzzTlaConfig withLibraries(OperatorLibraryConfig libraries) {
-        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries);
+        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, metamorphic);
     }
 
     /** Returns this configuration with the given workflow limits and checkers. */
     public FuzzTlaConfig withWorkflow(WorkflowConfig replacement) {
-        return new FuzzTlaConfig(generatedKind, generator, replacement, pbt, mutator, libraries);
+        return new FuzzTlaConfig(generatedKind, generator, replacement, pbt, mutator, libraries, metamorphic);
+    }
+
+    /** Returns this configuration with the given metamorphic settings. */
+    public FuzzTlaConfig withMetamorphic(MetamorphicConfig replacement) {
+        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, replacement);
     }
 
     /** Returns this configuration with the input stage consulting the given known-defect databases. */

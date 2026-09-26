@@ -10,8 +10,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * The corpus records a run repeats on every later run (ADR 0016 §1, §5): the technique and the
- * checker set. Each decides how every entry is decoded, fanned out and judged.
+ * The corpus records a run repeats on every later run (ADR 0016 §1, §5, ADR 0017 §6): the
+ * technique, the checker set and the rewrite rules. Each decides how every entry is decoded, fanned
+ * out and judged.
  */
 public final class CorpusRecords {
     /** The technique of `fuzztla run --how`; a corpus that records none runs {@code pbt}. */
@@ -29,6 +30,19 @@ public final class CorpusRecords {
             new ReplayRecord.Codec<>(CorpusRecords::encode, CorpusRecords::decode),
             (saved, expected) -> "this corpus runs the checkers " + saved + ", not " + expected
                     + "; restore [workflow] checkers or initialize a new corpus");
+
+    /**
+     * The rewrite rules of a metamorphic corpus: their manifest pins the sources, the module and the
+     * weights, since rule order and text are part of the byte encoding. Empty without rules.
+     */
+    public static final ReplayRecord<String> REWRITE_LIBRARY = new ReplayRecord<>(
+            CorpusRecord.REWRITE_LIBRARY,
+            "",
+            ReplayRecord.Codec.TEXT,
+            (saved, expected) -> saved.isEmpty()
+                    ? "rewrite rule manifest is missing; start with an empty corpus"
+                    : "rewrite rules changed: restore their sources, module, weights and Apalache "
+                            + "distribution, or initialize a new corpus");
 
     private static final String SEPARATOR = ",";
 

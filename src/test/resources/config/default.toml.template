@@ -126,3 +126,10 @@ shallow_patterns = ["vacuous_pass", "initial_state_violation", "early_failure", 
 cell_capacity = 4
 # Also keep an entry that adds an operator-edge coverage feature (ADR 0013).
 feature_coverage = true
+
+[metamorphic]
+# Rule module of --how=mt, relative to this config file (ADR 0017): every top-level
+# definition F(p1, ..., pn) == A = B of the module is a rewrite rule.
+# rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }
+# Selection slots per rewrite rule; an omitted rule has weight 1, and 0 disables it.
+weights = {}

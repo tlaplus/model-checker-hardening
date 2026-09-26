@@ -40,7 +40,8 @@ public enum CorpusPath {
     WORKFLOW_STATISTICS(".workflow-stats.cbor", Kind.FILE, Presence.LAZY, Contents.NONE),
     LIBRARY_MANIFEST(".operator-library", Kind.FILE, Presence.LAZY, Contents.NONE),
     TECHNIQUE(".technique", Kind.FILE, Presence.LAZY, Contents.NONE),
-    CHECKERS(".checkers", Kind.FILE, Presence.LAZY, Contents.NONE);
+    CHECKERS(".checkers", Kind.FILE, Presence.LAZY, Contents.NONE),
+    REWRITE_LIBRARY(".rewrite-library", Kind.FILE, Presence.LAZY, Contents.NONE);
 
     private final Path relativePath;
     private final Kind kind;
