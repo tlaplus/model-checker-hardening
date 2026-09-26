@@ -265,6 +265,12 @@ Apalache side must pass library validation, so the TLC side may be recursive.
 `libraries/recursion.toml` pairs 39 recursive operators with folds and closed forms
 ([manual](docs/manual/recursive-operators.md)).
 
+Metamorphic testing (`run --how=mt`), which checks one checker against equivalent
+rewrites of its input, is proposed but not implemented
+([ADR 0016](docs/decisions/0016-metamorphic-testing.md),
+[ADR 0017](docs/decisions/0017-rewrite-rule-library.md),
+[manual](docs/manual/metamorphic-testing.md)).
+
 ### Running
 
 Populate the corpus with property-based inputs by running:

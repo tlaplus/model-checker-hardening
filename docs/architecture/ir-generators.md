@@ -33,6 +33,18 @@ store or mutate them.
 The two encodings are independent and share no bytes. Adding a module form
 cannot reinterpret a stored expression input, and the reverse holds too.
 
+**Proposed extension** ([ADR 0016](../decisions/0016-metamorphic-testing.md)).
+Metamorphic testing (`run --how=mt`) would add a byte-directed rewriter in
+`gen.rewrite`. Under `mt`, an `expr` or `module` payload is prefixed with its two-byte
+length and followed by a rewrite payload. The rewriter decodes the rewrite payload into
+an orientation bit and a rewrite of the decoded IR that is equivalent to it. It follows
+the requirements below: decoding is deterministic, and exhaustion decodes to no
+rewrite. It draws fresh operands through the expression engine. Its rules are the
+operators of a TLA<sup>+</sup> rule module typed by Snowcat
+([ADR 0017](../decisions/0017-rewrite-rule-library.md)). Their declaration order is
+part of the encoding, and the corpus file `.rewrite-library` pins it. The two existing
+encodings stay unchanged.
+
 The design has six primary requirements:
 
 1. The same configuration and bytes produce the same IR or rejection.
