@@ -5,12 +5,12 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
@@ -88,7 +88,7 @@ final class RunCommand implements Callable<Integer> {
             // Closing the output restores the terminal before a diagnostic is printed.
             try (var output = RunOutput.open(spec.commandLine().getOut(), parent.terminals(),
                     config.mutator().feedbackRatio() > 0)) {
-                var summary = output.run(new WorkflowRunner(config), directory, effectiveSeed, maximumCpus);
+                var summary = output.run(new WorkflowRunner(config, technique), directory, effectiveSeed, maximumCpus);
                 output.finish(directory.resolve(CorpusPath.ROOT), summary);
             }
             return CommandLine.ExitCode.OK;
@@ -106,35 +106,11 @@ final class RunCommand implements Callable<Integer> {
         return new SecureRandom().nextLong() & Long.MAX_VALUE;
     }
 
-    enum Technique {
-        PBT("pbt");
-
-        private final String cliName;
-
-        Technique(String cliName) {
-            this.cliName = cliName;
-        }
-
-        String cliName() {
-            return cliName;
-        }
-
-        static Technique fromCliName(String value) {
-            return Arrays.stream(values())
-                    .filter(technique -> technique.cliName.equals(value))
-                    .findFirst()
-                    .orElseThrow(() -> new TypeConversionException(
-                            "expected one of: "
-                                    + String.join(", ", Arrays.stream(values())
-                                            .map(Technique::cliName)
-                                            .toList())));
-        }
-    }
-
     public static final class TechniqueConverter implements ITypeConverter<Technique> {
         @Override
         public Technique convert(String value) {
-            return Technique.fromCliName(value);
+            return Technique.fromEncodedName(value).orElseThrow(() -> new TypeConversionException(
+                    "expected one of: " + String.join(", ", Technique.encodedNames())));
         }
     }
 

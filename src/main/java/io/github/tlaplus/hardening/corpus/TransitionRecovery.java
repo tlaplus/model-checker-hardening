@@ -20,11 +20,14 @@ final class TransitionRecovery {
     private final CorpusLayout layout;
     private final CorpusEntries entries;
     private final StageTransition transitions;
+    private final CheckerSet checkers;
 
-    TransitionRecovery(CorpusLayout layout, CorpusEntries entries, StageTransition transitions) {
+    TransitionRecovery(
+            CorpusLayout layout, CorpusEntries entries, StageTransition transitions, CheckerSet checkers) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.entries = Objects.requireNonNull(entries, "entries");
         this.transitions = Objects.requireNonNull(transitions, "transitions");
+        this.checkers = Objects.requireNonNull(checkers, "checkers");
     }
 
     /** Completes every half-finished stage transition and parser fan-out. */
@@ -33,7 +36,7 @@ final class TransitionRecovery {
             recoverTransitions(stage);
         }
         for (var path : CorpusLayout.entryPaths(layout.resolve(CorpusPath.PARSER_PASS))) {
-            transitions.fanOutParserPass(path);
+            transitions.fanOutParserPass(path, checkers);
         }
     }
 

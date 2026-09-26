@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `6`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `7`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -228,7 +228,8 @@ continues past such files. The key is `(directory, hash)`.
 ### 2.9. `verdictPair`
 
 A view with one row per entry that has an `aggregator` stage record. It puts the
-two checkers' results side by side.
+two checkers' results side by side. A corpus that runs one checker
+(`[workflow] checkers`) has null columns for the other.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
@@ -236,10 +237,10 @@ two checkers' results side by side.
 | `hash` | TEXT | no | `entry.hash` | – |
 | `cohort` | INTEGER | yes | `entry.cohort` | – |
 | `aggregator` | TEXT | no | Aggregator verdict, `pass` or `fail` | `stage.verdict` |
-| `tlc` | TEXT | no | TLC verdict | `stage.verdict` |
+| `tlc` | TEXT | yes | TLC verdict; null when the corpus does not run TLC | `stage.verdict` |
 | `tlcCode` | INTEGER | yes | TLC failure code | `stage.code` |
 | `tlcTraceLength` | INTEGER | yes | TLC counterexample length | `stage.traceLength` |
-| `apalache` | TEXT | no | Apalache verdict | `stage.verdict` |
+| `apalache` | TEXT | yes | Apalache verdict; null when the corpus does not run Apalache | `stage.verdict` |
 | `apalacheCode` | INTEGER | yes | Apalache failure code | `stage.code` |
 | `apalacheTraceLength` | INTEGER | yes | Apalache counterexample length | `stage.traceLength` |
 

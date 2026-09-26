@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.config;
 
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
@@ -33,13 +34,60 @@ import org.tomlj.TomlTable;
  * table's registration order is the order its keys are rendered.
  */
 final class ConfigSchema {
+    /** What an optional key reads when its table omits it. */
+    sealed interface Default<T> {
+        T read(Map<String, TomlTable> tables) throws ConfigException;
+
+        /** Whether rendering comments out {@code rendered}, which the default already supplies. */
+        boolean inherits(T rendered, FuzzTlaConfig config);
+    }
+
+    /**
+     * Inherits another key's value. Rendering comments the assignment out while the value is the
+     * inherited one, so a fresh config states the limit once.
+     */
+    record Inherited<T>(Key<T> key) implements Default<T> {
+        Inherited {
+            Objects.requireNonNull(key, "key");
+        }
+
+        @Override
+        public T read(Map<String, TomlTable> tables) throws ConfigException {
+            return key.read(tables);
+        }
+
+        @Override
+        public boolean inherits(T rendered, FuzzTlaConfig config) {
+            return rendered.equals(key.value().apply(config));
+        }
+    }
+
+    /**
+     * Reads a fixed value, so a config written before the key existed keeps its meaning. Rendering
+     * still states the value.
+     */
+    record Constant<T>(T value) implements Default<T> {
+        Constant {
+            Objects.requireNonNull(value, "value");
+        }
+
+        @Override
+        public T read(Map<String, TomlTable> tables) {
+            return value;
+        }
+
+        @Override
+        public boolean inherits(T rendered, FuzzTlaConfig config) {
+            return false;
+        }
+    }
+
     /**
      * One configuration key: the table it belongs to, its name, its type, the documentation
      * rendered above it, and the value it holds in a configuration.
      *
-     * <p>A key with a {@code fallback} is optional: a table that omits it inherits the fallback
-     * key's value, and rendering comments the assignment out while the value is the inherited
-     * one.
+     * <p>A key with a default ({@code absent}) is optional: a table that omits it reads the
+     * default instead.
      */
     record Key<T>(
             String tablePath,
@@ -47,7 +95,7 @@ final class ConfigSchema {
             ConfigValueType<T> type,
             List<String> documentation,
             Function<FuzzTlaConfig, T> value,
-            Key<T> fallback) {
+            Default<T> absent) {
         Key {
             Objects.requireNonNull(tablePath, "tablePath");
             Objects.requireNonNull(name, "name");
@@ -56,7 +104,7 @@ final class ConfigSchema {
             documentation = List.copyOf(Objects.requireNonNull(documentation, "documentation"));
         }
 
-        /** A required key has no fallback. */
+        /** A required key has no default. */
         Key(String tablePath, String name, ConfigValueType<T> type, List<String> documentation,
                 Function<FuzzTlaConfig, T> value) {
             this(tablePath, name, type, documentation, value, null);
@@ -67,15 +115,20 @@ final class ConfigSchema {
             return tablePath + "." + name;
         }
 
-        /** Reads this key from the parsed tables of a document, keyed by table path. */
-        T read(Map<String, TomlTable> tables) throws ConfigException {
-            return type.reader().read(table(tables), path(), name);
+        /** Whether a table may omit this key. */
+        boolean isOptional() {
+            return absent != null;
         }
 
-        /** Reads this optional key, or its fallback key's value when the table omits it. */
-        T readOr(Map<String, TomlTable> tables) throws ConfigException {
-            Preconditions.require(fallback != null, path() + " is a required key");
-            return table(tables).contains(name) ? read(tables) : fallback.read(tables);
+        /**
+         * Reads this key from the parsed tables of a document, keyed by table path, or its default
+         * when the table omits it. Key validation has already rejected an omitted required key.
+         */
+        T read(Map<String, TomlTable> tables) throws ConfigException {
+            if (isOptional() && !table(tables).contains(name)) {
+                return absent.read(tables);
+            }
+            return type.reader().read(table(tables), path(), name);
         }
 
         /** Returns the documentation and assignment lines of this key. */
@@ -84,9 +137,7 @@ final class ConfigSchema {
             documentation.forEach(comment -> lines.add("# " + comment));
             var rendered = value.apply(config);
             var assignment = name + " = " + type.format().apply(rendered);
-            // An optional key at its inherited value documents the knob without overriding the
-            // fallback, so a fresh config states the limit once.
-            var inherited = fallback != null && rendered.equals(fallback.value.apply(config));
+            var inherited = isOptional() && absent.inherits(rendered, config);
             lines.add(inherited ? "# " + assignment : assignment);
             return lines;
         }
@@ -101,14 +152,19 @@ final class ConfigSchema {
         }
     }
 
-    /** One table of the document and the keys declared directly in it. */
-    record Table(String path, List<Key<?>> keys) {
+    /**
+     * One table of the document and the keys declared directly in it. An optional table may be
+     * omitted, and then reads every key's default, so all of its keys must be optional.
+     */
+    record Table(String path, List<Key<?>> keys, boolean optional) {
         Table {
             Objects.requireNonNull(path, "path");
             keys = List.copyOf(Objects.requireNonNull(keys, "keys"));
             for (var key : keys) {
                 Preconditions.require(key.tablePath().equals(path),
                         "key " + key.path() + " does not belong to table " + path);
+                Preconditions.require(!optional || key.isOptional(),
+                        "optional table " + path + " declares required key " + key.name());
             }
         }
 
@@ -188,6 +244,11 @@ final class ConfigSchema {
             "max_entries", WorkflowConfig::maximumEntries,
             "Maximum number of unique entries across every workflow directory.",
             "A stage table that omits max_entries inherits this value.");
+    static final Key<CheckerSet> ENABLED_CHECKERS = WORKFLOW.optional(
+            "checkers", ConfigValueType.CHECKERS, WorkflowConfig::enabledCheckers,
+            new Constant<>(CheckerSet.ALL),
+            "Model checkers to run: \"tlc\" and \"apalache\" (ADR 0016 §5).",
+            "A corpus with one checker compares no verdicts; the first run records the list.");
     static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.optionalInteger(
             "max_entries", InputStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,
             "Maximum current occupancy of 00-inputs.", INHERITS_MAXIMUM_ENTRIES);
@@ -266,21 +327,26 @@ final class ConfigSchema {
     }
 
     /**
-     * Returns the keys one table must declare directly: the keys declared without a fallback and
-     * the names of the tables nested immediately inside it.
+     * Returns the keys one table must declare directly: the keys declared without a default and
+     * the names of the required tables nested immediately inside it.
      */
     static Set<String> requiredKeys(String path) {
-        return keys(path, key -> key.fallback() == null);
+        return keys(path, key -> !key.isOptional(), table -> !table.optional());
     }
 
     private static Set<String> keys(String path, Predicate<Key<?>> filter) {
+        return keys(path, filter, table -> true);
+    }
+
+    private static Set<String> keys(
+            String path, Predicate<Key<?>> keyFilter, Predicate<Table> nestedFilter) {
         Objects.requireNonNull(path, "path");
         var expected = new LinkedHashSet<String>();
         for (var table : TABLES) {
             if (table.path().equals(path)) {
-                table.keys().stream().filter(filter).forEach(key -> expected.add(key.name()));
+                table.keys().stream().filter(keyFilter).forEach(key -> expected.add(key.name()));
             }
-            if (table.parentPath().equals(path)) {
+            if (table.parentPath().equals(path) && nestedFilter.test(table)) {
                 expected.add(table.name());
             }
         }
@@ -307,17 +373,22 @@ final class ConfigSchema {
         var keys = new EnumMap<CorpusStage, CheckerKeys>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {
             var profile = CheckerProfile.of(stage);
+            var defaults = profile.defaults();
+            // A checker table may be omitted, so a corpus that does not run the checker (ADR 0016
+            // §5) need not configure it; an omitted setting takes the checker's default.
             var table = new ConfigTableBuilder<>(stagePath(stage), config -> config.workflow().checker(stage));
             keys.put(stage, new CheckerKeys(
                     table.optionalInteger("max_entries", CheckerStageConfig::maximumEntries,
                             WORKFLOW_MAXIMUM_ENTRIES,
                             resultDirectoryDocumentation(stage), INHERITS_MAXIMUM_ENTRIES),
-                    table.integer("timeout_sec", CheckerStageConfig::timeoutSeconds,
+                    table.defaultedInteger("timeout_sec", CheckerStageConfig::timeoutSeconds,
+                            defaults.timeoutSeconds(),
                             "Wall-clock limit for checking one generated specification."),
-                    table.integer("max_heap_mb", CheckerStageConfig::maximumHeapMegabytes, profile.heapDocumentation()),
-                    table.integer("workers", CheckerStageConfig::workers,
+                    table.defaultedInteger("max_heap_mb", CheckerStageConfig::maximumHeapMegabytes,
+                            defaults.maximumHeapMegabytes(), profile.heapDocumentation()),
+                    table.defaultedInteger("workers", CheckerStageConfig::workers, defaults.workers(),
                             profile.workersDocumentation().toArray(String[]::new))));
-            CHECKER_TABLES.put(stage, table.build());
+            CHECKER_TABLES.put(stage, table.buildOptional());
         }
         return Map.copyOf(keys);
     }

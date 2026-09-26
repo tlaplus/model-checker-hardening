@@ -36,20 +36,25 @@ final class InventoryScan {
     private final CorpusLayout layout;
     private final CorpusEntries entries;
     private final AggregationRecovery aggregationRecovery;
+    private final CheckerSet checkers;
 
     InventoryScan(
-            CorpusLayout layout, CorpusEntries entries, AggregationRecovery aggregationRecovery) {
+            CorpusLayout layout,
+            CorpusEntries entries,
+            AggregationRecovery aggregationRecovery,
+            CheckerSet checkers) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.entries = Objects.requireNonNull(entries, "entries");
         this.aggregationRecovery =
                 Objects.requireNonNull(aggregationRecovery, "aggregationRecovery");
+        this.checkers = Objects.requireNonNull(checkers, "checkers");
     }
 
     /** Validates the corpus and returns what each stage holds. */
     CorpusInventory scan() throws IOException, CorpusException {
         var aggregateResults = aggregationRecovery.recoverAndValidate();
 
-        var logicalEntries = new LogicalEntries();
+        var logicalEntries = new LogicalEntries(checkers);
         var inputs = new ArrayList<Path>();
         var parserResults = new VerdictTally();
 
@@ -230,11 +235,10 @@ final class InventoryScan {
     /** Returns one notification per checker pair that is already ready to aggregate. */
     private List<Path> aggregationCandidates(Map<CorpusStage, CheckerBranch> branches) {
         var candidates = new ArrayList<Path>();
-        var referenceStage = CorpusStage.checkerBranches().getFirst();
-        for (var entry : branches.get(referenceStage).results().entrySet()) {
+        for (var entry : branches.get(checkers.first()).results().entrySet()) {
             var name = entry.getKey();
             var ready = true;
-            for (var checker : CorpusStage.checkerBranches()) {
+            for (var checker : checkers) {
                 var candidate = branches.get(checker).results().get(name);
                 if (candidate == null
                         || candidate.envelope().stage(checker).orElseThrow().verdict()
@@ -263,19 +267,26 @@ final class InventoryScan {
     }
 
     /**
-     * Requires that every logical entry appears in every checker branch with identical parser
-     * output, and returns the number of logical entries the parser has passed.
+     * Requires that every logical entry appears in every branch the corpus runs with identical
+     * parser output, and no entry in any other branch, and returns the number of logical entries
+     * the parser has passed.
      */
     private long validateAndRegisterCheckerBranches(
             Map<CorpusStage, CheckerBranch> branches, LogicalEntries logicalEntries)
             throws CorpusException {
-        var names = new TreeSet<String>();
         for (var checker : CorpusStage.checkerBranches()) {
+            if (!checkers.contains(checker) && !branches.get(checker).entries().isEmpty()) {
+                throw new CorpusException("corpus holds " + checker.displayName()
+                        + " entries, but the run does not use " + checker.displayName());
+            }
+        }
+        var names = new TreeSet<String>();
+        for (var checker : checkers) {
             names.addAll(branches.get(checker).entries().keySet());
         }
 
         var missingDescriptions = new ArrayList<String>();
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             var missing = new TreeSet<>(names);
             missing.removeAll(branches.get(checker).entries().keySet());
             if (!missing.isEmpty()) {
@@ -290,7 +301,7 @@ final class InventoryScan {
 
         for (var name : names) {
             Entry reference = null;
-            for (var checker : CorpusStage.checkerBranches()) {
+            for (var checker : checkers) {
                 var candidate = branches.get(checker).entries().get(name);
                 if (reference == null) {
                     reference = candidate;
@@ -300,7 +311,7 @@ final class InventoryScan {
             }
             // Each branch copy records only its own checker, so the branches are merged here.
             var branchVerdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
-            for (var checker : CorpusStage.checkerBranches()) {
+            for (var checker : checkers) {
                 branches.get(checker).entries().get(name).envelope().stage(checker)
                         .ifPresent(outcome -> branchVerdicts.put(checker, outcome.verdict()));
             }
@@ -342,9 +353,14 @@ final class InventoryScan {
      * how many of them, and of their mutants, each generation admitted.
      */
     private static final class LogicalEntries {
+        private final CheckerSet checkers;
         private final Set<EntryName> names = new HashSet<>();
         private final SortedMap<Integer, CorpusInventory.GenerationEntries> generations = new TreeMap<>();
         private final Map<EntryName, EntryProgress> unsettled = new HashMap<>();
+
+        LogicalEntries(CheckerSet checkers) {
+            this.checkers = checkers;
+        }
 
         void add(Entry entry) throws CorpusException {
             add(entry, Map.of());
@@ -376,7 +392,7 @@ final class InventoryScan {
                                         left.entries() + right.entries(),
                                         left.mutants() + right.mutants(),
                                         left.ungated() + right.ungated()));
-                        if (!progress.isSettled()) {
+                        if (!progress.isSettled(checkers)) {
                             unsettled.put(name, progress);
                         }
                     }));

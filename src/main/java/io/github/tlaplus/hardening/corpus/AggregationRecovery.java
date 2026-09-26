@@ -14,12 +14,17 @@ final class AggregationRecovery {
     private final CorpusLayout layout;
     private final CorpusEntries entries;
     private final AggregationTransition transition;
+    private final CheckingPolicy policy;
 
     AggregationRecovery(
-            CorpusLayout layout, CorpusEntries entries, AggregationTransition transition) {
+            CorpusLayout layout,
+            CorpusEntries entries,
+            AggregationTransition transition,
+            CheckingPolicy policy) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.entries = Objects.requireNonNull(entries, "entries");
         this.transition = Objects.requireNonNull(transition, "transition");
+        this.policy = Objects.requireNonNull(policy, "policy");
     }
 
     /** Finishes source deletion, validates aggregate semantics, and returns durable counts. */
@@ -33,8 +38,8 @@ final class AggregationRecovery {
                     layout.resolve(CorpusStage.AGGREGATOR.result(verdict)))) {
                 var entry = entries.verify(path);
                 var aggregation = new AggregationInput(
-                        entry.path(), transition.upstreamCheckerVerdicts(entry));
-                if (verdict != aggregation.conformanceVerdict()) {
+                        entry.path(), upstreamCheckerVerdicts(entry), policy);
+                if (verdict != aggregation.verdict()) {
                     throw new CorpusException(
                             "aggregator verdict does not match checker verdicts: " + path);
                 }
@@ -59,7 +64,7 @@ final class AggregationRecovery {
      * aggregator carries, wherever it now sits.
      */
     Map<CorpusStage, CorpusVerdict> upstreamCheckerVerdicts(Entry entry) throws CorpusException {
-        return transition.upstreamCheckerVerdicts(entry);
+        return transition.upstreamCheckerVerdicts(entry, policy.checkers());
     }
 
     /** The entries of the aggregator's result directories, by name, and their verdict counts. */

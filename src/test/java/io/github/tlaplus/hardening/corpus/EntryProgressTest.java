@@ -17,7 +17,7 @@ class EntryProgressTest {
         var progress = EntryProgress.admitted(3);
 
         assertEquals(3, progress.generation());
-        assertFalse(progress.isSettled());
+        assertFalse(progress.isSettled(CheckerSet.ALL));
         assertFalse(progress.isUngated());
         assertEquals(Optional.empty(), progress.verdict(CorpusStage.PARSER));
     }
@@ -34,10 +34,10 @@ class EntryProgressTest {
         var crashed = EntryProgress.admitted(0)
                 .with(CorpusStage.PARSER, CorpusVerdict.PASS)
                 .with(CorpusStage.TLC, CorpusVerdict.CRASH);
-        assertFalse(crashed.isSettled());
+        assertFalse(crashed.isSettled(CheckerSet.ALL));
 
-        assertTrue(crashed.with(CorpusStage.APALACHE, CorpusVerdict.PASS).isSettled());
-        assertTrue(crashed.with(CorpusStage.APALACHE, CorpusVerdict.CRASH).isSettled());
+        assertTrue(crashed.with(CorpusStage.APALACHE, CorpusVerdict.PASS).isSettled(CheckerSet.ALL));
+        assertTrue(crashed.with(CorpusStage.APALACHE, CorpusVerdict.CRASH).isSettled(CheckerSet.ALL));
     }
 
     @Test
@@ -47,8 +47,8 @@ class EntryProgressTest {
                 .with(CorpusStage.TLC, CorpusVerdict.PASS)
                 .with(CorpusStage.APALACHE, CorpusVerdict.COUNTEREXAMPLE);
 
-        assertFalse(checked.isSettled());
-        assertTrue(checked.with(CorpusStage.AGGREGATOR, CorpusVerdict.FAIL).isSettled());
+        assertFalse(checked.isSettled(CheckerSet.ALL));
+        assertTrue(checked.with(CorpusStage.AGGREGATOR, CorpusVerdict.FAIL).isSettled(CheckerSet.ALL));
     }
 
     @Test
@@ -58,8 +58,8 @@ class EntryProgressTest {
                 .with(CorpusStage.APALACHE, CorpusVerdict.PASS)
                 .with(CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
 
-        assertTrue(overtaken.isSettled());
-        assertTrue(overtaken.with(CorpusStage.TLC, CorpusVerdict.PASS).isSettled());
+        assertTrue(overtaken.isSettled(CheckerSet.ALL));
+        assertTrue(overtaken.with(CorpusStage.TLC, CorpusVerdict.PASS).isSettled(CheckerSet.ALL));
     }
 
     @Test
@@ -94,7 +94,7 @@ class EntryProgressTest {
                     stages));
 
             assertEquals(accumulated.verdicts(), read.verdicts(), history.toString());
-            assertEquals(accumulated.isSettled(), read.isSettled(), history.toString());
+            assertEquals(accumulated.isSettled(CheckerSet.ALL), read.isSettled(CheckerSet.ALL), history.toString());
             assertEquals(accumulated.isUngated(), read.isUngated(), history.toString());
         }
     }
@@ -138,7 +138,7 @@ class EntryProgressTest {
     }
 
     private static boolean settled(CorpusStage stage, CorpusVerdict verdict) {
-        return EntryProgress.admitted(0).with(stage, verdict).isSettled();
+        return EntryProgress.admitted(0).with(stage, verdict).isSettled(CheckerSet.ALL);
     }
 
     private static StageMetadata metadata(CorpusStage stage, CorpusVerdict verdict) {

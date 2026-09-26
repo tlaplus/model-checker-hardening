@@ -4,14 +4,14 @@ import io.github.tlaplus.hardening.common.Digests;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.corpus.CorpusRecord;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
+import io.github.tlaplus.hardening.workflow.ReplayRecord;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 
 /** Replay policy for external source snapshots. Storage treats this manifest as opaque bytes. */
 public final class LibraryManifest {
@@ -49,21 +49,15 @@ public final class LibraryManifest {
         return text.toString();
     }
 
+    private static final ReplayRecord<String> RECORD = new ReplayRecord<>(
+            CorpusRecord.LIBRARY_MANIFEST, "", ReplayRecord.Codec.TEXT, (saved, expected) -> saved.isEmpty()
+                    ? "custom operator replay manifest is missing; start with an empty corpus"
+                    : "custom operator library changed: restore its sources, classpath files, selections and "
+                            + "Apalache distribution, or initialize a new corpus");
+
     /** The writer calls this under the corpus lock before decoding or admitting any entry. */
     public static void verify(CorpusDirectory corpus, String manifest, boolean initialize)
             throws IOException, CorpusException, WorkflowException {
-        var saved = corpus.readLibraryManifest();
-        var bytes = manifest.getBytes(StandardCharsets.UTF_8);
-        if (saved.isPresent()) {
-            if (!Arrays.equals(saved.get(), bytes)) {
-                throw new WorkflowException("custom operator library changed: restore its sources, classpath files, selections and "
-                        + "Apalache distribution, or initialize a new corpus");
-            }
-        } else if (!manifest.isEmpty()) {
-            if (!initialize || corpus.hasStoredInputs()) {
-                throw new WorkflowException("custom operator replay manifest is missing; start with an empty corpus");
-            }
-            corpus.writeLibraryManifest(bytes);
-        }
+        RECORD.verify(corpus, manifest, initialize);
     }
 }

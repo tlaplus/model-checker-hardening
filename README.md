@@ -129,6 +129,9 @@ custom_operators = []
 # Maximum number of unique entries across every workflow directory.
 # A stage table that omits max_entries inherits this value.
 max_entries = 1000
+# Model checkers to run: "tlc" and "apalache" (ADR 0016 §5).
+# A corpus with one checker compares no verdicts; the first run records the list.
+checkers = ["tlc", "apalache"]
 
 [workflow.inputs]
 # Maximum current occupancy of 00-inputs.
@@ -180,6 +183,9 @@ richness_nesting_base = 2.0
 # Base of the geometric minimum-richness schedule.
 richness_threshold_base = 1.5
 ```
+
+A checker table (`[workflow.tlc]` or `[workflow.apalache]`), and any of its keys,
+may be omitted. An omitted key takes that checker's default, shown above.
 
 Every generated expression form has one category. `generator.ignore` excludes
 the selected categories, the structural types that require them, and forms that

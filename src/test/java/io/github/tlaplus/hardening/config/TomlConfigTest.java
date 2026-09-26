@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.config;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,6 +18,7 @@ import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -83,6 +85,20 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
     }
 
+    /** A checker table may be omitted entirely; every one of its settings takes its default. */
+    @Test
+    void omittedCheckerTableReadsTheCheckerDefaults(@TempDir Path directory) throws Exception {
+        var defaults = FuzzTlaConfig.defaults();
+        for (var stage : CorpusStage.checkerBranches()) {
+            var heading = "[workflow." + stage.metadataName() + "]";
+            var document = Arrays.stream(TomlConfig.render(defaults).split("\n\n"))
+                    .filter(block -> !block.startsWith(heading + "\n"))
+                    .collect(Collectors.joining("\n\n"));
+            assertFalse(document.contains(heading));
+            assertEquals(defaults, readConfig(directory, document), "omitting " + heading);
+        }
+    }
+
     /**
      * Pins the three views of a key together: a key declared in the schema must be rendered, and
      * dropping its rendered line must be rejected as a missing key when the key is required, or
@@ -118,7 +134,7 @@ class TomlConfigTest {
                                 .filter(line -> !line.equals(assignment.get(0)))
                                 .collect(Collectors.joining("\n")));
                 var document = String.join("\n\n", withoutKey);
-                if (key.fallback() == null) {
+                if (!key.isOptional()) {
                     var failure = assertInvalid(directory, document);
                     assertTrue(
                             failure.getMessage()
@@ -400,13 +416,16 @@ class TomlConfigTest {
                         .replace("[pbt]", "[not_pbt]"));
         assertTrue(missing.getMessage().contains("missing root keys: pbt"));
 
+        // A checker table may be omitted, but not replaced by a value of another shape.
         var current = TomlConfig.render(FuzzTlaConfig.defaults());
         var tlcStart = current.indexOf("[workflow.tlc]");
         var pbtStart = current.indexOf("[pbt]");
-        var missingTlc = assertInvalid(
+        var withoutCheckers = current.substring(0, tlcStart) + current.substring(pbtStart);
+        var notATable = assertInvalid(
                 directory,
-                current.substring(0, tlcStart) + current.substring(pbtStart));
-        assertTrue(missingTlc.getMessage().contains("expected 'tlc' to be a table"));
+                withoutCheckers.replace("[workflow.inputs]", "tlc = 1\n\n[workflow.inputs]"));
+        assertTrue(notATable.getMessage().contains("expected 'tlc' to be a table"),
+                notATable.getMessage());
 
         var unexpected = assertInvalid(
                 directory,

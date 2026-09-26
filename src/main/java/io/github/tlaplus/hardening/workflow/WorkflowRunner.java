@@ -3,11 +3,13 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.corpus.CheckingPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
@@ -39,14 +41,19 @@ public final class WorkflowRunner {
 
     private final StageGraph.Setup setup;
     private final OccupancyLimits limits;
+    private final Technique technique;
+    private final CheckingPolicy checking;
 
-    public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
-        this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
+    public WorkflowRunner(FuzzTlaConfig config, Technique technique) throws WorkflowException {
+        this(config, technique, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
     }
 
     /** Reads the configured known-defect databases before any corpus is locked. */
-    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
+    WorkflowRunner(FuzzTlaConfig config, Technique technique, SpecDecoders decoders)
+            throws WorkflowException {
         Objects.requireNonNull(config, "config");
+        this.technique = Objects.requireNonNull(technique, "technique");
+        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers());
         final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
@@ -54,8 +61,8 @@ public final class WorkflowRunner {
             throw new WorkflowException(
                     "invalid known-defect database: " + exception.getMessage(), exception);
         }
-        setup = new StageGraph.Setup(config, decoders, knownDefects);
-        limits = new OccupancyLimits(config.workflow());
+        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers());
+        limits = new OccupancyLimits(config.workflow(), checking.checkers());
     }
 
     public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
@@ -96,8 +103,10 @@ public final class WorkflowRunner {
                 corpus, seed, maximumCpus, ApalacheDistribution.locate());
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
+            CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
+            CorpusRecords.CHECKERS.verify(corpus, checking.checkers(), true);
             LibraryManifest.verify(corpus, setup.decoders().libraryManifest(), true);
-            var initial = corpus.recoverAndValidate(entryValidator());
+            var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
             var statistics = new RunStatisticsOnExit(corpus, metrics, invocationElapsed);

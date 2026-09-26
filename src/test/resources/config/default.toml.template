@@ -55,6 +55,9 @@ custom_operators = []
 # Maximum number of unique entries across every workflow directory.
 # A stage table that omits max_entries inherits this value.
 max_entries = 1000
+# Model checkers to run: "tlc" and "apalache" (ADR 0016 §5).
+# A corpus with one checker compares no verdicts; the first run records the list.
+checkers = ["tlc", "apalache"]
 
 [workflow.inputs]
 # Maximum current occupancy of 00-inputs.

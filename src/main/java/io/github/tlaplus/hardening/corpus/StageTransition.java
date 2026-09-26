@@ -97,10 +97,10 @@ final class StageTransition {
     }
 
     /**
-     * Copies one parser pass into both checker branches, then removes the fan-out source. The two
-     * copies keep one logical identity, so recovery requires them to stay identical.
+     * Copies one parser pass into every branch of {@code checkers}, then removes the fan-out source.
+     * The copies keep one logical identity, so recovery requires them to stay identical.
      */
-    void fanOutParserPass(Path source) throws IOException, CorpusException {
+    void fanOutParserPass(Path source, CheckerSet checkers) throws IOException, CorpusException {
         entries.requireOwnedPath(source, CorpusPath.PARSER_PASS, "parser pass");
         var encoded = Files.readAllBytes(source);
         var entry = CorpusEntries.decode(source, encoded);
@@ -109,7 +109,7 @@ final class StageTransition {
             CorpusEntries.requireMissingStage(entry, checker);
         }
 
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             var destination =
                     layout.resolve(checker.input()).resolve(source.getFileName());
             installBranchCopy(source, encoded, destination);

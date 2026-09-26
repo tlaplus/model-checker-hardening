@@ -29,6 +29,8 @@ public final class TomlConfig {
 
     /** The name the root of the document is called by in diagnostics. */
     private static final String ROOT_LOCATION = "root";
+    /** Stands in for an omitted optional table, whose keys all read their defaults. */
+    private static final TomlTable EMPTY_TABLE = Toml.parse("");
 
     private TomlConfig() {}
 
@@ -107,15 +109,19 @@ public final class TomlConfig {
      * Resolves every declared table, reporting a table that is missing or has the wrong shape.
      *
      * <p>Every table is resolved before any table's keys are validated, so a missing table is
-     * reported as such rather than as a missing key of its parent.
+     * reported as such rather than as a missing key of its parent. An omitted optional table
+     * resolves to an empty one.
      */
     private static Map<String, TomlTable> resolveTables(TomlTable root) throws ConfigException {
         var tables = new HashMap<String, TomlTable>();
         tables.put(ROOT_PATH, root);
         for (var table : ConfigSchema.TABLES) {
+            var parent = tables.get(table.parentPath());
             tables.put(
                     table.path(),
-                    requireTable(tables.get(table.parentPath()), table.name()));
+                    table.optional() && !parent.contains(table.name())
+                            ? EMPTY_TABLE
+                            : requireTable(parent, table.name()));
         }
         return tables;
     }
@@ -137,14 +143,15 @@ public final class TomlConfig {
         var workflowConfig = new WorkflowConfig(
                 ConfigSchema.WORKFLOW_MAXIMUM_ENTRIES.read(tables),
                 new InputStageConfig(
-                        ConfigSchema.INPUTS_MAXIMUM_ENTRIES.readOr(tables),
+                        ConfigSchema.INPUTS_MAXIMUM_ENTRIES.read(tables),
                         ConfigSchema.KNOWN_DEFECTS.read(tables),
                         ConfigSchema.KNOWN_DEFECT_SAMPLES.read(tables))
                         .relativeTo(directory),
                 new ParserStageConfig(
-                        ConfigSchema.PARSER_MAXIMUM_ENTRIES.readOr(tables),
+                        ConfigSchema.PARSER_MAXIMUM_ENTRIES.read(tables),
                         ConfigSchema.PARSER_TIMEOUT_SECONDS.read(tables)),
-                checkers);
+                checkers,
+                ConfigSchema.ENABLED_CHECKERS.read(tables));
 
         var pbtConfig = new PbtConfig(
                 ConfigSchema.MAXIMUM_INPUT_BYTES.read(tables),
@@ -175,7 +182,7 @@ public final class TomlConfig {
             CorpusStage stage, Map<String, TomlTable> tables) throws ConfigException {
         var keys = ConfigSchema.checker(stage);
         return new CheckerStageConfig(
-                keys.maximumEntries().readOr(tables),
+                keys.maximumEntries().read(tables),
                 keys.timeoutSeconds().read(tables),
                 keys.maximumHeapMegabytes().read(tables),
                 keys.workers().read(tables));

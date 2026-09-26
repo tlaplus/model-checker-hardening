@@ -20,12 +20,13 @@ import java.util.stream.Collectors;
  * The schema of the corpus database, as the corpus-database manual documents it.
  *
  * <p>Tables and the stage-record columns derive from {@link DatabaseTable}; the {@code verdictPair}
- * view derives from {@link CorpusStage#checkerBranches()}. Any change to a table, column or view
+ * view derives from {@link CorpusStage#checkerBranches()}, with a null column for a checker the
+ * corpus does not run. Any change to a table, column or view
  * increments {@link #VERSION} and updates the manual.
  */
 final class CorpusDatabaseSchema {
     /** Stored in {@code PRAGMA user_version}. */
-    static final int VERSION = 6;
+    static final int VERSION = 7;
 
     static final String VERDICT_PAIR_VIEW = "verdictPair";
 
@@ -51,7 +52,10 @@ final class CorpusDatabaseSchema {
                 "PRAGMA user_version = " + VERSION);
     }
 
-    /** One row per aggregated entry, with each checker's verdict, failure code and trace length. */
+    /**
+     * One row per aggregated entry, with each checker's verdict, failure code and trace length. A
+     * corpus may run a subset of the checkers (ADR 0016 §5), so the checkers are joined outer.
+     */
     static String verdictPairView() {
         var entry = DatabaseTable.ENTRY.tableName();
         var stage = DatabaseTable.STAGE.tableName();
@@ -68,7 +72,7 @@ final class CorpusDatabaseSchema {
             select.add(qualified(alias, VERDICT) + " AS " + alias);
             select.add(qualified(alias, CODE) + " AS " + alias + "Code");
             select.add(qualified(alias, traceLength) + " AS " + alias + capitalized(traceLength.name()));
-            joins.append(" JOIN ").append(stage).append(' ').append(alias)
+            joins.append(" LEFT JOIN ").append(stage).append(' ').append(alias)
                     .append(stageJoin(alias, checker));
         }
         return "CREATE VIEW " + VERDICT_PAIR_VIEW + " AS SELECT " + String.join(", ", select)

@@ -26,21 +26,22 @@ final class AggregationTransition {
     }
 
     /** Returns a ready non-crash pair named by a checker completion notification. */
-    Optional<AggregationInput> find(Path candidate) throws IOException, CorpusException {
+    Optional<AggregationInput> find(Path candidate, CheckingPolicy policy)
+            throws IOException, CorpusException {
         Objects.requireNonNull(candidate, "candidate");
         var name = candidate.getFileName().toString();
         if (!ENTRY_FILE_NAME.matcher(name).matches()) {
             throw new CorpusException("invalid corpus entry name: " + candidate);
         }
-        var branches = branchResults(name);
-        if (branches.size() != CorpusStage.checkerBranches().size()
+        var branches = branchResults(name, policy.checkers());
+        if (branches.size() != policy.checkers().size()
                 || branches.stream().anyMatch(branch -> branch.verdict() == CorpusVerdict.CRASH)) {
             return Optional.empty();
         }
         requireCompatibleBranches(name, branches);
         var verdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
         branches.forEach(branch -> verdicts.put(branch.stage(), branch.verdict()));
-        return Optional.of(new AggregationInput(candidate, verdicts));
+        return Optional.of(new AggregationInput(candidate, verdicts, policy));
     }
 
     /** Installs one merged result before removing either checker source. */
@@ -49,15 +50,16 @@ final class AggregationTransition {
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(result, "result");
         CorpusStage.AGGREGATOR.requireValidResult(result);
-        if (result.verdict() != input.conformanceVerdict()) {
+        if (result.verdict() != input.verdict()) {
             throw new CorpusException(
                     "aggregator verdict does not match checker verdicts: "
                             + input.candidate().getFileName());
         }
 
         var name = input.candidate().getFileName().toString();
-        var branches = branchResults(name);
-        if (branches.size() != CorpusStage.checkerBranches().size()) {
+        var checkers = input.policy().checkers();
+        var branches = branchResults(name, checkers);
+        if (branches.size() != checkers.size()) {
             throw new CorpusException("checker results are no longer ready for aggregation: " + name);
         }
         requireCompatibleBranches(name, branches);
@@ -106,7 +108,7 @@ final class AggregationTransition {
             throw new IllegalArgumentException("aggregation input does not name its destination");
         }
         var residual = new ArrayList<Path>();
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : aggregation.policy().checkers()) {
             var source = findResult(name, checker);
             if (source.isEmpty()) {
                 continue;
@@ -126,13 +128,23 @@ final class AggregationTransition {
         return List.copyOf(residual);
     }
 
-    /** Validates and returns the non-crash checker verdicts carried by an aggregate entry. */
-    Map<CorpusStage, CorpusVerdict> upstreamCheckerVerdicts(Entry aggregate)
+    /**
+     * Validates and returns the non-crash checker verdicts carried by an aggregate entry, which
+     * names exactly the checkers the corpus runs.
+     */
+    Map<CorpusStage, CorpusVerdict> upstreamCheckerVerdicts(Entry aggregate, CheckerSet checkers)
             throws CorpusException {
         CorpusEntries.requireStageVerdict(
                 aggregate, CorpusStage.PARSER, CorpusVerdict.PASS);
         var verdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
+            if (!checkers.contains(checker)) {
+                if (aggregate.envelope().stage(checker).isPresent()) {
+                    throw new CorpusException("aggregator entry carries " + checker.metadataName()
+                            + " metadata, but the corpus does not run it: " + aggregate.path());
+                }
+                continue;
+            }
             var metadata = aggregate.envelope().stage(checker).orElseThrow(() ->
                     new CorpusException("aggregator entry is missing " + checker.metadataName()
                             + " metadata: " + aggregate.path()));
@@ -145,9 +157,10 @@ final class AggregationTransition {
         return Map.copyOf(verdicts);
     }
 
-    private List<BranchResult> branchResults(String name) throws IOException, CorpusException {
+    private List<BranchResult> branchResults(String name, CheckerSet checkers)
+            throws IOException, CorpusException {
         var results = new ArrayList<BranchResult>();
-        for (var checker : CorpusStage.checkerBranches()) {
+        for (var checker : checkers) {
             findResult(name, checker).ifPresent(results::add);
         }
         return List.copyOf(results);

@@ -78,6 +78,7 @@ public final class CorpusDirectory {
     private final CorpusEntryStore store;
     private final StageTransition transitions;
     private final AggregationTransition aggregations;
+    private CheckingPolicy checkingPolicy = CheckingPolicy.DEFAULT;
 
     private CorpusDirectory(Path root) {
         layout = new CorpusLayout(root);
@@ -137,14 +138,15 @@ public final class CorpusDirectory {
                 resolve(CorpusPath.WORKFLOW_STATISTICS), "workflow-stats-", encoded);
     }
 
-    /** Reads opaque external-library replay metadata; its interpretation belongs to the workflow. */
-    public synchronized Optional<byte[]> readLibraryManifest() throws IOException, CorpusException {
-        return layout.readIfPresent(CorpusPath.LIBRARY_MANIFEST, "library manifest");
+    /** Reads an opaque replay record; its interpretation belongs to the workflow. */
+    public synchronized Optional<byte[]> readRecord(CorpusRecord record)
+            throws IOException, CorpusException {
+        return layout.readIfPresent(record.path(), record.description());
     }
 
-    /** Writes opaque replay metadata atomically. The caller must hold the corpus lock. */
-    public synchronized void writeLibraryManifest(byte[] bytes) throws IOException {
-        layout.replaceAtomically(resolve(CorpusPath.LIBRARY_MANIFEST), "library-", bytes);
+    /** Writes an opaque replay record atomically. The caller must hold the corpus lock. */
+    public synchronized void writeRecord(CorpusRecord record, byte[] bytes) throws IOException {
+        layout.replaceAtomically(resolve(record.path()), record.temporaryPrefix(), bytes);
     }
 
     /** Whether any stage directory contains an input; does not decode or recover entries. */
@@ -213,17 +215,31 @@ public final class CorpusDirectory {
     }
 
     /**
-     * Recovers durable transitions and returns a validated snapshot of the corpus. The validator
-     * decides whether a stored payload is still usable by this build.
+     * Recovers durable transitions and returns a validated snapshot of the corpus under the
+     * current policy, which is {@link CheckingPolicy#DEFAULT} until a run supplies its own.
      */
     public synchronized CorpusInventory recoverAndValidate(CorpusEntryValidator validator)
             throws IOException, CorpusException {
+        return recoverAndValidate(validator, checkingPolicy);
+    }
+
+    /**
+     * Recovers durable transitions and returns a validated snapshot of the corpus. The validator
+     * decides whether a stored payload is still usable by this build. {@code policy} names the
+     * checker branches the corpus runs and judges the aggregator results found here; it also
+     * governs every fan-out and aggregation that follows on this handle.
+     */
+    public synchronized CorpusInventory recoverAndValidate(
+            CorpusEntryValidator validator, CheckingPolicy policy)
+            throws IOException, CorpusException {
         Objects.requireNonNull(validator, "validator");
+        checkingPolicy = Objects.requireNonNull(policy, "policy");
         var validatedEntries = entries(validator);
-        new TransitionRecovery(layout, validatedEntries, transitions).recover();
+        new TransitionRecovery(layout, validatedEntries, transitions, checkingPolicy.checkers()).recover();
         var aggregationRecovery =
-                new AggregationRecovery(layout, validatedEntries, aggregations);
-        return new InventoryScan(layout, validatedEntries, aggregationRecovery).scan();
+                new AggregationRecovery(layout, validatedEntries, aggregations, checkingPolicy);
+        return new InventoryScan(layout, validatedEntries, aggregationRecovery, checkingPolicy.checkers())
+                .scan();
     }
 
     /** Stores an input of the given kind under its payload digest in {@code 00-inputs}. */
@@ -307,7 +323,7 @@ public final class CorpusDirectory {
     /** Finds the non-crash checker pair named by a completion notification, when both are ready. */
     public synchronized Optional<AggregationInput> aggregationInput(Path candidate)
             throws IOException, CorpusException {
-        return aggregations.find(candidate);
+        return aggregations.find(candidate, checkingPolicy);
     }
 
     /** Merges a ready checker pair and records the aggregator's verdict. */
@@ -325,10 +341,10 @@ public final class CorpusDirectory {
         return transitions.complete(source, CorpusStage.QUALITY, result);
     }
 
-    /** Copies one parser pass into both checker branches, then removes the fan-out source. */
+    /** Copies one parser pass into every checker branch the corpus runs, then removes the source. */
     public synchronized void fanOutParserPass(Path source)
             throws IOException, CorpusException {
-        transitions.fanOutParserPass(source);
+        transitions.fanOutParserPass(source, checkingPolicy.checkers());
     }
 
     /**

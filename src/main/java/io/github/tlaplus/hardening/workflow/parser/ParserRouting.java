@@ -1,6 +1,5 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
-import io.github.tlaplus.hardening.common.EnumMaps;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
@@ -16,6 +15,9 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import io.github.tlaplus.hardening.common.Preconditions;
+import java.util.Collections;
+import java.util.EnumMap;
 
 /**
  * Routes parser results. A pass is copied into every checker branch and leaves the parser's result
@@ -28,16 +30,19 @@ public final class ParserRouting implements StageRouting {
     private final Semaphore inputCapacity;
 
     /**
-     * @param checkerOutputs the queue each checker branch takes its work from, which must name
-     *     every stage of {@link CorpusStage#checkerBranches()}
+     * @param checkerOutputs the queue each checker branch the corpus runs takes its work from; the
+     *     corpus fans a pass out to the same branches
      */
     public ParserRouting(
             OccupancyGate resultCapacity,
             Map<CorpusStage, WorkQueue<Path>> checkerOutputs,
             Semaphore inputCapacity) {
         this.resultCapacity = Objects.requireNonNull(resultCapacity, "resultCapacity");
-        this.checkerOutputs = EnumMaps.requireKeys(
-                CorpusStage.class, checkerOutputs, CorpusStage.checkerBranches(), "checkerOutputs");
+        Objects.requireNonNull(checkerOutputs, "checkerOutputs");
+        Preconditions.require(!checkerOutputs.isEmpty()
+                        && CorpusStage.checkerBranches().containsAll(checkerOutputs.keySet()),
+                "checkerOutputs must name checker branches");
+        this.checkerOutputs = Collections.unmodifiableMap(new EnumMap<>(checkerOutputs));
         this.inputCapacity = Objects.requireNonNull(inputCapacity, "inputCapacity");
     }
 
@@ -73,9 +78,8 @@ public final class ParserRouting implements StageRouting {
         }
         var inputName = destination.getFileName();
         corpus.fanOutParserPass(destination);
-        for (var checker : CorpusStage.checkerBranches()) {
-            checkerOutputs.get(checker).submit(
-                    corpus.checkerInputPath(checker).resolve(inputName));
+        for (var output : checkerOutputs.entrySet()) {
+            output.getValue().submit(corpus.checkerInputPath(output.getKey()).resolve(inputName));
         }
     }
 
