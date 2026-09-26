@@ -52,6 +52,7 @@ final class WorkerChannel implements AutoCloseable {
             output.writeInt(source.length);
             output.writeInt(request.transitions());
             output.writeBoolean(request.temporalProperty());
+            output.writeBoolean(request.actionInvariant());
             output.write(source);
             output.flush();
             return true;

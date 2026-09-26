@@ -13,7 +13,8 @@ final class TlcConfiguration {
      * <p>TLC checks the specification, whose fairness constrains a temporal property, and needs no
      * state constraint: every generated module bounds its step counter in its next-state action.
      * The property is named only when the request asks for it, since TLC otherwise spends its
-     * liveness checking on {@code TRUE}.
+     * liveness checking on {@code TRUE}. An action invariant is a second property, since TLC rejects
+     * a primed {@code INVARIANT}.
      */
     static String text(CheckRequest request) {
         var text = new StringBuilder()
@@ -21,6 +22,9 @@ final class TlcConfiguration {
                 .append("INVARIANT ").append(FuzzInputModule.INV).append('\n');
         if (request.temporalProperty()) {
             text.append("PROPERTY ").append(FuzzInputModule.PROP).append('\n');
+        }
+        if (request.actionInvariant()) {
+            text.append("PROPERTY ").append(FuzzInputModule.STEP_PROPERTY).append('\n');
         }
         return text.toString();
     }

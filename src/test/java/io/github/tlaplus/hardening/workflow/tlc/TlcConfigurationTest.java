@@ -16,4 +16,11 @@ class TlcConfigurationTest {
         assertEquals("SPECIFICATION Spec\nINVARIANT Inv\nPROPERTY Prop\n",
                 TlcConfiguration.text(new CheckRequest(5, true)));
     }
+
+    /** TLC has no action invariant; it checks {@code [][Step]_vars} as an action property. */
+    @Test
+    void namesTheActionInvariantAsAPropertyWhenTheRequestAsksForIt() {
+        assertEquals("SPECIFICATION Spec\nINVARIANT Inv\nPROPERTY StepProperty\n",
+                TlcConfiguration.text(new CheckRequest(5, false, true)));
+    }
 }
