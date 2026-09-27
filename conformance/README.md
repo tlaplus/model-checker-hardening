@@ -1287,6 +1287,47 @@ every input: 40 of 40 sampled `04quality-pass` entries. It is now
 added to the signature language for this purpose. It matches none of the 40 and
 still matches the three `tlc-013` entries, whose `Prop` is `[][A]_v`.
 
+## corpus53 residuals
+
+corpus53 is a `module` run with the recursion library. It read
+`all-defects.toml`, and the known-defect signatures rejected 280,033 of the
+582,358 generation attempts. Triage classified 368 of the 451 TLC crashes and
+63 of the 344 Apalache crash outcomes. Another 1 TLC outcome and 223 Apalache
+outcomes are worker timeouts. It left 73 of the 52,903 aggregator deviations as
+`NEW`. The parser report was empty. The residuals yield one new finding,
+[`apalache-performance-003`](../findings/apalache-performance/apalache-performance-003.md),
+and extend [`tlc-010`](../findings/TLC/tlc-010.md) to errors on an initial
+state. No entry needs a new conformance report.
+
+Every entry was rendered with FuzzTLA `703c9fa`. Apalache reruns used 0.62.2
+(build `f0dec98`) with `-Xmx1g`. TLC reruns used commit `8f4bc8b` (tla2tools
+`1.8.0-20260925.164314-82`) with the corpus's `tla/recursion` modules.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 58 | Apalache crash | out of heap at 1 GB; 57 apply `SeqReverse` to a sequence that doubles in every step, and `4a84fcd9` concatenates in a generated `ApaFoldSet` combinator | [`apalache-performance-003`](../findings/apalache-performance/apalache-performance-003.md) |
+| 223 | Apalache timeout | worker timeouts; 178 match `fold-concatenation` | not rerun |
+| 50 | TLC crash | `StackOverflowError` (1005) in `SeqReverse` of a sequence that doubles in every step | [`tlc-performance-001`](../findings/tlc-performance/tlc-performance-001.md) |
+| 5 | TLC crash | error 1000 while TLC evaluates a tableau property on an initial state, such as a labelled `[]P` or `[]P => FALSE`: `415f8dad`, `83969f2d`, `9a6295b6`, `d4d262c4` and `f51e03a7` | [`tlc-010`](../findings/TLC/tlc-010.md) |
+| 27 | TLC crash | `TLC worker exited while processing the input`, all applying `SeqReverse`; standalone TLC reports a temporal counterexample (exit 13) for all 27, and a workflow replay completes all 27 with a counterexample from both checkers | transient worker failure |
+| 1 | TLC timeout | worker timeout | not rerun |
+| 67 | aggregator | TLC pass, Apalache counterexample (64), or the reverse (`837c2105`, `efce3c53` and `f3d70137`): order-sensitive `ApaFoldSet` whose combinator returns its element | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 6 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` with several witnesses and no fold, as an action conjunct (`0b7a5c70`: `CHOOSE b \in {TRUE, FALSE} : var0`) or bound | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+
+The aggregator rows were classified from their specifications; the six `CHOOSE`
+rows and the fold rows `002bb06d`, `837c2105`, `efce3c53` and `f3d70137` were
+checked by hand, and the others by a sample of their combinators. They were not
+rerun.
+
+The TLC worker failures left no diagnostic: the worker process died before it
+replied. A replay of the 27 inputs through `fuzztla run`, in a fresh corpus with
+4 Apalache workers instead of 16, completed every one. Memory pressure on the
+host is the likely cause, but it was not confirmed.
+
+The triager now assigns the 50 stack overflows to `tlc-performance-001` and the
+5 initial-state escapes to `tlc-010`. On corpus50 and corpus52 this also
+classifies 14 former `NEW` TLC crashes and changes no other classification.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

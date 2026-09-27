@@ -1000,6 +1000,62 @@ class Corpus22CrashTest(unittest.TestCase):
         )
 
 
+class Corpus53CrashTest(unittest.TestCase):
+    INITIAL_STATES = (
+        "TLC error code 1000 mapped to exit status 255",
+        "Starting... (2026-09-26 16:01:13)",
+        "Implied-temporal checking--satisfiability problem has 1 branches.",
+        "Computing initial states...",
+    )
+
+    def test_tableau_error_on_initial_state_is_tlc_010(self) -> None:
+        """corpus53 415f8dad (tuple index) and d4d262c4 (Head, then the invariant)."""
+        for name, body in (
+            ("tuple index", (
+                "Error: Attempted to access index 0 of tuple",
+                "<<TRUE, FALSE>>",
+                "which is out of bounds.",
+                "While working on the initial state:",
+            )),
+            ("with invariant violation", (
+                "Error: Attempted to apply Head to the empty sequence.",
+                "Error: Invariant Inv is violated by the initial state:",
+            )),
+        ):
+            with self.subTest(name):
+                self.assertEqual(
+                    "tlc-010.md",
+                    classify_quietly(
+                        self, triager.CrashKind.TLC, "\n".join((*self.INITIAL_STATES, *body))
+                    ),
+                )
+
+    def test_tableau_error_needs_implied_temporal_checking(self) -> None:
+        diagnostic = "\n".join((
+            "TLC error code 1000 mapped to exit status 255",
+            "Starting... (2026-09-26 16:01:13)",
+            "Computing initial states...",
+            "Error: Attempted to access index 0 of tuple",
+        ))
+        self.assertEqual(
+            triager.NEW_FINDING,
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+    def test_stack_overflow_is_tlc_performance_001(self) -> None:
+        """corpus53 0dee39ab: SeqReverse of a sequence that doubles in every step."""
+        diagnostic = "\n".join((
+            "TLC error code 1005 mapped to exit status 255",
+            "Finished computing initial states: 1 distinct state generated at 2026-09-26 19:46:55.",
+            "Error: This was a Java StackOverflowError. It was probably the result",
+            "of an incorrect recursive function definition that caused TLC to enter",
+        ))
+        self.assertEqual(
+            "tlc-performance-001.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+
 class AggregatorDirectoryTest(unittest.TestCase):
     def write_entry(self, directory: Path, name: str, document: object) -> Path:
         path = directory / name
