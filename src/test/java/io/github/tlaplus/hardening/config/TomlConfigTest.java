@@ -85,6 +85,22 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
     }
 
+    /** The rule module's classpath resolves against the config file, like the generator's. */
+    @Test
+    void readsTheRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
+        var document = TomlConfig.render(FuzzTlaConfig.defaults())
+                .replace("# rules = { module = \"Rewrites\", classpath = [\"../libraries/rewrites\"] }",
+                        "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
+                .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
+        var metamorphic = readConfig(directory, document).metamorphic();
+        assertEquals(new MetamorphicConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
+                metamorphic.rules().orElseThrow());
+        assertEquals(Map.of("AddSub", 3, "DoubleNeg", 0), metamorphic.weights());
+        var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
+        withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[metamorphic]"));
+        assertEquals(MetamorphicConfig.defaults(), readConfig(directory, withoutTable).metamorphic());
+    }
+
     /** A checker table may be omitted entirely; every one of its settings takes its default. */
     @Test
     void omittedCheckerTableReadsTheCheckerDefaults(@TempDir Path directory) throws Exception {

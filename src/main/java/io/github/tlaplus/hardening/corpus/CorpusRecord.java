@@ -10,7 +10,9 @@ public enum CorpusRecord {
     /** The fuzzing technique the corpus runs (ADR 0016 §1). */
     TECHNIQUE(CorpusPath.TECHNIQUE, "technique-", "technique record"),
     /** The checker branches the corpus runs (ADR 0016 §5). */
-    CHECKERS(CorpusPath.CHECKERS, "checkers-", "checker record");
+    CHECKERS(CorpusPath.CHECKERS, "checkers-", "checker record"),
+    /** The Apalache distribution, sources, module and weights of the rewrite rules (ADR 0017 §6). */
+    REWRITE_LIBRARY(CorpusPath.REWRITE_LIBRARY, "rules-", "rewrite rule manifest");
 
     private final CorpusPath path;
     private final String temporaryPrefix;

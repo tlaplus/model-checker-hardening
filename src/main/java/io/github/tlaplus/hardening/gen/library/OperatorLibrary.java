@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.gen.library;
 
 import at.forsyte.apalache.tla.lir.*;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
@@ -116,7 +117,7 @@ public final class OperatorLibrary {
         }
         var dependencies = new LinkedHashSet<String>();
         facts.freeNames().stream().sorted().map(rename).forEach(dependencies::add);
-        definitions.put(target, new Definition(LibraryExpressions.rename(declaration, rename),
+        definitions.put(target, new Definition(IrNames.rename(declaration, rename),
                 Set.copyOf(dependencies), facts.categories()));
         visiting.remove(name);
     }

@@ -173,8 +173,11 @@ public final class TomlConfig {
         var libraries = new OperatorLibraryConfig(
                 ConfigSchema.CLASSPATH.read(tables), ConfigSchema.CUSTOM_OPERATORS.read(tables))
                 .relativeTo(directory);
+        var metamorphic = new MetamorphicConfig(
+                ConfigSchema.RULES.read(tables), ConfigSchema.RULE_WEIGHTS.read(tables))
+                .relativeTo(directory);
         return new FuzzTlaConfig(
-                generatedKind, generationConfig, workflowConfig, pbtConfig, mutatorConfig, libraries);
+                generatedKind, generationConfig, workflowConfig, pbtConfig, mutatorConfig, libraries, metamorphic);
     }
 
     /** Reads one checker table, naming the stage in every diagnostic. */

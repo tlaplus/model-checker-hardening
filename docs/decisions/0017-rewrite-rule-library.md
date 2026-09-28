@@ -226,8 +226,10 @@ checks items 2–4.
    section 7. A silly argument, such as `Head(<<>>)`, may make one side fail to
    evaluate. [ADR 0016][adr-0016] classifies that outcome as `fail`, not as a
    counterexample.
-2. **Level-preserving.** B uses `'`, `UNCHANGED`, `ENABLED`, `\cdot` and the temporal
-   operators only if A uses them.
+2. **Level-preserving.** B uses an action-level operator (`'`, `UNCHANGED`, `[A]_v`,
+   `<<A>>_v`, `\cdot`) or `ENABLED` only if A uses one, so a rule may trade
+   `UNCHANGED x` for `x' = x` but cannot raise a state-level pattern. B uses a temporal
+   operator only if A does.
 3. **Assignment-preserving.** TLC treats `x' = e` as an assignment only in certain
    positions: under `/\` and `\/`, in an `IF` branch, in an `\E` body, and in a `LET`
    body. TLC evaluates conjuncts from left to right, so their order matters as well.

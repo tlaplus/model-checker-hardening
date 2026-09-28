@@ -177,7 +177,8 @@ Snowcat infers each rule's signature, and a rule applies only at a node of a mat
 type. `UnionSelf` applies to sets of any element type.
 
 The loader rejects a rule that:
-- introduces a prime, `UNCHANGED`, `ENABLED` or a temporal operator that A lacks;
+- applies a prime, `UNCHANGED`, `ENABLED` or another action-level operator in B when A
+  applies none, or any temporal operator;
 - names anything other than its parameters, bound variables, built-in operators and
   helpers.
 
