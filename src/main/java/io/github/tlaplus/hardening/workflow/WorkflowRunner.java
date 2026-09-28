@@ -19,6 +19,7 @@ import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
+import io.github.tlaplus.hardening.workflow.input.CandidateLayout;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
@@ -66,7 +67,8 @@ public final class WorkflowRunner {
         var adoption = technique == Technique.MT
                 ? config.metamorphic().adoption()
                 : new MetamorphicConfig.Adoption(Optional.empty(), 0.0);
-        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers(), adoption);
+        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers(),
+                new StageGraph.CandidateSources(adoption, CandidateLayout.of(technique)));
         limits = new OccupancyLimits(config.workflow(), checking.checkers());
     }
 
@@ -130,7 +132,7 @@ public final class WorkflowRunner {
 
     /** Requires the base corpus of an adoption to hold conformance entries, whose payloads are bases. */
     private void requireAdoptableBase() throws IOException, CorpusException, WorkflowException {
-        var base = setup.adoption().baseCorpus();
+        var base = setup.sources().adoption().baseCorpus();
         if (base.isEmpty()) {
             return;
         }

@@ -203,7 +203,7 @@ final class GenerationLoop {
         return switch (origin) {
             case MUTANT -> mutantSource();
             case ADOPTED -> adoptSource();
-            case PBT -> new PbtCandidates(setup.config().pbt());
+            case PBT -> pbtSource();
         };
     }
 
@@ -216,8 +216,13 @@ final class GenerationLoop {
         var targets = targets(generation);
         var count = targets.remaining(EntryOrigin.PBT);
         if (count > 0) {
-            submit(generation, targets.reserve(EntryOrigin.PBT, count), count, new PbtCandidates(setup.config().pbt()));
+            submit(generation, targets.reserve(EntryOrigin.PBT, count), count, pbtSource());
         }
+    }
+
+    /** Returns the PBT source, whose candidates are laid out for the run's technique. */
+    private PbtCandidates pbtSource() {
+        return new PbtCandidates(setup.config().pbt(), setup.sources().layout());
     }
 
     /**
@@ -229,7 +234,7 @@ final class GenerationLoop {
         var kind = setup.config().generatedKind();
         var parents = ParentPool.load(invocation.corpus(), kind);
         if (parents.isEmpty()) {
-            return new PbtCandidates(setup.config().pbt());
+            return pbtSource();
         }
         return new MutantCandidates(parents, setup.decoders().decoder(kind), new ByteMutator(
                 setup.config().mutator().weights(),
@@ -243,9 +248,9 @@ final class GenerationLoop {
      * the base corpus has none.
      */
     private CandidateSource adoptSource() throws IOException, CorpusException {
-        var base = setup.adoption().baseCorpus().orElseThrow();
+        var base = setup.sources().adoption().baseCorpus().orElseThrow();
         var parents = ParentPool.load(CorpusDirectory.openExisting(base), setup.config().generatedKind());
-        return parents.isEmpty() ? new PbtCandidates(setup.config().pbt()) : new MetamorphicCandidates(parents);
+        return parents.isEmpty() ? pbtSource() : new MetamorphicCandidates(parents);
     }
 
     /** Hands the input stage one contiguous range of a generation's targets. */
@@ -266,8 +271,8 @@ final class GenerationLoop {
                 size(number),
                 Map.of(EntryOrigin.MUTANT, GenerationTargets.mutantShare(
                                 size(number), number, setup.config().mutator().feedbackRatio()),
-                        EntryOrigin.ADOPTED, setup.adoption().baseCorpus().isEmpty()
-                                ? 0L : GenerationTargets.adoptShare(size(number), setup.adoption().ratio())),
+                        EntryOrigin.ADOPTED, setup.sources().adoption().baseCorpus().isEmpty()
+                                ? 0L : GenerationTargets.adoptShare(size(number), setup.sources().adoption().ratio())),
                 progress.admittedByOrigin(number)));
     }
 }

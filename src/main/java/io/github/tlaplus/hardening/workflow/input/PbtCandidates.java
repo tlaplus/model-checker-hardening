@@ -6,13 +6,16 @@ import java.util.random.RandomGenerator;
 
 /**
  * Property-based candidates (ADR 0002): a target draws one richness cohort, and every candidate for
- * it is a uniformly random byte array of a length from {@link InputLengthSampler}.
+ * it is a uniformly random byte array of a length from {@link InputLengthSampler}, laid out for the
+ * technique's decoders.
  */
 public final class PbtCandidates implements CandidateSource {
     private final PbtConfig pbt;
+    private final CandidateLayout layout;
 
-    public PbtCandidates(PbtConfig pbt) {
+    public PbtCandidates(PbtConfig pbt, CandidateLayout layout) {
         this.pbt = Objects.requireNonNull(pbt, "pbt");
+        this.layout = Objects.requireNonNull(layout, "layout");
     }
 
     @Override
@@ -22,9 +25,9 @@ public final class PbtCandidates implements CandidateSource {
         return new Target() {
             @Override
             public Draft draw(RandomGenerator candidateRandom) {
-                var input = new byte[InputLengthSampler.sample(candidateRandom, pbt.maximumInputBytes())];
-                candidateRandom.nextBytes(input);
-                return Draft.generated(input, cohort);
+                var payload = new byte[InputLengthSampler.sample(candidateRandom, pbt.maximumInputBytes())];
+                candidateRandom.nextBytes(payload);
+                return Draft.generated(layout.encode(payload, candidateRandom), cohort);
             }
 
             @Override

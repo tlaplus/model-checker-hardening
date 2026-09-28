@@ -401,7 +401,10 @@ branch that never runs.
 ### 6. Candidate sources
 
 PBT and byte mutation apply under `--how=mt` unchanged:
-- PBT draws random base and rewrite payloads;
+- PBT draws random base and rewrite payloads: a candidate is the header, a random base
+  of the usual PBT length, and 1 to 64 random rewrite bytes, as an adopted candidate is.
+  A random array read whole would start with a random base length, almost always longer
+  than the input, and leave no rewrite bytes;
 - the mutator edits the corpus's `04quality-pass` entries, which are MT entries, and
   can flip the orientation.
 
