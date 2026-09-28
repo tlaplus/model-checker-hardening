@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.EntryName;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.execution.CpuBudget;
@@ -269,7 +270,7 @@ public final class InputStage implements WorkflowStage {
                 // Reported only now: store() has written the entry, so the coordinator that counts
                 // admissions never counts one that is not yet durable.
                 environment.events().admitted(
-                        EntryName.of(path), plan.generation(), generation.mutation().isPresent());
+                        EntryName.of(path), plan.generation(), EntryOrigin.of(generation.mutation()));
                 handoff.queue().submit(path);
                 yield Attempt.STORED;
             }

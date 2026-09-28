@@ -34,7 +34,7 @@ class MetamorphicDecodersTest {
     @BeforeAll
     static void prepareTheShippedRules() throws Exception {
         var config = new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
-                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))), Map.of(), RewriteLimits.defaults());
+                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))), Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults());
         var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults()).library();
         decoders = SpecDecoders.metamorphic(
                 IrGenerationConfig.defaults(), new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));

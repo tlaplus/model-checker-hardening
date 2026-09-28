@@ -13,7 +13,7 @@ import java.util.Objects;
  * @param generationSize the entries each generation admits
  * @param feedbackRatio the share of a generation admitted from the mutator
  * @param maximumEdits the cap on stacked edits per mutant
- * @param weights the weight of every operator; an operator of weight 0 is never applied
+ * @param weights the weight of every byte edit; an operator of weight 0 is never applied
  * @param gate what the quality gate keeps of a generation
  */
 public record MutatorConfig(
@@ -28,7 +28,10 @@ public record MutatorConfig(
                 "feedbackRatio must be in the range [0, 1]");
         Preconditions.requirePositive(maximumEdits, "maximumEdits");
         var weightCopy = new EnumMap<MutationOperator, Integer>(MutationOperator.class);
-        for (var operator : MutationOperator.values()) {
+        for (var operator : Objects.requireNonNull(weights, "weights").keySet()) {
+            Preconditions.require(operator.isByteEdit(), operator.encodedName() + " is not a byte edit");
+        }
+        for (var operator : MutationOperator.byteEdits()) {
             var weight = Objects.requireNonNull(weights, "weights").getOrDefault(operator, 0);
             Preconditions.requireNonnegative(weight, "weight of " + operator.encodedName());
             weightCopy.put(operator, weight);
@@ -42,7 +45,7 @@ public record MutatorConfig(
     /** Returns the settings written by {@code fuzztla init}. */
     public static MutatorConfig defaults() {
         var weights = new EnumMap<MutationOperator, Integer>(MutationOperator.class);
-        for (var operator : MutationOperator.values()) {
+        for (var operator : MutationOperator.byteEdits()) {
             weights.put(operator, operator.defaultWeight());
         }
         return new MutatorConfig(1_000, 0.5, 1, weights, QualityGateConfig.defaults());

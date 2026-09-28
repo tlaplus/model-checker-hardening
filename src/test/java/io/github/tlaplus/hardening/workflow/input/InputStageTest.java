@@ -398,8 +398,8 @@ class InputStageTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var parent = new byte[] {1, 2, 3, 4};
         var decoder = decoders(draw -> expression(1 + draw.remaining()));
-        var pool = pool(corpus, decoder, parent, 6);
-        var mutants = new MutantCandidates(pool, new ByteMutator(Map.of(MutationOperator.INSERT, 1), 1, 64));
+        var pool = pool(corpus, parent, 6);
+        var mutants = new MutantCandidates(pool, decoder.decoder(InputKind.EXPRESSION), new ByteMutator(Map.of(MutationOperator.INSERT, 1), 1, 64));
 
         var stage = runPlan(corpus, decoder, new GenerationPlan(InputKind.EXPRESSION, 3, 11, 0, 1, 0, List.of(
                 new GenerationPlan.Quota(mutants, 3),
@@ -425,8 +425,8 @@ class InputStageTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         // Every input decodes to the same module, so every mutant is a clone of its parent.
         var decoder = decoders(ACCEPT);
-        var pool = pool(corpus, decoder, new byte[] {9, 9}, 0);
-        var mutants = new MutantCandidates(pool, new ByteMutator(Map.of(MutationOperator.BITFLIP, 1), 1, 64));
+        var pool = pool(corpus, new byte[] {9, 9}, 0);
+        var mutants = new MutantCandidates(pool, decoder.decoder(InputKind.EXPRESSION), new ByteMutator(Map.of(MutationOperator.BITFLIP, 1), 1, 64));
         var queue = new WorkQueue<Path>();
         var control = new WorkflowControl(queue);
         var stage = admitting(
@@ -451,11 +451,11 @@ class InputStageTest {
     void readsOnlyParentsOfTheGeneratedKind(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var decoder = decoders(ACCEPT);
-        pool(corpus, decoder, new byte[] {1}, 0);
+        pool(corpus, new byte[] {1}, 0);
         writeParent(corpus, InputKind.MODULE, new byte[] {2}, 0);
 
-        assertEquals(1, ParentPool.load(corpus, InputKind.EXPRESSION, decoder.decoder(InputKind.EXPRESSION)).size());
-        assertEquals(1, ParentPool.load(corpus, InputKind.MODULE, decoder.decoder(InputKind.MODULE)).size());
+        assertEquals(1, ParentPool.load(corpus, InputKind.EXPRESSION).size());
+        assertEquals(1, ParentPool.load(corpus, InputKind.MODULE).size());
     }
 
     @Test
@@ -585,10 +585,10 @@ class InputStageTest {
     }
 
     /** Writes one parent into {@code 04quality-pass} and loads the pool of its kind. */
-    private static ParentPool pool(CorpusDirectory corpus, SpecDecoders decoders, byte[] parent, int cohort)
+    private static ParentPool pool(CorpusDirectory corpus, byte[] parent, int cohort)
             throws Exception {
         writeParent(corpus, InputKind.EXPRESSION, parent, cohort);
-        return ParentPool.load(corpus, InputKind.EXPRESSION, decoders.decoder(InputKind.EXPRESSION));
+        return ParentPool.load(corpus, InputKind.EXPRESSION);
     }
 
     private static void writeParent(CorpusDirectory corpus, InputKind kind, byte[] parent, int cohort)

@@ -10,6 +10,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.EntryName;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.corpus.EntryProgress;
 import io.github.tlaplus.hardening.corpus.StageEntryCounts;
 import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
@@ -29,7 +30,7 @@ class GenerationProgressTest {
         var control = new WorkflowControl(new WorkQueue<>());
         var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
         var entry = new EntryName("entry.cbor");
-        progress.admitted(entry, 1, false);
+        progress.admitted(entry, 1, EntryOrigin.PBT);
         progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
         progress.completed(entry, CorpusStage.TLC, CorpusVerdict.CRASH);
         assertEquals(1, progress.unsettled(1));
@@ -48,12 +49,12 @@ class GenerationProgressTest {
         var control = new WorkflowControl(new WorkQueue<>());
         var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
         var failed = new EntryName("failed.cbor");
-        progress.admitted(failed, 0, false);
+        progress.admitted(failed, 0, EntryOrigin.PBT);
         progress.completed(failed, CorpusStage.PARSER, CorpusVerdict.FAIL);
         assertEquals(0, progress.unsettled(0));
 
         var aggregated = new EntryName("aggregated.cbor");
-        progress.admitted(aggregated, 0, false);
+        progress.admitted(aggregated, 0, EntryOrigin.PBT);
         progress.completed(aggregated, CorpusStage.PARSER, CorpusVerdict.PASS);
         progress.completed(aggregated, CorpusStage.TLC, CorpusVerdict.PASS);
         progress.completed(aggregated, CorpusStage.APALACHE, CorpusVerdict.PASS);
@@ -78,7 +79,7 @@ class GenerationProgressTest {
         var control = new WorkflowControl(new WorkQueue<>());
         var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
         var entry = new EntryName("entry.cbor");
-        progress.admitted(entry, 0, false);
+        progress.admitted(entry, 0, EntryOrigin.PBT);
         progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
         progress.completed(entry, CorpusStage.APALACHE, CorpusVerdict.PASS);
 
@@ -96,7 +97,7 @@ class GenerationProgressTest {
         var control = new WorkflowControl(new WorkQueue<>());
         var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
         var entry = new EntryName("entry.cbor");
-        progress.admitted(entry, 0, false);
+        progress.admitted(entry, 0, EntryOrigin.PBT);
         progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
         progress.completed(entry, CorpusStage.TLC, CorpusVerdict.PASS);
         progress.completed(entry, CorpusStage.AGGREGATOR, CorpusVerdict.PASS);
@@ -120,7 +121,7 @@ class GenerationProgressTest {
         var control = new WorkflowControl(new WorkQueue<>());
         var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
         var entry = new EntryName("entry.cbor");
-        progress.admitted(entry, 3, false);
+        progress.admitted(entry, 3, EntryOrigin.PBT);
 
         assertEquals(3, progress.generationOf(entry));
         assertEquals(WorkflowEvents.UNKNOWN_GENERATION, progress.generationOf(new EntryName("gone.cbor")));
@@ -137,7 +138,7 @@ class GenerationProgressTest {
             stages.put(stage, new CorpusInventory.StageEntries(List.of(), StageEntryCounts.empty(), 0));
         }
         var generations = new TreeMap<Integer, CorpusInventory.GenerationEntries>();
-        generations.put(2, new CorpusInventory.GenerationEntries(6, 2, 1));
+        generations.put(2, new CorpusInventory.GenerationEntries(Map.of(EntryOrigin.MUTANT, 2L, EntryOrigin.PBT, 4L), 1));
         var pending = new EntryName("pending.cbor");
         var inventory = new CorpusInventory(
                 stages,
@@ -146,7 +147,7 @@ class GenerationProgressTest {
         var progress = new GenerationProgress(inventory, new WorkflowControl(new WorkQueue<>()), CheckerSet.ALL);
 
         assertEquals(6, progress.admitted(2));
-        assertEquals(2, progress.mutants(2));
+        assertEquals(2, progress.admittedByOrigin(2).get(EntryOrigin.MUTANT));
         assertEquals(1, progress.unsettled(2));
         assertEquals(2, progress.generationOf(pending));
     }

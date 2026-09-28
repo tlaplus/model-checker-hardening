@@ -395,7 +395,7 @@ and the aggregator's policy differ:
   corpus can check rewrites into recursive definitions, which Apalache rejects.
 - **Aggregator.** The corpus technique selects the oracle. A metamorphic entry passes
   when the configured checkers agree and none reports a counterexample.
-- **Candidate sources.** PBT and the mutator apply unchanged. A third source lifts
+- **Candidate sources.** PBT and the mutator apply unchanged. A third source adopts
   the `04quality-pass` entries of a read-only `pbt` base corpus by appending random
   rewrite payloads.
 - **Quality gate.** Unchanged. The relation reaches exactly the states of the

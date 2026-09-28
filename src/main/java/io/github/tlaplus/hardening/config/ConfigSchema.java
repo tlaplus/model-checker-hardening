@@ -344,6 +344,15 @@ final class ConfigSchema {
             "max_rewrite_growth", RewriteLimits::maximumGrowth, RewriteLimits.defaults().maximumGrowth(),
             "Times its original size a rewritten body may grow, so rules that duplicate a parameter",
             "cannot double a body with every rewrite.");
+    private static final ConfigTableBuilder<MetamorphicConfig.Adoption> ADOPTION = METAMORPHIC.project(MetamorphicConfig::adoption);
+    static final Key<Optional<Path>> BASE_CORPUS = ADOPTION.optional(
+            "base_corpus", ConfigValueType.OPTIONAL_PATH, MetamorphicConfig.Adoption::baseCorpus, new Absent<>(),
+            "pbt corpus, relative to this config file, whose 04quality-pass entries are adopted:",
+            "each is combined with random rewrite bytes (ADR 0016 §6). It is read, never written.");
+    static final Key<Double> ADOPT_RATIO = ADOPTION.optional(
+            "adopt_ratio", ConfigValueType.NUMBER, MetamorphicConfig.Adoption::ratio,
+            new Constant<>(MetamorphicConfig.Adoption.defaults().ratio()),
+            "Share of a generation adopted from base_corpus; the mutator and PBT fill the rest.");
 
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();

@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.tomlj.TomlArray;
 import org.tomlj.TomlTable;
@@ -72,7 +73,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             names(ShallowPattern.class, ShallowPattern::configName, "shallow pattern");
 
     static final ConfigValueType<Map<MutationOperator, Integer>> OPERATOR_WEIGHTS =
-            weights(MutationOperator.class, MutationOperator::encodedName, "mutation operator");
+            weights(MutationOperator.class, MutationOperator::encodedName, "mutation operator", MutationOperator::isByteEdit);
 
     static final ConfigValueType<Map<ExpressionKind, Integer>> WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readWeights, ConfigValueType::formatWeights);
@@ -86,6 +87,18 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<Optional<MetamorphicConfig.RuleModule>> RULE_MODULE = new ConfigValueType<>(
             ConfigValueType::readRuleModule,
             rules -> formatRuleModule(rules.orElse(EXAMPLE_RULES)));
+
+    /** The example a configuration without a base corpus shows, commented out. */
+    static final Path EXAMPLE_BASE_CORPUS = Path.of("../corpus-conf");
+
+    static final ConfigValueType<Optional<Path>> OPTIONAL_PATH = new ConfigValueType<>(
+            (table, path, key) -> {
+                if (!table.isString(key)) {
+                    throw new ConfigException("expected '" + path + "' to be a string");
+                }
+                return Optional.of(Path.of(table.getString(key)));
+            },
+            value -> quote(value.orElse(EXAMPLE_BASE_CORPUS).toString()));
 
     static final ConfigValueType<Map<String, Integer>> RULE_WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readRuleWeights,
@@ -376,8 +389,8 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
      * absent from the map; the record the map belongs to decides what that means.
      */
     private static <E extends Enum<E>> ConfigValueType<Map<E, Integer>> weights(
-            Class<E> type, Function<E, String> name, String description) {
-        var byName = byName(type, name);
+            Class<E> type, Function<E, String> name, String description, Predicate<E> weighed) {
+        var byName = byName(type, name, weighed);
         return new ConfigValueType<>(
                 (table, path, key) -> {
                     if (!table.isTable(key)) {
@@ -393,12 +406,19 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                     return Collections.unmodifiableMap(weights);
                 },
                 weights -> EnumSet.allOf(type).stream()
+                        .filter(weighed)
                         .map(constant -> name.apply(constant) + " = " + weights.getOrDefault(constant, 0))
                         .collect(Collectors.joining(", ", "{ ", " }")));
     }
 
     private static <E extends Enum<E>> Map<String, E> byName(Class<E> type, Function<E, String> name) {
-        return EnumSet.allOf(type).stream().collect(Collectors.toUnmodifiableMap(name, constant -> constant));
+        return byName(type, name, constant -> true);
+    }
+
+    private static <E extends Enum<E>> Map<String, E> byName(
+            Class<E> type, Function<E, String> name, Predicate<E> selected) {
+        return EnumSet.allOf(type).stream().filter(selected)
+                .collect(Collectors.toUnmodifiableMap(name, constant -> constant));
     }
 
     private static <E> E constant(Map<String, E> byName, String text, String path, String description)

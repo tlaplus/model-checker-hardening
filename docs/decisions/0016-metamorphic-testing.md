@@ -217,7 +217,7 @@ without the file is a `pbt` corpus, so existing corpora need no migration.
 - **Deviation from [ir-generators.md §4][generators]**, which forbids length
   prefixes for structural lists. The header serves two purposes:
   - it keeps the base payload byte-identical to a stored conformance entry, so a
-    lifted parent (section 6) decodes to the same module;
+    adopted parent (section 6) decodes to the same module;
   - it keeps byte edits of the rewrite payload from ever moving the base.
 
   Proportional sectioning, as in `ModuleSection`, would re-slice the base whenever
@@ -389,8 +389,9 @@ PBT and byte mutation apply under `--how=mt` unchanged:
   can flip the orientation.
 
 Random modules rarely exercise a transition relation ([ADR 0010][adr-0010]), so the
-main source is a new one. `workflow.input.MetamorphicCandidates` *lifts* elite
-conformance entries:
+main source is a new one. `workflow.input.MetamorphicCandidates` *adopts* elite
+conformance entries: it takes a conformance entry's payload unchanged as the base of a
+metamorphic entry and pairs it with a fresh rewrite payload.
 
 - **Parents.** It reads the `04quality-pass` entries of the configured kind from the
   corpus named by `[metamorphic] base_corpus`, which must be a `pbt` corpus. It reads
@@ -400,10 +401,10 @@ conformance entries:
   stage's, as for every source. Known-defect signatures match the evaluated IR of the
   relation module, which contains both sides.
 - **Provenance.** `gen.parent` is the parent's digest and `gen.operators` is
-  `["lift"]`. `lift` is a new `MutationOperator` that only this source records; its
+  `["adopt"]`. `adopt` is a new `MutationOperator` that only this source records; its
   byte-edit weight is zero. The shape of `Mutation` is unchanged.
 - **Ordinals.** `GenerationLoop` splits a generation's target ordinals into three
-  disjoint ranges: mutants, lifted candidates, then PBT. The ranges are disjoint for
+  disjoint ranges: mutants, adopted candidates, then PBT. The ranges are disjoint for
   the reason [ADR 0010][adr-0010] gives for two.
 
 ### 7. Configuration
@@ -412,8 +413,8 @@ A top-level `[metamorphic]` table, read only under `--how=mt`:
 
 | Key | Default | Meaning |
 | --- | ---: | --- |
-| `base_corpus` | none | `pbt` corpus whose `04quality-pass` supplies lifted parents; none disables lifting. |
-| `lift_ratio` | 0.5 | Share of a generation admitted from lifted parents. |
+| `base_corpus` | none | `pbt` corpus whose `04quality-pass` supplies adopted parents; none disables adoption. |
+| `adopt_ratio` | 0.5 | Share of a generation admitted from adopted parents. |
 | `max_rewrites` | 16 | Rewrites per rewritable body. |
 | `max_rewrite_depth` | 4 | Rewrites stacked on one node. |
 | `max_rewrite_growth` | 2 | Times its original size a rewritten body may grow. |
@@ -433,7 +434,7 @@ A top-level `[metamorphic]` table, read only under `--how=mt`:
 
    It runs with both checkers.
 2. The configurable checker set and the action-invariant entry point.
-3. `module` under `--how=mt`: the relation, the lift source and the `[metamorphic]`
+3. `module` under `--how=mt`: the relation, the adoption source and the `[metamorphic]`
    table.
 4. The temporal relation.
 5. Triage:
@@ -471,7 +472,7 @@ The rule catalog follows in its own ADR.
   entry.
 - **A separate MT framework.** It would duplicate decoding, admission, stage
   scheduling, recovery and storage. The only MT-specific parts are the rewriter, the
-  relation module, the oracle and the lift source.
+  relation module, the oracle and the adoption source.
 - **Proportional sectioning of base and rewrite payloads.** Rejected above because it
   re-slices the base.
 
@@ -481,7 +482,7 @@ The rule catalog follows in its own ADR.
   unchanged, a corpus without `.technique` is a `pbt` corpus, and `pbt` runs keep
   their configuration files and checker flags.
 - **A corpus runs one technique.** Conformance and MT entries live in separate
-  corpora; lifting reads across them.
+  corpora; adoption reads across them.
 - **TLC-only corpora test no conformance.** A single-branch corpus has no verdict to
   compare, and its aggregator judges only by the oracle.
 - **Blind spots.** An entry checks one direction, `E ⇒ C`, and only on the states
