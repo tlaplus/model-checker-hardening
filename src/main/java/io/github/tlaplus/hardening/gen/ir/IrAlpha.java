@@ -14,8 +14,12 @@ import org.apalache_mc.tla.jir.TlaExpressions;
 
 /**
  * Alpha-equivalence of typed IR: two expressions are equivalent when they differ only in the
- * names of the variables and definitions they bind. Types and node identities are ignored, as by
- * {@code TlaEx.equals}.
+ * names of the variables and definitions they bind. Tuple binder structure and formal parameter
+ * arities must match. Type annotations and node identities are ignored, as by {@code TlaEx.equals}.
+ *
+ * <p>For example, comparing {@code \A x \in S : x > z} with {@code \A y \in S : y > z}
+ * assigns the same binder number to {@code x} on the left and {@code y} on the right. Their bound
+ * occurrences then match, while the free names {@code S} and {@code z} must match literally.
  */
 public final class IrAlpha {
     private IrAlpha() {}
@@ -76,11 +80,11 @@ public final class IrAlpha {
                 if (!binding.introduces(index)) {
                     continue;
                 }
-                var leftNames = IrBinding.names(leftArguments.get(index));
-                var rightNames = IrBinding.names(rightArguments.get(index));
-                if (leftNames.size() != rightNames.size()) {
+                if (!IrBinding.sameShape(leftArguments.get(index), rightArguments.get(index))) {
                     return false;
                 }
+                var leftNames = IrBinding.names(leftArguments.get(index));
+                var rightNames = IrBinding.names(rightArguments.get(index));
                 inner = bind(leftNames, rightNames, inner);
             }
             for (var index = 0; index < leftArguments.size(); index++) {
@@ -115,6 +119,10 @@ public final class IrAlpha {
                 }
                 var body = inner;
                 for (var parameter = 0; parameter < leftParameters.size(); parameter++) {
+                    if (leftDeclaration.formalParams().apply(parameter).arity()
+                            != rightDeclaration.formalParams().apply(parameter).arity()) {
+                        return false;
+                    }
                     body = body.bind(leftParameters.get(parameter).name(), rightParameters.get(parameter).name(),
                             binders++);
                 }
@@ -126,16 +134,12 @@ public final class IrAlpha {
         }
 
         /** Binds each pair of names, which the caller has checked to be equally many, to one fresh number. */
-        private Scopes bind(List<?> left, List<?> right, Scopes scopes) {
+        private Scopes bind(List<NameEx> left, List<NameEx> right, Scopes scopes) {
             var inner = scopes;
             for (var index = 0; index < left.size(); index++) {
-                inner = inner.bind(spelling(left.get(index)), spelling(right.get(index)), binders++);
+                inner = inner.bind(left.get(index).name(), right.get(index).name(), binders++);
             }
             return inner;
-        }
-
-        private static String spelling(Object name) {
-            return name instanceof NameEx expression ? expression.name() : (String) name;
         }
     }
 }

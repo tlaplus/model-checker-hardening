@@ -161,11 +161,11 @@ public final class RuleMatcher {
                 if (!binding.introduces(index)) {
                     continue;
                 }
-                var patternNames = IrBinding.names(patternArguments.get(index));
-                var nodeNames = IrBinding.names(nodeArguments.get(index));
-                if (patternNames.size() != nodeNames.size()) {
+                if (!IrBinding.sameShape(patternArguments.get(index), nodeArguments.get(index))) {
                     return false;
                 }
+                var patternNames = IrBinding.names(patternArguments.get(index));
+                var nodeNames = IrBinding.names(nodeArguments.get(index));
                 for (var position = 0; position < patternNames.size(); position++) {
                     if (!unify(TlaTypes.typeOf(patternNames.get(position)), TlaTypes.typeOf(nodeNames.get(position)))) {
                         return false;

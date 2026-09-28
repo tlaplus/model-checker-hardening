@@ -62,6 +62,44 @@ class RuleMatcherTest {
     }
 
     @Test
+    void repeatedBooleanParametersPreserveBinderStructureAndParameterArity() {
+        var andSelf = checked(rule("AndSelf", B.eql(B.and(bool("P"), bool("P")), bool("P")),
+                B.param("P", TlaTypes.BOOL)));
+        var left = B.forall(integer("x"), T, B.gt(integer("x"), B.integer(0)));
+        var renamed = B.forall(integer("y"), T, B.gt(integer("y"), B.integer(0)));
+        assertTrue(RuleMatcher.match(andSelf, B.and(left, renamed)).isPresent());
+
+        var domain = B.enumSet(B.tuple(B.integer(1)));
+        var plain = B.forall(B.name("x", TlaTypes.tuple(TlaTypes.INT)), domain, B.bool(true));
+        var tuple = B.forall(B.tuple(integer("y")), domain, B.bool(true));
+        assertTrue(RuleMatcher.match(andSelf, B.and(plain, tuple)).isEmpty());
+        assertTrue(RuleMatcher.match(andSelf, B.and(tuple, plain)).isEmpty());
+
+        var valueParameter = B.letIn(B.bool(true), B.decl("F", B.integer(1), B.param("x", TlaTypes.INT)));
+        var operatorParameter = B.letIn(B.bool(true),
+                B.decl("G", B.integer(1), B.param("Q", TlaTypes.operator(TlaTypes.INT, TlaTypes.INT))));
+        assertTrue(RuleMatcher.match(andSelf, B.and(valueParameter, operatorParameter)).isEmpty());
+        assertTrue(RuleMatcher.match(andSelf, B.and(operatorParameter, valueParameter)).isEmpty());
+    }
+
+    @Test
+    void directBinderMatchingPreservesTupleStructure() {
+        // Empty domains have no children whose matching could reject incompatible binder types.
+        var plainPattern = B.forall(B.name("e", ELEMENT), B.emptySet(ELEMENT), B.bool(true));
+        var plainRule = checked(rule("PlainEmpty", B.eql(plainPattern, B.bool(true))));
+        var tupleNode = B.forall(B.tuple(integer("q")), B.emptySet(TlaTypes.tuple(TlaTypes.INT)), B.bool(true));
+        assertTrue(RuleMatcher.match(plainRule, tupleNode).isEmpty());
+
+        var tuplePattern = B.forall(B.tuple(B.name("e", ELEMENT)),
+                B.emptySet(TlaTypes.tuple(ELEMENT)), B.bool(true));
+        var tupleRule = checked(rule("TupleEmpty", B.eql(tuplePattern, B.bool(true))));
+        assertTrue(RuleMatcher.match(tupleRule, tupleNode).isPresent());
+        var plainNode = B.forall(integer("q"), B.emptySet(TlaTypes.INT), B.bool(true));
+        assertTrue(RuleMatcher.match(tupleRule, plainNode).isEmpty());
+        assertTrue(RuleMatcher.match(plainRule, plainNode).isPresent());
+    }
+
+    @Test
     void aHigherOrderParameterAbstractsTheBoundVariable() {
         var node = B.forall(integer("q"), T, B.gt(integer("q"), integer("z")));
         var result = rewrite(forallNotExists(), node).orElseThrow();

@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
+import at.forsyte.apalache.tla.lir.TlaEx;
 import java.util.List;
 import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.TlaOperators;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
 class IrBindingTest {
@@ -38,6 +40,30 @@ class IrBindingTest {
     void anOrdinaryOperatorBindsNothing() {
         assertEquals(IrBinding.NONE, IrBinding.of(TlaOperators.PLUS));
         assertEquals(List.of(), names((OperEx) B.plus(one(), one())));
+    }
+
+    @Test
+    void binderShapesIgnoreNamesAndTypesButPreserveTupleStructure() {
+        assertShape(true, integer("x"), B.name("y", TlaTypes.BOOL));
+        assertShape(true, B.tuple(integer("x"), B.tuple(integer("y"))),
+                B.tuple(integer("a"), B.tuple(integer("b"))));
+        assertShape(false, integer("x"), B.tuple(integer("y")));
+        assertShape(false, B.tuple(integer("x")), B.tuple(integer("a"), integer("b")));
+        assertShape(false, B.tuple(B.tuple(integer("x")), integer("y")),
+                B.tuple(integer("a"), B.tuple(integer("b"))));
+    }
+
+    @Test
+    void unsupportedBinderShapesDoNotMatchEvenThemselves() {
+        for (var binder : new TlaEx[] {one(), B.plus(integer("x"), integer("y")), B.tuple(one())}) {
+            assertShape(false, binder, binder);
+            assertShape(false, binder, integer("x"));
+        }
+    }
+
+    private static void assertShape(boolean expected, TlaEx left, TlaEx right) {
+        assertEquals(expected, IrBinding.sameShape(left, right));
+        assertEquals(expected, IrBinding.sameShape(right, left));
     }
 
     private static List<String> names(OperEx application) {

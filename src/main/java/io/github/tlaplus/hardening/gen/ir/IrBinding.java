@@ -79,6 +79,32 @@ public enum IrBinding {
         return List.copyOf(names);
     }
 
+    /**
+     * Whether two binder patterns have the same structure, ignoring names and type annotations.
+     * Names match names; tuples match recursively in component order. Unsupported structures
+     * return {@code false}.
+     */
+    public static boolean sameShape(TlaEx left, TlaEx right) {
+        if (left instanceof NameEx && right instanceof NameEx) {
+            return true;
+        }
+        if (!(left instanceof OperEx leftTuple) || leftTuple.oper() != TUPLE
+                || !(right instanceof OperEx rightTuple) || rightTuple.oper() != TUPLE) {
+            return false;
+        }
+        var leftElements = TlaExpressions.arguments(leftTuple);
+        var rightElements = TlaExpressions.arguments(rightTuple);
+        if (leftElements.size() != rightElements.size()) {
+            return false;
+        }
+        for (var index = 0; index < leftElements.size(); index++) {
+            if (!sameShape(leftElements.get(index), rightElements.get(index))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Returns the names one binder argument introduces: one name, or the names of a tuple pattern. */
     public static List<NameEx> names(TlaEx binder) {
         if (binder instanceof NameEx name) {
