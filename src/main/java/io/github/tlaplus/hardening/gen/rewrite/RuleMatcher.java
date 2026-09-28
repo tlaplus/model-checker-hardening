@@ -40,8 +40,11 @@ import org.apalache_mc.tla.jir.TypedParameter;
  *       at every type it admits.
  * </ul>
  *
- * <p>A match at a Boolean node is refused when it would move an assigning equation out of a
- * position where TLC treats it as an assignment (ADR 0017 §5.3).
+ * <p>A match is refused when it would take away one of TLC's assignments (ADR 0017 §5.3): at a
+ * Boolean node, when it would move an assigning equation out of an assigning position; anywhere,
+ * when the replacement would prime a parameter bound to something other than a name, or keep one
+ * UNCHANGED that is neither a name nor a tuple of names. {@code <<a, b>>' = <<a, b>>} is valid TLA+
+ * but assigns nothing in TLC.
  */
 public final class RuleMatcher {
     /** The name of every lambda a match builds; instantiation beta-reduces it away. */
@@ -49,30 +52,51 @@ public final class RuleMatcher {
 
     private RuleMatcher() {}
 
-    /** Returns the match of {@code rule} at {@code node}, if its pattern matches and the match is admissible. */
+    /** Returns the match of {@code rule} at {@code node} in an action, where TLC assigns primed names. */
     public static Optional<RuleMatch> match(RewriteRule rule, TlaEx node) {
+        return match(rule, node, Set.of());
+    }
+
+    /**
+     * Returns the match of {@code rule} at {@code node}, if its pattern matches and the match is
+     * admissible. {@code assigned} names the unprimed variables TLC assigns where the node is: the
+     * state variables in {@code Init}, and none in an action.
+     */
+    public static Optional<RuleMatch> match(RewriteRule rule, TlaEx node, Set<String> assigned) {
         Objects.requireNonNull(rule, "rule");
         Objects.requireNonNull(node, "node");
+        Objects.requireNonNull(assigned, "assigned");
         var state = new State(rule);
         if (!state.unify(TlaTypes.typeOf(rule.pattern()), TlaTypes.typeOf(node))
                 || !state.match(rule.pattern(), node, Map.of())) {
             return Optional.empty();
         }
         var match = new RuleMatch(rule, state.bindings, state.types.orElse(TlaTypeSubstitution.empty()));
-        return admitsAssignments(match, node) ? Optional.of(match) : Optional.empty();
+        return admitsAssignments(match, node, assigned) ? Optional.of(match) : Optional.empty();
     }
 
     /**
      * Whether a match keeps TLC's assignments. At a Boolean node, every binding that reads a primed
      * variable must be a formula the rule keeps in an assigning position, in the same order.
      */
-    private static boolean admitsAssignments(RuleMatch match, TlaEx node) {
+    private static boolean admitsAssignments(RuleMatch match, TlaEx node, Set<String> assigned) {
+        var facts = match.rule().assignments();
+        for (var parameter : facts.primed()) {
+            if (!(match.bindings().get(parameter) instanceof NameEx)) {
+                return false;
+            }
+        }
+        for (var parameter : facts.unchanged()) {
+            if (!isVariables(match.bindings().get(parameter))) {
+                return false;
+            }
+        }
         if (!TlaTypes.typeOf(node).equals(TlaTypes.BOOL)) {
             return true;
         }
         var primed = new HashSet<String>();
         for (var binding : match.bindings().entrySet()) {
-            if (!readsNextState(binding.getValue())) {
+            if (!assigns(binding.getValue(), assigned)) {
                 continue;
             }
             var parameter = match.rule().parameter(binding.getKey()).orElseThrow();
@@ -84,10 +108,21 @@ public final class RuleMatcher {
         return match.rule().assignments().admits(primed);
     }
 
-    private static boolean readsNextState(TlaEx expression) {
+    /** Whether {@code expression} is a name or a tuple of names, as UNCHANGED requires for TLC. */
+    private static boolean isVariables(TlaEx expression) {
+        if (expression instanceof NameEx) {
+            return true;
+        }
+        return expression instanceof OperEx tuple && tuple.oper() == org.apalache_mc.tla.jir.TlaOperators.TUPLE
+                && TlaExpressions.arguments(tuple).stream().allMatch(RuleMatcher::isVariables);
+    }
+
+    /** Whether {@code expression} may hold an assignment: it primes a name, or reads an assigned one. */
+    private static boolean assigns(TlaEx expression, Set<String> assigned) {
         var found = new boolean[1];
         TlaExpressions.forEach(expression, node -> {
-            if (node instanceof OperEx application && (application.oper() == PRIME || application.oper() == UNCHANGED)) {
+            if (node instanceof OperEx application && (application.oper() == PRIME || application.oper() == UNCHANGED)
+                    || node instanceof NameEx name && assigned.contains(name.name())) {
                 found[0] = true;
             }
         });

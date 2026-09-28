@@ -14,12 +14,18 @@ import java.util.Set;
  *     position
  * @param patternOrder the Boolean parameters in the order the pattern mentions them first
  * @param replacementOrder the Boolean parameters in the order the replacement mentions them first
+ * @param primed the parameters the replacement primes, which TLC assigns only when they are names
+ * @param unchanged the parameters the replacement keeps UNCHANGED, which TLC assigns only when
+ *     they are names or tuples of names
  */
-public record AssignmentFacts(Set<String> preserved, List<String> patternOrder, List<String> replacementOrder) {
+public record AssignmentFacts(Set<String> preserved, List<String> patternOrder, List<String> replacementOrder,
+        Set<String> primed, Set<String> unchanged) {
     public AssignmentFacts {
         preserved = Set.copyOf(Objects.requireNonNull(preserved, "preserved"));
         patternOrder = List.copyOf(Objects.requireNonNull(patternOrder, "patternOrder"));
         replacementOrder = List.copyOf(Objects.requireNonNull(replacementOrder, "replacementOrder"));
+        primed = Set.copyOf(Objects.requireNonNull(primed, "primed"));
+        unchanged = Set.copyOf(Objects.requireNonNull(unchanged, "unchanged"));
     }
 
     /**

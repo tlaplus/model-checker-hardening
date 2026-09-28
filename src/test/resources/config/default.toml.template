@@ -137,3 +137,6 @@ weights = {}
 max_rewrites = 16
 # Rewrites stacked on one node.
 max_rewrite_depth = 4
+# Times its original size a rewritten body may grow, so rules that duplicate a parameter
+# cannot double a body with every rewrite.
+max_rewrite_growth = 2

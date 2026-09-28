@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.gen.rewrite;
 
 import static org.apalache_mc.tla.jir.TlaOperators.*;
 
+import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.RecRowT1;
 import at.forsyte.apalache.tla.lir.TlaEx;
@@ -9,6 +10,7 @@ import at.forsyte.apalache.tla.lir.TupT1;
 import at.forsyte.apalache.tla.lir.ValEx;
 import at.forsyte.apalache.tla.lir.values.TlaStr;
 import io.github.tlaplus.hardening.gen.ir.IrBinding;
+import java.util.Set;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 
@@ -18,7 +20,8 @@ import org.apalache_mc.tla.jir.TlaTypes;
  *
  * <ul>
  *   <li>a primed name, and everything under it, stays as it is: {@code (x + 0)' = 1} is not an
- *       assignment;
+ *       assignment; in {@code Init}, where TLC assigns unprimed variables, a variable stays as it
+ *       is too;
  *   <li>the operand of {@code UNCHANGED} stays a tuple of variables, for the same reason; the
  *       {@code UNCHANGED} itself may be rewritten;
  *   <li>binder names, label names, record field names, variant tags, and the literal index of a
@@ -30,9 +33,10 @@ import org.apalache_mc.tla.jir.TlaTypes;
 final class RewritePositions {
     private RewritePositions() {}
 
-    /** Whether a rule may apply at {@code node} itself. */
-    static boolean rewritable(TlaEx node) {
-        if (node instanceof OperEx application && application.oper() == PRIME) {
+    /** Whether a rule may apply at {@code node} itself, where {@code assigned} names are assigned. */
+    static boolean rewritable(TlaEx node, Set<String> assigned) {
+        if (node instanceof OperEx application && application.oper() == PRIME
+                || node instanceof NameEx name && assigned.contains(name.name())) {
             return false;
         }
         return !(node instanceof ValEx value && value.value() instanceof TlaStr);

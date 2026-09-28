@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -73,6 +74,21 @@ public final class SpecArtifact {
                 List.of(explored, checked), library.close(rewrite.original()), rewrite), library);
     }
 
+    /**
+     * Assembles the implication relation of a metamorphic pair of modules (ADR 0016 §3), which the
+     * checkers also check against its action invariant. The property is not rewritten yet, so it is
+     * not checked.
+     */
+    public static SpecArtifact fromSpecRewrite(Rewrite<GeneratedSpec> rewrite, OperatorLibrary library) {
+        Objects.requireNonNull(rewrite, "rewrite");
+        var original = rewrite.original();
+        var rewritten = rewrite.rewritten();
+        var generated = new ArrayList<>(original.generated());
+        generated.addAll(rewritten.generated());
+        return new SpecArtifact(new Parts(FuzzInputModule.create(original, rewritten, rewrite.orientation()),
+                new CheckRequest(original.stepBound(), false, true), generated, null, rewrite), library);
+    }
+
     /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
@@ -90,6 +106,11 @@ public final class SpecArtifact {
 
     public CheckRequest request() {
         return request;
+    }
+
+    /** Returns every definition a tool evaluates directly, which admission scores and matches from. */
+    public List<String> entryPoints() {
+        return request.actionInvariant() ? FuzzInputModule.RELATION_ENTRY_POINTS : FuzzInputModule.ENTRY_POINTS;
     }
 
     public List<TlaEx> generated() {

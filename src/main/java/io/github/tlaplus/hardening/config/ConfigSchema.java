@@ -340,6 +340,10 @@ final class ConfigSchema {
     static final Key<Integer> MAXIMUM_REWRITE_DEPTH = REWRITE_LIMITS.defaultedInteger(
             "max_rewrite_depth", RewriteLimits::maximumRewriteDepth, RewriteLimits.defaults().maximumRewriteDepth(),
             "Rewrites stacked on one node.");
+    static final Key<Integer> MAXIMUM_REWRITE_GROWTH = REWRITE_LIMITS.defaultedInteger(
+            "max_rewrite_growth", RewriteLimits::maximumGrowth, RewriteLimits.defaults().maximumGrowth(),
+            "Times its original size a rewritten body may grow, so rules that duplicate a parameter",
+            "cannot double a body with every rewrite.");
 
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();

@@ -44,15 +44,15 @@ class RewriterTest {
     void theLimitsBoundStackingAndRewritesPerBody() {
         var ones = new byte[64];
         java.util.Arrays.fill(ones, (byte) 1);
-        var shallow = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(16, 1))
+        var shallow = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(16, 1, 2))
                 .rewriteExpression(B.integer(7), new Draw(ones));
         // 7 becomes 7 + 0 once; the copy of 7 continues its stack, while the new 0 may become 0 + 0.
         assertEquals(B.plus(B.integer(7), B.plus(B.integer(0), B.integer(0))), shallow.rewritten());
         assertEquals(List.of("PlusZero", "PlusZero"), shallow.appliedRules());
-        var none = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(0, 4))
+        var none = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(0, 4, 2))
                 .rewriteExpression(SUM, new Draw(ones));
         assertTrue(none.isIdentity());
-        var bounded = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(3, 4))
+        var bounded = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(3, 4, 2))
                 .rewriteExpression(SUM, new Draw(ones));
         assertEquals(3, bounded.appliedRules().size());
     }
@@ -92,6 +92,69 @@ class RewriterTest {
                 }
             });
         }
+    }
+
+    /**
+     * A module's bodies are rewritten in a fixed order, which is part of the byte encoding: the
+     * operators, then Init, the next-state action and the invariant. The property is not rewritten.
+     */
+    @Test
+    void rewritesTheBodiesOfAModuleInOrder() {
+        var x = B.name("var0", TlaTypes.INT);
+        var step = B.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
+        var op = B.decl("Op1", B.integer(1));
+        var spec = new io.github.tlaplus.hardening.gen.GeneratedSpec(
+                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", TlaTypes.INT),
+                        org.apalache_mc.tla.jir.TlaDeclarations.variable("step", TlaTypes.INT)),
+                List.<io.github.tlaplus.hardening.gen.GeneratedOperator>of(
+                        new io.github.tlaplus.hardening.gen.GeneratedOperator.Auxiliary(op)),
+                B.and(B.eql(x, B.integer(0)), B.eql(step, B.integer(0))),
+                B.and(B.primeEq(B.name("var0", TlaTypes.INT), B.integer(2)), B.primeEq(step, B.integer(1))),
+                B.bool(true), java.util.Optional.empty(), 3);
+        // Orientation, then one rewrite at the root of Op1's body; every later marker is even.
+        var rewrite = rewriter(library(plusZero())).rewriteSpec(spec, new Draw(new byte[] {0, 1, 0, 0}));
+        assertEquals(List.of("PlusZero"), rewrite.appliedRules());
+        assertEquals(B.plus(B.integer(1), B.integer(0)), rewrite.rewritten().operators().getFirst().declaration().body());
+        assertEquals(spec.initPredicate(), rewrite.rewritten().initPredicate());
+        assertEquals(spec.nextAction(), rewrite.rewritten().nextAction());
+    }
+
+    /** UnionSelf duplicates its set; repeated, it would double the body with every rewrite. */
+    @Test
+    void aBodyGrowsAtMostByTheGrowthFactor() {
+        var ones = new byte[256];
+        java.util.Arrays.fill(ones, (byte) 1);
+        var set = B.enumSet(B.integer(1), B.integer(2), B.integer(3));
+        var rewrite = new Rewriter(library(unionSelf()), IrGenerationConfig.defaults(), new RewriteLimits(64, 4, 2))
+                .rewriteExpression(set, new Draw(ones));
+        var nodes = new int[1];
+        TlaExpressions.forEach(rewrite.rewritten(), ignored -> nodes[0]++);
+        assertTrue(!rewrite.isIdentity());
+        assertTrue(nodes[0] <= 4 * 2 + IrGenerationConfig.defaults().expressions().maximumNodes(),
+                nodes[0] + " nodes after " + rewrite.appliedRules().size() + " rewrites");
+    }
+
+    /** Init assigns unprimed variables: var0 \in S must keep its variable and its position. */
+    @Test
+    void aRewriteKeepsTheAssignmentsOfInit() {
+        var sets = TlaTypes.set(TlaTypes.INT);
+        var x = B.name("var0", sets);
+        var step = B.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
+        var init = B.and(B.in(x, B.enumSet(B.enumSet(B.integer(1)), B.enumSet(B.integer(2)))),
+                B.eql(step, B.integer(0)));
+        var spec = new io.github.tlaplus.hardening.gen.GeneratedSpec(
+                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", sets),
+                        org.apalache_mc.tla.jir.TlaDeclarations.variable("step", TlaTypes.INT)),
+                List.of(), init,
+                B.and(B.primeEq(B.name("var0", sets), B.name("var0", sets)), B.primeEq(step, B.integer(1))),
+                B.bool(true), java.util.Optional.empty(), 3);
+        var ones = new byte[256];
+        java.util.Arrays.fill(ones, (byte) 1);
+        var rewritten = rewriter(library(unionSelf(), doubleNeg())).rewriteSpec(spec, new Draw(ones)).rewritten();
+        var conjuncts = TlaExpressions.arguments((OperEx) rewritten.initPredicate());
+        assertEquals(TlaOperators.SET_IN, ((OperEx) conjuncts.get(0)).oper(), rewritten.initPredicate().toString());
+        assertEquals(x, TlaExpressions.arguments((OperEx) conjuncts.get(0)).getFirst());
+        assertEquals(B.eql(step, B.integer(0)), conjuncts.get(1));
     }
 
     @Test
