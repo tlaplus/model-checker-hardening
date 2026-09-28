@@ -5,17 +5,21 @@ import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.ValEx;
-import java.util.HashMap;
+import io.vavr.collection.HashMap;
+import io.vavr.collection.Map;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 
 /**
  * Alpha-equivalence of typed IR: two expressions are equivalent when they differ only in the
- * names of the variables and definitions they bind. Types and node identities are ignored, as by
- * {@code TlaEx.equals}.
+ * names of the variables and definitions they bind. Tuple binder structure and formal parameter
+ * arities must match. Type annotations and node identities are ignored, as by {@code TlaEx.equals}.
+ *
+ * <p>For example, comparing {@code \A x \in S : x > z} with {@code \A y \in S : y > z}
+ * assigns the same binder number to {@code x} on the left and {@code y} on the right. Their bound
+ * occurrences then match, while the free names {@code S} and {@code z} must match literally.
  */
 public final class IrAlpha {
     private IrAlpha() {}
@@ -23,28 +27,45 @@ public final class IrAlpha {
     /** Whether {@code left} and {@code right} are equal up to the names they bind. */
     public static boolean equivalent(TlaEx left, TlaEx right) {
         return new Comparison().equivalent(
-                Objects.requireNonNull(left, "left"), Objects.requireNonNull(right, "right"), Map.of(), Map.of());
+                Objects.requireNonNull(left, "left"), Objects.requireNonNull(right, "right"), Scopes.EMPTY);
+    }
+
+    /**
+     * The binder number of each name in scope on either side. The maps are persistent, so binding
+     * a name shares structure with the enclosing scope instead of copying it.
+     */
+    private record Scopes(Map<String, Integer> left, Map<String, Integer> right) {
+        static final Scopes EMPTY = new Scopes(HashMap.empty(), HashMap.empty());
+
+        Scopes bind(String leftName, String rightName, int number) {
+            return new Scopes(left.put(leftName, number), right.put(rightName, number));
+        }
+
+        /** Both names refer to corresponding binders, or both are free and spelled alike. */
+        boolean sameName(String leftName, String rightName) {
+            var leftBinder = left.get(leftName);
+            var rightBinder = right.get(rightName);
+            return leftBinder.equals(rightBinder) && (leftBinder.isDefined() || leftName.equals(rightName));
+        }
     }
 
     /** Numbers binders in the order both sides introduce them, so equal numbers mean the same binder. */
     private static final class Comparison {
         private int binders;
 
-        boolean equivalent(TlaEx left, TlaEx right, Map<String, Integer> leftScope, Map<String, Integer> rightScope) {
+        boolean equivalent(TlaEx left, TlaEx right, Scopes scopes) {
             return switch (left) {
                 case NameEx leftName when right instanceof NameEx rightName ->
-                        sameName(leftName.name(), rightName.name(), leftScope, rightScope);
+                        scopes.sameName(leftName.name(), rightName.name());
                 case ValEx leftValue when right instanceof ValEx rightValue -> leftValue.equals(rightValue);
-                case LetInEx leftLet when right instanceof LetInEx rightLet ->
-                        equivalentLet(leftLet, rightLet, leftScope, rightScope);
+                case LetInEx leftLet when right instanceof LetInEx rightLet -> equivalentLet(leftLet, rightLet, scopes);
                 case OperEx leftApplication when right instanceof OperEx rightApplication ->
-                        equivalentApplication(leftApplication, rightApplication, leftScope, rightScope);
+                        equivalentApplication(leftApplication, rightApplication, scopes);
                 default -> false;
             };
         }
 
-        private boolean equivalentApplication(OperEx left, OperEx right,
-                Map<String, Integer> leftScope, Map<String, Integer> rightScope) {
+        private boolean equivalentApplication(OperEx left, OperEx right, Scopes scopes) {
             if (left.oper() != right.oper()) {
                 return false;
             }
@@ -54,40 +75,39 @@ public final class IrAlpha {
                 return false;
             }
             var binding = IrBinding.of(left.oper());
-            var leftInner = new HashMap<>(leftScope);
-            var rightInner = new HashMap<>(rightScope);
+            var inner = scopes;
             for (var index = 0; index < leftArguments.size(); index++) {
-                if (binding.introduces(index)
-                        && !bind(IrBinding.names(leftArguments.get(index)),
-                                IrBinding.names(rightArguments.get(index)), leftInner, rightInner)) {
+                if (!binding.introduces(index)) {
+                    continue;
+                }
+                if (!IrBinding.sameShape(leftArguments.get(index), rightArguments.get(index))) {
                     return false;
                 }
+                var leftNames = IrBinding.names(leftArguments.get(index));
+                var rightNames = IrBinding.names(rightArguments.get(index));
+                inner = bind(leftNames, rightNames, inner);
             }
             for (var index = 0; index < leftArguments.size(); index++) {
                 if (binding.introduces(index)) {
                     continue;
                 }
                 var inScope = binding.scopes(index, leftArguments.size());
-                if (!equivalent(leftArguments.get(index), rightArguments.get(index),
-                        inScope ? leftInner : leftScope, inScope ? rightInner : rightScope)) {
+                if (!equivalent(leftArguments.get(index), rightArguments.get(index), inScope ? inner : scopes)) {
                     return false;
                 }
             }
             return true;
         }
 
-        private boolean equivalentLet(LetInEx left, LetInEx right,
-                Map<String, Integer> leftScope, Map<String, Integer> rightScope) {
+        private boolean equivalentLet(LetInEx left, LetInEx right, Scopes scopes) {
             var leftDeclarations = TlaExpressions.localDeclarations(left);
             var rightDeclarations = TlaExpressions.localDeclarations(right);
             if (leftDeclarations.size() != rightDeclarations.size()) {
                 return false;
             }
-            var leftInner = new HashMap<>(leftScope);
-            var rightInner = new HashMap<>(rightScope);
+            var inner = scopes;
             for (var index = 0; index < leftDeclarations.size(); index++) {
-                bind(List.of(leftDeclarations.get(index).name()), List.of(rightDeclarations.get(index).name()),
-                        leftInner, rightInner);
+                inner = inner.bind(leftDeclarations.get(index).name(), rightDeclarations.get(index).name(), binders++);
             }
             for (var index = 0; index < leftDeclarations.size(); index++) {
                 var leftDeclaration = leftDeclarations.get(index);
@@ -97,44 +117,29 @@ public final class IrAlpha {
                 if (leftParameters.size() != rightParameters.size()) {
                     return false;
                 }
-                var leftBody = new HashMap<>(leftInner);
-                var rightBody = new HashMap<>(rightInner);
+                var body = inner;
                 for (var parameter = 0; parameter < leftParameters.size(); parameter++) {
-                    bind(List.of(leftParameters.get(parameter).name()), List.of(rightParameters.get(parameter).name()),
-                            leftBody, rightBody);
+                    if (leftDeclaration.formalParams().apply(parameter).arity()
+                            != rightDeclaration.formalParams().apply(parameter).arity()) {
+                        return false;
+                    }
+                    body = body.bind(leftParameters.get(parameter).name(), rightParameters.get(parameter).name(),
+                            binders++);
                 }
-                if (!equivalent(leftDeclaration.body(), rightDeclaration.body(), leftBody, rightBody)) {
+                if (!equivalent(leftDeclaration.body(), rightDeclaration.body(), body)) {
                     return false;
                 }
             }
-            return equivalent(left.body(), right.body(), leftInner, rightInner);
+            return equivalent(left.body(), right.body(), inner);
         }
 
-        /** Binds each pair of names to one fresh number; the patterns must have the same shape. */
-        private boolean bind(List<?> left, List<?> right, Map<String, Integer> leftScope, Map<String, Integer> rightScope) {
-            if (left.size() != right.size()) {
-                return false;
-            }
+        /** Binds each pair of names, which the caller has checked to be equally many, to one fresh number. */
+        private Scopes bind(List<NameEx> left, List<NameEx> right, Scopes scopes) {
+            var inner = scopes;
             for (var index = 0; index < left.size(); index++) {
-                var number = binders++;
-                leftScope.put(spelling(left.get(index)), number);
-                rightScope.put(spelling(right.get(index)), number);
+                inner = inner.bind(left.get(index).name(), right.get(index).name(), binders++);
             }
-            return true;
-        }
-
-        private static String spelling(Object name) {
-            return name instanceof NameEx expression ? expression.name() : (String) name;
-        }
-
-        private static boolean sameName(String left, String right,
-                Map<String, Integer> leftScope, Map<String, Integer> rightScope) {
-            var leftBinder = leftScope.get(left);
-            var rightBinder = rightScope.get(right);
-            if (leftBinder == null || rightBinder == null) {
-                return leftBinder == null && rightBinder == null && left.equals(right);
-            }
-            return leftBinder.equals(rightBinder);
+            return inner;
         }
     }
 }

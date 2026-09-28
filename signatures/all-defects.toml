@@ -1295,3 +1295,14 @@ match = [
   '(OPER_APP Custom526563757273696f6e4170616c61636865N536571496e73657274696f6e536f7274 _)',
   '(OPER_APP Custom526563757273696f6e4170616c61636865N536574546f536f72746564536571 _)',
 ]
+
+[[signature]]
+id = "fold-concatenation"
+references = ["../findings/apalache-performance/apalache-performance-003.md"]
+description = "Apalache can exhaust its heap on a fold whose combinator concatenates sequences with \\o, such as the recursion library's SeqReverse and SeqFlatten, over a few hundred elements."
+match = [
+  '(OPER_APP Custom526563757273696f6e4170616c61636865N53657152657665727365 _)',
+  '(OPER_APP Custom526563757273696f6e4170616c61636865N536571466c617474656e _)',
+  '(Apalache!ApaFoldSeqLeft (.. (Sequences!Concat _ _)) _ _)',
+  '(Apalache!ApaFoldSet (.. (Sequences!Concat _ _)) _ _)',
+]

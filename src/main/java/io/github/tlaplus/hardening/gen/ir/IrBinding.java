@@ -24,15 +24,22 @@ import org.apalache_mc.tla.jir.TlaOperators;
  */
 public enum IrBinding {
     /** Binds nothing. */
-    NONE,
+    NONE(),
     /** {@code op(x, S, body)}: {@code x} ranges over {@code S} in {@code body}. */
-    SINGLE_BOUNDED,
+    SINGLE_BOUNDED(SET_FILTER, FORALL3, EXISTS3, CHOOSE3),
     /** {@code op(x, body)}: {@code x} is bound in {@code body}. */
-    SINGLE_UNBOUNDED,
+    SINGLE_UNBOUNDED(FORALL2, EXISTS2, CHOOSE2),
     /** {@code op(body, x1, S1, ..., xn, Sn)}: every {@code xi} is bound in {@code body} only. */
-    MULTIPLE;
+    MULTIPLE(SET_MAP, FUN_CTOR);
 
-    private static final Map<TlaOper, IrBinding> BINDERS = index();
+    /** The operators that bind names this way; empty for {@link #NONE}, which is the default. */
+    private final List<TlaOper> operators;
+
+    private static final Map<TlaOper, IrBinding> BINDERS = cacheBindings();
+
+    IrBinding(TlaOper... operators) {
+        this.operators = List.of(operators);
+    }
 
     /** Returns how {@code operator} binds names. */
     public static IrBinding of(TlaOper operator) {
@@ -44,6 +51,7 @@ public enum IrBinding {
         return switch (this) {
             case NONE -> false;
             case SINGLE_BOUNDED, SINGLE_UNBOUNDED -> index == 0;
+            // (body, x1, S1, ..., xn, Sn): the names x1, ..., xn sit at the odd indices
             case MULTIPLE -> index % 2 == 1;
         };
     }
@@ -53,6 +61,7 @@ public enum IrBinding {
         return switch (this) {
             case NONE -> false;
             case SINGLE_BOUNDED, SINGLE_UNBOUNDED -> index == arity - 1;
+            // (body, x1, S1, ..., xn, Sn): only the body sees x1, ..., xn; the domains Si do not
             case MULTIPLE -> index == 0;
         };
     }
@@ -70,6 +79,32 @@ public enum IrBinding {
         return List.copyOf(names);
     }
 
+    /**
+     * Whether two binder patterns have the same structure, ignoring names and type annotations.
+     * Names match names; tuples match recursively in component order. Unsupported structures
+     * return {@code false}.
+     */
+    public static boolean sameShape(TlaEx left, TlaEx right) {
+        if (left instanceof NameEx && right instanceof NameEx) {
+            return true;
+        }
+        if (!(left instanceof OperEx leftTuple) || leftTuple.oper() != TUPLE
+                || !(right instanceof OperEx rightTuple) || rightTuple.oper() != TUPLE) {
+            return false;
+        }
+        var leftElements = TlaExpressions.arguments(leftTuple);
+        var rightElements = TlaExpressions.arguments(rightTuple);
+        if (leftElements.size() != rightElements.size()) {
+            return false;
+        }
+        for (var index = 0; index < leftElements.size(); index++) {
+            if (!sameShape(leftElements.get(index), rightElements.get(index))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Returns the names one binder argument introduces: one name, or the names of a tuple pattern. */
     public static List<NameEx> names(TlaEx binder) {
         if (binder instanceof NameEx name) {
@@ -83,16 +118,16 @@ public enum IrBinding {
         throw new IllegalArgumentException("unsupported binding: " + binder);
     }
 
-    private static Map<TlaOper, IrBinding> index() {
+    private static Map<TlaOper, IrBinding> cacheBindings() {
         var result = new IdentityHashMap<TlaOper, IrBinding>();
-        for (var operator : List.of(SET_FILTER, FORALL3, EXISTS3, CHOOSE3)) {
-            result.put(operator, SINGLE_BOUNDED);
-        }
-        for (var operator : List.of(FORALL2, EXISTS2, CHOOSE2)) {
-            result.put(operator, SINGLE_UNBOUNDED);
-        }
-        for (var operator : List.of(SET_MAP, FUN_CTOR)) {
-            result.put(operator, MULTIPLE);
+        for (var binding : values()) {
+            for (var operator : binding.operators) {
+                var previous = result.put(operator, binding);
+                if (previous != null) {
+                    throw new IllegalStateException(
+                            "operator " + operator.name() + " is listed by both " + previous + " and " + binding);
+                }
+            }
         }
         return Collections.unmodifiableMap(result);
     }

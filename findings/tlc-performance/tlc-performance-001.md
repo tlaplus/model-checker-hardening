@@ -161,6 +161,30 @@ checking with exit 120: tuple/sequence syntax is ambiguous, first in the unused
 `Op1` definition. The successful comparison uses the original typed corpus
 input, without simplifying its fold or transition relation.
 
+## Recursive operators
+
+A `RECURSIVE` operator hits the same limit. The recursion library's
+`RecursionTLC` defines
+`SeqReverse(s) == IF s = <<>> THEN <<>> ELSE SeqReverse(Tail(s)) \o <<Head(s)>>`.
+With FuzzTLA `703c9fa`, TLC commit `8f4bc8b` (tla2tools
+`1.8.0-20260925.164314-82`) and a one-state invariant
+`Len(SeqReverse([i \in 1..n |-> i])) = n`:
+
+| n | 1 MB stack | 4 MB stack |
+| ---: | --- | --- |
+| 250 | pass | pass |
+| 400 | stack overflow, exit 75 | pass |
+| 1500 | stack overflow, exit 75 | stack overflow, exit 255 |
+
+corpus53 has 50 TLC crashes of this kind. Each applies `SeqReverse` to a sequence
+that doubles in every step, for example `var0' = SeqReverse(var0 \o var0)`.
+Apalache 0.62.2 (`f0dec98`) passes 44 of them, times out on 4 and exhausts
+its heap on 2, the defect of
+[apalache-performance-003](../apalache-performance/apalache-performance-003.md).
+The triager assigns TLC error 1005 with the `StackOverflowError` message to this
+finding: generated modules recurse only through the recursion library, whose
+definitions terminate.
+
 ## Expected behavior
 
 TLC should evaluate this modest terminating fold without exhausting a 1 MB

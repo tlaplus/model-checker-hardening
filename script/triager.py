@@ -133,9 +133,18 @@ TLC_BEFORE_INITIAL_STATES = r"\A(?=[\s\S]*^Starting\.\.\. )(?![\s\S]*^Computing 
 # property with []<>, <>[], WF or SF, or fairness in the specification, and
 # evaluates them while it explores states. An error-1000 escape after the
 # initial states of such a run is tlc-010.
+TLC_IMPLIED_TEMPORAL = r"^Implied-temporal checking--satisfiability problem has \d+ branch(?:es)?\.$"
 TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES = (
-    r"^Implied-temporal checking--satisfiability problem has \d+ branch(?:es)?\.$"
-    r"[\s\S]*^Finished computing initial states: "
+    rf"{TLC_IMPLIED_TEMPORAL}[\s\S]*^Finished computing initial states: "
+)
+
+# The same escape while TLC evaluates the tableau on an initial state: a plain
+# "Error:" line directly after "Computing initial states...". An error in Init
+# or in the invariant exits 75 instead; a wrapped RuntimeException stays with
+# tlc-001 and tlc-003.
+TLC_LIVENESS_ERROR_ON_INITIAL_STATE = (
+    rf"{TLC_IMPLIED_TEMPORAL}[\s\S]*^Computing initial states\.\.\.\n"
+    r"Error: (?!TLC threw an unexpected exception\.)"
 )
 
 # Messages that TLC's standard modules raise with their own error codes
@@ -179,7 +188,14 @@ SIGNATURES = (
     # signature does not constrain the message; tlc_runtime_error excludes the
     # same context from tlc-001 and tlc-003.
     finding("tlc-010.md", CrashKind.TLC,
-            all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES)),
+            all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES),
+            all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_ON_INITIAL_STATE)),
+    # TLC's evaluator exhausts the Java stack on a terminating recursion over a
+    # few hundred elements. Generated modules recurse only through the
+    # recursion library, whose definitions terminate.
+    finding("tlc-performance-001.md", CrashKind.TLC,
+            all_of(r"^TLC error code 1005 mapped to exit status 255$",
+                   r"^Error: This was a Java StackOverflowError\. It was probably the result$")),
     finding("tlc-001.md", CrashKind.TLC,
             tlc_runtime_error(r"In applying the function", r"which is not in its domain\.")),
     finding("tlc-002.md", CrashKind.TLC,

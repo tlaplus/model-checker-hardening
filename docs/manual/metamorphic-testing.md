@@ -6,7 +6,7 @@
 > The rule catalog will be specified in a later ADR.
 
 A metamorphic campaign checks one model checker against itself. Each input pairs a
-generated module M with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
+generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
 `x` rewritten as `x + y - y`. The checker explores one of the two and checks that its
 initial states and transitions satisfy the other. A violation means one of two things:
 - the checker evaluates the two sides differently;
@@ -60,24 +60,36 @@ max_rewrite_depth = 4
 
 ## 2. What the checker sees
 
-`fuzztla print --spec` shows the relation module. Each side has its own definitions:
-`Init1`, `A1`, `Inv1` for M, and `Init2`, `A2`, `Inv2` for M2. An orientation bit in the
-entry chooses the explored side E and the checked side C:
+`fuzztla print --spec` shows the relation module. An orientation bit in the entry
+chooses the explored side E and the checked side C:
 
 | Orientation | E (explored) | C (checked) |
 | --- | --- | --- |
-| even | M | M2 |
-| odd | M2 | M |
+| even | M1 | M2 |
+| odd | M2 | M1 |
+
+Each side's parts are definitions of their own, named by the side X ∈ {E, C}:
+
+| Definition | Meaning |
+| --- | --- |
+| `InitX` | initial predicate |
+| `ActionX` | next-state action without its stuttering disjunct |
+| `InvX` | state invariant |
+| `PropX` | temporal property |
+| `FairnessX` | fairness conditions |
+| `exprX` | the expression of an `expr` entry |
+
+The relation module combines them:
 
 | Entry point | `expr` | `module` |
 | --- | --- | --- |
-| `Init` | `v = eE` | `InitE` |
-| `Next` | `UNCHANGED v` | `AE \/ UNCHANGED vars` |
-| `Inv` | `v = eC` | `(step = 0 => InitC) /\ (Inv1 <=> Inv2)` |
-| `Step` | none | `[AC]_vars`, an action invariant |
-| `Prop` | none | `(F1 => F2) /\ (F2 => F1)` when the base has a property |
+| `Init` | `v = exprE` | `InitE` |
+| `Next` | `UNCHANGED v` | `ActionE \/ UNCHANGED vars` |
+| `Inv` | `v = exprC` | `(step = 0 => InitC) /\ (InvE <=> InvC)` |
+| `Step` | none | `[ActionC]_vars`, an action invariant |
+| `Prop` | none | `(PropE => PropC) /\ (PropC => PropE)` when the base has a property |
 
-- **One copy of the variables.** M2 shares M's variables. Only its operators are
+- **One copy of the variables.** M2 shares M1's variables. Only its operators are
   renamed.
 - **The action invariant.** TLC checks it as `PROPERTY StepProperty`, where
   `StepProperty == [][Step]_vars`, and reports "Action property StepProperty is
@@ -113,7 +125,7 @@ To tell them apart:
 
 1. **List the rules and the orientation.** `fuzztla print` replays them. A violation of
    `Inv` at `step = 0` is an initial state of E that `InitC` rejects. A violation of
-   `Step` is a transition of E that `AC` rejects.
+   `Step` is a transition of E that `ActionC` rejects.
 2. **Reduce the stack of rewrites.** Clear rewrite markers until the violation
    disappears. The last rule cleared is the culprit or part of it.
 3. **Evaluate both sides of that rule on the counterexample's last state or
