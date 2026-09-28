@@ -140,8 +140,8 @@ max_rewrite_depth = 4
 # Times its original size a rewritten body may grow, so rules that duplicate a parameter
 # cannot double a body with every rewrite.
 max_rewrite_growth = 2
-# pbt corpus, relative to this config file, whose 04quality-pass entries are lifted:
+# pbt corpus, relative to this config file, whose 04quality-pass entries are adopted:
 # each is combined with random rewrite bytes (ADR 0016 §6). It is read, never written.
 # base_corpus = "../corpus-conf"
-# Share of a generation lifted from base_corpus; the mutator and PBT fill the rest.
-lift_ratio = 0.5
+# Share of a generation adopted from base_corpus; the mutator and PBT fill the rest.
+adopt_ratio = 0.5

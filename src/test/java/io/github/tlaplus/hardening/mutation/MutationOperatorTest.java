@@ -20,7 +20,7 @@ class MutationOperatorTest {
     void encodedNamesArePartOfTheCorpusFormat() {
         assertEquals(
                 List.of("random_byte", "bitflip", "parity_flip", "copy", "duplicate", "insert",
-                        "erase", "splice", "lift"),
+                        "erase", "splice", "adopt"),
                 Arrays.stream(MutationOperator.values()).map(MutationOperator::encodedName).toList());
         for (var operator : MutationOperator.values()) {
             assertEquals(Optional.of(operator), MutationOperator.fromEncodedName(operator.encodedName()));
@@ -29,12 +29,12 @@ class MutationOperatorTest {
     }
 
     @Test
-    void liftRecordsProvenanceButIsNeverApplied() {
-        assertEquals(List.of(MutationOperator.LIFT), Arrays.stream(MutationOperator.values())
+    void adoptRecordsProvenanceButIsNeverApplied() {
+        assertEquals(List.of(MutationOperator.ADOPT), Arrays.stream(MutationOperator.values())
                 .filter(operator -> !operator.isByteEdit()).toList());
-        assertEquals(0, MutationOperator.LIFT.defaultWeight());
+        assertEquals(0, MutationOperator.ADOPT.defaultWeight());
         org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
-                () -> MutationOperator.LIFT.apply(new byte[] {1}, NO_DONOR, new SplittableRandom(1)));
+                () -> MutationOperator.ADOPT.apply(new byte[] {1}, NO_DONOR, new SplittableRandom(1)));
     }
 
     @Test

@@ -11,7 +11,7 @@ import java.util.Objects;
  * (ADR 0010, ADR 0016 §6).
  *
  * <p>A generation of {@code size} entries numbers its targets {@code 0..size-1} and splits them into
- * one contiguous range per {@link EntryOrigin}, in declaration order: mutants, lifted entries, then
+ * one contiguous range per {@link EntryOrigin}, in declaration order: mutants, adopted entries, then
  * PBT. The split matters because a target's ordinal seeds its candidate stream: two targets that
  * share an ordinal replay one stream, so the ranges must never overlap, whichever source ends up
  * filling them.
@@ -39,9 +39,9 @@ final class GenerationTargets {
         return generation == 0 ? 0 : Math.round(feedbackRatio * size);
     }
 
-    /** Returns how many of a generation's {@code size} entries are lifted from a base corpus. */
-    static long liftShare(long size, double liftRatio) {
-        return Math.round(liftRatio * size);
+    /** Returns how many of a generation's {@code size} entries are adopted from a base corpus. */
+    static long adoptShare(long size, double adoptRatio) {
+        return Math.round(adoptRatio * size);
     }
 
     /**

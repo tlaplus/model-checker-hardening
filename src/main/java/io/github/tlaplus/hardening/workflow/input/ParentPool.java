@@ -21,7 +21,7 @@ import java.util.Objects;
 import java.util.random.RandomGenerator;
 
 /**
- * The entries of {@code 04quality-pass} that a generation mutates or lifts: those of the kind the
+ * The entries of {@code 04quality-pass} that a generation mutates or adopts: those of the kind the
  * run generates, read once when the generation starts. Workers share one pool.
  */
 public final class ParentPool {
@@ -33,7 +33,7 @@ public final class ParentPool {
 
     /**
      * Reads the parents of {@code kind} from a corpus: the run's own, which the caller holds locked,
-     * or the base corpus of a lift, which it only reads.
+     * or the base corpus of an adoption, which it only reads.
      */
     public static ParentPool load(CorpusDirectory corpus, InputKind kind) throws IOException, CorpusException {
         Objects.requireNonNull(kind, "kind");
@@ -47,7 +47,7 @@ public final class ParentPool {
                         "invalid parent entry '" + stored.path() + "': " + Diagnostics.message(exception),
                         exception);
             }
-            // A parent whose payload the metamorphic header cannot describe cannot be lifted, and a
+            // A parent whose payload the metamorphic header cannot describe cannot be adopted, and a
             // mutant of it would exceed any configured input length anyway.
             if (envelope.corpusInput().kind() == kind
                     && envelope.corpusInput().input().length <= MetamorphicPayload.MAXIMUM_BASE_BYTES) {

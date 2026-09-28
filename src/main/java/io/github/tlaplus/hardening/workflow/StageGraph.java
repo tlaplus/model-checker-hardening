@@ -57,17 +57,17 @@ final class StageGraph {
     /**
      * What every invocation of one runner shares.
      *
-     * @param lifting the base corpus the run lifts from; none unless the technique is metamorphic
+     * @param adoption the base corpus the run adopts from; none unless the technique is metamorphic
      */
     record Setup(
             FuzzTlaConfig config, SpecDecoders decoders, KnownDefectDatabase knownDefects, CheckerSet checkers,
-            MetamorphicConfig.Lifting lifting) {
+            MetamorphicConfig.Adoption adoption) {
         Setup {
             Objects.requireNonNull(config, "config");
             Objects.requireNonNull(decoders, "decoders");
             Objects.requireNonNull(knownDefects, "knownDefects");
             Objects.requireNonNull(checkers, "checkers");
-            Objects.requireNonNull(lifting, "lifting");
+            Objects.requireNonNull(adoption, "adoption");
         }
     }
 

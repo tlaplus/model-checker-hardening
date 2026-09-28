@@ -78,7 +78,7 @@ class WorkflowRunnerTest {
         var config = base.withWorkflow(base.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)))
                 .withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Lifting.defaults()));
+                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
 
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
 
@@ -107,7 +107,7 @@ class WorkflowRunnerTest {
                 expressions.pbt(), expressions.mutator(), expressions.libraries(),
                 new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Lifting.defaults()));
+                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
 
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
 
@@ -118,11 +118,11 @@ class WorkflowRunnerTest {
     }
 
     /**
-     * A metamorphic corpus lifts the entries a pbt corpus's quality gate kept (ADR 0016 §6): the
-     * lifted range of a generation is filled from them, each recording its parent and {@code lift}.
+     * A metamorphic corpus adopts the entries a pbt corpus's quality gate kept (ADR 0016 §6): the
+     * adopted range of a generation is filled from them, each recording its parent and {@code adopt}.
      */
     @Test
-    void liftsTheSelectedEntriesOfAPbtCorpus(@TempDir Path directory) throws Exception {
+    void adoptsTheSelectedEntriesOfAPbtCorpus(@TempDir Path directory) throws Exception {
         // The base corpus is a pbt corpus whose quality gate kept three expressions.
         var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var random = new java.util.Random(11);
@@ -142,22 +142,22 @@ class WorkflowRunnerTest {
         var config = tlcOnly.withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
                 Map.of(), RewriteLimits.defaults(),
-                new MetamorphicConfig.Lifting(Optional.of(directory.resolve("base")), 0.5)));
+                new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1);
 
-        assertEquals(4, summary.corpus().admitted(0, EntryOrigin.LIFTED));
-        var lifted = 0;
+        assertEquals(4, summary.corpus().admitted(0, EntryOrigin.ADOPTED));
+        var adopted = 0;
         for (var entry : corpus.storedEntries()) {
             var metadata = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(entry.path())).generation().orElseThrow();
-            if (EntryOrigin.of(metadata.mutation()) == EntryOrigin.LIFTED) {
+            if (EntryOrigin.of(metadata.mutation()) == EntryOrigin.ADOPTED) {
                 assertTrue(parents.contains(metadata.mutation().orElseThrow().parent()));
-                lifted++;
+                adopted++;
             }
         }
-        assertEquals(4, lifted);
+        assertEquals(4, adopted);
         var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(
                 config.withMetamorphic(new MetamorphicConfig(config.metamorphic().rules(), Map.of(), RewriteLimits.defaults(),
-                        new MetamorphicConfig.Lifting(Optional.of(directory.resolve("mt")), 0.5))),
+                        new MetamorphicConfig.Adoption(Optional.of(directory.resolve("mt")), 0.5))),
                 Technique.MT).run(corpus, 7, 1));
         assertTrue(refused.getMessage().contains("must be a pbt corpus"), refused.getMessage());
     }

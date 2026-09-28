@@ -86,12 +86,12 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("richness_threshold_base = 1.5"));
     }
 
-    /** lift is provenance of the lift source (ADR 0016 §6), not an edit the mutator could draw. */
+    /** adopt is provenance of the adoption source (ADR 0016 §6), not an edit the mutator could draw. */
     @Test
-    void rejectsAWeightForLift(@TempDir Path directory) throws Exception {
-        var document = TomlConfig.render(FuzzTlaConfig.defaults()).replace("splice = 1 }", "splice = 1, lift = 1 }");
+    void rejectsAWeightForAdopt(@TempDir Path directory) throws Exception {
+        var document = TomlConfig.render(FuzzTlaConfig.defaults()).replace("splice = 1 }", "splice = 1, adopt = 1 }");
         var failure = assertInvalid(directory, document);
-        assertTrue(failure.getMessage().contains("unknown mutation operator 'lift'"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("unknown mutation operator 'adopt'"), failure.getMessage());
     }
 
     /** The rule module's classpath resolves against the config file, like the generator's. */

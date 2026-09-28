@@ -8,9 +8,9 @@ import java.util.Objects;
  *
  * <pre>[base length: 2 bytes, big-endian] [base payload] [rewrite payload]</pre>
  *
- * <p>The base payload is byte-identical to a stored conformance entry, so a lifted parent decodes
- * to the same module, and byte edits of the rewrite payload never move the base. A length beyond
- * the input is clamped.
+ * <p>The base payload is byte-identical to a stored conformance entry, so an adopted parent
+ * decodes to the same module, and byte edits of the rewrite payload never move the base. A length
+ * beyond the input is clamped.
  */
 public final class MetamorphicPayload {
     /** The largest base payload the two-byte header can describe. */

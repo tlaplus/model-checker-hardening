@@ -1,6 +1,6 @@
 package io.github.tlaplus.hardening.workflow;
 
-import static io.github.tlaplus.hardening.corpus.EntryOrigin.LIFTED;
+import static io.github.tlaplus.hardening.corpus.EntryOrigin.ADOPTED;
 import static io.github.tlaplus.hardening.corpus.EntryOrigin.MUTANT;
 import static io.github.tlaplus.hardening.corpus.EntryOrigin.PBT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +20,7 @@ class GenerationTargetsTest {
         assertEquals(40, GenerationTargets.mutantShare(80, 1, 0.5));
         assertEquals(0, GenerationTargets.mutantShare(80, 1, 0.0));
         assertEquals(80, GenerationTargets.mutantShare(80, 1, 1.0));
-        assertEquals(20, GenerationTargets.liftShare(80, 0.25));
+        assertEquals(20, GenerationTargets.adoptShare(80, 0.25));
     }
 
     @Test
@@ -30,15 +30,15 @@ class GenerationTargetsTest {
     }
 
     @Test
-    void aFreshGenerationSplitsItsRangeIntoMutantLiftedAndPbtRanges() {
-        var targets = GenerationTargets.resuming(10, Map.of(MUTANT, 4L, LIFTED, 3L), Map.of());
+    void aFreshGenerationSplitsItsRangeIntoMutantAdoptedAndPbtRanges() {
+        var targets = GenerationTargets.resuming(10, Map.of(MUTANT, 4L, ADOPTED, 3L), Map.of());
 
         assertEquals(10, targets.remaining());
         assertEquals(4, targets.remaining(MUTANT));
-        assertEquals(3, targets.remaining(LIFTED));
+        assertEquals(3, targets.remaining(ADOPTED));
         assertEquals(3, targets.remaining(PBT));
         assertEquals(0, targets.reserve(MUTANT, 4));
-        assertEquals(4, targets.reserve(LIFTED, 3));
+        assertEquals(4, targets.reserve(ADOPTED, 3));
         assertEquals(7, targets.reserve(PBT, 3));
         assertEquals(0, targets.remaining());
     }
@@ -68,12 +68,12 @@ class GenerationTargetsTest {
 
     @Test
     void spilledPbtFillsTheLatestEarlierRangeFirst() {
-        var targets = GenerationTargets.resuming(10, Map.of(MUTANT, 3L, LIFTED, 3L), Map.of(PBT, 6L));
+        var targets = GenerationTargets.resuming(10, Map.of(MUTANT, 3L, ADOPTED, 3L), Map.of(PBT, 6L));
 
-        // Two PBT entries spilled past the PBT range [6, 10); they took lifted ordinals 3 and 4.
-        assertEquals(1, targets.remaining(LIFTED));
+        // Two PBT entries spilled past the PBT range [6, 10); they took adopted ordinals 3 and 4.
+        assertEquals(1, targets.remaining(ADOPTED));
         assertEquals(3, targets.remaining(MUTANT));
-        assertEquals(5, targets.reserve(LIFTED, 1));
+        assertEquals(5, targets.reserve(ADOPTED, 1));
     }
 
     @Test
@@ -99,12 +99,12 @@ class GenerationTargetsTest {
     @Test
     void everyReservationOfAGenerationIsDisjointAndWithinItsRange() {
         for (var mutants = 0L; mutants <= 6; mutants++) {
-            for (var lifted = 0L; lifted <= 6 - mutants; lifted++) {
-                for (var pbt = 0L; pbt <= 10 - mutants - lifted; pbt++) {
+            for (var adopted = 0L; adopted <= 6 - mutants; adopted++) {
+                for (var pbt = 0L; pbt <= 10 - mutants - adopted; pbt++) {
                     for (var mutantShare = 0L; mutantShare <= 10; mutantShare += 2) {
-                        for (var liftShare = 0L; liftShare <= 10 - mutantShare; liftShare += 3) {
-                            assertDisjoint(10, Map.of(MUTANT, mutantShare, LIFTED, liftShare),
-                                    Map.of(MUTANT, mutants, LIFTED, lifted, PBT, pbt));
+                        for (var adoptShare = 0L; adoptShare <= 10 - mutantShare; adoptShare += 3) {
+                            assertDisjoint(10, Map.of(MUTANT, mutantShare, ADOPTED, adoptShare),
+                                    Map.of(MUTANT, mutants, ADOPTED, adopted, PBT, pbt));
                         }
                     }
                 }

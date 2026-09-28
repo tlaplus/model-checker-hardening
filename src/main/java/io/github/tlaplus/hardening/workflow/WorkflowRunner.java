@@ -62,11 +62,11 @@ public final class WorkflowRunner {
             throw new WorkflowException(
                     "invalid known-defect database: " + exception.getMessage(), exception);
         }
-        // Only a metamorphic run lifts; another technique ignores [metamorphic].
-        var lifting = technique == Technique.MT
-                ? config.metamorphic().lifting()
-                : new MetamorphicConfig.Lifting(Optional.empty(), 0.0);
-        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers(), lifting);
+        // Only a metamorphic run adopts; another technique ignores [metamorphic].
+        var adoption = technique == Technique.MT
+                ? config.metamorphic().adoption()
+                : new MetamorphicConfig.Adoption(Optional.empty(), 0.0);
+        setup = new StageGraph.Setup(config, decoders, knownDefects, checking.checkers(), adoption);
         limits = new OccupancyLimits(config.workflow(), checking.checkers());
     }
 
@@ -106,7 +106,7 @@ public final class WorkflowRunner {
         limits.requireCpus(maximumCpus);
         var invocation = new StageGraph.Invocation(
                 corpus, seed, maximumCpus, ApalacheDistribution.locate());
-        requireLiftableBase();
+        requireAdoptableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
@@ -128,9 +128,9 @@ public final class WorkflowRunner {
         }
     }
 
-    /** Requires the base corpus of a lift to hold conformance entries, whose payloads lift as bases. */
-    private void requireLiftableBase() throws IOException, CorpusException, WorkflowException {
-        var base = setup.lifting().baseCorpus();
+    /** Requires the base corpus of an adoption to hold conformance entries, whose payloads are bases. */
+    private void requireAdoptableBase() throws IOException, CorpusException, WorkflowException {
+        var base = setup.adoption().baseCorpus();
         if (base.isEmpty()) {
             return;
         }

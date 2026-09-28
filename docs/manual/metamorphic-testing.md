@@ -18,7 +18,7 @@ rejects.
 
 ## 1. Setting up a corpus
 
-Lifting elite entries of an existing conformance corpus gives the richest inputs:
+Adopting elite entries of an existing conformance corpus gives the richest inputs:
 
 ```sh
 ./bin/fuzztla run --how=pbt --corpus corpus-conf          # conformance generations
@@ -38,7 +38,7 @@ checkers = ["tlc"]            # default ["tlc", "apalache"]
 rules = { module = "Rewrites", classpath = ["rewrites"] }
 weights = { AddSub = 3 }      # default 1 per rule; 0 disables a rule
 base_corpus = "../corpus-conf"
-lift_ratio = 0.5
+adopt_ratio = 0.5
 max_rewrites = 16
 max_rewrite_depth = 4
 max_rewrite_growth = 2
@@ -47,16 +47,16 @@ max_rewrite_growth = 2
 - **The technique is fixed.** The first run records `mt` in `.technique`. Later runs
   must pass `--how=mt`, and `print` and `export-db` read the file. A corpus without it
   is a `pbt` corpus.
-- **Lifted parents.** A generation takes `lift_ratio` of its entries from lifted
+- **Adopted parents.** A generation takes `adopt_ratio` of its entries from adopted
   parents: the `04quality-pass` entries of `base_corpus`, each combined with random
   rewrite bytes. `[mutator] feedback_ratio` still sets the share of byte mutants, and
   PBT fills the rest.
 - **The base corpus is read-only.** It must be a `pbt` corpus. It is never written
   to, and an entry keeps its parent's bytes, so `base_corpus` is not needed to replay
-  it. Use the base corpus's `[generator]` settings: a lifted payload decodes under the
+  it. Use the base corpus's `[generator]` settings: an adopted payload decodes under the
   metamorphic corpus's settings, and decodes to the parent's module only if they agree.
-- **Lifted entries record their parent.** `gen.parent` is the parent's digest in the
-  base corpus, and `gen.operators` is `["lift"]`.
+- **Adopted entries record their parent.** `gen.parent` is the parent's digest in the
+  base corpus, and `gen.operators` is `["adopt"]`.
 - **The checker set is fixed.** The first run records `checkers` in `.checkers`, and
   later runs must use the same list.
 - **The rules are fixed.** The first run records the rule module's sources and the

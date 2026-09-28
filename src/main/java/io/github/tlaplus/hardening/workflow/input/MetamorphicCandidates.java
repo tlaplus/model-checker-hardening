@@ -9,10 +9,10 @@ import java.util.Optional;
 import java.util.random.RandomGenerator;
 
 /**
- * Lifts elite conformance entries (ADR 0016 §6): every candidate is the payload of a uniformly drawn
+ * Adopts elite conformance entries (ADR 0016 §6): every candidate is the payload of a uniformly drawn
  * parent of a pbt corpus behind the metamorphic header, followed by random rewrite bytes. The base
  * stays byte-identical to the parent, so it decodes to the parent's module. A candidate keeps its
- * parent's cohort, records {@code lift} as its provenance, and has no richness threshold. A pair
+ * parent's cohort, records {@code adopt} as its provenance, and has no richness threshold. A pair
  * whose rewrite applies no rule is rejected by the decoder.
  */
 public final class MetamorphicCandidates implements CandidateSource {
@@ -36,7 +36,7 @@ public final class MetamorphicCandidates implements CandidateSource {
                 return new Draft(
                         MetamorphicPayload.encode(parent.input(), rewrite),
                         parent.cohort(),
-                        Optional.of(new Mutation(parent.digest(), List.of(MutationOperator.LIFT))),
+                        Optional.of(new Mutation(parent.digest(), List.of(MutationOperator.ADOPT))),
                         candidate -> false);
             }
 
@@ -47,7 +47,7 @@ public final class MetamorphicCandidates implements CandidateSource {
 
             @Override
             public String describe() {
-                return "a lift of a parent pool of " + parents.size() + " entries";
+                return "an adoption from a parent pool of " + parents.size() + " entries";
             }
         };
     }

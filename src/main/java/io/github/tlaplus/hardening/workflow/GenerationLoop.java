@@ -30,7 +30,7 @@ import java.util.Objects;
  *
  * <ol>
  *   <li>admits what g still lacks, one {@link EntryOrigin} range after the other — mutants of the
- *       parents {@code 04quality-pass} holds, lifted entries, then PBT — and waits until every one
+ *       parents {@code 04quality-pass} holds, adopted entries, then PBT — and waits until every one
  *       of those entries is stored;
  *   <li>admits the PBT range of g + 1 while g's checker tail is still running, which is what keeps
  *       the CPUs busy across a generation boundary;
@@ -202,7 +202,7 @@ final class GenerationLoop {
     private CandidateSource source(EntryOrigin origin) throws IOException, CorpusException {
         return switch (origin) {
             case MUTANT -> mutantSource();
-            case LIFTED -> liftSource();
+            case ADOPTED -> adoptSource();
             case PBT -> new PbtCandidates(setup.config().pbt());
         };
     }
@@ -238,12 +238,12 @@ final class GenerationLoop {
     }
 
     /**
-     * Returns the source that fills a generation's lifted range: the base corpus's {@code
+     * Returns the source that fills a generation's adopted range: the base corpus's {@code
      * 04quality-pass} entries, read once per generation and never written. PBT fills the range while
      * the base corpus has none.
      */
-    private CandidateSource liftSource() throws IOException, CorpusException {
-        var base = setup.lifting().baseCorpus().orElseThrow();
+    private CandidateSource adoptSource() throws IOException, CorpusException {
+        var base = setup.adoption().baseCorpus().orElseThrow();
         var parents = ParentPool.load(CorpusDirectory.openExisting(base), setup.config().generatedKind());
         return parents.isEmpty() ? new PbtCandidates(setup.config().pbt()) : new MetamorphicCandidates(parents);
     }
@@ -266,8 +266,8 @@ final class GenerationLoop {
                 size(number),
                 Map.of(EntryOrigin.MUTANT, GenerationTargets.mutantShare(
                                 size(number), number, setup.config().mutator().feedbackRatio()),
-                        EntryOrigin.LIFTED, setup.lifting().baseCorpus().isEmpty()
-                                ? 0L : GenerationTargets.liftShare(size(number), setup.lifting().ratio())),
+                        EntryOrigin.ADOPTED, setup.adoption().baseCorpus().isEmpty()
+                                ? 0L : GenerationTargets.adoptShare(size(number), setup.adoption().ratio())),
                 progress.admittedByOrigin(number)));
     }
 }

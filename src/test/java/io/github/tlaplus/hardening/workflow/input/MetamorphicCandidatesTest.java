@@ -24,7 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class MetamorphicCandidatesTest {
     @Test
-    void aLiftedCandidateKeepsItsParentsPayloadAsItsBase(@TempDir Path directory) throws Exception {
+    void anAdoptedCandidateKeepsItsParentsPayloadAsItsBase(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var parent = new byte[] {4, 8, 15, 16, 23, 42};
         Files.write(
@@ -38,7 +38,7 @@ class MetamorphicCandidatesTest {
         var parts = MetamorphicPayload.split(new Draw(draft.input()));
         assertArrayEquals(parent, parts.base().drawBytes(parts.base().remaining()));
         assertTrue(parts.rewrite().remaining() > 0);
-        assertEquals(EntryOrigin.LIFTED, EntryOrigin.of(draft.mutation()));
+        assertEquals(EntryOrigin.ADOPTED, EntryOrigin.of(draft.mutation()));
         assertEquals(3, draft.cohort());
     }
 }

@@ -14,7 +14,7 @@ import java.util.random.RandomGenerator;
  * configuration ({@code [mutator] weights}). Declaration order is only the order in which weights
  * are rendered and a weighted choice scans the operators.
  *
- * <p>{@link #LIFT} is provenance, not an edit (ADR 0016 §6): the lift source records it for an
+ * <p>{@link #ADOPT} is provenance, not an edit (ADR 0016 §6): the adoption source records it for an
  * entry whose base payload it copied from a parent. The mutator never draws it, and the
  * configuration gives it no weight.
  */
@@ -80,7 +80,7 @@ public enum MutationOperator {
         return concat(Arrays.copyOf(input, prefix), Arrays.copyOfRange(other, suffix, other.length));
     }),
     /** Copies a conformance parent as the base of a metamorphic entry; not a byte edit. */
-    LIFT("lift", 0, null);
+    ADOPT("adopt", 0, null);
 
     /** Block sizes, held apart because enum constants cannot refer forward to their own fields. */
     private static final class Bounds {
@@ -110,7 +110,7 @@ public enum MutationOperator {
         return encodedName;
     }
 
-    /** Whether the mutator applies this operator; {@link #LIFT} only records provenance. */
+    /** Whether the mutator applies this operator; {@link #ADOPT} only records provenance. */
     public boolean isByteEdit() {
         return edit != null;
     }
