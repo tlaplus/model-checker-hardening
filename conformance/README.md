@@ -476,7 +476,8 @@ The crashes that were not reduced:
   mechanism is that `FcnLambdaValue.toString` swallows an exception while it
   formats the message: the `CallStackTool` froze the stack when the exception
   passed, so every later push is kept. A small module that follows this path
-  did not reproduce the growth, so the mechanism is unconfirmed.
+  did not reproduce the growth, so the mechanism is unconfirmed. corpus54
+  confirmed it, see [`tlc-018`](../findings/TLC/tlc-018.md).
 
 ## corpus30 residuals
 
@@ -1327,6 +1328,48 @@ host is the likely cause, but it was not confirmed.
 The triager now assigns the 50 stack overflows to `tlc-performance-001` and the
 5 initial-state escapes to `tlc-010`. On corpus50 and corpus52 this also
 classifies 14 former `NEW` TLC crashes and changes no other classification.
+
+## corpus54 residuals
+
+corpus54 is a `module` run with the recursion library. It read
+`all-defects.toml`, and the known-defect signatures rejected 727,191 of the
+1,519,994 generation attempts. Triage classified 1,465 of the 1,471 TLC crashes
+and 84 of the 845 Apalache crash outcomes. Another 642 Apalache outcomes are
+worker timeouts. It left 139 of the 136,576 aggregator deviations as `NEW`. The
+parser report was empty. The residuals yield one new finding,
+[`tlc-018`](../findings/TLC/tlc-018.md), which also explains corpus29's
+`8382764e`. No entry needs a new conformance report.
+
+Every entry was rendered with FuzzTLA `bcfbb00`. Apalache reruns used 0.62.2
+with `-Xmx1g`. TLC reruns used commit `8f4bc8b` (tla2tools
+`1.8.0-20260925.164314-82`) with the corpus's `tla/recursion` modules.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 117 | Apalache crash | out of heap at 1 GB; all match `fold-concatenation` | [`apalache-performance-003`](../findings/apalache-performance/apalache-performance-003.md) |
+| 2 | Apalache crash | out of heap at 1 GB, no signature: `44611d6d` concatenates `var0` with itself three times in every step; `248f4b31` takes `UNION` of an `ApaFoldSet` over sets of sequences of functions | not reduced |
+| 642 | Apalache timeout | worker timeouts | not rerun |
+| 5 | TLC crash | out of heap at 512 MB; all match `fold-concatenation`. `2df927e9` and `82c06d78` fold `var0` with `LAMBDA a, x: a \o a`; with 4 GB, the `Sequences.Concat` override reports `Java heap space` (exit 75) | resource limit |
+| 1 | TLC crash | out of heap at 512 MB after reporting a function application outside the domain in a one-state specification, `3cf5b69b`; Apalache passes | [`tlc-018`](../findings/TLC/tlc-018.md) |
+| 128 | aggregator | TLC pass, Apalache counterexample (125), or the reverse (`81519dff`, `82e825d4` and `edf92f8a`): order-sensitive `ApaFoldSet` whose combinator returns its element, directly or through a nested fold, `=>`, `\E` or `Append` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 9 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` with several witnesses and no `ApaFoldSet`, such as `CHOOSE b \in {TRUE, FALSE} : var0` as an action conjunct | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass: `\E p \in ApaFoldSeqLeft(...)` (`bae5dadf`) or `\E p \in ApaFoldSet(...)` (`98cca561`) whose combinator returns a function set keeps the transition disabled | [`apalache-bmc-021`](../findings/apalache-bmc/apalache-bmc-021.md) |
+
+The aggregator rows were classified from their specifications, by the
+combinators of their folds and the predicates of their `CHOOSE` expressions.
+The reverse rows `82e825d4` and `edf92f8a` were rerun: Apalache passes, and TLC
+violates `Inv` in an initial state, where `Inv` applies the order-sensitive
+fold. The other rows were not rerun. 13 of the 128 fold rows also contain a
+`CHOOSE`; they were classified by the fold.
+
+The run did not apply `fold-concatenation`: its statistics record no match of
+it, although generation 0 started on 2026-09-26, after the signature was added.
+The current database matches 122 of the 125 heap exhaustions, so the run most
+likely used a build or checkout from before `bb7c7fb`.
+
+The TLC worker crashes store only `Terminating due to
+java.lang.OutOfMemoryError: Java heap space`, so the triager cannot separate
+`tlc-018` from a resource limit, and it has no signature for it.
 
 ## Auditing the classified entries
 
