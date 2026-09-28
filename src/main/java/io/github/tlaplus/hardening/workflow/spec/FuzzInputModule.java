@@ -63,8 +63,8 @@ public final class FuzzInputModule {
     public static final String LIVENESS = "Liveness";
 
     /**
-     * The action invariant of a metamorphic module (ADR 0016 §3): {@code [AC]_vars}, which every
-     * transition of the explored side must satisfy. Apalache checks it as an action invariant.
+     * The action invariant of a metamorphic module (ADR 0016 §3): {@code [ActionC]_vars}, which
+     * every transition of the explored side must satisfy. Apalache checks it as an action invariant.
      */
     public static final String STEP = "Step";
 
@@ -84,17 +84,20 @@ public final class FuzzInputModule {
     public static final List<String> RELATION_ENTRY_POINTS = List.of(
             INIT, NEXT, INV, SPEC, PROP, LIVENESS, STEP, STEP_PROPERTY);
 
-    /** Names of the side definitions of a metamorphic module (ADR 0016 §3): M is side 1, M2 side 2. */
-    static final String INIT_1 = "Init1";
-    static final String INIT_2 = "Init2";
-    static final String INV_1 = "Inv1";
-    static final String INV_2 = "Inv2";
-    static final String ACTION_1 = "A1";
-    static final String ACTION_2 = "A2";
+    /**
+     * Names of the side definitions of a metamorphic module (ADR 0016 §3), by role: E is the
+     * explored side and C the checked one.
+     */
+    static final String INIT_E = "InitE";
+    static final String INIT_C = "InitC";
+    static final String INV_E = "InvE";
+    static final String INV_C = "InvC";
+    static final String ACTION_E = "ActionE";
+    static final String ACTION_C = "ActionC";
 
     /**
-     * Suffix of the rewritten side's generated operators. The generator never spells a name with an
-     * underscore, so the renamed copies never collide with the original's.
+     * Suffix of M2's generated operators. The generator never spells a name with an
+     * underscore, so the renamed copies never collide with M1's.
      */
     static final String REWRITTEN_SUFFIX = "_2";
 
@@ -113,7 +116,7 @@ public final class FuzzInputModule {
     /**
      * Wraps two expressions of one type in the single-state module: {@code initial} is the initial
      * value of {@code exprValue}, and the invariant asserts that it equals {@code asserted}. With a
-     * metamorphic pair, the explored side is initial and the checked side asserted (ADR 0016 §3).
+     * metamorphic pair, {@code exprE} is initial and {@code exprC} asserted (ADR 0016 §3).
      */
     public static TlaModule create(TlaEx initial, TlaEx asserted) {
         Objects.requireNonNull(initial, "initial");
@@ -150,15 +153,15 @@ public final class FuzzInputModule {
     }
 
     /**
-     * Assembles the implication relation of a metamorphic pair of modules (ADR 0016 §3). The pair
-     * shares one copy of the variables; the rewritten side's operators are renamed apart. With E
-     * the explored side and C the checked one:
+     * Assembles the implication relation of a metamorphic pair of modules M1 and M2 (ADR 0016 §3).
+     * The pair shares one copy of the variables; M2's operators are renamed apart. The orientation
+     * selects the explored side E and the checked side C:
      *
      * <pre>
      * Init == InitE
-     * Next == AE \/ UNCHANGED vars
-     * Inv  == (step = 0 => InitC) /\ (Inv1 <=> Inv2)
-     * Step == [AC]_vars
+     * Next == ActionE \/ UNCHANGED vars
+     * Inv  == (step = 0 => InitC) /\ (InvE <=> InvC)
+     * Step == [ActionC]_vars
      * </pre>
      *
      * <p>Each side's body is a definition of its own, because a copied body repeats its labels. The
@@ -180,26 +183,27 @@ public final class FuzzInputModule {
         rewritten.operators().forEach(operator -> declarations.add(
                 TlaDeclarations.deepCopy(IrNames.rename(operator.declaration(), rename))));
         UnaryOperator<TlaEx> second = body -> TlaExpressions.deepCopy(IrNames.rename(body, rename));
-        declarations.add(builder.decl(INIT_1, original.initPredicate()));
-        declarations.add(builder.decl(INIT_2, second.apply(rewritten.initPredicate())));
-        declarations.add(builder.decl(INV_1, original.invariant()));
-        declarations.add(builder.decl(INV_2, second.apply(rewritten.invariant())));
-        declarations.add(builder.decl(ACTION_1, original.nextAction()));
-        declarations.add(builder.decl(ACTION_2, second.apply(rewritten.nextAction())));
+        var init2 = second.apply(rewritten.initPredicate());
+        var invariant2 = second.apply(rewritten.invariant());
+        var action2 = second.apply(rewritten.nextAction());
+        declarations.add(builder.decl(INIT_E, orientation.explored(original.initPredicate(), init2)));
+        declarations.add(builder.decl(INIT_C, orientation.checked(original.initPredicate(), init2)));
+        declarations.add(builder.decl(INV_E, orientation.explored(original.invariant(), invariant2)));
+        declarations.add(builder.decl(INV_C, orientation.checked(original.invariant(), invariant2)));
+        declarations.add(builder.decl(ACTION_E, orientation.explored(original.nextAction(), action2)));
+        declarations.add(builder.decl(ACTION_C, orientation.checked(original.nextAction(), action2)));
 
         var variables = original.variables();
         var step = original.variables().stream()
                 .filter(variable -> variable.name().equals(GeneratedSpec.STEP_VARIABLE))
                 .findFirst().orElseThrow();
-        var init = reference(builder, orientation.explored(INIT_1, INIT_2));
-        var next = builder.or(reference(builder, orientation.explored(ACTION_1, ACTION_2)),
-                builder.unchanged(variablesTuple(builder, variables)));
+        var init = reference(builder, INIT_E);
+        var next = builder.or(reference(builder, ACTION_E), builder.unchanged(variablesTuple(builder, variables)));
         var invariant = builder.and(
                 builder.implies(builder.eql(builder.varDeclAsNameEx(step), builder.integer(0)),
-                        reference(builder, orientation.checked(INIT_1, INIT_2))),
-                builder.equiv(reference(builder, INV_1), reference(builder, INV_2)));
-        var stepAction = builder.stutter(
-                reference(builder, orientation.checked(ACTION_1, ACTION_2)), variablesTuple(builder, variables));
+                        reference(builder, INIT_C)),
+                builder.equiv(reference(builder, INV_E), reference(builder, INV_C)));
+        var stepAction = builder.stutter(reference(builder, ACTION_C), variablesTuple(builder, variables));
         return assemble(declarations, variables,
                 new Skeleton(init, next, invariant, List.of(), List.of(), Optional.of(stepAction)));
     }
