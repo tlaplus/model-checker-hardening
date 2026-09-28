@@ -26,6 +26,8 @@
 #   sets it needs are caught by powerset, function-set-expansion and integer-range).
 # - tlc-performance-001: stack exhaustion depends on the run-time sequence length and JVM stack
 #   size, which cannot be expressed by a structural signature.
+# - tlc-018: the call stack grows with the evaluation that formatting an error message does after
+#   an exception it discards; any evaluation error can trigger it.
 # - vacuous-initial-predicate: both tools pass.
 # - apalache-printer-001 to 007, apalache-json-001 and 002: fixed.
 # - apalache-json-003: occurs in library preparation, not in generated inputs; library JSON is
