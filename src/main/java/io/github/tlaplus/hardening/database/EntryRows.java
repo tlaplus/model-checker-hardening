@@ -19,6 +19,7 @@ import static io.github.tlaplus.hardening.database.DatabaseColumns.METRICS;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.NAME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.OCCURRENCES;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.OPERATOR;
+import static io.github.tlaplus.hardening.database.DatabaseColumns.RULE;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PARENT;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PARENT_NAME;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.PHASE;
@@ -78,8 +79,10 @@ record EntryRows(Row entry, List<Row> dependents) {
             dependents.add(stageRow(id, stage));
         }
         switch (replay) {
-            case ReplayOutcome.Replayed(var counts) -> {
+            case ReplayOutcome.Replayed(var replayed) -> {
+                var counts = replayed.counts();
                 entry.set(EVALUATED_NODES, counts.nodes());
+                dependents.addAll(positions(DatabaseTable.REWRITE_RULE, RULE, id, replayed.appliedRules()));
                 counts.exprs().forEach((name, occurrences) -> dependents.add(
                         new Row(DatabaseTable.EXPR)
                                 .set(ENTRY_ID, id)

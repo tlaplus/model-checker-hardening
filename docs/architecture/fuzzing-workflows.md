@@ -339,8 +339,8 @@ This workflow specializes the general workflow as follows:
 
 ### 1.4. Metamorphic testing of TLC and Apalache
 
-**Proposed architectural extension** ([ADR 0016][]; [manual][metamorphic manual]).
-Nothing in this section is implemented.
+**Implemented architectural extension** ([ADR 0016][]; [manual][metamorphic manual]).
+Temporal properties are not rewritten yet.
 
 In this workflow, the goal is to collect a metamorphic test suite. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>. One checker

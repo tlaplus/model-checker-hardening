@@ -272,7 +272,7 @@ Apalache side must pass library validation, so the TLC side may be recursive.
 ([manual](docs/manual/recursive-operators.md)).
 
 Metamorphic testing (`run --how=mt`), which checks one checker against equivalent
-rewrites of its input, is proposed but not implemented
+rewrites of its input, is implemented except for temporal properties
 ([ADR 0016](docs/decisions/0016-metamorphic-testing.md),
 [ADR 0017](docs/decisions/0017-rewrite-rule-library.md),
 [manual](docs/manual/metamorphic-testing.md)).

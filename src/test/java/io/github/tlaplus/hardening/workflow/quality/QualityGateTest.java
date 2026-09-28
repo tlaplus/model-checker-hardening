@@ -20,6 +20,7 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.ReplayedInput;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
@@ -245,7 +246,7 @@ class QualityGateTest {
      * two integers, codes 3 and 4 add a set enumeration under the equality, and code 5 is code 1's
      * code four times over.
      */
-    private static ExprCounts analyze(CorpusInput input) {
+    private static ReplayedInput analyze(CorpusInput input) {
         var id = input.input()[0];
         var times = id == 5 ? 4L : 1L;
         var exprs = new TreeMap<String, Long>(Map.of("EQ", times, "TlaInt", 2 * times));
@@ -254,7 +255,7 @@ class QualityGateTest {
             exprs.put("SET_ENUM", 1L);
             edges.put(new ExprEdge("EQ", "SET_ENUM"), 1L);
         }
-        return new ExprCounts(3 * times, exprs, edges);
+        return new ReplayedInput(new ExprCounts(3 * times, exprs, edges), List.of());
     }
 
     private static CorpusDirectory corpus(Path directory) throws Exception {

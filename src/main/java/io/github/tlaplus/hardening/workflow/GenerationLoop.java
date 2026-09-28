@@ -82,7 +82,7 @@ final class GenerationLoop {
         gate = new QualityGate(
                 invocation.corpus(),
                 setup.config().mutator().gate(),
-                new EvaluatedExprs(setup.decoders())::count,
+                new EvaluatedExprs(setup.decoders())::analyze,
                 graph.counters(CorpusStage.QUALITY));
         current = new Generation(oldestIncomplete(startup.initial()), graph);
         if (limits.exhausted(startup.initial())) {

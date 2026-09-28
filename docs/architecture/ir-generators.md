@@ -33,8 +33,8 @@ store or mutate them.
 The two encodings are independent and share no bytes. Adding a module form
 cannot reinterpret a stored expression input, and the reverse holds too.
 
-**Proposed extension** ([ADR 0016](../decisions/0016-metamorphic-testing.md)).
-Metamorphic testing (`run --how=mt`) would add a byte-directed rewriter in
+**Implemented extension** ([ADR 0016](../decisions/0016-metamorphic-testing.md)).
+Metamorphic testing (`run --how=mt`) adds a byte-directed rewriter in
 `gen.rewrite`. Under `mt`, an `expr` or `module` payload is prefixed with its two-byte
 length and followed by a rewrite payload. The rewriter decodes the rewrite payload into
 an orientation bit and a rewrite of the decoded IR that is equivalent to it. It follows

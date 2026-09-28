@@ -19,9 +19,9 @@ final class DecodedInputRenderer {
         Objects.requireNonNull(artifact, "artifact");
         Objects.requireNonNull(mode, "mode");
         return switch (mode) {
-            case DEFAULT -> artifact.standaloneExpression()
+            case DEFAULT -> artifact.rewrite().map(RewriteReport::render).orElseGet(() -> artifact.standaloneExpression()
                     .map(EnvelopeReport::expression)
-                    .orElseGet(() -> SpecText.render(artifact));
+                    .orElseGet(() -> SpecText.render(artifact)));
             case SPECIFICATION -> SpecText.render(artifact);
             case APALACHE_IR -> ApalacheIrJson.render(artifact.module());
         };

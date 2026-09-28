@@ -26,8 +26,10 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.Mutation;
+import io.github.tlaplus.hardening.corpus.ReplayedInput;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StageRecord;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -53,7 +55,7 @@ import org.junit.jupiter.api.io.TempDir;
 class CorpusExportTest {
     private static final Instant START = Instant.parse("2026-09-15T10:00:00Z");
     private static final CorpusExport.Provenance PROVENANCE = new CorpusExport.Provenance(
-            "fuzztla test", Instant.parse("2026-09-15T12:00:00.5Z"));
+            "fuzztla test", Instant.parse("2026-09-15T12:00:00.5Z"), Technique.MT);
 
     @Test
     void exportsEntriesStageRecordsMetricsAndKnownDefects(@TempDir Path directory)
@@ -136,6 +138,9 @@ class CorpusExportTest {
                     List.of(row("splice", 0L), row("bitflip", 1L)),
                     rows(connection, "SELECT operator, position FROM mutationOperator ORDER BY position"));
             assertEquals(
+                    List.of(row("PlusZero", 0L), row("AddSub", 1L)),
+                    rows(connection, "SELECT rule, position FROM rewriteRule ORDER BY position"));
+            assertEquals(
                     List.of(
                             row("aggregator", "fail", 0L),
                             row("apalache", "fail", 3_000L),
@@ -176,7 +181,8 @@ class CorpusExportTest {
                     List.of(
                             row("corpus", root.toAbsolutePath().normalize().toString()),
                             row("exportedAt", "2026-09-15T12:00:00.500Z"),
-                            row("fuzztlaVersion", "fuzztla test")),
+                            row("fuzztlaVersion", "fuzztla test"),
+                            row("technique", "mt")),
                     rows(connection, "SELECT key, value FROM export ORDER BY key"));
         }
     }
@@ -388,15 +394,17 @@ class CorpusExportTest {
      * equality and a set enumeration per byte, each an argument of the equality. Payloads {@code
      * boom} and {@code deep} fail.
      */
-    private static ExprCounts analyze(CorpusInput input) {
+    /** Replays the entry "aggregated" as a metamorphic input that applied two rules. */
+    private static ReplayedInput analyze(CorpusInput input) {
         var payload = new String(input.input(), StandardCharsets.UTF_8);
         return switch (payload) {
             case "boom" -> throw new IllegalArgumentException("no replay for boom");
             case "deep" -> throw new StackOverflowError();
-            default -> new ExprCounts(
+            default -> new ReplayedInput(new ExprCounts(
                     payload.length(),
                     new TreeMap<>(Map.of("EQ", 1L, "SET_ENUM", (long) payload.length())),
-                    new TreeMap<>(Map.of(new ExprEdge("EQ", "SET_ENUM"), (long) payload.length())));
+                    new TreeMap<>(Map.of(new ExprEdge("EQ", "SET_ENUM"), (long) payload.length()))),
+                    payload.equals("aggregated") ? List.of("PlusZero", "AddSub") : List.of());
         };
     }
 

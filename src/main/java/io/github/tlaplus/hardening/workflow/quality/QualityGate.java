@@ -150,7 +150,7 @@ public final class QualityGate {
             return Set.of();
         }
         try {
-            return CoverageFeature.of(analysis.analyze(candidate.envelope().corpusInput()));
+            return CoverageFeature.of(analysis.analyze(candidate.envelope().corpusInput()).counts());
         } catch (RuntimeException | StackOverflowError failure) {
             return Set.of();
         }
