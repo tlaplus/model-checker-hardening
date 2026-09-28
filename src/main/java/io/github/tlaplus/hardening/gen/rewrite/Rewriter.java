@@ -75,6 +75,7 @@ public final class Rewriter {
         var orientation = Orientation.of(draw.drawBoolean());
         var names = new LinkedHashSet<>(IrNames.free(expression));
         names.addAll(IrNames.bound(expression));
+        names.addAll(IrNames.labels(expression));
         var walk = new Walk(draw, new OperandGenerator(generation, names));
         var rewritten = walk.body(expression, List.of());
         return new Rewrite<>(expression, rewritten, orientation, walk.applied);
@@ -100,6 +101,7 @@ public final class Rewriter {
         for (var body : spec.generated()) {
             names.addAll(IrNames.free(body));
             names.addAll(IrNames.bound(body));
+            names.addAll(IrNames.labels(body));
         }
         var walk = new Walk(draw, new OperandGenerator(generation, names));
 

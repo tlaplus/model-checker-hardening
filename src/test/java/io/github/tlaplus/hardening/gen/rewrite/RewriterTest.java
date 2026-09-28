@@ -10,6 +10,7 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -38,6 +39,19 @@ class RewriterTest {
         assertEquals(List.of("PlusZero"), once.appliedRules());
         var twice = rewrite(library(plusZero()), 0, 1, 0, 0, 1, 0, 0);
         assertEquals(B.plus(B.plus(SUM, B.integer(0)), B.integer(0)), twice.rewritten());
+    }
+
+    /** SANY rejects two labels of one name in a definition, so a copied operand is relabelled. */
+    @Test
+    void aRuleThatCopiesALabelledOperandGivesEveryCopyItsOwnLabel() {
+        var labelled = B.label(B.enumSet(B.integer(1)), "label3");
+        var rewrite = rewriter(library(unionSelf())).rewriteExpression(labelled, new Draw(new byte[] {0, 1, 0, 0}));
+        assertEquals(List.of("UnionSelf"), rewrite.appliedRules());
+        var copies = TlaExpressions.arguments((OperEx) rewrite.rewritten());
+        assertEquals(labelled, copies.get(0));
+        var names = IrNames.labels(rewrite.rewritten());
+        assertEquals(2, names.size(), names.toString());
+        assertTrue(names.contains("label3"));
     }
 
     @Test

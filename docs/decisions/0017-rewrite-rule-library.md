@@ -218,6 +218,10 @@ among the rules that match a node.
 - **Instantiation.** B's bound variables are renamed apart from the node's scope with
   the shared renaming helper. Matched and fresh parameters are then substituted, and
   higher-order applications are beta-reduced. The result has the node's type.
+- **Labels.** A parameter that occurs more than once in B, such as `S` in `UnionSelf`,
+  copies the labels of its value. SANY rejects a definition with two labels of one name,
+  so every label that repeats a name in the result is renamed apart. A fresh operand's
+  labels are named apart from the labels of the body.
 
 A rule whose A is a bare parameter, such as `PlusZero`, matches every node of the
 parameter's type. The loader indexes the rules by the head operator of A, and it
