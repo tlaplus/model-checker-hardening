@@ -8,6 +8,7 @@ import java.util.ArrayList;
 
 import org.apalache_mc.tla.jir.TypedParameter;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,6 +63,22 @@ final class GenerationContext {
      */
     String fresh(String prefix) {
         return prefix + nameCount++;
+    }
+
+    /**
+     * Continues the name supply above every numeric suffix of {@code names}, so a fresh identifier
+     * never repeats a name an existing expression already uses, whatever its prefix.
+     */
+    void reserveNames(Collection<String> names) {
+        for (var name : names) {
+            var digits = name.length();
+            while (digits > 0 && Character.isDigit(name.charAt(digits - 1))) {
+                digits--;
+            }
+            if (digits < name.length() && name.length() - digits < 10) {
+                nameCount = Math.max(nameCount, Integer.parseInt(name.substring(digits)) + 1);
+            }
+        }
     }
 
     /**

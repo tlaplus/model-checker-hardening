@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.IntegerExpressionKind;
+import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -96,6 +97,7 @@ class TomlConfigTest {
         assertEquals(new MetamorphicConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
                 metamorphic.rules().orElseThrow());
         assertEquals(Map.of("AddSub", 3, "DoubleNeg", 0), metamorphic.weights());
+        assertEquals(RewriteLimits.defaults(), metamorphic.limits());
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[metamorphic]"));
         assertEquals(MetamorphicConfig.defaults(), readConfig(directory, withoutTable).metamorphic());

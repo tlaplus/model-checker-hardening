@@ -11,6 +11,7 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.InputStageConfig;
+import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.MutatorConfig;
 import io.github.tlaplus.hardening.config.QualityGateConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
@@ -32,6 +33,7 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
@@ -41,7 +43,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -57,6 +61,33 @@ import org.junit.jupiter.api.io.TempDir;
 
 class WorkflowRunnerTest {
     private static final GenerationMetadata ADMITTED = GenerationMetadata.generated(0, 0, 0.0);
+
+    /**
+     * A metamorphic corpus of expressions (ADR 0016 phase 1): every entry pairs an expression with a
+     * rewrite by the shipped rules, which are valid, so no checker may report a counterexample. The
+     * corpus records its technique and rules, and refuses a run with another technique.
+     */
+    @Test
+    void runsAMetamorphicExpressionCorpus(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var base = config(8, 3, 8, 64);
+        var config = base.withWorkflow(base.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)))
+                .withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                        "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
+                        Map.of(), RewriteLimits.defaults()));
+
+        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
+
+        var inventory = summary.corpus();
+        assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
+        assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
+                "a valid rule violated the metamorphic relation");
+        assertEquals(Technique.MT, CorpusRecords.TECHNIQUE.read(corpus));
+        assertFalse(CorpusRecords.REWRITE_LIBRARY.read(corpus).isEmpty());
+        var refused = assertThrows(WorkflowException.class,
+                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1));
+        assertTrue(refused.getMessage().contains("this corpus runs --how=mt"), refused.getMessage());
+    }
 
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */
     @Test

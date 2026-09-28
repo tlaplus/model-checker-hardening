@@ -133,3 +133,7 @@ feature_coverage = true
 # rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }
 # Selection slots per rewrite rule; an omitted rule has weight 1, and 0 disables it.
 weights = {}
+# Rewrites applied to one body of a base (Init, Next, Inv, an operator or an expression).
+max_rewrites = 16
+# Rewrites stacked on one node.
+max_rewrite_depth = 4

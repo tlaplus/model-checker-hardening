@@ -8,10 +8,9 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
+import io.github.tlaplus.hardening.workflow.CorpusReplay;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
-import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -96,8 +95,7 @@ final class ExportDbCommand implements Callable<Integer> {
     private InputAnalysis replay()
             throws IOException, ConfigException, CorpusException, WorkflowException {
         var directory = CorpusDirectory.openExisting(corpus);
-        var decoders = SpecDecoders.prepare(TomlConfig.read(directory.resolve(CorpusPath.CONFIG)));
-        LibraryManifest.verify(directory, decoders.libraryManifest(), false);
+        var decoders = CorpusReplay.decoders(directory, TomlConfig.read(directory.resolve(CorpusPath.CONFIG)));
         return new EvaluatedExprs(decoders)::count;
     }
 }

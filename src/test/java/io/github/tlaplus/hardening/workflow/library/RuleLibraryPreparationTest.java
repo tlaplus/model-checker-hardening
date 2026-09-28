@@ -65,6 +65,7 @@ class RuleLibraryPreparationTest {
     }
 
     private static MetamorphicConfig config(Path classpath, String module, Map<String, Integer> weights) {
-        return new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(module, List.of(classpath))), weights);
+        return new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(module, List.of(classpath))), weights,
+                io.github.tlaplus.hardening.gen.rewrite.RewriteLimits.defaults());
     }
 }

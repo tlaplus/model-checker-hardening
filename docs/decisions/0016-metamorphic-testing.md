@@ -275,10 +275,9 @@ The rewriter needs package access to `gen.engine`, whose `GenerationContext` and
   the last three. Assignment preservation matters because the explored side may be
   M2, so TLC generates successors from rewritten actions (probe P5).
 
-**Identity rejection.** A decoded pair whose M2 renders to the same TLA<sup>+</sup> as
-M1 is rejected. The input stage already rejects a mutant clone through
-`CandidateSource.Draft.isClone`; a metamorphic draft supplies a predicate that
-compares the two sides.
+**Identity rejection.** A decoded pair in which no rule applied is rejected: the
+metamorphic decoder throws `InputRejectedException`, so the input stage counts it as a
+rejection before admission, whatever the candidate source.
 
 **IR plumbing.**
 - Rewriting uses the facade's `TlaExpressions.rewrite`, `forEach` and `deepCopy`.

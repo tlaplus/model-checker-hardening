@@ -16,6 +16,19 @@ public enum Oracle {
         CorpusVerdict judge(Collection<CorpusVerdict> verdicts) {
             return verdicts.stream().distinct().count() == 1 ? CorpusVerdict.PASS : CorpusVerdict.FAIL;
         }
+    },
+    /**
+     * Passes when the checkers agree and none reports a counterexample (ADR 0016 §4). A
+     * counterexample violates the metamorphic relation: an unsound rule or a checker defect, even
+     * when every checker reports it. A failure on a partial term fails both sides alike and passes.
+     */
+    METAMORPHIC {
+        @Override
+        CorpusVerdict judge(Collection<CorpusVerdict> verdicts) {
+            return verdicts.stream().distinct().count() == 1 && !verdicts.contains(CorpusVerdict.COUNTEREXAMPLE)
+                    ? CorpusVerdict.PASS
+                    : CorpusVerdict.FAIL;
+        }
     };
 
     /** Judges the non-crash verdicts of every checker that ran on one entry. */

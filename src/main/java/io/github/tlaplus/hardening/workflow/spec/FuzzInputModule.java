@@ -81,17 +81,27 @@ public final class FuzzInputModule {
      * initial value of {@code exprValue} and the invariant asserted about it.
      */
     public static TlaModule create(TlaEx expression) {
-        Objects.requireNonNull(expression, "expression");
+        return create(expression, expression);
+    }
+
+    /**
+     * Wraps two expressions of one type in the single-state module: {@code initial} is the initial
+     * value of {@code exprValue}, and the invariant asserts that it equals {@code asserted}. With a
+     * metamorphic pair, the explored side is initial and the checked side asserted (ADR 0016 §3).
+     */
+    public static TlaModule create(TlaEx initial, TlaEx asserted) {
+        Objects.requireNonNull(initial, "initial");
+        Objects.requireNonNull(asserted, "asserted");
 
         var builder = new TlaTypedScopeUncheckedBuilder();
-        var expressionType = TlaTypes.typeOf(expression);
+        var expressionType = TlaTypes.typeOf(initial);
         var exprValue = TlaDeclarations.variable(VARIABLE_NAME, expressionType);
-        // Apalache requires unique node identities, and the expression appears twice.
-        var expressionCopy = TlaExpressions.deepCopy(expression);
+        // Apalache requires unique node identities, and the two sides may share subexpressions.
+        var assertedCopy = TlaExpressions.deepCopy(asserted);
 
-        var init = builder.eql(builder.varDeclAsNameEx(exprValue), expression);
+        var init = builder.eql(builder.varDeclAsNameEx(exprValue), initial);
         var next = builder.unchanged(builder.varDeclAsNameEx(exprValue));
-        var invariant = builder.eql(builder.varDeclAsNameEx(exprValue), expressionCopy);
+        var invariant = builder.eql(builder.varDeclAsNameEx(exprValue), assertedCopy);
         return assemble(List.of(exprValue), List.of(exprValue),
                 new Skeleton(init, next, invariant, List.of(), List.of()));
     }

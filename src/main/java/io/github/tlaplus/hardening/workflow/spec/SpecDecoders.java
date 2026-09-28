@@ -1,15 +1,21 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
-import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
-import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
-import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
+import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
+import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
+import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -26,15 +32,25 @@ import java.util.Objects;
 public final class SpecDecoders {
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
     private final OperatorLibrary library;
-    private final String libraryManifest;
+    private final Manifests manifests;
+
+    /** The replay identities of the prepared custom library and rule library, empty when absent. */
+    private record Manifests(String library, String rules) {
+        Manifests {
+            Objects.requireNonNull(library, "library");
+            Objects.requireNonNull(rules, "rules");
+        }
+    }
 
     /** The replay identity of the prepared library, empty when none is configured. */
-    public String libraryManifest() { return libraryManifest; }
+    public String libraryManifest() { return manifests.library(); }
 
-    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library,
-            String libraryManifest) {
+    /** The replay identity of the prepared rewrite rules, empty unless the technique is metamorphic. */
+    public String rewriteManifest() { return manifests.rules(); }
+
+    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library, Manifests manifests) {
         this.library = Objects.requireNonNull(library, "library");
-        this.libraryManifest = Objects.requireNonNull(libraryManifest, "libraryManifest");
+        this.manifests = Objects.requireNonNull(manifests, "manifests");
         Objects.requireNonNull(decoders, "decoders");
         var copy = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         copy.putAll(decoders);
@@ -47,23 +63,46 @@ public final class SpecDecoders {
         this.decoders = Collections.unmodifiableMap(copy);
     }
 
-    /** Loads configured libraries once before constructing the reusable decoders. */
-    public static SpecDecoders prepare(FuzzTlaConfig config) throws WorkflowException {
+    /**
+     * Loads configured libraries, and the rewrite rules of a metamorphic technique, once before
+     * constructing the reusable decoders of {@code technique}.
+     */
+    public static SpecDecoders prepare(FuzzTlaConfig config, Technique technique) throws WorkflowException {
         try {
             var prepared = LibraryPreparation.prepare(config);
-            return of(prepared.generator(), prepared.manifest());
+            return switch (technique) {
+                case PBT -> of(prepared.generator(), new Manifests(prepared.manifest(), ""));
+                case MT -> {
+                    var rules = RuleLibraryPreparation.prepare(
+                            config.metamorphic(), config.workflow().checker(CorpusStage.APALACHE));
+                    if (rules.library().isEmpty()) {
+                        throw new WorkflowException("--how=mt needs rewrite rules: set metamorphic.rules");
+                    }
+                    if (config.generatedKind() == InputKind.MODULE) {
+                        throw new WorkflowException("--how=mt decodes [generator] kind = \"expr\" only so far");
+                    }
+                    yield metamorphic(prepared.generator(),
+                            new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),
+                            new Manifests(prepared.manifest(), rules.manifest()));
+                }
+            };
         } catch (IllegalArgumentException exception) {
             throw new WorkflowException(
                     "invalid custom generator configuration: " + exception.getMessage(), exception);
         }
     }
 
-    /** Returns a complete decoder registry under one generator configuration. */
+    /** Returns a complete conformance decoder registry under one generator configuration. */
     public static SpecDecoders of(IrGenerationConfig config) {
-        return of(config, "");
+        return of(config, new Manifests("", ""));
     }
 
-    private static SpecDecoders of(IrGenerationConfig config, String libraryManifest) {
+    /** Returns a complete metamorphic decoder registry, whose rules {@code rewriter} applies. */
+    public static SpecDecoders metamorphic(IrGenerationConfig config, Rewriter rewriter) {
+        return metamorphic(config, rewriter, new Manifests("", ""));
+    }
+
+    private static SpecDecoders of(IrGenerationConfig config, Manifests manifests) {
         Objects.requireNonNull(config, "config");
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(
@@ -72,7 +111,31 @@ public final class SpecDecoders {
         decoders.put(
                 InputKind.MODULE,
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
-        return new SpecDecoders(decoders, config.library(), libraryManifest);
+        return new SpecDecoders(decoders, config.library(), manifests);
+    }
+
+    /**
+     * Decodes a metamorphic payload (ADR 0016 §1): the base part through the decoder of the kind,
+     * the rewrite part through the rewriter. A pair in which no rule applied is rejected, since both
+     * sides would be the same module.
+     */
+    private static SpecDecoders metamorphic(IrGenerationConfig config, Rewriter rewriter, Manifests manifests) {
+        Objects.requireNonNull(config, "config");
+        Objects.requireNonNull(rewriter, "rewriter");
+        var expressions = IrGenerators.expressions(config);
+        var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
+        decoders.put(InputKind.EXPRESSION, draw -> {
+            var parts = MetamorphicPayload.split(draw);
+            var rewrite = rewriter.rewriteExpression(parts.base().draw(expressions), parts.rewrite());
+            if (rewrite.isIdentity()) {
+                throw new InputRejectedException("no rewrite rule applied");
+            }
+            return SpecArtifact.fromExpressionRewrite(rewrite, config.library());
+        });
+        decoders.put(InputKind.MODULE, draw -> {
+            throw new InputRejectedException("metamorphic modules are not decoded yet");
+        });
+        return new SpecDecoders(decoders, config.library(), manifests);
     }
 
     /** Returns the decoder of {@code kind}; completeness is checked when the registry is built. */
@@ -98,6 +161,6 @@ public final class SpecDecoders {
         replacements.putAll(decoders);
         replacements.put(
                 InputKind.EXPRESSION, expressions.map(expression -> SpecArtifact.fromExpression(expression, library)));
-        return new SpecDecoders(replacements, library, libraryManifest);
+        return new SpecDecoders(replacements, library, manifests);
     }
 }

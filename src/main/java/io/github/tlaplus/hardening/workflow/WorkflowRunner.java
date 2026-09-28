@@ -19,7 +19,6 @@ import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
-import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.time.Duration;
@@ -45,7 +44,7 @@ public final class WorkflowRunner {
     private final CheckingPolicy checking;
 
     public WorkflowRunner(FuzzTlaConfig config, Technique technique) throws WorkflowException {
-        this(config, technique, SpecDecoders.prepare(Objects.requireNonNull(config, "config")));
+        this(config, technique, SpecDecoders.prepare(Objects.requireNonNull(config, "config"), technique));
     }
 
     /** Reads the configured known-defect databases before any corpus is locked. */
@@ -105,7 +104,7 @@ public final class WorkflowRunner {
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
             CorpusRecords.CHECKERS.verify(corpus, checking.checkers(), true);
-            LibraryManifest.verify(corpus, setup.decoders().libraryManifest(), true);
+            CorpusReplay.verify(corpus, setup.decoders(), true);
             var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
