@@ -416,7 +416,11 @@ metamorphic entry and pairs it with a fresh rewrite payload.
 
 - **Parents.** It reads the `04quality-pass` entries of the configured kind from the
   corpus named by `[metamorphic] base_corpus`, which must be a `pbt` corpus. It reads
-  them once per generation and never writes to that corpus.
+  them once per generation and never writes to that corpus. The run refuses a base
+  corpus that decodes a payload otherwise: its `[generator]` settings, apart from the
+  resolved library paths, and its custom operator library manifest must equal the
+  run's. A parent's payload decoded under other settings is an unrelated module, so the
+  entry would not test a rewrite of an elite input.
 - **Candidates.** A candidate is the header, the parent's payload, and a random
   rewrite payload. Admission, deduplication, quarantine and storage are the input
   stage's, as for every source. Known-defect signatures match the evaluated IR of the

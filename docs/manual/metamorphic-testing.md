@@ -53,8 +53,14 @@ max_rewrite_growth = 2
   PBT fills the rest.
 - **The base corpus is read-only.** It must be a `pbt` corpus. It is never written
   to, and an entry keeps its parent's bytes, so `base_corpus` is not needed to replay
-  it. Use the base corpus's `[generator]` settings: an adopted payload decodes under the
-  metamorphic corpus's settings, and decodes to the parent's module only if they agree.
+  it.
+- **The base corpus decodes alike.** An adopted payload decodes under the metamorphic
+  corpus's settings, and decodes to the parent's module only if they agree. `run`
+  therefore refuses a base corpus whose `[generator]` settings differ, or whose
+  `.operator-library` differs from the library this run prepares. `classpath` and
+  `custom_operators` are compared through `.operator-library`, which pins the library
+  sources rather than their paths. Copy the base corpus's `[generator]` table and its
+  library sources.
 - **Adopted entries record their parent.** `gen.parent` is the parent's digest in the
   base corpus, and `gen.operators` is `["adopt"]`.
 - **The checker set is fixed.** The first run records `checkers` in `.checkers`, and

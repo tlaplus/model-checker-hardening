@@ -128,16 +128,11 @@ public final class WorkflowRunner {
         }
     }
 
-    /** Requires the base corpus of an adoption to hold conformance entries, whose payloads are bases. */
+    /** Requires the base corpus of an adoption to decode its entries as this run would. */
     private void requireAdoptableBase() throws IOException, CorpusException, WorkflowException {
         var base = setup.adoption().baseCorpus();
-        if (base.isEmpty()) {
-            return;
-        }
-        var technique = CorpusRecords.TECHNIQUE.read(CorpusDirectory.openExisting(base.get()));
-        if (technique != Technique.PBT) {
-            throw new WorkflowException("metamorphic.base_corpus must be a pbt corpus, but '" + base.get()
-                    + "' runs --how=" + technique.encodedName());
+        if (base.isPresent()) {
+            AdoptableBase.require(base.get(), setup.config().generator(), setup.decoders().libraryManifest());
         }
     }
 

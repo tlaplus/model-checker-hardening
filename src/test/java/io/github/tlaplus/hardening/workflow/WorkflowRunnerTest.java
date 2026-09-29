@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,6 +28,7 @@ import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.corpus.CorpusRecord;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
@@ -41,6 +43,7 @@ import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -123,8 +126,10 @@ class WorkflowRunnerTest {
      */
     @Test
     void adoptsTheSelectedEntriesOfAPbtCorpus(@TempDir Path directory) throws Exception {
-        // The base corpus is a pbt corpus whose quality gate kept three expressions.
-        var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var expressions = config(8, 3, 8, 64);
+        var tlcOnly = expressions.withWorkflow(expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
+        // The base corpus is a pbt corpus with the same generator whose quality gate kept three expressions.
+        var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(tlcOnly));
         var random = new java.util.Random(11);
         var parents = new HashSet<String>();
         for (var parent = 0; parent < 3; parent++) {
@@ -135,8 +140,6 @@ class WorkflowRunnerTest {
                             GenerationMetadata.generated(0, 0, 1.0)));
             parents.add(Digests.digest(payload));
         }
-        var expressions = config(8, 3, 8, 64);
-        var tlcOnly = expressions.withWorkflow(expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
 
         var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = tlcOnly.withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
@@ -160,6 +163,37 @@ class WorkflowRunnerTest {
                         new MetamorphicConfig.Adoption(Optional.of(directory.resolve("mt")), 0.5))),
                 Technique.MT).run(corpus, 7, 1));
         assertTrue(refused.getMessage().contains("must be a pbt corpus"), refused.getMessage());
+    }
+
+    /**
+     * An adopted entry decodes its parent's payload with this run's generator, so a base corpus
+     * with other {@code [generator]} settings or another custom library is refused before any
+     * entry is adopted (ADR 0016 §6).
+     */
+    @Test
+    void refusesABaseCorpusThatDecodesOtherwise(@TempDir Path directory) throws Exception {
+        var expressions = config(8, 3, 8, 64);
+        var tlcOnly = expressions.withWorkflow(expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
+        var config = tlcOnly.withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                        "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
+                Map.of(), RewriteLimits.defaults(),
+                new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
+        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
+
+        var rendered = TomlConfig.render(tlcOnly);
+        var smaller = rendered.replace("\nmax_nodes = 128\n", "\nmax_nodes = 64\n");
+        assertNotEquals(rendered, smaller);
+        var base = CorpusDirectory.initialize(directory.resolve("base"), smaller);
+        var settings = assertThrows(WorkflowException.class,
+                () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
+        assertTrue(settings.getMessage().contains("has other [generator] settings"), settings.getMessage());
+
+        Files.writeString(base.resolve(CorpusPath.CONFIG), rendered);
+        base.writeRecord(CorpusRecord.LIBRARY_MANIFEST, "fuzztla-library-v1\n".getBytes(StandardCharsets.UTF_8));
+        var library = assertThrows(WorkflowException.class,
+                () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
+        assertTrue(library.getMessage().contains("has another custom operator library"), library.getMessage());
+        assertFalse(corpus.hasStoredInputs());
     }
 
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */
