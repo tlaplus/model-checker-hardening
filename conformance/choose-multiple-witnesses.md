@@ -30,6 +30,25 @@ counterexample module gives the violation as `CHOOSE bound3_2 \in BOOLEAN: TRUE`
 `957faa0` and FuzzTLA `41bda26`. The triager leaves such entries as `NEW`,
 since a TLC pass stores no diagnostic to match.
 
+## Metamorphic relations
+
+A metamorphic relation module ([ADR 0016](../docs/decisions/0016-metamorphic-testing.md))
+holds two copies of the base, one per side, so every `CHOOSE` appears twice. Apalache
+may pick different witnesses for the two copies, and so reports a counterexample to
+`InvE <=> InvC` or to the action invariant `Step` although both sides are identical.
+
+All five corpus55 entries in which TLC passed and Apalache returned a counterexample
+are of this kind: `238561e1`, `2b794ed3`, `7b6db14a`, `e1d574c3` and `f0a9c786`.
+`fuzztla shrink` left one to eight trivial rewrites, such as `{x} \union {x}` and
+`~~P`. With every rewrite reverted in the Apalache input, each entry still violates
+the relation. The violated conjunct holds a `CHOOSE` over a set with several
+witnesses, for example `CHOOSE b \in S : b` over a fold-computed set of Booleans in
+`2b794ed3` and `f0a9c786`.
+
+`signatures/metamorphic-defects.toml` quarantines every `CHOOSE` in a metamorphic
+corpus that checks with Apalache. Reproduced with FuzzTLA `e3f0d7c`, TLC commit
+`8f4bc8b` and Apalache 0.62.2 (build `f0dec98`).
+
 ## Representative MWE
 
 ```tla

@@ -437,3 +437,20 @@ Measurements, taken on 2026-09-18:
   - 16 constant `FALSE` invariants or properties;
   - 13 function applications, `CASE`s and `CHOOSE`s that failed on run-time
     values.
+
+### 7.2. Metamorphic database
+
+`signatures/metamorphic-defects.toml` is for a
+[metamorphic](metamorphic-testing.md) corpus that checks with Apalache. List it
+next to `all-defects.toml`:
+
+```toml
+known_defects = ["../signatures/all-defects.toml", "../signatures/metamorphic-defects.toml"]
+```
+
+A relation module holds two copies of the base, so a construct that Apalache
+evaluates non-deterministically can take different values in the two copies. Its
+one signature, `metamorphic-choose`, matches every bounded and unbounded `CHOOSE`
+([`choose-multiple-witnesses`](../../conformance/choose-multiple-witnesses.md)). In a
+conformance corpus it would quarantine valid inputs, so `all-defects.toml` does not
+contain it. `MetamorphicDefectsTest` checks that both databases load together.

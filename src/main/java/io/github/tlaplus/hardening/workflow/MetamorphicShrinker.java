@@ -25,6 +25,11 @@ import java.util.Objects;
  * a byte of the rewrite payload, so the shrinker clears the low bit of each odd byte of that payload
  * in turn, and keeps the change whenever the input still violates the relation. It repeats until a
  * pass keeps nothing. The base payload is never touched, so the base module stays the same.
+ *
+ * <p>A payload without any rewrite decodes to no entry, so shrinking always keeps one rule. Before
+ * shrinking, the shrinker therefore checks the base related to itself: when a checker already reports
+ * a counterexample to that, it evaluates two copies of one module differently, no rule is at fault,
+ * and the input is returned unchanged.
  */
 public final class MetamorphicShrinker {
     /** Whether an input still violates the metamorphic relation. */
@@ -36,10 +41,12 @@ public final class MetamorphicShrinker {
     /**
      * A shrunk input.
      *
-     * @param checks how many candidates were checked
+     * @param checks how many candidates were checked, including the unrewritten base
      * @param cleared how many low bits were cleared
+     * @param unrewritten whether the base related to itself already violates the relation, in which
+     *     case {@code input} is the unchanged input
      */
-    public record Result(byte[] input, int checks, int cleared) {
+    public record Result(byte[] input, int checks, int cleared, boolean unrewritten) {
         public Result {
             input = Objects.requireNonNull(input, "input").clone();
         }
@@ -76,7 +83,21 @@ public final class MetamorphicShrinker {
                 }
             }
         }
-        return new Result(current, checks, cleared);
+        return new Result(current, checks, cleared, false);
+    }
+
+    /**
+     * Shrinks {@code input} unless {@code unrewritten}, which relates the input's base to itself,
+     * already holds; see the class comment.
+     */
+    public static Result shrink(byte[] input, Violation violation, Violation unrewritten)
+            throws WorkflowException, InterruptedException {
+        Objects.requireNonNull(unrewritten, "unrewritten");
+        if (unrewritten.holds(Objects.requireNonNull(input, "input"))) {
+            return new Result(input, 1, 0, true);
+        }
+        var shrunk = shrink(input, violation);
+        return new Result(shrunk.input(), shrunk.checks() + 1, shrunk.cleared(), false);
     }
 
     /**
@@ -103,7 +124,7 @@ public final class MetamorphicShrinker {
                 if (!violation.holds(entry.input())) {
                     throw new WorkflowException("the entry does not violate the metamorphic relation");
                 }
-                return shrink(entry.input(), violation);
+                return shrink(entry.input(), violation, unrewritten(decoders, entry.kind(), checkers));
             } finally {
                 checkers.forEach(checker -> checker.worker().close());
             }
@@ -122,14 +143,24 @@ public final class MetamorphicShrinker {
             } catch (InputRejectedException rejected) {
                 return false;
             }
-            for (var checker : checkers) {
-                var result = checker.worker().check(
-                        new ToolInput(checker.backend().renderer().apply(artifact), artifact.request()));
-                if (result.outcome() == StageOutcome.COUNTEREXAMPLE) {
-                    return true;
-                }
-            }
-            return false;
+            return counterexample(artifact, checkers);
         };
+    }
+
+    /** The base of an input related to itself violates the relation when some checker finds a counterexample. */
+    static Violation unrewritten(SpecDecoders decoders, InputKind kind, List<Checker> checkers) {
+        return input -> counterexample(decoders.decodeUnrewritten(new CorpusInput(kind, input)), checkers);
+    }
+
+    private static boolean counterexample(SpecArtifact artifact, List<Checker> checkers)
+            throws WorkflowException, InterruptedException {
+        for (var checker : checkers) {
+            var result = checker.worker().check(
+                    new ToolInput(checker.backend().renderer().apply(artifact), artifact.request()));
+            if (result.outcome() == StageOutcome.COUNTEREXAMPLE) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -34,6 +34,10 @@ kind = "module"               # or "expr"
 [workflow]
 checkers = ["tlc"]            # default ["tlc", "apalache"]
 
+[workflow.inputs]
+# With Apalache among the checkers, also list metamorphic-defects.toml (section 3).
+known_defects = ["../signatures/all-defects.toml"]
+
 [metamorphic]
 rules = { module = "Rewrites", classpath = ["rewrites"] }
 weights = { AddSub = 3 }      # default 1 per rule; 0 disables a rule
@@ -53,8 +57,14 @@ max_rewrite_growth = 2
   PBT fills the rest.
 - **The base corpus is read-only.** It must be a `pbt` corpus. It is never written
   to, and an entry keeps its parent's bytes, so `base_corpus` is not needed to replay
-  it. Use the base corpus's `[generator]` settings: an adopted payload decodes under the
-  metamorphic corpus's settings, and decodes to the parent's module only if they agree.
+  it.
+- **The base corpus decodes alike.** An adopted payload decodes under the metamorphic
+  corpus's settings, and decodes to the parent's module only if they agree. `run`
+  therefore refuses a base corpus whose `[generator]` settings differ, or whose
+  `.operator-library` differs from the library this run prepares. `classpath` and
+  `custom_operators` are compared through `.operator-library`, which pins the library
+  sources rather than their paths. Copy the base corpus's `[generator]` table and its
+  library sources.
 - **Adopted entries record their parent.** `gen.parent` is the parent's digest in the
   base corpus, and `gen.operators` is `["adopt"]`.
 - **The checker set is fixed.** The first run records `checkers` in `.checkers`, and
@@ -117,6 +127,14 @@ A `fail` is not a metamorphic violation. A checker's evaluation error on a parti
 term, such as `CHOOSE` without a witness, fails both sides alike. The quality gate,
 known-defect signatures and the mutator work as in a conformance corpus.
 
+Apalache evaluates `CHOOSE` non-deterministically, so the two copies of one `CHOOSE`
+with several witnesses may differ, and Apalache reports a counterexample without any
+rewrite ([conformance note](../../conformance/choose-multiple-witnesses.md)). A corpus
+that checks with Apalache should list
+[`signatures/metamorphic-defects.toml`](../../signatures/metamorphic-defects.toml) next
+to `all-defects.toml`; it quarantines every `CHOOSE`. A TLC-only corpus does not need
+it.
+
 ## 4. Triage
 
 A counterexample has two possible causes:
@@ -131,10 +149,14 @@ To tell them apart:
    `Inv` at `step = 0` is an initial state of E that `InitC` rejects. A violation of
    `Step` is a transition of E that `ActionC` rejects.
 2. **Reduce the stack of rewrites.** `fuzztla shrink --corpus corpus-mt ENTRY.cbor`
-   clears the rewrite markers one at a time and keeps each change after which a
-   configured checker still reports a counterexample. It writes the reduced input to
-   `ENTRY-shrunk.cbor`, which `fuzztla print --corpus corpus-mt` shows. The rules left
-   are the culprits.
+   first checks the base related to itself, with no rule applied. If a configured
+   checker reports a counterexample to that, it evaluates two copies of one module
+   differently, so no rule is at fault; `shrink` says so and writes nothing.
+   Otherwise it clears the rewrite markers one at a time and keeps each change after
+   which a configured checker still reports a counterexample. It writes the reduced
+   input to `ENTRY-shrunk.cbor`, which `fuzztla print --corpus corpus-mt` shows. The
+   rules left are the culprits. An entry needs at least one rule, so `shrink` always
+   leaves one; the check of the base is what rules out every rule.
 3. **Evaluate both sides of that rule on the counterexample's last state or
    transition** under TLC and, where possible, Apalache.
    - If a checker disagrees with the expected value, reduce the input to an MWE and

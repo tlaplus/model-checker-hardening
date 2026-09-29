@@ -15,6 +15,14 @@ public record Rewrite<T>(T original, T rewritten, Orientation orientation, List<
         appliedRules = List.copyOf(Objects.requireNonNull(appliedRules, "appliedRules"));
     }
 
+    /**
+     * Returns the pair of {@code base} with itself, as if no rule applied. Both sides are equal, so
+     * the orientation does not matter.
+     */
+    public static <T> Rewrite<T> identity(T base) {
+        return new Rewrite<>(base, base, Orientation.EXPLORE_ORIGINAL, List.of());
+    }
+
     /** Whether no rule applied, so both sides are the same module. */
     public boolean isIdentity() {
         return appliedRules.isEmpty();

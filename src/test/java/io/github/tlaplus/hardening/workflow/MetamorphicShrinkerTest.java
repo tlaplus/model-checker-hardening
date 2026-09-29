@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.CheckerProfile;
@@ -35,6 +36,20 @@ class MetamorphicShrinkerTest {
 
         assertArrayEquals(MetamorphicPayload.encode(base, new byte[] {0, 2, 5, 6}), result.input());
         assertEquals(3, result.cleared());
+    }
+
+    /** A base that violates the relation with itself is returned unchanged, without shrinking. */
+    @Test
+    void returnsTheInputUnchangedWhenTheBaseAloneViolatesTheRelation() throws Exception {
+        var input = MetamorphicPayload.encode(new byte[] {7}, new byte[] {1, 3});
+        var result = MetamorphicShrinker.shrink(input, candidate -> {
+            throw new AssertionError("shrinking must not start");
+        }, candidate -> true);
+
+        assertTrue(result.unrewritten());
+        assertArrayEquals(input, result.input());
+        assertEquals(1, result.checks());
+        assertEquals(0, result.cleared());
     }
 
     /**
@@ -73,12 +88,16 @@ class MetamorphicShrinkerTest {
         try (var worker = backend.startWorker()) {
             var violation = MetamorphicShrinker.violation(
                     decoders, InputKind.EXPRESSION, List.of(new MetamorphicShrinker.Checker(backend, worker)));
+            var unrewritten = MetamorphicShrinker.unrewritten(
+                    decoders, InputKind.EXPRESSION, List.of(new MetamorphicShrinker.Checker(backend, worker)));
             assertTrue(violation.holds(input));
-            var result = MetamorphicShrinker.shrink(input, violation);
+            assertFalse(unrewritten.holds(input), "TLC evaluates both copies of the base alike");
+            var result = MetamorphicShrinker.shrink(input, violation, unrewritten);
 
             var after = decoders.decode(new CorpusInput(InputKind.EXPRESSION, result.input())).rewrite().orElseThrow();
             assertEquals(List.of("PlusOne"), after.appliedRules());
             assertTrue(violation.holds(result.input()));
+            assertFalse(result.unrewritten());
         }
     }
 }

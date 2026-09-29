@@ -69,4 +69,9 @@ public final class LibraryManifest {
             throws IOException, CorpusException, WorkflowException {
         RECORD.verify(corpus, manifest, initialize);
     }
+
+    /** Returns the manifest a corpus recorded, empty when it runs no custom library. */
+    public static String read(CorpusDirectory corpus) throws IOException, CorpusException, WorkflowException {
+        return RECORD.read(corpus);
+    }
 }
