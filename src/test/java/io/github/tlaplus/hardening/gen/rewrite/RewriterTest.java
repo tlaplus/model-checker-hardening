@@ -180,15 +180,19 @@ class RewriterTest {
     }
 
     @Test
-    void thePayloadHeaderSlicesTheBaseAndClampsItsLength() {
+    void thePayloadHeaderSlicesTheBaseModuloTheInput() {
         var input = MetamorphicPayload.encode(new byte[] {5, 6, 7}, new byte[] {8, 9});
         assertArrayEquals(new byte[] {0, 3, 5, 6, 7, 8, 9}, input);
         var parts = MetamorphicPayload.split(new Draw(input));
         assertEquals(3, parts.base().remaining());
         assertEquals(2, parts.rewrite().remaining());
-        var clamped = MetamorphicPayload.split(new Draw(new byte[] {0x7f, 0, 1, 2}));
-        assertEquals(2, clamped.base().remaining());
-        assertEquals(0, clamped.rewrite().remaining());
+        // 0x7f00 = 32512 = 3 * 10837 + 1: one base byte of two.
+        var reduced = MetamorphicPayload.split(new Draw(new byte[] {0x7f, 0, 1, 2}));
+        assertEquals(1, reduced.base().remaining());
+        assertEquals(1, reduced.rewrite().remaining());
+        var whole = MetamorphicPayload.split(new Draw(new byte[] {0, 2, 1, 2}));
+        assertEquals(2, whole.base().remaining());
+        assertEquals(0, whole.rewrite().remaining());
     }
 
     private static Rewrite<TlaEx> rewrite(RewriteLibrary library, int... bytes) {

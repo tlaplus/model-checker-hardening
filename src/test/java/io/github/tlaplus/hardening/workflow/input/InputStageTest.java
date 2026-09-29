@@ -403,7 +403,7 @@ class InputStageTest {
 
         var stage = runPlan(corpus, decoder, new GenerationPlan(InputKind.EXPRESSION, 3, 11, 0, 1, 0, List.of(
                 new GenerationPlan.Quota(mutants, 3),
-                new GenerationPlan.Quota(new PbtCandidates(config(32), CandidateLayout.CONFORMANCE), 2))));
+                new GenerationPlan.Quota(new PbtCandidates(config(32)), 2))));
 
         var metadata = readEntries(corpus).values().stream()
                 .map(encoded -> decode(encoded).generation().orElseThrow())
@@ -558,7 +558,7 @@ class InputStageTest {
 
     private static GenerationPlan plan(long seed, long target, int workers, PbtConfig config) {
         return new GenerationPlan(InputKind.EXPRESSION, 0, seed, 0, workers, 0,
-                List.of(new GenerationPlan.Quota(new PbtCandidates(config, CandidateLayout.CONFORMANCE), target)));
+                List.of(new GenerationPlan.Quota(new PbtCandidates(config), target)));
     }
 
     private Admitted runPlan(CorpusDirectory corpus, SpecDecoders decoders, GenerationPlan plan)

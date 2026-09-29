@@ -23,7 +23,6 @@ import io.github.tlaplus.hardening.workflow.execution.WorkQueue;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowStage;
-import io.github.tlaplus.hardening.workflow.input.CandidateLayout;
 import io.github.tlaplus.hardening.workflow.input.InputAdmission;
 import io.github.tlaplus.hardening.workflow.input.InputHandoff;
 import io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine;
@@ -54,31 +53,21 @@ import io.github.tlaplus.hardening.corpus.CheckerSet;
  * generation's tail drains while a newer one is already being admitted.
  */
 final class StageGraph {
+    /** What every invocation of one runner shares. */
     /**
      * What every invocation of one runner shares.
      *
-     * @param sources how the input stage's candidate sources draw for the run's technique
+     * @param adoption the base corpus the run adopts from; none unless the technique is metamorphic
      */
     record Setup(
             FuzzTlaConfig config, SpecDecoders decoders, KnownDefectDatabase knownDefects, CheckerSet checkers,
-            CandidateSources sources) {
+            MetamorphicConfig.Adoption adoption) {
         Setup {
             Objects.requireNonNull(config, "config");
             Objects.requireNonNull(decoders, "decoders");
             Objects.requireNonNull(knownDefects, "knownDefects");
             Objects.requireNonNull(checkers, "checkers");
-            Objects.requireNonNull(sources, "sources");
-        }
-    }
-
-    /**
-     * @param adoption the base corpus the run adopts from; none unless the technique is metamorphic
-     * @param layout how a PBT candidate's bytes are laid out for the technique's decoders
-     */
-    record CandidateSources(MetamorphicConfig.Adoption adoption, CandidateLayout layout) {
-        CandidateSources {
             Objects.requireNonNull(adoption, "adoption");
-            Objects.requireNonNull(layout, "layout");
         }
     }
 

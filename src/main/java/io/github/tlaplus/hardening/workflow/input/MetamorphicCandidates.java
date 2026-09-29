@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.input;
 
 import io.github.tlaplus.hardening.corpus.Mutation;
+import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
 import java.util.List;
 import java.util.Objects;
@@ -15,6 +16,9 @@ import java.util.random.RandomGenerator;
  * whose rewrite applies no rule is rejected by the decoder.
  */
 public final class MetamorphicCandidates implements CandidateSource {
+    /** The most rewrite bytes a candidate carries; a rewrite reads a few bytes per applied rule. */
+    static final int MAXIMUM_REWRITE_BYTES = 64;
+
     private final ParentPool parents;
 
     public MetamorphicCandidates(ParentPool parents) {
@@ -27,8 +31,10 @@ public final class MetamorphicCandidates implements CandidateSource {
             @Override
             public Draft draw(RandomGenerator candidateRandom) {
                 var parent = parents.draw(candidateRandom);
+                var rewrite = new byte[1 + candidateRandom.nextInt(MAXIMUM_REWRITE_BYTES)];
+                candidateRandom.nextBytes(rewrite);
                 return new Draft(
-                        CandidateLayout.METAMORPHIC.encode(parent.input(), candidateRandom),
+                        MetamorphicPayload.encode(parent.input(), rewrite),
                         parent.cohort(),
                         Optional.of(new Mutation(parent.digest(), List.of(MutationOperator.ADOPT))),
                         candidate -> false);

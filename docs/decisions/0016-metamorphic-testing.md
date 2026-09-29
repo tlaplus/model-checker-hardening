@@ -228,7 +228,10 @@ without the file is a `pbt` corpus, so existing corpora need no migration.
 ```
 
 - **Base payload.** The decoder of the entry's kind decodes it through `Draw.slice`.
-  A length beyond the input is clamped.
+  Its length is the header modulo `n + 1`, where `n` is the number of bytes after
+  the header. An encoded length never exceeds `n`, so it is exact. A random header,
+  as PBT draws, splits the input at a roughly uniform point. Clamping would give the
+  base every byte: a header is almost always larger than `n`, so no rule would apply.
 - **Rewrite payload.** The rewriter (section 2) decodes it. Its first Boolean marker
   is the orientation (section 3).
 - **Deviation from [ir-generators.md §4][generators]**, which forbids length
@@ -238,8 +241,9 @@ without the file is a `pbt` corpus, so existing corpora need no migration.
   - it keeps byte edits of the rewrite payload from ever moving the base.
 
   Proportional sectioning, as in `ModuleSection`, would re-slice the base whenever
-  the rewrite payload grows. A mutation of the header bytes does move the base; this
-  is accepted.
+  the rewrite payload grows. The modulo keeps both purposes: growing the rewrite
+  payload keeps the length below `n + 1`. A mutation of the header bytes does move the
+  base; this is accepted.
 
 **Decoders.** `workflow.spec.SpecDecoders.prepare` takes the corpus technique. Under
 `mt`, the decoder of each kind slices the header, decodes the base, and composes the
@@ -401,10 +405,7 @@ branch that never runs.
 ### 6. Candidate sources
 
 PBT and byte mutation apply under `--how=mt` unchanged:
-- PBT draws random base and rewrite payloads: a candidate is the header, a random base
-  of the usual PBT length, and 1 to 64 random rewrite bytes, as an adopted candidate is.
-  A random array read whole would start with a random base length, almost always longer
-  than the input, and leave no rewrite bytes;
+- PBT draws random base and rewrite payloads;
 - the mutator edits the corpus's `04quality-pass` entries, which are MT entries, and
   can flip the orientation.
 
