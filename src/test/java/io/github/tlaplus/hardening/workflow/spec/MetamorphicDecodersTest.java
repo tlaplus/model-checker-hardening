@@ -71,6 +71,40 @@ class MetamorphicDecodersTest {
         assertEquals("no rewrite rule applied", failure.getMessage());
     }
 
+    /**
+     * The unrewritten relation ignores the rewrite part and pairs the base with itself, so both
+     * sides assert the expression the rewriting decoder takes as its original.
+     */
+    @Test
+    void theUnrewrittenRelationPairsTheBaseWithItself() {
+        var random = new Random(7);
+        var compared = 0;
+        for (var sample = 0; sample < 200 && compared < 10; sample++) {
+            var base = new byte[48];
+            var rewrite = new byte[16];
+            random.nextBytes(base);
+            random.nextBytes(rewrite);
+            var input = new CorpusInput(InputKind.EXPRESSION, MetamorphicPayload.encode(base, rewrite));
+            try {
+                var original = decoders.decode(input).rewrite().orElseThrow().original();
+                var artifact = decoders.decodeUnrewritten(input);
+                var pair = artifact.rewrite().orElseThrow();
+                assertTrue(pair.isIdentity());
+                assertEquals(original, pair.original());
+                assertEquals(original, argument(artifact, FuzzInputModule.INIT));
+                assertEquals(original, argument(artifact, FuzzInputModule.INV));
+                compared++;
+            } catch (InputRejectedException rejected) {
+                // A base where no rule applied, or one the expression decoder rejects.
+            }
+        }
+        assertEquals(10, compared);
+        var identity = new CorpusInput(InputKind.EXPRESSION, MetamorphicPayload.encode(new byte[] {1, 2, 3}, new byte[0]));
+        assertTrue(decoders.decodeUnrewritten(identity).rewrite().orElseThrow().isIdentity());
+        assertThrows(IllegalStateException.class,
+                () -> SpecDecoders.of(IrGenerationConfig.defaults()).decodeUnrewritten(identity));
+    }
+
     /** Returns the right side of the equation {@code exprValue = e} that a definition holds. */
     private static Object argument(SpecArtifact artifact, String definition) {
         var body = TlaModules.declarations(artifact.module()).stream()

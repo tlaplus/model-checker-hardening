@@ -149,10 +149,14 @@ To tell them apart:
    `Inv` at `step = 0` is an initial state of E that `InitC` rejects. A violation of
    `Step` is a transition of E that `ActionC` rejects.
 2. **Reduce the stack of rewrites.** `fuzztla shrink --corpus corpus-mt ENTRY.cbor`
-   clears the rewrite markers one at a time and keeps each change after which a
-   configured checker still reports a counterexample. It writes the reduced input to
-   `ENTRY-shrunk.cbor`, which `fuzztla print --corpus corpus-mt` shows. The rules left
-   are the culprits.
+   first checks the base related to itself, with no rule applied. If a configured
+   checker reports a counterexample to that, it evaluates two copies of one module
+   differently, so no rule is at fault; `shrink` says so and writes nothing.
+   Otherwise it clears the rewrite markers one at a time and keeps each change after
+   which a configured checker still reports a counterexample. It writes the reduced
+   input to `ENTRY-shrunk.cbor`, which `fuzztla print --corpus corpus-mt` shows. The
+   rules left are the culprits. An entry needs at least one rule, so `shrink` always
+   leaves one; the check of the base is what rules out every rule.
 3. **Evaluate both sides of that rule on the counterexample's last state or
    transition** under TLC and, where possible, Apalache.
    - If a checker disagrees with the expected value, reduce the input to an MWE and

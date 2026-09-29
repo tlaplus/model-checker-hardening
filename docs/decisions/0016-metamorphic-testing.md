@@ -464,7 +464,8 @@ A top-level `[metamorphic]` table, read only under `--how=mt`:
 4. The temporal relation.
 5. Triage:
    - `fuzztla print` shows M1, M2, the orientation and the applied rules by replay;
-   - a shrinker clears rewrite markers one at a time;
+   - a shrinker first checks the base related to itself, since a payload without
+     rewrites decodes to no entry, and then clears rewrite markers one at a time;
    - `export-db` stores the technique and the applied rules ([ADR 0009][adr-0009]
      schema bump).
 

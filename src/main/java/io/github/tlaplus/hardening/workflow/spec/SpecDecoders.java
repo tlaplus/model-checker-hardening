@@ -5,6 +5,8 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.Technique;
+import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -12,6 +14,7 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
+import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
@@ -20,6 +23,8 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Immutable registry of the decoders that turn stored payloads into checkable modules.
@@ -31,6 +36,8 @@ import java.util.Objects;
  */
 public final class SpecDecoders {
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
+    /** Decoders of a metamorphic payload's base paired with itself; empty for a conformance registry. */
+    private final Map<InputKind, Generator<SpecArtifact>> unrewritten;
     private final OperatorLibrary library;
     private final Manifests manifests;
 
@@ -48,9 +55,11 @@ public final class SpecDecoders {
     /** The replay identity of the prepared rewrite rules, empty unless the technique is metamorphic. */
     public String rewriteManifest() { return manifests.rules(); }
 
-    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library, Manifests manifests) {
+    private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders,
+            Map<InputKind, Generator<SpecArtifact>> unrewritten, OperatorLibrary library, Manifests manifests) {
         this.library = Objects.requireNonNull(library, "library");
         this.manifests = Objects.requireNonNull(manifests, "manifests");
+        this.unrewritten = Map.copyOf(Objects.requireNonNull(unrewritten, "unrewritten"));
         Objects.requireNonNull(decoders, "decoders");
         var copy = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         copy.putAll(decoders);
@@ -108,7 +117,7 @@ public final class SpecDecoders {
         decoders.put(
                 InputKind.MODULE,
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
-        return new SpecDecoders(decoders, config.library(), manifests);
+        return new SpecDecoders(decoders, Map.of(), config.library(), manifests);
     }
 
     /**
@@ -121,24 +130,36 @@ public final class SpecDecoders {
         Objects.requireNonNull(rewriter, "rewriter");
         var expressions = IrGenerators.expressions(config);
         var specs = IrGenerators.specs(config);
+        Function<Rewrite<TlaEx>, SpecArtifact> expressionRelation =
+                rewrite -> SpecArtifact.fromExpressionRewrite(rewrite, config.library());
+        Function<Rewrite<GeneratedSpec>, SpecArtifact> specRelation =
+                rewrite -> SpecArtifact.fromSpecRewrite(rewrite, config.library());
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
-        decoders.put(InputKind.EXPRESSION, draw -> {
+        decoders.put(InputKind.EXPRESSION, rewriting(expressions, rewriter::rewriteExpression, expressionRelation));
+        decoders.put(InputKind.MODULE, rewriting(specs, rewriter::rewriteSpec, specRelation));
+        var unrewritten = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
+        unrewritten.put(InputKind.EXPRESSION, unrewritten(expressions, expressionRelation));
+        unrewritten.put(InputKind.MODULE, unrewritten(specs, specRelation));
+        return new SpecDecoders(decoders, unrewritten, config.library(), manifests);
+    }
+
+    /** Decodes the base part through {@code base} and the rewrite part through {@code rewrite}. */
+    private static <T> Generator<SpecArtifact> rewriting(
+            Generator<T> base, BiFunction<T, Draw, Rewrite<T>> rewrite, Function<Rewrite<T>, SpecArtifact> relation) {
+        return draw -> {
             var parts = MetamorphicPayload.split(draw);
-            var rewrite = rewriter.rewriteExpression(parts.base().draw(expressions), parts.rewrite());
-            if (rewrite.isIdentity()) {
+            var pair = rewrite.apply(parts.base().draw(base), parts.rewrite());
+            if (pair.isIdentity()) {
                 throw new InputRejectedException("no rewrite rule applied");
             }
-            return SpecArtifact.fromExpressionRewrite(rewrite, config.library());
-        });
-        decoders.put(InputKind.MODULE, draw -> {
-            var parts = MetamorphicPayload.split(draw);
-            var rewrite = rewriter.rewriteSpec(parts.base().draw(specs), parts.rewrite());
-            if (rewrite.isIdentity()) {
-                throw new InputRejectedException("no rewrite rule applied");
-            }
-            return SpecArtifact.fromSpecRewrite(rewrite, config.library());
-        });
-        return new SpecDecoders(decoders, config.library(), manifests);
+            return relation.apply(pair);
+        };
+    }
+
+    /** Decodes the base part through {@code base} and pairs it with itself, ignoring the rewrite part. */
+    private static <T> Generator<SpecArtifact> unrewritten(
+            Generator<T> base, Function<Rewrite<T>, SpecArtifact> relation) {
+        return draw -> relation.apply(Rewrite.identity(MetamorphicPayload.split(draw).base().draw(base)));
     }
 
     /** Returns the decoder of {@code kind}; completeness is checked when the registry is built. */
@@ -153,6 +174,22 @@ public final class SpecDecoders {
     }
 
     /**
+     * Decodes the base of a metamorphic input and relates it to itself, as if no rule applied
+     * (ADR 0016 §4). A checker that reports a counterexample to this relation evaluates two copies
+     * of one module differently, so no rule is at fault. The rewrite part is ignored.
+     *
+     * @throws IllegalStateException for a conformance registry, which decodes no relation
+     */
+    public SpecArtifact decodeUnrewritten(CorpusInput input) {
+        Objects.requireNonNull(input, "input");
+        var decoder = unrewritten.get(input.kind());
+        if (decoder == null) {
+            throw new IllegalStateException("only a metamorphic registry decodes an unrewritten relation");
+        }
+        return decoder.generate(input.input());
+    }
+
+    /**
      * Returns a complete registry with a replacement expression decoder.
      *
      * <p>This is useful when a caller decorates expression generation, and keeps test injection
@@ -164,6 +201,6 @@ public final class SpecDecoders {
         replacements.putAll(decoders);
         replacements.put(
                 InputKind.EXPRESSION, expressions.map(expression -> SpecArtifact.fromExpression(expression, library)));
-        return new SpecDecoders(replacements, library, manifests);
+        return new SpecDecoders(replacements, unrewritten, library, manifests);
     }
 }

@@ -62,6 +62,11 @@ final class ShrinkCommand implements Callable<Integer> {
             var config = TomlConfig.read(directory.resolve(CorpusPath.CONFIG));
             var entry = CorpusInputCodec.decode(Files.readAllBytes(input));
             var result = MetamorphicShrinker.shrink(directory, config, entry, maximumCpus);
+            if (result.unrewritten()) {
+                spec.commandLine().getOut().printf("fuzztla: the base violates the relation without any rewrite, so "
+                        + "no rule is at fault: a checker evaluates two copies of the base differently; wrote nothing%n");
+                return CommandLine.ExitCode.OK;
+            }
             var destination = output != null ? output : Path.of(stem(input) + "-shrunk.cbor");
             Files.write(destination, CorpusInputCodec.encode(new CorpusInput(entry.kind(), result.input())));
             spec.commandLine().getOut().printf("fuzztla: cleared %d rewrite bits in %d checks; wrote '%s'%n",
