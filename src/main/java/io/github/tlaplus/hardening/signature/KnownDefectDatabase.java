@@ -24,6 +24,13 @@ public final class KnownDefectDatabase {
      */
     public static final Path ALL = Path.of("signatures", "all-defects.toml");
 
+    /**
+     * Signatures of constructs that a metamorphic relation duplicates and Apalache may evaluate
+     * differently in each copy, relative to the project directory. A metamorphic corpus that checks
+     * with Apalache lists it next to {@link #ALL}.
+     */
+    public static final Path METAMORPHIC = Path.of("signatures", "metamorphic-defects.toml");
+
     private static final KnownDefectDatabase EMPTY = new KnownDefectDatabase(List.of());
 
     private final List<KnownDefect> signatures;

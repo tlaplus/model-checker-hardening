@@ -34,6 +34,10 @@ kind = "module"               # or "expr"
 [workflow]
 checkers = ["tlc"]            # default ["tlc", "apalache"]
 
+[workflow.inputs]
+# With Apalache among the checkers, also list metamorphic-defects.toml (section 3).
+known_defects = ["../signatures/all-defects.toml"]
+
 [metamorphic]
 rules = { module = "Rewrites", classpath = ["rewrites"] }
 weights = { AddSub = 3 }      # default 1 per rule; 0 disables a rule
@@ -122,6 +126,14 @@ The aggregator applies the metamorphic oracle:
 A `fail` is not a metamorphic violation. A checker's evaluation error on a partial
 term, such as `CHOOSE` without a witness, fails both sides alike. The quality gate,
 known-defect signatures and the mutator work as in a conformance corpus.
+
+Apalache evaluates `CHOOSE` non-deterministically, so the two copies of one `CHOOSE`
+with several witnesses may differ, and Apalache reports a counterexample without any
+rewrite ([conformance note](../../conformance/choose-multiple-witnesses.md)). A corpus
+that checks with Apalache should list
+[`signatures/metamorphic-defects.toml`](../../signatures/metamorphic-defects.toml) next
+to `all-defects.toml`; it quarantines every `CHOOSE`. A TLC-only corpus does not need
+it.
 
 ## 4. Triage
 

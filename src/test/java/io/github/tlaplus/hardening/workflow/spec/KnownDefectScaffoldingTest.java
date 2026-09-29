@@ -66,7 +66,7 @@ class KnownDefectScaffoldingTest {
     }
 
     private static List<String> ids(TlaModule module, List<String> roots) throws Exception {
-        var database = KnownDefectDatabase.load(List.of(KnownDefectDatabase.ALL));
+        var database = KnownDefectDatabase.load(List.of(KnownDefectDatabase.ALL, KnownDefectDatabase.METAMORPHIC));
         return database.matches(module, roots).stream()
                 .map(match -> match.defect().id())
                 .toList();

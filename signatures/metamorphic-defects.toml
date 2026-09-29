@@ -1,0 +1,22 @@
+# Known-defect signatures of metamorphic relations.
+#
+# List this database next to all-defects.toml in a metamorphic corpus (--how=mt) that checks
+# with Apalache:
+#
+#   known_defects = ["../signatures/all-defects.toml", "../signatures/metamorphic-defects.toml"]
+#
+# A relation module holds two copies of the base, one per side (ADR 0016 §3), so a construct that
+# a checker evaluates non-deterministically can take different values in the two copies and
+# violate the relation without any rewrite. These signatures match such constructs anywhere,
+# because the relation duplicates every definition. They would quarantine valid inputs of a
+# conformance corpus, where a single copy is evaluated, so all-defects.toml does not contain them.
+# A TLC-only metamorphic corpus needs none of them: TLC evaluates CHOOSE deterministically.
+#
+# docs/manual/known-defect-signatures.md describes the format. References are relative to this
+# file.
+
+[[signature]]
+id = "metamorphic-choose"
+references = ["../conformance/choose-multiple-witnesses.md"]
+description = "Apalache may pick different witnesses for the two copies of a CHOOSE with several witnesses, and so reports a counterexample to the relation of two identical sides."
+match = ['(CHOOSE3 _ _ _)', '(CHOOSE2 _ _)']
