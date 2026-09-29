@@ -16,6 +16,8 @@ import org.apalache_mc.tla.jir.TlaTypeSubstitution;
  * renamed apart, its types instantiated, its parameters substituted and its lambdas applied.
  */
 public final class RuleInstantiation {
+    private static final String LABEL_PREFIX = "label";
+
     private RuleInstantiation() {}
 
     /**
@@ -23,7 +25,8 @@ public final class RuleInstantiation {
      *
      * @param fresh the value drawn for each fresh parameter
      * @param types instantiates every type variable of the replacement, extending the match's
-     * @param freshName names each variable the replacement binds, apart from every name in scope
+     * @param freshName names each variable the replacement binds, and each label a copied value
+     *     repeats, apart from every name in scope
      */
     public static TlaEx instantiate(
             RuleMatch match, Map<String, TlaEx> fresh, TlaTypeSubstitution types, UnaryOperator<String> freshName) {
@@ -44,6 +47,8 @@ public final class RuleInstantiation {
         replacement = IrTypes.substitute(replacement, types);
         var values = new HashMap<String, TlaEx>(match.bindings());
         values.putAll(fresh);
-        return IrSubstitution.betaReduce(IrSubstitution.substitute(replacement, values));
+        // A parameter that occurs twice in the replacement copies the labels of its value.
+        return IrNames.relabelRepeats(IrSubstitution.betaReduce(IrSubstitution.substitute(replacement, values)),
+                () -> freshName.apply(LABEL_PREFIX));
     }
 }

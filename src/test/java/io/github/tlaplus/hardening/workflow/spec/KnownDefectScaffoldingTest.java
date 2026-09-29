@@ -6,6 +6,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
+import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +34,19 @@ class KnownDefectScaffoldingTest {
         assertEquals(List.of(), ids(module(truth)));
     }
 
+    /** A metamorphic relation also adds {@code Step} and {@code StepProperty == [][Step]_vars}. */
+    @Test
+    void noSignatureMatchesTheScaffoldingOfAMetamorphicRelation() throws Exception {
+        var variables = List.of(
+                TlaDeclarations.variable("x", TlaTypes.BOOL),
+                TlaDeclarations.variable(GeneratedSpec.STEP_VARIABLE, TlaTypes.INT));
+        var spec = new GeneratedSpec(variables, List.of(), truth, truth, truth, Optional.empty(), 0);
+        for (var orientation : Orientation.values()) {
+            var relation = FuzzInputModule.create(spec, spec, orientation);
+            assertEquals(List.of(), ids(relation, FuzzInputModule.RELATION_ENTRY_POINTS), orientation.name());
+        }
+    }
+
     /** The action-bound signature still matches {@code [][A]_v} once it is in {@code Prop}. */
     @Test
     void anActionPropertyInPropIsStillMatched() throws Exception {
@@ -48,8 +62,12 @@ class KnownDefectScaffoldingTest {
     }
 
     private static List<String> ids(TlaModule module) throws Exception {
+        return ids(module, FuzzInputModule.ENTRY_POINTS);
+    }
+
+    private static List<String> ids(TlaModule module, List<String> roots) throws Exception {
         var database = KnownDefectDatabase.load(List.of(KnownDefectDatabase.ALL));
-        return database.matches(module, FuzzInputModule.ENTRY_POINTS).stream()
+        return database.matches(module, roots).stream()
                 .map(match -> match.defect().id())
                 .toList();
     }

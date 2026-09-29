@@ -6,12 +6,19 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.ValEx;
+import at.forsyte.apalache.tla.lir.values.TlaStr;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
 /** Names in typed IR: injective renaming and the names an expression reads from its context. */
 public final class IrNames {
@@ -51,6 +58,42 @@ public final class IrNames {
             }
         });
         return Set.copyOf(bound);
+    }
+
+    /** Returns the name of every label in {@code expression}. */
+    public static Set<String> labels(TlaEx expression) {
+        var labels = new LinkedHashSet<String>();
+        TlaExpressions.forEach(expression, node -> labelName(node).ifPresent(labels::add));
+        return Set.copyOf(labels);
+    }
+
+    /**
+     * Renames every label that repeats the name of a label visited before it, bottom-up, to a name
+     * from {@code fresh}, so that no two labels of the result share a name. SANY rejects a
+     * definition with two labels of one name, which a copied subexpression would otherwise have.
+     */
+    public static TlaEx relabelRepeats(TlaEx expression, Supplier<String> fresh) {
+        Objects.requireNonNull(fresh, "fresh");
+        var seen = new HashSet<String>();
+        return TlaExpressions.rewrite(expression, node -> {
+            var name = labelName(node);
+            if (name.isEmpty() || seen.add(name.get())) {
+                return node;
+            }
+            var arguments = new ArrayList<>(TlaExpressions.arguments((OperEx) node));
+            var renamed = fresh.get();
+            seen.add(renamed);
+            arguments.set(1, new TlaTypedScopeUncheckedBuilder().str(renamed));
+            return TlaExpressions.withArguments((OperEx) node, arguments);
+        });
+    }
+
+    /** A label is {@code LABEL(body, name, parameters...)}, each name a string literal. */
+    private static Optional<String> labelName(TlaEx node) {
+        return node instanceof OperEx application && application.oper() == TlaOperators.LABEL
+                && TlaExpressions.arguments(application).get(1) instanceof ValEx value
+                && value.value() instanceof TlaStr name
+                ? Optional.of(name.value()) : Optional.empty();
     }
 
     private static void collectFree(TlaEx expression, Set<String> bound, Set<String> free) {

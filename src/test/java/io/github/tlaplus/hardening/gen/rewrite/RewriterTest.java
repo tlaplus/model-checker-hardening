@@ -10,6 +10,7 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -38,6 +39,19 @@ class RewriterTest {
         assertEquals(List.of("PlusZero"), once.appliedRules());
         var twice = rewrite(library(plusZero()), 0, 1, 0, 0, 1, 0, 0);
         assertEquals(B.plus(B.plus(SUM, B.integer(0)), B.integer(0)), twice.rewritten());
+    }
+
+    /** SANY rejects two labels of one name in a definition, so a copied operand is relabelled. */
+    @Test
+    void aRuleThatCopiesALabelledOperandGivesEveryCopyItsOwnLabel() {
+        var labelled = B.label(B.enumSet(B.integer(1)), "label3");
+        var rewrite = rewriter(library(unionSelf())).rewriteExpression(labelled, new Draw(new byte[] {0, 1, 0, 0}));
+        assertEquals(List.of("UnionSelf"), rewrite.appliedRules());
+        var copies = TlaExpressions.arguments((OperEx) rewrite.rewritten());
+        assertEquals(labelled, copies.get(0));
+        var names = IrNames.labels(rewrite.rewritten());
+        assertEquals(2, names.size(), names.toString());
+        assertTrue(names.contains("label3"));
     }
 
     @Test
@@ -166,15 +180,19 @@ class RewriterTest {
     }
 
     @Test
-    void thePayloadHeaderSlicesTheBaseAndClampsItsLength() {
+    void thePayloadHeaderSlicesTheBaseModuloTheInput() {
         var input = MetamorphicPayload.encode(new byte[] {5, 6, 7}, new byte[] {8, 9});
         assertArrayEquals(new byte[] {0, 3, 5, 6, 7, 8, 9}, input);
         var parts = MetamorphicPayload.split(new Draw(input));
         assertEquals(3, parts.base().remaining());
         assertEquals(2, parts.rewrite().remaining());
-        var clamped = MetamorphicPayload.split(new Draw(new byte[] {0x7f, 0, 1, 2}));
-        assertEquals(2, clamped.base().remaining());
-        assertEquals(0, clamped.rewrite().remaining());
+        // 0x7f00 = 32512 = 3 * 10837 + 1: one base byte of two.
+        var reduced = MetamorphicPayload.split(new Draw(new byte[] {0x7f, 0, 1, 2}));
+        assertEquals(1, reduced.base().remaining());
+        assertEquals(1, reduced.rewrite().remaining());
+        var whole = MetamorphicPayload.split(new Draw(new byte[] {0, 2, 1, 2}));
+        assertEquals(2, whole.base().remaining());
+        assertEquals(0, whole.rewrite().remaining());
     }
 
     private static Rewrite<TlaEx> rewrite(RewriteLibrary library, int... bytes) {

@@ -9,8 +9,9 @@ import java.util.Objects;
  * <pre>[base length: 2 bytes, big-endian] [base payload] [rewrite payload]</pre>
  *
  * <p>The base payload is byte-identical to a stored conformance entry, so an adopted parent
- * decodes to the same module, and byte edits of the rewrite payload never move the base. A length
- * beyond the input is clamped.
+ * decodes to the same module, and byte edits of the rewrite payload never move the base. The base
+ * length is the header modulo one more than the bytes after it, so an encoded length is exact and
+ * a random header splits a random input at a uniform point (ADR 0016 §1).
  */
 public final class MetamorphicPayload {
     /** The largest base payload the two-byte header can describe. */
@@ -24,8 +25,8 @@ public final class MetamorphicPayload {
     /** Splits {@code draw}; the rewrite part is everything after the base part. */
     public static Parts split(Draw draw) {
         Objects.requireNonNull(draw, "draw");
-        var length = (draw.drawByte() << 8) | draw.drawByte();
-        var base = draw.slice(length);
+        var header = (draw.drawByte() << 8) | draw.drawByte();
+        var base = draw.slice(header % (draw.remaining() + 1));
         return new Parts(base, draw.slice(draw.remaining()));
     }
 
