@@ -170,7 +170,8 @@ Apalache commits.
 ## 5. Writing rules
 
 A rule is an operator of the rule module. Its body relates a pattern A to its
-replacement B:
+replacement B. The shipped `libraries/rewrites/Rewrites.tla` has several rules per type;
+this module shows the format:
 
 ```tla
 ------------------------------ MODULE Rewrites ------------------------------
@@ -190,6 +191,12 @@ AlwaysTwice(F) == []F <=> [][]F
   module `EXTENDS`. B may apply them, A may not.
 - **Rewriting goes from A to B only.** Add a second rule for the other direction.
 - **Use `<=>` for temporal formulas.** SANY rejects `=` between them.
+- **Annotate when Snowcat asks.** Snowcat cannot tell a tuple from a sequence, or a
+  record from a function, by their use alone. Add `\* @type: (<<a, b>>) => Bool;` above
+  such a rule.
+- **Records and variants use the generator's names.** A pattern names a field or a tag
+  literally, so the shipped record and variant rules use `field0` and `Tag0`, the first
+  names that the generator draws.
 - **Parenthesize.** A pattern matches what SANY parses. `x + y - y` is
   `x + (y - y)`, because binary `-` binds tighter than `+`, and `UNCHANGED x = e` is a
   precedence error.

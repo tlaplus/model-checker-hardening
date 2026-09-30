@@ -13,7 +13,12 @@ pattern is temporal. TLC-only recursive rules wait for the catalog ADR. Section 
 compares level classes, so `UnchangedPrime` passes, and section 5.3 covers `Init` and
 primed parameters.
 
-**Revision: proofs.** Section 7 now validates every rule by a TLAPS proof in
+**Revision: per-type rules and proofs.** `Rewrites.tla` now ships 64 rules, several per
+type: integers, Booleans, every type, sets and quantifiers, functions, sequences,
+tuples, records and variants. A pattern names a record field or a variant tag
+literally, so the record and variant rules use the generator's first names, `field0`
+and `Tag0`. Snowcat types `field0` row-polymorphically, so these rules apply to every
+record that has the field. Section 7 now validates every rule by a TLAPS proof in
 `RewritesProofs.tla`, which replaces the TLC self-test `RewritesCheck.tla`. This
 deviates from the original section 7, which checked rules on small domains and
 deferred proofs.
