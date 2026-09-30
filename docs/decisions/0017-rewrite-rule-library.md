@@ -13,6 +13,11 @@ pattern is temporal. TLC-only recursive rules wait for the catalog ADR. Section 
 compares level classes, so `UnchangedPrime` passes, and section 5.3 covers `Init` and
 primed parameters.
 
+**Revision: proofs.** Section 7 now validates every rule by a TLAPS proof in
+`RewritesProofs.tla`, which replaces the TLC self-test `RewritesCheck.tla`. This
+deviates from the original section 7, which checked rules on small domains and
+deferred proofs.
+
 ## Context
 
 [ADR 0016][adr-0016] proposes metamorphic testing: a byte-directed rewriter maps a
@@ -29,7 +34,7 @@ This ADR defines rules in TLA<sup>+</sup> instead. A rule is an operator
 `F(x, y) == A = B`, written in an ordinary module. Wherever the rewriter finds an
 instance of `A` under a substitution for the parameters, it may replace that instance
 with the same instance of `B`. The same definitions can be checked by TLC on small
-domains today, and stated as TLAPS theorems later.
+domains, and proven as TLAPS theorems (section 7).
 
 **Scope.** This ADR fixes:
 - the rule format;
@@ -276,19 +281,23 @@ commit, besides the TLC and Apalache commits.
 
 ### 7. Validation
 
-- **Constant- and state-level rules** are asserted in a check module,
-  `libraries/rewrites/RewritesCheck.tla`, which `EXTENDS` the rule module and states
-  `ASSUME \A … \in D : F(…)` over small domains (probe P3). Polymorphic rules are
-  asserted at two or more element types. A unit test runs it under TLC, as for
-  `src/test/resources/recursion/RecursionPairs.tla`.
-- **Action rules** are asserted as action properties `[][F(v)]_v` of a small
-  specification with variables (probe P4).
-- **Temporal rules** keep `<=>` in the rule module, which is what a proof needs. The
-  check module states them as two implications, because TLC rejects `<=>` between
-  temporal formulas (probe P4).
-- **Proofs (later).** A module `RewritesProofs.tla` would state
-  `THEOREM \A x \in Int : PlusZero(x)`, deriving the domain hypotheses from the
-  signatures. TLAPS proofs are out of scope here.
+Every rule is proven. `libraries/rewrites/RewritesProofs.tla` `EXTENDS` the rule module
+and states one theorem per rule, `THEOREM RValid == ASSUME … PROVE R(p1, …, pn)`.
+
+- **Hypotheses follow from the signature.** `Int` gives `x \in Int`, `Bool` gives
+  `P \in BOOLEAN`, `Seq(a)` gives `s \in Seq(A)`, and `a -> b` gives `f \in [D -> R]`.
+  A record with `field0` gives a function whose domain contains `"field0"`, and a
+  higher-order `P(_)` returning `Bool` gives `\A e \in S : P(e) \in BOOLEAN`. The
+  module header lists the full table. A type variable and `Set(a)` give no hypothesis.
+- **Action rules** take their primed parameter as `NEW VARIABLE x`.
+- **Temporal rules** keep `<=>` in the rule module and are proven with `PTL`.
+- **Checking.** `make proofs` runs TLAPM on the module, and CI runs it as a separate
+  job. A unit test requires a theorem for every rule, so a new rule without one fails
+  `mvn verify` even where TLAPM is not installed.
+
+This section originally asserted the rules with TLC over small domains in
+`RewritesCheck.tla`, and left proofs for later. A proof covers every value of the
+signature's types, so the TLC self-test was removed.
 
 ### 8. Package placement
 
@@ -322,8 +331,8 @@ commit, besides the TLC and Apalache commits.
 
 ## Consequences
 
-- **Rules are reviewable and checkable as TLA<sup>+</sup>.** A rule's law is its text.
-  TLC checks it over small domains, and TLAPS can prove it later.
+- **Rules are reviewable and proven in TLA<sup>+</sup>.** A rule's law is its text, and
+  TLAPS proves it for all values of its signature's types.
 - **Matching costs time.** Every node is matched against the rules indexed by its head
   operator and against every generic rule. The cost is byte-free, and ADR 0016's
   `max_rewrites` bounds the rewrites.

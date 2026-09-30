@@ -7,7 +7,7 @@
 (*                                                                         *)
 (* Declaration order is part of the byte encoding: a corpus pins these     *)
 (* sources, so editing a rule requires a new corpus. Put helpers in a      *)
-(* module this one EXTENDS. Check every rule in RewritesCheck.tla.         *)
+(* module this one EXTENDS. Prove every rule in RewritesProofs.tla.         *)
 (***************************************************************************)
 EXTENDS Integers, FiniteSets
 

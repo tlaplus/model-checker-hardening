@@ -1,9 +1,10 @@
 MVN ?= mvn
 ARGS ?=
+TLAPM ?= tlapm
 COMMUNITY_MODULES_REPO ?= https://github.com/tlaplus/CommunityModules
 COMMUNITY_MODULES_DIR ?= libraries/community-modules
 
-.PHONY: compile test package verify run clean community-modules
+.PHONY: compile test package verify run clean proofs community-modules
 
 compile:
 	$(MVN) compile
@@ -22,6 +23,11 @@ run: package
 
 clean:
 	$(MVN) clean
+
+# Proves every rewrite rule (ADR 0017 §7). Variants resolves from Apalache's standard modules.
+proofs:
+	$(TLAPM) --cache-dir target/tlapm -I src/main/resources/tla2sany/StandardModules \
+		libraries/rewrites/RewritesProofs.tla
 
 # Downloads the latest CommunityModules.jar release and records its tag and commit in VERSION.
 # Phony, so every run fetches the latest release; a corpus keeps the copy made by

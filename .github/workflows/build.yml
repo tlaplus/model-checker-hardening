@@ -20,3 +20,16 @@ jobs:
           java-version: "25"
           cache: maven
       - run: mvn --batch-mode --no-transfer-progress verify
+
+  proofs:
+    runs-on: ubuntu-latest
+    env:
+      TLAPM_RELEASE: 1.6.0-pre
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install TLAPM
+        run: |
+          curl -fsSL "https://github.com/tlaplus/tlapm/releases/download/$TLAPM_RELEASE/tlapm-$TLAPM_RELEASE-x86_64-linux-gnu.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/tlapm/bin" >> "$GITHUB_PATH"
+      - run: make proofs
