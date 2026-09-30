@@ -26,6 +26,7 @@ clean:
 
 # Proves every rewrite rule (ADR 0017 §7). Variants resolves from Apalache's standard modules.
 proofs:
+	@mkdir -p target/tlapm
 	$(TLAPM) --cache-dir target/tlapm -I src/main/resources/tla2sany/StandardModules \
 		libraries/rewrites/RewritesProofs.tla
 
