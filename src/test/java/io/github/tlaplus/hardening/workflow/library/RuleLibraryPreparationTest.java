@@ -25,7 +25,21 @@ class RuleLibraryPreparationTest {
     void preparesTheShippedRulesInDeclarationOrder() throws Exception {
         var prepared = prepare(config(SHIPPED, "Rewrites", Map.of("AddSub", 3)));
         var rules = prepared.library().rules();
-        assertEquals(List.of("PlusZero", "AddSub", "DoubleNeg", "UnionSelf", "UnchangedPrime", "ForallNotExists"),
+        assertEquals(List.of("PlusZero", "AddSub", "DoubleNeg", "UnionSelf", "UnchangedPrime", "ForallNotExists",
+                "TimesOne", "NegNeg", "PlusComm", "TimesComm", "PlusAssoc", "MinusAsPlusNeg", "TimesDistrib",
+                "LtAsNotGe", "LeAsLtOrEq", "GtAsLt",
+                "AndTrue", "OrFalse", "AndComm", "OrComm", "DeMorganAnd", "DeMorganOr", "ImpliesAsOr",
+                "EquivAsImplies",
+                "NeqAsNotEq", "EqSym", "IfNegate", "IfTrue",
+                "UnionEmpty", "IntersectSelf", "MinusEmpty", "UnionComm", "IntersectComm", "MinusAsFilter",
+                "IntersectAsFilter", "InUnion", "InIntersect", "NotInAsNotIn", "SubsetAsForall", "MapIdentity",
+                "FilterTrue", "FilterFilter", "ExistsNotForall", "ExistsUnion", "ForallAnd",
+                "FunEta", "DomainOfCtor", "ExceptTwice", "InFunSet",
+                "ConcatEmpty", "EmptyConcat", "ConcatAssoc", "AppendAsConcat", "LenConcat", "LenAppend",
+                "SubSeqWhole",
+                "PairEta", "PairEqAsAnd", "PairInProduct",
+                "RecordExceptSame", "RecordExceptTwice", "RecordExceptGet",
+                "VariantTagOf", "VariantGetOf"),
                 rules.stream().map(RewriteRule::name).toList());
         assertEquals(3, rules.get(1).weight());
         assertEquals(RuleParameter.Kind.FRESH, rules.get(1).parameter("y").orElseThrow().kind());

@@ -170,7 +170,8 @@ Apalache commits.
 ## 5. Writing rules
 
 A rule is an operator of the rule module. Its body relates a pattern A to its
-replacement B:
+replacement B. The shipped `libraries/rewrites/Rewrites.tla` has several rules per type;
+this module shows the format:
 
 ```tla
 ------------------------------ MODULE Rewrites ------------------------------
@@ -190,6 +191,12 @@ AlwaysTwice(F) == []F <=> [][]F
   module `EXTENDS`. B may apply them, A may not.
 - **Rewriting goes from A to B only.** Add a second rule for the other direction.
 - **Use `<=>` for temporal formulas.** SANY rejects `=` between them.
+- **Annotate when Snowcat asks.** Snowcat cannot tell a tuple from a sequence, or a
+  record from a function, by their use alone. Add `\* @type: (<<a, b>>) => Bool;` above
+  such a rule.
+- **Records and variants use the generator's names.** A pattern names a field or a tag
+  literally, so the shipped record and variant rules use `field0` and `Tag0`, the first
+  names that the generator draws.
 - **Parenthesize.** A pattern matches what SANY parses. `x + y - y` is
   `x + (y - y)`, because binary `-` binds tighter than `+`, and `UNCHANGED x = e` is a
   precedence error.
@@ -215,20 +222,18 @@ The matcher skips a rule where it would move a primed equation out of an assignm
 position, or reorder primed conjuncts. For example, `DoubleNeg` does not apply to
 `x' = 1`: under `~~`, TLC no longer treats the equation as an assignment.
 
-**Validity is the author's job.** Check each new rule with TLC before using it:
-- constant- and state-level rules by `ASSUME` over small domains, in a module that
-  `EXTENDS` the rule module:
+**Validity is the author's job.** Prove each new rule in
+`libraries/rewrites/RewritesProofs.tla`, under the hypotheses that its signature gives
+(the module header lists them), and run `make proofs`:
 
-  ```tla
-  ASSUME \A x, y \in -3..3 : AddSub(x, y)
-  ASSUME \A S \in SUBSET SUBSET {1, 2} : UnionSelf(S)
-  ASSUME \A S \in SUBSET (-3..3), k \in -3..3 : ForallNotExists(S, LAMBDA e : e # k)
-  ```
+```tla
+THEOREM AddSubValid == ASSUME NEW x \in Int, NEW y \in Int PROVE AddSub(x, y)
+  BY DEF AddSub
+```
 
-- action rules as `PROPERTY [][UnchangedPrime(v)]_v` of a small specification with a
-  variable `v`;
-- temporal rules as the two implications `([]F => [][]F) /\ ([][]F => []F)`, because
-  TLC rejects `<=>` between temporal formulas.
+`mvn verify` fails when a rule has no such theorem, and CI runs `make proofs`. Before
+you write the proof, a quick TLC check over small domains can catch a wrong rule early:
+`ASSUME \A x, y \in -3..3 : AddSub(x, y)` in a module that `EXTENDS` the rule module.
 
 ## 6. Limitations
 
