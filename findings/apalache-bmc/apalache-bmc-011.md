@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -16,6 +16,15 @@ classified input-evaluation failure.
 Observed in one `corpus3` input and reproduced with Apalache 0.62.2, build
 `f0dec98`. See the [`bfe432e8...` input](../../corpus3/02apa-crash/bfe432e8c7c1da7467ba138b4227e1cc48ab86d080dac4abdc5bcb3baeb29e2a.cbor)
 and its [stacktrace](../../corpus3/02apa-crash/bfe432e8c7c1da7467ba138b4227e1cc48ab86d080dac4abdc5bcb3baeb29e2a.stacktrace).
+
+No longer reproduces with [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3). Verified
+with Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c` (tla2tools
+`1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: Apalache reaches no assertion
+and proves `Inv` of the reproduction below. It treats the out-of-domain
+application as an unspecified value, as it does for every function application;
+that difference from TLC is
+[function-application-outside-domain](../../conformance/function-application-outside-domain.md).
 
 ## Reproduction
 

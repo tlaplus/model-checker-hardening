@@ -20,6 +20,11 @@ to generate whole modules, contains one more of the second kind, comparing
 both representative reproductions still fail with Apalache 0.62.2, build
 `f0dec98`.
 
+Apalache 0.62.3 (commit `3eb15b2`) fixes the function-set reproduction, which it
+proves, but still fails on the power-set reproduction with the same diagnostic.
+Checked with TLC `341472c` (tla2tools `1.8.0-20260930.140537-84`) and FuzzTLA
+`b7caaf2`.
+
 ## Power-set reproduction
 
 ```tla

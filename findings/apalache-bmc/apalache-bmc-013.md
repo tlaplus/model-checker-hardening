@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -24,8 +24,7 @@ This is upstream issue
 [`apalache-mc/apalache#3479`](https://github.com/apalache-mc/apalache/issues/3479),
 fixed by [PR #3480](https://github.com/apalache-mc/apalache/pull/3480) (merged
 2026-09-04). The fix guards the `SetInRule` and `PrimeRule` optimization so a
-cell name is never looked up in the binding. It is not in a release yet: the
-pinned build is Apalache 0.62.2, build `f0dec98`, released 2026-08-26, which
+cell name is never looked up in the binding. Apalache 0.62.2, build `f0dec98`,
 still crashes. Found in one `corpus7` input. See the
 [`569471e2...` input](../../corpus7/02apa-crash/569471e2774b2e45f67dfc7d2123129f9a29c8ffac0161cd754d655f0ef50824.cbor)
 and its [stacktrace](../../corpus7/02apa-crash/569471e2774b2e45f67dfc7d2123129f9a29c8ffac0161cd754d655f0ef50824.stacktrace).
@@ -34,6 +33,13 @@ The `corpus10` run found one more instance, reaching `SetInRule` from
 `ApaFoldSeqLeft` instead of `ApaFoldSet`: see the
 [`4d61fa71...` input](../../corpus10/02apa-crash/4d61fa71a196b13e8aab05768a62183ab1014e7680869180cfae17ebceb9539d.cbor)
 and its [stacktrace](../../corpus10/02apa-crash/4d61fa71a196b13e8aab05768a62183ab1014e7680869180cfae17ebceb9539d.stacktrace).
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
+#3480](https://github.com/apalache-mc/apalache/pull/3480). Verified with
+Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c` (tla2tools
+`1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: the reproduction below and
+the module of issue #3479 check without an exception.
 
 ## Reproduction
 
@@ -93,12 +99,12 @@ sequences alike.
 A small, well-typed `ApaFoldSet` expression crashes the bounded checker with an
 internal `NoSuchElementException` and a spurious "report an issue" request. Any
 `ApaFoldSet` or `ApaFoldSeqLeft` combinator that performs a set-membership test
-on its accumulator or element against a singleton set literal is affected in the
-pinned build.
+on its accumulator or element against a singleton set literal is affected in
+Apalache 0.62.2.
 
 ## Resolution
 
 Merged upstream as [PR #3480](https://github.com/apalache-mc/apalache/pull/3480)
-on 2026-09-04, after the 0.62.2 release. Close this finding once FuzzTLA pins an
-Apalache build that contains commit `8f0113e`, and drop the
-`apalache-bmc-013.md` signature from `script/triager.py` at the same time.
+on 2026-09-04 as commit `8f0113e`, and released in Apalache 0.62.3, which
+FuzzTLA pins. The `apalache-bmc-013.md` signature stays in `script/triager.py`
+so that crashes in corpora checked with Apalache 0.62.2 remain classified.

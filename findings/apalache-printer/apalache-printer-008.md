@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -27,6 +27,13 @@ error 2102 with a variable left unassigned. See the
 [`1a5984ba...` input](../../corpus1/02tlc-crash/1a5984ba4fdc81016ec5b401a078d48d0827a7737354c33c2048daa49ffc7e64.cbor)
 and its [stacktrace](../../corpus1/02tlc-crash/1a5984ba4fdc81016ec5b401a078d48d0827a7737354c33c2048daa49ffc7e64.stacktrace).
 The crashes are not the whole extent; see Impact.
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
+#3481](https://github.com/apalache-mc/apalache/pull/3481), which parenthesizes
+every `LET`. Verified with Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c`
+(tla2tools `1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: `PrettyWriter`
+delimits the synthesized `LET` of the reproduction below.
 
 ## Reproduction
 
