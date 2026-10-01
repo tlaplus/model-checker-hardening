@@ -41,7 +41,7 @@ class MultipleBinderTest {
     @Test
     void aSetMapBindsATerminatedListOfNames() {
         // Source types Boolean then integer, then the terminating marker.
-        assertForm("{ mapped0: mapped0 \\in { TRUE, FALSE }, mapped1 \\in { 1, 2, 3 } }",
+        assertForm("{ (mapped0): mapped0 \\in { TRUE, FALSE }, mapped1 \\in { 1, 2, 3 } }",
                 SetExpressionKind.SET_MAP, new SetType(PrimitiveType.BOOL), List.of(), 1, 0, 1, 1, 0, 42);
     }
 
