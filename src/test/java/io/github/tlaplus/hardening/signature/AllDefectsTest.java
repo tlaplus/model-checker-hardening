@@ -34,11 +34,19 @@ class AllDefectsTest {
     private static final Set<String> UNCOVERED = Set.of(
             "conformance/constant-false-invariant.md",
             "conformance/constant-property-tlc-rejects.md",
+            "conformance/empty-function-set.md",
             "conformance/label-inside-except.md",
+            "conformance/let-operand-grouping.md",
             "conformance/order-sensitive-set-fold.md",
             "conformance/vacuous-initial-predicate.md",
             "findings/SANY/sany-002.md",
+            "findings/apalache-bmc/apalache-bmc-002.md",
+            "findings/apalache-bmc/apalache-bmc-011.md",
+            "findings/apalache-bmc/apalache-bmc-013.md",
+            "findings/apalache-bmc/apalache-bmc-017.md",
+            "findings/apalache-bmc/apalache-bmc-018.md",
             "findings/apalache-bmc/apalache-bmc-021.md",
+            "findings/apalache-builder/apalache-builder-001.md",
             "findings/apalache-json/apalache-json-001.md",
             "findings/apalache-json/apalache-json-002.md",
             "findings/apalache-json/apalache-json-003.md",
@@ -49,6 +57,8 @@ class AllDefectsTest {
             "findings/apalache-printer/apalache-printer-005.md",
             "findings/apalache-printer/apalache-printer-006.md",
             "findings/apalache-printer/apalache-printer-007.md",
+            "findings/apalache-printer/apalache-printer-008.md",
+            "findings/apalache-printer/apalache-printer-010.md",
             "findings/apalache-typechecker/apalache-typechecker-001.md",
             "findings/TLC/tlc-013.md",
             "findings/TLC/tlc-018.md",
@@ -131,15 +141,10 @@ class AllDefectsTest {
         var grown = builder.name("grown", TlaTypes.set(TlaTypes.INT));
         var reversed = builder.name("r", intSequence);
         var applied = builder.eql(builder.funApply(function, builder.integer(1)), builder.integer(1));
-        var fold = builder.foldSet(
-                builder.lambda("Keep", builder.name("a", TlaTypes.INT),
-                        builder.param("a", TlaTypes.INT), builder.param("b", TlaTypes.INT)),
-                builder.integer(0), one);
         var functions = builder.name("fs",
                 TlaTypes.set(TlaTypes.function(TlaTypes.INT, TlaTypes.INT)));
         var pairFunction = builder.name("g",
                 TlaTypes.function(TlaTypes.tuple(TlaTypes.INT, TlaTypes.INT), TlaTypes.INT));
-        var acc = builder.name("acc", TlaTypes.BOOL);
         var element = builder.name("b", TlaTypes.INT);
         var variant = (VariantT1) TlaTypes.variant(
                 new NamedType("A", TlaTypes.BOOL), new NamedType("B", TlaTypes.BOOL));
@@ -148,9 +153,6 @@ class AllDefectsTest {
                         List.of(builder.in(step, builder.intSet()), builder.in(step, one))),
                 Map.entry("powerset",
                         List.of(builder.powerSet(one), builder.enumSet(one))),
-                Map.entry("function-set-empty-component",
-                        List.of(builder.funSet(builder.emptySet(TlaTypes.INT), one),
-                                builder.funSet(one, one))),
                 Map.entry("function-set-equality",
                         List.of(builder.eql(builder.funSet(one, one), functions),
                                 builder.in(function, builder.funSet(one, one)))),
@@ -227,29 +229,17 @@ class AllDefectsTest {
                                         function), flag))),
                 Map.entry("apalache-nested-one-conjunct",
                         List.of(builder.and(builder.and(flag)), builder.and(flag, flag))),
-                Map.entry("apalache-fold-singleton-membership",
-                        List.of(builder.foldSet(combinator(builder.notIn(acc, builder.enumSet(acc))),
-                                        builder.bool(false), builder.booleanSet()),
-                                builder.foldSet(combinator(builder.not(acc)),
-                                        builder.bool(false), builder.booleanSet()))),
                 Map.entry("apalache-unchanged-after-assignment",
                         List.of(builder.and(shapes.action(), builder.not(builder.unchanged(flag))),
                                 builder.and(shapes.action(), builder.unchanged(step)))),
                 Map.entry("tlc-multiplication-in-fold-under-eventuality",
                         List.of(builder.leadsTo(stepFold(builder.mult(element, step)), flag),
                                 builder.leadsTo(stepFold(builder.plus(element, step)), flag))),
-                Map.entry("printer-fold-in-left-operand",
-                        List.of(builder.and(builder.eql(step, fold), flag),
-                                builder.and(flag, builder.eql(step, fold)))),
                 Map.entry("printer-nested-case-arm",
                         List.of(builder.caseSplit(arm(flag, builder.caseSplit(arm(flag, step))),
                                         arm(flag, step)),
                                 builder.caseSplit(arm(flag, step),
                                         arm(flag, builder.caseSplit(arm(flag, step)))))),
-                Map.entry("printer-set-map-connective-body",
-                        List.of(builder.map(builder.and(builder.in(x, one)),
-                                        new ExpressionPair<>(x, one)),
-                                builder.map(builder.in(x, one), new ExpressionPair<>(x, one)))),
                 Map.entry("community-is-injective",
                         List.of(library("Functions", "IsInjective",
                                         TlaTypes.operator(TlaTypes.BOOL, intFunction), function),
@@ -334,12 +324,6 @@ class AllDefectsTest {
 
     private static ExpressionPair<TlaEx> arm(TlaEx guard, TlaEx value) {
         return new ExpressionPair<>(guard, value);
-    }
-
-    /** A fold combinator over Booleans with the given body in its accumulator {@code acc}. */
-    private TlaEx combinator(TlaEx body) {
-        return builder.lambda("Step", body,
-                builder.param("acc", TlaTypes.BOOL), builder.param("elem", TlaTypes.BOOL));
     }
 
     /** A fold over {@code {1}} whose combinator compares {@code term} of its element {@code b} with 1. */

@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -20,6 +20,15 @@ when the body's top-level operator is `\in`.
 Observed with `org.apalache-mc:tla-io_2.13:0.62.3-SNAPSHOT`, FuzzTLA `41bda26`,
 TLC `957faa0` (tla2tools `1.8.0-20260916.164343-73`) and Apalache 0.62.2 (build
 `f0dec98`).
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
+#3485](https://github.com/apalache-mc/apalache/pull/3485). Verified with
+Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c` (tla2tools
+`1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: `PrettyWriter` delimits the
+`direct`, `and`, `or` and `rejected` bodies below and the `<=>` body of
+corpus33. FuzzTLA prints through the façade `0.62.4-SNAPSHOT`, which carries the
+fix.
 
 ## Reproduction
 

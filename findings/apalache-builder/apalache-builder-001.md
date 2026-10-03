@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -15,7 +15,14 @@ Observed with `org.apalache-mc:tla-ir-java:0.61.1-SNAPSHOT`, Scalaz 7.3.5,
 and OpenJDK 25.0.3.
 
 The Apalache 0.62.2 release source still materializes the builder state with
-`State.run`, so this finding remains open.
+`State.run`.
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3), which
+evaluates the builder state stack-safely. Verified with Apalache 0.62.3 (commit
+`3eb15b2`), TLC `341472c` (tla2tools `1.8.0-20260930.140537-84`) and FuzzTLA
+`b7caaf2`: `apalache-mc check` reports the violation for `0 .. 2000 \subseteq
+{}` and `0 .. 5000 \subseteq {}` instead of overflowing.
 
 ## Regression test
 

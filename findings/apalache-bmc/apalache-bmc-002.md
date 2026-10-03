@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -14,6 +14,13 @@ reflexive, so the counterexample is unsound.
 
 Observed twice in the inspected corpus with Apalache 0.62.0 and reproduced with
 Apalache 0.62.2, build `f0dec98`.
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
+#3478](https://github.com/apalache-mc/apalache/pull/3478). Verified with
+Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c` (tla2tools
+`1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: Apalache proves `Inv` of the
+reproduction below.
 
 ## Reproduction
 

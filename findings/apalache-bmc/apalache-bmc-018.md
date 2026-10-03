@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -45,6 +45,13 @@ fold body builds a large set expression that is never used. See the
 and its [stacktrace](../../corpus16/02apa-crash/e25a75d22792e9ce6f579b0f9513e3b3be543e39a951ae66c1bcaae340558446.stacktrace).
 
 Observed with Apalache 0.62.2, build `f0dec98`.
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
+#3478](https://github.com/apalache-mc/apalache/pull/3478). Verified with
+Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c` (tla2tools
+`1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: Apalache finds no initial
+state for the reproduction below, as TLC does.
 
 ## Reproduction
 

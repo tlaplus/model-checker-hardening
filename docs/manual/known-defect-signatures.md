@@ -360,8 +360,6 @@ The added signatures follow one rule:
 - **Function sets.** `[S -> T]` stays admitted except in its failing special
   cases. A function set here is `[S -> T]` itself, or one `IF` branch, `\union`,
   `\intersect` or `\` operand of it. The special cases are:
-  - `function-set-empty-component`: a literal empty domain or range, or a range
-    computed by a fold;
   - `function-set-equality`: a function set compared with `=` or `#`;
   - `function-set-expansion`: a function set that is folded, mapped, filtered,
     counted, unioned by `UNION`, or the set of an applied `CHOOSE`.
@@ -370,9 +368,7 @@ The remaining signatures match fixed shapes:
 - the TLC findings about temporal formulas;
 - the SANY `%` level-error crash;
 - the Apalache temporal and assignment findings;
-- the open `PrettyWriter` findings. `printer-fold-in-left-operand` matches a fold
-  that ends an operand, directly or one infix level down, followed by another
-  operand.
+- the open `PrettyWriter` findings.
 - the Community Modules operators whose defects depend on argument values:
   `IsInjective`, `AntiFunction`, `IndexFirstSubSeq`, `LongestCommonPrefix`,
   `ExistsSurjection`, `SumBag` and `ProductBag`. A generated module applies a library operator
@@ -416,7 +412,11 @@ express:
 The test fails when a new finding or conformance document is neither
 referenced by a signature nor listed as uncovered.
 
-Measurements, taken on 2026-09-18:
+Measurements, taken on 2026-09-18. Apalache 0.62.3 later fixed the defects behind
+`function-set-empty-component`, `apalache-fold-singleton-membership`,
+`printer-fold-in-left-operand` and `printer-set-map-connective-body`, and those
+signatures were removed, so the
+database now matches fewer entries than measured here:
 - **corpus29 sample.** The database matched 73.3% of a sample of 600 corpus29
   entries. corpus29 was generated with `known-defects.toml`, so every entry in
   the sample had already passed the shipped signatures. The top matches by

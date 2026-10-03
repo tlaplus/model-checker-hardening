@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [apalache]
 ---
 
@@ -44,9 +44,18 @@ reported a violation and Apalache passed. Its initial predicate is
 `var0 \in [ApaFoldSet(Lambda77, {}, {}) -> {}] /\ ...`. See the
 [`b0f60628...` input](../../corpus12/03aggregator-fail/b0f60628a128c7e33ac1b8e87ad7240e5e770a2ef9b1eeba2286831bf02a27be.cbor).
 
-Observed with Apalache 0.62.2, the version this repository pins. It does not
-reproduce on the 0.62.3-SNAPSHOT build `129af5d`, which reports the violation
-for every row above; no released version carries that fix yet.
+Observed with Apalache 0.62.2. It does not reproduce on the 0.62.3-SNAPSHOT
+build `129af5d`, which reports the violation for every row above.
+
+Fixed upstream in [Apalache
+0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
+#3478](https://github.com/apalache-mc/apalache/pull/3478). Verified with
+Apalache 0.62.3 (commit `3eb15b2`), TLC `341472c` (tla2tools
+`1.8.0-20260930.140537-84`) and FuzzTLA `b7caaf2`: Apalache reports the
+violation for the reproduction, the `LET`-wrapped domain, both invariants of
+`ComputedEmptyDomains`, and the reduced module of corpus28. The two invariant
+modules must annotate their bare `{}`, which 0.62.3 otherwise rejects as
+polymorphic.
 
 ## Reproduction
 
