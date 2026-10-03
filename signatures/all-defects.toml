@@ -32,6 +32,8 @@
 # - Fixed: apalache-printer-001 to 007, apalache-json-001 and 002, let-operand-grouping; and, in
 #   Apalache 0.62.3, apalache-printer-008 and 010, apalache-bmc-002, 011, 013, 017 and 018,
 #   apalache-builder-001 and empty-function-set.
+# - apalache-printer-011: needs two LET definitions of one name in the arguments of one
+#   application; generated definitions have unique names, and the rewriter renames copies apart.
 # - apalache-json-003: occurs in library preparation, not in generated inputs; library JSON is
 #   pruned and the affected operators are not selected.
 # - apalache-typechecker-001: occurs when a custom-operator library is typechecked, not in

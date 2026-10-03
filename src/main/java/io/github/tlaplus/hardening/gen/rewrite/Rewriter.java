@@ -166,6 +166,8 @@ public final class Rewriter {
         private int bodySize;
         private int sizeLimit;
         private Set<String> assigned = Set.of();
+        /** The {@code EXCEPT} replacements the walk is in, where a fresh operand may hold no label. */
+        private int exceptReplacements;
 
         Walk(Draw draw, OperandGenerator operands) {
             this.draw = Objects.requireNonNull(draw, "draw");
@@ -230,7 +232,7 @@ public final class Rewriter {
             for (var index = 0; index < arguments.size(); index++) {
                 var argument = arguments.get(index);
                 var visited = RewritePositions.visits(application, index)
-                        ? visit(argument, binding.scopes(index, arguments.size()) ? inner : scope, stack)
+                        ? visitArgument(application, index, binding.scopes(index, arguments.size()) ? inner : scope, stack)
                         : argument;
                 changed |= visited != argument;
                 rebuilt.add(visited);
@@ -238,20 +240,46 @@ public final class Rewriter {
             return changed ? TlaExpressions.withArguments(application, rebuilt) : application;
         }
 
+        private TlaEx visitArgument(OperEx application, int index, List<OperandGenerator.Name> scope, Stack stack) {
+            var argument = TlaExpressions.arguments(application).get(index);
+            if (!RewritePositions.isExceptReplacement(application, index)) {
+                return visit(argument, scope, stack);
+            }
+            exceptReplacements++;
+            try {
+                return visit(argument, scope, stack);
+            } finally {
+                exceptReplacements--;
+            }
+        }
+
+        /**
+         * Visits a LET. A declaration's body sees the declarations before it but neither itself nor
+         * a later one, since LET definitions are not recursive, and it starts a new label scope: a
+         * binder enclosing the LET stays visible there but is no parameter of a label in it.
+         */
         private TlaEx descendLet(LetInEx let, List<OperandGenerator.Name> scope, Stack stack) {
             var declarations = TlaExpressions.localDeclarations(let);
             var inner = new ArrayList<>(scope);
-            declarations.forEach(declaration -> inner.add(new OperandGenerator.Name(
-                    declaration.name(), TlaTypes.typeOf(declaration), OperandGenerator.Kind.DEFINITION)));
+            var preceding = new ArrayList<OperandGenerator.Name>();
+            for (var name : scope) {
+                preceding.add(name.kind() == OperandGenerator.Kind.BINDER
+                        ? new OperandGenerator.Name(name.name(), name.type(), OperandGenerator.Kind.DEFINITION)
+                        : name);
+            }
             var rebuilt = new ArrayList<TlaOperDecl>(declarations.size());
             var changed = false;
             for (var declaration : declarations) {
-                var parameters = new ArrayList<>(inner);
+                var parameters = new ArrayList<>(preceding);
                 TlaDeclarations.parameters(declaration).forEach(parameter -> parameters.add(new OperandGenerator.Name(
                         parameter.name(), parameter.type(), OperandGenerator.Kind.DEFINITION)));
                 var body = visit(declaration.body(), parameters, stack);
                 changed |= body != declaration.body();
                 rebuilt.add(body == declaration.body() ? declaration : TlaDeclarations.withBody(declaration, body));
+                var defined = new OperandGenerator.Name(
+                        declaration.name(), TlaTypes.typeOf(declaration), OperandGenerator.Kind.DEFINITION);
+                preceding.add(defined);
+                inner.add(defined);
             }
             var body = visit(let.body(), inner, stack);
             if (!changed && body == let.body()) {
@@ -305,7 +333,7 @@ public final class Rewriter {
             }
             var fresh = new HashMap<String, TlaEx>();
             for (var parameter : match.rule().parameters(RuleParameter.Kind.FRESH)) {
-                fresh.put(parameter.name(), draw.draw(operands.operand(types.applyFully(parameter.type()), scope)));
+                fresh.put(parameter.name(), draw.draw(operands.operand(types.applyFully(parameter.type()), scope, exceptReplacements > 0)));
             }
             return RuleInstantiation.instantiate(match, fresh, types,
                     name -> operands.freshName(name.replaceAll("\\d+$", "")));

@@ -44,7 +44,8 @@ import org.apalache_mc.tla.jir.TypedParameter;
  * Boolean node, when it would move an assigning equation out of an assigning position; anywhere,
  * when the replacement would prime a parameter bound to something other than a name, or keep one
  * UNCHANGED that is neither a name nor a tuple of names. {@code <<a, b>>' = <<a, b>>} is valid TLA+
- * but assigns nothing in TLC.
+ * but assigns nothing in TLC. A match is also refused when the replacement would put a label of a
+ * binding under a binder of its own or into an {@code EXCEPT} replacement, where SANY rejects it.
  */
 public final class RuleMatcher {
     /** The name of every lambda a match builds; instantiation beta-reduces it away. */
@@ -72,7 +73,13 @@ public final class RuleMatcher {
             return Optional.empty();
         }
         var match = new RuleMatch(rule, state.bindings, state.types.orElse(TlaTypeSubstitution.empty()));
-        return admitsAssignments(match, node, assigned) ? Optional.of(match) : Optional.empty();
+        return admitsAssignments(match, node, assigned) && admitsLabels(match) ? Optional.of(match) : Optional.empty();
+    }
+
+    /** Whether no label of a binding would land where SANY rejects it (see {@link LabelPlacement}). */
+    private static boolean admitsLabels(RuleMatch match) {
+        return match.rule().unlabelled().stream()
+                .allMatch(parameter -> IrNames.labels(match.bindings().get(parameter)).isEmpty());
     }
 
     /**

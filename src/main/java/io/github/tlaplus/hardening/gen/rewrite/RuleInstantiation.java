@@ -25,8 +25,8 @@ public final class RuleInstantiation {
      *
      * @param fresh the value drawn for each fresh parameter
      * @param types instantiates every type variable of the replacement, extending the match's
-     * @param freshName names each variable the replacement binds, and each label a copied value
-     *     repeats, apart from every name in scope
+     * @param freshName names each variable the replacement binds, and each label and LET definition
+     *     a copied value repeats, apart from every name in scope
      */
     public static TlaEx instantiate(
             RuleMatch match, Map<String, TlaEx> fresh, TlaTypeSubstitution types, UnaryOperator<String> freshName) {
@@ -47,8 +47,9 @@ public final class RuleInstantiation {
         replacement = IrTypes.substitute(replacement, types);
         var values = new HashMap<String, TlaEx>(match.bindings());
         values.putAll(fresh);
-        // A parameter that occurs twice in the replacement copies the labels of its value.
-        return IrNames.relabelRepeats(IrSubstitution.betaReduce(IrSubstitution.substitute(replacement, values)),
-                () -> freshName.apply(LABEL_PREFIX));
+        // A parameter that occurs twice in the replacement copies the labels and LET definitions
+        // of its value.
+        var copied = IrSubstitution.betaReduce(IrSubstitution.substitute(replacement, values));
+        return IrNames.redefineRepeats(IrNames.relabelRepeats(copied, () -> freshName.apply(LABEL_PREFIX)), freshName);
     }
 }

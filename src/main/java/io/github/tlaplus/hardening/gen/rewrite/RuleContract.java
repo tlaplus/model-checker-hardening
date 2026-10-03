@@ -108,7 +108,15 @@ final class RuleContract {
                 .collect(java.util.stream.Collectors.toSet());
         requireMillerPatterns(name, pattern, higherOrder, Set.of());
         return new RewriteRule(name, weight, pattern, replacement, parameters,
-                assignments(pattern, replacement, parameters));
+                assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
+    }
+
+    /** Returns the parameters a match binds to subterms of the node: every one but the fresh ones. */
+    private static Set<String> bound(List<RuleParameter> parameters) {
+        return parameters.stream()
+                .filter(parameter -> parameter.kind() != RuleParameter.Kind.FRESH)
+                .map(RuleParameter::name)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     /**

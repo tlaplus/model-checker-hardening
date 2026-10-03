@@ -125,6 +125,32 @@ class RuleMatcherTest {
         assertTrue(rewrite(existsConstant, B.exists(integer("q"), T, B.gt(integer("q"), B.integer(0)))).isEmpty());
     }
 
+    /**
+     * SANY requires a label to declare the binders around it, so a label of a binding may not move
+     * under a binder the replacement introduces; it may stay where no new binder reaches it.
+     */
+    @Test
+    void aLabelledBindingDoesNotMoveUnderABinderOfTheReplacement() {
+        var labelledBody = B.forall(integer("q"), T, B.label(B.gt(integer("q"), integer("z")), "lab", "q"));
+        assertTrue(rewrite(forallNotExists(), labelledBody).isEmpty(), "the label would declare q, not the new binder");
+        var labelledDomain = B.forall(integer("q"), B.label(T, "lab"), B.gt(integer("q"), integer("z")));
+        assertTrue(rewrite(forallNotExists(), labelledDomain).isPresent(), "the domain is not under the binder");
+    }
+
+    /** SANY rejects every label inside an EXCEPT replacement. */
+    @Test
+    void aLabelledBindingDoesNotMoveIntoAnExceptReplacement() {
+        var functions = TlaTypes.function(TlaTypes.INT, TlaTypes.INT);
+        var f = B.name("f", functions);
+        var exceptSelf = rule("ExceptSelf",
+                B.eql(f, B.except(B.name("f", functions), integer("x"), B.funApply(B.name("f", functions), integer("x")))),
+                B.param("f", functions), B.param("x", TlaTypes.INT));
+        var function = B.name("g", functions);
+        assertTrue(RuleMatcher.match(checked(exceptSelf), function).isPresent());
+        assertTrue(RuleMatcher.match(checked(exceptSelf), B.label(function, "lab")).isEmpty(),
+                "the copy of g in the replacement would carry its label");
+    }
+
     /** Matches the rule and instantiates it with numbered binder names and no fresh parameter. */
     private static Optional<TlaEx> rewrite(TlaOperDecl definition, TlaEx node) {
         var counter = new AtomicInteger();

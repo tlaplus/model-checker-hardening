@@ -59,6 +59,7 @@ class AllDefectsTest {
             "findings/apalache-printer/apalache-printer-007.md",
             "findings/apalache-printer/apalache-printer-008.md",
             "findings/apalache-printer/apalache-printer-010.md",
+            "findings/apalache-printer/apalache-printer-011.md",
             "findings/apalache-typechecker/apalache-typechecker-001.md",
             "findings/TLC/tlc-013.md",
             "findings/TLC/tlc-018.md",
