@@ -66,9 +66,10 @@ public final class OperandGenerator {
 
     /**
      * Returns a generator of one expression of the concrete {@code type}. A name whose type the
-     * generator cannot express is left out of scope.
+     * generator cannot express is left out of scope. Within an {@code EXCEPT} replacement, where
+     * SANY rejects every label, the operand draws none.
      */
-    public Generator<TlaEx> operand(TlaType1 type, List<Name> scope) {
+    public Generator<TlaEx> operand(TlaType1 type, List<Name> scope, boolean exceptReplacement) {
         var requested = ImportedTypes.from(Objects.requireNonNull(type, "type"));
         var visible = new ArrayList<ScopedName>();
         for (var name : Objects.requireNonNull(scope, "scope")) {
@@ -79,8 +80,9 @@ public final class OperandGenerator {
             }
         }
         var depth = context.config().expressions().maximumExpressionDepth();
-        return context.withBindings(visible, context.withLevel(LevelContext.STATE,
+        Generator<TlaEx> operand = context.withBindings(visible, context.withLevel(LevelContext.STATE,
                 context.withFreshNodeBudget(expressions.mkGen(requested, depth))));
+        return exceptReplacement ? context.withinExceptReplacement(operand) : operand;
     }
 
     /**

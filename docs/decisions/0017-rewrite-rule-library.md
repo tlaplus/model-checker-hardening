@@ -228,10 +228,28 @@ among the rules that match a node.
 - **Instantiation.** B's bound variables are renamed apart from the node's scope with
   the shared renaming helper. Matched and fresh parameters are then substituted, and
   higher-order applications are beta-reduced. The result has the node's type.
+- **Positions.** A rule applies only at a value. An operator, such as a lambda passed
+  to a fold or the name an application applies, is skipped: TLA<sup>+</sup> has no `IF`
+  or equality of operators, so a rule that admits every type, such as `IfTrue`, would
+  produce a module that SANY rejects. The body of a lambda is a value again.
+- **Scope.** A fresh operand drawn in a `LET` definition sees the definitions before it,
+  but not itself or a later one. A definition body starts a new label scope, so a label
+  in a fresh operand there declares no binder that encloses the `LET`.
 - **Labels.** A parameter that occurs more than once in B, such as `S` in `UnionSelf`,
   copies the labels of its value. SANY rejects a definition with two labels of one name,
   so every label that repeats a name in the result is renamed apart. A fresh operand's
-  labels are named apart from the labels of the body.
+  labels are named apart from the labels of the body. SANY also requires a label to
+  declare exactly the binders around it, and rejects any label inside an `EXCEPT`
+  replacement. The rewriter therefore skips a match that would put a labelled binding
+  under a binder of B, as `FunEta` puts `f` under `e`, or into an `EXCEPT` replacement,
+  as `RecordExceptSame` does with `r`. A fresh operand drawn inside an `EXCEPT`
+  replacement has no label.
+- **Definitions.** A copied value also copies its `LET` definitions. Sibling definitions
+  of one name are valid TLA<sup>+</sup>, but `PrettyWriter` moves the definitions of an
+  operator's arguments in front of the application. It prints
+  `SubSeq(LET L == 1 IN s, 1, Len(LET L == 1 IN s))` with one `LET L` nested in the
+  other, which SANY rejects. Every definition that repeats a name in the result is
+  therefore renamed apart, as labels are.
 
 A rule whose A is a bare parameter, such as `PlusZero`, matches every node of the
 parameter's type. The loader indexes the rules by the head operator of A, and it

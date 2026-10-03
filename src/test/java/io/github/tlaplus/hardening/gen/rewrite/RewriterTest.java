@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.NameEx;
+import at.forsyte.apalache.tla.lir.OperT1;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
@@ -52,6 +54,76 @@ class RewriterTest {
         var names = IrNames.labels(rewrite.rewritten());
         assertEquals(2, names.size(), names.toString());
         assertTrue(names.contains("label3"));
+    }
+
+    /**
+     * PrettyWriter moves the LET definitions of an operator's arguments in front of the
+     * application, which nests copies of one definition, and SANY rejects a definition that
+     * repeats an enclosing one. A copied operand therefore defines its own names.
+     */
+    @Test
+    void aRuleThatCopiesALetDefinitionGivesEveryCopyItsOwnName() {
+        var defined = B.letIn(B.enumSet(B.integer(1)), B.decl("LocalOp2", B.integer(1)));
+        var rewrite = rewriter(library(unionSelf())).rewriteExpression(defined, new Draw(new byte[] {0, 1, 0, 0}));
+        assertEquals(List.of("UnionSelf"), rewrite.appliedRules());
+        var copies = TlaExpressions.arguments((OperEx) rewrite.rewritten());
+        assertEquals(defined, copies.get(0));
+        var names = new java.util.ArrayList<String>();
+        TlaExpressions.forEach(rewrite.rewritten(), node -> {
+            if (node instanceof LetInEx let) {
+                TlaExpressions.localDeclarations(let).forEach(declaration -> names.add(declaration.name()));
+            }
+        });
+        assertEquals(2, java.util.Set.copyOf(names).size(), names.toString());
+    }
+
+    /** TLA+ has no IF or equality of operators, so a rule of every type skips an operator argument. */
+    @Test
+    void noRuleAppliesAtAnOperator() {
+        var x = B.name("x", ELEMENT);
+        var ifSelf = rule("IfSelf", B.eql(x, B.ite(B.bool(true), B.name("x", ELEMENT), B.name("x", ELEMENT))),
+                B.param("x", ELEMENT));
+        var lambda = B.lambda("Lambda3", integer("accumulator1"),
+                B.param("accumulator1", TlaTypes.INT), B.param("element2", TlaTypes.INT));
+        var fold = B.foldSet(lambda, B.integer(0), B.enumSet(B.integer(1)));
+        var random = new Random(5);
+        var rewritten = 0;
+        for (var sample = 0; sample < 200; sample++) {
+            var bytes = new byte[32];
+            random.nextBytes(bytes);
+            var rewrite = rewriter(library(ifSelf)).rewriteExpression(fold, new Draw(bytes));
+            rewritten += rewrite.isIdentity() ? 0 : 1;
+            TlaExpressions.forEach(rewrite.rewritten(), node -> {
+                if (node instanceof OperEx choice && choice.oper() == TlaOperators.IF_THEN_ELSE) {
+                    assertTrue(!(TlaTypes.typeOf(choice) instanceof OperT1), rewrite.rewritten().toString());
+                }
+            });
+        }
+        assertTrue(rewritten > 20, "only " + rewritten + " of 200 inputs were rewritten");
+    }
+
+    /** LET definitions are not recursive, so an operand drawn in a definition cannot name it. */
+    @Test
+    void anOperandDrawnInALetDefinitionDoesNotNameIt() {
+        var defined = B.letIn(B.plus(integer("LocalOp2"), B.integer(1)), B.decl("LocalOp2", B.integer(1)));
+        var random = new Random(11);
+        var drawn = 0;
+        for (var sample = 0; sample < 200; sample++) {
+            var bytes = new byte[64];
+            random.nextBytes(bytes);
+            var rewritten = rewriter(library(addSub())).rewriteExpression(defined, new Draw(bytes)).rewritten();
+            var definitions = new int[1];
+            TlaExpressions.forEach(rewritten, node -> {
+                if (node instanceof LetInEx let) {
+                    for (var declaration : TlaExpressions.localDeclarations(let)) {
+                        assertTrue(!IrNames.free(declaration.body()).contains(declaration.name()), rewritten.toString());
+                        definitions[0] += declaration.body().equals(B.integer(1)) ? 0 : 1;
+                    }
+                }
+            });
+            drawn += definitions[0];
+        }
+        assertTrue(drawn > 20, "only " + drawn + " definitions were rewritten");
     }
 
     @Test

@@ -5,12 +5,15 @@ import io.github.tlaplus.hardening.common.Preconditions;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * One rewrite rule {@code F(p1, ..., pn) == A = B} of a rule module (ADR 0017 §2): the rewriter
  * replaces an instance of {@code pattern} (A) with the same instance of {@code replacement} (B).
  *
  * @param weight the number of selection slots the rule takes when it applies; 0 disables it
+ * @param unlabelled the parameters the replacement places where a label of their binding is
+ *     invalid, see {@link LabelPlacement}
  */
 public record RewriteRule(
         String name,
@@ -18,7 +21,8 @@ public record RewriteRule(
         TlaEx pattern,
         TlaEx replacement,
         List<RuleParameter> parameters,
-        AssignmentFacts assignments) {
+        AssignmentFacts assignments,
+        Set<String> unlabelled) {
     public RewriteRule {
         Objects.requireNonNull(name, "name");
         Preconditions.requireNonnegative(weight, "weight");
@@ -26,6 +30,7 @@ public record RewriteRule(
         Objects.requireNonNull(replacement, "replacement");
         parameters = List.copyOf(Objects.requireNonNull(parameters, "parameters"));
         Objects.requireNonNull(assignments, "assignments");
+        unlabelled = Set.copyOf(Objects.requireNonNull(unlabelled, "unlabelled"));
     }
 
     /** Returns the parameter of this name, if the rule declares one. */

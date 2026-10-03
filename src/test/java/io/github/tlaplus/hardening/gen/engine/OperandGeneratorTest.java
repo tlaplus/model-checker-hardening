@@ -26,7 +26,7 @@ class OperandGeneratorTest {
         for (var sample = 0; sample < 200; sample++) {
             var bytes = new byte[64];
             random.nextBytes(bytes);
-            var operand = generator().operand(TlaTypes.INT, SCOPE).generate(bytes);
+            var operand = generator().operand(TlaTypes.INT, SCOPE, false).generate(bytes);
             assertEquals(TlaTypes.INT, TlaTypes.typeOf(operand));
             for (var bound : IrNames.bound(operand)) {
                 var suffix = Integer.parseInt(bound.replaceAll("^\\D*", ""));
@@ -40,13 +40,28 @@ class OperandGeneratorTest {
     @Test
     void isDeterministicAndFallsBackToATerminalOnExhaustedInput() {
         var bytes = new byte[] {3, 1, 4, 1, 5, 9, 2, 6};
-        assertEquals(generator().operand(TlaTypes.INT, SCOPE).generate(bytes),
-                generator().operand(TlaTypes.INT, SCOPE).generate(bytes));
-        var terminal = generator().operand(TlaTypes.INT, SCOPE).generate(new byte[0]);
+        assertEquals(generator().operand(TlaTypes.INT, SCOPE, false).generate(bytes),
+                generator().operand(TlaTypes.INT, SCOPE, false).generate(bytes));
+        var terminal = generator().operand(TlaTypes.INT, SCOPE, false).generate(new byte[0]);
         assertEquals(TlaTypes.INT, TlaTypes.typeOf(terminal));
         var nodes = new int[1];
         TlaExpressions.forEach(terminal, ignored -> nodes[0]++);
         assertEquals(1, nodes[0]);
+    }
+
+    /** SANY rejects every label inside an EXCEPT replacement, so an operand drawn there has none. */
+    @Test
+    void anOperandInAnExceptReplacementHasNoLabel() {
+        var random = new Random(23);
+        var labelled = 0;
+        for (var sample = 0; sample < 400; sample++) {
+            var bytes = new byte[96];
+            random.nextBytes(bytes);
+            labelled += IrNames.labels(generator().operand(TlaTypes.BOOL, SCOPE, false).generate(bytes)).isEmpty() ? 0 : 1;
+            var replacement = generator().operand(TlaTypes.BOOL, SCOPE, true).generate(bytes);
+            assertTrue(IrNames.labels(replacement).isEmpty(), replacement.toString());
+        }
+        assertTrue(labelled > 0, "no operand outside a replacement had a label");
     }
 
     @Test

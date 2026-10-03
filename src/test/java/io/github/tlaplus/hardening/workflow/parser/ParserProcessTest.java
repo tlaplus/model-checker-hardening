@@ -3,12 +3,21 @@ package io.github.tlaplus.hardening.workflow.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.config.CheckerProfile;
+import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
+import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
+import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
+import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -18,6 +27,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -185,6 +196,43 @@ class ParserProcessTest {
                 assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic() + "\n" + source);
             }
         }
+    }
+
+    @Test
+    void everyRewrittenModuleParses(@TempDir Path directory) throws Exception {
+        // A rewrite is an equivalence of values, so SANY must accept whatever it produces. corpus57
+        // lost 1% of its entries to rewrites that SANY rejected: an IF over operators, a label in an
+        // EXCEPT replacement or under a binder the rule added, a LET definition that saw itself, and
+        // copies of a LET definition that PrettyWriter nests by moving them in front of an
+        // application.
+        var config = new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))), Map.of(),
+                RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults());
+        var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults()).library();
+        var decoders = SpecDecoders.metamorphic(IrGenerationConfig.defaults(),
+                new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));
+        var random = new Random(0x4e57L);
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        var rewritten = 0;
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
+            for (var sample = 0; sample < 400; sample++) {
+                var base = new byte[64 + random.nextInt(448)];
+                var rewrite = new byte[256];
+                random.nextBytes(base);
+                random.nextBytes(rewrite);
+                final String source;
+                try {
+                    source = SpecText.render(decoders.decode(
+                            new CorpusInput(InputKind.MODULE, MetamorphicPayload.encode(base, rewrite))));
+                } catch (InputRejectedException rejected) {
+                    continue;
+                }
+                rewritten++;
+                var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
+                assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic() + "\n" + source);
+            }
+        }
+        assertTrue(rewritten > 200, "too few modules were rewritten to be conclusive: " + rewritten);
     }
 
     private String validSource() {

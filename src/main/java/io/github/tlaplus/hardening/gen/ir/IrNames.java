@@ -8,6 +8,7 @@ import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.ValEx;
 import at.forsyte.apalache.tla.lir.values.TlaStr;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Objects;
@@ -85,6 +86,32 @@ public final class IrNames {
             seen.add(renamed);
             arguments.set(1, new TlaTypedScopeUncheckedBuilder().str(renamed));
             return TlaExpressions.withArguments((OperEx) node, arguments);
+        });
+    }
+
+    /**
+     * Renames every LET definition that repeats the name of a definition visited before it,
+     * bottom-up, to {@code fresh} of its name, so that no two definitions of the result share a
+     * name. Sibling definitions of one name are valid TLA+, but {@code PrettyWriter} moves the
+     * definitions of an operator's arguments in front of the application, which nests the copies
+     * that a copied subexpression has, and SANY rejects a definition that repeats an enclosing one.
+     */
+    public static TlaEx redefineRepeats(TlaEx expression, UnaryOperator<String> fresh) {
+        Objects.requireNonNull(fresh, "fresh");
+        var seen = new HashSet<String>();
+        return TlaExpressions.rewrite(expression, node -> {
+            if (!(node instanceof LetInEx let)) {
+                return node;
+            }
+            var renaming = new HashMap<String, String>();
+            for (var declaration : TlaExpressions.localDeclarations(let)) {
+                if (!seen.add(declaration.name())) {
+                    var renamed = fresh.apply(declaration.name());
+                    seen.add(renamed);
+                    renaming.put(declaration.name(), renamed);
+                }
+            }
+            return renaming.isEmpty() ? node : rename(node, name -> renaming.getOrDefault(name, name));
         });
     }
 
