@@ -1089,6 +1089,26 @@ class Corpus53CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
 
+    def test_choose_without_witness_in_lazy_initial_value_is_tlc_001(self) -> None:
+        """corpus59 a96cc07a: printing the error state re-raises a CHOOSE error."""
+        diagnostic = "\n".join((
+            "TLC error code 1000 mapped to exit status 255",
+            "Linting of module FuzzInput",
+            "Starting... (2026-10-12 15:39:01)",
+            "Computing initial states...",
+            "Error: TLC threw an unexpected exception.",
+            "This was probably caused by an error in the spec or model.",
+            "See the User Output or TLC Console for clues to what happened.",
+            "The exception was a java.lang.RuntimeException",
+            ": Attempted to compute the value of an expression of form",
+            "CHOOSE x \\in S: P, but no element of S satisfied P.",
+            "line 844, col 32 to line 1384, col 37 of module FuzzInput",
+        ))
+        self.assertEqual(
+            "tlc-001.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
 
 class AggregatorDirectoryTest(unittest.TestCase):
     def write_entry(self, directory: Path, name: str, document: object) -> Path:
