@@ -23,6 +23,19 @@ record that has the field. Section 7 now validates every rule by a TLAPS proof i
 deviates from the original section 7, which checked rules on small domains and
 deferred proofs.
 
+**Revision: weights in the rule module.** Section 1 keyed weights by rule name in
+`[metamorphic] weights` only, so every corpus that left the table empty ran the
+catalog flat. In corpus58, 94.6% of 6.54M rewrite applications were identity or
+commutation rules, and 63% of the entries applied nothing else. A rule now states its
+default weight in the comment before it, as `@weight: n;`, next to any `@type:`.
+SANY reads it, because Apalache's JSON output carries no annotations. A configured
+weight overrides the annotation, and an unannotated, unconfigured rule has weight 1.
+`.rewrite-library` lists the effective weights in declaration order. The shipped
+library weighs padding (`x + 0`, `P /\ TRUE`) 1, reordering 2, rules that rebuild a
+value (`FunEta`, `SubSeqWhole`) 4, and rules that replace an operator 8. Weights
+still only choose among the rules that match one node. A node that only padding
+matches is rewritten as often as before.
+
 ## Context
 
 [ADR 0016][adr-0016] proposes metamorphic testing: a byte-directed rewriter maps a
@@ -165,7 +178,8 @@ weights = { AddSub = 3, UnionSelf = 0 }
   Definitions of the modules it `EXTENDS` are helpers, never rules. A rule author puts
   helpers in a module of their own.
 - **Weights are keyed by rule name.** The default weight is 1, and weight 0 disables a
-  rule. A name that is not a rule is a configuration error.
+  rule. A name that is not a rule is a configuration error. A configured weight
+  overrides the rule's `@weight` annotation (see the revision above).
 - **Classpath entries resolve as in `[generator] classpath`.** The seed library would
   live in `libraries/rewrites/Rewrites.tla`, next to `libraries/recursion`.
 

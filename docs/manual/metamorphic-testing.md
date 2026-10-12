@@ -40,7 +40,7 @@ known_defects = ["../signatures/all-defects.toml"]
 
 [metamorphic]
 rules = { module = "Rewrites", classpath = ["rewrites"] }
-weights = { AddSub = 3 }      # default 1 per rule; 0 disables a rule
+weights = { AddSub = 3 }      # overrides the rule's @weight, else 1; 0 disables a rule
 base_corpus = "../corpus-conf"
 adopt_ratio = 0.5
 max_rewrites = 16
@@ -69,8 +69,14 @@ max_rewrite_growth = 2
   base corpus, and `gen.operators` is `["adopt"]`.
 - **The checker set is fixed.** The first run records `checkers` in `.checkers`, and
   later runs must use the same list.
+- **Rule weights.** A rule's weight is the number of selection slots it takes among
+  the rules that match a node. The rule module sets a default in the comment before a
+  rule, `\* @weight: 8;`, and `weights` overrides it. The shipped `Rewrites.tla`
+  weighs padding such as `x + 0` 1, reordering 2, value rebuilding 4, and rules that
+  replace an operator 8.
 - **The rules are fixed.** The first run records the rule module's sources and the
-  weights in `.rewrite-library`. Editing a rule requires a new corpus.
+  effective weights in `.rewrite-library`. Editing a rule or its weight requires a new
+  corpus.
 
 ## 2. What the checker sees
 

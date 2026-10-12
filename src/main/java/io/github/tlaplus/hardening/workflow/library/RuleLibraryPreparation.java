@@ -9,12 +9,17 @@ import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Loads the rule module of a metamorphic run once, before decoding (ADR 0017 §1, §6): SANY names
- * its rules, Snowcat types them, and {@link RewriteLibrary} checks the rule contract.
+ * its rules and reads their weight annotations, Snowcat types them, and {@link RewriteLibrary}
+ * checks the rule contract.
  */
 public final class RuleLibraryPreparation {
     /**
@@ -40,10 +45,13 @@ public final class RuleLibraryPreparation {
             if (!Files.isRegularFile(source)) {
                 throw new WorkflowException("rule module not found on metamorphic.rules classpath: " + rules.module());
             }
-            var manifest = manifest(sources, jar, config);
-            var names = new LinkedHashSet<>(RuleModuleDefinitions.of(sources, rules.module()));
+            var definitions = RuleModuleDefinitions.of(sources, rules.module());
+            var names = new LinkedHashSet<String>();
+            definitions.forEach(definition -> names.add(definition.name()));
+            var weights = weights(definitions, config.weights());
+            var manifest = manifest(sources, jar, rules.module(), weights);
             var typed = new LibraryTypechecker(jar, scratch, apalache).check(source, Set.of(rules.module()), names);
-            return new Prepared(RewriteLibrary.fromModule(typed, names, config.weights()), manifest);
+            return new Prepared(RewriteLibrary.fromModule(typed, names, weights), manifest);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new WorkflowException("rule library preparation interrupted", exception);
@@ -52,11 +60,29 @@ public final class RuleLibraryPreparation {
         }
     }
 
-    /** Pins the Apalache distribution, the rule sources, the module and the weights. */
-    static String manifest(Path sources, Path jar, MetamorphicConfig config) throws IOException {
+    /**
+     * Returns the weight of every rule that its annotation or the configuration weighs, in
+     * declaration order; the configured weight overrides the annotation. A configured name that is
+     * no rule stays in the map, so {@link RewriteLibrary#fromModule} reports it.
+     */
+    static Map<String, Integer> weights(
+            List<RuleModuleDefinitions.RuleDefinition> definitions, Map<String, Integer> configured) {
+        var weights = new LinkedHashMap<String, Integer>();
+        for (var definition : definitions) {
+            definition.weight().ifPresent(weight -> weights.put(definition.name(), weight));
+            if (configured.containsKey(definition.name())) {
+                weights.put(definition.name(), configured.get(definition.name()));
+            }
+        }
+        new TreeMap<>(configured).forEach(weights::putIfAbsent);
+        return weights;
+    }
+
+    /** Pins the Apalache distribution, the rule sources, the module and the effective weights. */
+    static String manifest(Path sources, Path jar, String module, Map<String, Integer> weights) throws IOException {
         var text = LibraryManifest.snapshot("fuzztla-rules-v1", sources, jar);
-        text.append("module ").append(config.rules().orElseThrow().module()).append('\n');
-        config.weights().forEach((rule, weight) -> text.append("weight ").append(rule).append(' ').append(weight).append('\n'));
+        text.append("module ").append(module).append('\n');
+        weights.forEach((rule, weight) -> text.append("weight ").append(rule).append(' ').append(weight).append('\n'));
         return text.toString();
     }
 }
