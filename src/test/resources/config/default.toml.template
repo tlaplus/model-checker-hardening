@@ -131,7 +131,8 @@ feature_coverage = true
 # Rule module of --how=mt, relative to this config file (ADR 0017): every top-level
 # definition F(p1, ..., pn) == A = B of the module is a rewrite rule.
 # rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }
-# Selection slots per rewrite rule; an omitted rule has weight 1, and 0 disables it.
+# Selection slots per rewrite rule, overriding the rule's @weight annotation; a rule
+# with neither has weight 1, and 0 disables it.
 weights = {}
 # Rewrites applied to one body of a base (Init, Next, Inv, an operator or an expression).
 max_rewrites = 16

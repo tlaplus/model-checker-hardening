@@ -332,7 +332,8 @@ final class ConfigSchema {
             "definition F(p1, ..., pn) == A = B of the module is a rewrite rule.");
     static final Key<Map<String, Integer>> RULE_WEIGHTS = METAMORPHIC.optional(
             "weights", ConfigValueType.RULE_WEIGHTS, MetamorphicConfig::weights, new Constant<>(Map.of()),
-            "Selection slots per rewrite rule; an omitted rule has weight 1, and 0 disables it.");
+            "Selection slots per rewrite rule, overriding the rule's @weight annotation; a rule",
+            "with neither has weight 1, and 0 disables it.");
     private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
     static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
             "max_rewrites", RewriteLimits::maximumRewrites, RewriteLimits.defaults().maximumRewrites(),
