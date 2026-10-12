@@ -1055,6 +1055,40 @@ class Corpus53CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
 
+    def test_general_error_stack_overflow_is_tlc_performance_001(self) -> None:
+        """corpus58 c10a1c47: SetUnionAll of a powerset overflows under error 1000."""
+        diagnostic = "\n".join((
+            "TLC error code 1000 mapped to exit status 255",
+            "Linting of module FuzzInput",
+            "Error: This was a Java StackOverflowError. It was probably the result",
+            "of an incorrect recursive function definition that caused TLC to enter",
+            "While working on the initial state:",
+        ))
+        self.assertEqual(
+            "tlc-performance-001.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+    def test_union_of_nonenumerable_sets_is_tlc_003(self) -> None:
+        """corpus58 c27fda4c: Int \\cup Int compared inside a set of sets."""
+        diagnostic = "\n".join((
+            "TLC error code 1000 mapped to exit status 255",
+            "Linting of module FuzzInput",
+            "Error: TLC threw an unexpected exception.",
+            "This was probably caused by an error in the spec or model.",
+            "See the User Output or TLC Console for clues to what happened.",
+            "The exception was a java.lang.RuntimeException",
+            ": Attempted to enumerate S \\cup T when S:",
+            "Int",
+            "and T:",
+            "Int",
+            "are not both enumerable",
+        ))
+        self.assertEqual(
+            "tlc-003.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
 
 class AggregatorDirectoryTest(unittest.TestCase):
     def write_entry(self, directory: Path, name: str, document: object) -> Path:

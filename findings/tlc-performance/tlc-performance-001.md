@@ -183,7 +183,11 @@ its heap on 2, the defect of
 [apalache-performance-003](../apalache-performance/apalache-performance-003.md).
 The triager assigns TLC error 1005 with the `StackOverflowError` message to this
 finding: generated modules recurse only through the recursion library, whose
-definitions terminate.
+definitions terminate. TLC reports the same message under the general error
+1000 on some paths, which the triager accepts as well. corpus58 has two:
+`c10a1c47`, whose initial predicate applies `SetUnionAll` and `SetPowerset` to
+`SUBSET {1, 2, 3}`, overflows on the initial state and passes with a 4 MB stack, and `fa59d632` overflows at 512 KB and
+reports an ordinary `CASE` error at 1 MB.
 
 ## Expected behavior
 

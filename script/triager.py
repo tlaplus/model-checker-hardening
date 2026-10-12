@@ -192,9 +192,10 @@ SIGNATURES = (
             all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_ON_INITIAL_STATE)),
     # TLC's evaluator exhausts the Java stack on a terminating recursion over a
     # few hundred elements. Generated modules recurse only through the
-    # recursion library, whose definitions terminate.
+    # recursion library, whose definitions terminate. TLC reports the overflow
+    # under 1005, or under the general error 1000 on some paths (corpus58).
     finding("tlc-performance-001.md", CrashKind.TLC,
-            all_of(r"^TLC error code 1005 mapped to exit status 255$",
+            all_of(r"^TLC error code 100[05] mapped to exit status 255$",
                    r"^Error: This was a Java StackOverflowError\. It was probably the result$")),
     finding("tlc-001.md", CrashKind.TLC,
             tlc_runtime_error(r"In applying the function", r"which is not in its domain\.")),
@@ -239,6 +240,7 @@ SIGNATURES = (
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
             tlc_runtime_error(r"Attempted to compute the number of elements in the overridden value"),
             tlc_runtime_error(r"Attempted to enumerate S \\ T when S:"),
+            tlc_runtime_error(r"Attempted to enumerate S \\cup T when S:"),
             tlc_runtime_error(r"Attempted to enumerate S \\cap T when neither S:"),
             tlc_runtime_error(r"Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\."),
             tlc_runtime_error(r"Attempted to enumerate \{ x \\in S : p\(x\) \} when S:")),
