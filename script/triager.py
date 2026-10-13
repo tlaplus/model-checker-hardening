@@ -197,8 +197,12 @@ SIGNATURES = (
     finding("tlc-performance-001.md", CrashKind.TLC,
             all_of(r"^TLC error code 100[05] mapped to exit status 255$",
                    r"^Error: This was a Java StackOverflowError\. It was probably the result$")),
+    # An evaluation error forced by fingerprinting an initial state is raised
+    # again when the error handler prints that state (corpus59 a96cc07a).
     finding("tlc-001.md", CrashKind.TLC,
-            tlc_runtime_error(r"In applying the function", r"which is not in its domain\.")),
+            tlc_runtime_error(r"In applying the function", r"which is not in its domain\."),
+            tlc_runtime_error(r"Attempted to compute the value of an expression of form\n"
+                              r"CHOOSE x \\in S: P, but no element of S satisfied P\.")),
     finding("tlc-002.md", CrashKind.TLC,
             all_of(r"^TLC error code 2184 mapped to exit status 255$",
                    r"Error: Attempted to apply (?:Head|Tail) to the empty sequence\."),
