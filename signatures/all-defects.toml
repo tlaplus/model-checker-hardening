@@ -831,7 +831,7 @@ match = [
 [[signature]]
 id = "sany-minus-over-action-subscript"
 references = ["../findings/SANY/sany-003.md"]
-description = "SANY parses a prefix minus over an operand that contains [A]_v or <<A>>_v as binary minus when a comma follows, and reports that - requires 2 arguments."
+description = "SANY reads a prefix minus over an operand that contains [A]_v or <<A>>_v as binary minus when a comma follows, and reports that - requires 2 arguments; the multi-variable quantifier form of the defect needs a comma the IR does not record, and the printer never emits it."
 match = [
   '(UNARY_MINUS (.. (STUTTER _ _)))',
   '(UNARY_MINUS (.. (NO_STUTTER _ _)))',
