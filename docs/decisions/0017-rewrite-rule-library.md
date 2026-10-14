@@ -36,6 +36,26 @@ value (`FunEta`, `SubSeqWhole`) 4, and rules that replace an operator 8. Weights
 still only choose among the rules that match one node. A node that only padding
 matches is rewritten as often as before.
 
+**Revision: definitions and application.** `Rewrites.tla` now ships 129 rules. A new
+section introduces beta and iota redexes: `LET` and `LAMBDA` definitions applied on the
+spot, a binder body moved into a `LET` operator, and a constructor followed by its
+projection. Other sections gain rules for `CASE`, filters, maps, nested quantifiers,
+`SUBSET`, `UNION` and ranges, and arithmetic decompositions by a positive divisor, some
+of which pin the floored remainder of `\div` and `%`. A redex that matches every value of a type has weight 1,
+like padding. Four engine changes come with them:
+- a replacement must apply each higher-order parameter (section 3);
+- a label of a binding may not move into a `LET` definition or into the argument of a
+  higher-order parameter (section 4);
+- a Boolean parameter that reads a primed variable must already assign in A (section
+  5.3), so an `IF` condition does not become an assignment.
+- a `LET` definition of B is typed as B applies it (section 4).
+
+Replacements do not bind tuples, as in `\A <<e, d>> \in S \X T`. Apalache's
+`PrettyWriter` prints such a binder of `\A`, `\E` or `CHOOSE` as an identifier,
+`id_e__d_`, which SANY rejects. This holds for Apalache 0.62.3 (build `3eb15b2`) and
+for `main` at `8677897`. `ForallPair` writes `\A t \in S \X T : P(t[1], t[2])`
+instead.
+
 ## Context
 
 [ADR 0016][adr-0016] proposes metamorphic testing: a byte-directed rewriter maps a
@@ -216,8 +236,9 @@ The loader classifies each parameter once:
   ([ir-generators.md §11][generators]).
 - **Higher-order.** `P(_, …, _)` with arity k. In A, it occurs only as `P(e1, …, ek)`,
   where `e1, …, ek` are distinct variables that A binds (Miller's pattern fragment).
-  It binds to `LAMBDA e1, …, ek : body`, and each application in B is beta-reduced. A
-  higher-order parameter must be matched: it cannot be fresh.
+  It binds to `LAMBDA e1, …, ek : body`, and each application in B is beta-reduced,
+  whatever its arguments. A higher-order parameter must be matched: it cannot be fresh.
+  B must apply it: to pass it to an operator, B writes `LAMBDA x : P(x)`.
 
 ### 4. Matching and instantiation
 
@@ -242,6 +263,12 @@ among the rules that match a node.
 - **Instantiation.** B's bound variables are renamed apart from the node's scope with
   the shared renaming helper. Matched and fresh parameters are then substituted, and
   higher-order applications are beta-reduced. The result has the node's type.
+- **Definitions of B.** Snowcat generalizes a `LET` definition of B that reads no
+  parameter, as `F(v) == v` in `LET F(v) == v IN F(x)`, over type variables of its own.
+  The loader types each definition as B applies it, so the match fixes its type, and
+  rejects a rule that applies one definition at two types. Otherwise the rewriter would
+  draw those variables like a fresh operand's, and later rewrites in the definition's
+  body would follow the drawn types.
 - **Positions.** A rule applies only at a value. An operator, such as a lambda passed
   to a fold or the name an application applies, is skipped: TLA<sup>+</sup> has no `IF`
   or equality of operators, so a rule that admits every type, such as `IfTrue`, would
@@ -256,7 +283,12 @@ among the rules that match a node.
   declare exactly the binders around it, and rejects any label inside an `EXCEPT`
   replacement. The rewriter therefore skips a match that would put a labelled binding
   under a binder of B, as `FunEta` puts `f` under `e`, or into an `EXCEPT` replacement,
-  as `RecordExceptSame` does with `r`. A fresh operand drawn inside an `EXCEPT`
+  as `RecordExceptSame` does with `r`. It also skips a labelled binding that B puts
+  into a `LET` definition or `LAMBDA` body, which starts a new label scope, or into an
+  argument of a higher-order parameter, which beta reduction moves under the binders of
+  the parameter's body. A higher-order parameter applied to anything other than
+  variables that B binds may not carry a label either: the label would declare the
+  variable that beta reduction replaces. A fresh operand drawn inside an `EXCEPT`
   replacement has no label.
 - **Definitions.** A copied value also copies its `LET` definitions. Sibling definitions
   of one name are valid TLA<sup>+</sup>, but `PrettyWriter` moves the definitions of an
@@ -288,11 +320,14 @@ checks items 2–4.
    body. TLC evaluates conjuncts from left to right, so their order matters as well.
    In `Init`, TLC assigns the unprimed variables in the same positions, so there the
    rewriter treats a variable like a primed name. The loader records, for each Boolean
-   matched parameter, whether B keeps it in such a position, exactly once. It also records whether B preserves the left-to-right
-   order of those parameters. The rewriter skips a match that binds a parameter to a
-   primed subterm unless both facts hold. This rules out:
+   matched parameter, whether A and B each hold it in such a position, exactly once. It
+   also records whether B preserves the left-to-right order of those parameters. The
+   rewriter skips a match that binds a parameter to a primed subterm unless both facts
+   hold. This rules out:
    - `DoubleNeg` on `x' = 1` ([ADR 0016][adr-0016] probe P5);
-   - a commutation `(P /\ Q) = (Q /\ P)` on `x' = 1 /\ x' > 0`.
+   - a commutation `(P /\ Q) = (Q /\ P)` on `x' = 1 /\ x' > 0`;
+   - `(IF P THEN Q ELSE R) = ((P /\ Q) \/ (~P /\ R))` on `IF x' = 1 THEN … ELSE …`,
+     which would turn the condition into an assigning conjunct.
 4. **Closed.** Every free name of B is a parameter, a built-in operator, or a helper.
 
 A rule is **TLC-only** when its helper closure includes a definition that Snowcat
@@ -338,7 +373,7 @@ signature's types, so the TLC self-test was removed.
 
 ### 8. Package placement
 
-- **`workflow.rewrite.RewritePreparation`** runs Snowcat, writes and verifies the
+- **`workflow.library.RuleLibraryPreparation`** runs Snowcat, writes and verifies the
   manifest, and hands over the typed module. It is shaped like `LibraryPreparation`.
 - **`gen.rewrite.RewriteLibrary`** is the immutable result: the rules in declaration
   order, the parameter classes, the head-operator index, and the precomputed contract

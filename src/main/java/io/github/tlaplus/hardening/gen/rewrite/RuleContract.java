@@ -107,6 +107,10 @@ final class RuleContract {
                 .map(RuleParameter::name)
                 .collect(java.util.stream.Collectors.toSet());
         requireMillerPatterns(name, pattern, higherOrder, Set.of());
+        requireApplied(name, replacement, higherOrder);
+        var signature = new HashSet<Integer>(TlaTypes.usedVariables(TlaTypes.typeOf(pattern)));
+        parameters.forEach(parameter -> signature.addAll(TlaTypes.usedVariables(parameter.type())));
+        replacement = LetSpecialization.specialize(name, replacement, signature);
         return new RewriteRule(name, weight, pattern, replacement, parameters,
                 assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
     }
@@ -159,22 +163,59 @@ final class RuleContract {
         }
     }
 
+    /**
+     * Requires the replacement to apply every higher-order parameter. Its binding is a lambda, which
+     * instantiation removes only by beta reduction; to pass it on, a rule writes {@code LAMBDA x : P(x)}.
+     */
+    private static void requireApplied(String rule, TlaEx replacement, Set<String> higherOrder) {
+        switch (replacement) {
+            case NameEx name -> {
+                if (higherOrder.contains(name.name())) {
+                    throw rejected(rule, "the operator parameter " + name.name()
+                            + " must be applied in the replacement; pass LAMBDA x : " + name.name() + "(x) instead");
+                }
+            }
+            case LetInEx let -> {
+                TlaExpressions.localDeclarations(let)
+                        .forEach(declaration -> requireApplied(rule, declaration.body(), higherOrder));
+                requireApplied(rule, let.body(), higherOrder);
+            }
+            case OperEx application -> {
+                var arguments = TlaExpressions.arguments(application);
+                var applied = application.oper() == OPER_APP && arguments.getFirst() instanceof NameEx;
+                for (var argument : applied ? arguments.subList(1, arguments.size()) : arguments) {
+                    requireApplied(rule, argument, higherOrder);
+                }
+            }
+            default -> {}
+        }
+    }
+
     /** Precomputes where the Boolean matched parameters end up in the replacement (ADR 0017 §5.3). */
     private static AssignmentFacts assignments(TlaEx pattern, TlaEx replacement, List<RuleParameter> parameters) {
         var booleans = parameters.stream()
                 .filter(RuleContract::carriesFormulas)
                 .map(RuleParameter::name)
                 .collect(java.util.stream.Collectors.toSet());
-        var occurrences = new HashMap<String, List<Boolean>>();
-        collectOccurrences(replacement, true, booleans, occurrences);
-        var preserved = new HashSet<String>();
-        occurrences.forEach((parameter, positions) -> {
-            if (positions.size() == 1 && positions.getFirst()) {
-                preserved.add(parameter);
-            }
-        });
+        // A formula that assigned in the pattern must still assign, once; one that did not must not
+        // start to, or a guard such as an IF condition would become an assignment.
+        var preserved = assigningOnce(replacement, booleans);
+        preserved.retainAll(assigningOnce(pattern, booleans));
         return new AssignmentFacts(preserved, firstOccurrences(pattern, booleans), firstOccurrences(replacement, booleans),
                 operands(replacement, PRIME), operands(replacement, UNCHANGED));
+    }
+
+    /** Returns the parameters that occur exactly once in {@code expression}, in an assigning position. */
+    private static Set<String> assigningOnce(TlaEx expression, Set<String> parameters) {
+        var occurrences = new HashMap<String, List<Boolean>>();
+        collectOccurrences(expression, true, parameters, occurrences);
+        var once = new HashSet<String>();
+        occurrences.forEach((parameter, positions) -> {
+            if (positions.size() == 1 && positions.getFirst()) {
+                once.add(parameter);
+            }
+        });
+        return once;
     }
 
     /** Returns the parameters {@code operator} applies to directly in {@code expression}. */
@@ -269,7 +310,7 @@ final class RuleContract {
         return order;
     }
 
-    private static IllegalArgumentException rejected(String rule, String reason) {
+    static IllegalArgumentException rejected(String rule, String reason) {
         return new IllegalArgumentException("rewrite rule " + rule + ": " + reason);
     }
 

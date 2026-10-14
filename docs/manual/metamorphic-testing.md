@@ -176,8 +176,9 @@ Apalache commits.
 ## 5. Writing rules
 
 A rule is an operator of the rule module. Its body relates a pattern A to its
-replacement B. The shipped `libraries/rewrites/Rewrites.tla` has several rules per type;
-this module shows the format:
+replacement B. The shipped `libraries/rewrites/Rewrites.tla` has several rules per
+type, and a section of beta and iota redexes, such as `x = LET F(v) == v IN F(x)` and
+`x = [field0 |-> x].field0`. This module shows the format:
 
 ```tla
 ------------------------------ MODULE Rewrites ------------------------------
@@ -194,7 +195,8 @@ AlwaysTwice(F) == []F <=> [][]F
 ```
 
 - **Every top-level definition is a rule.** Put helpers in a module that the rule
-  module `EXTENDS`. B may apply them, A may not.
+  module `EXTENDS`. B may apply them, A may not. The relation module does not link
+  helpers yet, so the shipped rules define what they need in a `LET` inside B.
 - **Rewriting goes from A to B only.** Add a second rule for the other direction.
 - **Use `<=>` for temporal formulas.** SANY rejects `=` between them.
 - **Annotate when Snowcat asks.** Snowcat cannot tell a tuple from a sequence, or a
@@ -203,6 +205,12 @@ AlwaysTwice(F) == []F <=> [][]F
 - **Records and variants use the generator's names.** A pattern names a field or a tag
   literally, so the shipped record and variant rules use `field0` and `Tag0`, the first
   names that the generator draws.
+- **Apply higher-order parameters in B.** B may apply `P` to any term, and the
+  rewriter beta-reduces the application. To pass `P` to an operator, write
+  `LAMBDA x : P(x)`; the loader rejects a bare `P`.
+- **Bind names, not tuples, in B.** Apalache's `PrettyWriter` prints a tuple binder
+  of `\A`, `\E` or `CHOOSE` as one identifier, which SANY rejects. Bind a pair `t` and
+  use `t[1]` and `t[2]`.
 - **Parenthesize.** A pattern matches what SANY parses. `x + y - y` is
   `x + (y - y)`, because binary `-` binds tighter than `+`, and `UNCHANGED x = e` is a
   precedence error.

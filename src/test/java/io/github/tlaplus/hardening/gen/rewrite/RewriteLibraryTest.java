@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.rewrite.RuleParameter.Kind;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
@@ -94,6 +96,66 @@ class RewriteLibraryTest {
                 () -> library(rule("Free", B.eql(applied, B.not(B.not(B.operApply(B.name("P", PREDICATE),
                                 B.name("x", ELEMENT))))),
                         B.param("x", ELEMENT), B.param("P", PREDICATE))));
+    }
+
+    /** A lambda left unapplied would reach the output, so a replacement passes LAMBDA x : P(x) instead. */
+    @Test
+    void rejectsAnOperatorParameterThatTheReplacementDoesNotApply() {
+        var keepType = TlaTypes.operator(TlaTypes.set(ELEMENT), TlaTypes.set(ELEMENT), PREDICATE);
+        var keep = B.decl("Keep", B.filter(B.name("d", ELEMENT), elements("T"),
+                        B.operApply(B.name("G", PREDICATE), B.name("d", ELEMENT))),
+                B.param("T", TlaTypes.set(ELEMENT)), B.param("G", PREDICATE));
+        var pattern = B.filter(B.name("e", ELEMENT), elements("S"), B.operApply(B.name("P", PREDICATE), B.name("e", ELEMENT)));
+        var replacement = B.letIn(B.operApply(B.name("Keep", keepType), elements("S"), B.name("P", PREDICATE)), keep);
+        assertRejected("the operator parameter P must be applied in the replacement",
+                () -> library(rule("PassOn", B.eql(pattern, replacement),
+                        B.param("S", TlaTypes.set(ELEMENT)), B.param("P", PREDICATE))));
+    }
+
+    /**
+     * A LET definition body starts a new label scope, and beta reduction moves the arguments of a
+     * higher-order parameter under the binders of its body.
+     */
+    @Test
+    void precomputesWhereALabelOfABindingIsInvalid() {
+        var library = library(letConst(), inFilter(), forallSwap(), commuteAnd());
+        assertEquals(Set.of("x"), find(library, "LetConst").unlabelled());
+        assertEquals(Set.of("x", "P"), find(library, "InFilter").unlabelled(),
+                "P applies to x, which no binder of the replacement introduces");
+        assertEquals(Set.of("S", "P"), find(library, "ForallSwap").unlabelled());
+        assertEquals(Set.of(), find(library, "CommuteAnd").unlabelled());
+    }
+
+    /** A formula may keep an assignment, but must not become one: an IF condition is a guard. */
+    @Test
+    void aFormulaThatDidNotAssignInThePatternMustNotAssignInTheReplacement() {
+        var library = library(inFilter(), ifAsAndOr());
+        assertFalse(find(library, "InFilter").assignments().admits(Set.of("P")),
+                "the filter's body would become a conjunct");
+        var conditional = find(library, "IfAsAndOr").assignments();
+        assertTrue(conditional.admits(Set.of("Q", "R")), "each branch stays an assigning disjunct, in order");
+        assertFalse(conditional.admits(Set.of("P")), "the condition is copied and becomes a conjunct");
+    }
+
+    /**
+     * Snowcat types a LET definition that reads no parameter over variables of its own, which the
+     * rewriter would draw apart from the definition's application.
+     */
+    @Test
+    void typesALetDefinitionOfTheReplacementAsTheReplacementAppliesIt() {
+        var replacement = (LetInEx) find(library(letApply()), "LetApply").replacement();
+        var definition = TlaExpressions.localDeclarations(replacement).getFirst();
+        assertEquals(TlaTypes.operator(ELEMENT, ELEMENT), TlaTypes.typeOf(definition));
+        assertEquals(ELEMENT, TlaTypes.typeOf(definition.body()));
+
+        var other = TlaTypes.typeVariable(1);
+        var own = TlaTypes.typeVariable(2);
+        var pair = B.tuple(B.name("x", ELEMENT), B.name("y", other));
+        var twice = B.letIn(B.tuple(B.operApply(B.name("F", TlaTypes.operator(ELEMENT, ELEMENT)), B.name("x", ELEMENT)),
+                        B.operApply(B.name("F", TlaTypes.operator(other, other)), B.name("y", other))),
+                B.decl("F", B.name("v", own), B.param("v", own)));
+        assertRejected("apply each definition at one type",
+                () -> library(rule("Twice", B.eql(pair, twice), B.param("x", ELEMENT), B.param("y", other))));
     }
 
     private static void assertRejected(String message, org.junit.jupiter.api.function.Executable executable) {
