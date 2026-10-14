@@ -295,7 +295,11 @@ class AllDefectsTest {
                                         TlaTypes.operator(intSequence, intSequence), sequence))),
                 Map.entry("fold-concatenation",
                         List.of(sequenceFold(builder.concat(builder.seq(x), reversed)),
-                                sequenceFold(builder.append(reversed, x)))));
+                                sequenceFold(builder.append(reversed, x)))),
+                Map.entry("sany-minus-over-action-subscript",
+                        List.of(builder.uminus(builder.ite(
+                                        builder.enabled(builder.stutter(shapes.action(), flag)), step, step)),
+                                builder.uminus(builder.ite(builder.enabled(shapes.action()), step, step)))));
     }
 
     /** A fold over {@code s} whose combinator builds {@code body} from its accumulator {@code r} and element {@code x}. */

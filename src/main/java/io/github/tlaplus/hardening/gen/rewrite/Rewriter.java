@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypeSubstitution;
 import org.apalache_mc.tla.jir.TlaTypeUnifier;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -229,10 +230,14 @@ public final class Rewriter {
                     new OperandGenerator.Name(name.name(), TlaTypes.typeOf(name), OperandGenerator.Kind.BINDER)));
             var rebuilt = new ArrayList<TlaEx>(arguments.size());
             var changed = false;
+            // A label starts a new label scope, as a LET definition does.
+            var labelled = application.oper() == TlaOperators.LABEL;
             for (var index = 0; index < arguments.size(); index++) {
                 var argument = arguments.get(index);
+                var argumentScope = labelled ? newLabelScope(scope)
+                        : binding.scopes(index, arguments.size()) ? inner : scope;
                 var visited = RewritePositions.visits(application, index)
-                        ? visitArgument(application, index, binding.scopes(index, arguments.size()) ? inner : scope, stack)
+                        ? visitArgument(application, index, argumentScope, stack)
                         : argument;
                 changed |= visited != argument;
                 rebuilt.add(visited);
@@ -261,12 +266,7 @@ public final class Rewriter {
         private TlaEx descendLet(LetInEx let, List<OperandGenerator.Name> scope, Stack stack) {
             var declarations = TlaExpressions.localDeclarations(let);
             var inner = new ArrayList<>(scope);
-            var preceding = new ArrayList<OperandGenerator.Name>();
-            for (var name : scope) {
-                preceding.add(name.kind() == OperandGenerator.Kind.BINDER
-                        ? new OperandGenerator.Name(name.name(), name.type(), OperandGenerator.Kind.DEFINITION)
-                        : name);
-            }
+            var preceding = newLabelScope(scope);
             var rebuilt = new ArrayList<TlaOperDecl>(declarations.size());
             var changed = false;
             for (var declaration : declarations) {
@@ -286,6 +286,20 @@ public final class Rewriter {
                 return let;
             }
             return (TlaEx) TlaExpressions.letIn(body, rebuilt).withTag(let.typeTag());
+        }
+
+        /**
+         * Returns {@code scope} as seen from a new label scope, the body of a label or of a LET
+         * definition: an enclosing binder stays visible but is no parameter of a label in it.
+         */
+        private static List<OperandGenerator.Name> newLabelScope(List<OperandGenerator.Name> scope) {
+            var demoted = new ArrayList<OperandGenerator.Name>(scope.size());
+            for (var name : scope) {
+                demoted.add(name.kind() == OperandGenerator.Kind.BINDER
+                        ? new OperandGenerator.Name(name.name(), name.type(), OperandGenerator.Kind.DEFINITION)
+                        : name);
+            }
+            return demoted;
         }
 
         /** Returns the rules that match at {@code node}, whose open type variables fit the limits. */
