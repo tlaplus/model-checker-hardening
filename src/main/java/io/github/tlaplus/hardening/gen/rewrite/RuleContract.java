@@ -194,16 +194,25 @@ final class RuleContract {
                 .filter(RuleContract::carriesFormulas)
                 .map(RuleParameter::name)
                 .collect(java.util.stream.Collectors.toSet());
-        var occurrences = new HashMap<String, List<Boolean>>();
-        collectOccurrences(replacement, true, booleans, occurrences);
-        var preserved = new HashSet<String>();
-        occurrences.forEach((parameter, positions) -> {
-            if (positions.size() == 1 && positions.getFirst()) {
-                preserved.add(parameter);
-            }
-        });
+        // A formula that assigned in the pattern must still assign, once; one that did not must not
+        // start to, or a guard such as an IF condition would become an assignment.
+        var preserved = assigningOnce(replacement, booleans);
+        preserved.retainAll(assigningOnce(pattern, booleans));
         return new AssignmentFacts(preserved, firstOccurrences(pattern, booleans), firstOccurrences(replacement, booleans),
                 operands(replacement, PRIME), operands(replacement, UNCHANGED));
+    }
+
+    /** Returns the parameters that occur exactly once in {@code expression}, in an assigning position. */
+    private static Set<String> assigningOnce(TlaEx expression, Set<String> parameters) {
+        var occurrences = new HashMap<String, List<Boolean>>();
+        collectOccurrences(expression, true, parameters, occurrences);
+        var once = new HashSet<String>();
+        occurrences.forEach((parameter, positions) -> {
+            if (positions.size() == 1 && positions.getFirst()) {
+                once.add(parameter);
+            }
+        });
+        return once;
     }
 
     /** Returns the parameters {@code operator} applies to directly in {@code expression}. */

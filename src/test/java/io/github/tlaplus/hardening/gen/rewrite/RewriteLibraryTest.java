@@ -124,6 +124,17 @@ class RewriteLibraryTest {
         assertEquals(Set.of(), find(library, "CommuteAnd").unlabelled());
     }
 
+    /** A formula may keep an assignment, but must not become one: an IF condition is a guard. */
+    @Test
+    void aFormulaThatDidNotAssignInThePatternMustNotAssignInTheReplacement() {
+        var library = library(inFilter(), ifAsAndOr());
+        assertFalse(find(library, "InFilter").assignments().admits(Set.of("P")),
+                "the filter's body would become a conjunct");
+        var conditional = find(library, "IfAsAndOr").assignments();
+        assertTrue(conditional.admits(Set.of("Q", "R")), "each branch stays an assigning disjunct, in order");
+        assertFalse(conditional.admits(Set.of("P")), "the condition is copied and becomes a conjunct");
+    }
+
     private static void assertRejected(String message, org.junit.jupiter.api.function.Executable executable) {
         var failure = assertThrows(IllegalArgumentException.class, executable);
         assertTrue(failure.getMessage().contains(message), failure.getMessage());

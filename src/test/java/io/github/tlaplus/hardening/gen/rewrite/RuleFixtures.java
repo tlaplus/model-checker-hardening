@@ -113,6 +113,13 @@ final class RuleFixtures {
                 B.param("S", TlaTypes.set(ELEMENT)), B.param("T", TlaTypes.set(OTHER)), B.param("P", RELATION));
     }
 
+    /** {@code (IF P THEN Q ELSE R) = ((P /\ Q) \/ (~P /\ R))}, a law of Boolean IF only. */
+    static TlaOperDecl ifAsAndOr() {
+        var replacement = B.or(B.and(bool("P"), bool("Q")), B.and(B.not(bool("P")), bool("R")));
+        return B.decl("IfAsAndOr", B.eql(B.ite(bool("P"), bool("Q"), bool("R")), replacement),
+                B.param("P", TlaTypes.BOOL), B.param("Q", TlaTypes.BOOL), B.param("R", TlaTypes.BOOL));
+    }
+
     private static TlaEx nestedForall() {
         return B.forall(B.name("e", ELEMENT), elements("S"),
                 B.forall(B.name("d", OTHER), others("T"), applyRelation()));

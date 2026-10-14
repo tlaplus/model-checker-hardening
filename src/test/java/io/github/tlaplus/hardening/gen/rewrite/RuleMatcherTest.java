@@ -186,6 +186,20 @@ class RuleMatcherTest {
         assertTrue(RuleMatcher.match(checked(letConst()), B.label(integer("a"), "lab")).isEmpty());
     }
 
+    @Test
+    void aBooleanIfBecomesDisjunctsThatKeepTheirAssignments() {
+        var first = B.primeEq(integer("x"), B.integer(1));
+        var second = B.primeEq(integer("x"), B.integer(2));
+        var guard = B.gt(integer("y"), B.integer(0));
+        assertEquals(B.or(B.and(guard, first), B.and(B.not(guard), second)),
+                rewrite(ifAsAndOr(), B.ite(guard, first, second)).orElseThrow());
+        var primedGuard = B.primeEq(integer("x"), B.integer(1));
+        assertTrue(rewrite(ifAsAndOr(), B.ite(primedGuard, guard, B.bool(true))).isEmpty(),
+                "the condition would become an assignment, and its copy a negated one");
+        var filtered = B.in(integer("a"), B.filter(integer("q"), T, B.primeEq(integer("z"), integer("q"))));
+        assertTrue(rewrite(inFilter(), filtered).isEmpty(), "the filter's body would become an assigning conjunct");
+    }
+
     /** Matches the rule and instantiates it with numbered binder names and no fresh parameter. */
     private static Optional<TlaEx> rewrite(TlaOperDecl definition, TlaEx node) {
         var counter = new AtomicInteger();
