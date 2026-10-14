@@ -12,6 +12,7 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.List;
 import java.util.Map;
@@ -124,6 +125,27 @@ class RewriterTest {
             drawn += definitions[0];
         }
         assertTrue(drawn > 20, "only " + drawn + " definitions were rewritten");
+    }
+
+    /**
+     * A label starts a new label scope: a label inside it declares only the binders between the
+     * two. SANY rejects a label in a fresh operand that declares a binder of an enclosing label.
+     */
+    @Test
+    void aLabelInAnOperandDrawnUnderALabelDeclaresOnlyTheBindersBelowIt() {
+        var bound = integer("x");
+        var labelled = B.exists(bound, B.enumSet(B.integer(1)),
+                B.label(B.gt(B.plus(integer("x"), B.integer(1)), B.integer(0)), "label3", "x"));
+        var random = new Random(13);
+        var nested = 0;
+        for (var sample = 0; sample < 400; sample++) {
+            var bytes = new byte[64];
+            random.nextBytes(bytes);
+            var rewritten = rewriter(library(addSub())).rewriteExpression(labelled, new Draw(bytes)).rewritten();
+            TlaIrTestSupport.assertLabelParameters(rewritten);
+            nested += IrNames.labels(rewritten).size() > 1 ? 1 : 0;
+        }
+        assertTrue(nested > 10, "only " + nested + " operands drew a label");
     }
 
     @Test
