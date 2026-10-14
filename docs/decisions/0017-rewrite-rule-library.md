@@ -216,8 +216,9 @@ The loader classifies each parameter once:
   ([ir-generators.md §11][generators]).
 - **Higher-order.** `P(_, …, _)` with arity k. In A, it occurs only as `P(e1, …, ek)`,
   where `e1, …, ek` are distinct variables that A binds (Miller's pattern fragment).
-  It binds to `LAMBDA e1, …, ek : body`, and each application in B is beta-reduced. A
-  higher-order parameter must be matched: it cannot be fresh.
+  It binds to `LAMBDA e1, …, ek : body`, and each application in B is beta-reduced,
+  whatever its arguments. A higher-order parameter must be matched: it cannot be fresh.
+  B must apply it: to pass it to an operator, B writes `LAMBDA x : P(x)`.
 
 ### 4. Matching and instantiation
 
@@ -256,7 +257,12 @@ among the rules that match a node.
   declare exactly the binders around it, and rejects any label inside an `EXCEPT`
   replacement. The rewriter therefore skips a match that would put a labelled binding
   under a binder of B, as `FunEta` puts `f` under `e`, or into an `EXCEPT` replacement,
-  as `RecordExceptSame` does with `r`. A fresh operand drawn inside an `EXCEPT`
+  as `RecordExceptSame` does with `r`. It also skips a labelled binding that B puts
+  into a `LET` definition or `LAMBDA` body, which starts a new label scope, or into an
+  argument of a higher-order parameter, which beta reduction moves under the binders of
+  the parameter's body. A higher-order parameter applied to anything other than
+  variables that B binds may not carry a label either: the label would declare the
+  variable that beta reduction replaces. A fresh operand drawn inside an `EXCEPT`
   replacement has no label.
 - **Definitions.** A copied value also copies its `LET` definitions. Sibling definitions
   of one name are valid TLA<sup>+</sup>, but `PrettyWriter` moves the definitions of an
@@ -288,11 +294,14 @@ checks items 2–4.
    body. TLC evaluates conjuncts from left to right, so their order matters as well.
    In `Init`, TLC assigns the unprimed variables in the same positions, so there the
    rewriter treats a variable like a primed name. The loader records, for each Boolean
-   matched parameter, whether B keeps it in such a position, exactly once. It also records whether B preserves the left-to-right
-   order of those parameters. The rewriter skips a match that binds a parameter to a
-   primed subterm unless both facts hold. This rules out:
+   matched parameter, whether A and B each hold it in such a position, exactly once. It
+   also records whether B preserves the left-to-right order of those parameters. The
+   rewriter skips a match that binds a parameter to a primed subterm unless both facts
+   hold. This rules out:
    - `DoubleNeg` on `x' = 1` ([ADR 0016][adr-0016] probe P5);
-   - a commutation `(P /\ Q) = (Q /\ P)` on `x' = 1 /\ x' > 0`.
+   - a commutation `(P /\ Q) = (Q /\ P)` on `x' = 1 /\ x' > 0`;
+   - `(IF P THEN Q ELSE R) = ((P /\ Q) \/ (~P /\ R))` on `IF x' = 1 THEN … ELSE …`,
+     which would turn the condition into an assigning conjunct.
 4. **Closed.** Every free name of B is a parameter, a built-in operator, or a helper.
 
 A rule is **TLC-only** when its helper closure includes a definition that Snowcat
