@@ -36,6 +36,25 @@ value (`FunEta`, `SubSeqWhole`) 4, and rules that replace an operator 8. Weights
 still only choose among the rules that match one node. A node that only padding
 matches is rewritten as often as before.
 
+**Revision: definitions and application.** `Rewrites.tla` now ships 124 rules. A new
+section introduces beta and iota redexes: `LET` and `LAMBDA` definitions applied on the
+spot, a binder body moved into a `LET` operator, and a constructor followed by its
+projection. Other sections gain rules for `CASE`, filters, maps, nested quantifiers,
+`SUBSET`, `UNION` and ranges. A redex that matches every value of a type has weight 1,
+like padding. Four engine changes come with them:
+- a replacement must apply each higher-order parameter (section 3);
+- a label of a binding may not move into a `LET` definition or into the argument of a
+  higher-order parameter (section 4);
+- a Boolean parameter that reads a primed variable must already assign in A (section
+  5.3), so an `IF` condition does not become an assignment.
+- a `LET` definition of B is typed as B applies it (section 4).
+
+Replacements do not bind tuples, as in `\A <<e, d>> \in S \X T`. Apalache's
+`PrettyWriter` prints such a binder of `\A`, `\E` or `CHOOSE` as an identifier,
+`id_e__d_`, which SANY rejects. This holds for Apalache 0.62.3 (build `3eb15b2`) and
+for `main` at `8677897`. `ForallPair` writes `\A t \in S \X T : P(t[1], t[2])`
+instead.
+
 ## Context
 
 [ADR 0016][adr-0016] proposes metamorphic testing: a byte-directed rewriter maps a
@@ -353,7 +372,7 @@ signature's types, so the TLC self-test was removed.
 
 ### 8. Package placement
 
-- **`workflow.rewrite.RewritePreparation`** runs Snowcat, writes and verifies the
+- **`workflow.library.RuleLibraryPreparation`** runs Snowcat, writes and verifies the
   manifest, and hands over the typed module. It is shaped like `LibraryPreparation`.
 - **`gen.rewrite.RewriteLibrary`** is the immutable result: the rules in declaration
   order, the parameter classes, the head-operator index, and the precomputed contract
