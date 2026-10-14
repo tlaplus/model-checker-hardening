@@ -96,6 +96,20 @@ class RewriteLibraryTest {
                         B.param("x", ELEMENT), B.param("P", PREDICATE))));
     }
 
+    /** A lambda left unapplied would reach the output, so a replacement passes LAMBDA x : P(x) instead. */
+    @Test
+    void rejectsAnOperatorParameterThatTheReplacementDoesNotApply() {
+        var keepType = TlaTypes.operator(TlaTypes.set(ELEMENT), TlaTypes.set(ELEMENT), PREDICATE);
+        var keep = B.decl("Keep", B.filter(B.name("d", ELEMENT), elements("T"),
+                        B.operApply(B.name("G", PREDICATE), B.name("d", ELEMENT))),
+                B.param("T", TlaTypes.set(ELEMENT)), B.param("G", PREDICATE));
+        var pattern = B.filter(B.name("e", ELEMENT), elements("S"), B.operApply(B.name("P", PREDICATE), B.name("e", ELEMENT)));
+        var replacement = B.letIn(B.operApply(B.name("Keep", keepType), elements("S"), B.name("P", PREDICATE)), keep);
+        assertRejected("the operator parameter P must be applied in the replacement",
+                () -> library(rule("PassOn", B.eql(pattern, replacement),
+                        B.param("S", TlaTypes.set(ELEMENT)), B.param("P", PREDICATE))));
+    }
+
     /**
      * A LET definition body starts a new label scope, and beta reduction moves the arguments of a
      * higher-order parameter under the binders of its body.

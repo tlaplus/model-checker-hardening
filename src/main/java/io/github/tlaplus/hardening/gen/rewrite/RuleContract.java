@@ -107,6 +107,7 @@ final class RuleContract {
                 .map(RuleParameter::name)
                 .collect(java.util.stream.Collectors.toSet());
         requireMillerPatterns(name, pattern, higherOrder, Set.of());
+        requireApplied(name, replacement, higherOrder);
         return new RewriteRule(name, weight, pattern, replacement, parameters,
                 assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
     }
@@ -156,6 +157,34 @@ final class RuleContract {
                 }
             }
             default -> throw rejected(rule, "unsupported pattern: " + expression);
+        }
+    }
+
+    /**
+     * Requires the replacement to apply every higher-order parameter. Its binding is a lambda, which
+     * instantiation removes only by beta reduction; to pass it on, a rule writes {@code LAMBDA x : P(x)}.
+     */
+    private static void requireApplied(String rule, TlaEx replacement, Set<String> higherOrder) {
+        switch (replacement) {
+            case NameEx name -> {
+                if (higherOrder.contains(name.name())) {
+                    throw rejected(rule, "the operator parameter " + name.name()
+                            + " must be applied in the replacement; pass LAMBDA x : " + name.name() + "(x) instead");
+                }
+            }
+            case LetInEx let -> {
+                TlaExpressions.localDeclarations(let)
+                        .forEach(declaration -> requireApplied(rule, declaration.body(), higherOrder));
+                requireApplied(rule, let.body(), higherOrder);
+            }
+            case OperEx application -> {
+                var arguments = TlaExpressions.arguments(application);
+                var applied = application.oper() == OPER_APP && arguments.getFirst() instanceof NameEx;
+                for (var argument : applied ? arguments.subList(1, arguments.size()) : arguments) {
+                    requireApplied(rule, argument, higherOrder);
+                }
+            }
+            default -> {}
         }
     }
 
