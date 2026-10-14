@@ -155,6 +155,77 @@ ExistsUnion(S, T, P(_)) ==
 ForallAnd(S, P(_), Q(_)) ==
     (\A e \in S : P(e) /\ Q(e)) = ((\A e \in S : P(e)) /\ (\A e \in S : Q(e)))
 
+\* @weight: 8;
+ExistsAsFilter(S, P(_)) == (\E e \in S : P(e)) = ({e \in S : P(e)} # {})
+
+\* @weight: 8;
+ForallAsFilter(S, P(_)) == (\A e \in S : P(e)) = ({e \in S : P(e)} = S)
+
+\* @weight: 8;
+ExistsOr(S, P(_), Q(_)) ==
+    (\E e \in S : P(e) \/ Q(e)) = ((\E e \in S : P(e)) \/ (\E e \in S : Q(e)))
+
+\* @weight: 2;
+ForallSwap(S, T, P(_, _)) ==
+    (\A e \in S : \A d \in T : P(e, d)) = (\A d \in T : \A e \in S : P(e, d))
+
+\* @weight: 2;
+ExistsSwap(S, T, P(_, _)) ==
+    (\E e \in S : \E d \in T : P(e, d)) = (\E d \in T : \E e \in S : P(e, d))
+
+\* Not \A <<e, d>> \in S \X T: Apalache's PrettyWriter prints a tuple binder as a name.
+\* @weight: 8;
+ForallPair(S, T, P(_, _)) ==
+    (\A e \in S : \A d \in T : P(e, d)) = (\A t \in S \X T : P(t[1], t[2]))
+
+\* @weight: 8;
+ExistsPair(S, T, P(_, _)) ==
+    (\E e \in S : \E d \in T : P(e, d)) = (\E t \in S \X T : P(t[1], t[2]))
+
+\* @weight: 8;
+ExistsFilter(S, P(_), Q(_)) ==
+    (\E e \in {d \in S : P(d)} : Q(e)) = (\E e \in S : P(e) /\ Q(e))
+
+\* @weight: 8;
+ForallFilter(S, P(_), Q(_)) ==
+    (\A e \in {d \in S : P(d)} : Q(e)) = (\A e \in S : P(e) => Q(e))
+
+\* @weight: 8;
+ExistsMap(S, F(_), P(_)) == (\E e \in {F(d) : d \in S} : P(e)) = (\E d \in S : P(F(d)))
+
+\* @weight: 8;
+MapMap(S, F(_), G(_)) == {G(e) : e \in {F(d) : d \in S}} = {G(F(d)) : d \in S}
+
+\* @weight: 8;
+MapAsUnion(S, F(_)) == {F(e) : e \in S} = UNION {{F(e)} : e \in S}
+
+\* @weight: 8;
+FilterAsUnion(S, P(_)) == {e \in S : P(e)} = UNION {IF P(e) THEN {e} ELSE {} : e \in S}
+
+\* @weight: 8;
+InFilter(x, S, P(_)) == (x \in {e \in S : P(e)}) = (x \in S /\ P(x))
+
+\* @weight: 8;
+InMap(x, S, F(_)) == (x \in {F(e) : e \in S}) = (\E e \in S : F(e) = x)
+
+\* @weight: 8;
+InAsExists(x, S) == (x \in S) = (\E e \in S : x = e)
+
+\* @weight: 8;
+InRange(x, a, b) == (x \in a .. b) = (a <= x /\ x <= b)
+
+\* @weight: 8;
+UnionAsBigUnion(S, T) == (S \union T) = UNION {S, T}
+
+\* @weight: 8;
+SubsetAsPowerset(S, T) == (S \subseteq T) = (S \in SUBSET T)
+
+\* @weight: 8;
+InPowersetAsSubset(S, T) == (S \in SUBSET T) = (S \subseteq T)
+
+\* @weight: 8;
+SetEqAsSubset(S, T) == (S = T) = (S \subseteq T /\ T \subseteq S)
+
 \* Functions
 \* @weight: 4;
 FunEta(f) == f = [e \in DOMAIN f |-> f[e]]
@@ -189,6 +260,9 @@ LenAppend(s, x) == Len(Append(s, x)) = Len(s) + 1
 
 \* @weight: 4;
 SubSeqWhole(s) == s = SubSeq(s, 1, Len(s))
+
+\* @weight: 8;
+InSeqSet(s, S) == (s \in Seq(S)) = (\A i \in 1 .. Len(s) : s[i] \in S)
 
 \* Tuples
 \* @type: (<<a, b>>) => Bool;

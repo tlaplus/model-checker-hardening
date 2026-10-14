@@ -15,9 +15,11 @@
 (*                         "field0" \in D                                 *)
 (*   (a) => Bool           NEW P(_), \A e \in S : P(e) \in BOOLEAN         *)
 (*                         for the set S that P ranges over                *)
+(*   (a, b) => Bool        NEW P(_, _),                                    *)
+(*                         \A e \in S, d \in T : P(e, d) \in BOOLEAN       *)
 (*   a primed parameter    NEW VARIABLE x                                  *)
 (*                                                                         *)
-(* Checked with TLAPM b064bce: all 96 obligations proved.                  *)
+(* Checked with TLAPM b064bce: all 149 obligations proved.                 *)
 (*                                                                         *)
 (*   make proofs                                                           *)
 (***************************************************************************)
@@ -179,6 +181,105 @@ THEOREM ForallAndValid ==
   PROVE  ForallAnd(S, P, Q)
   BY DEF ForallAnd
 
+THEOREM ExistsAsFilterValid ==
+  ASSUME NEW S, NEW P(_), \A e \in S : P(e) \in BOOLEAN PROVE ExistsAsFilter(S, P)
+  BY DEF ExistsAsFilter
+
+THEOREM ForallAsFilterValid ==
+  ASSUME NEW S, NEW P(_), \A e \in S : P(e) \in BOOLEAN PROVE ForallAsFilter(S, P)
+  BY DEF ForallAsFilter
+
+THEOREM ExistsOrValid ==
+  ASSUME NEW S, NEW P(_), NEW Q(_),
+         \A e \in S : P(e) \in BOOLEAN, \A e \in S : Q(e) \in BOOLEAN
+  PROVE  ExistsOr(S, P, Q)
+  BY DEF ExistsOr
+
+THEOREM ForallSwapValid ==
+  ASSUME NEW S, NEW T, NEW P(_, _), \A e \in S, d \in T : P(e, d) \in BOOLEAN
+  PROVE  ForallSwap(S, T, P)
+  BY DEF ForallSwap
+
+THEOREM ExistsSwapValid ==
+  ASSUME NEW S, NEW T, NEW P(_, _), \A e \in S, d \in T : P(e, d) \in BOOLEAN
+  PROVE  ExistsSwap(S, T, P)
+  BY DEF ExistsSwap
+
+THEOREM ForallPairValid ==
+  ASSUME NEW S, NEW T, NEW P(_, _), \A e \in S, d \in T : P(e, d) \in BOOLEAN
+  PROVE  ForallPair(S, T, P)
+  <1>1. ASSUME \A e \in S : \A d \in T : P(e, d) PROVE \A t \in S \X T : P(t[1], t[2])
+    BY <1>1
+  <1>2. ASSUME \A t \in S \X T : P(t[1], t[2]) PROVE \A e \in S : \A d \in T : P(e, d)
+    <2> SUFFICES ASSUME NEW e \in S, NEW d \in T PROVE P(e, d)
+      OBVIOUS
+    <2>1. <<e, d>> \in S \X T /\ <<e, d>>[1] = e /\ <<e, d>>[2] = d
+      OBVIOUS
+    <2>2. QED BY <1>2, <2>1
+  <1>3. QED BY <1>1, <1>2 DEF ForallPair
+
+THEOREM ExistsPairValid ==
+  ASSUME NEW S, NEW T, NEW P(_, _), \A e \in S, d \in T : P(e, d) \in BOOLEAN
+  PROVE  ExistsPair(S, T, P)
+  <1>1. ASSUME NEW e \in S, NEW d \in T, P(e, d) PROVE \E t \in S \X T : P(t[1], t[2])
+    <2>1. <<e, d>> \in S \X T /\ <<e, d>>[1] = e /\ <<e, d>>[2] = d
+      OBVIOUS
+    <2>2. QED BY <1>1, <2>1
+  <1>2. ASSUME NEW t \in S \X T, P(t[1], t[2]) PROVE \E e \in S : \E d \in T : P(e, d)
+    BY <1>2
+  <1>3. QED BY <1>1, <1>2 DEF ExistsPair
+
+THEOREM ExistsFilterValid ==
+  ASSUME NEW S, NEW P(_), NEW Q(_),
+         \A e \in S : P(e) \in BOOLEAN, \A e \in S : Q(e) \in BOOLEAN
+  PROVE  ExistsFilter(S, P, Q)
+  BY DEF ExistsFilter
+
+THEOREM ForallFilterValid ==
+  ASSUME NEW S, NEW P(_), NEW Q(_),
+         \A e \in S : P(e) \in BOOLEAN, \A e \in S : Q(e) \in BOOLEAN
+  PROVE  ForallFilter(S, P, Q)
+  BY DEF ForallFilter
+
+THEOREM ExistsMapValid ==
+  ASSUME NEW S, NEW F(_), NEW P(_), \A d \in S : P(F(d)) \in BOOLEAN PROVE ExistsMap(S, F, P)
+  BY DEF ExistsMap
+
+THEOREM MapMapValid == ASSUME NEW S, NEW F(_), NEW G(_) PROVE MapMap(S, F, G)
+  BY DEF MapMap
+
+THEOREM MapAsUnionValid == ASSUME NEW S, NEW F(_) PROVE MapAsUnion(S, F)
+  BY DEF MapAsUnion
+
+THEOREM FilterAsUnionValid ==
+  ASSUME NEW S, NEW P(_), \A e \in S : P(e) \in BOOLEAN PROVE FilterAsUnion(S, P)
+  BY DEF FilterAsUnion
+
+THEOREM InFilterValid ==
+  ASSUME NEW x, NEW S, NEW P(_), \A e \in S : P(e) \in BOOLEAN PROVE InFilter(x, S, P)
+  BY DEF InFilter
+
+THEOREM InMapValid == ASSUME NEW x, NEW S, NEW F(_) PROVE InMap(x, S, F)
+  BY DEF InMap
+
+THEOREM InAsExistsValid == ASSUME NEW x, NEW S PROVE InAsExists(x, S)
+  BY DEF InAsExists
+
+THEOREM InRangeValid == ASSUME NEW x \in Int, NEW a \in Int, NEW b \in Int PROVE InRange(x, a, b)
+  BY DEF InRange
+
+THEOREM UnionAsBigUnionValid == ASSUME NEW S, NEW T PROVE UnionAsBigUnion(S, T)
+  BY DEF UnionAsBigUnion
+
+THEOREM SubsetAsPowersetValid == ASSUME NEW S, NEW T PROVE SubsetAsPowerset(S, T)
+  BY DEF SubsetAsPowerset
+
+THEOREM InPowersetAsSubsetValid == ASSUME NEW S, NEW T PROVE InPowersetAsSubset(S, T)
+  BY DEF InPowersetAsSubset
+
+THEOREM SetEqAsSubsetValid == ASSUME NEW S, NEW T PROVE SetEqAsSubset(S, T)
+  BY DEF SetEqAsSubset
+
 \* Functions
 THEOREM FunEtaValid == ASSUME NEW D, NEW R, NEW f \in [D -> R] PROVE FunEta(f)
   BY DEF FunEta
@@ -222,6 +323,18 @@ THEOREM SubSeqWholeValid == ASSUME NEW A, NEW s \in Seq(A) PROVE SubSeqWhole(s)
         /\ \A i \in 1 .. Len(s) : SubSeq(s, 1, Len(s))[i] = s[i]
     BY SubSeqProperties, LenProperties
   <1>2. QED BY <1>1, SeqEqual DEF SubSeqWhole
+
+THEOREM InSeqSetValid == ASSUME NEW A, NEW s \in Seq(A), NEW S PROVE InSeqSet(s, S)
+  <1>1. /\ Len(s) \in Nat
+        /\ s \in [1 .. Len(s) -> A]
+    BY LenProperties
+  <1>2. ASSUME s \in Seq(S) PROVE \A i \in 1 .. Len(s) : s[i] \in S
+    BY <1>2, ElementOfSeq
+  <1>3. ASSUME \A i \in 1 .. Len(s) : s[i] \in S PROVE s \in Seq(S)
+    <2>1. s \in [1 .. Len(s) -> S]
+      BY <1>1, <1>3
+    <2>2. QED BY <1>1, <2>1, SeqDef
+  <1>4. QED BY <1>2, <1>3 DEF InSeqSet
 
 \* Tuples
 THEOREM PairEtaValid == ASSUME NEW A, NEW B, NEW t \in A \X B PROVE PairEta(t)
