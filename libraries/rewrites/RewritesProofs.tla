@@ -17,7 +17,7 @@
 (*                         for the set S that P ranges over                *)
 (*   a primed parameter    NEW VARIABLE x                                  *)
 (*                                                                         *)
-(* Checked with TLAPM b064bce: all 75 obligations proved.                  *)
+(* Checked with TLAPM b064bce: all 96 obligations proved.                  *)
 (*                                                                         *)
 (*   make proofs                                                           *)
 (***************************************************************************)
@@ -255,4 +255,64 @@ THEOREM VariantTagOfValid == ASSUME NEW x PROVE VariantTagOf(x)
 
 THEOREM VariantGetOfValid == ASSUME NEW x, NEW d PROVE VariantGetOf(x, d)
   BY DEF VariantGetOf, VariantGetOrElse, Variant
+
+\* Definitions and application
+THEOREM LetNameValid == ASSUME NEW x PROVE LetName(x)
+  BY DEF LetName
+
+THEOREM LetApplyValid == ASSUME NEW x PROVE LetApply(x)
+  BY DEF LetApply
+
+THEOREM LetConstValid == ASSUME NEW x, NEW y PROVE LetConst(x, y)
+  BY DEF LetConst
+
+THEOREM LetHigherValid == ASSUME NEW x PROVE LetHigher(x)
+  BY DEF LetHigher
+
+THEOREM ExistsViaLetValid == ASSUME NEW S, NEW P(_) PROVE ExistsViaLet(S, P)
+  BY DEF ExistsViaLet
+
+THEOREM ForallViaLetValid == ASSUME NEW S, NEW P(_) PROVE ForallViaLet(S, P)
+  BY DEF ForallViaLet
+
+THEOREM FilterViaLetValid == ASSUME NEW S, NEW P(_) PROVE FilterViaLet(S, P)
+  BY DEF FilterViaLet
+
+THEOREM MapViaLetValid == ASSUME NEW S, NEW F(_) PROVE MapViaLet(S, F)
+  BY DEF MapViaLet
+
+THEOREM FunViaLetValid == ASSUME NEW S, NEW F(_) PROVE FunViaLet(S, F)
+  BY DEF FunViaLet
+
+THEOREM FilterViaLambdaValid == ASSUME NEW S, NEW P(_) PROVE FilterViaLambda(S, P)
+  BY DEF FilterViaLambda
+
+THEOREM ExistsViaLambdaValid == ASSUME NEW S, NEW P(_) PROVE ExistsViaLambda(S, P)
+  BY DEF ExistsViaLambda
+
+THEOREM FunBetaValid == ASSUME NEW S, NEW F(_), NEW x PROVE FunBeta(S, F, x)
+  BY DEF FunBeta
+
+THEOREM RecordProjValid == ASSUME NEW x PROVE RecordProj(x)
+  BY DEF RecordProj
+
+THEOREM TupleProjValid == ASSUME NEW x, NEW y PROVE TupleProj(x, y)
+  BY DEF TupleProj
+
+THEOREM SeqHeadValid == ASSUME NEW x PROVE SeqHead(x)
+  BY DEF SeqHead
+
+THEOREM FunApplyCtorValid == ASSUME NEW x PROVE FunApplyCtor(x)
+  BY DEF FunApplyCtor
+
+THEOREM FunApplyConstValid == ASSUME NEW x, NEW y PROVE FunApplyConst(x, y)
+  BY DEF FunApplyConst
+
+THEOREM ChooseSingletonValid == ASSUME NEW x PROVE ChooseSingleton(x)
+  <1>1. \E e \in {x} : TRUE
+    OBVIOUS
+  <1>2. QED BY <1>1 DEF ChooseSingleton
+
+THEOREM CaseTrueValid == ASSUME NEW x, NEW y PROVE CaseTrue(x, y)
+  BY DEF CaseTrue
 =============================================================================

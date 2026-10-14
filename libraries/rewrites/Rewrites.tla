@@ -16,11 +16,14 @@
 (* weight, the slots it takes among the rules that apply at a node; an     *)
 (* unannotated rule has weight 1, and [metamorphic] weights overrides it.  *)
 (* The tiers favour rules that change how a checker evaluates a term:      *)
-(*   1  padding, which wraps a value: x + 0, P /\ TRUE, S \union S         *)
+(*   1  padding, which wraps a value: x + 0, P /\ TRUE, S \union S, and    *)
+(*      the beta and iota redexes that match every value of a type:        *)
+(*      LET y == x IN y, [field0 |-> x].field0                             *)
 (*   2  reordering: commutation, symmetry and association                  *)
 (*   4  rebuilding, which reconstructs a value: FunEta, SubSeqWhole        *)
 (*   8  strategy, which replaces an operator: filters, quantifier laws,    *)
-(*      De Morgan, EXCEPT, Len, membership in a product or function set    *)
+(*      De Morgan, EXCEPT, Len, membership in a product or function set,   *)
+(*      CASE, and a binder body moved into a LET definition or a LAMBDA    *)
 (***************************************************************************)
 EXTENDS Integers, FiniteSets, Sequences, Variants
 
@@ -220,4 +223,61 @@ VariantTagOf(x) == VariantTag(Variant("Tag0", x)) = "Tag0"
 
 \* @weight: 8;
 VariantGetOf(x, d) == VariantGetOrElse("Tag0", Variant("Tag0", x), d) = x
+
+\* Definitions and application: beta and iota redexes
+LetName(x) == x = (LET y == x IN y)
+
+LetApply(x) == x = (LET F(v) == v IN F(x))
+
+LetConst(x, y) == x = (LET F(v) == x IN F(y))
+
+LetHigher(x) == x = (LET Ap(G(_), v) == G(v) IN Ap(LAMBDA d : d, x))
+
+\* @weight: 8;
+ExistsViaLet(S, P(_)) == (\E e \in S : P(e)) = (LET Q(d) == P(d) IN \E e \in S : Q(e))
+
+\* @weight: 8;
+ForallViaLet(S, P(_)) == (\A e \in S : P(e)) = (LET Q(d) == P(d) IN \A e \in S : Q(e))
+
+\* @weight: 8;
+FilterViaLet(S, P(_)) == {e \in S : P(e)} = (LET Q(d) == P(d) IN {e \in S : Q(e)})
+
+\* @weight: 8;
+MapViaLet(S, F(_)) == {F(e) : e \in S} = (LET G(d) == F(d) IN {G(e) : e \in S})
+
+\* @weight: 8;
+FunViaLet(S, F(_)) == [e \in S |-> F(e)] = (LET G(d) == F(d) IN [e \in S |-> G(e)])
+
+\* @weight: 8;
+FilterViaLambda(S, P(_)) ==
+    {e \in S : P(e)} = (LET Keep(T, G(_)) == {d \in T : G(d)} IN Keep(S, LAMBDA c : P(c)))
+
+\* @weight: 8;
+ExistsViaLambda(S, P(_)) ==
+    (\E e \in S : P(e)) = (LET Some(T, G(_)) == \E d \in T : G(d) IN Some(S, LAMBDA c : P(c)))
+
+\* @weight: 8;
+FunBeta(S, F(_), x) ==
+    ([e \in S |-> F(e)][x]) = (IF x \in S THEN F(x) ELSE [e \in S |-> F(e)][x])
+
+\* @type: (a) => Bool;
+RecordProj(x) == x = [field0 |-> x].field0
+
+\* Snowcat cannot tell a tuple literal from a sequence: Pair annotates it.
+TupleProj(x, y) ==
+    x = (LET \* @type: (a, b) => <<a, b>>;
+             Pair(u, w) == <<u, w>>
+         IN Pair(x, y)[1])
+
+SeqHead(x) == x = Head(<<x>>)
+
+FunApplyCtor(x) == x = [e \in {x} |-> e][x]
+
+FunApplyConst(x, y) == x = [e \in {y} |-> x][y]
+
+\* Apalache picks a CHOOSE witness non-deterministically: metamorphic-defects.toml
+\* quarantines every CHOOSE.
+ChooseSingleton(x) == x = (CHOOSE e \in {x} : TRUE)
+
+CaseTrue(x, y) == x = (CASE TRUE -> x [] OTHER -> y)
 =============================================================================

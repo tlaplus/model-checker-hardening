@@ -27,19 +27,17 @@ class RuleLibraryPreparationTest {
         var rules = prepared.library().rules();
         assertEquals(List.of("PlusZero", "AddSub", "DoubleNeg", "UnionSelf", "UnchangedPrime", "ForallNotExists",
                 "TimesOne", "NegNeg", "PlusComm", "TimesComm", "PlusAssoc", "MinusAsPlusNeg", "TimesDistrib",
-                "LtAsNotGe", "LeAsLtOrEq", "GtAsLt",
-                "AndTrue", "OrFalse", "AndComm", "OrComm", "DeMorganAnd", "DeMorganOr", "ImpliesAsOr",
-                "EquivAsImplies",
-                "NeqAsNotEq", "EqSym", "IfNegate", "IfTrue",
+                "LtAsNotGe", "LeAsLtOrEq", "GtAsLt", "AndTrue", "OrFalse", "AndComm", "OrComm", "DeMorganAnd",
+                "DeMorganOr", "ImpliesAsOr", "EquivAsImplies", "NeqAsNotEq", "EqSym", "IfNegate", "IfTrue",
                 "UnionEmpty", "IntersectSelf", "MinusEmpty", "UnionComm", "IntersectComm", "MinusAsFilter",
                 "IntersectAsFilter", "InUnion", "InIntersect", "NotInAsNotIn", "SubsetAsForall", "MapIdentity",
-                "FilterTrue", "FilterFilter", "ExistsNotForall", "ExistsUnion", "ForallAnd",
-                "FunEta", "DomainOfCtor", "ExceptTwice", "InFunSet",
-                "ConcatEmpty", "EmptyConcat", "ConcatAssoc", "AppendAsConcat", "LenConcat", "LenAppend",
-                "SubSeqWhole",
-                "PairEta", "PairEqAsAnd", "PairInProduct",
-                "RecordExceptSame", "RecordExceptTwice", "RecordExceptGet",
-                "VariantTagOf", "VariantGetOf"),
+                "FilterTrue", "FilterFilter", "ExistsNotForall", "ExistsUnion", "ForallAnd", "FunEta",
+                "DomainOfCtor", "ExceptTwice", "InFunSet", "ConcatEmpty", "EmptyConcat", "ConcatAssoc",
+                "AppendAsConcat", "LenConcat", "LenAppend", "SubSeqWhole", "PairEta", "PairEqAsAnd", "PairInProduct",
+                "RecordExceptSame", "RecordExceptTwice", "RecordExceptGet", "VariantTagOf", "VariantGetOf",
+                "LetName", "LetApply", "LetConst", "LetHigher", "ExistsViaLet", "ForallViaLet", "FilterViaLet",
+                "MapViaLet", "FunViaLet", "FilterViaLambda", "ExistsViaLambda", "FunBeta", "RecordProj", "TupleProj",
+                "SeqHead", "FunApplyCtor", "FunApplyConst", "ChooseSingleton", "CaseTrue"),
                 rules.stream().map(RewriteRule::name).toList());
         var weights = new java.util.HashMap<String, Integer>();
         rules.forEach(rule -> weights.put(rule.name(), rule.weight()));
@@ -49,6 +47,8 @@ class RuleLibraryPreparationTest {
         assertEquals(4, weights.get("FunEta"));
         assertEquals(8, weights.get("IntersectAsFilter"));
         assertEquals(8, weights.get("RecordExceptTwice"), "a weight annotation follows a type annotation");
+        assertEquals(8, weights.get("ExistsViaLet"));
+        assertEquals(1, weights.get("LetApply"), "a redex that matches every value pads");
         assertEquals(RuleParameter.Kind.FRESH, rules.get(1).parameter("y").orElseThrow().kind());
         assertEquals(RuleParameter.Kind.HIGHER_ORDER, rules.get(5).parameter("P").orElseThrow().kind());
         assertTrue(prepared.manifest().startsWith("fuzztla-rules-v1\napalache "), prepared.manifest());
@@ -56,7 +56,7 @@ class RuleLibraryPreparationTest {
         assertTrue(prepared.manifest().contains(
                 "\nmodule Rewrites\nweight AddSub 3\nweight UnchangedPrime 8\nweight ForallNotExists 8\n"),
                 prepared.manifest());
-        assertTrue(prepared.manifest().endsWith("\nweight RecordExceptGet 8\nweight VariantTagOf 8\nweight VariantGetOf 8\n"),
+        assertTrue(prepared.manifest().endsWith("\nweight FilterViaLambda 8\nweight ExistsViaLambda 8\nweight FunBeta 8\n"),
                 prepared.manifest());
     }
 
