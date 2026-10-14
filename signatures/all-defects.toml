@@ -827,3 +827,12 @@ match = [
   '(Apalache!ApaFoldSeqLeft (.. (Sequences!Concat _ _)) _ _)',
   '(Apalache!ApaFoldSet (.. (Sequences!Concat _ _)) _ _)',
 ]
+
+[[signature]]
+id = "sany-minus-over-action-subscript"
+references = ["../findings/SANY/sany-003.md"]
+description = "SANY parses a prefix minus over an operand that contains [A]_v or <<A>>_v as binary minus when a comma follows, and reports that - requires 2 arguments."
+match = [
+  '(UNARY_MINUS (.. (STUTTER _ _)))',
+  '(UNARY_MINUS (.. (NO_STUTTER _ _)))',
+]
