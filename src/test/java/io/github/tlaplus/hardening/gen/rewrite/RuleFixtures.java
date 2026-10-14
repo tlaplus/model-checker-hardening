@@ -74,6 +74,58 @@ final class RuleFixtures {
                 B.param("P", TlaTypes.BOOL), B.param("Q", TlaTypes.BOOL));
     }
 
+    static final TlaType1 OTHER = TlaTypes.typeVariable(1);
+    static final TlaType1 RELATION = TlaTypes.operator(TlaTypes.BOOL, ELEMENT, OTHER);
+
+    /** {@code LetConst(x, y) == x = LET F(v) == x IN F(y)}: x moves into a definition body. */
+    static TlaOperDecl letConst() {
+        var definition = B.decl("F", B.name("x", ELEMENT), B.param("v", OTHER));
+        var replacement = B.letIn(B.operApply(B.name("F", TlaTypes.operator(ELEMENT, OTHER)), B.name("y", OTHER)),
+                definition);
+        return B.decl("LetConst", B.eql(B.name("x", ELEMENT), replacement),
+                B.param("x", ELEMENT), B.param("y", OTHER));
+    }
+
+    /** {@code InFilter(x, S, P(_)) == (x \in {e \in S : P(e)}) = (x \in S /\ P(x))}: P applies to x. */
+    static TlaOperDecl inFilter() {
+        var pattern = B.in(B.name("x", ELEMENT), B.filter(B.name("e", ELEMENT), elements("S"),
+                B.operApply(B.name("P", PREDICATE), B.name("e", ELEMENT))));
+        var replacement = B.and(B.in(B.name("x", ELEMENT), elements("S")),
+                B.operApply(B.name("P", PREDICATE), B.name("x", ELEMENT)));
+        return B.decl("InFilter", B.eql(pattern, replacement),
+                B.param("x", ELEMENT), B.param("S", TlaTypes.set(ELEMENT)), B.param("P", PREDICATE));
+    }
+
+    /** {@code (\A e \in S : \A d \in T : P(e, d)) = (\A d \in T : \A e \in S : P(e, d))}. */
+    static TlaOperDecl forallSwap() {
+        return B.decl("ForallSwap", B.eql(nestedForall(), B.forall(B.name("d", OTHER), others("T"),
+                        B.forall(B.name("e", ELEMENT), elements("S"), applyRelation()))),
+                B.param("S", TlaTypes.set(ELEMENT)), B.param("T", TlaTypes.set(OTHER)), B.param("P", RELATION));
+    }
+
+    /** {@code (\A e \in S : \A d \in T : P(e, d)) = (\A t \in S \X T : P(t[1], t[2]))}. */
+    static TlaOperDecl forallPair() {
+        var pairs = TlaTypes.tuple(ELEMENT, OTHER);
+        var first = B.funApply(B.name("t", pairs), B.integer(1));
+        var second = B.funApply(B.name("t", pairs), B.integer(2));
+        return B.decl("ForallPair", B.eql(nestedForall(), B.forall(B.name("t", pairs),
+                        B.times(elements("S"), others("T")), B.operApply(B.name("P", RELATION), first, second))),
+                B.param("S", TlaTypes.set(ELEMENT)), B.param("T", TlaTypes.set(OTHER)), B.param("P", RELATION));
+    }
+
+    private static TlaEx nestedForall() {
+        return B.forall(B.name("e", ELEMENT), elements("S"),
+                B.forall(B.name("d", OTHER), others("T"), applyRelation()));
+    }
+
+    private static TlaEx applyRelation() {
+        return B.operApply(B.name("P", RELATION), B.name("e", ELEMENT), B.name("d", OTHER));
+    }
+
+    private static TlaEx others(String name) {
+        return B.name(name, TlaTypes.set(OTHER));
+    }
+
     static TlaOperDecl rule(String name, TlaEx body, TypedParameter... parameters) {
         return B.decl(name, body, parameters);
     }

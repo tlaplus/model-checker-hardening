@@ -96,6 +96,20 @@ class RewriteLibraryTest {
                         B.param("x", ELEMENT), B.param("P", PREDICATE))));
     }
 
+    /**
+     * A LET definition body starts a new label scope, and beta reduction moves the arguments of a
+     * higher-order parameter under the binders of its body.
+     */
+    @Test
+    void precomputesWhereALabelOfABindingIsInvalid() {
+        var library = library(letConst(), inFilter(), forallSwap(), commuteAnd());
+        assertEquals(Set.of("x"), find(library, "LetConst").unlabelled());
+        assertEquals(Set.of("x", "P"), find(library, "InFilter").unlabelled(),
+                "P applies to x, which no binder of the replacement introduces");
+        assertEquals(Set.of("S", "P"), find(library, "ForallSwap").unlabelled());
+        assertEquals(Set.of(), find(library, "CommuteAnd").unlabelled());
+    }
+
     private static void assertRejected(String message, org.junit.jupiter.api.function.Executable executable) {
         var failure = assertThrows(IllegalArgumentException.class, executable);
         assertTrue(failure.getMessage().contains(message), failure.getMessage());

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
+import io.github.tlaplus.hardening.gen.ir.IrAlpha;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -149,6 +150,40 @@ class RuleMatcherTest {
         assertTrue(RuleMatcher.match(checked(exceptSelf), function).isPresent());
         assertTrue(RuleMatcher.match(checked(exceptSelf), B.label(function, "lab")).isEmpty(),
                 "the copy of g in the replacement would carry its label");
+    }
+
+    @Test
+    void aHigherOrderParameterOfTwoVariablesSpansNestedBinders() {
+        var node = B.forall(integer("q"), T, B.forall(integer("r"), T, B.gt(integer("q"), integer("r"))));
+        var swapped = B.forall(integer("r"), T, B.forall(integer("q"), T, B.gt(integer("q"), integer("r"))));
+        assertTrue(IrAlpha.equivalent(swapped, rewrite(forallSwap(), node).orElseThrow()));
+        var pair = B.name("p", TlaTypes.tuple(TlaTypes.INT, TlaTypes.INT));
+        var paired = B.forall(pair, B.times(T, T),
+                B.gt(B.funApply(pair, B.integer(1)), B.funApply(pair, B.integer(2))));
+        assertTrue(IrAlpha.equivalent(paired, rewrite(forallPair(), node).orElseThrow()),
+                "beta reduction applies the relation to the components of the pair");
+        var dependent = B.forall(integer("q"), T,
+                B.forall(integer("r"), B.enumSet(integer("q")), B.gt(integer("q"), integer("r"))));
+        assertTrue(rewrite(forallSwap(), dependent).isEmpty(), "the inner domain reads the outer variable");
+    }
+
+    @Test
+    void aHigherOrderParameterIsAppliedToAnyTermOfTheReplacement() {
+        var node = B.in(integer("a"), B.filter(integer("q"), T, B.gt(integer("q"), B.integer(0))));
+        assertEquals(B.and(B.in(integer("a"), T), B.gt(integer("a"), B.integer(0))),
+                rewrite(inFilter(), node).orElseThrow());
+        var labelledBody = B.in(integer("a"), B.filter(integer("q"), T,
+                B.label(B.gt(integer("q"), B.integer(0)), "lab", "q")));
+        assertTrue(rewrite(inFilter(), labelledBody).isEmpty(), "the label would declare q, which a replaces");
+        var labelledElement = B.in(B.label(integer("a"), "lab"), B.filter(integer("q"), T, B.bool(true)));
+        assertTrue(rewrite(inFilter(), labelledElement).isEmpty(), "a lands in the body of the filter");
+    }
+
+    /** A LET definition body starts a new label scope, where an enclosing label is invalid. */
+    @Test
+    void aLabelledBindingDoesNotMoveIntoALetDefinition() {
+        assertTrue(RuleMatcher.match(checked(letConst()), integer("a")).isPresent());
+        assertTrue(RuleMatcher.match(checked(letConst()), B.label(integer("a"), "lab")).isEmpty());
     }
 
     /** Matches the rule and instantiates it with numbered binder names and no fresh parameter. */
