@@ -36,11 +36,12 @@ value (`FunEta`, `SubSeqWhole`) 4, and rules that replace an operator 8. Weights
 still only choose among the rules that match one node. A node that only padding
 matches is rewritten as often as before.
 
-**Revision: definitions and application.** `Rewrites.tla` now ships 124 rules. A new
+**Revision: definitions and application.** `Rewrites.tla` now ships 130 rules. A new
 section introduces beta and iota redexes: `LET` and `LAMBDA` definitions applied on the
 spot, a binder body moved into a `LET` operator, and a constructor followed by its
 projection. Other sections gain rules for `CASE`, filters, maps, nested quantifiers,
-`SUBSET`, `UNION` and ranges. A redex that matches every value of a type has weight 1,
+`SUBSET`, `UNION` and ranges, and arithmetic decompositions by a positive divisor, some
+of which pin the floored remainder of `\div` and `%`. A redex that matches every value of a type has weight 1,
 like padding. Four engine changes come with them:
 - a replacement must apply each higher-order parameter (section 3);
 - a label of a binding may not move into a `LET` definition or into the argument of a

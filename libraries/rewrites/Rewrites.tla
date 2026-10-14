@@ -85,6 +85,21 @@ MinusMinus(x, y, z) == ((x - y) - z) = (x - (y + z))
 DivModPos(x, y) ==
     x = (((x \div ((y * y) + 1)) * ((y * y) + 1)) + (x % ((y * y) + 1)))
 
+\* Arithmetic decompositions by a positive divisor: (y * y) + 1, or a literal.
+\* A checker that truncates instead of flooring keeps DivSplit and DivMod*
+\* consistent; ModTwoFloor and ModInRange pin the remainder to 0 .. K - 1.
+DivSplit(x, y) == x = ((x \div ((y * y) + 1)) + (x - (x \div ((y * y) + 1))))
+
+DivSplitTwo(x) == x = ((x \div 2) + (x - (x \div 2)))
+
+DivModTwo(x) == x = ((2 * (x \div 2)) + (x % 2))
+
+DivModThree(x) == x = ((3 * (x \div 3)) + (x % 3))
+
+ModTwoFloor(x) == x = ((2 * (x \div 2)) + (IF (x % 2) = 0 THEN 0 ELSE 1))
+
+ModInRange(x, y) == x = (IF (x % ((y * y) + 1)) \in 0 .. (y * y) THEN x ELSE x + 1)
+
 \* Booleans
 AndTrue(P) == P = (P /\ TRUE)
 
