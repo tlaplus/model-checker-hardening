@@ -19,7 +19,7 @@
 (*                         \A e \in S, d \in T : P(e, d) \in BOOLEAN       *)
 (*   a primed parameter    NEW VARIABLE x                                  *)
 (*                                                                         *)
-(* Checked with TLAPM b064bce: all 149 obligations proved.                 *)
+(* Checked with TLAPM b064bce: all 197 obligations proved.                 *)
 (*                                                                         *)
 (*   make proofs                                                           *)
 (***************************************************************************)
@@ -78,6 +78,28 @@ THEOREM LeAsLtOrEqValid == ASSUME NEW x \in Int, NEW y \in Int PROVE LeAsLtOrEq(
 THEOREM GtAsLtValid == ASSUME NEW x \in Int, NEW y \in Int PROVE GtAsLt(x, y)
   BY DEF GtAsLt
 
+THEOREM GeAsLeValid == ASSUME NEW x \in Int, NEW y \in Int PROVE GeAsLe(x, y)
+  BY DEF GeAsLe
+
+THEOREM NegAsMinusValid == ASSUME NEW x \in Int PROVE NegAsMinus(x)
+  BY DEF NegAsMinus
+
+THEOREM DoubleAsTimesValid == ASSUME NEW x \in Int PROVE DoubleAsTimes(x)
+  BY DEF DoubleAsTimes
+
+THEOREM MinusMinusValid ==
+  ASSUME NEW x \in Int, NEW y \in Int, NEW z \in Int PROVE MinusMinus(x, y, z)
+  BY DEF MinusMinus
+
+THEOREM DivModPosValid == ASSUME NEW x \in Int, NEW y \in Int PROVE DivModPos(x, y)
+  <1>1. ASSUME NEW n \in Int, n > 0 PROVE x = ((x \div n) * n) + (x % n)
+    <2>1. (x \div n) \in Int /\ x % n = x - n * (x \div n)
+      BY <1>1, Z3
+    <2>2. QED BY <2>1, Z3
+  <1>2. (y * y) + 1 \in Int /\ (y * y) + 1 > 0
+    BY SMT
+  <1>3. QED BY <1>1, <1>2 DEF DivModPos
+
 \* Booleans
 THEOREM AndTrueValid == ASSUME NEW P \in BOOLEAN PROVE AndTrue(P)
   BY DEF AndTrue
@@ -107,6 +129,32 @@ THEOREM EquivAsImpliesValid ==
   ASSUME NEW P \in BOOLEAN, NEW Q \in BOOLEAN PROVE EquivAsImplies(P, Q)
   BY DEF EquivAsImplies
 
+THEOREM AndAssocValid ==
+  ASSUME NEW P \in BOOLEAN, NEW Q \in BOOLEAN, NEW R \in BOOLEAN PROVE AndAssoc(P, Q, R)
+  BY DEF AndAssoc
+
+THEOREM OrAssocValid ==
+  ASSUME NEW P \in BOOLEAN, NEW Q \in BOOLEAN, NEW R \in BOOLEAN PROVE OrAssoc(P, Q, R)
+  BY DEF OrAssoc
+
+THEOREM IfAsAndOrValid ==
+  ASSUME NEW P \in BOOLEAN, NEW Q \in BOOLEAN, NEW R \in BOOLEAN PROVE IfAsAndOr(P, Q, R)
+  BY DEF IfAsAndOr
+
+THEOREM EquivAsEqValid == ASSUME NEW P \in BOOLEAN, NEW Q \in BOOLEAN PROVE EquivAsEq(P, Q)
+  BY DEF EquivAsEq
+
+THEOREM BoolAsIfValid == ASSUME NEW P \in BOOLEAN PROVE BoolAsIf(P)
+  BY DEF BoolAsIf
+
+THEOREM ImpliesCurryValid ==
+  ASSUME NEW P \in BOOLEAN, NEW Q \in BOOLEAN, NEW R \in BOOLEAN PROVE ImpliesCurry(P, Q, R)
+  BY DEF ImpliesCurry
+
+THEOREM ExistsBoolValid ==
+  ASSUME NEW P(_), \A e \in BOOLEAN : P(e) \in BOOLEAN PROVE ExistsBool(P)
+  BY DEF ExistsBool
+
 \* Every type
 THEOREM NeqAsNotEqValid == ASSUME NEW x, NEW y PROVE NeqAsNotEq(x, y)
   BY DEF NeqAsNotEq
@@ -119,6 +167,19 @@ THEOREM IfNegateValid == ASSUME NEW P \in BOOLEAN, NEW x, NEW y PROVE IfNegate(P
 
 THEOREM IfTrueValid == ASSUME NEW x, NEW y PROVE IfTrue(x, y)
   BY DEF IfTrue
+
+THEOREM IfAsCaseValid == ASSUME NEW P \in BOOLEAN, NEW x, NEW y PROVE IfAsCase(P, x, y)
+  BY DEF IfAsCase
+
+THEOREM IfAsCaseNegValid == ASSUME NEW P \in BOOLEAN, NEW x, NEW y PROVE IfAsCaseNeg(P, x, y)
+  BY DEF IfAsCaseNeg
+
+THEOREM IfLiftEqValid ==
+  ASSUME NEW P \in BOOLEAN, NEW x, NEW y, NEW z PROVE IfLiftEq(P, x, y, z)
+  BY DEF IfLiftEq
+
+THEOREM EqAsInValid == ASSUME NEW x, NEW y PROVE EqAsIn(x, y)
+  BY DEF EqAsIn
 
 \* Sets and quantifiers
 THEOREM UnionEmptyValid == ASSUME NEW S PROVE UnionEmpty(S)
@@ -295,6 +356,14 @@ THEOREM InFunSetValid ==
   ASSUME NEW D, NEW R, NEW f \in [D -> R], NEW S, NEW T PROVE InFunSet(f, S, T)
   BY DEF InFunSet
 
+THEOREM ExceptAsCtorValid ==
+  ASSUME NEW D, NEW R, NEW f \in [D -> R], NEW x, NEW y PROVE ExceptAsCtor(f, x, y)
+  BY DEF ExceptAsCtor
+
+THEOREM DomainExceptValid ==
+  ASSUME NEW D, NEW R, NEW f \in [D -> R], NEW x, NEW y PROVE DomainExcept(f, x, y)
+  BY DEF DomainExcept
+
 \* Sequences
 THEOREM ConcatEmptyValid == ASSUME NEW A, NEW s \in Seq(A) PROVE ConcatEmpty(s)
   BY ConcatEmptySeq DEF ConcatEmpty
@@ -323,6 +392,22 @@ THEOREM SubSeqWholeValid == ASSUME NEW A, NEW s \in Seq(A) PROVE SubSeqWhole(s)
         /\ \A i \in 1 .. Len(s) : SubSeq(s, 1, Len(s))[i] = s[i]
     BY SubSeqProperties, LenProperties
   <1>2. QED BY <1>1, SeqEqual DEF SubSeqWhole
+
+THEOREM TailConsValid == ASSUME NEW A, NEW s \in Seq(A), NEW x \in A PROVE TailCons(s, x)
+  <1> DEFINE c == <<x>> \o s
+  <1>1. <<x>> \in Seq(A) /\ Len(<<x>>) = 1
+    BY AppendIsConcat, AppendProperties, EmptySeq, ConcatEmptySeq
+  <1>2. /\ c \in Seq(A)
+        /\ Len(c) = 1 + Len(s)
+        /\ \A i \in 1 .. 1 + Len(s) : c[i] = IF i <= 1 THEN x ELSE s[i - 1]
+    BY <1>1, ConcatProperties
+  <1>3. c # << >>
+    BY <1>2, LenProperties, EmptySeq
+  <1>4. /\ Tail(c) \in Seq(A)
+        /\ Len(Tail(c)) = Len(s)
+        /\ \A i \in 1 .. Len(s) : Tail(c)[i] = s[i]
+    BY <1>2, <1>3, HeadTailProperties, LenProperties
+  <1>5. QED BY <1>4, SeqEqual DEF TailCons
 
 THEOREM InSeqSetValid == ASSUME NEW A, NEW s \in Seq(A), NEW S PROVE InSeqSet(s, S)
   <1>1. /\ Len(s) \in Nat

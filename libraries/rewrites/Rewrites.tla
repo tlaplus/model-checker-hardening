@@ -70,6 +70,21 @@ LeAsLtOrEq(x, y) == (x <= y) = (x < y \/ x = y)
 \* @weight: 2;
 GtAsLt(x, y) == (x > y) = (y < x)
 
+\* @weight: 2;
+GeAsLe(x, y) == (x >= y) = (y <= x)
+
+\* @weight: 8;
+NegAsMinus(x) == (-x) = (0 - x)
+
+\* @weight: 8;
+DoubleAsTimes(x) == (x + x) = (2 * x)
+
+\* @weight: 8;
+MinusMinus(x, y, z) == ((x - y) - z) = (x - (y + z))
+
+DivModPos(x, y) ==
+    x = (((x \div ((y * y) + 1)) * ((y * y) + 1)) + (x % ((y * y) + 1)))
+
 \* Booleans
 AndTrue(P) == P = (P /\ TRUE)
 
@@ -93,6 +108,27 @@ ImpliesAsOr(P, Q) == (P => Q) = (~P \/ Q)
 \* @weight: 8;
 EquivAsImplies(P, Q) == (P <=> Q) = ((P => Q) /\ (Q => P))
 
+\* @weight: 2;
+AndAssoc(P, Q, R) == ((P /\ Q) /\ R) = (P /\ (Q /\ R))
+
+\* @weight: 2;
+OrAssoc(P, Q, R) == ((P \/ Q) \/ R) = (P \/ (Q \/ R))
+
+\* Only a Boolean IF: in an action, Q and R keep their assignments.
+\* @weight: 8;
+IfAsAndOr(P, Q, R) == (IF P THEN Q ELSE R) = ((P /\ Q) \/ (~P /\ R))
+
+\* @weight: 8;
+EquivAsEq(P, Q) == (P <=> Q) = (P = Q)
+
+BoolAsIf(P) == P = (IF P THEN TRUE ELSE FALSE)
+
+\* @weight: 8;
+ImpliesCurry(P, Q, R) == ((P /\ Q) => R) = (P => (Q => R))
+
+\* @weight: 8;
+ExistsBool(P(_)) == (\E e \in BOOLEAN : P(e)) = (P(TRUE) \/ P(FALSE))
+
 \* Every type
 \* @weight: 8;
 NeqAsNotEq(x, y) == (x # y) = ~(x = y)
@@ -104,6 +140,18 @@ EqSym(x, y) == (x = y) = (y = x)
 IfNegate(P, x, y) == (IF P THEN x ELSE y) = (IF ~P THEN y ELSE x)
 
 IfTrue(x, y) == x = (IF TRUE THEN x ELSE y)
+
+\* @weight: 8;
+IfAsCase(P, x, y) == (IF P THEN x ELSE y) = (CASE P -> x [] OTHER -> y)
+
+\* @weight: 8;
+IfAsCaseNeg(P, x, y) == (IF P THEN x ELSE y) = (CASE P -> x [] ~P -> y)
+
+\* @weight: 8;
+IfLiftEq(P, x, y, z) == ((IF P THEN x ELSE y) = z) = (IF P THEN x = z ELSE y = z)
+
+\* @weight: 8;
+EqAsIn(x, y) == (x = y) = (x \in {y})
 
 \* Sets and quantifiers
 UnionEmpty(S) == S = S \union {}
@@ -241,6 +289,15 @@ ExceptTwice(f, x, y, z) ==
 \* @weight: 8;
 InFunSet(f, S, T) == (f \in [S -> T]) = (DOMAIN f = S /\ \A e \in S : f[e] \in T)
 
+\* @type: (a -> b, a, b) => Bool;
+\* @weight: 8;
+ExceptAsCtor(f, x, y) ==
+    [f EXCEPT ![x] = y] = [e \in DOMAIN f |-> IF e = x THEN y ELSE f[e]]
+
+\* @type: (a -> b, a, b) => Bool;
+\* @weight: 8;
+DomainExcept(f, x, y) == (DOMAIN [f EXCEPT ![x] = y]) = DOMAIN f
+
 \* Sequences
 ConcatEmpty(s) == s = s \o <<>>
 
@@ -260,6 +317,8 @@ LenAppend(s, x) == Len(Append(s, x)) = Len(s) + 1
 
 \* @weight: 4;
 SubSeqWhole(s) == s = SubSeq(s, 1, Len(s))
+
+TailCons(s, x) == s = Tail(<<x>> \o s)
 
 \* @weight: 8;
 InSeqSet(s, S) == (s \in Seq(S)) = (\A i \in 1 .. Len(s) : s[i] \in S)
