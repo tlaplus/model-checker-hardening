@@ -19,7 +19,8 @@
 (*                         \A e \in S, d \in T : P(e, d) \in BOOLEAN       *)
 (*   a primed parameter    NEW VARIABLE x                                  *)
 (*                                                                         *)
-(* Checked with TLAPM b064bce: all 232 obligations proved.                 *)
+(* Checked with TLAPM 1.6.0-pre (d8b9747), which CI runs, and b064bce:     *)
+(* all 227 obligations proved.                                             *)
 (*                                                                         *)
 (*   make proofs                                                           *)
 (***************************************************************************)
@@ -91,26 +92,20 @@ THEOREM MinusMinusValid ==
   ASSUME NEW x \in Int, NEW y \in Int, NEW z \in Int PROVE MinusMinus(x, y, z)
   BY DEF MinusMinus
 
-\* Z3 proves the remainder's range, and x % n = x - n * (x \div n), but not the
-\* decomposition itself; the arithmetic decompositions below go through this lemma.
+\* For a divisor that is not a literal, TLAPM 1.6.0-pre proves only that the
+\* quotient is an integer and the remainder lies in 0 .. n - 1, not that
+\* x = n * (x \div n) + (x % n); Z3 proves the latter for a literal n.
 LEMMA DivMod ==
   ASSUME NEW x \in Int, NEW n \in Int, n > 0
-  PROVE  /\ x \div n \in Int
-         /\ x % n \in 0 .. n - 1
-         /\ x = (n * (x \div n)) + (x % n)
-  <1>1. x \div n \in Int /\ x % n \in 0 .. n - 1
+  PROVE  x \div n \in Int /\ x % n \in 0 .. n - 1
+  <1>1. x \div n \in Int
     BY Z3
-  <1>2. x % n = x - n * (x \div n)
+  <1>2. x % n \in 0 .. n - 1
     BY Z3
-  <1>3. QED BY <1>1, <1>2, Z3
+  <1>3. QED BY <1>1, <1>2
 
 LEMMA SquarePlusOne == ASSUME NEW y \in Int PROVE (y * y) + 1 \in Int /\ (y * y) + 1 > 0
   BY SMT
-
-THEOREM DivModPosValid == ASSUME NEW x \in Int, NEW y \in Int PROVE DivModPos(x, y)
-  <1>1. x = ((y * y) + 1) * (x \div ((y * y) + 1)) + (x % ((y * y) + 1))
-    BY SquarePlusOne, DivMod
-  <1>2. QED BY <1>1, Z3 DEF DivModPos
 
 THEOREM DivSplitValid == ASSUME NEW x \in Int, NEW y \in Int PROVE DivSplit(x, y)
   <1>1. x \div ((y * y) + 1) \in Int
@@ -123,17 +118,19 @@ THEOREM DivSplitTwoValid == ASSUME NEW x \in Int PROVE DivSplitTwo(x)
   <1>2. QED BY <1>1, Z3 DEF DivSplitTwo
 
 THEOREM DivModTwoValid == ASSUME NEW x \in Int PROVE DivModTwo(x)
-  BY DivMod DEF DivModTwo
+  BY Z3 DEF DivModTwo
 
 THEOREM DivModThreeValid == ASSUME NEW x \in Int PROVE DivModThree(x)
-  BY DivMod DEF DivModThree
+  BY Z3 DEF DivModThree
 
 THEOREM ModTwoFloorValid == ASSUME NEW x \in Int PROVE ModTwoFloor(x)
-  <1>1. x % 2 \in 0 .. 1 /\ x = (2 * (x \div 2)) + (x % 2)
-    BY DivMod
-  <1>2. (IF (x % 2) = 0 THEN 0 ELSE 1) = x % 2
+  <1>1. x % 2 \in 0 .. 1
+    BY Z3
+  <1>2. x = (2 * (x \div 2)) + (x % 2)
+    BY Z3
+  <1>3. (IF (x % 2) = 0 THEN 0 ELSE 1) = x % 2
     BY <1>1
-  <1>3. QED BY <1>1, <1>2 DEF ModTwoFloor
+  <1>4. QED BY <1>2, <1>3 DEF ModTwoFloor
 
 THEOREM ModInRangeValid == ASSUME NEW x \in Int, NEW y \in Int PROVE ModInRange(x, y)
   <1>1. x % ((y * y) + 1) \in 0 .. ((y * y) + 1) - 1

@@ -82,12 +82,11 @@ DoubleAsTimes(x) == (x + x) = (2 * x)
 \* @weight: 8;
 MinusMinus(x, y, z) == ((x - y) - z) = (x - (y + z))
 
-DivModPos(x, y) ==
-    x = (((x \div ((y * y) + 1)) * ((y * y) + 1)) + (x % ((y * y) + 1)))
-
 \* Arithmetic decompositions by a positive divisor: (y * y) + 1, or a literal.
 \* A checker that truncates instead of flooring keeps DivSplit and DivMod*
 \* consistent; ModTwoFloor and ModInRange pin the remainder to 0 .. K - 1.
+\* K * (x \div K) + (x % K) needs a literal K: TLAPM 1.6.0-pre cannot prove it
+\* for a divisor that is not a literal.
 DivSplit(x, y) == x = ((x \div ((y * y) + 1)) + (x - (x \div ((y * y) + 1))))
 
 DivSplitTwo(x) == x = ((x \div 2) + (x - (x \div 2)))

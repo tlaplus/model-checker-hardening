@@ -36,7 +36,7 @@ value (`FunEta`, `SubSeqWhole`) 4, and rules that replace an operator 8. Weights
 still only choose among the rules that match one node. A node that only padding
 matches is rewritten as often as before.
 
-**Revision: definitions and application.** `Rewrites.tla` now ships 130 rules. A new
+**Revision: definitions and application.** `Rewrites.tla` now ships 129 rules. A new
 section introduces beta and iota redexes: `LET` and `LAMBDA` definitions applied on the
 spot, a binder body moved into a `LET` operator, and a constructor followed by its
 projection. Other sections gain rules for `CASE`, filters, maps, nested quantifiers,
