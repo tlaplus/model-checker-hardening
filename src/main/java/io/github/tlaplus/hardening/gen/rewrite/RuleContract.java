@@ -108,6 +108,9 @@ final class RuleContract {
                 .collect(java.util.stream.Collectors.toSet());
         requireMillerPatterns(name, pattern, higherOrder, Set.of());
         requireApplied(name, replacement, higherOrder);
+        var signature = new HashSet<Integer>(TlaTypes.usedVariables(TlaTypes.typeOf(pattern)));
+        parameters.forEach(parameter -> signature.addAll(TlaTypes.usedVariables(parameter.type())));
+        replacement = LetSpecialization.specialize(name, replacement, signature);
         return new RewriteRule(name, weight, pattern, replacement, parameters,
                 assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
     }
@@ -307,7 +310,7 @@ final class RuleContract {
         return order;
     }
 
-    private static IllegalArgumentException rejected(String rule, String reason) {
+    static IllegalArgumentException rejected(String rule, String reason) {
         return new IllegalArgumentException("rewrite rule " + rule + ": " + reason);
     }
 

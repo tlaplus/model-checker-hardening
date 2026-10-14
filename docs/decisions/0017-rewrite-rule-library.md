@@ -243,6 +243,12 @@ among the rules that match a node.
 - **Instantiation.** B's bound variables are renamed apart from the node's scope with
   the shared renaming helper. Matched and fresh parameters are then substituted, and
   higher-order applications are beta-reduced. The result has the node's type.
+- **Definitions of B.** Snowcat generalizes a `LET` definition of B that reads no
+  parameter, as `F(v) == v` in `LET F(v) == v IN F(x)`, over type variables of its own.
+  The loader types each definition as B applies it, so the match fixes its type, and
+  rejects a rule that applies one definition at two types. Otherwise the rewriter would
+  draw those variables like a fresh operand's, and later rewrites in the definition's
+  body would follow the drawn types.
 - **Positions.** A rule applies only at a value. An operator, such as a lambda passed
   to a fold or the name an application applies, is skipped: TLA<sup>+</sup> has no `IF`
   or equality of operators, so a rule that admits every type, such as `IfTrue`, would

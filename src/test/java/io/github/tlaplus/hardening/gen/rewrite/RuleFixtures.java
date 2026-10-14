@@ -77,6 +77,15 @@ final class RuleFixtures {
     static final TlaType1 OTHER = TlaTypes.typeVariable(1);
     static final TlaType1 RELATION = TlaTypes.operator(TlaTypes.BOOL, ELEMENT, OTHER);
 
+    /** {@code LetApply(x) == x = LET F(v) == v IN F(x)}, with F generalized as Snowcat types it. */
+    static TlaOperDecl letApply() {
+        var own = TlaTypes.typeVariable(2);
+        var definition = B.decl("F", B.name("v", own), B.param("v", own));
+        var replacement = B.letIn(
+                B.operApply(B.name("F", TlaTypes.operator(ELEMENT, ELEMENT)), B.name("x", ELEMENT)), definition);
+        return B.decl("LetApply", B.eql(B.name("x", ELEMENT), replacement), B.param("x", ELEMENT));
+    }
+
     /** {@code LetConst(x, y) == x = LET F(v) == x IN F(y)}: x moves into a definition body. */
     static TlaOperDecl letConst() {
         var definition = B.decl("F", B.name("x", ELEMENT), B.param("v", OTHER));

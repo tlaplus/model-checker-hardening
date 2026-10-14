@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.rewrite.RuleParameter.Kind;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
@@ -133,6 +135,27 @@ class RewriteLibraryTest {
         var conditional = find(library, "IfAsAndOr").assignments();
         assertTrue(conditional.admits(Set.of("Q", "R")), "each branch stays an assigning disjunct, in order");
         assertFalse(conditional.admits(Set.of("P")), "the condition is copied and becomes a conjunct");
+    }
+
+    /**
+     * Snowcat types a LET definition that reads no parameter over variables of its own, which the
+     * rewriter would draw apart from the definition's application.
+     */
+    @Test
+    void typesALetDefinitionOfTheReplacementAsTheReplacementAppliesIt() {
+        var replacement = (LetInEx) find(library(letApply()), "LetApply").replacement();
+        var definition = TlaExpressions.localDeclarations(replacement).getFirst();
+        assertEquals(TlaTypes.operator(ELEMENT, ELEMENT), TlaTypes.typeOf(definition));
+        assertEquals(ELEMENT, TlaTypes.typeOf(definition.body()));
+
+        var other = TlaTypes.typeVariable(1);
+        var own = TlaTypes.typeVariable(2);
+        var pair = B.tuple(B.name("x", ELEMENT), B.name("y", other));
+        var twice = B.letIn(B.tuple(B.operApply(B.name("F", TlaTypes.operator(ELEMENT, ELEMENT)), B.name("x", ELEMENT)),
+                        B.operApply(B.name("F", TlaTypes.operator(other, other)), B.name("y", other))),
+                B.decl("F", B.name("v", own), B.param("v", own)));
+        assertRejected("apply each definition at one type",
+                () -> library(rule("Twice", B.eql(pair, twice), B.param("x", ELEMENT), B.param("y", other))));
     }
 
     private static void assertRejected(String message, org.junit.jupiter.api.function.Executable executable) {

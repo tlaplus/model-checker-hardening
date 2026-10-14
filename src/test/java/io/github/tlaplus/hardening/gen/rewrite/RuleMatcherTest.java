@@ -4,12 +4,14 @@ import static io.github.tlaplus.hardening.gen.rewrite.RuleFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.ir.IrAlpha;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
@@ -177,6 +179,15 @@ class RuleMatcherTest {
         assertTrue(rewrite(inFilter(), labelledBody).isEmpty(), "the label would declare q, which a replaces");
         var labelledElement = B.in(B.label(integer("a"), "lab"), B.filter(integer("q"), T, B.bool(true)));
         assertTrue(rewrite(inFilter(), labelledElement).isEmpty(), "a lands in the body of the filter");
+    }
+
+    /** The definition a replacement introduces takes the type of the node, not a drawn one. */
+    @Test
+    void aLetDefinitionOfTheReplacementTakesTheTypeOfTheNode() {
+        var match = RuleMatcher.match(checked(letApply()), integer("a")).orElseThrow();
+        var result = (LetInEx) RuleInstantiation.instantiate(match, Map.of(), match.types(), name -> name + "_1");
+        var definition = TlaExpressions.localDeclarations(result).getFirst();
+        assertEquals(TlaTypes.operator(TlaTypes.INT, TlaTypes.INT), TlaTypes.typeOf(definition));
     }
 
     /** A LET definition body starts a new label scope, where an enclosing label is invalid. */
