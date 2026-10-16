@@ -28,6 +28,8 @@
 #   size, which cannot be expressed by a structural signature.
 # - tlc-018: the call stack grows with the evaluation that formatting an error message does after
 #   an exception it discards; any evaluation error can trigger it.
+# - tlc-019: the stack overflow while TLC reconstructs a liveness counterexample depends on the
+#   run-time sequence length, the JVM stack size and JIT timing, as for tlc-performance-001.
 # - vacuous-initial-predicate: both tools pass.
 # - Fixed: apalache-printer-001 to 007, apalache-json-001 and 002, let-operand-grouping; and, in
 #   Apalache 0.62.3, apalache-printer-008 and 010, apalache-bmc-002, 011, 013, 017 and 018,
