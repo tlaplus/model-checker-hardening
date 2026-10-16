@@ -1069,6 +1069,31 @@ class Corpus53CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
 
+    def test_liveness_trace_stack_overflow_is_tlc_019(self) -> None:
+        """corpus64 4c8676fa, rerun with -Xss512k and the worker's shutdown hook."""
+        diagnostic = "\n".join((
+            "TLC worker exited while processing the input",
+            "TLC worker stderr:",
+            "Checking temporal properties for the complete state space with 18 total distinct states at (2026-10-16 03:54:47)",
+            "Error: TLC threw an unexpected exception.",
+            "This was probably caused by an error in the spec or model.",
+            "See the User Output or TLC Console for clues to what happened.",
+            "The exception was a java.util.concurrent.ExecutionException",
+            ": java.lang.StackOverflowError",
+        ))
+        self.assertEqual(
+            "tlc-019.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+    def test_worker_exit_without_output_stays_new(self) -> None:
+        """corpus64 4c8676fa as recorded, before the worker printed pending output."""
+        self.assertEqual(
+            triager.NEW_FINDING,
+            classify_quietly(
+                self, triager.CrashKind.TLC, "TLC worker exited while processing the input"),
+        )
+
     def test_union_of_nonenumerable_sets_is_tlc_003(self) -> None:
         """corpus58 c27fda4c: Int \\cup Int compared inside a set of sets."""
         diagnostic = "\n".join((

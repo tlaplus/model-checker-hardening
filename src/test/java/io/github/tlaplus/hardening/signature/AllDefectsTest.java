@@ -63,6 +63,7 @@ class AllDefectsTest {
             "findings/apalache-typechecker/apalache-typechecker-001.md",
             "findings/TLC/tlc-013.md",
             "findings/TLC/tlc-018.md",
+            "findings/TLC/tlc-019.md",
             "findings/tlc-performance/tlc-performance-001.md");
 
     private final SignatureShapes shapes = new SignatureShapes();

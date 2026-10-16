@@ -55,6 +55,23 @@ class IsolatedWorkerProcessTest {
     }
 
     @Test
+    void includesToolOutputWhenTheToolExitsTheJvm(@TempDir Path directory)
+            throws Exception {
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+
+        ToolResult result;
+        try (var worker = IsolatedWorkerProcess.start(
+                new WorkerSpec(scratch, TIMEOUT, ExitingToolWorker.class, DESCRIPTION))) {
+            result = worker.request(new ToolInput("request", 0), TIMEOUT);
+        }
+
+        assertEquals(StageOutcome.CRASH, result.outcome());
+        assertTrue(result.diagnostic().contains("exited while processing"));
+        assertTrue(result.diagnostic().contains("deliberate tool output"));
+        assertScratchIsEmpty(scratch);
+    }
+
+    @Test
     void includesFatalErrorReportsWhenAWorkerExits(@TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
@@ -226,6 +243,26 @@ class IsolatedWorkerProcessTest {
                 ToolWorkerProtocol.writeHandshake(connection.output());
                 ToolWorkerProtocol.readRequest(connection.input());
                 System.err.println("deliberate processing failure");
+            }
+        }
+    }
+
+    /** Buffers tool output and ends the JVM before the verdict, as TLC does in tlc-019. */
+    public static final class ExitingToolWorker {
+        private ExitingToolWorker() {}
+
+        public static void main(String[] ignoredArguments) {
+            ToolWorkerRuntime.main(ExitingToolWorker::run, System.err);
+        }
+
+        private static void run() throws Exception {
+            try (var connection = ToolWorkerConnection.connect()) {
+                ToolWorkerRuntime.serve(connection, ToolWorkerRuntime.Lifetime.ONE_INPUT, source -> {
+                    var diagnostics = ToolWorkerRuntime.diagnosticBuffer("Test tool");
+                    diagnostics.write("deliberate tool output".getBytes(StandardCharsets.UTF_8));
+                    System.exit(1);
+                    return new ToolResult(StageOutcome.PASS, diagnostics.text());
+                });
             }
         }
     }
