@@ -197,6 +197,16 @@ SIGNATURES = (
     finding("tlc-performance-001.md", CrashKind.TLC,
             all_of(r"^TLC error code 100[05] mapped to exit status 255$",
                    r"^Error: This was a Java StackOverflowError\. It was probably the result$")),
+    # A stack overflow while TLC reconstructs a liveness counterexample: LiveCheck
+    # prints the doubly wrapped exception and calls System.exit(1), so there is no
+    # TLC error code, and the worker reports the exit with the TLC output that its
+    # shutdown hook printed. Before that hook, the diagnostic was only the exit line
+    # (corpus64 4c8676fa, d301ca55), which stays NEW.
+    finding("tlc-019.md", CrashKind.TLC,
+            all_of(r"^TLC worker exited while processing the input$",
+                   r"^Checking temporal properties for ",
+                   r"^The exception was a java\.util\.concurrent\.ExecutionException\n"
+                   r": java\.lang\.StackOverflowError$")),
     # An evaluation error forced by fingerprinting an initial state is raised
     # again when the error handler prints that state (corpus59 a96cc07a).
     finding("tlc-001.md", CrashKind.TLC,
