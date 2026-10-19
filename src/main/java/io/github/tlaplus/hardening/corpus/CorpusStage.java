@@ -42,13 +42,7 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.TLC_PASS,
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLC_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.TLC_FAIL,
-                            CorpusVerdict.CRASH, CorpusPath.TLC_CRASH)),
-            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING),
-            Map.of(
-                    CorpusVerdict.PASS, ResultMeaning.PASS,
-                    CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
-                    CorpusVerdict.FAIL, ResultMeaning.FAIL,
-                    CorpusVerdict.CRASH, ResultMeaning.CRASH)),
+                            CorpusVerdict.CRASH, CorpusPath.TLC_CRASH))),
     APALACHE(
             "apalache",
             "Apalache",
@@ -59,13 +53,7 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.APALACHE_PASS,
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.APALACHE_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.APALACHE_FAIL,
-                            CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH)),
-            new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING),
-            Map.of(
-                    CorpusVerdict.PASS, ResultMeaning.PASS,
-                    CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
-                    CorpusVerdict.FAIL, ResultMeaning.FAIL,
-                    CorpusVerdict.CRASH, ResultMeaning.CRASH)),
+                            CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH))),
     AGGREGATOR(
             "aggregator",
             "aggregator",
@@ -167,6 +155,20 @@ public enum CorpusStage {
     private final StagePaths paths;
     private final StagePolicy policy;
     private final Map<CorpusVerdict, ResultMeaning> meanings;
+
+    /**
+     * A checker branch. Checkers differ only in their names and directories: each retains its
+     * passes, records a failure code on every failure, and gives its verdicts the same meanings.
+     */
+    CorpusStage(String metadataName, String displayName, StagePaths paths) {
+        this(metadataName, displayName, paths,
+                new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING),
+                Map.of(
+                        CorpusVerdict.PASS, ResultMeaning.PASS,
+                        CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
+                        CorpusVerdict.FAIL, ResultMeaning.FAIL,
+                        CorpusVerdict.CRASH, ResultMeaning.CRASH));
+    }
 
     CorpusStage(String metadataName, String displayName, StagePaths paths, StagePolicy policy,
             Map<CorpusVerdict, ResultMeaning> meanings) {
