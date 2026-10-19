@@ -13,48 +13,55 @@ import org.jline.utils.AttributedStyle;
 import org.junit.jupiter.api.Test;
 
 class ProgressLayoutTest {
+    private static final int SPINE = 3;
+    /** Header, cumulative line, four input lines, the arrow into the parser, the parser and the fan-out label. */
+    private static final int FIRST_BRANCH_ROW = 10;
+    private static final int BRANCHES = CorpusStage.checkerBranches().size();
+
     @Test
     void flowFitsOneScreenAndShowsFanOutJoinAndFeedback() {
         var lines = RunDisplayFixture.render(RunDisplayFixture.sample(), new Size(80, 24));
         var output = RunDisplayFixture.plain(lines);
-        assertEquals(23, lines.size());
+        assertEquals(FIRST_BRANCH_ROW + 2 * BRANCHES + 5, lines.size());
         assertTrue(lines.stream().allMatch(line -> line.columnLength() <= 79));
         // Each count reserves one column for its change marker; elapsed times never get one.
         assertEquals("FuzzTLA RUNNING  Gen 3   Entries 1240   Elapsed 2m17s", lines.getFirst().toString());
         assertTrue(output.contains("each pass goes to every checker"));
-        assertTrue(output.contains("both non-crash results"));
+        assertTrue(output.contains("every non-crash result"));
         assertTrue(output.contains("gate at generation end"));
         assertTrue(output.contains("mutation parents --> next generation INPUTS"));
         assertTrue(output.contains("PARSER  Queued 40   Pass 1180   Fail 18   Crash 2   Work 8s"));
         assertTrue(output.contains("AGGREGATOR  Agree 1060   Differ 28   Work 1s"));
         assertTrue(output.contains("QUALITY  Keep 220   Drop 500   Work 2s"));
-        var title = lines.get(12).toString();
-        assertEquals(39, title.indexOf("APALACHE"));
-        assertTrue(lines.get(14).toString().contains("Cex 45"));
+        var apalache = FIRST_BRANCH_ROW + 2 * CorpusStage.checkerBranches().indexOf(CorpusStage.APALACHE);
+        assertTrue(lines.get(apalache).toString().endsWith("APALACHE  Queued 86   Work 7m48s"), lines.get(apalache).toString());
+        assertEquals("   |    Pass 1022   Cex 45   Fail 23   Crash 1", lines.get(apalache + 1).toString().stripTrailing());
         assertFalse(output.contains("AGGREGATOR  Queued"));
         assertFalse(output.contains("QUALITY  Queued"));
     }
 
+    /** Every checker branch hangs off one spine, so the flow's width does not grow with them. */
     @Test
-    void flowArrowsStartAtTheirConnectorJunctionsInBothGlyphSets() {
+    void flowBranchesHangOffOneSpineInBothGlyphSets() {
         for (var glyphs : Glyphs.values()) {
             var lines = render(glyphs, new Size(80, 24)).stream().map(AttributedString::toString).toList();
-            var horizontal = glyphs.junction(false, false, true, true).charAt(0);
             var arrow = glyphs.arrowDown().charAt(0);
-            var fanOut = lines.get(10);
-            var branches = lines.get(11);
-            for (var column = 0; column < Math.max(fanOut.length(), branches.length()); column++) {
-                var junction = column < fanOut.length() && fanOut.charAt(column) != horizontal
-                        && fanOut.charAt(column) != ' ';
-                var branch = column < branches.length() && branches.charAt(column) == arrow;
-                assertEquals(junction, branch, glyphs + " column " + column);
+            var vertical = glyphs.vertical().charAt(0);
+            assertEquals(vertical, lines.get(6).charAt(SPINE));
+            assertEquals(arrow, lines.get(7).charAt(SPINE));
+            assertEquals(vertical, lines.get(FIRST_BRANCH_ROW - 1).charAt(SPINE));
+            for (var branch = 0; branch < BRANCHES; branch++) {
+                var line = lines.get(FIRST_BRANCH_ROW + 2 * branch);
+                var stage = CorpusStage.checkerBranches().get(branch);
+                assertTrue(line.startsWith("   " + glyphs.junction(true, true, false, true) + glyphs.arrowRight(3)
+                        + " " + stage.displayName().toUpperCase(Locale.ROOT) + "  "), glyphs + ": " + line);
+                var results = lines.get(FIRST_BRANCH_ROW + 2 * branch + 1);
+                assertEquals(vertical, results.charAt(SPINE), glyphs + ": " + results);
+                assertEquals(8, results.indexOf("Pass"), glyphs + ": " + results);
             }
-            assertEquals(glyphs.vertical().charAt(0), lines.get(6).charAt(3));
-            assertEquals(arrow, lines.get(7).charAt(3));
-            assertEquals(glyphs.vertical().charAt(0), lines.get(9).charAt(3));
-            var joinArrow = lines.get(18).indexOf(arrow);
-            assertNotEquals(horizontal, lines.get(17).charAt(joinArrow), glyphs.name());
-            assertEquals(joinArrow, lines.get(20).indexOf(arrow));
+            var join = FIRST_BRANCH_ROW + 2 * BRANCHES;
+            assertEquals(SPINE, lines.get(join).indexOf(arrow), glyphs.name());
+            assertEquals(SPINE, lines.get(join + 2).indexOf(arrow), glyphs.name());
         }
     }
 
@@ -64,9 +71,8 @@ class ProgressLayoutTest {
         var ascii = render(Glyphs.ASCII, new Size(80, 24));
         assertEquals("   \u2502", lines.get(6));
         assertEquals("   \u25bc", lines.get(7));
-        assertEquals("   \u251c" + "\u2500".repeat(38) + "\u2510", lines.get(10));
-        assertEquals("   \u2514" + "\u2500".repeat(14) + "\u252c" + "\u2500".repeat(23) + "\u2518", lines.get(17));
-        assertTrue(lines.get(22).startsWith(
+        assertTrue(lines.get(FIRST_BRANCH_ROW).startsWith("   \u251c\u2500\u2500\u25b6 TLC"));
+        assertTrue(lines.getLast().startsWith(
                 "             \u2514\u2500\u2500\u25b6 mutation parents \u2500\u2500\u25b6 next generation"));
         for (var row = 0; row < lines.size(); row++) {
             assertEquals(ascii.get(row).columnLength(), new AttributedString(lines.get(row)).columnLength());

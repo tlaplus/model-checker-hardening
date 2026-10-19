@@ -16,11 +16,13 @@ final class ProgressLayout {
     private static final Size FLOW_MINIMUM = new Size(80, 24);
     private static final Size TABLE_MINIMUM = new Size(60, 16);
 
-    /** Flow geometry: every arrow, bar, and card column derives from these. */
-    private static final int CARD_WIDTH = 39;
-    private static final int CARD_SECOND_RESULT = 16;
-    private static final int BRANCH_COLUMN = 3;
-    private static final int JOIN_COLUMN = 18;
+    /**
+     * Flow geometry: every arrow and spine column derives from these. The checker branches hang off
+     * one vertical spine, two lines each, so the flow's width does not depend on their number.
+     */
+    private static final int SPINE_COLUMN = 3;
+    private static final int BRANCH_ARROW_WIDTH = 3;
+    private static final int BRANCH_COLUMN = SPINE_COLUMN + 1 + BRANCH_ARROW_WIDTH + 1;
     private static final int FEEDBACK_COLUMN = 13;
     private static final int INPUT_DETAIL_COLUMN = 9;
 
@@ -33,7 +35,7 @@ final class ProgressLayout {
 
     static List<AttributedString> render(RunText text, Size size, boolean feedback) {
         List<AttributedString> lines;
-        if (fits(size, FLOW_MINIMUM) && size.getColumns() > branchCount() * CARD_WIDTH) {
+        if (fits(size, FLOW_MINIMUM)) {
             lines = flow(text, feedback);
         } else if (fits(size, TABLE_MINIMUM)) {
             lines = table(text, feedback);
@@ -57,21 +59,14 @@ final class ProgressLayout {
         lines.add(header(text).field("  ", GENERATION).field("  ", ENTRIES).field("  ", TOTAL_ELAPSED).build());
         lines.add(text.line().text("Cumulative totals / time").build());
         inputDetails(lines, text);
-        lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.vertical()).build());
-        lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.arrowDown()).build());
+        lines.add(text.line().padTo(SPINE_COLUMN).text(glyphs.vertical()).build());
+        lines.add(text.line().padTo(SPINE_COLUMN).text(glyphs.arrowDown()).build());
         lines.add(stageSummary(text, CorpusStage.PARSER));
-        lines.add(text.line().padTo(BRANCH_COLUMN).text(glyphs.vertical() + " each pass goes to every checker").build());
-        lines.add(text.line().text(connector(glyphs, false)).build());
-        var arrows = text.line();
-        for (var branch = 0; branch < branchCount(); branch++) {
-            arrows.padTo(branchColumn(branch)).text(glyphs.arrowDown());
-        }
-        lines.add(arrows.build());
-        checkerCards(lines, text);
-        lines.add(text.line().text(connector(glyphs, true)).build());
-        lines.add(text.line().padTo(joinColumn()).text(glyphs.arrowDown() + " both non-crash results").build());
+        lines.add(text.line().padTo(SPINE_COLUMN).text(glyphs.vertical() + " each pass goes to every checker").build());
+        CorpusStage.checkerBranches().forEach(stage -> branch(lines, text, stage));
+        lines.add(text.line().padTo(SPINE_COLUMN).text(glyphs.arrowDown() + " every non-crash result").build());
         lines.add(stageSummary(text, CorpusStage.AGGREGATOR));
-        lines.add(text.line().padTo(joinColumn())
+        lines.add(text.line().padTo(SPINE_COLUMN)
                 .text(glyphs.arrowDown() + " agreeing entries; gate at generation end").build());
         lines.add(stageSummary(text, CorpusStage.QUALITY));
         lines.add(text.line().padTo(FEEDBACK_COLUMN).text(feedback(glyphs, feedback)).build());
@@ -88,65 +83,18 @@ final class ProgressLayout {
                 .field(" ", MIN_RICHNESS).field(" / ", AVG_RICHNESS).field(" / ", MAX_RICHNESS).build());
     }
 
-    private static void checkerCards(List<AttributedString> lines, RunText text) {
-        var cards = CorpusStage.checkerBranches().stream().map(stage -> card(text, stage)).toList();
-        var rows = cards.stream().mapToInt(List::size).max().orElse(0);
-        for (var row = 0; row < rows; row++) {
-            var line = text.line();
-            for (var column = 0; column < cards.size(); column++) {
-                line.padTo(column * CARD_WIDTH);
-                if (row < cards.get(column).size()) {
-                    line.append(cards.get(column).get(row));
-                }
-            }
-            lines.add(line.build());
-        }
-    }
-
-    private static List<AttributedString> card(RunText text, CorpusStage stage) {
-        var lines = new ArrayList<AttributedString>();
-        lines.add(text.line().stage(stage).build());
-        lines.add(text.line().queue(stage).build());
-        var verdicts = stage.resultVerdicts();
-        for (var i = 0; i < verdicts.size(); i += 2) {
-            var line = text.line().result(stage, verdicts.get(i));
-            if (i + 1 < verdicts.size()) {
-                line.padTo(CARD_SECOND_RESULT).result(stage, verdicts.get(i + 1));
-            }
-            lines.add(line.build());
-        }
-        lines.add(text.line().work(stage).build());
-        return lines;
-    }
-
     /**
-     * The fan-out bar below the parser, or the join bar above the aggregator. Each column's glyph
-     * follows from the lines it connects: the parser or aggregator on one side, the branches on the
-     * other, and the bar itself.
+     * One checker branch: an arrow from a junction on the spine to the checker, its queue and work
+     * time, and its verdicts below them.
      */
-    private static String connector(Glyphs glyphs, boolean join) {
-        var last = branchColumn(branchCount() - 1);
-        var bar = new StringBuilder(" ".repeat(BRANCH_COLUMN));
-        for (var column = BRANCH_COLUMN; column <= last; column++) {
-            var branch = (column - BRANCH_COLUMN) % CARD_WIDTH == 0;
-            var trunk = column == (join ? joinColumn() : BRANCH_COLUMN);
-            bar.append(glyphs.junction(join ? branch : trunk, join ? trunk : branch,
-                    column > BRANCH_COLUMN, column < last));
-        }
-        return bar.toString();
-    }
-
-    /** The aggregator's arrow leaves the join bar here, within the bar's extent. */
-    private static int joinColumn() {
-        return Math.min(JOIN_COLUMN, branchColumn(branchCount() - 1));
-    }
-
-    private static int branchCount() {
-        return CorpusStage.checkerBranches().size();
-    }
-
-    private static int branchColumn(int branch) {
-        return BRANCH_COLUMN + branch * CARD_WIDTH;
+    private static void branch(List<AttributedString> lines, RunText text, CorpusStage stage) {
+        var glyphs = text.palette().glyphs();
+        lines.add(text.line().padTo(SPINE_COLUMN)
+                .text(glyphs.junction(true, true, false, true) + glyphs.arrowRight(BRANCH_ARROW_WIDTH) + " ")
+                .stage(stage).text("  ").queue(stage).text("  ").work(stage).build());
+        // Each verdict starts with a two-column separator, so the first one lands on BRANCH_COLUMN.
+        lines.add(text.line().padTo(SPINE_COLUMN).text(glyphs.vertical()).padTo(BRANCH_COLUMN - 2)
+                .append(verdicts(text, stage)).build());
     }
 
     private static List<AttributedString> table(RunText text, boolean feedback) {

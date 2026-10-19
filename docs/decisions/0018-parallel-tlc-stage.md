@@ -68,8 +68,9 @@ that both report.
 ### 4. Progress screen
 
 With three checker stages, side-by-side checker cards need more than 117 columns.
-The flow view instead shows each checker branch on one line, on a vertical spine
-below the parser, so its width does not depend on the number of checkers.
+The flow view instead shows each checker branch in two lines on a vertical spine
+below the parser: the queue and work time, then the verdicts. Its width does not depend
+on the number of checkers, and three branches fit the 80×24 minimum.
 
 ### 5. Architecture
 
