@@ -55,7 +55,7 @@ custom_operators = []
 # Maximum number of unique entries across every workflow directory.
 # A stage table that omits max_entries inherits this value.
 max_entries = 1000
-# Model checkers to run, a subset of ["tlc", "apalache"] (ADR 0016 §5).
+# Model checkers to run, a subset of ["tlc", "tlcn", "apalache"] (ADR 0016 §5).
 # A corpus with one checker compares no verdicts; the first run records the list.
 checkers = ["tlc", "apalache"]
 
@@ -86,6 +86,18 @@ timeout_sec = 30
 max_heap_mb = 512
 # Number of TLC model-checking workers in each isolated JVM.
 workers = 1
+
+[workflow.tlcn]
+# Maximum combined occupancy of the TLC-n result directories.
+# Defaults to workflow.max_entries.
+# max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Maximum heap allocated to each isolated TLC-n JVM.
+max_heap_mb = 512
+# Number of TLC model-checking workers in each isolated TLC-n JVM.
+# TLC-n checks the inputs of TLC with more workers (ADR 0018).
+workers = 4
 
 [workflow.apalache]
 # Maximum combined occupancy of the Apalache result directories.

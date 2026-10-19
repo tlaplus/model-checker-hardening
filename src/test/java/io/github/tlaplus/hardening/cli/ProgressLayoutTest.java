@@ -90,7 +90,7 @@ class ProgressLayoutTest {
     @Test
     void compactSnapshotPreservesStageAndVerdictIdentities() {
         var lines = RunDisplayFixture.render(RunDisplayFixture.sample(), new Size(60, 16));
-        assertEquals(12, lines.size());
+        assertEquals(13, lines.size());
         assertTrue(lines.stream().allMatch(line -> line.columnLength() <= 59));
         assertEquals("""
                 FuzzTLA RUNNING  Gen 3   Entries 1240
@@ -100,6 +100,7 @@ class ProgressLayoutTest {
                 INPUTS  Admitted 1240  / Attempts 1860
                 PARSER         40      1180    -       18      2
                 TLC            20      1088    45      23      2
+                TLC-N          21      1087    45      24      2
                 APALACHE       86      1022    45      23      1
                 AGGREGATOR  Agree 1060   Differ 28
                 QUALITY  Keep 220   Drop 500

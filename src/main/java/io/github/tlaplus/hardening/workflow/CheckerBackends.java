@@ -38,6 +38,7 @@ final class CheckerBackends {
 
     private static final Map<CorpusStage, Factory> FACTORIES = Map.of(
             CorpusStage.TLC, CheckerBackends::tlc,
+            CorpusStage.TLCN, CheckerBackends::tlc,
             CorpusStage.APALACHE,
             (stage, config, resources) -> new ApalacheCheckerBackend(
                     config,

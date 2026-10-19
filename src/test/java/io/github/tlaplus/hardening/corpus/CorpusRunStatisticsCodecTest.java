@@ -29,7 +29,7 @@ class CorpusRunStatisticsCodecTest {
 
     /**
      * Captured from an earlier build of the codec, not produced by the codec under test. It was
-     * last re-captured when ADR 0010 added the quality stage and the clone counter.
+     * last re-captured when ADR 0018 added the TLC-n stage.
      */
     @Test
     void readsAndReproducesTheHistoricalFixture() throws Exception {

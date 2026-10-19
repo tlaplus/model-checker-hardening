@@ -47,6 +47,7 @@ class CorpusStageTest {
                 List.of(
                         CorpusStage.PARSER,
                         CorpusStage.TLC,
+                        CorpusStage.TLCN,
                         CorpusStage.APALACHE,
                         CorpusStage.AGGREGATOR,
                         CorpusStage.QUALITY),
@@ -65,6 +66,7 @@ class CorpusStageTest {
                 Map.of(
                         CorpusStage.PARSER, PipelineRole.PARSING,
                         CorpusStage.TLC, PipelineRole.CHECKING,
+                        CorpusStage.TLCN, PipelineRole.CHECKING,
                         CorpusStage.APALACHE, PipelineRole.CHECKING,
                         CorpusStage.AGGREGATOR, PipelineRole.AGGREGATION,
                         CorpusStage.QUALITY, PipelineRole.SELECTION),
@@ -74,7 +76,7 @@ class CorpusStageTest {
 
     @Test
     void theCheckerBranchesAreExactlyTheStagesThatCheck() {
-        assertEquals(List.of(CorpusStage.TLC, CorpusStage.APALACHE), CorpusStage.checkerBranches());
+        assertEquals(List.of(CorpusStage.TLC, CorpusStage.TLCN, CorpusStage.APALACHE), CorpusStage.checkerBranches());
         for (var stage : CorpusStage.values()) {
             assertEquals(
                     stage.role() == PipelineRole.CHECKING,

@@ -30,10 +30,12 @@ final class RunDisplayFixture {
                         Duration.ofSeconds(15)),
                 Map.of(CorpusStage.PARSER, summary(1180, 0, 18, 2, 8),
                         CorpusStage.TLC, summary(1088, 45, 23, 2, 312),
+                        CorpusStage.TLCN, summary(1087, 45, 24, 2, 158),
                         CorpusStage.APALACHE, summary(1022, 45, 23, 1, 468),
                         CorpusStage.AGGREGATOR, summary(1060, 0, 28, 0, 1),
                         CorpusStage.QUALITY, summary(220, 0, 500, 0, 2)),
-                Map.of(CorpusStage.PARSER, 40L, CorpusStage.TLC, 20L, CorpusStage.APALACHE, 86L,
+                Map.of(CorpusStage.PARSER, 40L, CorpusStage.TLC, 20L, CorpusStage.TLCN, 21L,
+                        CorpusStage.APALACHE, 86L,
                         CorpusStage.AGGREGATOR, 2L, CorpusStage.QUALITY, 0L),
                 1240, Duration.ofSeconds(137));
     }

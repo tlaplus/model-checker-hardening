@@ -217,6 +217,28 @@ class WorkflowRunnerTest {
         assertTrue(refused.getMessage().contains("runs the checkers tlc"), refused.getMessage());
     }
 
+    /**
+     * A corpus that runs TLC next to TLC with several workers sends every parser pass to both, and
+     * the aggregator joins exactly their verdicts (ADR 0018).
+     */
+    @Test
+    void comparesTlcWithTlcRunningSeveralWorkers(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var base = config(8, 3, 8, 16);
+        var checkers = CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN);
+        var config = base.withWorkflow(base.workflow().withEnabledCheckers(checkers));
+
+        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, TLCN_WORKERS);
+
+        var inventory = summary.corpus();
+        assertTrue(inventory.processedEntries(CorpusStage.TLCN) > 0);
+        assertEquals(0, inventory.processedEntries(CorpusStage.APALACHE));
+        assertEquals(inventory.counts(CorpusStage.TLC).processed(), inventory.counts(CorpusStage.TLCN).processed(),
+                "every parser pass reaches both TLC stages");
+        assertTrue(inventory.processedEntries(CorpusStage.AGGREGATOR) + inventory.pendingEntries(CorpusStage.AGGREGATOR) > 0);
+        assertEquals(checkers, CorpusRecords.CHECKERS.read(corpus));
+    }
+
     @Test
     void reportsInitialAndFinalProgressSnapshots(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
@@ -601,11 +623,7 @@ class WorkflowRunnerTest {
                         2,
                         InputStageConfig.of(2),
                         new ParserStageConfig(2, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(0, 10, 512, 1),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(2, 10, 512, 1))),
+                        checkers(new CheckerStageConfig(0, 10, 512, 1), new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var unbound = new TlaTypedScopeUncheckedBuilder()
                 .name("missing", TlaTypes.BOOL);
@@ -669,11 +687,7 @@ class WorkflowRunnerTest {
                         2,
                         InputStageConfig.of(2),
                         new ParserStageConfig(2, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(2, 10, 512, 1),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(2, 10, 512, 1))),
+                        checkers(new CheckerStageConfig(2, 10, 512, 1), new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(4, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
         var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
@@ -694,11 +708,7 @@ class WorkflowRunnerTest {
                         0,
                         InputStageConfig.of(0),
                         new ParserStageConfig(0, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(0, 10, 512, 2),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(0, 10, 512, 1))),
+                        checkers(new CheckerStageConfig(0, 10, 512, 2), new CheckerStageConfig(0, 10, 512, 1))),
                 new PbtConfig(0, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
         var failure = assertThrows(
@@ -720,11 +730,7 @@ class WorkflowRunnerTest {
                         0,
                         InputStageConfig.of(0),
                         new ParserStageConfig(0, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(0, 10, 512, 1),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(0, 10, 512, 2))),
+                        checkers(new CheckerStageConfig(0, 10, 512, 1), new CheckerStageConfig(0, 10, 512, 2))),
                 new PbtConfig(0, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
         var failure = assertThrows(
@@ -746,11 +752,7 @@ class WorkflowRunnerTest {
                         1,
                         InputStageConfig.of(1),
                         new ParserStageConfig(1, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(0, 10, 512, 1),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(1, 10, 512, 1))),
+                        checkers(new CheckerStageConfig(0, 10, 512, 1), new CheckerStageConfig(1, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
@@ -788,11 +790,7 @@ class WorkflowRunnerTest {
                         1,
                         InputStageConfig.of(1),
                         new ParserStageConfig(1, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(1, 10, 512, 1),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(0, 10, 512, 1))),
+                        checkers(new CheckerStageConfig(1, 10, 512, 1), new CheckerStageConfig(0, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var generator = IrGenerators.expressions(config.generator());
         Path source = null;
@@ -831,11 +829,7 @@ class WorkflowRunnerTest {
                         2,
                         InputStageConfig.of(2),
                         new ParserStageConfig(2, 10),
-                        Map.of(
-                                CorpusStage.TLC,
-                                new CheckerStageConfig(1, 10, 512, 1),
-                                CorpusStage.APALACHE,
-                                new CheckerStageConfig(2, 10, 512, 1))),
+                        checkers(new CheckerStageConfig(1, 10, 512, 1), new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(16, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
         var expression = IrGenerators.expressions(config.generator()).generate(new byte[0]);
         Generator<TlaEx> generator = _ -> expression;
@@ -904,6 +898,14 @@ class WorkflowRunnerTest {
                 base.libraries());
     }
 
+    /** Checker limits of a test that does not enable TLC-n, which takes TLC's limits. */
+    private static Map<CorpusStage, CheckerStageConfig> checkers(CheckerStageConfig tlc, CheckerStageConfig apalache) {
+        return Map.of(CorpusStage.TLC, tlc, CorpusStage.TLCN, tlc, CorpusStage.APALACHE, apalache);
+    }
+
+    /** TLC-n's workers in {@link #config}; a run with TLC-n needs at least this many CPUs. */
+    private static final int TLCN_WORKERS = 2;
+
     private FuzzTlaConfig config(
             int total, int inputs, int parser, int maximumInputBytes) {
         return new FuzzTlaConfig(
@@ -916,6 +918,8 @@ class WorkflowRunnerTest {
                         Map.of(
                                 CorpusStage.TLC,
                                 new CheckerStageConfig(total, 10, 512, 1),
+                                CorpusStage.TLCN,
+                                new CheckerStageConfig(total, 10, 512, TLCN_WORKERS),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(total, 10, 512, 1))),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());

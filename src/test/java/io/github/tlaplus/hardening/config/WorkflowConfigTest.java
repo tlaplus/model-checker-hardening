@@ -20,6 +20,8 @@ class WorkflowConfigTest {
                         Map.of(
                                 CorpusStage.TLC,
                                 new CheckerStageConfig(1_000, 30, 512, 1),
+                                CorpusStage.TLCN,
+                                new CheckerStageConfig(1_000, 30, 512, 4),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(
                                 1_000,

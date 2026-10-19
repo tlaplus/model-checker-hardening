@@ -43,6 +43,18 @@ public enum CorpusStage {
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLC_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.TLC_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.TLC_CRASH))),
+    /** TLC with n workers (ADR 0018); compared with {@link #TLC}, it tests TLC's parallel paths. */
+    TLCN(
+            "tlcn",
+            "TLC-n",
+            new StagePaths(
+                    CorpusPath.TLCN_INPUT,
+                    CorpusPath.TLCN_SCRATCH,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.TLCN_PASS,
+                            CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLCN_COUNTEREXAMPLE,
+                            CorpusVerdict.FAIL, CorpusPath.TLCN_FAIL,
+                            CorpusVerdict.CRASH, CorpusPath.TLCN_CRASH))),
     APALACHE(
             "apalache",
             "Apalache",

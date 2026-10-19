@@ -14,22 +14,29 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tlc2.output.EC;
 
 class TlcProcessTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 10, 256, 1);
 
-    @Test
-    void checksTheSpecificationAgainstTheInvariant(@TempDir Path directory)
+    /** TLC-n runs the same worker with more TLC workers (ADR 0018), so it must judge alike. */
+    @ParameterizedTest(name = "{0} TLC workers")
+    @ValueSource(ints = {1, 2})
+    void checksTheSpecificationAgainstTheInvariant(int workers, @TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
+        var config = new CheckerStageConfig(CONFIG.maximumEntries(), CONFIG.timeoutSeconds(),
+                CONFIG.maximumHeapMegabytes(), workers);
 
-        var pass = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), CONFIG, TIMEOUT);
-        var fail = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), CONFIG, TIMEOUT);
+        var pass = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), config, TIMEOUT);
+        var fail = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), config, TIMEOUT);
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
+        assertTrue(fail.diagnostic().contains("with " + workers + " worker"), fail.diagnostic());
         assertEquals(StageOutcome.COUNTEREXAMPLE, fail.outcome());
         assertTrue(fail.failureCode().isEmpty());
         assertTrue(fail.diagnostic().toLowerCase().contains("violat"), fail.diagnostic());
