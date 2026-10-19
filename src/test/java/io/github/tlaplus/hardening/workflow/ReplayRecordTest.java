@@ -53,7 +53,7 @@ class ReplayRecordTest {
     @Test
     void recordsAndRereadsACheckerSet() throws Exception {
         var corpus = CorpusDirectory.initialize(temporary.resolve("corpus"), "");
-        assertEquals(CheckerSet.ALL, CorpusRecords.CHECKERS.read(corpus));
+        assertEquals(CheckerSet.DEFAULT, CorpusRecords.CHECKERS.read(corpus));
         var tlc = CheckerSet.of(CorpusStage.TLC);
         try (var lock = corpus.acquireExclusiveLock()) {
             CorpusRecords.CHECKERS.verify(corpus, tlc, true);
@@ -61,7 +61,7 @@ class ReplayRecordTest {
         assertEquals("tlc", new String(corpus.readRecord(CorpusRecord.CHECKERS).orElseThrow(), UTF_8));
         assertEquals(tlc, CorpusRecords.CHECKERS.read(corpus));
         var changed = assertThrows(WorkflowException.class,
-                () -> CorpusRecords.CHECKERS.verify(corpus, CheckerSet.ALL, true));
+                () -> CorpusRecords.CHECKERS.verify(corpus, CheckerSet.DEFAULT, true));
         assertTrue(changed.getMessage().contains("runs the checkers tlc, not tlc,apalache"), changed.getMessage());
     }
 

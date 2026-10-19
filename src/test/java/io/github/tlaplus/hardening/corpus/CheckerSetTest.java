@@ -12,7 +12,7 @@ class CheckerSetTest {
         assertEquals(
                 List.of(CorpusStage.TLC, CorpusStage.APALACHE),
                 CheckerSet.of(CorpusStage.APALACHE, CorpusStage.TLC).stages());
-        assertEquals(CorpusStage.checkerBranches(), CheckerSet.ALL.stages());
+        assertEquals(List.of(CorpusStage.TLC, CorpusStage.APALACHE), CheckerSet.DEFAULT.stages());
         assertEquals(CorpusStage.TLC, CheckerSet.of(CorpusStage.TLC).first());
     }
 

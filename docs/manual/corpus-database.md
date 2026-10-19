@@ -60,7 +60,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `8`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `9`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -240,8 +240,8 @@ continues past such files. The key is `(directory, hash)`.
 ### 2.10. `verdictPair`
 
 A view with one row per entry that has an `aggregator` stage record. It puts the
-two checkers' results side by side. A corpus that runs one checker
-(`[workflow] checkers`) has null columns for the other.
+checkers' results side by side. A corpus that runs a subset of the checkers
+(`[workflow] checkers`) has null columns for the others.
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
@@ -252,6 +252,9 @@ two checkers' results side by side. A corpus that runs one checker
 | `tlc` | TEXT | yes | TLC verdict; null when the corpus does not run TLC | `stage.verdict` |
 | `tlcCode` | INTEGER | yes | TLC failure code | `stage.code` |
 | `tlcTraceLength` | INTEGER | yes | TLC counterexample length | `stage.traceLength` |
+| `tlcn` | TEXT | yes | TLC-n verdict ([ADR 0018][adr-0018]); null when the corpus does not run TLC-n | `stage.verdict` |
+| `tlcnCode` | INTEGER | yes | TLC-n failure code | `stage.code` |
+| `tlcnTraceLength` | INTEGER | yes | TLC-n counterexample length | `stage.traceLength` |
 | `apalache` | TEXT | yes | Apalache verdict; null when the corpus does not run Apalache | `stage.verdict` |
 | `apalacheCode` | INTEGER | yes | Apalache failure code | `stage.code` |
 | `apalacheTraceLength` | INTEGER | yes | Apalache counterexample length | `stage.traceLength` |
@@ -393,3 +396,4 @@ The column names of the imported table come from the CSV header.
 [adr-0008]: ../decisions/0008-exploration-metrics.md
 [adr-0010]: ../decisions/0010-mutation.md
 [adr-0013]: ../decisions/0013-behaviour-archive-and-operator-coverage.md
+[adr-0018]: ../decisions/0018-parallel-tlc-stage.md

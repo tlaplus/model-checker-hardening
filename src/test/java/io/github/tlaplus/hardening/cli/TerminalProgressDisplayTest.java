@@ -28,21 +28,21 @@ class TerminalProgressDisplayTest {
             display.update(RunDisplayFixture.sample());
             screen.write(fixture.drain());
             assertTrue(screen.toString().contains("PARSER"), screen.toString());
-            assertTrue(screen.toString().contains("both non-crash results"), screen.toString());
+            assertTrue(screen.toString().contains("every non-crash result"), screen.toString());
 
             terminal.setSize(new Size(60, 16));
             screen.setSize(60, 16);
             display.resize();
             screen.write(fixture.drain());
             assertTrue(screen.toString().contains("Stage"), screen.toString());
-            assertFalse(screen.toString().contains("both non-crash results"), screen.toString());
+            assertFalse(screen.toString().contains("every non-crash result"), screen.toString());
             assertTrue(screen.toString().contains("Full statistics at completion"), screen.toString());
 
             terminal.setSize(new Size(80, 24));
             screen.setSize(80, 24);
             display.resize();
             screen.write(fixture.drain());
-            assertTrue(screen.toString().contains("both non-crash results"), screen.toString());
+            assertTrue(screen.toString().contains("every non-crash result"), screen.toString());
             assertFalse(screen.toString().contains("Full statistics at completion"), screen.toString());
 
             display.close();

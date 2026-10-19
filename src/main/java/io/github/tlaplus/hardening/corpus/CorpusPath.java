@@ -21,6 +21,12 @@ public enum CorpusPath {
             "02tlc-counterexample", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_FAIL("02tlc-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     TLC_CRASH("02tlc-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    TLCN_INPUT("02tlcn-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    TLCN_PASS("02tlcn-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    TLCN_COUNTEREXAMPLE(
+            "02tlcn-counterexample", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    TLCN_FAIL("02tlcn-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    TLCN_CRASH("02tlcn-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_INPUT("02apa-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_PASS("02apa-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_COUNTEREXAMPLE(
@@ -35,6 +41,7 @@ public enum CorpusPath {
     GENERATOR_CRASH(".work/generator-crash", Kind.DIRECTORY, Presence.LAZY, Contents.NONE),
     PARSER_SCRATCH(".work/parser-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     TLC_SCRATCH(".work/tlc-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
+    TLCN_SCRATCH(".work/tlcn-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     APALACHE_SCRATCH(".work/apalache-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     LOCK(".workflow.lock", Kind.FILE, Presence.LAZY, Contents.NONE),
     WORKFLOW_STATISTICS(".workflow-stats.cbor", Kind.FILE, Presence.LAZY, Contents.NONE),

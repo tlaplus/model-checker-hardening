@@ -89,6 +89,11 @@ corpus/
 ├── 02tlc-counterexample/
 ├── 02tlc-fail/
 ├── 02tlc-crash/
+├── 02tlcn-inputs/
+├── 02tlcn-pass/
+├── 02tlcn-counterexample/
+├── 02tlcn-fail/
+├── 02tlcn-crash/
 ├── 02apa-inputs/
 ├── 02apa-pass/
 ├── 02apa-counterexample/
@@ -129,7 +134,7 @@ custom_operators = []
 # Maximum number of unique entries across every workflow directory.
 # A stage table that omits max_entries inherits this value.
 max_entries = 1000
-# Model checkers to run: "tlc" and "apalache" (ADR 0016 §5).
+# Model checkers to run, a subset of ["tlc", "tlcn", "apalache"] (ADR 0016 §5).
 # A corpus with one checker compares no verdicts; the first run records the list.
 checkers = ["tlc", "apalache"]
 
@@ -161,6 +166,18 @@ max_heap_mb = 512
 # Number of TLC model-checking workers in each isolated JVM.
 workers = 1
 
+[workflow.tlcn]
+# Maximum combined occupancy of the TLC-n result directories.
+# Defaults to workflow.max_entries.
+# max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Maximum heap allocated to each isolated TLC-n JVM.
+max_heap_mb = 512
+# Number of TLC model-checking workers in each isolated TLC-n JVM.
+# TLC-n checks the inputs of TLC with more workers (ADR 0018).
+workers = 4
+
 [workflow.apalache]
 # Maximum combined occupancy of the Apalache result directories.
 # Defaults to workflow.max_entries.
@@ -184,8 +201,16 @@ richness_nesting_base = 2.0
 richness_threshold_base = 1.5
 ```
 
-A checker table (`[workflow.tlc]` or `[workflow.apalache]`), and any of its keys,
-may be omitted. An omitted key takes that checker's default, shown above.
+A checker table (`[workflow.tlc]`, `[workflow.tlcn]` or `[workflow.apalache]`), and
+any of its keys, may be omitted. An omitted key takes that checker's default, shown
+above.
+
+The `tlcn` checker runs TLC with `workflow.tlcn.workers` workers
+([ADR 0018](docs/decisions/0018-parallel-tlc-stage.md)). It runs only when
+`checkers` lists it. `checkers = ["tlc", "tlcn"]` compares TLC with one worker
+against TLC with several, without Apalache. A corpus initialized before `tlcn`
+existed needs its directories:
+`mkdir corpus/02tlcn-{inputs,pass,counterexample,fail,crash}`.
 
 Every generated expression form has one category. `generator.ignore` excludes
 the selected categories, the structural types that require them, and forms that
@@ -292,8 +317,9 @@ parsing maintain up to `--max-cpus` workers; parser workers use persistent
 isolated JVMs. Each TLC input runs in a fresh JVM. A TLC process uses
 `workflow.tlc.workers` internal workers and reserves that many permits from the
 shared downstream-priority CPU budget, so at most
-`floor(max-cpus / workflow.tlc.workers)` TLC processes run concurrently. The TLC
-worker count must not exceed `--max-cpus`. Each FuzzTLA Apalache worker lazily
+`floor(max-cpus / workflow.tlc.workers)` TLC processes run concurrently. TLC-n
+processes do the same with `workflow.tlcn.workers`. A TLC worker count must not
+exceed `--max-cpus`. Each FuzzTLA Apalache worker lazily
 starts one isolated JVM and calls `Tool.run` sequentially for multiple inputs.
 Workers run concurrently and reserve one permit per active call. A timeout or
 crash retires the child JVM, and the next input starts a replacement. The
@@ -354,16 +380,18 @@ corpus. Every stored raw input remains exactly replayable. Entries begin in
 `00-inputs/<sha256>.cbor`; its compact `gen` field records the selected cohort and
 admission-time richness score. The parser preserves this metadata, records tagged
 UTC timestamps and a verdict, and moves the entry to its parser result directory.
-Parser passes are copied to `02tlc-inputs` and `02apa-inputs`; the two files count
-as one logical corpus entry. TLC records `stages.tlc` and moves its copy to the
-matching TLC result directory. Apalache does the same under `stages.apalache`
-and its result directories. Once both non-crash results exist, the aggregator
+Parser passes are copied to the input directory of every configured checker, by
+default `02tlc-inputs` and `02apa-inputs`; the copies count as one logical corpus
+entry. TLC records `stages.tlc` and moves its copy to the matching TLC result
+directory. TLC-n and Apalache do the same under `stages.tlcn` and
+`stages.apalache` and their result directories. Once every configured checker has
+a non-crash result, the aggregator
 merges their metadata into one entry. Equal pass/pass,
 counterexample/counterexample, or fail/fail verdicts move to
 `03aggregator-pass`; any disagreement, including a
 counterexample from only one checker, moves to `03aggregator-fail`. Failure codes
 do not affect this comparison. A pair with a checker crash remains in the checker
-result directories. The parser and TLC
+result directories. The parser, TLC and TLC-n
 receive a TLA+ module; Apalache
 receives typed Apalache IR JSON generated from the same expression. The JSON
 path preserves closed expression types that TLA+ source cannot fully annotate.
@@ -382,9 +410,9 @@ These diagnostic files do not count as corpus entries. A crashed parser writes
 crash diagnostic.
 
 A crashed checker invocation similarly writes
-`02tlc-crash/<sha256>.stacktrace` or
+`02tlc-crash/<sha256>.stacktrace`, `02tlcn-crash/<sha256>.stacktrace` or
 `02apa-crash/<sha256>.stacktrace`. Parser and checker temporary files live under
-`<corpus>/.work/{parser,tlc,apalache}-tmp` and are removed after the run.
+`<corpus>/.work/{parser,tlc,tlcn,apalache}-tmp` and are removed after the run.
 
 Install the triager's Python dependency and classify crash diagnostics and
 conformance aggregator failures with:
@@ -396,7 +424,8 @@ python3 script/triager.py corpus
 
 The triager writes `01parser-crash-triage.csv`, `02tlc-crash-triage.csv`,
 `02apa-crash-triage.csv`, and `03aggregator-fail-triage.csv` in the corpus
-directory. Each row contains the entry hash and either the matching finding or
+directory. It does not yet classify `02tlcn-crash` or disagreements between TLC
+and TLC-n. Each row contains the entry hash and either the matching finding or
 conformance-report filename, or `NEW`. Signatures are conservative and
 deterministic: add one only after confirming that the diagnostic has the same
 root cause as the named document. Aggregator signatures also require the

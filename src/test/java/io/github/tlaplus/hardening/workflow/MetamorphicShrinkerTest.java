@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -83,7 +84,7 @@ class MetamorphicShrinkerTest {
         }
         assertTrue(input != null, "no one-byte base decodes to an integer");
 
-        var backend = new TlcCheckerBackend(new CheckerStageConfig(10, 60, 512, 1), 1,
+        var backend = new TlcCheckerBackend(CorpusStage.TLC, new CheckerStageConfig(10, 60, 512, 1), 1,
                 Files.createDirectory(directory.resolve("tlc")), List.of());
         try (var worker = backend.startWorker()) {
             var violation = MetamorphicShrinker.violation(

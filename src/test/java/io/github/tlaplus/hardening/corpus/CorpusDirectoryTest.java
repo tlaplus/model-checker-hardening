@@ -48,6 +48,11 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.TLC_COUNTEREXAMPLE, Path.of("02tlc-counterexample")),
                 Map.entry(CorpusPath.TLC_FAIL, Path.of("02tlc-fail")),
                 Map.entry(CorpusPath.TLC_CRASH, Path.of("02tlc-crash")),
+                Map.entry(CorpusPath.TLCN_INPUT, Path.of("02tlcn-inputs")),
+                Map.entry(CorpusPath.TLCN_PASS, Path.of("02tlcn-pass")),
+                Map.entry(CorpusPath.TLCN_COUNTEREXAMPLE, Path.of("02tlcn-counterexample")),
+                Map.entry(CorpusPath.TLCN_FAIL, Path.of("02tlcn-fail")),
+                Map.entry(CorpusPath.TLCN_CRASH, Path.of("02tlcn-crash")),
                 Map.entry(CorpusPath.APALACHE_INPUT, Path.of("02apa-inputs")),
                 Map.entry(CorpusPath.APALACHE_PASS, Path.of("02apa-pass")),
                 Map.entry(
@@ -65,6 +70,7 @@ class CorpusDirectoryTest {
                         Path.of(".work", "generator-crash")),
                 Map.entry(CorpusPath.PARSER_SCRATCH, Path.of(".work", "parser-tmp")),
                 Map.entry(CorpusPath.TLC_SCRATCH, Path.of(".work", "tlc-tmp")),
+                Map.entry(CorpusPath.TLCN_SCRATCH, Path.of(".work", "tlcn-tmp")),
                 Map.entry(CorpusPath.APALACHE_SCRATCH, Path.of(".work", "apalache-tmp")),
                 Map.entry(CorpusPath.LOCK, Path.of(".workflow.lock")),
                 Map.entry(CorpusPath.WORKFLOW_STATISTICS, Path.of(".workflow-stats.cbor")),
@@ -429,6 +435,8 @@ class CorpusDirectoryTest {
     void resolvesEachCheckerBranchToTheDirectoryItOwns(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(
                 directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        corpus.recoverAndValidate(ACCEPT,
+                new CheckingPolicy(new CheckerSet(CorpusStage.checkerBranches()), Oracle.CONFORMANCE));
         var input = new byte[] {4, 2};
         corpus.store(InputKind.EXPRESSION, input);
         var parserPass = corpus.completeParser(

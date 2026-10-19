@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
@@ -61,7 +62,7 @@ class RecursionLibraryIntegrationTest {
         // TLC overflows while evaluating all assumptions as one conjunction on CI-sized stacks.
         // Each assertion is independent, so check it in isolation and report its operator on error.
         var assertions = text.lines().filter(line -> line.startsWith("ASSUME ")).toList();
-        var backend = new TlcCheckerBackend(new CheckerStageConfig(10, 120, 1024, 1), 1, directory,
+        var backend = new TlcCheckerBackend(CorpusStage.TLC, new CheckerStageConfig(10, 120, 1024, 1), 1, directory,
                 libraries.classpath().stream().map(Path::toAbsolutePath).toList());
         try (var worker = backend.startWorker()) {
             for (var assertion : assertions) {

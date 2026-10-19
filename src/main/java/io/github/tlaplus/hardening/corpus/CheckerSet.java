@@ -12,8 +12,11 @@ import java.util.TreeSet;
  * verdicts (ADR 0016 §5).
  */
 public record CheckerSet(List<CorpusStage> stages) implements Iterable<CorpusStage> {
-    /** Every checker stage, which is what every corpus ran before ADR 0016. */
-    public static final CheckerSet ALL = new CheckerSet(CorpusStage.checkerBranches());
+    /**
+     * The checkers of a configuration that lists none, and of a corpus that records none: TLC and
+     * Apalache, which every corpus ran before ADR 0016. Other checker stages run only when listed.
+     */
+    public static final CheckerSet DEFAULT = of(CorpusStage.TLC, CorpusStage.APALACHE);
 
     public CheckerSet {
         Objects.requireNonNull(stages, "stages");

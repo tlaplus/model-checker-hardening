@@ -8,8 +8,8 @@ import java.util.Objects;
  * applies it.
  */
 public record CheckingPolicy(CheckerSet checkers, Oracle oracle) {
-    /** The policy of every corpus before ADR 0016: both checkers, judged by conformance. */
-    public static final CheckingPolicy DEFAULT = new CheckingPolicy(CheckerSet.ALL, Oracle.CONFORMANCE);
+    /** The policy of every corpus before ADR 0016: the default checkers, judged by conformance. */
+    public static final CheckingPolicy DEFAULT = new CheckingPolicy(CheckerSet.DEFAULT, Oracle.CONFORMANCE);
 
     public CheckingPolicy {
         Objects.requireNonNull(checkers, "checkers");

@@ -7,9 +7,9 @@ import java.util.Objects;
 
 /**
  * What differs between the configured model checkers: the defaults of their resource settings and
- * the documentation of the settings whose meaning follows from the worker lifecycle. TLC runs one
- * child JVM per input with its own worker threads; Apalache keeps one persistent child JVM per
- * FuzzTLA worker.
+ * the documentation of the settings whose meaning follows from the worker lifecycle. TLC and TLC-n
+ * run one child JVM per input with its own worker threads; Apalache keeps one persistent child JVM
+ * per FuzzTLA worker.
  *
  * <p>Every other fact about a checker table is shared by {@link CheckerStageConfig} and {@link
  * ConfigSchema}, so adding a checker adds one constant here.
@@ -21,6 +21,14 @@ public enum CheckerProfile {
             1,
             "Maximum heap allocated to each isolated TLC JVM.",
             List.of("Number of TLC model-checking workers in each isolated JVM.")),
+    TLCN(
+            CorpusStage.TLCN,
+            512,
+            4,
+            "Maximum heap allocated to each isolated TLC-n JVM.",
+            List.of(
+                    "Number of TLC model-checking workers in each isolated TLC-n JVM.",
+                    "TLC-n checks the inputs of TLC with more workers (ADR 0018).")),
     APALACHE(
             CorpusStage.APALACHE,
             1_024,
