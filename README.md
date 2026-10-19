@@ -423,10 +423,14 @@ python3 script/triager.py corpus
 ```
 
 The triager writes `01parser-crash-triage.csv`, `02tlc-crash-triage.csv`,
-`02apa-crash-triage.csv`, and `03aggregator-fail-triage.csv` in the corpus
-directory. It does not yet classify `02tlcn-crash` or disagreements between TLC
-and TLC-n. Each row contains the entry hash and either the matching finding or
-conformance-report filename, or `NEW`. Signatures are conservative and
+`02tlcn-crash-triage.csv`, `02apa-crash-triage.csv`, and
+`03aggregator-fail-triage.csv` in the corpus directory, skipping a crash
+directory that the corpus does not have. TLC-n crashes are matched by TLC's
+signatures. Each row contains the entry hash and either the matching finding or
+conformance-report filename, `TIMEOUT` for a worker timeout, `FIRST_ERROR` for a
+TLC/TLC-n disagreement in which one reports a counterexample and the other an
+evaluation error ([ADR 0018](docs/decisions/0018-parallel-tlc-stage.md)), or
+`NEW`. Signatures are conservative and
 deterministic: add one only after confirming that the diagnostic has the same
 root cause as the named document. Aggregator signatures also require the
 documented checker verdict pair and failure code; ambiguous diagnostics and

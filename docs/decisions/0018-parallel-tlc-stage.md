@@ -92,8 +92,10 @@ directories `02tlcn-{inputs,pass,counterexample,fail,crash}`.
   separates such entries from defects; the oracle does not.
 - **Quality gate.** The gate ranks entries by `tlc` exploration metrics. A checker
   set without `tlc` remains unsupported.
-- **Triage.** `script/triager.py` does not classify `02tlcn-crash` or `tlc`/`tlcn`
-  disagreements. This is follow-up work.
+- **Triage.** `script/triager.py` classifies `02tlcn-crash` with TLC's signatures.
+  It labels an aggregator entry `FIRST_ERROR` when the TLC checkers split into a
+  counterexample and an evaluation error (exit 75) and every other checker reports
+  the counterexample; other `tlc`/`tlcn` disagreements stay `NEW`.
 - **Existing corpora.** The new directories are required, and runs do not migrate
   corpus layouts. An existing corpus needs
   `mkdir <corpus>/02tlcn-{inputs,pass,counterexample,fail,crash}`.
