@@ -266,8 +266,10 @@ final class ConfigSchema {
             "A stage table that omits max_entries inherits this value.");
     static final Key<CheckerSet> ENABLED_CHECKERS = WORKFLOW.optional(
             "checkers", ConfigValueType.CHECKERS, WorkflowConfig::enabledCheckers,
-            new Constant<>(CheckerSet.ALL),
-            "Model checkers to run: \"tlc\" and \"apalache\" (ADR 0016 §5).",
+            new Constant<>(CheckerSet.DEFAULT),
+            "Model checkers to run, a subset of "
+                    + ConfigValueType.CHECKERS.format().apply(new CheckerSet(CorpusStage.checkerBranches()))
+                    + " (ADR 0016 §5).",
             "A corpus with one checker compares no verdicts; the first run records the list.");
     static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.optionalInteger(
             "max_entries", InputStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,

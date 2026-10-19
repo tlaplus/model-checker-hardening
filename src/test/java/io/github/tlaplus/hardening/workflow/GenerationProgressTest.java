@@ -28,7 +28,7 @@ class GenerationProgressTest {
     @Test
     void aCrashSettlesOnlyAfterBothCheckerBranchesFinish() throws Exception {
         var control = new WorkflowControl(new WorkQueue<>());
-        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
+        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.DEFAULT);
         var entry = new EntryName("entry.cbor");
         progress.admitted(entry, 1, EntryOrigin.PBT);
         progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
@@ -47,7 +47,7 @@ class GenerationProgressTest {
     @Test
     void aggregationAndParserFailureAreTerminalAndStopWakesWaiters() throws Exception {
         var control = new WorkflowControl(new WorkQueue<>());
-        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
+        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.DEFAULT);
         var failed = new EntryName("failed.cbor");
         progress.admitted(failed, 0, EntryOrigin.PBT);
         progress.completed(failed, CorpusStage.PARSER, CorpusVerdict.FAIL);
@@ -77,7 +77,7 @@ class GenerationProgressTest {
     @Test
     void theAggregatorMayOvertakeTheSlowerCheckersReport() throws Exception {
         var control = new WorkflowControl(new WorkQueue<>());
-        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
+        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.DEFAULT);
         var entry = new EntryName("entry.cbor");
         progress.admitted(entry, 0, EntryOrigin.PBT);
         progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
@@ -95,7 +95,7 @@ class GenerationProgressTest {
     @Test
     void aLateCheckerReportIsAcceptedOnceAndStrayReportsStillFail() {
         var control = new WorkflowControl(new WorkQueue<>());
-        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
+        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.DEFAULT);
         var entry = new EntryName("entry.cbor");
         progress.admitted(entry, 0, EntryOrigin.PBT);
         progress.completed(entry, CorpusStage.PARSER, CorpusVerdict.PASS);
@@ -119,7 +119,7 @@ class GenerationProgressTest {
     @Test
     void anUntrackedEntryOrdersLastInsteadOfFailingTheQueue() {
         var control = new WorkflowControl(new WorkQueue<>());
-        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.ALL);
+        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.DEFAULT);
         var entry = new EntryName("entry.cbor");
         progress.admitted(entry, 3, EntryOrigin.PBT);
 
@@ -144,7 +144,7 @@ class GenerationProgressTest {
                 stages,
                 generations,
                 Map.of(pending, EntryProgress.admitted(2).with(CorpusStage.PARSER, CorpusVerdict.PASS)));
-        var progress = new GenerationProgress(inventory, new WorkflowControl(new WorkQueue<>()), CheckerSet.ALL);
+        var progress = new GenerationProgress(inventory, new WorkflowControl(new WorkQueue<>()), CheckerSet.DEFAULT);
 
         assertEquals(6, progress.admitted(2));
         assertEquals(2, progress.admittedByOrigin(2).get(EntryOrigin.MUTANT));

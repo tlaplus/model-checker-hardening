@@ -40,13 +40,13 @@ public record WorkflowConfig(
         }
     }
 
-    /** A configuration that runs every checker, as every configuration did before ADR 0016. */
+    /** A configuration that runs the default checkers, as every configuration did before ADR 0016. */
     public WorkflowConfig(
             int maximumEntries,
             InputStageConfig inputs,
             ParserStageConfig parser,
             Map<CorpusStage, CheckerStageConfig> checkers) {
-        this(maximumEntries, inputs, parser, checkers, CheckerSet.ALL);
+        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT);
     }
 
     /** Returns this configuration with the given input stage. */

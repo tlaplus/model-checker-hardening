@@ -23,10 +23,10 @@ public final class CorpusRecords {
             (saved, expected) -> "this corpus runs --how=" + saved + ", not --how=" + expected
                     + "; initialize a new corpus for --how=" + expected);
 
-    /** The checkers of `[workflow] checkers`; a corpus that records none runs every checker. */
+    /** The checkers of `[workflow] checkers`; a corpus that records none runs the default. */
     public static final ReplayRecord<CheckerSet> CHECKERS = new ReplayRecord<>(
             CorpusRecord.CHECKERS,
-            CheckerSet.ALL,
+            CheckerSet.DEFAULT,
             new ReplayRecord.Codec<>(CorpusRecords::encode, CorpusRecords::decode),
             (saved, expected) -> "this corpus runs the checkers " + saved + ", not " + expected
                     + "; restore [workflow] checkers or initialize a new corpus");
