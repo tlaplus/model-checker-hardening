@@ -7,6 +7,7 @@ import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
@@ -78,7 +79,7 @@ class RelationModuleCheckersTest {
 
     private void assertBoth(StageOutcome expected, SpecArtifact artifact, Orientation orientation) throws Exception {
         var run = Files.createTempDirectory(directory, orientation.name());
-        var tlc = new TlcCheckerBackend(SETTINGS, 1, Files.createDirectory(run.resolve("tlc")), List.of());
+        var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(run.resolve("tlc")), List.of());
         var apalache = new ApalacheCheckerBackend(SETTINGS, ApalacheDistribution.locate(),
                 Files.createDirectory(run.resolve("apalache")));
         for (var backend : List.<ToolBackend>of(tlc, apalache)) {

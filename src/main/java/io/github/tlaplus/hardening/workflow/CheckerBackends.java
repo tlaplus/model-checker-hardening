@@ -33,21 +33,16 @@ final class CheckerBackends {
 
     @FunctionalInterface
     private interface Factory {
-        ToolBackend create(CheckerStageConfig config, Resources resources);
+        ToolBackend create(CorpusStage stage, CheckerStageConfig config, Resources resources);
     }
 
     private static final Map<CorpusStage, Factory> FACTORIES = Map.of(
-            CorpusStage.TLC,
-            (config, resources) -> new TlcCheckerBackend(
-                    config,
-                    resources.maximumCpus() / config.workers(),
-                    resources.scratch().directory(CorpusStage.TLC),
-                    resources.sourceClasspath()),
+            CorpusStage.TLC, CheckerBackends::tlc,
             CorpusStage.APALACHE,
-            (config, resources) -> new ApalacheCheckerBackend(
+            (stage, config, resources) -> new ApalacheCheckerBackend(
                     config,
                     resources.apalacheJar(),
-                    resources.scratch().directory(CorpusStage.APALACHE)));
+                    resources.scratch().directory(stage)));
 
     static {
         if (!FACTORIES.keySet().equals(Set.copyOf(CorpusStage.checkerBranches()))) {
@@ -62,6 +57,16 @@ final class CheckerBackends {
     static ToolBackend create(CorpusStage stage, CheckerStageConfig config, Resources resources) {
         var factory = FACTORIES.get(Objects.requireNonNull(stage, "stage"));
         Preconditions.require(factory != null, stage + " is not a checker stage");
-        return factory.create(Objects.requireNonNull(config, "config"), resources);
+        return factory.create(stage, Objects.requireNonNull(config, "config"), resources);
+    }
+
+    /** Every TLC stage runs one fresh TLC JVM per input, with the stage's own number of workers. */
+    private static ToolBackend tlc(CorpusStage stage, CheckerStageConfig config, Resources resources) {
+        return new TlcCheckerBackend(
+                stage,
+                config,
+                resources.maximumCpus() / config.workers(),
+                resources.scratch().directory(stage),
+                resources.sourceClasspath());
     }
 }

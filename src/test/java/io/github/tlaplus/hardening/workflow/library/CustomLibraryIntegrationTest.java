@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.workflow.library;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaType1;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
@@ -111,7 +112,7 @@ class CustomLibraryIntegrationTest {
         }
         var settings = new CheckerStageConfig(10, 30, 512, 1);
         var backends = List.<ToolBackend>of(
-                new TlcCheckerBackend(settings, 1, Files.createDirectory(directory.resolve("tlc")), classpath),
+                new TlcCheckerBackend(CorpusStage.TLC, settings, 1, Files.createDirectory(directory.resolve("tlc")), classpath),
                 new ApalacheCheckerBackend(settings, ApalacheDistribution.locate(),
                         Files.createDirectory(directory.resolve("apalache"))));
         for (var backend : backends) {

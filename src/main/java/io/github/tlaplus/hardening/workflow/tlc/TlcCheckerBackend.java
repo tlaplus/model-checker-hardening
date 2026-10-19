@@ -10,8 +10,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Adapts fresh isolated TLC invocations to the shared tool stage. */
+/**
+ * Adapts fresh isolated TLC invocations to the shared tool stage. Every TLC stage runs this
+ * backend; the stages differ only in their settings, such as the number of TLC workers.
+ */
 public final class TlcCheckerBackend implements ToolBackend {
+    private final CorpusStage stage;
     private final CheckerStageConfig config;
     private final int workerCount;
     private final Path scratchDirectory;
@@ -19,7 +23,8 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     /** {@code classpath} precedes TLC's own, so it can supply modules and their Java overrides. */
     public TlcCheckerBackend(
-            CheckerStageConfig config, int workerCount, Path scratchDirectory, List<Path> classpath) {
+            CorpusStage stage, CheckerStageConfig config, int workerCount, Path scratchDirectory, List<Path> classpath) {
+        this.stage = Objects.requireNonNull(stage, "stage");
         this.config = Objects.requireNonNull(config, "config");
         Preconditions.requirePositive(workerCount, "workerCount");
         this.workerCount = workerCount;
@@ -29,7 +34,7 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public CorpusStage stage() {
-        return CorpusStage.TLC;
+        return stage;
     }
 
     @Override
