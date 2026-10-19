@@ -2,9 +2,14 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-10-19
+
+**Implementation.** Branch `igor/tlcn-parallel-tlc` (FuzzTLA `9be0c3a`, TLC `210df3a`
+from tla2tools snapshot `1.8.0-20261013.012418-104`, Apalache 0.62.3 `3eb15b2`). Smoke
+runs with `checkers = ["tlc", "tlcn"]`, default settings and seed 7 checked 60 `pbt`
+and 40 `mt` expression entries. TLC and TLC-n agreed on every entry.
 
 ## Context
 
@@ -43,8 +48,8 @@ A new checker stage `tlcn` runs TLC with n workers next to `tlc`:
 equals TLC's. Its default number of workers is fixed rather than derived from the
 host, so a configuration that `fuzztla init` writes checks the same way on every
 machine. The CPU budget is unchanged: each `tlcn` process reserves `workers` permits,
-and `floor(max-cpus / workers)` processes run at once. A run refuses a TLC table
-whose `workers` exceeds `--max-cpus`.
+and `floor(max-cpus / workers)` processes run at once. As for every checker, a run
+refuses a `workers` value that exceeds `--max-cpus`.
 
 Both TLC stages run the same backend, worker process and configuration file. Only
 the stage and its settings differ.

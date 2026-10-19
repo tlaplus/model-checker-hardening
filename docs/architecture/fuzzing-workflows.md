@@ -161,6 +161,15 @@ flowchart LR
         tlc_crash["02tlc-crash"]
     end
 
+    subgraph tlcn["TLC-n (optional, ADR 0018)"]
+        direction TB
+        tlcn_inputs["02tlcn-inputs"]
+        tlcn_pass["02tlcn-pass"]
+        tlcn_counterexample["02tlcn-counterexample"]
+        tlcn_fail["02tlcn-fail"]
+        tlcn_crash["02tlcn-crash"]
+    end
+
     subgraph conformance["Aggregator"]
         direction TB
         aggregator_pass["03aggregator-pass"]
@@ -187,6 +196,7 @@ flowchart LR
     inp --> parse
     parse_pass --> tlc_inputs
     parse_pass --> apalache_inputs
+    parse_pass -.-> tlcn_inputs
     tlc_inputs --> tlc_pass
     tlc_inputs --> tlc_counterexample
     tlc_inputs --> tlc_fail
@@ -195,12 +205,19 @@ flowchart LR
     apalache_inputs --> apalache_counterexample
     apalache_inputs --> apalache_fail
     apalache_inputs --> apalache_crash
+    tlcn_inputs --> tlcn_pass
+    tlcn_inputs --> tlcn_counterexample
+    tlcn_inputs --> tlcn_fail
+    tlcn_inputs --> tlcn_crash
     tlc_pass --> conformance
     apalache_pass --> conformance
     tlc_counterexample --> conformance
     apalache_counterexample --> conformance
     tlc_fail --> conformance
     apalache_fail --> conformance
+    tlcn_pass --> conformance
+    tlcn_counterexample --> conformance
+    tlcn_fail --> conformance
     aggregator_pass --> quality
     quality_pass --> mutator
     mutator --> inp
@@ -209,6 +226,7 @@ flowchart LR
     parse_crash --> tests_crash
     tlc_crash --> tests_crash
     apalache_crash --> tests_crash
+    tlcn_crash --> tests_crash
 ```
 
 ### 1.2. Custom-operator preparation
@@ -393,6 +411,8 @@ and the aggregator's policy differ:
   `Next == UNCHANGED v` and `Inv == v = exprC`.
 - **Checkers.** `[workflow] checkers` selects the model-checker stages. A TLC-only
   corpus can check rewrites into recursive definitions, which Apalache rejects.
+  `["tlc", "tlcn"]` relates TLC with one worker to TLC with several
+  ([ADR 0018][adr-0018]).
 - **Aggregator.** The corpus technique selects the oracle. A metamorphic entry passes
   when the configured checkers agree and none reports a counterexample.
 - **Candidate sources.** PBT and the mutator apply unchanged. A third source adopts
@@ -477,7 +497,8 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
 
  - A parser or checker crash also produces a `.stacktrace` sidecar, for example
    `01parser-crash/<sha256>.stacktrace`,
-   `02tlc-crash/<sha256>.stacktrace`, or
+   `02tlc-crash/<sha256>.stacktrace`,
+   `02tlcn-crash/<sha256>.stacktrace`, or
    `02apa-crash/<sha256>.stacktrace`, beside the corresponding CBOR entry.
    The UTF-8 sidecar contains the Java stack trace when the tool threw an
    exception, or a diagnostic for non-exceptional crashes such as a timeout or a
@@ -485,23 +506,25 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    Sidecars are not corpus entries and do not count towards capacity limits.
 
  - A parser pass is the durable fan-out point. The same parser output is copied
-   to `02tlc-inputs` and `02apa-inputs`, then removed from `01parser-pass`.
-   These two physical files have one logical identity and count once towards
+   to the input directory of every checker in `[workflow] checkers`, by default
+   `02tlc-inputs` and `02apa-inputs`, then removed from `01parser-pass`.
+   These physical files have one logical identity and count once towards
    the global corpus limit. Inventory recovery completes a partial fan-out and
-   requires both branches to agree on the input, generation metadata, and
-   parser metadata.
+   requires all branches to agree on the input, generation metadata, and
+   parser metadata. The optional branch `02tlcn-*` checks with TLC running
+   `workflow.tlcn.workers` workers ([ADR 0018][adr-0018]).
 
  - The conformance aggregator is a durable fan-in point. It has no input
    directory: completed checker result paths are queue notifications, and
-   startup reconstructs ready pairs from `02tlc-{pass,counterexample,fail}` and
-   `02apa-{pass,counterexample,fail}`. The aggregator merges both stage maps
-   into one entry in `03aggregator-pass` or `03aggregator-fail`. It installs
-   that destination before deleting either checker source and completes
-   interrupted source deletion at
-   startup. The merged entry preserves both checker failure classifications and
+   startup reconstructs ready entries from the `{pass,counterexample,fail}`
+   directories of the configured checkers, such as `02tlc-*` and `02apa-*`. The
+   aggregator merges their stage maps into one entry in `03aggregator-pass` or
+   `03aggregator-fail`. It installs that destination before deleting any checker
+   source and completes interrupted source deletion at startup. The merged entry
+   preserves every checker's failure classification and
    unrecognized envelope fields. Aggregated checker results still contribute to
    historical checker verdict counters but no longer occupy checker result
-   capacity. Pairs containing a checker crash are left in the checker result
+   capacity. Entries with a checker crash are left in the checker result
    directories.
 
  - The quality gate consumes `03aggregator-pass` without owning it, and moves
@@ -716,6 +739,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0016]: ../decisions/0016-metamorphic-testing.md
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
 [metamorphic manual]: ../manual/metamorphic-testing.md
+[adr-0018]: ../decisions/0018-parallel-tlc-stage.md
 [database manual]: ../manual/corpus-database.md
 [mutation manual]: ../manual/mutation.md
 [metrics manual]: ../manual/exploration-metrics.md
