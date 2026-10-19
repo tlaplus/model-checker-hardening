@@ -27,19 +27,43 @@ class TriageError(Exception):
     """Raised when crash evidence or the signature catalog is invalid."""
 
 
-class Checker(Enum):
+class Tool(Enum):
+    """The program whose diagnostics a signature reads."""
+
+    PARSER = "parser"
     TLC = "tlc"
     APALACHE = "apalache"
 
-    @property
-    def other(self) -> Checker:
-        return Checker.APALACHE if self is Checker.TLC else Checker.TLC
+
+class Checker(Enum):
+    """A checker stage, keyed by its name in the envelope's stages map.
+
+    TLC-n is TLC with more workers (ADR 0018): it prints TLC's diagnostics, so
+    TLC's signatures apply to it.
+    """
+
+    TLC = ("tlc", Tool.TLC)
+    TLCN = ("tlcn", Tool.TLC)
+    APALACHE = ("apalache", Tool.APALACHE)
+
+    def __new__(cls, stage: str, tool: Tool) -> Checker:
+        member = object.__new__(cls)
+        member._value_ = stage
+        member.tool = tool
+        return member
 
 
 class CrashKind(Enum):
-    PARSER = "01parser-crash"
-    TLC = "02tlc-crash"
-    APALACHE = "02apa-crash"
+    PARSER = ("01parser-crash", Tool.PARSER)
+    TLC = ("02tlc-crash", Tool.TLC)
+    TLCN = ("02tlcn-crash", Tool.TLC)
+    APALACHE = ("02apa-crash", Tool.APALACHE)
+
+    def __new__(cls, directory: str, tool: Tool) -> CrashKind:
+        member = object.__new__(cls)
+        member._value_ = directory
+        member.tool = tool
+        return member
 
     @property
     def report_name(self) -> str:
@@ -57,7 +81,7 @@ class PatternSet:
 @dataclass(frozen=True)
 class FindingSignature:
     finding_file: str
-    crash_kind: CrashKind
+    tool: Tool
     alternatives: tuple[PatternSet, ...]
 
     def matches(self, diagnostic: str) -> bool:
@@ -71,7 +95,7 @@ class CheckerResult:
     detail: str | None
 
 
-# The other checker's completed verdicts. A documented conformance class is
+# The other checkers' completed verdicts. A documented conformance class is
 # fixed by the failing checker's diagnostic, not by whether the other checker's
 # completed run reported no violation ("pass") or a counterexample: both are
 # completions, and the aggregator records the fail/pass and fail/counterexample
@@ -82,23 +106,33 @@ OTHER_CHECKER_COMPLETED = frozenset(("pass", "counterexample"))
 
 @dataclass(frozen=True)
 class AggregatorSignature:
+    """A documented deviation of one tool from the checkers of the other tools.
+
+    Every checker of the failing tool (TLC and TLC-n alike) must fail with a
+    matching diagnostic, and every checker of another tool must complete.
+    """
+
     issue_file: str
-    failed_checker: Checker
+    failed_tool: Tool
     code: int
     alternatives: tuple[PatternSet, ...]
 
     def matches(self, results: dict[Checker, CheckerResult]) -> bool:
-        failed = results[self.failed_checker]
-        other = results[self.failed_checker.other]
+        failed = [result for checker, result in results.items() if checker.tool is self.failed_tool]
+        others = [result for checker, result in results.items() if checker.tool is not self.failed_tool]
         return (
-            failed.verdict == "fail"
-            and failed.code == self.code
-            and failed.detail is not None
-            and other.verdict in OTHER_CHECKER_COMPLETED
-            and any(
-                alternative.matches(failed.detail)
-                for alternative in self.alternatives
-            )
+            bool(failed)
+            and bool(others)
+            and all(self.explains(result) for result in failed)
+            and all(result.verdict in OTHER_CHECKER_COMPLETED for result in others)
+        )
+
+    def explains(self, result: CheckerResult) -> bool:
+        return (
+            result.verdict == "fail"
+            and result.code == self.code
+            and result.detail is not None
+            and any(alternative.matches(result.detail) for alternative in self.alternatives)
         )
 
 
@@ -106,17 +140,17 @@ def all_of(*patterns: str) -> PatternSet:
     return PatternSet(tuple(re.compile(pattern, re.MULTILINE) for pattern in patterns))
 
 
-def finding(file: str, kind: CrashKind, *alternatives: PatternSet) -> FindingSignature:
-    return FindingSignature(file, kind, alternatives)
+def finding(file: str, tool: Tool, *alternatives: PatternSet) -> FindingSignature:
+    return FindingSignature(file, tool, alternatives)
 
 
 EVALUATION_FAILURE_CODE = 75
 
 
 def failure(
-    file: str, checker: Checker, *patterns: str, code: int = EVALUATION_FAILURE_CODE
+    file: str, tool: Tool, *patterns: str, code: int = EVALUATION_FAILURE_CODE
 ) -> AggregatorSignature:
-    return AggregatorSignature(file, checker, code, tuple(all_of(pattern) for pattern in patterns))
+    return AggregatorSignature(file, tool, code, tuple(all_of(pattern) for pattern in patterns))
 
 
 def apalache_error(pattern: str) -> PatternSet:
@@ -171,14 +205,14 @@ def tlc_runtime_error(*patterns: str) -> PatternSet:
 # confirmed to have the same root cause as the finding it names. Order matters:
 # when several signatures match, the first one wins and the triager warns.
 SIGNATURES = (
-    finding("sany-001.md", CrashKind.PARSER,
+    finding("sany-001.md", Tool.PARSER,
             all_of(r"java\.util\.UnknownFormatConversionException: Conversion = ':'",
                    r"tla2sany\.semantic\.Errors\$ErrorDetails\.getMessage")),
     # An evaluation error in a constant eventuality escapes while TLC prepares liveness
     # checking, after "Starting..." and before it computes any initial state. The
     # context is what separates it from the error-1000 escapes of tlc-001 and
     # tlc-003, which occur while states are computed.
-    finding("tlc-009.md", CrashKind.TLC,
+    finding("tlc-009.md", Tool.TLC,
             all_of(TLC_GENERAL_ERROR,
                    TLC_BEFORE_INITIAL_STATES,
                    r"^Error: TLC threw an unexpected exception\.$",
@@ -187,14 +221,14 @@ SIGNATURES = (
     # TLC prints either the wrapped diagnostic or only the behavior, so the
     # signature does not constrain the message; tlc_runtime_error excludes the
     # same context from tlc-001 and tlc-003.
-    finding("tlc-010.md", CrashKind.TLC,
+    finding("tlc-010.md", Tool.TLC,
             all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES),
             all_of(TLC_GENERAL_ERROR, TLC_LIVENESS_ERROR_ON_INITIAL_STATE)),
     # TLC's evaluator exhausts the Java stack on a terminating recursion over a
     # few hundred elements. Generated modules recurse only through the
     # recursion library, whose definitions terminate. TLC reports the overflow
     # under 1005, or under the general error 1000 on some paths (corpus58).
-    finding("tlc-performance-001.md", CrashKind.TLC,
+    finding("tlc-performance-001.md", Tool.TLC,
             all_of(r"^TLC error code 100[05] mapped to exit status 255$",
                    r"^Error: This was a Java StackOverflowError\. It was probably the result$")),
     # A stack overflow while TLC reconstructs a liveness counterexample: LiveCheck
@@ -202,18 +236,18 @@ SIGNATURES = (
     # TLC error code, and the worker reports the exit with the TLC output that its
     # shutdown hook printed. Before that hook, the diagnostic was only the exit line
     # (corpus64 4c8676fa, d301ca55), which stays NEW.
-    finding("tlc-019.md", CrashKind.TLC,
+    finding("tlc-019.md", Tool.TLC,
             all_of(r"^TLC worker exited while processing the input$",
                    r"^Checking temporal properties for ",
                    r"^The exception was a java\.util\.concurrent\.ExecutionException\n"
                    r": java\.lang\.StackOverflowError$")),
     # An evaluation error forced by fingerprinting an initial state is raised
     # again when the error handler prints that state (corpus59 a96cc07a).
-    finding("tlc-001.md", CrashKind.TLC,
+    finding("tlc-001.md", Tool.TLC,
             tlc_runtime_error(r"In applying the function", r"which is not in its domain\."),
             tlc_runtime_error(r"Attempted to compute the value of an expression of form\n"
                               r"CHOOSE x \\in S: P, but no element of S satisfied P\.")),
-    finding("tlc-002.md", CrashKind.TLC,
+    finding("tlc-002.md", Tool.TLC,
             all_of(r"^TLC error code 2184 mapped to exit status 255$",
                    r"Error: Attempted to apply (?:Head|Tail) to the empty sequence\."),
             all_of(r"^TLC error code 2183 mapped to exit status 255$",
@@ -242,14 +276,14 @@ SIGNATURES = (
                    rf"{TLC_MODULE_ERROR_MESSAGE}")),
     # Community Modules overrides that reject arguments their TLA+ definitions
     # accept. The exit status is tlc-002's, but the error itself is the defect.
-    finding("tlc-016.md", CrashKind.TLC,
+    finding("tlc-016.md", Tool.TLC,
             all_of(r"^TLC error code 2283 mapped to exit status 255$",
                    r"^(?:Error: )?The argument of IsInjective should be a function, but instead it is:$")),
-    finding("tlc-017.md", CrashKind.TLC,
+    finding("tlc-017.md", Tool.TLC,
             all_of(r"^TLC error code 2154 mapped to exit status 255$",
                    r"tlc2\.overrides\.Functions\.antiFunction\(",
                    r"^occurs multiple times in the function domain\.$")),
-    finding("tlc-003.md", CrashKind.TLC,
+    finding("tlc-003.md", Tool.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
             tlc_runtime_error(r"Attempted to compute the number of elements in the overridden value"),
@@ -262,56 +296,56 @@ SIGNATURES = (
     # a different, module-raised error. A module error inside the invariant
     # itself prints its own message after the wrapper and stays tlc-002, so the
     # lookahead excludes exactly the tlc-002 messages.
-    finding("tlc-007.md", CrashKind.TLC,
+    finding("tlc-007.md", Tool.TLC,
             all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
                    rf"^Error: Evaluating invariant \w+ failed\.\n(?!{TLC_MODULE_ERROR_MESSAGE})",
                    r"^Error: The error occurred when TLC was evaluating the nested$")),
-    finding("apalache-printer-008.md", CrashKind.TLC,
+    finding("apalache-printer-008.md", Tool.TLC,
             all_of(r"^TLC error code 2102 mapped to exit status 255$",
                    r"Error: current state is not a legal state", r"/\\ step = null")),
-    finding("apalache-bmc-001.md", CrashKind.APALACHE,
+    finding("apalache-bmc-001.md", Tool.APALACHE,
             all_of(r"scala\.NotImplementedError: A set filter over .+ is not implemented",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetFilterRule\.apply")),
     # The rule frame is what separates this from apalache-bmc-001: both report
     # NotImplementedError over the same symbolic-set representations, but from
     # SetMapRule and SetFilterRule respectively, and they are separate fixes.
-    finding("apalache-bmc-014.md", CrashKind.APALACHE,
+    finding("apalache-bmc-014.md", Tool.APALACHE,
             all_of(r"scala\.NotImplementedError: A set map over .+ is not implemented",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetMapRule\.apply")),
-    finding("apalache-bmc-003.md", CrashKind.APALACHE,
+    finding("apalache-bmc-003.md", Tool.APALACHE,
             apalache_error(r"checker error: Unexpected equality test over types")),
-    finding("apalache-bmc-004.md", CrashKind.APALACHE,
+    finding("apalache-bmc-004.md", Tool.APALACHE,
             all_of(r"java\.lang\.ClassCastException: class com\.microsoft\.z3\.RealExpr cannot be cast to class com\.microsoft\.z3\.IntExpr",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.smt\.Z3SolverContext\.toArithExpr")),
-    finding("apalache-bmc-005.md", CrashKind.APALACHE,
+    finding("apalache-bmc-005.md", Tool.APALACHE,
             all_of(r"java\.lang\.UnsupportedOperationException: Expansion of InfSet\[CellTFrom\(Int\)\] is not supported yet",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.expandExistsOrForall")),
-    finding("apalache-bmc-006.md", CrashKind.APALACHE,
+    finding("apalache-bmc-006.md", Tool.APALACHE,
             apalache_error(r"rewriter error: Do not know how pick an element from a set of type:")),
-    finding("apalache-bmc-009.md", CrashKind.APALACHE,
+    finding("apalache-bmc-009.md", Tool.APALACHE,
             all_of(r"java\.lang\.IllegalArgumentException: requirement failed: The right-hand side of a function set should be: a finite set or a powerset",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FunSetCtorRule\.apply")),
-    finding("apalache-bmc-010.md", CrashKind.APALACHE,
+    finding("apalache-bmc-010.md", Tool.APALACHE,
             all_of(r"internal error in type checking: Applying UNION to CHOOSE", r"of type PowSet\[Set\(")),
-    finding("apalache-bmc-011.md", CrashKind.APALACHE,
+    finding("apalache-bmc-011.md", Tool.APALACHE,
             all_of(r"java\.lang\.AssertionError: assertion failed",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.subsetEq",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.mkFunSetEq")),
     # Skolemizable \E over a set expression that evaluates to Int/Nat.
     # Distinct from apalache-bmc-005, which is the expansion path with the
     # "Expansion of InfSet[...]" message from QuantRule.expandExistsOrForAll.
-    finding("apalache-bmc-012.md", CrashKind.APALACHE,
+    finding("apalache-bmc-012.md", Tool.APALACHE,
             all_of(r"java\.lang\.UnsupportedOperationException: Quantification over InfSet\[CellTFrom\(Int\)\] is not supported yet",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.QuantRule\.apply")),
-    finding("apalache-bmc-018.md", CrashKind.APALACHE,
+    finding("apalache-bmc-018.md", Tool.APALACHE,
             all_of(r"java\.lang\.RuntimeException: The set \$C\$\d+ is statically empty\. Pick should not be called on that\.",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.support\.CherryPick\.pickFunFromFunSet")),
-    finding("apalache-bmc-013.md", CrashKind.APALACHE,
+    finding("apalache-bmc-013.md", Tool.APALACHE,
             all_of(r"java\.util\.NoSuchElementException: key not found: \$C\$\d+",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.Binding\.apply",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.SetInRule\.apply",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.Fold(?:Set|Seq)Rule\.")),
-    finding("apalache-cli-001.md", CrashKind.APALACHE,
+    finding("apalache-cli-001.md", Tool.APALACHE,
             apalache_error(r"Input error \(see the manual\): Cardinality expected a finite set, found: (?:InfSet|FinFunSet|PowSet)\["),
             apalache_error(r"Input error \(see the manual\): Expected a constant integer range in \[ \.\. \]"),
             apalache_error(r"Input error \(see the manual\): Found a set map over an infinite set"),
@@ -322,35 +356,35 @@ SIGNATURES = (
             apalache_error(r"rewriter error: Range bounds are too large to fit in scala\.Int"),
             apalache_error(r"error when rewriting to SMT: SMT \d+: z3 reports UNKNOWN"),
             apalache_error(r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\.")),
-    finding("apalache-optimizer-001.md", CrashKind.APALACHE,
+    finding("apalache-optimizer-001.md", Tool.APALACHE,
             all_of(r"unexpected expression: undeclared operator LocalOp\d+\$\d+ \[FlatLanguagePred\]",
                    r"ConstSimplifier", r"ExprOptimizer")),
-    finding("apalache-json-002.md", CrashKind.APALACHE,
+    finding("apalache-json-002.md", Tool.APALACHE,
             all_of(r"java\.lang\.OutOfMemoryError: Java heap space", r"DefaultType1Parser")),
-    finding("apalache-assignments-001.md", CrashKind.APALACHE,
+    finding("apalache-assignments-001.md", Tool.APALACHE,
             apalache_error(r"^Assignment error: .+: (?:Illegal assignment inside an assignment-free expression\."
                            r"|Manual assignment is spurious, \w+ is already assigned!)")),
     # The empty unexpected expression, reported while TemporalPass is the latest
     # pass. apalache-optimizer-001 names an undeclared operator after the colon.
-    finding("apalache-temporal-001.md", CrashKind.APALACHE,
+    finding("apalache-temporal-001.md", Tool.APALACHE,
             apalache_error(r"^PASS #\d+: TemporalPass\b(?:(?!^PASS #)[\s\S])*"
                            r"^<unknown>: unexpected expression: +E@")),
-    finding("apalache-temporal-002.md", CrashKind.APALACHE,
+    finding("apalache-temporal-002.md", Tool.APALACHE,
             apalache_error(r"internal error in type checking: FoldSet argument \S+ should have the tag .+, found Bool\."),
             apalache_error(r"internal error in type checking: Inliner: Unable to unify the signature \S+ of \S+ with the type ")),
     # Without a temporal property, the same SubstRule message is the uninitialized
     # CONSTANTS case that its hint names; generated modules declare no constants.
-    finding("apalache-temporal-003.md", CrashKind.APALACHE,
+    finding("apalache-temporal-003.md", Tool.APALACHE,
             all_of(r"^Apalache exited with status 255$",
                    r"^  > Set a temporal property to \w+",
                    r"^Input error \(see the manual\): SubstRule: Variable \S+ is not assigned a value")),
-    finding("apalache-temporal-004.md", CrashKind.APALACHE,
+    finding("apalache-temporal-004.md", Tool.APALACHE,
             apalache_error(r"^java\.lang\.IllegalArgumentException: Variable names should never contain more than one separator$")),
     # The builder's stack-unsafe State.run, reached from the bounded checker's
     # encoding; the trace may start in collection or type-unifier frames above typecomp,
     # or in a simplifier mapped over the State, where the 1,024 printed frames below it
     # are only the IndexedStateT bind chain.
-    finding("apalache-builder-001.md", CrashKind.APALACHE,
+    finding("apalache-builder-001.md", Tool.APALACHE,
             apalache_error(r"^java\.lang\.StackOverflowError\n(?:\tat .+\n)*?"
                            r"\tat (?:at\.forsyte\.apalache\.tla\.typecomp\.|scalaz\.IndexedStateT\.)")),
 )
@@ -367,7 +401,7 @@ SIGNATURES = (
 # exception.", "Attempted to apply the operator overridden by the Java method"),
 # so the root cause is not in the stored line at all and those groups stay NEW.
 AGGREGATOR_SIGNATURES = (
-    failure("function-application-outside-domain.md", Checker.TLC,
+    failure("function-application-outside-domain.md", Tool.TLC,
             r"^In applying the function$", r"^Attempted to apply function:$",
             # TLC stores sequences and tuples as tuple values, so indexing one
             # outside 1..Len reports this instead; corpus17 adds direct reads.
@@ -379,61 +413,61 @@ AGGREGATOR_SIGNATURES = (
     # shared by the no-witness CHOOSE, the N-tuples CHOOSE, and SUBSET over a
     # non-enumerable set; 40 sampled corpus14 entries were all the first, so it
     # stays here, but a reruns check is the only way to split it further.
-    failure("choose-without-witness.md", Checker.TLC,
+    failure("choose-without-witness.md", Tool.TLC,
             r"^Attempted to compute the value of an expression of form$",
             # The Community Modules override of LongestCommonPrefix rejects {}, for
             # which the definition is a CHOOSE over an empty set of common prefixes.
             r"^The argument of LongestCommonPrefix should be a non-empty set, but instead it i"),
-    failure("tlc-016.md", Checker.TLC,
+    failure("tlc-016.md", Tool.TLC,
             r"^The argument of IsInjective should be a function, but instead it is:$"),
     # TLC stores the line after the override wrapper. In tla2tools only FcnRcdValue
     # prints "The value" on a line of its own, for a function domain with
     # duplicates. Of the Community Modules overrides, only AntiFunction and the
     # SVG module, which no library selects, construct a FcnRcdValue.
-    failure("tlc-017.md", Checker.TLC, r"^The value$"),
-    failure("bag-nonpositive-multiplicity.md", Checker.TLC,
+    failure("tlc-017.md", Tool.TLC, r"^The value$"),
+    failure("bag-nonpositive-multiplicity.md", Tool.TLC,
             r"^Applying FoldBag to the following value,$"),
-    failure("choose-over-infinite-set.md", Checker.TLC,
+    failure("choose-over-infinite-set.md", Tool.TLC,
             r"^Attempted to compute the value of an expression of$"),
-    failure("head-of-empty-sequence.md", Checker.TLC,
+    failure("head-of-empty-sequence.md", Tool.TLC,
             r"^Attempted to apply Head to the empty sequence\.$"),
-    failure("case-without-matching-arm.md", Checker.TLC,
+    failure("case-without-matching-arm.md", Tool.TLC,
             r"^Attempted to evaluate a CASE with no conditions true\.$",
             r"^In computing (?:next states|ENABLED), TLC encountered a CASE with no conditions true\.$"),
-    failure("subseq-outside-domain.md", Checker.TLC,
+    failure("subseq-outside-domain.md", Tool.TLC,
             r"^The (?:second|third) argument of SubSeq must be in the domain of its first argument:$"),
-    failure("tail-of-empty-sequence.md", Checker.TLC,
+    failure("tail-of-empty-sequence.md", Tool.TLC,
             r"^Attempted to apply Tail to the empty sequence\.$"),
-    failure("zero-power-zero-tlc-fails.md", Checker.TLC, r"^0\^0 is undefined\.$"),
-    failure("integer-outside-tlc-range.md", Checker.TLC,
+    failure("zero-power-zero-tlc-fails.md", Tool.TLC, r"^0\^0 is undefined\.$"),
+    failure("integer-outside-tlc-range.md", Tool.TLC,
             r"^TLC can't handle a number this big\.$",
             # Any operator whose result leaves TLC's integer range reports this;
             # corpus8 adds a multiplication to corpus3's exponentiations.
             r"^Overflow when computing "),
-    failure("modulo-nonpositive-divisor.md", Checker.TLC,
+    failure("modulo-nonpositive-divisor.md", Tool.TLC,
             r"^The second argument of % should be a positive number"),
-    failure("division-by-zero-tlc-fails.md", Checker.TLC,
+    failure("division-by-zero-tlc-fails.md", Tool.TLC,
             r"^The second argument of \\div is 0\.$"),
-    failure("infinite-set-as-state-value.md", Checker.TLC,
+    failure("infinite-set-as-state-value.md", Tool.TLC,
             r"^TLC has found a state in which the value of a variable contains (?:Int|Nat)$"),
-    failure("filter-over-infinite-set.md", Checker.TLC,
+    failure("filter-over-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate \{ x \\in S : p\(x\) \} when S:$"),
-    failure("union-containing-infinite-set.md", Checker.TLC,
+    failure("union-containing-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate UNION\(s\), but some element of s is nonenumerable\.$",
             r"^Attempted to enumerate S \\cup T when S:$"),
-    failure("function-over-infinite-domain.md", Checker.TLC,
+    failure("function-over-infinite-domain.md", Tool.TLC,
             r"^Attempted to enumerate a set of the form \[D -> R\],but the domain D:$",
             # Truncation cuts the tail whenever the overridden value prints long,
             # so anchor on the value name and not on the closing period.
             r"^Attempted to compute the number of elements in the overridden value (?:Int|Nat|Seq\()"),
-    failure("string-set-tlc-fails.md", Checker.TLC,
+    failure("string-set-tlc-fails.md", Tool.TLC,
             r"^Attempted to compute the number of elements in the overridden value STRING"),
     # A membership test against a filter over Nat whose predicate raises. TLC
     # reports neither the enumeration limit nor the underlying error.
-    failure("filter-over-infinite-set.md", Checker.TLC, r"^Cannot decide if element:$"),
-    failure("quantification-over-infinite-set.md", Checker.TLC,
+    failure("filter-over-infinite-set.md", Tool.TLC, r"^Cannot decide if element:$"),
+    failure("quantification-over-infinite-set.md", Tool.TLC,
             r"^TLC encountered (?:the |a )non-enumerable quantifier bound$"),
-    failure("finite-set-containing-infinite-set.md", Checker.TLC,
+    failure("finite-set-containing-infinite-set.md", Tool.TLC,
             # Truncation drops the "with <value>:" tail whenever the compared
             # value is long, so match only the prefix TLC always emits.
             r"^Attempted to compare (?:the set|overridden value) ",
@@ -441,23 +475,23 @@ AGGREGATOR_SIGNATURES = (
     # The same operand reached as the element of a membership test rather than
     # as a value being compared. TLC names the element, not the set, so the
     # finite-set-containing-infinite-set alternatives above cannot match.
-    failure("infinite-set-as-membership-element.md", Checker.TLC,
+    failure("infinite-set-as-membership-element.md", Tool.TLC,
             r"^Attempted to check if the non-enumerable value$"),
-    failure("cardinality-of-infinite-set.md", Checker.TLC,
+    failure("cardinality-of-infinite-set.md", Tool.TLC,
             r"^Attempted to compute cardinality of the value$"),
-    failure("difference-with-infinite-set.md", Checker.TLC,
+    failure("difference-with-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate S \\ T when S:$"),
-    failure("intersection-of-infinite-sets.md", Checker.TLC,
+    failure("intersection-of-infinite-sets.md", Tool.TLC,
             r"^Attempted to enumerate S \\cap T when neither S:$"),
-    failure("subset-test-over-infinite-set.md", Checker.TLC,
+    failure("subset-test-over-infinite-set.md", Tool.TLC,
             r"^Attempted to evaluate an expression of form S \\subseteq T, but S was not enumer"),
-    failure("cartesian-product-with-infinite-set.md", Checker.TLC,
+    failure("cartesian-product-with-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate a set of the form s1 \\X s2 \.\.\. \\X sn,$"),
-    failure("function-set-over-infinite-set.md", Checker.TLC,
+    failure("function-set-over-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate a set of the form \[D -> R\],but the range R:$"),
-    failure("negative-exponent-tlc-fails.md", Checker.TLC,
+    failure("negative-exponent-tlc-fails.md", Tool.TLC,
             r"^The second argument of \^ should be a natural number"),
-    failure("apalache-printer-008.md", Checker.TLC,
+    failure("apalache-printer-008.md", Tool.TLC,
             r"^Attempted to evaluate an expression of form P (?:=>|<=>|/\\|\\/) Q when P",
             r"^A non-boolean expression ",
             r"^Attempted to apply the operator ~ to a non-boolean$",
@@ -480,45 +514,45 @@ AGGREGATOR_SIGNATURES = (
     # Inv is Bool in the IR, so a set-valued invariant is printed source that
     # no longer denotes the tree. A constant FALSE invariant is the separate,
     # legitimate TLC restriction below and must not match here.
-    failure("apalache-printer-008.md", Checker.TLC,
+    failure("apalache-printer-008.md", Tool.TLC,
             r"^The invariant of Inv is equal to (?!FALSE$)", code=150),
-    failure("constant-false-invariant.md", Checker.TLC,
+    failure("constant-false-invariant.md", Tool.TLC,
             r"^The invariant of Inv is equal to FALSE$", code=150),
-    failure("constant-property-tlc-rejects.md", Checker.TLC,
+    failure("constant-property-tlc-rejects.md", Tool.TLC,
             r"^The property of Prop is equal to FALSE$",
             r"^The spec is trivially false because \w+ is false\.$", code=150),
-    failure("constant-property-tlc-rejects.md", Checker.TLC,
+    failure("constant-property-tlc-rejects.md", Tool.TLC,
             r"^Temporal formula is a tautology \(its negation is unsatisfiable\)\.$"),
     # TLC declines an operand whose finiteness it cannot decide; Apalache
     # answers TRUE for the same set. Reachable once the detail stores the
     # innermost failure, since TLC reports this inside the override wrapper.
-    failure("apalache-bmc-007.md", Checker.TLC,
+    failure("apalache-bmc-007.md", Tool.TLC,
             r"^Attempted to check if expression of form \{x \\in S : p\(x\)\} is a finite set",
             # The same operand reached as a set expression rather than a filter,
             # for example "Nat \\cap Int" or "{0} \\cup Int \\ Nat".
             r"^Attempted to check if the set "),
-    failure("non-enumerable-initial-assignment.md", Checker.TLC,
+    failure("non-enumerable-initial-assignment.md", Tool.TLC,
             r"^In computing initial states, the right side of \\IN is not enumerable\.$",
             # The same enumeration limit reached from the next-state action.
             r"^In computing next states, the right side of \\IN is not enumerable\.$"),
     # ENABLED UNCHANGED e for a non-variable e. An actual WF_v(A) raises the same
     # message only while TLC checks liveness, as an error-1000 crash (tlc-010),
     # so an exit-75 failure stored by the aggregator is the ENABLED path.
-    failure("tlc-012.md", Checker.TLC,
+    failure("tlc-012.md", Tool.TLC,
             r"^The action formula A appearing in a WF_v\(A\) or SF_v\(A\) operator does not specif"),
-    failure("modulo-by-zero-apalache-fails.md", Checker.APALACHE,
+    failure("modulo-by-zero-apalache-fails.md", Tool.APALACHE,
             r"^Input error \(see the manual\): Mod by zero at "),
-    failure("division-by-zero-apalache-fails.md", Checker.APALACHE,
+    failure("division-by-zero-apalache-fails.md", Tool.APALACHE,
             r"^Input error \(see the manual\): Division by zero at "),
-    failure("zero-power-zero-apalache-fails.md", Checker.APALACHE,
+    failure("zero-power-zero-apalache-fails.md", Tool.APALACHE,
             r"^Input error \(see the manual\): 0 \^ 0 is undefined$"),
-    failure("sequence-set-unsupported.md", Checker.APALACHE,
+    failure("sequence-set-unsupported.md", Tool.APALACHE,
             r"^<unknown>: unsupported expression: Seq\(_\) produces an infinite set"),
-    failure("string-set-unsupported.md", Checker.APALACHE,
+    failure("string-set-unsupported.md", Tool.APALACHE,
             r"^<unknown>: unsupported expression: STRING$"),
-    failure("enabled-apalache-unsupported.md", Checker.APALACHE,
+    failure("enabled-apalache-unsupported.md", Tool.APALACHE,
             r"^<unknown>: unsupported expression: ENABLED\b"),
-    failure("fairness-apalache-unsupported.md", Checker.APALACHE,
+    failure("fairness-apalache-unsupported.md", Tool.APALACHE,
             r"^scala\.NotImplementedError: Handling fairness is not supported yet!$"),
 )
 
@@ -533,6 +567,13 @@ NEW_FINDING = "NEW"
 # "<Apalache|TLC> worker timed out after <Duration>" (IsolatedWorkerProcess).
 WORKER_TIMEOUT = "TIMEOUT"
 WORKER_TIMEOUT_PATTERN = re.compile(r"^\w+ worker timed out after ", re.MULTILINE)
+
+# Checkers of one tool that explore states in a different order, TLC with one
+# and with n workers, may stop at different errors when an input reaches both
+# an invariant violation and an evaluation error (ADR 0018, "Nondeterministic
+# first error"). Such an entry is no defect. Like a timeout it names no
+# document, so it gets its own bucket rather than NEW.
+FIRST_ERROR_RACE = "FIRST_ERROR"
 AGGREGATOR_DIRECTORY = "03aggregator-fail"
 AGGREGATOR_REPORT = "03aggregator-fail-triage.csv"
 VALID_VERDICTS = frozenset(("pass", "counterexample", "fail", "crashed"))
@@ -585,14 +626,39 @@ def classify(crash_kind: CrashKind, diagnostic: str, entry_hash: str) -> str:
     matches = [
         signature.finding_file
         for signature in SIGNATURES
-        if signature.crash_kind is crash_kind and signature.matches(diagnostic)
+        if signature.tool is crash_kind.tool and signature.matches(diagnostic)
     ]
     return first_match(matches, f"{crash_kind.value}/{entry_hash}", "findings")
+
+
+def is_first_error_race(results: dict[Checker, CheckerResult]) -> bool:
+    """Whether the checkers of one tool split into a counterexample and an evaluation error.
+
+    Checkers of every other tool must report the counterexample too, so that the
+    split explains the whole disagreement; otherwise the entry is classified as usual.
+    """
+    for tool in Tool:
+        own = [result for checker, result in results.items() if checker.tool is tool]
+        others = [result for checker, result in results.items() if checker.tool is not tool]
+        verdicts = {result.verdict for result in own}
+        if (
+            verdicts == {"counterexample", "fail"}
+            and all(
+                result.code == EVALUATION_FAILURE_CODE
+                for result in own
+                if result.verdict == "fail"
+            )
+            and all(result.verdict == "counterexample" for result in others)
+        ):
+            return True
+    return False
 
 
 def classify_aggregator(
     results: dict[Checker, CheckerResult], entry_hash: str
 ) -> str:
+    if is_first_error_race(results):
+        return FIRST_ERROR_RACE
     matches = [
         signature.issue_file
         for signature in AGGREGATOR_SIGNATURES
@@ -697,10 +763,15 @@ def read_aggregator_results(path: Path) -> dict[Checker, CheckerResult]:
     aggregator = require_map(stages.get("aggregator"), "stages.aggregator", path)
     if aggregator.get("verdict") != "fail":
         raise TriageError(f"entry in aggregator-fail does not have fail verdict: {path}")
+    # An entry records exactly the checkers its corpus runs (ADR 0016 §5).
     results = {
-        checker: read_checker_result(stages, checker, path) for checker in Checker
+        checker: read_checker_result(stages, checker, path)
+        for checker in Checker
+        if checker.value in stages
     }
-    if results[Checker.TLC].verdict == results[Checker.APALACHE].verdict:
+    if len(results) < 2:
+        raise TriageError(f"aggregator entry has fewer than two checker results: {path}")
+    if len({result.verdict for result in results.values()}) == 1:
         raise TriageError(f"aggregator entry contains agreeing checker verdicts: {path}")
     if "crashed" in (result.verdict for result in results.values()):
         raise TriageError(f"aggregator entry contains a crashed checker result: {path}")
@@ -819,13 +890,16 @@ def triage(corpus: Path, repository_root: Path) -> list[Path]:
         raise TriageError(f"corpus directory does not exist: {corpus}")
 
     validate_signature_catalog(repository_root)
+    # A corpus created before a checker existed has no crash directory for it.
     reports = {
-        crash_kind: classify_directory(corpus, crash_kind) for crash_kind in CrashKind
+        crash_kind: classify_directory(corpus, crash_kind)
+        for crash_kind in CrashKind
+        if (corpus / crash_kind.value).exists() or (corpus / crash_kind.value).is_symlink()
     }
     aggregator_rows = classify_aggregator_directory(corpus)
 
     report_paths = []
-    for crash_kind in CrashKind:
+    for crash_kind in reports:
         report_path = corpus / crash_kind.report_name
         write_report(report_path, reports[crash_kind])
         report_paths.append(report_path)

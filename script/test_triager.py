@@ -18,6 +18,14 @@ HASH_A = "a" * 64
 HASH_B = "b" * 64
 
 
+# The checker each fixture compares a failing checker with, by default.
+OTHER = {
+    triager.Checker.TLC: triager.Checker.APALACHE,
+    triager.Checker.TLCN: triager.Checker.APALACHE,
+    triager.Checker.APALACHE: triager.Checker.TLC,
+}
+
+
 def results(
     failed: triager.Checker,
     detail: str | None,
@@ -27,7 +35,7 @@ def results(
 ) -> dict[triager.Checker, triager.CheckerResult]:
     return {
         failed: triager.CheckerResult("fail", code, detail),
-        failed.other: triager.CheckerResult(other_verdict, None, None),
+        OTHER[failed]: triager.CheckerResult(other_verdict, None, None),
     }
 
 
@@ -41,7 +49,7 @@ def envelope(
     stages: dict[str, object] = {
         "aggregator": {"verdict": "fail"},
         failed.value: {"verdict": "fail", "code": code},
-        failed.other.value: {"verdict": other_verdict},
+        OTHER[failed].value: {"verdict": other_verdict},
     }
     if detail is not None:
         stages[failed.value]["detail"] = detail  # type: ignore[index]
@@ -641,7 +649,7 @@ class AggregatorClassificationTest(unittest.TestCase):
     def test_reports_ambiguous_matches(self) -> None:
         duplicate = triager.AggregatorSignature(
             "duplicate.md",
-            triager.Checker.TLC,
+            triager.Tool.TLC,
             75,
             (triager.all_of(r"^In applying the function$"),),
         )
@@ -1133,6 +1141,109 @@ class Corpus53CrashTest(unittest.TestCase):
             "tlc-001.md",
             classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
+
+
+def verdicts(**stages: str | tuple[int, str]) -> dict[triager.Checker, triager.CheckerResult]:
+    """Checker results by stage name: a verdict, or a (code, detail) failure."""
+    return {
+        triager.Checker(stage): (
+            triager.CheckerResult("fail", *value)
+            if isinstance(value, tuple)
+            else triager.CheckerResult(value, None, None)
+        )
+        for stage, value in stages.items()
+    }
+
+
+class ParallelTlcTest(unittest.TestCase):
+    """ADR 0018: TLC-n is TLC with more workers, triaged by TLC's signatures."""
+
+    HEAD = (75, "Attempted to apply Head to the empty sequence.")
+    TAIL = (75, "Attempted to apply Tail to the empty sequence.")
+
+    def test_tlcn_crash_uses_tlc_signatures(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "TLC error code 2184 mapped to exit status 255",
+                "Error: Attempted to apply Head to the empty sequence.",
+            )
+        )
+        self.assertEqual(
+            "tlc-002.md", triager.classify(triager.CrashKind.TLCN, diagnostic, HASH_A))
+
+    def test_counterexample_against_evaluation_error_is_first_error_race(self) -> None:
+        """corpus66 37371512, 86ce95dd: either side may report the counterexample."""
+        for stages in (
+            {"tlc": self.HEAD, "tlcn": "counterexample"},
+            {"tlc": "counterexample", "tlcn": self.HEAD},
+            {"tlc": self.HEAD, "tlcn": "counterexample", "apalache": "counterexample"},
+        ):
+            with self.subTest(stages=stages):
+                self.assertEqual(
+                    triager.FIRST_ERROR_RACE,
+                    triager.classify_aggregator(verdicts(**stages), HASH_A))
+
+    def test_other_tlc_disagreements_are_new(self) -> None:
+        for stages in (
+            {"tlc": "pass", "tlcn": "counterexample"},
+            {"tlc": self.HEAD, "tlcn": "pass"},
+            {"tlc": (150, "The invariant of Inv is equal to FALSE"), "tlcn": "counterexample"},
+            # Apalache's pass is a disagreement that the race does not explain.
+            {"tlc": self.HEAD, "tlcn": "counterexample", "apalache": "pass"},
+            # TLC and TLC-n fail differently; neither document explains both.
+            {"tlc": self.HEAD, "tlcn": self.TAIL, "apalache": "pass"},
+        ):
+            with self.subTest(stages=stages):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    actual = triager.classify_aggregator(verdicts(**stages), HASH_A)
+                self.assertEqual(triager.NEW_FINDING, actual)
+
+    def test_tlc_and_tlcn_failing_alike_against_apalache_is_classified(self) -> None:
+        self.assertEqual(
+            "head-of-empty-sequence.md",
+            triager.classify_aggregator(
+                verdicts(tlc=self.HEAD, tlcn=self.HEAD, apalache="pass"), HASH_A))
+
+    def test_apalache_failure_against_both_tlc_checkers_is_classified(self) -> None:
+        stages = verdicts(
+            tlc="pass", tlcn="pass",
+            apalache=(75, "<unknown>: unsupported expression: STRING"))
+        self.assertEqual(
+            "string-set-unsupported.md", triager.classify_aggregator(stages, HASH_A))
+
+    def test_reads_an_envelope_without_apalache(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / f"{HASH_A}.cbor"
+            path.write_bytes(cbor2.dumps({"stages": {
+                "aggregator": {"verdict": "fail"},
+                "tlc": {"verdict": "fail", "code": 75, "detail": self.HEAD[1]},
+                "tlcn": {"verdict": "counterexample"},
+            }}))
+            self.assertEqual(
+                verdicts(tlc=self.HEAD, tlcn="counterexample"),
+                triager.read_aggregator_results(path))
+
+    def test_rejects_an_envelope_with_one_checker(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / f"{HASH_A}.cbor"
+            path.write_bytes(cbor2.dumps({"stages": {
+                "aggregator": {"verdict": "fail"},
+                "tlc": {"verdict": "counterexample"},
+            }}))
+            with self.assertRaisesRegex(triager.TriageError, "fewer than two"):
+                triager.read_aggregator_results(path)
+
+    def test_skips_crash_directories_the_corpus_does_not_have(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus = Path(temporary)
+            for name in ("01parser-crash", "02tlc-crash", "02apa-crash",
+                         triager.AGGREGATOR_DIRECTORY):
+                (corpus / name).mkdir()
+            reports = triager.triage(corpus, Path(__file__).resolve().parent.parent)
+            self.assertEqual(
+                ["01parser-crash-triage.csv", "02tlc-crash-triage.csv",
+                 "02apa-crash-triage.csv", triager.AGGREGATOR_REPORT],
+                [report.name for report in reports])
 
 
 class AggregatorDirectoryTest(unittest.TestCase):
