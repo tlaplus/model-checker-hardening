@@ -9,7 +9,6 @@ import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.library.LibraryInstall;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,9 +24,6 @@ import picocli.CommandLine;
 
 @Command(name = "init", description = "Initialize a FuzzTLA corpus.")
 final class InitCommand implements Callable<Integer> {
-    /** The system property through which {@code bin/fuzztla} names the project directory. */
-    private static final String HOME_PROPERTY = "fuzztla.home";
-
     @Option(
             names = {"-h", "--help"},
             usageHelp = true,
@@ -85,26 +81,10 @@ final class InitCommand implements Callable<Integer> {
         }
     }
 
-    /**
-     * Returns the project directory if it holds the shipped known-defect database. {@code
-     * bin/fuzztla} runs a snapshot of the JAR from a temporary directory, so it names the project
-     * in {@link #HOME_PROPERTY}. Without the launcher, the JAR runs in place from the project's
-     * {@code target} directory, beside the staged Apalache JAR.
-     */
+    /** Returns the project directory if it holds the shipped known-defect database. */
     private static Optional<Path> projectWithShippedDatabase() {
-        var home = System.getProperty(HOME_PROPERTY);
-        Optional<Path> project;
-        if (home != null) {
-            project = Optional.of(Path.of(home).toAbsolutePath().normalize());
-        } else {
-            try {
-                project = Optional.ofNullable(ApalacheDistribution.locate().getParent())
-                        .map(Path::getParent);
-            } catch (WorkflowException exception) {
-                project = Optional.empty();
-            }
-        }
-        return project.filter(directory -> Files.isRegularFile(directory.resolve(KnownDefectDatabase.SHIPPED)));
+        return ProjectDirectory.locate()
+                .filter(directory -> Files.isRegularFile(directory.resolve(KnownDefectDatabase.SHIPPED)));
     }
 
     /**
