@@ -110,18 +110,49 @@ class TriagedEntry:
     results: tuple[tuple[str, str, int | None, str | None], ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class ConstructPairs:
-    """Pairwise construct coverage: inputs whose evaluated code contains both constructs."""
+    """Pairwise construct coverage: inputs whose evaluated code contains both constructs.
+
+    `names` are ordered by the number of inputs that contain them, most first, then
+    by name; this order gives the construct indices of the report's table and heatmap.
+    `together[a, b]` counts the inputs with both `names[a]` and `names[b]`; the
+    diagonal counts the inputs with one construct.
+    """
 
     inputs: int  # checked inputs
-    constructs: int  # distinct constructs among them
-    pairs: list[tuple[str, str, int]]  # (first, second, inputs), first < second, inputs > 0
-    missing: list[tuple[str, str]]  # pairs of constructs seen that no input has together
+    names: tuple[str, ...]
+    together: np.ndarray
+
+    @property
+    def constructs(self) -> int:
+        return len(self.names)
 
     @property
     def possible(self) -> int:
         return self.constructs * (self.constructs - 1) // 2
+
+    def index(self, name: str) -> int:
+        """The construct's 1-based index in frequency order."""
+        return self.names.index(name) + 1
+
+    @property
+    def pairs(self) -> list[tuple[str, str, int]]:
+        """(first, second, inputs) of the pairs some input has, most frequent first."""
+        first, second = np.triu_indices(self.constructs, k=1)
+        pairs = [
+            (self.names[a], self.names[b], int(self.together[a, b]))
+            for a, b in zip(first, second)
+            if self.together[a, b] > 0
+        ]
+        return sorted(pairs, key=lambda pair: (-pair[2], self.index(pair[0]), self.index(pair[1])))
+
+    @property
+    def missing(self) -> list[tuple[str, str]]:
+        """Pairs of constructs seen that no input has together."""
+        first, second = np.triu_indices(self.constructs, k=1)
+        return [(self.names[a], self.names[b]) for a, b in zip(first, second)
+                if self.together[a, b] == 0]
 
 
 def pair_counts(names: list[str], memberships: np.ndarray, inputs: int) -> ConstructPairs:
@@ -134,15 +165,8 @@ def pair_counts(names: list[str], memberships: np.ndarray, inputs: int) -> Const
     if memberships.size:
         matrix[memberships[:, 0], memberships[:, 1]] = 1
     together = (matrix.T @ matrix).round().astype(np.int64)
-    first, second = np.triu_indices(len(names), k=1)
-    pairs = [
-        (names[a], names[b], int(together[a, b]))
-        for a, b in zip(first, second)
-        if together[a, b] > 0
-    ]
-    pairs.sort(key=lambda pair: (-pair[2], pair[0], pair[1]))
-    missing = [(names[a], names[b]) for a, b in zip(first, second) if together[a, b] == 0]
-    return ConstructPairs(inputs, len(names), pairs, missing)
+    order = sorted(range(len(names)), key=lambda i: (-together[i, i], names[i]))
+    return ConstructPairs(inputs, tuple(names[i] for i in order), together[np.ix_(order, order)])
 
 
 @dataclass(frozen=True)
@@ -193,6 +217,7 @@ class CorpusQueries:
     def __init__(self, connection: sqlite3.Connection):
         self.connection = connection
         self._operator_counts: tuple[dict[str, dict[str, int]], dict[str, int]] | None = None
+        self._construct_pairs: ConstructPairs | None = None
         connection.execute(_STAGE_ONCE)
         connection.execute("CREATE INDEX temp.stageOnceStage ON stageOnce(stage, verdict)")
         connection.execute("CREATE INDEX temp.stageOnceEntry ON stageOnce(entryId, stage)")
@@ -475,7 +500,12 @@ class CorpusQueries:
         return by_outcome, totals
 
     def construct_pairs(self) -> ConstructPairs:
-        """Co-occurring construct pairs over the checked inputs."""
+        """Co-occurring construct pairs over the checked inputs, computed once."""
+        if self._construct_pairs is None:
+            self._construct_pairs = self._count_construct_pairs()
+        return self._construct_pairs
+
+    def _count_construct_pairs(self) -> ConstructPairs:
         self.connection.execute(
             "CREATE TEMP TABLE IF NOT EXISTS constructName AS SELECT DISTINCT x.name AS name "
             "FROM expr x JOIN entryOutcome o ON o.entryId = x.entryId ORDER BY x.name"

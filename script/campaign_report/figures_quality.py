@@ -8,6 +8,8 @@ from matplotlib.figure import Figure as MplFigure
 from . import style
 from .figure import PlotInputs
 
+from matplotlib.colors import ListedColormap, LogNorm
+
 from .queries import MIN_LIFT_SUPPORT, STATE_METRICS, CorpusQueries, lifts
 from .stages import AGREEING, Outcome
 
@@ -167,6 +169,40 @@ def operator_coverage(inputs: PlotInputs) -> MplFigure | None:
         ax.legend(loc="lower right")
     else:
         style.empty(ax, "no generations")
+    return fig
+
+
+# Index ticks of the pair heatmap: the first construct and every fifth.
+INDEX_TICK_STEP = 5
+
+
+def construct_pairs(inputs: PlotInputs) -> MplFigure | None:
+    coverage = inputs.queries.construct_pairs()
+    count = coverage.constructs
+    if count < 2:
+        return None
+    share = coverage.together / coverage.inputs
+    fig, axes = style.figure(1, 1, 8.4, 7.2)
+    ax = axes[0, 0]
+    # Cell (a, b) is centred on the 1-based indices of the two constructs.
+    extent = (0.5, count + 0.5, count + 0.5, 0.5)
+    norm = LogNorm(vmin=1 / coverage.inputs, vmax=1)
+    image = ax.imshow(np.where(share > 0, share, np.nan), cmap=style.SEQUENTIAL, norm=norm,
+                      extent=extent, interpolation="nearest")
+    missing = coverage.together == 0
+    if missing.any():
+        ax.imshow(np.where(missing, 1.0, np.nan), cmap=ListedColormap([style.UNCOVERED]),
+                  extent=extent, interpolation="nearest")
+        fig.legend(handles=[style.swatch(style.UNCOVERED, f"never together ({len(coverage.missing):,} pairs)")],
+                   loc="outside lower center")
+    ticks = [1, *range(INDEX_TICK_STEP, count + 1, INDEX_TICK_STEP)]
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.grid(False)
+    ax.set_xlabel("construct index")
+    ax.set_ylabel("construct index")
+    bar = fig.colorbar(image, ax=ax, shrink=0.85, label="share of checked inputs with both constructs")
+    bar.ax.yaxis.set_major_formatter(lambda value, _: f"{100 * value:g}%")
     return fig
 
 

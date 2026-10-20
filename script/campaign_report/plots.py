@@ -13,7 +13,13 @@ from . import style
 from .figure import Figure, PlotInputs, RenderedFigure, Section
 from .figures_campaign import checker_times, discovery, generation_funnel, throughput
 from .figures_findings import TOP_SIGNATURES, failure_codes, known_defects, triage_labels, verdict_matrix
-from .figures_quality import input_size, operator_coverage, shallow_and_values, state_space
+from .figures_quality import (
+    construct_pairs,
+    input_size,
+    operator_coverage,
+    shallow_and_values,
+    state_space,
+)
 from .queries import MIN_LIFT_SUPPORT
 
 __all__ = ["FIGURES", "Figure", "PlotInputs", "RenderedFigure", "Section", "render_all"]
@@ -74,4 +80,9 @@ FIGURES = (
            "count is in parentheses), and distinct (parent, child) operator edges, the quality "
            "gate's coverage features (ADR 0013), by the generation that first produced them.",
            operator_coverage),
+    Figure("construct-pairs", "Pairwise construct coverage", Section.QUALITY,
+           "Share of checked inputs whose evaluated code contains both constructs. Both axes "
+           "index constructs by frequency, as in the Constructs table below, so the most "
+           "common constructs are top left. The diagonal is each construct's own share; red "
+           "cells are pairs that no input contains.", construct_pairs),
 )

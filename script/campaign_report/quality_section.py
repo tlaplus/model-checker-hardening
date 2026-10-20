@@ -20,17 +20,19 @@ def constructs(inputs: ReportInputs, number: str) -> list[str]:
         for name, n in names.items():
             counts[name] = counts.get(name, 0) + n
     outcomes = [o for o in Outcome if totals.get(o.value)]
+    coverage = inputs.queries.construct_pairs()
     rows = [
-        (f"`{name}`", fmt.share(n, total),
+        (coverage.index(name), f"`{name}`", fmt.share(counts[name], total),
          *(fmt.share(by_outcome.get(o.value, {}).get(name, 0), totals[o.value]) for o in outcomes))
-        for name, n in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        for name in coverage.names
     ]
     return [
         f"### {number}. Constructs",
         f"Share of inputs whose evaluated code contains each construct, over {fmt.count(total)} "
-        "checked inputs and per outcome.",
+        "checked inputs and per outcome. The index orders constructs by frequency; the "
+        "pairwise-coverage heatmap uses it for its axes.",
         "<details><summary>All constructs</summary>",
-        fmt.table(("construct", "checked inputs", *(o.label for o in outcomes)), rows),
+        fmt.table(("index", "construct", "checked inputs", *(o.label for o in outcomes)), rows),
         "</details>",
     ]
 
@@ -46,7 +48,7 @@ def construct_pairs(inputs: ReportInputs, number: str) -> list[str]:
             f"`{first}` + `{second}`" for first, second in coverage.missing
         ) + "."
     return [
-        f"### {number}. Pairwise construct coverage",
+        f"### {number}. Construct pairs",
         "Unordered pairs of constructs that occur together in the evaluated code of one input. "
         "Single constructs saturate early, while such pairs keep growing (ADR 0013). "
         f"{fmt.count(len(coverage.pairs))} of the {fmt.count(coverage.possible)} pairs of the "
@@ -55,8 +57,9 @@ def construct_pairs(inputs: ReportInputs, number: str) -> list[str]:
         f"{fmt.count(single)} of them occur in a single input." + missing,
         "<details><summary>All construct pairs with non-zero coverage</summary>",
         fmt.table(
-            ("pair", "inputs", "% of checked inputs"),
-            [(f"`{first}` + `{second}`", fmt.count(n), fmt.share(n, coverage.inputs))
+            ("pair", "indices", "inputs", "% of checked inputs"),
+            [(f"`{first}` + `{second}`", f"{coverage.index(first)}, {coverage.index(second)}",
+              fmt.count(n), fmt.share(n, coverage.inputs))
              for first, second, n in coverage.pairs],
         ),
         "</details>",

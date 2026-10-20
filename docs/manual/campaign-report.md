@@ -78,11 +78,12 @@ Entries are cited by the first 8 hexadecimal digits of their hash.
 
 **3. Input quality.** The plots below, and two collapsible tables:
 
-- every construct, with the share of inputs whose evaluated code contains it,
-  overall and per outcome;
+- every construct, with its index and the share of inputs whose evaluated code
+  contains it, overall and per outcome. The index orders constructs by the number
+  of inputs that contain them, most first; the pair heatmap uses it for its axes;
 - pairwise construct coverage: every unordered pair of constructs that occur
   together in the evaluated code of at least one checked input, with the number
-  and the share of such inputs. The text gives how many of the possible pairs of
+  and the share of such inputs, and the indices of both constructs. The text gives how many of the possible pairs of
   the constructs seen occur, and names the uncovered pairs when there are at
   most 25.
 
@@ -108,6 +109,7 @@ TLC-n when the corpus does not run TLC.
 | State-space shape | 3 | ECDFs of state counts, depths and discovering actions, selected against other agreeing inputs |
 | Shallow patterns and state values | 3 | Shallow patterns of agreeing inputs, collection size, value nesting, state size, richness cohorts and scores |
 | Operator coverage | 3 | Rarest constructs, constructs over-represented in disagreements and crashes, and operator edges seen per generation |
+| Pairwise construct coverage | 3 | Heatmap over construct indices of the share of inputs that contain both constructs; uncovered pairs in red |
 
 A plot without data, for example the verdict pairs of a one-checker corpus or the
 signatures of a corpus without `.workflow-stats.cbor`, is replaced by a note.

@@ -286,7 +286,7 @@ class EnumTest(unittest.TestCase):
             [figure.name for figure in plots.FIGURES],
             ["throughput", "generation-funnel", "checker-times", "discovery", "verdict-matrix",
              "triage-labels", "known-defects", "failure-codes", "input-size", "state-space",
-             "shallow-and-values", "operator-coverage"],
+             "shallow-and-values", "operator-coverage", "construct-pairs"],
         )
 
 
@@ -349,9 +349,12 @@ class ReportTest(unittest.TestCase):
             self.assertIn("`STATE_COUNT`", text)
             self.assertIn(f"`{H_STATES[:8]}`", text)
             self.assertIn("1 `NEW`, 1 `STATE_COUNT`", text)
-            self.assertIn("### 3.6. Pairwise construct coverage", text)
+            self.assertIn("### 3.5. Pairwise construct coverage", text)
+            self.assertIn("(.report/construct-pairs.png)", text)
+            self.assertIn("### 3.7. Construct pairs", text)
+            self.assertIn("| 1 | `AND` |", text)
             self.assertIn("4 of the 6 pairs of the 4 constructs seen (66.7%)", text)
-            self.assertIn("| `AND` + `EQ` | 2 | 50% |", text)
+            self.assertIn("| `AND` + `EQ` | 1, 2 | 2 | 50% |", text)
             self.assertIn("No input contains `EQ` + `MOD`, `MOD` + `PLUS`.", text)
             # No triage CSV is written to the corpus.
             self.assertEqual(list(fixture.corpus.glob("*-triage.csv")), [])

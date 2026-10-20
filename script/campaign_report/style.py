@@ -43,6 +43,8 @@ SEQUENTIAL = LinearSegmentedColormap.from_list(
     "report-blue",
     ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"],
 )
+# Cells with no data where zero matters, such as construct pairs no input covers.
+UNCOVERED = CATEGORICAL[7]  # red, outside the blue ramp
 SEQUENTIAL_DARK_FROM = 0.55  # Above this fraction of the ramp, text on a cell is white.
 
 # Verdicts and their colors are fixed so a verdict looks the same in every figure.
