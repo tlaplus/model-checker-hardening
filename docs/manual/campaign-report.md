@@ -76,8 +76,15 @@ entries to investigate, and candidates filtered by known-defect signatures.
 
 Entries are cited by the first 8 hexadecimal digits of their hash.
 
-**3. Input quality.** The plots below, and a collapsible table of every construct
-with the share of inputs whose evaluated code contains it, per outcome.
+**3. Input quality.** The plots below, and two collapsible tables:
+
+- every construct, with the share of inputs whose evaluated code contains it,
+  overall and per outcome;
+- pairwise construct coverage: every unordered pair of constructs that occur
+  together in the evaluated code of at least one checked input, with the number
+  and the share of such inputs. The text gives how many of the possible pairs of
+  the constructs seen occur, and names the uncovered pairs when there are at
+  most 25.
 
 The report groups checked inputs into four outcomes: *selected* (`04quality-pass`),
 *agreeing, not selected* (`03aggregator-pass` and `04quality-fail`), *disagreeing*

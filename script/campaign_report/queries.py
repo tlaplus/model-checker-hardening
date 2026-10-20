@@ -111,6 +111,41 @@ class TriagedEntry:
 
 
 @dataclass(frozen=True)
+class ConstructPairs:
+    """Pairwise construct coverage: inputs whose evaluated code contains both constructs."""
+
+    inputs: int  # checked inputs
+    constructs: int  # distinct constructs among them
+    pairs: list[tuple[str, str, int]]  # (first, second, inputs), first < second, inputs > 0
+    missing: list[tuple[str, str]]  # pairs of constructs seen that no input has together
+
+    @property
+    def possible(self) -> int:
+        return self.constructs * (self.constructs - 1) // 2
+
+
+def pair_counts(names: list[str], memberships: np.ndarray, inputs: int) -> ConstructPairs:
+    """Counts co-occurring pairs from (input index, construct index) rows.
+
+    With M the inputs × constructs 0/1 matrix, (MᵀM)[a, b] is the number of inputs
+    that contain both a and b, so one matrix product counts every pair.
+    """
+    matrix = np.zeros((inputs, len(names)), dtype=np.float32)
+    if memberships.size:
+        matrix[memberships[:, 0], memberships[:, 1]] = 1
+    together = (matrix.T @ matrix).round().astype(np.int64)
+    first, second = np.triu_indices(len(names), k=1)
+    pairs = [
+        (names[a], names[b], int(together[a, b]))
+        for a, b in zip(first, second)
+        if together[a, b] > 0
+    ]
+    pairs.sort(key=lambda pair: (-pair[2], pair[0], pair[1]))
+    missing = [(names[a], names[b]) for a, b in zip(first, second) if together[a, b] == 0]
+    return ConstructPairs(inputs, len(names), pairs, missing)
+
+
+@dataclass(frozen=True)
 class Lift:
     name: str
     support: int
@@ -438,6 +473,22 @@ class CorpusQueries:
             by_outcome.setdefault(outcome, {})[name] = inputs
         totals = dict(self._rows("SELECT outcome, count(*) FROM entryOutcome GROUP BY outcome"))
         return by_outcome, totals
+
+    def construct_pairs(self) -> ConstructPairs:
+        """Co-occurring construct pairs over the checked inputs."""
+        self.connection.execute(
+            "CREATE TEMP TABLE IF NOT EXISTS constructName AS SELECT DISTINCT x.name AS name "
+            "FROM expr x JOIN entryOutcome o ON o.entryId = x.entryId ORDER BY x.name"
+        )
+        names = [row[0] for row in self._rows("SELECT name FROM constructName ORDER BY rowid")]
+        # Both rowids count from 1, so they become matrix indices after subtracting 1.
+        rows = self._rows(
+            "SELECT o.rowid - 1, n.rowid - 1 FROM expr x "
+            "JOIN entryOutcome o ON o.entryId = x.entryId "
+            "JOIN constructName n ON n.name = x.name"
+        )
+        inputs = int(self._scalar("SELECT count(*) FROM entryOutcome"))
+        return pair_counts(names, np.array(rows, dtype=np.int64).reshape(-1, 2), inputs)
 
     def new_edges_by_generation(self, outcome: Outcome | None) -> list[tuple[int, int]]:
         """(generation, operator edges first seen in it), over checked inputs or one outcome."""

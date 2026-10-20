@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import cbor2
+import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import report
@@ -232,6 +233,24 @@ class LinkTest(unittest.TestCase):
         self.assertEqual(link, "[tlc-002.md](/repo/findings/tlc-002.md)")
 
 
+class ConstructPairTest(unittest.TestCase):
+    def test_counts_each_unordered_pair_once_per_input(self) -> None:
+        # Input 0 has A, B and C; input 1 has A and C; input 2 has B only.
+        memberships = np.array([(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 1)])
+
+        coverage = queries.pair_counts(["A", "B", "C"], memberships, 3)
+
+        self.assertEqual(coverage.pairs, [("A", "C", 2), ("A", "B", 1), ("B", "C", 1)])
+        self.assertEqual(coverage.possible, 3)
+        self.assertEqual(coverage.missing, [])
+
+    def test_pairs_that_never_occur_together_are_left_out(self) -> None:
+        coverage = queries.pair_counts(["A", "B"], np.array([(0, 0), (1, 1)]), 2)
+
+        self.assertEqual(coverage.pairs, [])
+        self.assertEqual(coverage.missing, [("A", "B")])
+
+
 class LiftTest(unittest.TestCase):
     def test_lift_compares_the_share_in_a_group_with_the_share_overall(self) -> None:
         result = queries.lifts({"MOD": 10, "AND": 100}, 100, {"MOD": 5, "AND": 10}, 10)
@@ -296,6 +315,11 @@ class DatabaseTest(unittest.TestCase):
                 dict(corpus_queries.shallow_patterns()), {"none": 1, "vacuous pass": 1}
             )
             self.assertEqual(len(corpus_queries.sessions()), 2)
+            # Constructs: selected AND EQ PLUS, agreeing AND EQ, disagreeing and crashed AND MOD.
+            self.assertEqual(
+                corpus_queries.construct_pairs().pairs,
+                [("AND", "EQ", 2), ("AND", "MOD", 2), ("AND", "PLUS", 1), ("EQ", "PLUS", 1)],
+            )
             # Without a `.checkers` file, the checkers come from the stage records.
             self.assertEqual(corpus_queries.checkers, (Stage.TLC, Stage.TLCN))
             connection.close()
@@ -325,6 +349,10 @@ class ReportTest(unittest.TestCase):
             self.assertIn("`STATE_COUNT`", text)
             self.assertIn(f"`{H_STATES[:8]}`", text)
             self.assertIn("1 `NEW`, 1 `STATE_COUNT`", text)
+            self.assertIn("### 3.6. Pairwise construct coverage", text)
+            self.assertIn("4 of the 6 pairs of the 4 constructs seen (66.7%)", text)
+            self.assertIn("| `AND` + `EQ` | 2 | 50% |", text)
+            self.assertIn("No input contains `EQ` + `MOD`, `MOD` + `PLUS`.", text)
             # No triage CSV is written to the corpus.
             self.assertEqual(list(fixture.corpus.glob("*-triage.csv")), [])
 

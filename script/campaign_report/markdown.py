@@ -7,10 +7,9 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from . import campaign_section, findings_section, fmt
+from . import campaign_section, findings_section, quality_section
 from .inputs import ReportInputs
 from .plots import RenderedFigure, Section
-from .stages import Outcome
 
 __all__ = ["ReportInputs", "render", "write_report"]
 
@@ -51,34 +50,18 @@ def render(inputs: ReportInputs, figures: Sequence[RenderedFigure]) -> str:
         "*Selected* inputs are those in `04quality-pass`; *agreeing, not selected* are the other "
         "inputs on which the checkers agree.",
         *_figures(figures, Section.QUALITY, "3"),
-        *_constructs(inputs),
+        *quality_section.constructs(inputs, _next_number(figures, Section.QUALITY, "3")),
+        *quality_section.construct_pairs(inputs, _next_number(figures, Section.QUALITY, "3", 1)),
     ]
     return "\n\n".join(parts) + "\n"
 
 
-def _constructs(inputs: ReportInputs) -> list[str]:
-    by_outcome, totals = inputs.queries.operator_counts()
-    total = sum(totals.values())
-    if not total:
-        return []
-    counts: dict[str, int] = {}
-    for names in by_outcome.values():
-        for name, n in names.items():
-            counts[name] = counts.get(name, 0) + n
-    outcomes = [o for o in Outcome if totals.get(o.value)]
-    rows = [
-        (f"`{name}`", fmt.share(n, total),
-         *(fmt.share(by_outcome.get(o.value, {}).get(name, 0), totals[o.value]) for o in outcomes))
-        for name, n in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
-    ]
-    return [
-        "### Constructs",
-        f"Share of inputs whose evaluated code contains each construct, over {fmt.count(total)} "
-        "checked inputs and per outcome.",
-        "<details><summary>All constructs</summary>",
-        fmt.table(("construct", "checked inputs", *(o.label for o in outcomes)), rows),
-        "</details>",
-    ]
+def _next_number(
+    figures: Sequence[RenderedFigure], section: Section, number: str, offset: int = 0
+) -> str:
+    """The number of a subsection that follows the section's plots."""
+    plotted = sum(1 for f in figures if f.figure.section is section)
+    return f"{number}.{plotted + 1 + offset}"
 
 
 def _figures(figures: Sequence[RenderedFigure], section: Section, number: str) -> list[str]:
