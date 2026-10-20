@@ -7,6 +7,8 @@ on:
       - "script/**"
       - "findings/**"
       - "conformance/**"
+      # The campaign report reads the export-db schema.
+      - "src/main/java/io/github/tlaplus/hardening/database/**"
       - ".github/workflows/triage.yml"
   pull_request:
     branches: [main]
@@ -14,6 +16,8 @@ on:
       - "script/**"
       - "findings/**"
       - "conformance/**"
+      # The campaign report reads the export-db schema.
+      - "src/main/java/io/github/tlaplus/hardening/database/**"
       - ".github/workflows/triage.yml"
   workflow_dispatch:
 
@@ -27,7 +31,7 @@ permissions:
 jobs:
   triage:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -38,9 +42,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Install triager dependencies
+      - name: Install script dependencies
         run: python3 -m pip install -r script/requirements.txt
-      - name: Test triager
+      - name: Test scripts
         run: python3 -m unittest discover -s script -p 'test_*.py' -v
       - name: Package FuzzTLA
         run: mvn --batch-mode --no-transfer-progress -DskipTests package
@@ -61,5 +65,30 @@ jobs:
         with:
           name: corpus-triage-${{ github.run_id }}
           path: triage-corpus/*-triage.csv
+          if-no-files-found: error
+          retention-days: 14
+      - name: Write the campaign report
+        run: python3 script/report.py triage-corpus --max-cpus=2
+      - name: Check the campaign report
+        run: |
+          report=triage-corpus/report.md
+          test -s "$report"
+          for heading in "## Summary" "## 1. Campaign" "## 2. Findings" "## 3. Input quality"; do
+            grep -qxF "$heading" "$report" || { echo "missing section: $heading"; exit 1; }
+          done
+          images=$(grep -o '(\.report/[^)]*\.png)' "$report" | tr -d '()')
+          test -n "$images" || { echo "the report embeds no image"; exit 1; }
+          for image in $images; do
+            test -s "triage-corpus/$image" || { echo "missing image: $image"; exit 1; }
+          done
+      - name: Upload campaign report
+        uses: actions/upload-artifact@v6
+        with:
+          name: campaign-report-${{ github.run_id }}
+          path: |
+            triage-corpus/report.md
+            triage-corpus/.report/*.png
+            triage-corpus/.report/config.toml
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14

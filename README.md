@@ -442,7 +442,7 @@ documented checker verdict pair and failure code; ambiguous diagnostics and
 unmatched counterexample pairings remain `NEW`. The
 [Corpus triage workflow](.github/workflows/triage.yml) runs a short, fixed-seed
 fuzzing session and publishes these CSV files as a
-workflow artifact.
+workflow artifact, together with the campaign report of that session.
 
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
@@ -490,6 +490,19 @@ sqlite3 corpus/corpus.sqlite "SELECT tlc, apalache, count(*) FROM verdictPair GR
 
 The [corpus-database manual](docs/manual/corpus-database.md) documents the
 schema and gives example queries.
+
+Write a campaign report of a corpus with:
+
+```sh
+python3 -m pip install -r script/requirements.txt
+python3 script/report.py corpus
+```
+
+The script exports the corpus, triages its crashes and disagreements, and writes
+`corpus/report.md` with plots under `corpus/.report`: how the campaign ran, what
+it found, and the quality of its inputs. `./bin/fuzztla report` prints these
+commands. The [campaign-report manual](docs/manual/campaign-report.md) describes
+the sections and plots.
 
 ## License
 
