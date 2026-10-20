@@ -94,8 +94,8 @@ final class InventoryScan {
         var aggregatedCheckerVerdicts = new EnumMap<CorpusStage, VerdictTally>(CorpusStage.class);
         CorpusStage.checkerBranches().forEach(checker -> aggregatedCheckerVerdicts.put(checker, new VerdictTally()));
         ThrowingConsumer<Entry, CorpusException> aggregated = entry -> {
-            aggregationRecovery.upstreamCheckerVerdicts(entry).forEach((checker, verdict) ->
-                    aggregatedCheckerVerdicts.get(checker).increment(verdict));
+            aggregationRecovery.upstreamCheckerResults(entry).forEach((checker, result) ->
+                    aggregatedCheckerVerdicts.get(checker).increment(result.verdict()));
             logicalEntries.add(entry);
         };
         var ungated = new ArrayList<Path>();

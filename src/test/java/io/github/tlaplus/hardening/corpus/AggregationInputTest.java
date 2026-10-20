@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -54,7 +55,7 @@ class AggregationInputTest {
                 IllegalArgumentException.class,
                 () -> new AggregationInput(
                         Path.of("candidate.cbor"),
-                        Map.of(CorpusStage.TLC, CorpusVerdict.PASS),
+                        Map.of(CorpusStage.TLC, record(CorpusVerdict.PASS)),
                         CheckingPolicy.DEFAULT));
         assertThrows(
                 IllegalArgumentException.class,
@@ -66,9 +67,13 @@ class AggregationInputTest {
                 Path.of("candidate.cbor"),
                 Map.of(
                         CorpusStage.TLC,
-                        tlc,
+                        record(tlc),
                         CorpusStage.APALACHE,
-                        apalache),
+                        record(apalache)),
                 CheckingPolicy.DEFAULT);
+    }
+
+    private static StageRecord record(CorpusVerdict verdict) {
+        return new StageRecord(verdict, Instant.EPOCH, Instant.EPOCH);
     }
 }
