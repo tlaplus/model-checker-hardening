@@ -155,11 +155,8 @@ def lifts(
 
 
 class CorpusQueries:
-    def __init__(self, connection: sqlite3.Connection, checkers: tuple[str, ...]):
+    def __init__(self, connection: sqlite3.Connection):
         self.connection = connection
-        self.checkers = tuple(stage for stage in Stage if stage.value in checkers)
-        explorers = [stage for stage in EXPLORERS if stage in self.checkers]
-        self.explorer: Stage | None = explorers[0] if explorers else None
         self._operator_counts: tuple[dict[str, dict[str, int]], dict[str, int]] | None = None
         connection.execute(_STAGE_ONCE)
         connection.execute("CREATE INDEX temp.stageOnceStage ON stageOnce(stage, verdict)")
@@ -170,6 +167,13 @@ class CorpusQueries:
             )
         )
         connection.execute("CREATE INDEX temp.entryOutcomeEntry ON entryOutcome(entryId)")
+        # The checkers the entries record, which need not be in a `.checkers` file:
+        # the corpus writes one only for a non-default checker set.
+        self.checkers = tuple(
+            stage for stage in self.stages() if stage.checks and stage is not Stage.PARSER
+        )
+        explorers = [stage for stage in EXPLORERS if stage in self.checkers]
+        self.explorer: Stage | None = explorers[0] if explorers else None
 
     def _rows(self, sql: str, *parameters: object) -> list[tuple]:
         return self.connection.execute(sql, parameters).fetchall()

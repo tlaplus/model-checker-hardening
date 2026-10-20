@@ -20,7 +20,6 @@ SCHEMA_VERSION = 9
 REPOSITORY = Path(__file__).resolve().parents[2]
 STATS_FILE = ".workflow-stats.cbor"
 CONFIG_FILE = "config.toml"
-CHECKERS_FILE = ".checkers"
 
 
 @dataclass(frozen=True)
@@ -153,22 +152,14 @@ def load_settings(corpus: Path) -> CorpusSettings:
         config = tomllib.loads(config_path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise ReportError(f"cannot read {config_path}: {error}") from error
-    checkers = _read_marker(corpus / CHECKERS_FILE)
+    # `fuzztla run` refuses a config whose checkers differ from the corpus's record.
+    checkers = config.get("workflow", {}).get("checkers", [])
     return CorpusSettings(
         path=corpus,
         config=config,
-        checkers=tuple(checkers.split(",")) if checkers else (),
+        checkers=tuple(checkers),
         signatures=_load_signatures(corpus, config),
     )
-
-
-def _read_marker(path: Path) -> str | None:
-    try:
-        return path.read_text(encoding="utf-8").strip() or None
-    except FileNotFoundError:
-        return None
-    except OSError as error:
-        raise ReportError(f"cannot read {path}: {error}") from error
 
 
 def _load_signatures(corpus: Path, config: dict[str, Any]) -> dict[str, Signature]:

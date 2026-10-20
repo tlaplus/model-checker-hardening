@@ -55,6 +55,9 @@ def clip(text: str) -> str:
 
 
 def link(text: str, target: Path, corpus: Path) -> str:
+    """A link from the report in `corpus`: relative if they share a directory, else absolute."""
+    if os.path.commonpath([target, corpus]) == target.anchor:
+        return f"[{text}]({target.as_posix()})"
     return f"[{text}]({Path(os.path.relpath(target, corpus)).as_posix()})"
 
 

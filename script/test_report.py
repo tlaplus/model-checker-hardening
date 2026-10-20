@@ -13,7 +13,7 @@ import cbor2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import report
-from campaign_report import plots, queries, sources
+from campaign_report import fmt, plots, queries, sources
 from campaign_report.errors import ReportError
 from campaign_report.stages import Outcome, Stage
 from campaign_report.triage import LabelClass
@@ -88,7 +88,6 @@ class Fixture:
         listed = ", ".join(f'"{c}"' for c in checkers)
         (self.corpus / "config.toml").write_text(CONFIG.format(checkers=f"[{listed}]"))
         (self.corpus / "signatures.toml").write_text(SIGNATURES)
-        (self.corpus / ".checkers").write_text(",".join(checkers))
         if stats:
             (self.corpus / ".workflow-stats.cbor").write_bytes(cbor2.dumps(STATS))
         self.checkers = checkers
@@ -221,6 +220,18 @@ class SessionTest(unittest.TestCase):
         self.assertEqual(len(sessions), 1)
 
 
+class LinkTest(unittest.TestCase):
+    def test_links_relative_from_a_corpus_beside_the_document(self) -> None:
+        link = fmt.link("tlc-002.md", Path("/repo/findings/tlc-002.md"), Path("/repo/corpus66"))
+
+        self.assertEqual(link, "[tlc-002.md](../findings/tlc-002.md)")
+
+    def test_links_absolute_when_only_the_root_is_shared(self) -> None:
+        link = fmt.link("tlc-002.md", Path("/repo/findings/tlc-002.md"), Path("/tmp/corpus"))
+
+        self.assertEqual(link, "[tlc-002.md](/repo/findings/tlc-002.md)")
+
+
 class LiftTest(unittest.TestCase):
     def test_lift_compares_the_share_in_a_group_with_the_share_overall(self) -> None:
         result = queries.lifts({"MOD": 10, "AND": 100}, 100, {"MOD": 5, "AND": 10}, 10)
@@ -276,7 +287,7 @@ class DatabaseTest(unittest.TestCase):
             fixture = Fixture(Path(directory))
             connection = sources.open_database(fixture.database)
             connection.execute("CREATE TEMP TABLE triage (hash TEXT, directory TEXT, label TEXT)")
-            corpus_queries = queries.CorpusQueries(connection, fixture.checkers)
+            corpus_queries = queries.CorpusQueries(connection)
 
             # Five inputs, one quarantined; the crashed input has a copy in 02tlcn-pass.
             self.assertEqual(corpus_queries.stage_summary(Stage.PARSER).records, 4)
@@ -285,6 +296,8 @@ class DatabaseTest(unittest.TestCase):
                 dict(corpus_queries.shallow_patterns()), {"none": 1, "vacuous pass": 1}
             )
             self.assertEqual(len(corpus_queries.sessions()), 2)
+            # Without a `.checkers` file, the checkers come from the stage records.
+            self.assertEqual(corpus_queries.checkers, (Stage.TLC, Stage.TLCN))
             connection.close()
 
 

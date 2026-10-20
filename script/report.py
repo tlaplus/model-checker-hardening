@@ -65,7 +65,7 @@ def generate(options: argparse.Namespace) -> Path:
         settings = sources.load_settings(corpus)
         stats = sources.load_stats(corpus)
         triage = load_triage(connection, corpus, sources.REPOSITORY)
-        queries = CorpusQueries(connection, settings.checkers)
+        queries = CorpusQueries(connection)
         config_copy = report_directory / sources.CONFIG_FILE
         shutil.copyfile(settings.config_path, config_copy)
         figures = plots.render_all(plots.PlotInputs(queries, settings.config, stats), report_directory)
