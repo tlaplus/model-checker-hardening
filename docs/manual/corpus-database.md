@@ -401,6 +401,9 @@ SELECT t.*, p.tlc, p.apalache FROM triage t JOIN verdictPair p ON p.hash = t.ent
 
 The column names of the imported table come from the CSV header.
 
+`script/report.py` runs many of these queries and plots their results; see the
+[campaign-report manual](campaign-report.md).
+
 [storage]: ../architecture/fuzzing-workflows.md#23-corpus-storage
 [metrics]: exploration-metrics.md#2-metric-reference
 [signatures]: known-defect-signatures.md
