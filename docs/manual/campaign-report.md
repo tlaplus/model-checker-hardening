@@ -28,6 +28,14 @@ Without `--db`, the script runs `fuzztla export-db --force` into
 rest takes under a minute. The script fails if the database's schema version is
 not the one it reads, or if the triager rejects the corpus.
 
+The checkers are those the entries record, so a corpus without a `.checkers`
+file, which FuzzTLA writes only for a non-default checker set, is reported
+correctly.
+
+The [Corpus triage workflow](../../.github/workflows/triage.yml) writes the report
+of its short campaign, checks that every section and embedded image exists, and
+uploads `report.md` with its images as a workflow artifact.
+
 ## 2. Output
 
 | Path | Content |

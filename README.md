@@ -442,7 +442,7 @@ documented checker verdict pair and failure code; ambiguous diagnostics and
 unmatched counterexample pairings remain `NEW`. The
 [Corpus triage workflow](.github/workflows/triage.yml) runs a short, fixed-seed
 fuzzing session and publishes these CSV files as a
-workflow artifact.
+workflow artifact, together with the campaign report of that session.
 
 Generate a deterministic, typed TLA+ expression from a CBOR corpus input with:
 
