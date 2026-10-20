@@ -1223,6 +1223,58 @@ class ParallelTlcTest(unittest.TestCase):
                 verdicts(tlc=self.HEAD, tlcn="counterexample"),
                 triager.read_aggregator_results(path))
 
+    def test_different_state_counts_take_precedence(self) -> None:
+        """ADR 0019: a signature for a third checker must not hide the mismatch."""
+        tlc = triager.CheckerResult("pass", None, None, 7)
+        tlcn = triager.CheckerResult("pass", None, None, 8)
+        string = triager.CheckerResult(
+            "fail", 75, "<unknown>: unsupported expression: STRING")
+        for results in (
+            {triager.Checker.TLC: tlc, triager.Checker.TLCN: tlcn},
+            {triager.Checker.TLC: tlc, triager.Checker.TLCN: tlcn,
+             triager.Checker.APALACHE: string},
+        ):
+            with self.subTest(results=results):
+                self.assertEqual(
+                    triager.STATE_COUNT, triager.classify_aggregator(results, HASH_A))
+
+    def stage(self, verdict: str, phase: str, states: int) -> dict[str, object]:
+        return {"verdict": verdict,
+                "metrics": {"phase": phase, "distinctStates": states}}
+
+    def read(self, **stages: object) -> dict[triager.Checker, triager.CheckerResult]:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / f"{HASH_A}.cbor"
+            path.write_bytes(cbor2.dumps(
+                {"stages": {"aggregator": {"verdict": "fail"}, **stages}}))
+            return triager.read_aggregator_results(path)
+
+    def test_reads_the_state_counts_of_completed_searches(self) -> None:
+        results = self.read(
+            tlc=self.stage("pass", "complete", 7),
+            tlcn=self.stage("pass", "complete", 8))
+        self.assertEqual([7, 8], [result.reachable_states for result in results.values()])
+        self.assertEqual(triager.STATE_COUNT, triager.classify_aggregator(results, HASH_A))
+
+    def test_ignores_the_state_counts_of_searches_that_stopped(self) -> None:
+        results = self.read(
+            tlc=self.stage("counterexample", "explore", 3),
+            tlcn={**self.stage("fail", "explore", 5), "code": 75, "detail": self.HEAD[1]})
+        self.assertEqual([None, None], [result.reachable_states for result in results.values()])
+
+    def test_rejects_completed_searches_that_agree(self) -> None:
+        with self.assertRaisesRegex(triager.TriageError, "agreeing"):
+            self.read(
+                tlc=self.stage("pass", "complete", 7),
+                tlcn=self.stage("pass", "complete", 7))
+
+    def test_rejects_a_non_integer_state_count(self) -> None:
+        with self.assertRaisesRegex(triager.TriageError, "distinctStates"):
+            self.read(
+                tlc=self.stage("pass", "complete", 7),
+                tlcn={"verdict": "pass",
+                      "metrics": {"phase": "complete", "distinctStates": "8"}})
+
     def test_rejects_an_envelope_with_one_checker(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / f"{HASH_A}.cbor"
