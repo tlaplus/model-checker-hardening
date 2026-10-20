@@ -67,7 +67,8 @@ The set is recorded in `.checkers` and must match on later runs, as before.
 ### 3. Oracles
 
 The oracles are unchanged. Under `--how=pbt`, conformance passes when `tlc` and
-`tlcn` agree. Under `--how=mt`, the metamorphic oracle also fails a counterexample
+`tlcn` agree. [ADR 0019][adr-0019] later requires completed searches to agree on
+the number of distinct states as well. Under `--how=mt`, the metamorphic oracle also fails a counterexample
 that both report.
 
 ### 4. Progress screen
@@ -112,5 +113,6 @@ directories `02tlcn-{inputs,pass,counterexample,fail,crash}`.
   occupancy limits and export without change.
 
 [adr-0009]: 0009-corpus-database.md
+[adr-0019]: 0019-state-count-agreement.md
 [adr-0016]: 0016-metamorphic-testing.md
 [workflows]: ../architecture/fuzzing-workflows.md
