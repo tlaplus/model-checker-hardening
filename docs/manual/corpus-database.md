@@ -281,6 +281,18 @@ SELECT tlc, apalache, count(*) AS entries
 FROM verdictPair GROUP BY tlc, apalache ORDER BY entries DESC;
 ```
 
+Entries whose completed TLC and TLC-n searches found different numbers of
+distinct states ([ADR 0019](../decisions/0019-state-count-agreement.md)):
+
+```sql
+SELECT p.hash, t.distinctStates AS tlc, n.distinctStates AS tlcn
+FROM verdictPair p
+JOIN stage t ON t.entryId = p.entryId AND t.stage = 'tlc'
+JOIN stage n ON n.entryId = p.entryId AND n.stage = 'tlcn'
+WHERE t.phase = 'complete' AND n.phase = 'complete'
+  AND t.distinctStates <> n.distinctStates;
+```
+
 The shallow patterns of [ADR 0008][adr-0008] over agreeing entries, each entry
 assigned the first pattern that matches. An agreeing entry sits in
 `03aggregator-pass` until the quality gate moves it to `04quality-pass` or

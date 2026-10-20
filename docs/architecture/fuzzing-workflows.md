@@ -334,8 +334,10 @@ This workflow specializes the general workflow as follows:
   counterexample from exactly one checker is a conformance failure, including
   counterexample/fail: an ordinary checker failure does not claim that the
   invariant was violated. Failure codes are diagnostic metadata and do not affect
-  this verdict-level comparison. A crash in either checker is not aggregated and
-  remains in the checker result directories.
+  this verdict-level comparison. Checkers whose search completed and that count
+  distinct states, TLC and TLC-n, must also report the same `distinctStates`;
+  otherwise the entry moves to `fail` ([ADR 0019][adr-0019]). A crash in either
+  checker is not aggregated and remains in the checker result directories.
 - **Quality gate.** The gate walks the admissible entries of a settled
   generation in rank order and keeps those that show a behaviour or cover code
   the kept entries lack, up to `[mutator] select_fraction` of the generation, in
@@ -414,7 +416,8 @@ and the aggregator's policy differ:
   `["tlc", "tlcn"]` relates TLC with one worker to TLC with several
   ([ADR 0018][adr-0018]).
 - **Aggregator.** The corpus technique selects the oracle. A metamorphic entry passes
-  when the configured checkers agree and none reports a counterexample.
+  when the configured checkers agree, in the sense of §1.3, and none reports a
+  counterexample.
 - **Candidate sources.** PBT and the mutator apply unchanged. A third source adopts
   the `04quality-pass` entries of a read-only `pbt` base corpus by appending random
   rewrite payloads.
@@ -740,6 +743,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
 [metamorphic manual]: ../manual/metamorphic-testing.md
 [adr-0018]: ../decisions/0018-parallel-tlc-stage.md
+[adr-0019]: ../decisions/0019-state-count-agreement.md
 [database manual]: ../manual/corpus-database.md
 [mutation manual]: ../manual/mutation.md
 [metrics manual]: ../manual/exploration-metrics.md

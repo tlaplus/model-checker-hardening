@@ -390,7 +390,10 @@ merges their metadata into one entry. Equal pass/pass,
 counterexample/counterexample, or fail/fail verdicts move to
 `03aggregator-pass`; any disagreement, including a
 counterexample from only one checker, moves to `03aggregator-fail`. Failure codes
-do not affect this comparison. A pair with a checker crash remains in the checker
+do not affect this comparison. TLC and TLC-n must also find the same number of
+distinct states when both complete their search
+([ADR 0019](docs/decisions/0019-state-count-agreement.md)); a pass/pass entry with
+different counts moves to `03aggregator-fail`. A pair with a checker crash remains in the checker
 result directories. The parser, TLC and TLC-n
 receive a TLA+ module; Apalache
 receives typed Apalache IR JSON generated from the same expression. The JSON
@@ -429,7 +432,9 @@ directory that the corpus does not have. TLC-n crashes are matched by TLC's
 signatures. Each row contains the entry hash and either the matching finding or
 conformance-report filename, `TIMEOUT` for a worker timeout, `FIRST_ERROR` for a
 TLC/TLC-n disagreement in which one reports a counterexample and the other an
-evaluation error ([ADR 0018](docs/decisions/0018-parallel-tlc-stage.md)), or
+evaluation error ([ADR 0018](docs/decisions/0018-parallel-tlc-stage.md)),
+`STATE_COUNT` for completed searches that found different numbers of distinct
+states ([ADR 0019](docs/decisions/0019-state-count-agreement.md)), or
 `NEW`. Signatures are conservative and
 deterministic: add one only after confirming that the diagnostic has the same
 root cause as the named document. Aggregator signatures also require the

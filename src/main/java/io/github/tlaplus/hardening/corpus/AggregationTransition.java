@@ -39,9 +39,7 @@ final class AggregationTransition {
             return Optional.empty();
         }
         requireCompatibleBranches(name, branches);
-        var verdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
-        branches.forEach(branch -> verdicts.put(branch.stage(), branch.verdict()));
-        return Optional.of(new AggregationInput(candidate, verdicts, policy));
+        return Optional.of(new AggregationInput(candidate, records(branches), policy));
     }
 
     /** Installs one merged result before removing either checker source. */
@@ -52,7 +50,7 @@ final class AggregationTransition {
         CorpusStage.AGGREGATOR.requireValidResult(result);
         if (result.verdict() != input.verdict()) {
             throw new CorpusException(
-                    "aggregator verdict does not match checker verdicts: "
+                    "aggregator verdict does not match checker results: "
                             + input.candidate().getFileName());
         }
 
@@ -63,9 +61,7 @@ final class AggregationTransition {
             throw new CorpusException("checker results are no longer ready for aggregation: " + name);
         }
         requireCompatibleBranches(name, branches);
-        var actual = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
-        branches.forEach(branch -> actual.put(branch.stage(), branch.verdict()));
-        if (!actual.equals(input.checkerVerdicts())) {
+        if (!records(branches).equals(input.checkerResults())) {
             throw new CorpusException("checker results changed before aggregation: " + name);
         }
 
@@ -129,14 +125,14 @@ final class AggregationTransition {
     }
 
     /**
-     * Validates and returns the non-crash checker verdicts carried by an aggregate entry, which
+     * Validates and returns the non-crash checker results carried by an aggregate entry, which
      * names exactly the checkers the corpus runs.
      */
-    Map<CorpusStage, CorpusVerdict> upstreamCheckerVerdicts(Entry aggregate, CheckerSet checkers)
+    Map<CorpusStage, StageRecord> upstreamCheckerResults(Entry aggregate, CheckerSet checkers)
             throws CorpusException {
         CorpusEntries.requireStageVerdict(
                 aggregate, CorpusStage.PARSER, CorpusVerdict.PASS);
-        var verdicts = new EnumMap<CorpusStage, CorpusVerdict>(CorpusStage.class);
+        var results = new EnumMap<CorpusStage, StageRecord>(CorpusStage.class);
         for (var checker : CorpusStage.checkerBranches()) {
             if (!checkers.contains(checker)) {
                 if (aggregate.envelope().stage(checker).isPresent()) {
@@ -152,9 +148,9 @@ final class AggregationTransition {
                 throw new CorpusException(
                         "aggregator entry contains a crashed checker result: " + aggregate.path());
             }
-            verdicts.put(checker, metadata.verdict());
+            results.put(checker, metadata.record());
         }
-        return Map.copyOf(verdicts);
+        return Map.copyOf(results);
     }
 
     private List<BranchResult> branchResults(String name, CheckerSet checkers)
@@ -201,5 +197,15 @@ final class AggregationTransition {
         }
     }
 
-    private record BranchResult(CorpusStage stage, CorpusVerdict verdict, Entry entry) {}
+    private static Map<CorpusStage, StageRecord> records(List<BranchResult> branches) {
+        var records = new EnumMap<CorpusStage, StageRecord>(CorpusStage.class);
+        branches.forEach(branch -> records.put(branch.stage(), branch.record()));
+        return Map.copyOf(records);
+    }
+
+    private record BranchResult(CorpusStage stage, CorpusVerdict verdict, Entry entry) {
+        StageRecord record() {
+            return entry.envelope().stage(stage).orElseThrow().record();
+        }
+    }
 }

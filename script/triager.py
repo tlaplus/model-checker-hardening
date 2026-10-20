@@ -93,6 +93,9 @@ class CheckerResult:
     verdict: str
     code: int | None
     detail: str | None
+    # metrics.distinctStates of a completed search (metrics.phase "complete"),
+    # the size of the reachable state space (ADR 0019); None otherwise.
+    reachable_states: int | None = None
 
 
 # The other checkers' completed verdicts. A documented conformance class is
@@ -574,6 +577,10 @@ WORKER_TIMEOUT_PATTERN = re.compile(r"^\w+ worker timed out after ", re.MULTILIN
 # first error"). Such an entry is no defect. Like a timeout it names no
 # document, so it gets its own bucket rather than NEW.
 FIRST_ERROR_RACE = "FIRST_ERROR"
+# Completed searches of one input that reached different numbers of distinct
+# states (ADR 0019). No signature explains it, and it takes precedence over the
+# verdicts: a failing third checker must not hide it behind its own document.
+STATE_COUNT = "STATE_COUNT"
 AGGREGATOR_DIRECTORY = "03aggregator-fail"
 AGGREGATOR_REPORT = "03aggregator-fail-triage.csv"
 VALID_VERDICTS = frozenset(("pass", "counterexample", "fail", "crashed"))
@@ -654,9 +661,21 @@ def is_first_error_race(results: dict[Checker, CheckerResult]) -> bool:
     return False
 
 
+def reach_different_states(results: dict[Checker, CheckerResult]) -> bool:
+    """Whether completed searches report different numbers of distinct states."""
+    counts = {
+        result.reachable_states
+        for result in results.values()
+        if result.reachable_states is not None
+    }
+    return len(counts) > 1
+
+
 def classify_aggregator(
     results: dict[Checker, CheckerResult], entry_hash: str
 ) -> str:
+    if reach_different_states(results):
+        return STATE_COUNT
     if is_first_error_race(results):
         return FIRST_ERROR_RACE
     matches = [
@@ -754,7 +773,27 @@ def read_checker_result(
         raise TriageError(
             f"aggregator entry non-failed stage '{checker.value}' has failure metadata: {path}"
         )
-    return CheckerResult(verdict, code, detail)
+    return CheckerResult(
+        verdict, code, detail, read_reachable_states(metadata, checker, path)
+    )
+
+
+def read_reachable_states(
+    metadata: dict[Any, Any], checker: Checker, path: Path
+) -> int | None:
+    metrics = metadata.get("metrics")
+    if metrics is None:
+        return None
+    metrics = require_map(metrics, f"stages.{checker.value}.metrics", path)
+    if metrics.get("phase") != "complete":
+        return None
+    count = metrics.get("distinctStates")
+    if count is not None and (isinstance(count, bool) or not isinstance(count, int)):
+        raise TriageError(
+            f"aggregator entry field 'stages.{checker.value}.metrics.distinctStates' "
+            f"must be an integer: {path}"
+        )
+    return count
 
 
 def read_aggregator_results(path: Path) -> dict[Checker, CheckerResult]:
@@ -771,8 +810,11 @@ def read_aggregator_results(path: Path) -> dict[Checker, CheckerResult]:
     }
     if len(results) < 2:
         raise TriageError(f"aggregator entry has fewer than two checker results: {path}")
-    if len({result.verdict for result in results.values()}) == 1:
-        raise TriageError(f"aggregator entry contains agreeing checker verdicts: {path}")
+    if (
+        len({result.verdict for result in results.values()}) == 1
+        and not reach_different_states(results)
+    ):
+        raise TriageError(f"aggregator entry contains agreeing checker results: {path}")
     if "crashed" in (result.verdict for result in results.values()):
         raise TriageError(f"aggregator entry contains a crashed checker result: {path}")
     return results

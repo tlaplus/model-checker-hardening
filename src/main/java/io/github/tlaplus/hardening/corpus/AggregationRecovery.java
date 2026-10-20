@@ -38,10 +38,10 @@ final class AggregationRecovery {
                     layout.resolve(CorpusStage.AGGREGATOR.result(verdict)))) {
                 var entry = entries.verify(path);
                 var aggregation = new AggregationInput(
-                        entry.path(), upstreamCheckerVerdicts(entry), policy);
+                        entry.path(), upstreamCheckerResults(entry), policy);
                 if (verdict != aggregation.verdict()) {
                     throw new CorpusException(
-                            "aggregator verdict does not match checker verdicts: " + path);
+                            "aggregator verdict does not match checker results: " + path);
                 }
                 var name = path.getFileName().toString();
                 if (aggregateEntries.put(name, entry) != null) {
@@ -60,11 +60,11 @@ final class AggregationRecovery {
     }
 
     /**
-     * Validates and returns the non-crash checker verdicts an entry that passed through the
+     * Validates and returns the non-crash checker results an entry that passed through the
      * aggregator carries, wherever it now sits.
      */
-    Map<CorpusStage, CorpusVerdict> upstreamCheckerVerdicts(Entry entry) throws CorpusException {
-        return transition.upstreamCheckerVerdicts(entry, policy.checkers());
+    Map<CorpusStage, StageRecord> upstreamCheckerResults(Entry entry) throws CorpusException {
+        return transition.upstreamCheckerResults(entry, policy.checkers());
     }
 
     /** The entries of the aggregator's result directories, by name, and their verdict counts. */

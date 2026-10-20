@@ -834,7 +834,7 @@ class CorpusDirectoryTest {
                                 Instant.ofEpochSecond(20),
                                 Instant.ofEpochSecond(21))));
 
-        assertTrue(failure.getMessage().contains("does not match checker verdicts"));
+        assertTrue(failure.getMessage().contains("does not match checker results"));
         assertTrue(Files.exists(pair.tlc()));
         assertTrue(Files.exists(pair.apalache()));
     }
@@ -972,7 +972,7 @@ class CorpusDirectoryTest {
         var failure = assertThrows(
                 CorpusException.class, () -> corpus.recoverAndValidate(ACCEPT));
 
-        assertTrue(failure.getMessage().contains("does not match checker verdicts"));
+        assertTrue(failure.getMessage().contains("does not match checker results"));
         assertTrue(Files.exists(pair.tlc()));
         assertTrue(Files.exists(pair.apalache()));
     }

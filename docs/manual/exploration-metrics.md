@@ -14,9 +14,11 @@ much* a checker explored to reach its verdict. The quality gate of
 exercise the checkers.
 
 The TLC stage measures its run and stores the result in the corpus entry. The
-Apalache stage stores the length of its counterexample. The stages do not accept
-or reject anything based on these metrics, and no configuration key controls
-them.
+Apalache stage stores the length of its counterexample. The checker stages do not
+accept or reject anything based on these metrics, and no configuration key
+controls them. The aggregator compares one metric: checkers whose search
+completed must report the same `distinctStates`
+([ADR 0019](../decisions/0019-state-count-agreement.md)).
 
 ## 1. Where metrics are stored
 
