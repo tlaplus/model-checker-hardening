@@ -1,7 +1,7 @@
 name: Architecture atlas
 
-# Builds the architecture atlas of main (ADR 0022) and commits it to the gh-pages branch, which
-# GitHub Pages serves.
+# Builds the architecture atlas of main (ADR 0022) and commits it, under dev/ next to the site index
+# from docs/site, to the gh-pages branch, which GitHub Pages serves.
 on:
   push:
     branches: [main]
@@ -41,7 +41,9 @@ jobs:
             git -C "$site" checkout --quiet --orphan gh-pages
           fi
           git -C "$site" rm -r --quiet --ignore-unmatch .
-          cp -R target/architecture/. "$site/"
+          cp -R docs/site/. "$site/"
+          mkdir "$site/dev"
+          cp -R target/architecture/. "$site/dev/"
           touch "$site/.nojekyll"
           git -C "$site" add --all
           if git -C "$site" diff --cached --quiet; then

@@ -36,10 +36,10 @@ final class AtlasLinks {
         return commit.matches("[0-9a-f]{40}") ? commit.substring(0, 7) : commit;
     }
 
-    /** The GitHub Pages site of the repository, which serves the explorer. */
-    String pages() {
+    /** The explorer, which the repository's GitHub Pages site serves under {@code dev/}. */
+    String explorer() {
         var path = URI.create(source.repository()).getPath().split("/");
-        return "https://" + path[1] + ".github.io/" + path[2] + "/";
+        return "https://" + path[1] + ".github.io/" + path[2] + "/dev/";
     }
 
     /** The path of a module page, relative to the atlas root. */

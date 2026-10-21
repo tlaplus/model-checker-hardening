@@ -10,7 +10,7 @@ class AtlasLinksTest {
     void linksToGitHub() {
         var links = new AtlasLinks(new Source("https://github.com/tlaplus/model-checker-hardening",
                 "0123456789abcdef0123456789abcdef01234567"));
-        assertEquals("https://tlaplus.github.io/model-checker-hardening/", links.pages());
+        assertEquals("https://tlaplus.github.io/model-checker-hardening/dev/", links.explorer());
         assertEquals("0123456", links.shortCommit());
         var type = RenderFixtures.store("io.github.tlaplus.hardening.corpus.CorpusLock");
         assertEquals("https://github.com/tlaplus/model-checker-hardening/blob/"

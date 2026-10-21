@@ -176,11 +176,13 @@ in-process doclet run, which `AtlasTest` shares.
 
 ### 4. Publishing on `gh-pages`
 
-On every push to `main`, the `architecture` workflow builds the atlas, adds
-`.nojekyll`, and commits it to the `gh-pages` branch with plain `git`, naming the
-source commit in the message. A rerun for a commit whose atlas is published makes
-no commit. GitHub Pages serves `index.html`, and GitHub's view of the branch
-renders `README.md` and the Mermaid pages. Since source links name the commit,
+On every push to `main`, the `architecture` workflow builds the atlas, places it
+under `dev/` next to the hand-written site index from `docs/site`, adds
+`.nojekyll`, and commits the result to the `gh-pages` branch with plain `git`,
+naming the source commit in the message. A rerun for a commit whose site is
+published makes no commit. GitHub Pages serves the site index at the root and the
+explorer at `dev/index.html`; GitHub's view of the branch renders `dev/README.md`
+and the Mermaid pages. Since source links name the commit,
 every push to `main` adds one commit to `gh-pages`, which keeps the atlas of every
 commit of `main`.
 
