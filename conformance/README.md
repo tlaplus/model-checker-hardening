@@ -1371,6 +1371,37 @@ The TLC worker crashes store only `Terminating due to
 java.lang.OutOfMemoryError: Java heap space`, so the triager cannot separate
 `tlc-018` from a resource limit, and it has no signature for it.
 
+## corpus67 residuals
+
+corpus67 is a `module` run with the recursion library that compares TLC with
+one worker (`tlc`) and TLC with `n` workers (`tlcn`); it runs no Apalache. It read
+`all-defects.toml`, and the known-defect signatures rejected 2,375,870 of the
+4,570,158 generation attempts. Triage classified all but one of the 1,197 `tlc`
+and the 1,191 `tlcn` crashes. The exception is one worker timeout,
+in both checkers. All 183 aggregator deviations are `FIRST_ERROR`. No entry is
+`NEW`. The timeout yields one new finding,
+[`tlc-performance-002`](../findings/tlc-performance/tlc-performance-002.md).
+No entry needs a new conformance report.
+
+The entry was rendered with FuzzTLA `c524cde`. TLC reruns used commit `932d35e`
+(tla2tools `1.8.0-20261015.150947-106`) with the corpus's `tla/recursion`
+modules. The crash rows were checked by grouping their stored diagnostics by
+error code and first message; every group is one that its finding records.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 1,143 + 1,133 | TLC crash | module errors under exit status 255: `Head` or `Tail` of `<<>>`, `SubSeq` and `%` outside their domains, and overflow | [`tlc-002`](../findings/TLC/tlc-002.md) |
+| 28 + 28 | TLC crash | error 1000 in a constant eventuality | [`tlc-009`](../findings/TLC/tlc-009.md) |
+| 14 + 20 | TLC crash | error 1000 while checking liveness | [`tlc-010`](../findings/TLC/tlc-010.md) |
+| 11 + 9 | TLC crash | `StackOverflowError` in the recursion library | [`tlc-performance-001`](../findings/tlc-performance/tlc-performance-001.md) |
+| 1 + 1 | TLC timeout | `5319b006`: one reachable state; TLC reports a function application outside the domain after 51.5 s, then runs out of heap in the replay | [`tlc-performance-002`](../findings/tlc-performance/tlc-performance-002.md), then [`tlc-018`](../findings/TLC/tlc-018.md) |
+| 183 | aggregator | one checker reports a counterexample, the other an evaluation error | `FIRST_ERROR` |
+
+Counts are `tlc` + `tlcn`. 26 entries crashed in one checker only. The other
+checker failed or reported a counterexample, and the crash side is in the rows
+above (`tlc-002`, `tlc-010`, `tlc-performance-001`). As for `FIRST_ERROR`, the
+two checkers explore states in different orders and stop at different errors.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
