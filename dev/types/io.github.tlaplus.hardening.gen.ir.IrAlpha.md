@@ -1,6 +1,6 @@
 # `IrAlpha`
 
-`io.github.tlaplus.hardening.gen.ir` · class · utility · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/3df8c8564b58e946b95079b671788c8315f98831/src/main/java/io/github/tlaplus/hardening/gen/ir/IrAlpha.java#L27) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.ir` · class · utility · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ed5c97e61582ad2ff90b4ea4209355aa0d555717/src/main/java/io/github/tlaplus/hardening/gen/ir/IrAlpha.java#L27) · module [gen](../modules/gen.md)
 
 Alpha-equivalence of typed IR: two expressions are equivalent when they differ only in the names of the variables and definitions they bind.
 

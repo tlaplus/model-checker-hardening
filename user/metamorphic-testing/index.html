@@ -1,0 +1,1775 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Hardened testing of the TLA+ model checkers TLC and Apalache.">
+      
+      
+      
+        <link rel="canonical" href="https://tlaplus.github.io/model-checker-hardening/user/metamorphic-testing/">
+      
+      
+        <link rel="prev" href="../recursive-operators/">
+      
+      
+        <link rel="next" href="../collection-size/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Metamorphic testing - FuzzTLA user manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#metamorphic-testing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="FuzzTLA user manual" class="md-header__button md-logo" aria-label="FuzzTLA user manual" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FuzzTLA user manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Metamorphic testing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tlaplus/model-checker-hardening" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tlaplus/model-checker-hardening
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="FuzzTLA user manual" class="md-nav__button md-logo" aria-label="FuzzTLA user manual" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    FuzzTLA user manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tlaplus/model-checker-hardening" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tlaplus/model-checker-hardening
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../corpus/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The corpus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running campaigns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Campaigns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Campaigns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mutation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generations and mutation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../temporal-properties/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actions and temporal properties
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../custom-operators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom operators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../community-modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community Modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recursive-operators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recursive operators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metamorphic testing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metamorphic testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-setting-up-a-corpus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Setting up a corpus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-the-checker-sees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What the checker sees
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Verdicts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-triage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Triage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-writing-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Writing rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tuning inputs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tuning inputs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../collection-size/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collection sizes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integer-literals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integer literals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-defect-signatures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known-defect signatures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing results
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysing results
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inspecting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inspecting a corpus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../campaign-report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Campaign report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../corpus-database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corpus database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exploration-metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../timeout-diagnostics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Timeout diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://tlaplus.github.io/model-checker-hardening/dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-setting-up-a-corpus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Setting up a corpus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-the-checker-sees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What the checker sees
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Verdicts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-triage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Triage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-writing-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Writing rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="metamorphic-testing">Metamorphic testing<a class="headerlink" href="#metamorphic-testing" title="Permanent link">&para;</a></h1>
+<p>Temporal properties are not supported yet (section 6).</p>
+<p>A metamorphic campaign checks one model checker against itself. Each input pairs a
+generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
+<code>x</code> rewritten as <code>x + y - y</code>. The checker explores one of the two and checks that its
+initial states and transitions satisfy the other. A violation means one of two things:
+- the checker evaluates the two sides differently;
+- a rewrite rule is unsound.</p>
+<p>Unlike a <a href="../recursive-operators/">recursion campaign</a>, no second checker is needed. The
+relation can be checked by TLC alone, including on recursive definitions that Apalache
+rejects.</p>
+<h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
+<p>Adopting elite entries of an existing conformance corpus gives the richest inputs:</p>
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-conf<span class="w">          </span><span class="c1"># conformance generations</span>
+./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
+<span class="c1"># edit corpus-mt/config.toml as below</span>
+./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">[generator]</span>
+<span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"module"</span><span class="w">               </span><span class="c1"># or "expr"</span>
+
+<span class="k">[workflow]</span>
+<span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">]</span><span class="w">            </span><span class="c1"># default ["tlc", "apalache"]</span>
+
+<span class="k">[workflow.inputs]</span>
+<span class="c1"># With Apalache among the checkers, also list metamorphic-defects.toml (section 3).</span>
+<span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">]</span>
+
+<span class="k">[metamorphic]</span>
+<span class="n">rules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Rewrites"</span><span class="p">,</span><span class="w"> </span><span class="n">classpath</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"rewrites"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="n">weights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">AddSub</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">}</span><span class="w">      </span><span class="c1"># overrides the rule's @weight, else 1; 0 disables a rule</span>
+<span class="n">base_corpus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"../corpus-conf"</span>
+<span class="n">adopt_ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span>
+<span class="n">max_rewrites</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span>
+<span class="n">max_rewrite_depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="n">max_rewrite_growth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+</code></pre></div>
+<ul>
+<li><strong>The technique is fixed.</strong> The first run records <code>mt</code> in <code>.technique</code>. Later runs
+  must pass <code>--how=mt</code>, and <code>print</code> and <code>export-db</code> read the file. A corpus without it
+  is a <code>pbt</code> corpus.</li>
+<li><strong>Adopted parents.</strong> A generation takes <code>adopt_ratio</code> of its entries from adopted
+  parents: the <code>04quality-pass</code> entries of <code>base_corpus</code>, each combined with random
+  rewrite bytes. <code>[mutator] feedback_ratio</code> still sets the share of byte mutants, and
+  PBT fills the rest.</li>
+<li><strong>The base corpus is read-only.</strong> It must be a <code>pbt</code> corpus. It is never written
+  to, and an entry keeps its parent's bytes, so <code>base_corpus</code> is not needed to replay
+  it.</li>
+<li><strong>The base corpus decodes alike.</strong> An adopted payload decodes under the metamorphic
+  corpus's settings, and decodes to the parent's module only if they agree. <code>run</code>
+  therefore refuses a base corpus whose <code>[generator]</code> settings differ, or whose
+  <code>.operator-library</code> differs from the library this run prepares. <code>classpath</code> and
+  <code>custom_operators</code> are compared through <code>.operator-library</code>, which pins the library
+  sources rather than their paths. Copy the base corpus's <code>[generator]</code> table and its
+  library sources.</li>
+<li><strong>Adopted entries record their parent.</strong> <code>gen.parent</code> is the parent's digest in the
+  base corpus, and <code>gen.operators</code> is <code>["adopt"]</code>.</li>
+<li><strong>The checker set is fixed.</strong> The first run records <code>checkers</code> in <code>.checkers</code>, and
+  later runs must use the same list.</li>
+<li><strong>Rule weights.</strong> A rule's weight is the number of selection slots it takes among
+  the rules that match a node. The rule module sets a default in the comment before a
+  rule, <code>\* @weight: 8;</code>, and <code>weights</code> overrides it. The shipped <code>Rewrites.tla</code>
+  weighs padding such as <code>x + 0</code> 1, reordering 2, value rebuilding 4, and rules that
+  replace an operator 8.</li>
+<li><strong>The rules are fixed.</strong> The first run records the rule module's sources and the
+  effective weights in <code>.rewrite-library</code>. Editing a rule or its weight requires a new
+  corpus.</li>
+</ul>
+<h2 id="2-what-the-checker-sees">2. What the checker sees<a class="headerlink" href="#2-what-the-checker-sees" title="Permanent link">&para;</a></h2>
+<p><code>fuzztla print --spec</code> shows the relation module. An orientation bit in the entry
+chooses the explored side E and the checked side C:</p>
+<table>
+<thead>
+<tr>
+<th>Orientation</th>
+<th>E (explored)</th>
+<th>C (checked)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>even</td>
+<td>M1</td>
+<td>M2</td>
+</tr>
+<tr>
+<td>odd</td>
+<td>M2</td>
+<td>M1</td>
+</tr>
+</tbody>
+</table>
+<p>Each side's parts are definitions of their own, named by the side X ∈ {E, C}:</p>
+<table>
+<thead>
+<tr>
+<th>Definition</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>InitX</code></td>
+<td>initial predicate</td>
+</tr>
+<tr>
+<td><code>ActionX</code></td>
+<td>next-state action without its stuttering disjunct</td>
+</tr>
+<tr>
+<td><code>InvX</code></td>
+<td>state invariant</td>
+</tr>
+<tr>
+<td><code>PropX</code></td>
+<td>temporal property</td>
+</tr>
+<tr>
+<td><code>FairnessX</code></td>
+<td>fairness conditions</td>
+</tr>
+<tr>
+<td><code>exprX</code></td>
+<td>the expression of an <code>expr</code> entry</td>
+</tr>
+</tbody>
+</table>
+<p>The relation module combines them:</p>
+<table>
+<thead>
+<tr>
+<th>Entry point</th>
+<th><code>expr</code></th>
+<th><code>module</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Init</code></td>
+<td><code>v = exprE</code></td>
+<td><code>InitE</code></td>
+</tr>
+<tr>
+<td><code>Next</code></td>
+<td><code>UNCHANGED v</code></td>
+<td><code>ActionE \/ UNCHANGED vars</code></td>
+</tr>
+<tr>
+<td><code>Inv</code></td>
+<td><code>v = exprC</code></td>
+<td><code>(step = 0 =&gt; InitC) /\ (InvE &lt;=&gt; InvC)</code></td>
+</tr>
+<tr>
+<td><code>Step</code></td>
+<td>none</td>
+<td><code>[ActionC]_vars</code>, an action invariant</td>
+</tr>
+<tr>
+<td><code>Prop</code></td>
+<td>none</td>
+<td><code>(PropE =&gt; PropC) /\ (PropC =&gt; PropE)</code> when the base has a property</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>One copy of the variables.</strong> M2 shares M1's variables. Only its operators are
+  renamed.</li>
+<li><strong>The action invariant.</strong> TLC checks it as <code>PROPERTY StepProperty</code>, where
+  <code>StepProperty == [][Step]_vars</code>, and reports "Action property StepProperty is
+  violated". Apalache checks it with <code>--inv=Inv,Step</code>.</li>
+<li><strong>Deadlock detection stays off,</strong> as in a conformance corpus.</li>
+<li><strong>Only the relation is checked.</strong> Whether the base invariant or property holds does
+  not matter.</li>
+<li><strong>The explored module is unchanged.</strong> The relation reaches exactly the states of E,
+  so the exploration metrics and the quality gate rank E.</li>
+</ul>
+<h2 id="3-verdicts">3. Verdicts<a class="headerlink" href="#3-verdicts" title="Permanent link">&para;</a></h2>
+<p>The aggregator applies the metamorphic oracle:</p>
+<table>
+<thead>
+<tr>
+<th>Verdicts</th>
+<th>Directory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>every checker <code>pass</code>, or every checker <code>fail</code></td>
+<td><code>03aggregator-pass</code></td>
+</tr>
+<tr>
+<td>any <code>counterexample</code>, or checkers disagree</td>
+<td><code>03aggregator-fail</code></td>
+</tr>
+</tbody>
+</table>
+<p>A <code>fail</code> is not a metamorphic violation. A checker's evaluation error on a partial
+term, such as <code>CHOOSE</code> without a witness, fails both sides alike. The quality gate,
+known-defect signatures and the mutator work as in a conformance corpus.</p>
+<p>Apalache evaluates <code>CHOOSE</code> non-deterministically, so the two copies of one <code>CHOOSE</code>
+with several witnesses may differ, and Apalache reports a counterexample without any
+rewrite (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/conformance/choose-multiple-witnesses.md">conformance note</a>). A corpus
+that checks with Apalache should list
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/signatures/metamorphic-defects.toml"><code>signatures/metamorphic-defects.toml</code></a> next
+to <code>all-defects.toml</code>; it quarantines every <code>CHOOSE</code>. A TLC-only corpus does not need
+it.</p>
+<h2 id="4-triage">4. Triage<a class="headerlink" href="#4-triage" title="Permanent link">&para;</a></h2>
+<p>A counterexample has two possible causes:</p>
+<ul>
+<li><strong>An unsound rule.</strong> The rule is not an equivalence in TLA<sup>+</sup>, or it breaks
+  the rule contract (section 5).</li>
+<li><strong>A checker defect in evaluating one side.</strong></li>
+</ul>
+<p>To tell them apart:</p>
+<ol>
+<li><strong>List the rules and the orientation.</strong> <code>fuzztla print</code> replays them. A violation of
+   <code>Inv</code> at <code>step = 0</code> is an initial state of E that <code>InitC</code> rejects. A violation of
+   <code>Step</code> is a transition of E that <code>ActionC</code> rejects.</li>
+<li><strong>Reduce the stack of rewrites.</strong> <code>fuzztla shrink --corpus corpus-mt ENTRY.cbor</code>
+   first checks the base related to itself, with no rule applied. If a configured
+   checker reports a counterexample to that, it evaluates two copies of one module
+   differently, so no rule is at fault; <code>shrink</code> says so and writes nothing.
+   Otherwise it clears the rewrite markers one at a time and keeps each change after
+   which a configured checker still reports a counterexample. It writes the reduced
+   input to <code>ENTRY-shrunk.cbor</code>, which <code>fuzztla print --corpus corpus-mt</code> shows. The
+   rules left are the culprits. An entry needs at least one rule, so <code>shrink</code> always
+   leaves one; the check of the base is what rules out every rule.</li>
+<li><strong>Evaluate both sides of that rule on the counterexample's last state or
+   transition</strong> under TLC and, where possible, Apalache.</li>
+<li>If a checker disagrees with the expected value, reduce the input to an MWE and
+     file a finding.</li>
+<li>If the rule is at fault, fix the rule. Rule changes reinterpret stored entries,
+     so initialize a new corpus.</li>
+</ol>
+<p>Findings cite the FuzzTLA commit, which versions the rules, besides the TLC and
+Apalache commits.</p>
+<h2 id="5-writing-rules">5. Writing rules<a class="headerlink" href="#5-writing-rules" title="Permanent link">&para;</a></h2>
+<p>A rule is an operator of the rule module. Its body relates a pattern A to its
+replacement B. The shipped <code>libraries/rewrites/Rewrites.tla</code> has several rules per
+type, and a section of beta and iota redexes, such as <code>x = LET F(v) == v IN F(x)</code> and
+<code>x = [field0 |-&gt; x].field0</code>. This module shows the format:</p>
+<div class="highlight"><pre><span></span><code>------------------------------ MODULE Rewrites ------------------------------
+EXTENDS Integers, FiniteSets
+
+PlusZero(x) == x = x + 0
+AddSub(x, y) == x = x + (y - y)
+DoubleNeg(P) == P = ~~P
+UnionSelf(S) == S = S \union S
+UnchangedPrime(x) == (UNCHANGED x) = (x' = x)
+ForallNotExists(S, P(_)) == (\A e \in S : P(e)) = ~(\E e \in S : ~P(e))
+AlwaysTwice(F) == []F &lt;=&gt; [][]F
+=============================================================================
+</code></pre></div>
+<ul>
+<li><strong>Every top-level definition is a rule.</strong> Put helpers in a module that the rule
+  module <code>EXTENDS</code>. B may apply them, A may not. The relation module does not link
+  helpers yet, so the shipped rules define what they need in a <code>LET</code> inside B.</li>
+<li><strong>Rewriting goes from A to B only.</strong> Add a second rule for the other direction.</li>
+<li><strong>Use <code>&lt;=&gt;</code> for temporal formulas.</strong> SANY rejects <code>=</code> between them.</li>
+<li><strong>Annotate when Snowcat asks.</strong> Snowcat cannot tell a tuple from a sequence, or a
+  record from a function, by their use alone. Add <code>\* @type: (&lt;&lt;a, b&gt;&gt;) =&gt; Bool;</code> above
+  such a rule.</li>
+<li><strong>Records and variants use the generator's names.</strong> A pattern names a field or a tag
+  literally, so the shipped record and variant rules use <code>field0</code> and <code>Tag0</code>, the first
+  names that the generator draws.</li>
+<li><strong>Apply higher-order parameters in B.</strong> B may apply <code>P</code> to any term, and the
+  rewriter beta-reduces the application. To pass <code>P</code> to an operator, write
+  <code>LAMBDA x : P(x)</code>; the loader rejects a bare <code>P</code>.</li>
+<li><strong>Bind names, not tuples, in B.</strong> Apalache's <code>PrettyWriter</code> prints a tuple binder
+  of <code>\A</code>, <code>\E</code> or <code>CHOOSE</code> as one identifier, which SANY rejects. Bind a pair <code>t</code> and
+  use <code>t[1]</code> and <code>t[2]</code>.</li>
+<li><strong>Parenthesize.</strong> A pattern matches what SANY parses. <code>x + y - y</code> is
+  <code>x + (y - y)</code>, because binary <code>-</code> binds tighter than <code>+</code>, and <code>UNCHANGED x = e</code> is a
+  precedence error.</li>
+</ul>
+<p>Each parameter is one of three kinds:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Where it occurs</th>
+<th>At rewrite time</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>matched</td>
+<td>in A</td>
+<td>bound to a subterm of the node</td>
+<td><code>x</code> in <code>PlusZero</code></td>
+</tr>
+<tr>
+<td>fresh</td>
+<td>only in B</td>
+<td>drawn by the generator at its type, in the node's scope</td>
+<td><code>y</code> in <code>AddSub</code></td>
+</tr>
+<tr>
+<td>higher-order</td>
+<td>in A, applied to variables that A binds</td>
+<td>bound to <code>LAMBDA e : body</code></td>
+<td><code>P(_)</code> in <code>ForallNotExists</code></td>
+</tr>
+</tbody>
+</table>
+<p>Snowcat infers each rule's signature, and a rule applies only at a node of a matching
+type. <code>UnionSelf</code> applies to sets of any element type.</p>
+<p>The loader rejects a rule that:
+- applies a prime, <code>UNCHANGED</code>, <code>ENABLED</code> or another action-level operator in B when A
+  applies none, or any temporal operator;
+- names anything other than its parameters, bound variables, built-in operators and
+  helpers.</p>
+<p>The matcher skips a rule where it would move a primed equation out of an assignment
+position, or reorder primed conjuncts. For example, <code>DoubleNeg</code> does not apply to
+<code>x' = 1</code>: under <code>~~</code>, TLC no longer treats the equation as an assignment. It also skips
+operators, such as a lambda passed to a fold, and a match that would move a label under
+a binder of B or into an <code>EXCEPT</code> replacement, where SANY rejects it.</p>
+<p><strong>Validity is the author's job.</strong> Prove each new rule in
+<code>libraries/rewrites/RewritesProofs.tla</code>, under the hypotheses that its signature gives
+(the module header lists them), and run <code>make proofs</code>:</p>
+<div class="highlight"><pre><span></span><code>THEOREM AddSubValid == ASSUME NEW x \in Int, NEW y \in Int PROVE AddSub(x, y)
+  BY DEF AddSub
+</code></pre></div>
+<p><code>mvn verify</code> fails when a rule has no such theorem, and CI runs <code>make proofs</code>. Before
+you write the proof, a quick TLC check over small domains can catch a wrong rule early:
+<code>ASSUME \A x, y \in -3..3 : AddSub(x, y)</code> in a module that <code>EXTENDS</code> the rule module.</p>
+<h2 id="6-limitations">6. Limitations<a class="headerlink" href="#6-limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>One direction per entry.</strong> An entry checks only that E's initial states and
+  transitions satisfy C. A rewrite that only adds initial states or successors is
+  detected only by entries that explore M2. In ADR 0016's probe, one direction
+  detected 108 of 301 perturbations, and both directions together detected 111.</li>
+<li><strong>Temporal properties are not rewritten yet.</strong> The first implementation leaves a
+  module's property and fairness out of the relation and loads no temporal rule.
+  Once they are added, TLC will reject some temporal relations: formulas that negate
+  <code>[][A]_v</code> fail with "Temporal formulas containing actions must be of forms &lt;&gt;[]A or
+  []&lt;&gt;A".</li>
+<li><strong>TLC-only corpora.</strong> A corpus with <code>checkers = ["tlc"]</code> compares no checkers, so
+  its entries are not conformance tests.</li>
+</ul>
+<h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0016-metamorphic-testing.md">ADR 0016</a> records the design and the
+probes behind it, and <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0017-rewrite-rule-library.md">ADR 0017</a> the rule
+format. The rule catalog will be specified in a later ADR.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../recursive-operators/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Recursive operators">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Recursive operators
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../collection-size/" class="md-footer__link md-footer__link--next" aria-label="Next: Collection sizes">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Collection sizes
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "search.highlight", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

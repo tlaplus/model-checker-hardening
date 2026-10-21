@@ -1,6 +1,6 @@
 # `SqlType`
 
-`io.github.tlaplus.hardening.database` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3df8c8564b58e946b95079b671788c8315f98831/src/main/java/io/github/tlaplus/hardening/database/SqlType.java#L8) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ed5c97e61582ad2ff90b4ea4209355aa0d555717/src/main/java/io/github/tlaplus/hardening/database/SqlType.java#L8) · module [database](../modules/database.md)
 
 A SQLite storage class, with the Java type a row stores for it.
 
