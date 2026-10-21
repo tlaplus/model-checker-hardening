@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +17,8 @@ import java.util.Objects;
  * <p>Every other fact about a checker table is shared by {@link CheckerStageConfig} and {@link
  * ConfigSchema}, so adding a checker adds one constant here.
  */
+@ArchRole(Role.CONFIG)
+@Key
 public enum CheckerProfile {
     TLC(
             CorpusStage.TLC,

@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
@@ -24,6 +27,8 @@ import java.util.EnumMap;
  * directories, so only a failure or a crash occupies parser capacity. Every recorded verdict frees
  * the {@code 00-inputs} slot the input stage reserved for the entry.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class ParserRouting implements StageRouting {
     private final OccupancyGate resultCapacity;
     private final Map<CorpusStage, WorkQueue<Path>> checkerOutputs;

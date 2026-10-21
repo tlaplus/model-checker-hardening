@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.gen.library;
 
 import at.forsyte.apalache.tla.lir.*;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +16,8 @@ import org.apalache_mc.tla.jir.TlaModules;
 import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Immutable prepared library. Mutable Apalache declarations never escape without a fresh copy. */
+@ArchRole(Role.FACADE)
+@Key
 public final class OperatorLibrary {
     public record Export(OperatorId id, String name, OperT1 signature,
             Set<ExpressionCategory> categories, ModuleLink link) {

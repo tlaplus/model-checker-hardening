@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.workflow.aggregator;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.EnumMaps;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageResult;
@@ -24,6 +27,8 @@ import java.util.Collections;
 import java.util.EnumMap;
 
 /** Joins completed TLC and Apalache results with one in-process worker. */
+@ArchRole(Role.PROCESS)
+@Key
 public final class AggregatorStage implements WorkflowStage {
     private final StageEnvironment environment;
     private final StageCounters counters;

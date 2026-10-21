@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -20,6 +23,12 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
 
+/**
+ * {@code fuzztla shrink}: reduces a metamorphic counterexample with {@code MetamorphicShrinker}
+ * (ADR 0016).
+ */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(
         name = "shrink",
         description = "Reduce the rewrite of a metamorphic counterexample (ADR 0016).")

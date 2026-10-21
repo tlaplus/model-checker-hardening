@@ -1,6 +1,12 @@
 package io.github.tlaplus.hardening.checker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
+
 /** Stable failure codes shared by model-checker stages. */
+@ArchRole(Role.MODEL)
+@Key
 public enum CheckerFailureCode {
     SPEC_EVAL(75, "spec_eval"),
     TYPECHECK(120, "typecheck"),

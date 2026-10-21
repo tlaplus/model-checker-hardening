@@ -4,6 +4,9 @@ import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -14,6 +17,8 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /** Binary framing shared by isolated parser and model-checker workers. */
+@ArchRole(Role.CODEC)
+@Key
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
     static final int VERSION = 7;

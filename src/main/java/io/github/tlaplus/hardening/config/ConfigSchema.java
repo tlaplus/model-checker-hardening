@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
@@ -35,6 +38,8 @@ import org.tomlj.TomlTable;
  * <p>Declaration order is document order: {@link #TABLES} is the order tables are rendered, and a
  * table's registration order is the order its keys are rendered.
  */
+@ArchRole(Role.CONFIG)
+@Key
 final class ConfigSchema {
     /** What an optional key reads when its table omits it. */
     sealed interface Default<T> {

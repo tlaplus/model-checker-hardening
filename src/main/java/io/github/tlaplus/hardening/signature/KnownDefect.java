@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.signature;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -13,6 +16,8 @@ import java.util.regex.Pattern;
  * <p>The id is recorded in quarantined corpus entries and in workflow statistics, so it is
  * restricted to lowercase letters, digits, and single hyphens.
  */
+@ArchRole(Role.MODEL)
+@Key
 public final class KnownDefect {
     private static final Pattern ID = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
 

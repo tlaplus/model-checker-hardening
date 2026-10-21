@@ -13,6 +13,8 @@ import java.util.TreeMap;
  * @param exprs the occurrences of each construct, keyed by construct name
  * @param edges the occurrences of each edge between constructs
  */
+@ArchRole(Role.MODEL)
+@Key
 public record ExprCounts(long nodes, SortedMap<String, Long> exprs, SortedMap<ExprEdge, Long> edges) {
     public ExprCounts {
         Preconditions.requireNonnegative(nodes, "nodes");

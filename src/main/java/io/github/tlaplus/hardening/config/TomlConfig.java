@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
@@ -24,6 +27,8 @@ import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
  * <p>What the format contains is declared once in {@link ConfigSchema}; this class only parses a
  * file against those declarations, assembles the configuration records, and writes them back.
  */
+@ArchRole(Role.CODEC)
+@Key
 public final class TomlConfig {
     /** The path {@link ConfigSchema} uses for the root of the document. */
     private static final String ROOT_PATH = "";

@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
@@ -17,6 +20,8 @@ import java.util.Set;
  * How each model-checker stage builds its backend for one invocation. Adding a checker adds one
  * entry here; loading this class fails if a checker branch has none.
  */
+@ArchRole(Role.POLICY)
+@Key
 final class CheckerBackends {
     /**
      * What one invocation provides to the backends it builds. {@code sourceClasspath} precedes the

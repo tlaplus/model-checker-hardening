@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -30,6 +33,12 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine;
 
+/**
+ * {@code fuzztla print}: decodes a payload or corpus envelope and renders it, with the known
+ * defects it matches.
+ */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(
         name = "print",
         description =

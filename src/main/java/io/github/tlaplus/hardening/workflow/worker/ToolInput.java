@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 
 /**
@@ -12,6 +15,8 @@ import java.util.Objects;
  * @param text the specification in whatever representation the receiving tool consumes
  * @param request the exploration bound and the properties to check
  */
+@ArchRole(Role.MODEL)
+@Key
 public record ToolInput(String text, CheckRequest request) {
     public ToolInput {
         Objects.requireNonNull(text, "text");

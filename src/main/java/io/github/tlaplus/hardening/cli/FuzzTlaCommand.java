@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -7,6 +10,9 @@ import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Spec;
 
+/** The root {@code fuzztla} command: registers the subcommands and runs one command line. */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(
         name = "fuzztla",
         description = "Synthesize TLA+ specifications to harden model checkers.",

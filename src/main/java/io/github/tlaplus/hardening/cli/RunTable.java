@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import java.nio.file.Path;
@@ -8,6 +11,8 @@ import java.util.List;
 import org.jline.utils.AttributedString;
 
 /** Complete, exact statistics grouped by stage; suitable for scrollback and redirected output. */
+@ArchRole(Role.VIEW)
+@Key
 final class RunTable {
     private static final String INDENT = "  ";
 

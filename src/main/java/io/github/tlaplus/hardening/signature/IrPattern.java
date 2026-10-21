@@ -10,6 +10,9 @@ import at.forsyte.apalache.tla.lir.oper.TlaOper;
 import at.forsyte.apalache.tla.lir.values.TlaBool;
 import at.forsyte.apalache.tla.lir.values.TlaInt;
 import at.forsyte.apalache.tla.lir.values.TlaStr;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Objects;
@@ -24,6 +27,8 @@ import org.apalache_mc.tla.jir.TlaTypes;
  * the bindings of the alternative it belongs to. It never searches: finding the subexpression to
  * match is {@link IrTree}'s job.
  */
+@ArchRole(Role.CONTRACT)
+@Key
 sealed interface IrPattern {
     boolean matches(TlaEx expression, Bindings bindings);
 

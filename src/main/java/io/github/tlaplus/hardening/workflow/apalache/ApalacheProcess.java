@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
@@ -14,6 +17,8 @@ import java.util.List;
 import java.util.Objects;
 
 /** Starts one persistent isolated Apalache JVM, which serves inputs until a crash retires it. */
+@ArchRole(Role.ADAPTER)
+@Key
 final class ApalacheProcess {
     private ApalacheProcess() {}
 

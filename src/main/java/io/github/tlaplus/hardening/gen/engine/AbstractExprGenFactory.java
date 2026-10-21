@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.vavr.Function3;
@@ -14,6 +17,8 @@ import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
 /** Shared access to the state and recursive factories used by expression generator families. */
+@ArchRole(Role.CONTRACT)
+@Key
 abstract class AbstractExprGenFactory {
     protected final GenerationContext context;
     protected final IrTypeGenFactory typeFactory;

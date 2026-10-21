@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.signature;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,6 +17,8 @@ import java.util.Objects;
  * across all of them, because an id names a signature in corpus entries and statistics. Matching
  * is a deterministic function of the module and the database.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class KnownDefectDatabase {
     /** The database the repository ships, relative to the project directory. */
     public static final Path SHIPPED = Path.of("signatures", "known-defects.toml");

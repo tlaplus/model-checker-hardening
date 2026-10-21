@@ -5,6 +5,9 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.TlaType1;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
@@ -56,6 +59,8 @@ import org.apalache_mc.tla.jir.TlaTypes;
  * <p>Matching is byte-free. A fresh parameter, and any type variable the match leaves open, is
  * drawn from the rewrite payload through {@link OperandGenerator}.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class Rewriter {
     /** Bytes of one rule index, as for an expression form (ADR 0016 §2). */
     static final int SELECTION_BYTES = 2;

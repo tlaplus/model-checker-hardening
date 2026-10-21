@@ -3,8 +3,9 @@ ARGS ?=
 TLAPM ?= tlapm
 COMMUNITY_MODULES_REPO ?= https://github.com/tlaplus/CommunityModules
 COMMUNITY_MODULES_DIR ?= libraries/community-modules
+ATLAS_OUTPUT ?= target/architecture
 
-.PHONY: compile test package verify run clean proofs community-modules
+.PHONY: compile test package verify run clean proofs community-modules architecture
 
 compile:
 	$(MVN) compile
@@ -23,6 +24,14 @@ run: package
 
 clean:
 	$(MVN) clean
+
+# Builds the architecture atlas (ADR 0022) into $(ATLAS_OUTPUT); open its index.html in a browser.
+# Source links name the commit of HEAD.
+architecture:
+	$(MVN) -q test-compile dependency:build-classpath -Dmdep.outputFile=target/atlas-classpath.txt
+	java -cp "target/test-classes:target/classes:$$(cat target/atlas-classpath.txt)" \
+		io.github.tlaplus.hardening.architecture.AtlasMain \
+		--output $(ATLAS_OUTPUT) --commit "$$(git rev-parse HEAD)"
 
 # Proves every rewrite rule (ADR 0017 §7). Variants resolves from Apalache's standard modules.
 proofs:

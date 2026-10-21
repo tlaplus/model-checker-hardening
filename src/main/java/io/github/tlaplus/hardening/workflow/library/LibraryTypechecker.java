@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.library;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
@@ -14,6 +17,8 @@ import java.util.List;
 import java.util.Set;
 
 /** Finite, isolated Snowcat invocation producing a typed module rather than a checker verdict. */
+@ArchRole(Role.ADAPTER)
+@Key
 final class LibraryTypechecker {
     private static final int MAXIMUM_JSON_BYTES = 64 * 1024 * 1024;
     private final Path jar;

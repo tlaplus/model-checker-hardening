@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.EntryName;
@@ -18,6 +21,8 @@ import io.github.tlaplus.hardening.corpus.EntryOrigin;
  * checker's report; the parser's report always precedes the checkers', because a stage reports
  * before it forwards.
  */
+@ArchRole(Role.CONTRACT)
+@Key
 public interface WorkflowEvents {
     /**
      * The generation reported for an entry the implementation does not track. Ordering is total, so

@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
@@ -14,6 +17,8 @@ import java.util.Optional;
  * Adapts fresh isolated TLC invocations to the shared tool stage. Every TLC stage runs this
  * backend; the stages differ only in their settings, such as the number of TLC workers.
  */
+@ArchRole(Role.ADAPTER)
+@Key
 public final class TlcCheckerBackend implements ToolBackend {
     private final CorpusStage stage;
     private final CheckerStageConfig config;

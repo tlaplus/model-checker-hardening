@@ -5,6 +5,9 @@ import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +20,8 @@ import org.apalache_mc.tla.jir.TlaModules;
 import org.apalache_mc.tla.jir.TlaOperators;
 
 /** Renders an assembled module as the typed Apalache IR JSON that Apalache consumes. */
+@ArchRole(Role.CODEC)
+@Key
 public final class ApalacheIrJson {
     private ApalacheIrJson() {}
 

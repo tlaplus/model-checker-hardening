@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
@@ -34,6 +37,8 @@ import java.util.function.Function;
  * guarantees that every {@link InputKind} has a decoder; callers cannot observe or construct an
  * incomplete production map.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class SpecDecoders {
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
     /** Decoders of a metamorphic payload's base paired with itself; empty for a conformance registry. */

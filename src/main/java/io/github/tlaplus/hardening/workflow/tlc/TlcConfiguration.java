@@ -1,9 +1,14 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 
 /** The TLC configuration file for one checked module. */
+@ArchRole(Role.CODEC)
+@Key
 final class TlcConfiguration {
     private TlcConfiguration() {}
 

@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.signature;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -18,6 +21,8 @@ import java.util.regex.Pattern;
  * misspelled operator or malformed type is a load error rather than a signature that silently
  * never matches.
  */
+@ArchRole(Role.CODEC)
+@Key
 final class PatternParser {
     private static final String WILDCARD = "_";
     private static final String ELLIPSIS = "...";

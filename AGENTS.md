@@ -13,6 +13,11 @@ planning or implementing architectural changes:
 - [`ir-generators.md`](docs/architecture/ir-generators.md) defines the design
   constraints for `io.github.tlaplus.hardening.gen` and its `engine` package.
 
+`make architecture` builds the [architecture atlas](docs/manual/architecture-atlas.md):
+module, package and class diagrams generated from the code. Mark the types that
+carry a new package `@Key` with an `@ArchRole`, and give every package a
+`package-info.java`; `ArchitectureAnnotationsTest` checks both.
+
 Follow the documented architecture when modifying these areas. If a change
 intentionally revises the architecture, ask the user, then update the corresponding
 document in the same change and state the deviation explicitly.
@@ -58,12 +63,15 @@ arithmetic is unavoidable, cover it with a round-trip test.
 enum ordinals are part of a stored format or wire encoding, a comment is not
 enough; add a test that fails on reorder.
 
-**Keep the layering.** Dependencies run `checker`, `gen`, `mutation` → `corpus` →
-`config` → `workflow` → `cli`, and `corpus` → `database` → `cli`
+**Keep the layering.** `common.ArchModule` declares which top-level packages each
+may depend on, and `LayeringTest` fails on any other dependency
+([ADR 0022](docs/decisions/0022-architecture-atlas.md)). In short, dependencies
+run `checker`, `gen`, `signature`, `mutation` → `corpus` → `config` → `workflow`
+→ `cli`, and `corpus` → `database` → `cli`
 ([ADR 0009](docs/decisions/0009-corpus-database.md)), with `common` a leaf every
 package may import. `database` stays below `config` and `workflow`: `cli` passes
-it the input replay as an interface. No upward
-imports. `config` keys its stage tables by `corpus.CorpusStage`
+it the input replay as an interface. No upward imports. Widening a constant's
+allowed list is an architectural change: say why in the change. `config` keys its stage tables by `corpus.CorpusStage`
 ([ADR 0004](docs/decisions/0004-stage-identity.md)). Validation and parsing policy do not belong
 in the storage layer; storage returns bytes and lets the caller interpret them.
 

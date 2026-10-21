@@ -2,7 +2,10 @@ package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.FileTrees;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -20,6 +23,8 @@ import java.util.ArrayList;
 import scala.Console$;
 
 /** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 public final class ApalacheWorkerMain {
     private static final String SPECIFICATION_FILE = FuzzInputModule.MODULE_NAME + ".json";
     private static final String TOOL_CLASS = "at.forsyte.apalache.tla.Tool";

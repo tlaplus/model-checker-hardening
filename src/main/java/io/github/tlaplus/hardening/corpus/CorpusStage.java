@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -16,6 +19,8 @@ import java.util.Optional;
  *
  * <p>Declaration order is pipeline order.
  */
+@ArchRole(Role.MODEL)
+@Key
 public enum CorpusStage {
     PARSER(
             "parser",

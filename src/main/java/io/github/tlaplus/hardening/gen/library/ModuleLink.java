@@ -1,11 +1,16 @@
 package io.github.tlaplus.hardening.gen.library;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 
 /**
  * How one custom module is linked, and the module that its TLA+ source aliases instantiate:
  * the module itself unless the linkage names a separate TLC module.
  */
+@ArchRole(Role.MODEL)
+@Key
 public record ModuleLink(LibraryLinkage linkage, String sourceModule) {
     public ModuleLink {
         Objects.requireNonNull(linkage, "linkage");

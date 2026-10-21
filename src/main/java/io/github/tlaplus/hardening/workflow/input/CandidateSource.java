@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.Mutation;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
@@ -15,6 +18,8 @@ import java.util.random.RandomGenerator;
  * <p>A source only proposes bytes. Decoding, admission, deduplication, quarantine and storage are
  * the input stage's, and are the same for every source.
  */
+@ArchRole(Role.CONTRACT)
+@Key
 public interface CandidateSource {
     /** Claims one target entry, fixing what every candidate drawn for it shares. */
     Target claim(RandomGenerator random);

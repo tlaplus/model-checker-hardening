@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.gen;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine;
 import io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine;
 import java.util.Objects;
@@ -60,6 +63,8 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
  * @see Draw
  * @see IrGenerationConfig
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class IrGenerators {
     private IrGenerators() {}
 

@@ -2,6 +2,9 @@ package io.github.tlaplus.hardening.database;
 
 import static io.github.tlaplus.hardening.database.DatabaseColumns.*;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -10,6 +13,8 @@ import java.util.stream.Collectors;
  * A table of the corpus database: its name, columns and keys. {@code entry} is keyed by its row id;
  * every other table is stored {@code WITHOUT ROWID} in the B-tree of its primary key.
  */
+@ArchRole(Role.MODEL)
+@Key
 enum DatabaseTable {
     EXPORT("export", List.of(KEY, VALUE), List.of(KEY), List.of(), false),
     ENTRY(

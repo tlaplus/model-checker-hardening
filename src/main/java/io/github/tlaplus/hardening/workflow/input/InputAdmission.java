@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
@@ -20,6 +23,8 @@ import java.util.Objects;
  * therefore means "would otherwise have been admitted". None of the checks draws randomness, so
  * the candidate stream is the same with or without a database.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class InputAdmission {
     private final PbtConfig pbt;
     private final KnownDefectDatabase knownDefects;

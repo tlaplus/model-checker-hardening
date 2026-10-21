@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.gen.rewrite;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,6 +18,8 @@ import java.util.Set;
  * @param unlabelled the parameters the replacement places where a label of their binding is
  *     invalid, see {@link LabelPlacement}
  */
+@ArchRole(Role.MODEL)
+@Key
 public record RewriteRule(
         String name,
         int weight,

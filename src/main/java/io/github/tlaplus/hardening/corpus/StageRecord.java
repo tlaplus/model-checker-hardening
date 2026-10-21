@@ -3,7 +3,10 @@ package io.github.tlaplus.hardening.corpus;
 import io.github.tlaplus.hardening.checker.CheckerFailure;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,6 +18,8 @@ import java.util.Optional;
  * <p>This is the part shared by {@link StageResult}, which a stage hands to the corpus, and {@link
  * StageMetadata}, which the corpus stores under the stage's name. Its invariants hold for both.
  */
+@ArchRole(Role.MODEL)
+@Key
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record StageRecord(
         CorpusVerdict verdict,

@@ -6,7 +6,10 @@ import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,6 +30,8 @@ import java.util.function.Predicate;
  * has never heard of. Both survive a rewrite: {@link #withStageMetadata} preserves the fields it
  * does not model and passes an unrecognized stage entry through unchanged.
  */
+@ArchRole(Role.CODEC)
+@Key
 public final class CorpusEnvelopeCodec {
     private static final String STAGES_FIELD = CorpusInputCodec.STAGES_FIELD;
     private static final String VERDICT_FIELD = "verdict";

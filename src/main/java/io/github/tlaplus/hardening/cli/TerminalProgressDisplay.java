@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import java.io.IOError;
 import java.util.Map;
@@ -10,6 +13,8 @@ import org.jline.terminal.Terminal;
  * Terminal mechanics of live progress: snapshots, change highlighting, resizing, and screen
  * restoration. It never writes the final report; its owner does, after {@link #finish}.
  */
+@ArchRole(Role.VIEW)
+@Key
 final class TerminalProgressDisplay implements AutoCloseable {
     private final Terminal terminal;
     private final ProgressScreen screen;

@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.WorkflowConfig;
@@ -52,6 +55,8 @@ import io.github.tlaplus.hardening.corpus.CheckerSet;
  * queues of the stages that claim per-entry work are ordered oldest generation first, so an older
  * generation's tail drains while a newer one is already being admitted.
  */
+@ArchRole(Role.PROCESS)
+@Key
 final class StageGraph {
     /** What every invocation of one runner shares. */
     /**

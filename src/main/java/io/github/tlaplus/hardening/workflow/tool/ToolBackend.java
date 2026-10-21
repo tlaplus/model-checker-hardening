@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tool;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
@@ -24,6 +27,8 @@ import java.util.function.Function;
  * <p>The stage calls {@link #startWorker()} again after every crash verdict, so a one-shot worker
  * simply reports a crash on every failure and a persistent one is replaced only when it dies.
  */
+@ArchRole(Role.CONTRACT)
+@Key
 public interface ToolBackend {
     /** Returns the corpus stage this tool records its verdicts under. */
     CorpusStage stage();

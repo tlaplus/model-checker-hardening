@@ -8,6 +8,9 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.ValEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +30,8 @@ import org.apalache_mc.tla.jir.TlaExpressions;
  * as the rewriter does by binding only fresh names. Every inserted replacement is a fresh copy,
  * because Apalache requires unique node identities.
  */
+@ArchRole(Role.UTILITY)
+@Key
 public final class IrSubstitution {
     private IrSubstitution() {}
 

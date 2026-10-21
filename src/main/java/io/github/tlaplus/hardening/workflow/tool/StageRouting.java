@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tool;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
@@ -18,6 +21,8 @@ import java.nio.file.Path;
  * runs. A parser pass fans out downstream and leaves the parser's directories, so the parser
  * reserves capacity only once it knows the verdict stays.
  */
+@ArchRole(Role.CONTRACT)
+@Key
 public interface StageRouting {
     CpuBudget.Priority priority();
 

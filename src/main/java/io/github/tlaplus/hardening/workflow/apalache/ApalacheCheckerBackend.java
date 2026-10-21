@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
@@ -12,6 +15,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /** Adapts persistent Apalache tool workers to the shared tool stage. */
+@ArchRole(Role.ADAPTER)
+@Key
 public final class ApalacheCheckerBackend implements ToolBackend {
     private final CheckerStageConfig config;
     private final Path releaseJar;

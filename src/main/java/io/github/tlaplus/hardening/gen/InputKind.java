@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -11,6 +14,8 @@ import java.util.Optional;
  * records the answer in its {@code kind} field, and every stage regenerates through the decoder
  * the entry names. One enum keyed by that concept keeps those three from drifting apart.
  */
+@ArchRole(Role.MODEL)
+@Key
 public enum InputKind {
     EXPRESSION("expr"),
     MODULE("module");

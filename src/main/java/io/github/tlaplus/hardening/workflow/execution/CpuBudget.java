@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -17,6 +20,8 @@ import java.util.function.BooleanSupplier;
  * reserved for it instead of being granted to later work. This prevents a multi-permit checker
  * request from being starved by smaller requests.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class CpuBudget {
     /** Workflow priorities, from the most downstream work to the most upstream work. */
     public enum Priority {

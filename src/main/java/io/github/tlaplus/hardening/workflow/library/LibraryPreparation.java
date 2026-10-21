@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.library;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.common.TemporaryDirectory;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
@@ -17,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 
 /** Prepares custom libraries once before decoding; no importer/typechecker Maven dependency. */
+@ArchRole(Role.FACADE)
+@Key
 public final class LibraryPreparation {
     /**
      * Settings carrying the prepared library, beside the replay identity of the sources it was

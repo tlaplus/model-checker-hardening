@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.workflow.tool;
 
 import io.github.tlaplus.hardening.checker.CheckerFailure;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
@@ -26,6 +29,8 @@ import java.util.Objects;
  * which tool runs and how its processes live; the {@link StageRouting} says which entries the stage
  * owns, how it bounds its result directories, and where its results go.
  */
+@ArchRole(Role.PROCESS)
+@Key
 public final class ToolStage implements WorkflowStage {
     private final ToolBackend backend;
     private final StageRouting routing;

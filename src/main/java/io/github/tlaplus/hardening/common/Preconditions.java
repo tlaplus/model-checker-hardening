@@ -1,6 +1,8 @@
 package io.github.tlaplus.hardening.common;
 
 /** Shared validation of method and constructor arguments. */
+@ArchRole(Role.UTILITY)
+@Key
 public final class Preconditions {
     private Preconditions() {}
 

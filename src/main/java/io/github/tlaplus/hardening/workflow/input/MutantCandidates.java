@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.Mutation;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.mutation.ByteMutator;
@@ -13,6 +16,8 @@ import java.util.random.RandomGenerator;
  * cohort, and is rejected as a clone when it renders to the parent's module. Mutants have no
  * richness threshold.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class MutantCandidates implements CandidateSource {
     private final ParentPool parents;
     private final Generator<SpecArtifact> decoder;

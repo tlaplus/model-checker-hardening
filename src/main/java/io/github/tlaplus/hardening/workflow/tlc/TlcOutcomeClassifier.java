@@ -1,11 +1,16 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import tlc2.output.EC;
 
 /** Maps TLC's internal error constants to workflow outcomes. */
+@ArchRole(Role.POLICY)
+@Key
 final class TlcOutcomeClassifier {
     private TlcOutcomeClassifier() {}
 

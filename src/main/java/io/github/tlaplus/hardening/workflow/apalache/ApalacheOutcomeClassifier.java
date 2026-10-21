@@ -1,12 +1,17 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.util.List;
 
 /** Maps Apalache tool exit statuses to shared workflow outcomes. */
+@ArchRole(Role.POLICY)
+@Key
 final class ApalacheOutcomeClassifier {
     private static final String INPUT_ERROR_PREFIX = "Input error (see the manual): ";
     private static final List<String> UNDEFINED_ARITHMETIC = List.of(

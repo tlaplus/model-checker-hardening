@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.checker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -19,6 +22,8 @@ import java.util.OptionalLong;
  * @param saturated whether a bounded measurement stopped early, making the state-size counts lower
  *     bounds
  */
+@ArchRole(Role.MODEL)
+@Key
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record ExplorationMetrics(
         Optional<ExplorationPhase> phase, Map<ExplorationCount, Long> counts, boolean saturated) {

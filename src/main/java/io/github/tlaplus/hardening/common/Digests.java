@@ -8,6 +8,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
 /** SHA-256 identities for corpus payloads and external replay dependencies. */
+@ArchRole(Role.UTILITY)
+@Key
 public final class Digests {
     private Digests() {}
 

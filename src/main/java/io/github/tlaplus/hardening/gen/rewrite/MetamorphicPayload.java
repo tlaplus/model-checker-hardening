@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen.rewrite;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.Draw;
 import java.util.Objects;
 
@@ -13,6 +16,8 @@ import java.util.Objects;
  * length is the header modulo one more than the bytes after it, so an encoded length is exact and
  * a random header splits a random input at a uniform point (ADR 0016 §1).
  */
+@ArchRole(Role.CODEC)
+@Key
 public final class MetamorphicPayload {
     /** The largest base payload the two-byte header can describe. */
     public static final int MAXIMUM_BASE_BYTES = 0xFFFF;

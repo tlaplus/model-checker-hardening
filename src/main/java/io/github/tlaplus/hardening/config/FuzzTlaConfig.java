@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
@@ -15,6 +18,8 @@ import java.util.Set;
  * so it sits here rather than in {@link IrGenerationConfig}: an entry already in the corpus
  * records its own kind and is regenerated through that decoder whatever this run generates.
  */
+@ArchRole(Role.CONFIG)
+@Key
 public record FuzzTlaConfig(
         InputKind generatedKind,
         IrGenerationConfig generator,

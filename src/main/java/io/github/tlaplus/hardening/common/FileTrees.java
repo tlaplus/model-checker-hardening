@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.Comparator;
 
 /** File-tree operations shared by the corpus and by isolated worker processes. */
+@ArchRole(Role.UTILITY)
+@Key
 public final class FileTrees {
     private FileTrees() {}
 
