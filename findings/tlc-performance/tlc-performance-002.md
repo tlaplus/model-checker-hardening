@@ -169,8 +169,13 @@ the step with `CallStackTool` as described in tlc-018, and runs out of heap in
 `CallStack.toString` 15 seconds later. With TLC's default heap of 5.3 GB on this
 machine, the run ends the same way after 1 minute 53 seconds.
 
-The triager files `5319b006` under `TIMEOUT`. A timeout stores no TLC output,
-so no triager signature can separate this finding from other slow inputs.
+The triager files `5319b006` under `TIMEOUT`: when corpus67 ran, a timeout
+stored no TLC output. Since [ADR 0021](../../docs/decisions/0021-timeout-diagnostics.md),
+a timeout's sidecar holds the stacks of TLC's working threads, and the triager
+labels this finding by a frame pair that persists for the whole first pass:
+`Value.toString` called from `FcnLambdaValue.apply`, without a `CallStackTool`
+frame. Replayed through the TLC worker, `5319b006` stores that pair 80 frames
+below the top of the TLC worker thread, and is labelled `tlc-performance-002`.
 
 ## Expected behavior
 

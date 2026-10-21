@@ -34,6 +34,11 @@ import java.util.concurrent.TimeoutException;
  */
 final class WorkerLaunch {
     private static final Duration PROCESS_TERMINATION_TIMEOUT = Duration.ofMillis(500);
+    /**
+     * How long a timed-out child may take to exit after {@code SIGTERM}: its shutdown hook prints
+     * the tool's threads and output, the diagnostic of the timeout (ADR 0021).
+     */
+    static final Duration TIMED_OUT_GRACE = Duration.ofSeconds(2);
 
     private WorkerLaunch() {}
 
@@ -195,25 +200,34 @@ final class WorkerLaunch {
 
     /** Ends a child process, escalating from a request to a forced kill. */
     static void terminate(Process process) {
+        terminate(process, PROCESS_TERMINATION_TIMEOUT);
+    }
+
+    /**
+     * Ends a child process with {@code SIGTERM}, and kills it if it is still alive after {@code
+     * grace}. Only {@code SIGTERM} runs the child's shutdown hooks, and their output is kept.
+     */
+    static void terminate(Process process, Duration grace) {
         if (!process.isAlive()) {
             return;
         }
-        stop(process, false);
+        stop(process, false, grace);
     }
 
     /** Waits for a child that was asked to stop, escalating if it does not. */
     static void awaitStop(Process process) {
-        stop(process, true);
+        stop(process, true, PROCESS_TERMINATION_TIMEOUT);
     }
 
-    private static void stop(Process process, boolean graceful) {
+    private static void stop(Process process, boolean graceful, Duration grace) {
         try {
             if (!graceful || !process.waitFor(
                     PROCESS_TERMINATION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-                process.destroy();
+                // Process.destroy() would also close this side of the child's pipes, discarding
+                // what its shutdown hooks print. The handle sends the same SIGTERM and keeps them.
+                process.toHandle().destroy();
             }
-            if (!process.waitFor(
-                    PROCESS_TERMINATION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+            if (!process.waitFor(grace.toMillis(), TimeUnit.MILLISECONDS)) {
                 process.destroyForcibly();
                 process.waitFor(
                         PROCESS_TERMINATION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);

@@ -430,7 +430,9 @@ The triager writes `01parser-crash-triage.csv`, `02tlc-crash-triage.csv`,
 `03aggregator-fail-triage.csv` in the corpus directory, skipping a crash
 directory that the corpus does not have. TLC-n crashes are matched by TLC's
 signatures. Each row contains the entry hash and either the matching finding or
-conformance-report filename, `TIMEOUT` for a worker timeout, `FIRST_ERROR` for a
+conformance-report filename, `TIMEOUT` for a worker timeout that no timeout
+signature explains ([timeout diagnostics](docs/manual/timeout-diagnostics.md)),
+`FIRST_ERROR` for a
 TLC/TLC-n disagreement in which one reports a counterexample and the other an
 evaluation error ([ADR 0018](docs/decisions/0018-parallel-tlc-stage.md)),
 `STATE_COUNT` for completed searches that found different numbers of distinct
