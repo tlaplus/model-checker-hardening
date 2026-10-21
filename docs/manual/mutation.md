@@ -1,10 +1,5 @@
 # Generations and mutation
 
-> **Status:** Implemented.
-> [ADR 0010](../decisions/0010-mutation.md) records the design and the
-> experiment behind it. [ADR 0013](../decisions/0013-behaviour-archive-and-operator-coverage.md)
-> revises the quality gate: behaviour cells and operator-edge coverage.
-
 Random generation rarely produces a module whose state changes in interesting
 ways. A run therefore proceeds in *generations*. After each generation, a quality
 gate keeps the agreeing entries that show a behaviour or cover code that the
@@ -102,7 +97,7 @@ feature_coverage = true
 | `feature_coverage` | Also keep an entry that adds an operator-edge coverage feature (section 3). |
 
 With `cell_capacity = 0` and `feature_coverage = false`, the gate keeps the best
-`select_fraction` of every generation, as before ADR 0013.
+`select_fraction` of every generation.
 
 The defaults come from one experiment on one corpus. Calibrate `select_fraction`
 and `feedback_ratio` against your corpus with the queries in section 4.
@@ -208,6 +203,12 @@ A run replays given the same seed, configuration and starting corpus, for any
 generation and its position in the generation. The one exception is two targets
 that draw identical bytes, where scheduling decides which one stores them. A
 resumed generation is not a replay of the uninterrupted one.
+
+## Background
+
+[ADR 0010](../decisions/0010-mutation.md) records the design and the experiment
+behind it. [ADR 0013](../decisions/0013-behaviour-archive-and-operator-coverage.md)
+revises the quality gate: behaviour cells and operator-edge coverage.
 
 [metrics]: exploration-metrics.md#4-recognizing-shallow-entries
 [database]: corpus-database.md

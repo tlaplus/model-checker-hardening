@@ -1,9 +1,5 @@
 # Actions, temporal properties and fairness
 
-> **Status:** Implemented.
-> [ADR 0007](../decisions/0007-levels-and-temporal-properties.md) records the
-> design and the checker measurements behind it.
-
 A `module` corpus can generate primed guards in `Next`, a temporal property
 checked by both model checkers, and fairness conditions in the specification.
 Generation follows the TLA<sup>+</sup> level rules of *Specifying Systems*, so
@@ -111,3 +107,8 @@ state variables. Expect Apalache time per module to rise when `temporal` is
 enabled. In a 400-module smoke run, `ENABLED` and fairness accounted for 15 of 240
 aggregator deviations, and a constant property for 10; ADR 0007 lists the full
 counts.
+
+## Background
+
+[ADR 0007](../decisions/0007-levels-and-temporal-properties.md) records the design
+and the checker measurements behind it.

@@ -1,9 +1,5 @@
 # Corpus database
 
-> **Status:** Implemented.
-> [ADR 0009](../decisions/0009-corpus-database.md) records the design and its
-> rationale.
-
 `fuzztla export-db` turns a corpus into one SQLite file. After that, questions
 such as "which agreeing entries are shallow", "which mutation operators pay off", "failure codes by cohort" or "which
 operators are overrepresented in disagreements" are SQL queries instead of scripts over
@@ -97,7 +93,7 @@ records.
 | `inputBytes` | INTEGER | no | Size of the generator input | `input` |
 | `cohort` | INTEGER | yes | Richness cohort of the admission | `gen.cohort` |
 | `richness` | REAL | yes | Richness score of the admission | `gen.richness` |
-| `generation` | INTEGER | yes | Generation that admitted the entry ([ADR 0010][adr-0010]) | `gen.generation` |
+| `generation` | INTEGER | yes | Generation that admitted the entry ([mutation](mutation.md)) | `gen.generation` |
 | `parent` | TEXT | yes | For a mutant, the `hash` of the entry it was mutated from; for an adopted entry, of its parent in the base corpus | `gen.parent` |
 | `evaluatedNodes` | INTEGER | yes | Subexpressions the checkers evaluate (section 2.6); `NULL` when replay failed | replayed `input` |
 | `replayError` | TEXT | yes | Why replaying the input failed; `NULL` when it succeeded | replayed `input` |
@@ -126,7 +122,7 @@ is `(entryId, position)`. An entry that was not mutated has no rows.
 
 ### 2.5. `rewriteRule`
 
-One row per rewrite rule a metamorphic entry applied (ADR 0016, ADR 0017), in the
+One row per rewrite rule a [metamorphic](metamorphic-testing.md) entry applied, in the
 order applied. The key is `(entryId, position)`. An entry of a `pbt` corpus, and one
 that could not be replayed, has no rows.
 
@@ -217,7 +213,7 @@ Names are not constructs, so an edge never passes through a name: the body of
 a referenced definition has no parent. The key is
 `(entryId, parentName, childName)`. The quality gate's coverage features are
 derived from these edges and from `expr`
-([ADR 0013][adr-0013]).
+([what the gate keeps](mutation.md#3-what-the-gate-keeps)).
 
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
@@ -252,7 +248,7 @@ checkers' results side by side. A corpus that runs a subset of the checkers
 | `tlc` | TEXT | yes | TLC verdict; null when the corpus does not run TLC | `stage.verdict` |
 | `tlcCode` | INTEGER | yes | TLC failure code | `stage.code` |
 | `tlcTraceLength` | INTEGER | yes | TLC counterexample length | `stage.traceLength` |
-| `tlcn` | TEXT | yes | TLC-n verdict ([ADR 0018][adr-0018]); null when the corpus does not run TLC-n | `stage.verdict` |
+| `tlcn` | TEXT | yes | TLC-n verdict ([TLC-n](running.md#comparing-tlc-with-itself)); null when the corpus does not run TLC-n | `stage.verdict` |
 | `tlcnCode` | INTEGER | yes | TLC-n failure code | `stage.code` |
 | `tlcnTraceLength` | INTEGER | yes | TLC-n counterexample length | `stage.traceLength` |
 | `apalache` | TEXT | yes | Apalache verdict; null when the corpus does not run Apalache | `stage.verdict` |
@@ -282,7 +278,7 @@ FROM verdictPair GROUP BY tlc, apalache ORDER BY entries DESC;
 ```
 
 Entries whose completed TLC and TLC-n searches found different numbers of
-distinct states ([ADR 0019](../decisions/0019-state-count-agreement.md)):
+distinct states ([verdicts](corpus.md#verdicts)):
 
 ```sql
 SELECT p.hash, t.distinctStates AS tlc, n.distinctStates AS tlcn
@@ -293,7 +289,7 @@ WHERE t.phase = 'complete' AND n.phase = 'complete'
   AND t.distinctStates <> n.distinctStates;
 ```
 
-The shallow patterns of [ADR 0008][adr-0008] over agreeing entries, each entry
+The [shallow patterns](exploration-metrics.md#4-recognizing-shallow-entries) over agreeing entries, each entry
 assigned the first pattern that matches. An agreeing entry sits in
 `03aggregator-pass` until the quality gate moves it to `04quality-pass` or
 `04quality-fail`, so agreement is selected by the aggregator's verdict rather
@@ -317,7 +313,7 @@ WHERE p.aggregator = 'pass'
 GROUP BY pattern ORDER BY entries DESC;
 ```
 
-Admissions, gate passes and agreement per generation ([ADR 0010][adr-0010]):
+Admissions, gate passes and agreement per generation ([mutation](mutation.md)):
 
 ```sql
 SELECT e.generation,
@@ -404,11 +400,12 @@ The column names of the imported table come from the CSV header.
 `script/report.py` runs many of these queries and plots their results; see the
 [campaign-report manual](campaign-report.md).
 
+## Background
+
+[ADR 0009](../decisions/0009-corpus-database.md) records the design and its
+rationale.
+
 [storage]: ../architecture/fuzzing-workflows.md#23-corpus-storage
 [metrics]: exploration-metrics.md#2-metric-reference
 [signatures]: known-defect-signatures.md
 [adr-0003]: ../decisions/0003-checker-failure-codes.md
-[adr-0008]: ../decisions/0008-exploration-metrics.md
-[adr-0010]: ../decisions/0010-mutation.md
-[adr-0013]: ../decisions/0013-behaviour-archive-and-operator-coverage.md
-[adr-0018]: ../decisions/0018-parallel-tlc-stage.md

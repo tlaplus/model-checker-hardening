@@ -1,10 +1,5 @@
 # Timeout diagnostics
 
-> **Status:** Implemented.
-> [ADR 0021](../decisions/0021-timeout-diagnostics.md) records the design.
-> Sidecars written before it hold only the line
-> `<Tool> worker timed out after <duration>`.
-
 A parser or checker worker that exceeds its stage's `timeout_sec` is stopped, and
 the input gets a crash verdict. This page describes what the crash's
 `.stacktrace` sidecar contains, how the triager classifies it, and how to add a
@@ -103,3 +98,8 @@ its triage table lists the timeout classes.
 4. **Add a test** to `script/test_triager.py` with a sidecar of the finding and
    one of an unrelated timeout, and record the instances in the finding's corpus
    evidence.
+
+## Background
+
+[ADR 0021](../decisions/0021-timeout-diagnostics.md) records the design. Sidecars
+written before it hold only the line `<Tool> worker timed out after <duration>`.
