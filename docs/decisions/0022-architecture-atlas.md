@@ -113,18 +113,27 @@ type. The result is a model of modules, packages, types, and relations:
 |---|---|
 | `EXTENDS`, `IMPLEMENTS` | supertypes declared in FuzzTLA |
 | `HAS` | an instance field or record component whose type mentions the target, including inside `Optional`, collection, and map type arguments |
-| `USES` | a constructor or method signature that mentions the target, where no `HAS` exists |
+| `USES` | a parameter or return type of a non-private constructor or method, a static field, or a declaration of a nested type, where no `HAS` exists |
 | `DEPENDS` | a `jdeps` class edge that none of the above explains |
+
+Each type pair keeps only its strongest relation, in the order of the table.
+Thrown exceptions count as `DEPENDS`, so that the exception types that most
+signatures mention do not crowd the diagrams. A module edge counts the type pairs
+behind it. It is *implied* when a path through other modules connects its ends,
+as `cli → corpus` is implied by `cli → workflow → corpus`.
 
 The doclet writes `model.json` and renders two views of it into
 `target/architecture`:
 
-- **Markdown with Mermaid.** `README.md` is the module graph. Each node shows the
-  package summary, and an undeclared edge is drawn in red. Each module page
-  `modules/<module>.md` has the module's subpackages, a `classDiagram` of its key
-  types with «role» stereotypes, and a table of all its types with role and
-  summary. Each key type has a page `types/<qualified name>.md` that shows its
-  relations to other types. GitHub renders these pages with their diagrams.
+- **Markdown with Mermaid.** `README.md` is the module graph. It draws the edges
+  that are not implied, which is the transitive reduction of the module graph: 14
+  of 34 edges at `78bb8ff`. An undeclared edge is always drawn, in red. A table
+  lists every module with its summary and every dependency. Each module page
+  `modules/<module>.md` has a `classDiagram` of its key types with «role»
+  stereotypes, grouped by package, and a table of all its types with role and
+  summary. Each type has a page `types/<qualified name>.md` that draws up to 30
+  of its relations and lists all of them. GitHub renders these pages with their
+  diagrams.
 - **Interactive explorer.** `index.html` is a self-contained page that embeds the
   model and draws it with Cytoscape.js and an ELK layered layout, loaded from a
   CDN at pinned versions. Modules are compound nodes that expand into packages and
@@ -136,6 +145,13 @@ The doclet writes `model.json` and renders two views of it into
 Type names link to the source on GitHub at the commit the atlas is built from. A
 mention of "ADR NNNN" in a summary links to that decision. `make architecture`
 builds the atlas.
+
+The tool lives in `io.github.tlaplus.hardening.architecture` of the test
+sources, so it stays out of `fuzztla.jar`, in three packages. `model` holds the
+records, their JSON form, and the transitive reduction. `extract` runs the doclet,
+which writes `model.json`. `render` turns a model into pages. `AtlasMain` wires
+extraction to rendering through the JSON model, and `ToolLayeringTest` checks that
+`extract` and `render` depend on `model` and not on each other.
 
 `ArchitectureAnnotationsTest` runs the doclet in-process and requires a
 `package-info.java` with Javadoc for every package, class Javadoc on every key

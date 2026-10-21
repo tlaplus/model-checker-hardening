@@ -22,7 +22,7 @@ The target compiles the main and test sources and runs the atlas doclet over
 | `index.html` | the interactive explorer; open it in a browser |
 | `README.md` | the module graph, in Mermaid |
 | `modules/<module>.md` | one module's packages, key types, and all its types |
-| `types/<qualified name>.md` | one key type and its relations |
+| `types/<qualified name>.md` | one type and its relations |
 | `model.json` | the extracted model that both views draw |
 
 Source links point to the commit that `HEAD` names. A build from a working tree
@@ -34,10 +34,12 @@ the architecture changed.
 
 ## 2. Reading the views
 
-**Modules.** One node per top-level package, labelled with the first sentence of
-its `package-info.java`. An arrow `A → B` means that code in `A` refers to code in
-`B`. A red arrow is a dependency that `ArchModule` does not allow, and
-`mvn verify` fails on it.
+**Modules.** One node per top-level package. An arrow `A → B` means that code in
+`A` refers to code in `B`. An arrow that a longer path implies, such as
+`cli → corpus` next to `cli → workflow → corpus`, is not drawn; the table under
+the graph lists every dependency and each module's summary, the first sentence of
+its `package-info.java`. A red arrow is a dependency that `ArchModule` does not
+allow, and `mvn verify` fails on it.
 
 **Module.** The module's packages and their key types, each with its «role». The
 remaining types are counted per package. The table at the end lists every type,
@@ -49,12 +51,11 @@ its role, and its summary.
 |---|---|
 | `EXTENDS`, `IMPLEMENTS` | a supertype |
 | `HAS` | a field or record component of that type, possibly inside `Optional`, a collection, or a map |
-| `USES` | a constructor or method signature mentions it |
+| `USES` | a constructor or method parameter or return type, a static field, or a nested type mentions it |
 | `DEPENDS` | only a method body refers to it |
 
-In the explorer, click a module to expand it, and click a type to focus on its
-neighbours. Use the side panel for the summary, linked ADRs, and source link, and
-the filters to hide relation kinds or roles. Search finds a type by name.
+A type that relates to another in several ways shows the strongest relation only,
+in the order of this table. Thrown exceptions count as `DEPENDS`.
 
 ## 3. Annotating the code
 
