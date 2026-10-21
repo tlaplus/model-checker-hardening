@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -20,6 +23,8 @@ import java.util.concurrent.TimeoutException;
  * <p>A read is bounded by running it on a virtual thread that is cancelled when the deadline
  * passes, because a hung child would otherwise block its stage worker forever.
  */
+@ArchRole(Role.ADAPTER)
+@Key
 final class WorkerChannel implements AutoCloseable {
     private final Socket socket;
     private final DataInputStream input;

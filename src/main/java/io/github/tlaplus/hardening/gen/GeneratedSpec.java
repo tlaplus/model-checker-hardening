@@ -2,7 +2,10 @@ package io.github.tlaplus.hardening.gen;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +41,8 @@ import java.util.stream.Collectors;
  *     {@code step < stepBound}, so the states reachable from an initial state are those within
  *     {@code stepBound} transitions
  */
+@ArchRole(Role.MODEL)
+@Key
 public record GeneratedSpec(
         List<TlaVarDecl> variables,
         List<GeneratedOperator> operators,

@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.quality;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.QualityGateConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
@@ -43,6 +46,8 @@ import java.util.stream.Stream;
  * interruption the committed passes are a prefix of the passes, and running the gate again over
  * the committed passes and the pending entries completes the same placement.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class QualityGate {
     private final CorpusDirectory corpus;
     private final QualityGateConfig config;

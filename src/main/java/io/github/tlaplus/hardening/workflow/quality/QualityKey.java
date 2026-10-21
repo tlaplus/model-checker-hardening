@@ -2,6 +2,9 @@ package io.github.tlaplus.hardening.workflow.quality;
 
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -15,6 +18,8 @@ import java.util.function.LongUnaryOperator;
  * real difference in a later component. A count TLC did not measure ranks as 0. Ties go to the
  * shorter input and then to the smaller digest, so the order is total.
  */
+@ArchRole(Role.POLICY)
+@Key
 final class QualityKey {
     /** How a count is compared. */
     enum Scale {

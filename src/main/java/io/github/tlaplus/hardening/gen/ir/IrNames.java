@@ -7,6 +7,9 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.ValEx;
 import at.forsyte.apalache.tla.lir.values.TlaStr;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,6 +25,8 @@ import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
 /** Names in typed IR: injective renaming and the names an expression reads from its context. */
+@ArchRole(Role.UTILITY)
+@Key
 public final class IrNames {
     private IrNames() {}
 

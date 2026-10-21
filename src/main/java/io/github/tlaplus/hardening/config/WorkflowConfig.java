@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.config;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.EnumMaps;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.util.EnumMap;
@@ -17,6 +20,8 @@ import java.util.Objects;
  *
  * @param enabledCheckers the checkers a run feeds and aggregates (ADR 0016 §5)
  */
+@ArchRole(Role.CONFIG)
+@Key
 public record WorkflowConfig(
         int maximumEntries,
         InputStageConfig inputs,

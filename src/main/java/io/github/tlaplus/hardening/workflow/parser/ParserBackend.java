@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
@@ -12,6 +15,8 @@ import java.util.List;
 import java.util.Objects;
 
 /** Runs SANY in persistent isolated JVMs, one per stage worker, each replaced after a crash. */
+@ArchRole(Role.ADAPTER)
+@Key
 public final class ParserBackend implements ToolBackend {
     private final ParserStageConfig config;
     private final int workerCount;

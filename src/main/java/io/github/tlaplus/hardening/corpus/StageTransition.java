@@ -2,7 +2,10 @@ package io.github.tlaplus.hardening.corpus;
 
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,6 +23,8 @@ import java.util.Objects;
  * untouched and discards the staged sidecar; a failure after it leaves work that {@link
  * TransitionRecovery} completes on the next run.
  */
+@ArchRole(Role.STORE)
+@Key
 final class StageTransition {
     private final CorpusLayout layout;
     private final CorpusEntries entries;

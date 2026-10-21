@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.util.Objects;
@@ -9,6 +12,8 @@ import java.util.Objects;
  * the decoder each stored input kind is regenerated through, the CPU budget it competes for, and
  * the stop state it observes and reports to.
  */
+@ArchRole(Role.MODEL)
+@Key
 public record StageEnvironment(
         CorpusDirectory corpus,
         SpecDecoders decoders,

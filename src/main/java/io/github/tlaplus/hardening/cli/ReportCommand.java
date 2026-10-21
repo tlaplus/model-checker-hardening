@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
@@ -8,6 +11,9 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
+/** {@code fuzztla report}: prints the instructions for writing a campaign report (ADR 0020). */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(
         name = "report",
         description = "Show how to write a campaign report of a corpus.")

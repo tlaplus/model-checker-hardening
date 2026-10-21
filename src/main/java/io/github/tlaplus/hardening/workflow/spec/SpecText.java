@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.library.InstanceAlias;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
@@ -10,6 +13,8 @@ import java.util.Objects;
 import org.apalache_mc.tla.jio.TlaText;
 
 /** Renders an assembled module as the TLA+ source that the parser and TLC consume. */
+@ArchRole(Role.CODEC)
+@Key
 public final class SpecText {
     private static final TlaText TEXT = new TlaText(80, 2);
 

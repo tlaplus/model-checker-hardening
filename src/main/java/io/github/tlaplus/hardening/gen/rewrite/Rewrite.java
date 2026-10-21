@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen.rewrite;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
 import java.util.Objects;
 
@@ -7,6 +10,8 @@ import java.util.Objects;
  * A decoded metamorphic pair: the base the payload's base part decodes to, its rewrite, the
  * orientation, and the rules applied in order.
  */
+@ArchRole(Role.MODEL)
+@Key
 public record Rewrite<T>(T original, T rewritten, Orientation orientation, List<String> appliedRules) {
     public Rewrite {
         Objects.requireNonNull(original, "original");

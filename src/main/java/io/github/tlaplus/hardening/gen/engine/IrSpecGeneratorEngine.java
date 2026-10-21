@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
@@ -30,6 +33,8 @@ import org.apalache_mc.tla.jir.TlaDeclarations;
  * once; a prime reached through an expression form could sit under a negation or a quantifier and
  * would not, so no expression form primes before the step update.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class IrSpecGeneratorEngine {
     private final IrGenerationConfig config;
 

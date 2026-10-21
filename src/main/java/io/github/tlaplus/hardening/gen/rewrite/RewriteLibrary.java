@@ -5,6 +5,9 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.oper.TlaOper;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +28,8 @@ import org.apalache_mc.tla.jir.TlaModules;
  * <p>The library indexes the rules by the operator at the head of their pattern. A rule whose
  * pattern is a bare parameter or a literal is generic: it is a candidate at every node.
  */
+@ArchRole(Role.MODEL)
+@Key
 public final class RewriteLibrary {
     /** The default weight of a rule that the configuration does not weigh. */
     public static final int DEFAULT_WEIGHT = 1;

@@ -9,6 +9,9 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaType1;
 import at.forsyte.apalache.tla.lir.ValEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.ir.IrAlpha;
 import io.github.tlaplus.hardening.gen.ir.IrBinding;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
@@ -47,6 +50,8 @@ import org.apalache_mc.tla.jir.TypedParameter;
  * but assigns nothing in TLC. A match is also refused when the replacement would put a label of a
  * binding under a binder of its own or into an {@code EXCEPT} replacement, where SANY rejects it.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class RuleMatcher {
     /** The name of every lambda a match builds; instantiation beta-reduces it away. */
     static final String LAMBDA = "RewriteLambda";

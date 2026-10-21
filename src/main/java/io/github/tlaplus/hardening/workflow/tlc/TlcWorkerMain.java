@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
@@ -20,6 +23,8 @@ import util.SimpleFilenameToStream;
 import util.ToolIO;
 
 /** One-shot TLC child process. */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 public final class TlcWorkerMain {
     static final String WORKERS_PROPERTY = "fuzztla.tlc.workers";
 

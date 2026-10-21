@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -51,6 +54,8 @@ import java.util.Objects;
  * and the {@link GenerationTargets} in it are confined to it. Only {@link #current} crosses
  * threads: the progress monitor reads it while the loop runs.
  */
+@ArchRole(Role.PROCESS)
+@Key
 final class GenerationLoop {
     /** The generation being admitted or gated now, and the graph that every generation shares. */
     record Generation(int number, StageGraph graph) {

@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +18,8 @@ import java.util.List;
  * <p>The catalog is the upper bound on how many forms one selection can address, so it must stay
  * within {@link #MAXIMUM_SELECTION_SLOTS}.
  */
+@ArchRole(Role.MODEL)
+@Key
 final class ExpressionKindCatalog {
     /** Selection slots addressable by one fixed-width index. */
     static final int MAXIMUM_SELECTION_SLOTS = 1 << (IrExprGenFactory.SELECTION_BYTES * Byte.SIZE);

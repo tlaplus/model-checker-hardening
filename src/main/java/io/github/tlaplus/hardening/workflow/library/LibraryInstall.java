@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.library;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.IOException;
@@ -14,6 +17,8 @@ import java.util.List;
  * initialized with. A file entry is copied as is, together with a sibling {@code VERSION} file
  * that records its provenance; a directory entry as its top-level regular files.
  */
+@ArchRole(Role.STORE)
+@Key
 public final class LibraryInstall {
     /** The corpus subdirectory, relative to {@code config.toml}, that holds library sources. */
     public static final Path DIRECTORY = Path.of("tla");

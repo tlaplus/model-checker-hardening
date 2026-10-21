@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -22,6 +25,9 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
+/** {@code fuzztla export-db}: exports a corpus with {@code CorpusExport} (ADR 0009). */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(
         name = "export-db",
         description = "Export the entries of a corpus to a new SQLite database for analysis.")

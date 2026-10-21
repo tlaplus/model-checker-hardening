@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -31,6 +34,8 @@ import java.util.Objects;
  * a counterexample to that, it evaluates two copies of one module differently, no rule is at fault,
  * and the input is returned unchanged.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class MetamorphicShrinker {
     /** Whether an input still violates the metamorphic relation. */
     @FunctionalInterface

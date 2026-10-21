@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -26,6 +29,8 @@ import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
  * <p>The byte cursor is deliberately not part of this context. Byte-consuming operations return
  * deferred {@link Generator} values, which makes cursor sharing visible at composition sites.
  */
+@ArchRole(Role.MODEL)
+@Key
 final class GenerationContext {
     private final IrGenerationConfig config;
     private final TlaTypedScopeUncheckedBuilder builder =

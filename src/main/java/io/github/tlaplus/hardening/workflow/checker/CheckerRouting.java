@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.checker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
@@ -18,6 +21,8 @@ import java.util.Objects;
  * aggregation, so capacity is reserved before the checker runs, and each completed result notifies
  * the aggregator. The aggregator queue is shared by every checker, so this routing never closes it.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class CheckerRouting implements StageRouting {
     private final OccupancyGate resultCapacity;
     private final WorkQueue<Path> aggregator;

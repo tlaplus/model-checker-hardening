@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tool;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -8,6 +11,8 @@ import java.time.Duration;
 import java.util.Objects;
 
 /** A tool worker served by one isolated child process until a crash verdict retires it. */
+@ArchRole(Role.ADAPTER)
+@Key
 public final class ProcessToolWorker implements ToolWorker {
     private final IsolatedWorkerProcess process;
     private final Duration timeout;

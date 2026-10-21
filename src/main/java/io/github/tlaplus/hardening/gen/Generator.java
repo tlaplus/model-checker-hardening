@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -33,6 +36,8 @@ import java.util.function.Function;
  *
  * @param <T> type of value produced
  */
+@ArchRole(Role.CONTRACT)
+@Key
 @FunctionalInterface
 public interface Generator<T> {
     /**

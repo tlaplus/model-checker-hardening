@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -11,6 +14,8 @@ import java.io.IOException;
  * Decodes a corpus's entries as they were admitted: with the decoders of the technique the corpus
  * records, and only while the libraries they load match the corpus's manifests.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class CorpusReplay {
     private CorpusReplay() {}
 

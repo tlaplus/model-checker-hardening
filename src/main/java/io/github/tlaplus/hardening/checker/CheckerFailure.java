@@ -1,11 +1,16 @@
 package io.github.tlaplus.hardening.checker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 /** A stable checker failure code with optional bounded diagnostic context. */
+@ArchRole(Role.MODEL)
+@Key
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record CheckerFailure(CheckerFailureCode code, Optional<String> detail) {
     public static final int MAXIMUM_DETAIL_CHARACTERS = 80;

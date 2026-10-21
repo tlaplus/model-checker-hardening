@@ -4,6 +4,9 @@ import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
@@ -31,6 +34,8 @@ import org.apalache_mc.tla.jir.TlaTypes;
  * <p>Every module defines every entry point. A module without a temporal property defines the
  * fairness and the property as {@code TRUE}, and its checkers are not asked about them.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class FuzzInputModule {
     /** Name of the assembled module, and therefore of the file written for each tool. */
     public static final String MODULE_NAME = "FuzzInput";

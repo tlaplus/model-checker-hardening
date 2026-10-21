@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -10,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 
 /** Owns the common lifecycle of a fixed group of stage worker threads. */
+@ArchRole(Role.PROCESS)
+@Key
 public final class WorkerGroup implements AutoCloseable {
     private enum State {
         NEW,

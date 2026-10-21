@@ -2,6 +2,9 @@ package io.github.tlaplus.hardening.workflow.spec;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
@@ -32,6 +35,8 @@ import java.util.Optional;
  * it. {@link #source()} is what the parser and TLC evaluate; it differs only when the library links
  * a used module by instance (ADR 0014).
  */
+@ArchRole(Role.MODEL)
+@Key
 public final class SpecArtifact {
     private final TlaModule module;
     private final SourceLink source;

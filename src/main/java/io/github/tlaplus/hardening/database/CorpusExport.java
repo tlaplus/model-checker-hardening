@@ -3,9 +3,12 @@ package io.github.tlaplus.hardening.database;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.KEY;
 import static io.github.tlaplus.hardening.database.DatabaseColumns.VALUE;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Cleanup;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
@@ -31,6 +34,8 @@ import java.util.Objects;
  * {@link Options#replace()}, publication refuses an output that exists at that moment, even one
  * created while the export ran. It never writes to the corpus. {@link EntryBatchExporter} reads, replays and inserts the entries.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class CorpusExport {
     /**
      * What to export and where.

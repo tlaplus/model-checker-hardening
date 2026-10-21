@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.database;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -17,6 +20,8 @@ import java.util.Objects;
  * Inserts are batched per table. {@link #commit()} creates the indexes and views, sets the schema
  * version and commits; closing without committing discards the rows.
  */
+@ArchRole(Role.STORE)
+@Key
 final class CorpusDatabaseWriter implements AutoCloseable {
     private static final int BATCH_SIZE = 2_000;
 

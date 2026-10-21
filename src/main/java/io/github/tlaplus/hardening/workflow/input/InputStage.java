@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.EntryOrigin;
@@ -40,6 +43,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * and so the number of workers, does not change what the target admits, except when two targets
  * draw the same bytes and the one that stores them first is decided by scheduling.
  */
+@ArchRole(Role.PROCESS)
+@Key
 public final class InputStage implements WorkflowStage {
     private static final long MAXIMUM_ATTEMPTS_PER_ENTRY = 10_000;
 

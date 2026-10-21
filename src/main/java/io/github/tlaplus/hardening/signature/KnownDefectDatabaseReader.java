@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.signature;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,6 +23,8 @@ import org.tomlj.TomlTable;
  * <p>Like {@code config.toml}, the format is strict: a missing or unknown key is an error. Every
  * diagnostic names the file, and the signature and pattern it concerns.
  */
+@ArchRole(Role.CODEC)
+@Key
 final class KnownDefectDatabaseReader {
     private static final String SIGNATURE = "signature";
     private static final String ID = "id";

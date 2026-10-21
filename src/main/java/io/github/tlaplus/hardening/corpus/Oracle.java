@@ -3,6 +3,9 @@ package io.github.tlaplus.hardening.corpus;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Collection;
 import java.util.Optional;
 
@@ -13,6 +16,8 @@ import java.util.Optional;
  * <p>Both oracles require the checkers to agree: they report the same verdict, and every checker
  * whose search completed and that counts the distinct reachable states reports the same count.
  */
+@ArchRole(Role.POLICY)
+@Key
 public enum Oracle {
     /**
      * Passes when the checkers agree, and fails when they disagree. A counterexample therefore

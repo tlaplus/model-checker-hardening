@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
@@ -22,6 +25,12 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine;
 
+/**
+ * {@code fuzztla init}: writes the default configuration of a new corpus and installs its
+ * libraries.
+ */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(name = "init", description = "Initialize a FuzzTLA corpus.")
 final class InitCommand implements Callable<Integer> {
     @Option(

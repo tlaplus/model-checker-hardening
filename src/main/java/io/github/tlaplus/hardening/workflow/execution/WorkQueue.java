@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.Objects;
@@ -9,6 +12,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** A close-aware multi-producer, multi-consumer queue; optionally ordered by priority. */
+@ArchRole(Role.UTILITY)
+@Key
 public final class WorkQueue<T> {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition available = lock.newCondition();

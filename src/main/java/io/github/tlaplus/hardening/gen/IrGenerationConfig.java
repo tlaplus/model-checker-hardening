@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
@@ -21,6 +24,8 @@ import java.util.Set;
  * @param formWeights selection slots per expression form, for the forms that are not weighted one
  * @param library immutable prepared definitions; loading them is the caller's responsibility
  */
+@ArchRole(Role.CONFIG)
+@Key
 public record IrGenerationConfig(
         ExpressionLimits expressions,
         ModuleLimits modules,

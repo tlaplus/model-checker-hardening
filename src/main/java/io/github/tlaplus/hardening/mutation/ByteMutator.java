@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.mutation;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -18,6 +21,8 @@ import java.util.random.RandomGenerator;
  * capped at {@code maxEdits}. Each intermediate result is truncated to {@code maxLength}, so growing
  * operators cannot exceed the input bound.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class ByteMutator {
     /** A mutated input and the operators applied to its parent, in order. */
     public record Mutant(byte[] input, List<MutationOperator> operators) {

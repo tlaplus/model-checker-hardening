@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import java.util.Objects;
 import java.util.random.RandomGenerator;
@@ -8,6 +11,8 @@ import java.util.random.RandomGenerator;
  * Property-based candidates (ADR 0002): a target draws one richness cohort, and every candidate for
  * it is a uniformly random byte array of a length from {@link InputLengthSampler}.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class PbtCandidates implements CandidateSource {
     private final PbtConfig pbt;
 

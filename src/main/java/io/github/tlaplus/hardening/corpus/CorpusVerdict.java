@@ -1,6 +1,12 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
+
 /** A verdict supported by the implemented corpus stages. */
+@ArchRole(Role.MODEL)
+@Key
 public enum CorpusVerdict {
     PASS("pass"),
     COUNTEREXAMPLE("counterexample"),

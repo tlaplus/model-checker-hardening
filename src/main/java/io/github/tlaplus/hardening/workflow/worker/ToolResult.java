@@ -2,8 +2,11 @@ package io.github.tlaplus.hardening.workflow.worker;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,6 +16,8 @@ import java.util.Optional;
  * <p>A model checker that measures its exploration attaches the metrics with {@link #withMetrics};
  * a crash carries none, since it did not finish what it measured.
  */
+@ArchRole(Role.MODEL)
+@Key
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record ToolResult(
         StageOutcome outcome,

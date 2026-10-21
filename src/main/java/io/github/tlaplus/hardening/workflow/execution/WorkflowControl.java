@@ -1,11 +1,16 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Shared stop state for independently running stages. */
+@ArchRole(Role.MODEL)
+@Key
 public final class WorkflowControl {
     public enum State {
         RUNNING,

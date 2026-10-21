@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
@@ -38,6 +41,8 @@ import java.util.Set;
  * with the waits by locking the instance. {@link #generationOf} is called from inside a
  * {@link io.github.tlaplus.hardening.workflow.execution.WorkQueue} comparator and never throws.
  */
+@ArchRole(Role.MODEL)
+@Key
 final class GenerationProgress implements WorkflowEvents {
     private final Object lock = new Object();
     private final Map<EntryName, EntryProgress> unsettled = new HashMap<>();

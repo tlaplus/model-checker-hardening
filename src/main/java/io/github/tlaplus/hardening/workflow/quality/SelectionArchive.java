@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.quality;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.QualityGateConfig;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +17,8 @@ import java.util.Set;
  * <p>Features matter only when cells are bounded and feature coverage is enabled; otherwise callers may
  * pass none.
  */
+@ArchRole(Role.POLICY)
+@Key
 final class SelectionArchive {
     private final QualityGateConfig config;
     private final Map<QualityCell, Integer> occupancy = new HashMap<>();

@@ -1,12 +1,17 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaType1;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.List;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaTypes;
 
 /** Internal type model used to direct checked expression construction. */
+@ArchRole(Role.MODEL)
+@Key
 sealed interface IrType
         permits PrimitiveType,
                 ConstantType,

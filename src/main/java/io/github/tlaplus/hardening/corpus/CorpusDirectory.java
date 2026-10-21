@@ -2,7 +2,10 @@ package io.github.tlaplus.hardening.corpus;
 
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -71,6 +74,8 @@ import java.util.Optional;
  * between stage directories, and {@link TransitionRecovery} and {@link InventoryScan} for startup
  * recovery and inventory.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class CorpusDirectory {
     public static final String CRASH_REPORT_EXTENSION = CorpusLayout.CRASH_REPORT_EXTENSION;
 

@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Digests;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -27,6 +30,8 @@ import java.util.regex.Pattern;
  * <p>This class is stateless beyond its resolved paths and is not itself synchronized; callers
  * reach it through {@link CorpusDirectory}, which serializes corpus mutations.
  */
+@ArchRole(Role.STORE)
+@Key
 final class CorpusLayout {
     static final String CRASH_REPORT_EXTENSION = ".stacktrace";
     static final LinkOption[] NO_FOLLOW_LINKS = {LinkOption.NOFOLLOW_LINKS};

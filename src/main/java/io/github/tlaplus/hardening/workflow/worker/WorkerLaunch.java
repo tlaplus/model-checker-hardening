@@ -3,7 +3,10 @@ package io.github.tlaplus.hardening.workflow.worker;
 import static io.github.tlaplus.hardening.common.Cleanup.suppressIOException;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.FileTrees;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +35,8 @@ import java.util.concurrent.TimeoutException;
  * <p>Any failure here leaves nothing behind: the listener, the child, the drained output, and the
  * scratch tree are all released before the failure is reported.
  */
+@ArchRole(Role.PROCESS)
+@Key
 final class WorkerLaunch {
     private static final Duration PROCESS_TERMINATION_TIMEOUT = Duration.ofMillis(500);
     /**

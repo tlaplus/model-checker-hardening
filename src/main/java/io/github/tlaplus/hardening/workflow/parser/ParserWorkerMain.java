@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
@@ -19,6 +22,8 @@ import util.SimpleFilenameToStream;
 import util.ToolIO;
 
 /** Child-process entry point for persistent isolated SANY requests. */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 public final class ParserWorkerMain {
     private ParserWorkerMain() {}
 

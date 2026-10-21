@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.gen.library;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -8,6 +11,8 @@ import java.util.Optional;
  * input always inlines them. The encoded names appear in configuration and in the replay
  * manifest.
  */
+@ArchRole(Role.POLICY)
+@Key
 public enum LibraryLinkage {
     /** Every checker evaluates the same inlined definitions. */
     INLINE("inline", false, false, false),

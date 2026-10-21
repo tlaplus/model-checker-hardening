@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
@@ -14,6 +17,8 @@ import java.util.Map;
  * The statistics shared by live and final reports, without layout or terminal state. The status is
  * the live phase or the final stop reason.
  */
+@ArchRole(Role.VIEW)
+@Key
 record RunView(Enum<?> status, int generation, long corpusEntries, GeneratorSummary generator,
         Map<CorpusStage, StageVerdictSummary> stages, Map<CorpusStage, Long> backlog,
         Duration elapsed) {

@@ -12,6 +12,8 @@ import java.util.Optional;
  * declared cycle as a forward reference. The allowed sets are direct dependencies, not their
  * transitive closure: a new edge between modules is a change of one constant.
  */
+@ArchRole(Role.MODEL)
+@Key
 public enum ArchModule {
     COMMON("common"),
     CHECKER("checker", COMMON),

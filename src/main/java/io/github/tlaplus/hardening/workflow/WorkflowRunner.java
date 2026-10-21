@@ -1,7 +1,10 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.corpus.CheckingPolicy;
@@ -37,6 +40,8 @@ import java.util.function.Consumer;
  * <p>This class owns one invocation's life cycle: it checks the limits, locks and recovers the
  * corpus, runs the {@link GenerationLoop}, reports progress, and saves the statistics on exit.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class WorkflowRunner {
     private static final Duration PROGRESS_UPDATE_INTERVAL = Duration.ofSeconds(1);
 

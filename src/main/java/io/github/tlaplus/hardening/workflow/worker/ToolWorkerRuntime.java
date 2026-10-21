@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.common.ThrowingRunnable;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -19,6 +22,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * — a module resolver, a fixed configuration file, a redirected Scala console. It calls {@link
  * #serve} once that setup is done.
  */
+@ArchRole(Role.PROCESS)
+@Key
 public final class ToolWorkerRuntime {
     /** Tool output kept for one input, leaving room in a result frame for the truncation marker. */
     private static final int MAXIMUM_DIAGNOSTIC_BYTES = ToolWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES - 128;

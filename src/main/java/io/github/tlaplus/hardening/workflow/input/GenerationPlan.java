@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +24,8 @@ import java.util.Objects;
  * @param firstTarget the ordinal of this range's first target within its generation
  * @param quotas the sources in the order their targets are numbered, each with its entry count
  */
+@ArchRole(Role.MODEL)
+@Key
 public record GenerationPlan(
         InputKind kind,
         int generation,

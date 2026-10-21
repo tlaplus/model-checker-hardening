@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.EOFException;
 import java.io.IOException;
@@ -23,6 +26,8 @@ import java.util.concurrent.TimeoutException;
  * {@link WorkerOutput} collects what the child said. This class owns their lifetime and turns
  * failures into verdicts.
  */
+@ArchRole(Role.ADAPTER)
+@Key
 public final class IsolatedWorkerProcess implements AutoCloseable {
     private final String description;
     private final Process process;

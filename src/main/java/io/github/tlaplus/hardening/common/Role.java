@@ -9,6 +9,7 @@ package io.github.tlaplus.hardening.common;
 public enum Role {
     ENTRY_POINT("a command or a process main"),
     FACADE("the type other packages call"),
+    CONTRACT("an interface or base type that other types implement"),
     PROCESS("a loop or orchestrator that owns threads or a lifecycle"),
     ADAPTER("wraps an external tool, process, or protocol"),
     STORE("layout, locking, persistence"),

@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -21,6 +24,12 @@ import picocli.CommandLine.Spec;
 import picocli.CommandLine.TypeConversionException;
 import picocli.CommandLine;
 
+/**
+ * {@code fuzztla run}: reads a corpus configuration and runs {@code WorkflowRunner} with live
+ * progress output.
+ */
+@ArchRole(Role.ENTRY_POINT)
+@Key
 @Command(name = "run", description = "Run specification fuzzing.")
 final class RunCommand implements Callable<Integer> {
     @Option(

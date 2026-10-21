@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.gen;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
 import java.util.Objects;
 
@@ -31,6 +34,8 @@ import java.util.Objects;
  * is an implementation-local deterministic decoding protocol, not a compatibility layer for
  * either Arbitrary or Hypothesis.
  */
+@ArchRole(Role.MODEL)
+@Key
 public final class Draw {
     /** Widest fixed index a caller may request, keeping the result within an {@code int}. */
     private static final int MAXIMUM_INDEX_BYTES = 4;

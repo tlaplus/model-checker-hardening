@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.input;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.Mutation;
 import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.mutation.MutationOperator;
@@ -15,6 +18,8 @@ import java.util.random.RandomGenerator;
  * parent's cohort, records {@code adopt} as its provenance, and has no richness threshold. A pair
  * whose rewrite applies no rule is rejected by the decoder.
  */
+@ArchRole(Role.POLICY)
+@Key
 public final class MetamorphicCandidates implements CandidateSource {
     /** The most rewrite bytes a candidate carries; a rewrite reads a few bytes per applied rule. */
     static final int MAXIMUM_REWRITE_BYTES = 64;

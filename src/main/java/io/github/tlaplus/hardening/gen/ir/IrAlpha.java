@@ -5,6 +5,9 @@ import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.ValEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import java.util.List;
@@ -21,6 +24,8 @@ import org.apalache_mc.tla.jir.TlaExpressions;
  * assigns the same binder number to {@code x} on the left and {@code y} on the right. Their bound
  * occurrences then match, while the free names {@code S} and {@code z} must match literally.
  */
+@ArchRole(Role.UTILITY)
+@Key
 public final class IrAlpha {
     private IrAlpha() {}
 

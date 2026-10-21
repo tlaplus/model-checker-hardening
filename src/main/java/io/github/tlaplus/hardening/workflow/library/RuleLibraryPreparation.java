@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.library;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.common.TemporaryDirectory;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
@@ -21,6 +24,8 @@ import java.util.TreeMap;
  * its rules and reads their weight annotations, Snowcat types them, and {@link RewriteLibrary}
  * checks the rule contract.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class RuleLibraryPreparation {
     /**
      * The checked rules, beside the replay identity of the sources they were read from. The

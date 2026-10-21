@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.gen.engine;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -13,6 +16,8 @@ import java.util.Objects;
  * creates an independent type-safe builder, scope, resource counters, and fresh-name supply, so one
  * engine may be reused and invoked concurrently with distinct cursors.
  */
+@ArchRole(Role.FACADE)
+@Key
 public final class IrGeneratorEngine {
     private final IrGenerationConfig config;
 

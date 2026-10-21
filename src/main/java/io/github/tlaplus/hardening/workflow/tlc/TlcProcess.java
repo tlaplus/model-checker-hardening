@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
@@ -13,6 +16,8 @@ import java.time.Duration;
 import java.util.List;
 
 /** Runs one TLC request in a fresh isolated JVM. */
+@ArchRole(Role.ADAPTER)
+@Key
 final class TlcProcess {
     private TlcProcess() {}
 

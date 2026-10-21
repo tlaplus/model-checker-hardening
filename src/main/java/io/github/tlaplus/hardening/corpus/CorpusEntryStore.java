@@ -2,7 +2,10 @@ package io.github.tlaplus.hardening.corpus;
 
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
+import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +25,8 @@ import java.util.TreeMap;
  * <p>A payload's digest is its identity, so an entry that already exists anywhere in the corpus
  * is a duplicate rather than a new entry, and a digest collision on differing payloads is an error.
  */
+@ArchRole(Role.STORE)
+@Key
 final class CorpusEntryStore {
     private final CorpusLayout layout;
 

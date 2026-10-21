@@ -1,5 +1,8 @@
 package io.github.tlaplus.hardening.mutation;
 
+import io.github.tlaplus.hardening.common.ArchRole;
+import io.github.tlaplus.hardening.common.Key;
+import io.github.tlaplus.hardening.common.Role;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +21,8 @@ import java.util.random.RandomGenerator;
  * entry whose base payload it copied from a parent. The mutator never draws it, and the
  * configuration gives it no weight.
  */
+@ArchRole(Role.MODEL)
+@Key
 public enum MutationOperator {
     /** Replaces one byte at a uniformly chosen offset with a uniform byte. */
     RANDOM_BYTE("random_byte", 8, (input, donor, random) -> {
