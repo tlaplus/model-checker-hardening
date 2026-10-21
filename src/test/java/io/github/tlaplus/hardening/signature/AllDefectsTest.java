@@ -64,7 +64,8 @@ class AllDefectsTest {
             "findings/TLC/tlc-013.md",
             "findings/TLC/tlc-018.md",
             "findings/TLC/tlc-019.md",
-            "findings/tlc-performance/tlc-performance-001.md");
+            "findings/tlc-performance/tlc-performance-001.md",
+            "findings/tlc-performance/tlc-performance-002.md");
 
     private final SignatureShapes shapes = new SignatureShapes();
     private final TlaTypedScopeUncheckedBuilder builder = shapes.builder;
