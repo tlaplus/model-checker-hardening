@@ -26,6 +26,21 @@ OTHER = {
 }
 
 
+def timeout_diagnostic(thread: str, *frames: str) -> str:
+    """A TLC timeout sidecar: the stacks of one working thread, then TLC's output (ADR 0021)."""
+    return "\n".join(
+        (
+            "TLC worker timed out after PT30S",
+            "TLC worker stderr:",
+            "Tool threads at shutdown:",
+            f'"{thread}" RUNNABLE',
+            *frames,
+            "TLC2 Version 2026.10.21.065856",
+            "Progress(1) at 2026-10-21 08:58:59: 1 states generated, 0 states left on queue.",
+        )
+    )
+
+
 def results(
     failed: triager.Checker,
     detail: str | None,
@@ -346,6 +361,63 @@ class AggregatorClassificationTest(unittest.TestCase):
         self.assertEqual(
             triager.WORKER_TIMEOUT,
             triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+        )
+
+    def test_classifies_a_timeout_by_the_stacks_of_its_threads(self) -> None:
+        formatting = (
+            "\tat tlc2.value.impl.FcnLambdaValue.toString(FcnLambdaValue.java:780)",
+            "\tat tlc2.value.impl.Value.toStringImpl(Value.java:400)",
+            "\tat tlc2.value.impl.Value.toString(Value.java:375)",
+            "\tat tlc2.value.impl.FcnLambdaValue.apply(FcnLambdaValue.java:189)",
+            "\tat tlc2.tool.impl.Tool.evalApplImpl(Tool.java:2336)",
+        )
+        first_pass = timeout_diagnostic(
+            "TLCWorkerThread-000",
+            *formatting,
+            "\tat tlc2.tool.impl.FastTool.evalAppl(FastTool.java:117)",
+            "\tat tlc2.tool.Worker.run(Worker.java:116)",
+        )
+        replay = timeout_diagnostic(
+            "main",
+            *formatting,
+            "\tat tlc2.tool.impl.CallStackTool.evalAppl(CallStackTool.java:170)",
+            "\tat tlc2.tool.ModelChecker.modelCheckImpl(ModelChecker.java:313)",
+        )
+        for crash_kind in (triager.CrashKind.TLC, triager.CrashKind.TLCN):
+            with self.subTest(crash_kind=crash_kind):
+                self.assertEqual(
+                    "tlc-performance-002.md",
+                    triager.classify(crash_kind, first_pass, HASH_A),
+                )
+                self.assertEqual(
+                    "tlc-018.md", triager.classify(crash_kind, replay, HASH_A)
+                )
+
+    def test_a_timeout_that_no_stack_explains_stays_timeout(self) -> None:
+        slow = timeout_diagnostic(
+            "TLCWorkerThread-000",
+            "\tat tlc2.tool.impl.Tool.getNextStates(Tool.java:914)",
+            "\tat tlc2.tool.Worker.run(Worker.java:116)",
+        )
+        self.assertEqual(
+            triager.WORKER_TIMEOUT,
+            triager.classify(triager.CrashKind.TLC, slow, HASH_A),
+        )
+
+    def test_timeout_signatures_read_only_timeouts(self) -> None:
+        exited = "\n".join(
+            (
+                "TLC worker exited while processing the input",
+                "TLC worker stderr:",
+                "Tool threads at shutdown:",
+                '"TLCWorkerThread-000" RUNNABLE',
+                "\tat tlc2.value.impl.Value.toString(Value.java:375)",
+                "\tat tlc2.value.impl.FcnLambdaValue.apply(FcnLambdaValue.java:189)",
+            )
+        )
+        self.assertEqual(
+            triager.NEW_FINDING,
+            triager.classify(triager.CrashKind.TLC, exited, HASH_A),
         )
 
     def test_classifies_quantification_over_int_expression(self) -> None:

@@ -78,11 +78,27 @@ class PatternSet:
         return all(pattern.search(diagnostic) is not None for pattern in self.required)
 
 
+class Ending(Enum):
+    """How the tool run whose diagnostic a crash signature reads ended (ADR 0021).
+
+    A signature reads one kind of run only. A timeout's diagnostic holds the stacks
+    of the tool's working threads and the output the tool had printed by then, so a
+    signature for a completed run, which reads the tool's final error, must not
+    match the truncated output of a timeout.
+    """
+
+    # The tool returned a verdict, threw, or ended its JVM.
+    COMPLETED = "completed"
+    # The harness stopped the worker at its stage's deadline.
+    TIMEOUT = "timeout"
+
+
 @dataclass(frozen=True)
 class FindingSignature:
     finding_file: str
     tool: Tool
     alternatives: tuple[PatternSet, ...]
+    ending: Ending = Ending.COMPLETED
 
     def matches(self, diagnostic: str) -> bool:
         return any(alternative.matches(diagnostic) for alternative in self.alternatives)
@@ -147,6 +163,11 @@ def finding(file: str, tool: Tool, *alternatives: PatternSet) -> FindingSignatur
     return FindingSignature(file, tool, alternatives)
 
 
+def timeout_finding(file: str, tool: Tool, *alternatives: PatternSet) -> FindingSignature:
+    """A signature over the diagnostic of a worker stopped at its deadline."""
+    return FindingSignature(file, tool, alternatives, Ending.TIMEOUT)
+
+
 EVALUATION_FAILURE_CODE = 75
 
 
@@ -204,6 +225,16 @@ def tlc_runtime_error(*patterns: str) -> PatternSet:
     )
 
 
+# A frame pair of a timeout's thread stacks (ADR 0021): FcnLambdaValue.apply
+# formats the function for its domain-error message.
+TLC_FORMATTING_DOMAIN_ERROR = (
+    r"^\tat tlc2\.value\.impl\.Value\.toString\([^)\n]*\)\n"
+    r"\tat tlc2\.value\.impl\.FcnLambdaValue\.apply\("
+)
+# A frame of the evaluator that TLC uses only to replay an error for its call stack.
+TLC_CALL_STACK_FRAME = r"^\tat tlc2\.tool\.impl\.CallStackTool\."
+
+
 # Keep signatures conservative. Add an alternative only after a crash has been
 # confirmed to have the same root cause as the finding it names. Order matters:
 # when several signatures match, the first one wins and the triager warns.
@@ -234,6 +265,16 @@ SIGNATURES = (
     finding("tlc-performance-001.md", Tool.TLC,
             all_of(r"^TLC error code 100[05] mapped to exit status 255$",
                    r"^Error: This was a Java StackOverflowError\. It was probably the result$")),
+    # A timed-out TLC whose thread builds the message of a function-domain error:
+    # Value.toString called from FcnLambdaValue.apply. Outside the call-stack
+    # replay, this is the first evaluation, whose formatting takes time exponential
+    # in the nesting of failing lazy functions (corpus67 5319b006).
+    timeout_finding("tlc-performance-002.md", Tool.TLC,
+                    all_of(TLC_FORMATTING_DOMAIN_ERROR, rf"\A(?![\s\S]*{TLC_CALL_STACK_FRAME})")),
+    # The same formatting under CallStackTool is the replay that collects the
+    # error's call stack, whose frames grow with that formatting.
+    timeout_finding("tlc-018.md", Tool.TLC,
+                    all_of(TLC_FORMATTING_DOMAIN_ERROR, TLC_CALL_STACK_FRAME)),
     # A stack overflow while TLC reconstructs a liveness counterexample: LiveCheck
     # prints the doubly wrapped exception and calls System.exit(1), so there is no
     # TLC error code, and the worker reports the exit with the TLC output that its
@@ -627,14 +668,26 @@ def validate_signature_catalog(repository_root: Path) -> None:
     )
 
 
+def run_ending(diagnostic: str) -> Ending:
+    return Ending.TIMEOUT if WORKER_TIMEOUT_PATTERN.search(diagnostic) else Ending.COMPLETED
+
+
 def classify(crash_kind: CrashKind, diagnostic: str, entry_hash: str) -> str:
-    if WORKER_TIMEOUT_PATTERN.search(diagnostic):
-        return WORKER_TIMEOUT
+    """Labels a crash with the first signature of its tool and run ending.
+
+    A timeout that no timeout signature explains is TIMEOUT, not NEW: most are
+    slow inputs, and their stacks are evidence to read, not a defect.
+    """
+    ending = run_ending(diagnostic)
     matches = [
         signature.finding_file
         for signature in SIGNATURES
-        if signature.tool is crash_kind.tool and signature.matches(diagnostic)
+        if signature.tool is crash_kind.tool
+        and signature.ending is ending
+        and signature.matches(diagnostic)
     ]
+    if not matches and ending is Ending.TIMEOUT:
+        return WORKER_TIMEOUT
     return first_match(matches, f"{crash_kind.value}/{entry_hash}", "findings")
 
 
