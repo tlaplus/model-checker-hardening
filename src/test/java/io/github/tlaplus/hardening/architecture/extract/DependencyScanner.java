@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.architecture;
+package io.github.tlaplus.hardening.architecture.extract;
 
 import io.github.tlaplus.hardening.common.ArchModule;
 import java.io.PrintWriter;
@@ -67,6 +67,13 @@ public final class DependencyScanner {
             }
         }
         return new ArrayList<>(edges);
+    }
+
+    /** The module of a qualified type name, failing for a package that no constant declares. */
+    public static ArchModule moduleOf(String qualifiedName) {
+        var pkg = packageOf(qualifiedName);
+        return ArchModule.ofPackage(pkg)
+                .orElseThrow(() -> new IllegalStateException("no ArchModule declares package " + pkg));
     }
 
     /** The package of a qualified type name. */

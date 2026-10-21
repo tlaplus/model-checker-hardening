@@ -2,14 +2,14 @@ package io.github.tlaplus.hardening.architecture;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.tlaplus.hardening.architecture.DependencyScanner.ClassEdge;
+import io.github.tlaplus.hardening.architecture.extract.DependencyScanner.ClassEdge;
+import io.github.tlaplus.hardening.architecture.extract.DependencyScanner;
+import io.github.tlaplus.hardening.architecture.extract.ModuleEdges;
 import io.github.tlaplus.hardening.common.ArchModule;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -47,40 +47,24 @@ class LayeringTest {
 
     @Test
     void everyModuleDependencyIsDeclared() {
-        var violations = new LinkedHashMap<String, ClassEdge>();
-        for (var edge : edges) {
-            var from = module(edge.from());
-            var to = module(edge.to());
-            if (!from.allows(to)) {
-                violations.putIfAbsent(
-                        from.displayName() + " -> " + to.displayName()
-                                + " is not allowed by ArchModule." + from.name(),
-                        edge);
-            }
-        }
-        assertTrue(violations.isEmpty(), () -> describe(violations));
+        var violations = ModuleEdges.of(edges).stream()
+                .filter(e -> !e.allowed())
+                .map(e -> e.from() + " -> " + e.to() + " is not allowed by ArchModule."
+                        + DependencyScanner.moduleOf(e.exampleFrom()).name() + ":\n  "
+                        + e.exampleFrom() + " -> " + e.exampleTo())
+                .toList();
+        assertTrue(violations.isEmpty(), () -> String.join("\n", violations));
     }
 
     @Test
     void everyModuleHasClasses() {
         var used = edges.stream()
                 .flatMap(e -> Stream.of(e.from(), e.to()))
-                .map(LayeringTest::module)
+                .map(DependencyScanner::moduleOf)
                 .collect(Collectors.toSet());
         for (var module : ArchModule.values()) {
             assertTrue(used.contains(module), () -> module + " has no classes with dependencies");
         }
     }
 
-    private static ArchModule module(String type) {
-        var pkg = DependencyScanner.packageOf(type);
-        return ArchModule.ofPackage(pkg)
-                .orElseThrow(() -> new AssertionError("no ArchModule declares package " + pkg));
-    }
-
-    private static String describe(Map<String, ClassEdge> violations) {
-        return violations.entrySet().stream()
-                .map(e -> e.getKey() + ":\n  " + e.getValue().from() + " -> " + e.getValue().to())
-                .collect(Collectors.joining("\n"));
-    }
 }
