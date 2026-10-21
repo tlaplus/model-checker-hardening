@@ -58,12 +58,15 @@ arithmetic is unavoidable, cover it with a round-trip test.
 enum ordinals are part of a stored format or wire encoding, a comment is not
 enough; add a test that fails on reorder.
 
-**Keep the layering.** Dependencies run `checker`, `gen`, `mutation` → `corpus` →
-`config` → `workflow` → `cli`, and `corpus` → `database` → `cli`
+**Keep the layering.** `common.ArchModule` declares which top-level packages each
+may depend on, and `LayeringTest` fails on any other dependency
+([ADR 0022](docs/decisions/0022-architecture-atlas.md)). In short, dependencies
+run `checker`, `gen`, `signature`, `mutation` → `corpus` → `config` → `workflow`
+→ `cli`, and `corpus` → `database` → `cli`
 ([ADR 0009](docs/decisions/0009-corpus-database.md)), with `common` a leaf every
 package may import. `database` stays below `config` and `workflow`: `cli` passes
-it the input replay as an interface. No upward
-imports. `config` keys its stage tables by `corpus.CorpusStage`
+it the input replay as an interface. No upward imports. Widening a constant's
+allowed list is an architectural change: say why in the change. `config` keys its stage tables by `corpus.CorpusStage`
 ([ADR 0004](docs/decisions/0004-stage-identity.md)). Validation and parsing policy do not belong
 in the storage layer; storage returns bytes and lets the caller interpret them.
 
