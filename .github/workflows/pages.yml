@@ -1,7 +1,7 @@
-name: Architecture atlas
+name: Pages
 
-# Builds the architecture atlas of main (ADR 0022) and commits it, under dev/ next to the site index
-# from docs/site, to the gh-pages branch, which GitHub Pages serves.
+# Builds the architecture atlas (ADR 0022) and the user manual of main, and commits them, under dev/
+# and user/ next to the site index from docs/site, to the gh-pages branch, which GitHub Pages serves.
 on:
   push:
     branches: [main]
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: architecture-atlas
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -25,9 +25,18 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: script/requirements-docs.txt
       - name: Build the atlas
         run: make architecture MVN="mvn --batch-mode --no-transfer-progress"
-      - name: Commit the atlas to gh-pages
+      - name: Build the user manual
+        run: |
+          python3 -m pip install -r script/requirements-docs.txt
+          make user-manual
+      - name: Commit the site to gh-pages
         env:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
@@ -44,16 +53,18 @@ jobs:
           cp -R docs/site/. "$site/"
           mkdir "$site/dev"
           cp -R target/architecture/. "$site/dev/"
+          mkdir "$site/user"
+          cp -R target/user/. "$site/user/"
           touch "$site/.nojekyll"
           git -C "$site" add --all
           if git -C "$site" diff --cached --quiet; then
-            echo "The atlas of $SOURCE_COMMIT is already published."
+            echo "The site of $SOURCE_COMMIT is already published."
             exit 0
           fi
           git -C "$site" \
             -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit --quiet \
-            -m "atlas: ${SOURCE_COMMIT:0:7}" \
+            -m "pages: ${SOURCE_COMMIT:0:7}" \
             -m "Built from $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SOURCE_COMMIT"
           git -C "$site" push origin HEAD:gh-pages
