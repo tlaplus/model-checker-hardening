@@ -4,8 +4,9 @@ TLAPM ?= tlapm
 COMMUNITY_MODULES_REPO ?= https://github.com/tlaplus/CommunityModules
 COMMUNITY_MODULES_DIR ?= libraries/community-modules
 ATLAS_OUTPUT ?= target/architecture
+MKDOCS ?= mkdocs
 
-.PHONY: compile test package verify run clean proofs community-modules architecture
+.PHONY: compile test package verify run clean proofs community-modules architecture user-manual
 
 compile:
 	$(MVN) compile
@@ -32,6 +33,11 @@ architecture:
 	java -cp "target/test-classes:target/classes:$$(cat target/atlas-classpath.txt)" \
 		io.github.tlaplus.hardening.architecture.AtlasMain \
 		--output $(ATLAS_OUTPUT) --commit "$$(git rev-parse HEAD)"
+
+# Builds the user manual from docs/manual into target/user (mkdocs.yml). Needs
+# python3 -m pip install -r script/requirements-docs.txt.
+user-manual:
+	$(MKDOCS) build --strict
 
 # Proves every rewrite rule (ADR 0017 §7). Variants resolves from Apalache's standard modules.
 proofs:
