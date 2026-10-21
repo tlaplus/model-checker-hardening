@@ -3,9 +3,9 @@ package io.github.tlaplus.hardening.architecture.render;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import io.github.tlaplus.hardening.architecture.model.ArchModel;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.ModuleNode;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.Source;
+import io.github.tlaplus.hardening.architecture.model.ArchModel;
 import io.github.tlaplus.hardening.architecture.model.AtlasJson;
 import io.github.tlaplus.hardening.architecture.model.RelationKind;
 import io.github.tlaplus.hardening.common.ArchModule;

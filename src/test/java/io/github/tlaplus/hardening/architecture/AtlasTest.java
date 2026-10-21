@@ -3,13 +3,11 @@ package io.github.tlaplus.hardening.architecture;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.tlaplus.hardening.architecture.extract.AtlasSettings;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.PackageNode;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.Relation;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.TypeKind;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.TypeNode;
 import io.github.tlaplus.hardening.architecture.model.ArchModel;
-import io.github.tlaplus.hardening.architecture.model.AtlasJson;
 import io.github.tlaplus.hardening.architecture.model.RelationKind;
 import io.github.tlaplus.hardening.common.ArchModule;
 import java.io.File;
@@ -21,23 +19,19 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Builds the atlas of the main sources once and checks what it extracted and wrote. */
 class AtlasTest {
     private static final String ROOT = ArchModule.ROOT_PACKAGE;
 
-    @TempDir
-    static Path output;
-
     private static ArchModel model;
+    private static Path output;
     private static Map<String, TypeNode> types;
 
     @BeforeAll
-    static void build() throws IOException {
-        var settings = AtlasSettings.defaults(Path.of("").toAbsolutePath()).withOutput(output.resolve("atlas"));
-        AtlasMain.run(settings);
-        model = AtlasJson.read(settings.output().resolve(AtlasJson.MODEL_FILE));
+    static void build() {
+        model = AtlasFixture.model();
+        output = AtlasFixture.output();
         types = model.types().stream().collect(Collectors.toMap(TypeNode::name, Function.identity()));
     }
 
@@ -100,7 +94,7 @@ class AtlasTest {
 
     @Test
     void writesMarkdownPages() throws IOException {
-        var atlas = output.resolve("atlas");
+        var atlas = output;
         assertTrue(Files.readString(atlas.resolve("README.md")).contains("```mermaid\nflowchart TB\n"));
         assertTrue(Files.readString(atlas.resolve("index.html")).contains("\"rootPackage\":"));
         assertTrue(Files.readString(atlas.resolve("modules/corpus.md")).contains("CorpusStage"));
