@@ -52,7 +52,7 @@ final class MarkdownAtlas {
         out.append("Generated from commit [`").append(links.shortCommit()).append("`](").append(links.commit())
                 .append(") by `make architecture` (")
                 .append(decisionLink("0022", "ADR 0022")).append("). The [interactive explorer](")
-                .append(links.pages()).append(") draws the same model.\n\n");
+                .append(links.explorer()).append(") draws the same model.\n\n");
         out.append("## Modules\n\n")
                 .append("An arrow points from a module to a module it depends on. An arrow that a longer ")
                 .append("path implies is not drawn; the table lists every dependency. ")
