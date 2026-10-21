@@ -52,9 +52,12 @@ public final class ToolWorkerRuntime {
      * exits non-zero, which the parent reports as a crash together with this output.
      *
      * <p>A tool may also end the JVM itself, as TLC does with {@code System.exit(1)} when its
-     * liveness checker fails (tlc-019). The verdict and the tool output it would carry are then
-     * never written, so a shutdown hook prints the output of the input in progress to {@code
-     * processError}, which the parent appends to the crash verdict.
+     * liveness checker fails (tlc-019), and the parent ends a worker that exceeds its deadline with
+     * {@code SIGTERM}. The verdict and the tool output it would carry are then never written, so a
+     * shutdown hook prints, for the input in progress, the stacks of the tool's working threads and
+     * the tool output to {@code processError}, which the parent appends to the crash verdict (ADR
+     * 0021). The stacks come first, so that a long output cannot push them out of the parent's
+     * bounded capture.
      *
      * @param body everything a worker main does, including the setup its tool needs
      */
@@ -62,7 +65,7 @@ public final class ToolWorkerRuntime {
         Objects.requireNonNull(body, "body");
         Objects.requireNonNull(processError, "processError");
         Runtime.getRuntime().addShutdownHook(new Thread(
-                () -> printPendingOutput(processError), "pending tool output"));
+                () -> printPendingInput(processError), "pending tool output"));
         try {
             body.run();
         } catch (Exception | StackOverflowError exception) {
@@ -121,9 +124,10 @@ public final class ToolWorkerRuntime {
         return buffer;
     }
 
-    private static void printPendingOutput(PrintStream processError) {
+    private static void printPendingInput(PrintStream processError) {
         var pending = PENDING_OUTPUT.getAndSet(null);
         if (pending != null) {
+            processError.print(ToolThreadStacks.sampleOthers());
             processError.print(pending.text());
             processError.flush();
         }

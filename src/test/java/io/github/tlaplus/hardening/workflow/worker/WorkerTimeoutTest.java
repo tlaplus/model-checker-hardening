@@ -29,13 +29,18 @@ class WorkerTimeoutTest {
         assertEquals(StageOutcome.CRASH, result.outcome());
         assertTrue(result.diagnostic().startsWith("test worker timed out after PT2S"),
                 result.diagnostic());
-        assertTrue(result.diagnostic().contains("deliberate tool output"), result.diagnostic());
+        var diagnostic = result.diagnostic();
+        assertTrue(diagnostic.contains("deliberate tool output"), diagnostic);
+        var stacks = diagnostic.indexOf(ToolThreadStacks.HEADING);
+        assertTrue(stacks >= 0, diagnostic);
+        assertTrue(diagnostic.indexOf("SlowToolWorker.workPastTheDeadline(") > stacks, diagnostic);
+        assertTrue(diagnostic.indexOf("deliberate tool output") > stacks, diagnostic);
         try (var paths = Files.list(scratch)) {
             assertTrue(paths.findAny().isEmpty());
         }
     }
 
-    /** Prints tool output for its input, then works past any deadline. */
+    /** Prints tool output for its input, then works past any deadline in a named method. */
     public static final class SlowToolWorker {
         private SlowToolWorker() {}
 
@@ -48,9 +53,16 @@ class WorkerTimeoutTest {
                 ToolWorkerRuntime.serve(connection, ToolWorkerRuntime.Lifetime.ONE_INPUT, source -> {
                     var diagnostics = ToolWorkerRuntime.diagnosticBuffer("Test tool");
                     diagnostics.write("deliberate tool output".getBytes(StandardCharsets.UTF_8));
-                    Thread.sleep(Duration.ofMinutes(1));
+                    workPastTheDeadline();
                     return new ToolResult(StageOutcome.PASS, diagnostics.text());
                 });
+            }
+        }
+
+        private static void workPastTheDeadline() {
+            var end = System.nanoTime() + Duration.ofMinutes(1).toNanos();
+            while (System.nanoTime() < end) {
+                Thread.onSpinWait();
             }
         }
     }

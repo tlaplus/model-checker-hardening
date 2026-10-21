@@ -91,11 +91,16 @@ Tool threads at shutdown:
 ```
 
 - **Threads.** Every thread in state `RUNNABLE` or `BLOCKED` with a non-empty
-  stack, except the hook's own thread. These are the threads doing work; JVM
-  service threads and the waiting threads of TLC's state queue are omitted. The
-  rule needs no per-tool list of packages, and holds for SANY, TLC, TLC with `n`
+  stack, except the hook's own thread and the threads of the JVM's `system`
+  thread group, such as the reference handler. These are the threads doing work;
+  the waiting threads of TLC's main loop and state queue are omitted. The rule
+  needs no per-tool list of packages, and holds for SANY, TLC, TLC with `n`
   workers, and Apalache, whose solver calls are `RUNNABLE` native frames.
-- **Order.** Threads by name, frames innermost first, as `Throwable` prints them.
+- **Order.** Threads by name, frames innermost first.
+- **Frames.** As an exception trace prints them, `tlc2.Tool.eval(Tool.java:7)`.
+  The frames that `Thread.getAllStackTraces` returns would also print their class
+  loader and module, `app//tlc2.Tool.eval(Tool.java:7)`, so the hook prints a
+  copy built from class, method, file and line.
 - **Bounds.** At most 256 frames per thread, and at most 64 KiB for the section;
   an omitted tail is marked as above. The frames that identify a cause are near
   the top, and the bound keeps the pending output within the standard-error

@@ -14,7 +14,12 @@ import java.nio.file.Path;
  */
 final class WorkerOutput implements AutoCloseable {
     private static final int MAXIMUM_STANDARD_OUTPUT_BYTES = 64 * 1024;
-    private static final int MAXIMUM_STANDARD_ERROR_BYTES = 64 * 1024;
+    /**
+     * Room for what a worker prints when it is stopped during an input: the stacks of its tool
+     * threads, then the tool output that one result frame would have carried (ADR 0021).
+     */
+    private static final int MAXIMUM_STANDARD_ERROR_BYTES =
+            ToolThreadStacks.MAXIMUM_BYTES + ToolWorkerProtocol.MAXIMUM_DIAGNOSTIC_BYTES;
     private static final String FATAL_ERROR_REPORT_PREFIX = "hs_err_pid";
 
     private final String description;
