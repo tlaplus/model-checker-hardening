@@ -50,6 +50,7 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.details
+  - pymdownx.keys
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -63,10 +64,16 @@ validation:
     anchors: warn
 
 nav:
-  - Overview: index.md
+  - Get started:
+      - Overview: index.md
+      - Getting started: getting-started.md
+      - The corpus: corpus.md
+      - Running campaigns: running.md
+      - Configuration: configuration.md
   - Campaigns:
       - Generations and mutation: mutation.md
       - Actions and temporal properties: temporal-properties.md
+      - Custom operators: custom-operators.md
       - Community Modules: community-modules.md
       - Recursive operators: recursive-operators.md
       - Metamorphic testing: metamorphic-testing.md
@@ -75,8 +82,10 @@ nav:
       - Integer literals: integer-literals.md
       - Known-defect signatures: known-defect-signatures.md
   - Analysing results:
+      - Inspecting a corpus: inspecting.md
       - Campaign report: campaign-report.md
       - Corpus database: corpus-database.md
       - Exploration metrics: exploration-metrics.md
       - Timeout diagnostics: timeout-diagnostics.md
+      - Results: results.md
   - Developers: https://tlaplus.github.io/model-checker-hardening/dev/
