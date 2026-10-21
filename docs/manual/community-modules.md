@@ -1,9 +1,5 @@
 # Community Modules
 
-> **Status:** Implemented.
-> [ADR 0014](../decisions/0014-per-checker-library-linking.md) records the design and
-> the probe behind it.
-
 A community-module campaign compares the TLA+ Community Modules, as TLC evaluates
 them (including Java overrides), with Apalache's own definitions of the same
 operators.
@@ -66,3 +62,8 @@ is fixed.
 
 Cite the CommunityModules commit from `<corpus>/tla/VERSION` besides the fuzztla,
 TLC and Apalache commits.
+
+## Background
+
+[ADR 0014](../decisions/0014-per-checker-library-linking.md) records the design and
+the probe behind it.

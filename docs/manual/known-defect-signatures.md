@@ -1,8 +1,5 @@
 # Known-defect signatures
 
-> **Status:** Implemented. [ADR 0006](../decisions/0006-known-defect-signatures.md)
-> records the design and its rationale.
-
 A known-defect signature describes a shape of generated TLA+ IR that a tool is
 already known to reject. Examples are a literal-zero divisor, which Apalache
 reports as `Mod by zero`, and the set `STRING`, which Apalache does not support.
@@ -454,3 +451,8 @@ one signature, `metamorphic-choose`, matches every bounded and unbounded `CHOOSE
 ([`choose-multiple-witnesses`](../../conformance/choose-multiple-witnesses.md)). In a
 conformance corpus it would quarantine valid inputs, so `all-defects.toml` does not
 contain it. `MetamorphicDefectsTest` checks that both databases load together.
+
+## Background
+
+[ADR 0006](../decisions/0006-known-defect-signatures.md) records the design and its
+rationale.

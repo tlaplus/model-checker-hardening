@@ -1,16 +1,11 @@
 # Exploration metrics
 
-> **Status:** Implemented.
-> [ADR 0008](../decisions/0008-exploration-metrics.md) records the design and
-> the calibration measurements behind it. Entries checked before this feature
-> have no metrics.
-
 Two checkers agreeing on a verdict says little when neither of them explored
 anything. Most agreeing pairs in current corpora are like that: TLC finds no
 initial state, the invariant fails in the initial state, or both checkers stop
 on an evaluation error before a state exists. Exploration metrics record *how
-much* a checker explored to reach its verdict. The quality gate of
-[ADR 0010](../decisions/0010-mutation.md) uses them to keep only agreements that
+much* a checker explored to reach its verdict. The
+[quality gate](mutation.md) uses them to keep only agreements that
 exercise the checkers.
 
 The TLC stage measures its run and stores the result in the corpus entry. The
@@ -18,7 +13,7 @@ Apalache stage stores the length of its counterexample. The checker stages do no
 accept or reject anything based on these metrics, and no configuration key
 controls them. The aggregator compares one metric: checkers whose search
 completed must report the same `distinctStates`
-([ADR 0019](../decisions/0019-state-count-agreement.md)).
+([verdicts](corpus.md#verdicts)).
 
 ## 1. Where metrics are stored
 
@@ -155,3 +150,9 @@ rather than stored separately.
   module with 1.7 million transitions.
 - Apalache reports no state counts. It explores symbolic executions of fixed
   length, so `traceLength` is its only comparable metric.
+
+## Background
+
+[ADR 0008](../decisions/0008-exploration-metrics.md) records the design and the
+calibration measurements behind it. Entries checked before this feature have no
+metrics.

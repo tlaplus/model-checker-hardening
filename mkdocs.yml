@@ -1,0 +1,91 @@
+# The user manual (make user-manual), published under user/ on gh-pages.
+site_name: FuzzTLA user manual
+site_url: https://tlaplus.github.io/model-checker-hardening/user/
+site_description: Hardened testing of the TLA+ model checkers TLC and Apalache.
+repo_url: https://github.com/tlaplus/model-checker-hardening
+repo_name: tlaplus/model-checker-hardening
+edit_uri: edit/main/docs/manual/
+docs_dir: docs/manual
+site_dir: target/user
+strict: true
+
+exclude_docs: |
+  architecture-atlas.md
+
+hooks:
+  - script/mkdocs_hooks.py
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+validation:
+  links:
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+nav:
+  - Get started:
+      - Overview: index.md
+      - Getting started: getting-started.md
+      - The corpus: corpus.md
+      - Running campaigns: running.md
+      - Configuration: configuration.md
+  - Campaigns:
+      - Generations and mutation: mutation.md
+      - Actions and temporal properties: temporal-properties.md
+      - Custom operators: custom-operators.md
+      - Community Modules: community-modules.md
+      - Recursive operators: recursive-operators.md
+      - Metamorphic testing: metamorphic-testing.md
+  - Tuning inputs:
+      - Collection sizes: collection-size.md
+      - Integer literals: integer-literals.md
+      - Known-defect signatures: known-defect-signatures.md
+  - Analysing results:
+      - Inspecting a corpus: inspecting.md
+      - Campaign report: campaign-report.md
+      - Corpus database: corpus-database.md
+      - Exploration metrics: exploration-metrics.md
+      - Timeout diagnostics: timeout-diagnostics.md
+      - Results: results.md
+  - Developers: https://tlaplus.github.io/model-checker-hardening/dev/

@@ -1,9 +1,6 @@
 # Metamorphic testing
 
-> **Status:** Implemented, except temporal properties (section 6).
-> [ADR 0016](../decisions/0016-metamorphic-testing.md) records the design and the probes
-> behind it, and [ADR 0017](../decisions/0017-rewrite-rule-library.md) the rule format.
-> The rule catalog will be specified in a later ADR.
+Temporal properties are not supported yet (section 6).
 
 A metamorphic campaign checks one model checker against itself. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
@@ -264,3 +261,9 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
   []<>A".
 - **TLC-only corpora.** A corpus with `checkers = ["tlc"]` compares no checkers, so
   its entries are not conformance tests.
+
+## Background
+
+[ADR 0016](../decisions/0016-metamorphic-testing.md) records the design and the
+probes behind it, and [ADR 0017](../decisions/0017-rewrite-rule-library.md) the rule
+format. The rule catalog will be specified in a later ADR.

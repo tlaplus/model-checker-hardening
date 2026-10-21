@@ -1,8 +1,5 @@
 # Collection sizes
 
-> **Status:** Implemented. [ADR 0011](../decisions/0011-collection-base-size.md)
-> records the design and the evaluation that chose the default base size of 3.
-
 Generated modules rarely hold non-empty collections in a state: a starved
 expression falls back to `{}`, `<<>>` or a function over an empty domain, and
 random input rarely continues a literal past one element. A *base size* makes
@@ -51,6 +48,11 @@ compare, per corpus, the TLC failures in `Init`, `maxCardinality`,
 
 Changing any of the three keys reinterprets stored inputs: a corpus must keep
 the values it was created with.
+
+## Background
+
+[ADR 0011](../decisions/0011-collection-base-size.md) records the design and the
+evaluation that chose the default base size of 3.
 
 [metrics]: exploration-metrics.md
 [database]: corpus-database.md

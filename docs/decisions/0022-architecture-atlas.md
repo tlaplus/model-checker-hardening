@@ -176,7 +176,7 @@ in-process doclet run, which `AtlasTest` shares.
 
 ### 4. Publishing on `gh-pages`
 
-On every push to `main`, the `architecture` workflow builds the atlas, places it
+On every push to `main`, the `pages` workflow builds the atlas, places it
 under `dev/` next to the hand-written site index from `docs/site`, adds
 `.nojekyll`, and commits the result to the `gh-pages` branch with plain `git`,
 naming the source commit in the message. A rerun for a commit whose site is
@@ -185,6 +185,14 @@ explorer at `dev/index.html`; GitHub's view of the branch renders `dev/README.md
 and the Mermaid pages. Since source links name the commit,
 every push to `main` adds one commit to `gh-pages`, which keeps the atlas of every
 commit of `main`.
+
+The same workflow also builds the user manual and publishes it under `user/`. This
+extends the original decision, which published only the atlas. MkDocs Material
+renders `docs/manual` as configured in `mkdocs.yml`, and `make user-manual` runs
+it. A hook rewrites links that leave `docs/manual` (ADRs, findings, scripts) to
+their files on GitHub. `architecture-atlas.md` stays out of the manual because it
+is for developers. The CI workflow builds the manual in strict mode on every pull
+request, so a broken link fails before merge.
 
 ## Consequences
 

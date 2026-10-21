@@ -1,9 +1,5 @@
 # Integer literals
 
-> **Status:** Implemented.
-> [ADR 0012](../decisions/0012-integer-literals.md) records the design and the
-> measurements behind it.
-
 Generated integers default to `1` rather than `0`, and literals mix small values,
 arithmetic boundary values such as `2^31 − 1`, and wide byte payloads.
 
@@ -39,3 +35,8 @@ arithmetic is checked.
 
 Changing any of these keys reinterprets stored inputs: a corpus must keep the
 values it was created with.
+
+## Background
+
+[ADR 0012](../decisions/0012-integer-literals.md) records the design and the
+measurements behind it.

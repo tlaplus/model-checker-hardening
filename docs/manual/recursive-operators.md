@@ -1,9 +1,5 @@
 # Recursive operators
 
-> **Status:** Implemented.
-> [ADR 0015](../decisions/0015-diff-linked-libraries.md) records the design and the probe
-> behind it.
-
 A recursion campaign compares TLC's evaluation of recursive definitions with Apalache's
 evaluation of equivalent non-recursive definitions. Every library operator comes as a
 pair of modules:
@@ -160,3 +156,8 @@ by a library pair:
   default 30 s. The timeouts track the number of library calls per input, not a single
   operator. Consider a larger `timeout_sec` for the Apalache stage of a recursion
   corpus.
+
+## Background
+
+[ADR 0015](../decisions/0015-diff-linked-libraries.md) records the design and the
+probe behind it.

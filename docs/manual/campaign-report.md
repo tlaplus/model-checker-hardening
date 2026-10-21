@@ -1,8 +1,5 @@
 # Campaign report
 
-> **Status:** Implemented.
-> [ADR 0020](../decisions/0020-campaign-report.md) records the design.
-
 `script/report.py` turns a corpus into one Markdown report of the campaign: how
 it ran, what it found, and how good its inputs are.
 
@@ -125,3 +122,7 @@ constructs in at least 5 inputs of the group.
 - Stage times have whole-second resolution, so short durations show as 0 or 1 s.
 - `.workflow-stats.cbor` is written on controlled exits only; a killed run adds
   nothing to run and worker time.
+
+## Background
+
+[ADR 0020](../decisions/0020-campaign-report.md) records the design.
