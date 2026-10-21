@@ -28,7 +28,7 @@ The target compiles the main and test sources and runs the atlas doclet over
 Source links point to the commit that `HEAD` names. A build from a working tree
 with uncommitted changes links to code that differs from what it shows.
 
-The `architecture` workflow publishes the atlas of every push to `main` on the
+The `pages` workflow publishes the atlas of every push to `main` on the
 `gh-pages` branch, under `dev/`: <https://tlaplus.github.io/model-checker-hardening/dev/>
 serves the explorer, and GitHub's view of the branch renders the Markdown pages.
 The site's root page, `docs/site/index.html`, links to it. The site
