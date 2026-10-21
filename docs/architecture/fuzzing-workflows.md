@@ -505,7 +505,10 @@ Corpus inputs are stored in `<stage-status>/<sha256>.cbor`:
    `02apa-crash/<sha256>.stacktrace`, beside the corresponding CBOR entry.
    The UTF-8 sidecar contains the Java stack trace when the tool threw an
    exception, or a diagnostic for non-exceptional crashes such as a timeout or a
-   rendered specification too large for one worker request frame.
+   rendered specification too large for one worker request frame. A worker
+   stopped during an input, by a timeout or by the tool ending its JVM, adds the
+   stacks of the tool's working threads and the tool's output
+   ([ADR 0021](../decisions/0021-timeout-diagnostics.md)).
    Sidecars are not corpus entries and do not count towards capacity limits.
 
  - A parser pass is the durable fan-out point. The same parser output is copied

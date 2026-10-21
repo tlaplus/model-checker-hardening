@@ -2,12 +2,18 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-10-21
 
-The [manual][manual] describes the proposed sidecars and timeout signatures for
-their users.
+**Implementation.** Branch `igor/timeout-diagnostics` (FuzzTLA `439fd71`, TLC
+`932d35e` from tla2tools snapshot `1.8.0-20261015.150947-106`, Apalache 0.62.3
+`3eb15b2`). Replayed through the TLC worker with the stage's 30-second limit,
+corpus67's `5319b006` stores the TLC worker thread inside `FcnLambdaValue.apply`,
+and the triager labels it `tlc-performance-002`.
+
+The [manual][manual] describes the sidecars and timeout signatures for their
+users.
 
 ## Context
 
