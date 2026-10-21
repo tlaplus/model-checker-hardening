@@ -2,16 +2,22 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-10-21
+
+**Implementation.** Stacked branches `igor/arch-atlas-adr` to
+`igor/arch-atlas-annotations` (FuzzTLA `b59a5a6`). The atlas of `b59a5a6` has 371
+types, 129 of them key, 2,095 relations, and 34 module edges, of which the module
+graph draws 14. Every edge conforms to `ArchModule`. The package graph of
+`workflow` shows a cycle between `workflow` and `workflow.execution`.
 
 The [manual][manual] describes how to annotate the code, regenerate the atlas,
 and read its views.
 
 ## Context
 
-FuzzTLA has about 300 top-level types in 27 packages and 31,000 lines. The
+FuzzTLA has 371 top-level types in 358 files, 27 packages, and 31,000 lines. The
 architecture documents ([fuzzing workflows][fuzzing-workflows],
 [IR generators][ir-generators]) describe the pipeline and the generator. They do not
 show which types implement it, or how the packages depend on each other. The
@@ -43,9 +49,10 @@ Two source-retention annotations in `common`, the leaf package:
   |---|---|---|
   | `ENTRY_POINT` | a command or a process main | `RunCommand`, `TlcWorkerMain` |
   | `FACADE` | the type other packages call | `CorpusDirectory`, `IrGenerators` |
+  | `CONTRACT` | an interface or base type that other types implement | `ToolBackend`, `CandidateSource` |
   | `PROCESS` | a loop or orchestrator that owns threads or a lifecycle | `StageGraph`, `GenerationLoop` |
-  | `ADAPTER` | wraps an external tool, process, or protocol | `TlcProcess`, `ToolWorkerConnection` |
-  | `STORE` | layout, locking, persistence | `CorpusEntryStore`, `CorpusLock` |
+  | `ADAPTER` | wraps an external tool, process, or protocol | `TlcProcess`, `WorkerChannel` |
+  | `STORE` | layout, locking, persistence | `CorpusEntryStore`, `CorpusLayout` |
   | `CODEC` | a wire or storage format | `CorpusEnvelopeCodec` |
   | `POLICY` | a decision rule | `TlcOutcomeClassifier`, `CheckingPolicy` |
   | `MODEL` | a domain value or enum | `CorpusStage`, `GeneratedSpec` |
@@ -54,7 +61,8 @@ Two source-retention annotations in `common`, the leaf package:
   | `UTILITY` | a helper with no domain meaning | `FileTrees` |
 
 - `@Key` marks a type as one of the few that carry its package. Key types appear
-  in the package diagrams, and other types are counted but not drawn.
+  in the package diagrams, and other types are counted but not drawn. At the
+  implementation, 129 of the 371 types are key, one to ten per package.
 
 Untagged types have role "other". The annotations hold no text. A type's
 summary is the first sentence of its Javadoc, and a package's summary is the first
@@ -129,22 +137,24 @@ The doclet writes `model.json` and renders two views of it into
   that are not implied, which is the transitive reduction of the module graph: 14
   of 34 edges at `78bb8ff`. An undeclared edge is always drawn, in red. A table
   lists every module with its summary and every dependency. Each module page
-  `modules/<module>.md` has a `classDiagram` of its key types with «role»
-  stereotypes, grouped by package, and a table of all its types with role and
+  `modules/<module>.md` has a graph of the module's packages, reduced in the same
+  way, when it has more than one. For each package it has a `classDiagram` of the
+  key types with «role» stereotypes and a table of all types with role and
   summary. Each type has a page `types/<qualified name>.md` that draws up to 30
   of its relations and lists all of them. GitHub renders these pages with their
   diagrams.
 - **Interactive explorer.** `index.html` is a self-contained page that embeds the
   model and draws it with Cytoscape.js and an ELK layered layout, loaded from a
-  CDN at pinned versions. It has the same three levels, each with its own URL
-  fragment (`#module/corpus`, `#type/<qualified name>`), so that a view can be
-  linked. The module graph hides implied edges. A module view draws each package
-  as a box holding its key types, counts the others as "+N more", and draws one
-  node per other module that the key types refer to or are referred to by. A type
-  view draws the type and up to 30 neighbours, the strongest relations and key
-  types first. Checkboxes select the relation kinds, all types instead of key
-  types, edges to `common`, and implied module edges, and a search box finds a
-  module or type by name. A side panel shows the summary, role, linked ADRs,
+  CDN at pinned versions. It has four views, each with its own URL fragment, so
+  that a view can be linked: the module graph; a module's package graph
+  (`#module/workflow`), whose nodes name each package's first key types; a
+  package's key types (`#package/<name>`), with the other types counted as "+N
+  more" and one node per other package or module they relate to; and one type
+  with up to 30 neighbours (`#type/<qualified name>`), the strongest relations and
+  key types first. A module with one package opens at the package. Graphs of
+  modules and packages hide implied edges. Checkboxes select the relation kinds, all types instead of key
+  types, edges to `common`, and implied edges, and a search box finds a module,
+  package, or type by name. A side panel shows the summary, role, linked ADRs,
   source link, and every relation. Roles colour the nodes, and the page follows
   the browser's light or dark theme.
 
@@ -159,18 +169,20 @@ which writes `model.json`. `render` turns a model into pages. `AtlasMain` wires
 extraction to rendering through the JSON model, and `ToolLayeringTest` checks that
 `extract` and `render` depend on `model` and not on each other.
 
-`ArchitectureAnnotationsTest` runs the doclet in-process and requires a
-`package-info.java` with Javadoc for every package, class Javadoc on every key
-type, and at least one key type per package, so that no package view is empty.
+`ArchitectureAnnotationsTest` requires a `package-info.java` with Javadoc for
+every package, Javadoc and `@ArchRole` on every key type, and at least one key
+type per package, so that no package view is empty. It reads the model of one
+in-process doclet run, which `AtlasTest` shares.
 
 ### 4. Publishing on `gh-pages`
 
 On every push to `main`, the `architecture` workflow builds the atlas, adds
 `.nojekyll`, and commits it to the `gh-pages` branch with plain `git`, naming the
-source commit in the message. When the atlas has not changed, the workflow makes
-no commit. GitHub Pages serves `index.html`. GitHub's view of the branch renders
-`README.md` and the Mermaid pages, and the branch history is a diffable record of
-architecture changes.
+source commit in the message. A rerun for a commit whose atlas is published makes
+no commit. GitHub Pages serves `index.html`, and GitHub's view of the branch
+renders `README.md` and the Mermaid pages. Since source links name the commit,
+every push to `main` adds one commit to `gh-pages`, which keeps the atlas of every
+commit of `main`.
 
 ## Consequences
 
@@ -183,8 +195,8 @@ architecture changes.
   and at least one key type.
 - **No new dependencies.** The doclet API, `jdeps`, and Jackson are already
   available. The explorer's scripts load from a CDN only when the page is viewed.
-- **Build cost.** `ArchitectureAnnotationsTest` adds one Javadoc pass over the
-  main sources to `mvn verify`.
+- **Build cost.** The atlas tests add one Javadoc pass over the main sources to
+  `mvn verify`, about two seconds.
 - **Signature-level relations.** `HAS` and `USES` come from declarations.
   Dependencies inside method bodies appear only as `DEPENDS`, without a reason.
 

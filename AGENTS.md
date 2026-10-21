@@ -13,6 +13,11 @@ planning or implementing architectural changes:
 - [`ir-generators.md`](docs/architecture/ir-generators.md) defines the design
   constraints for `io.github.tlaplus.hardening.gen` and its `engine` package.
 
+`make architecture` builds the [architecture atlas](docs/manual/architecture-atlas.md):
+module, package and class diagrams generated from the code. Mark the types that
+carry a new package `@Key` with an `@ArchRole`, and give every package a
+`package-info.java`; `ArchitectureAnnotationsTest` checks both.
+
 Follow the documented architecture when modifying these areas. If a change
 intentionally revises the architecture, ask the user, then update the corresponding
 document in the same change and state the deviation explicitly.
