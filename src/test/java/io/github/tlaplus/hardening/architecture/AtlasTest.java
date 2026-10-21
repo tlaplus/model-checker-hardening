@@ -102,6 +102,7 @@ class AtlasTest {
     void writesMarkdownPages() throws IOException {
         var atlas = output.resolve("atlas");
         assertTrue(Files.readString(atlas.resolve("README.md")).contains("```mermaid\nflowchart TB\n"));
+        assertTrue(Files.readString(atlas.resolve("index.html")).contains("\"rootPackage\":"));
         assertTrue(Files.readString(atlas.resolve("modules/corpus.md")).contains("CorpusStage"));
         assertTrue(Files.readString(atlas.resolve("types/" + ROOT + ".corpus.CorpusStage.md"))
                 .contains("[source](https://github.com/tlaplus/model-checker-hardening/blob/main/"));

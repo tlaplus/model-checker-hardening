@@ -136,11 +136,17 @@ The doclet writes `model.json` and renders two views of it into
   diagrams.
 - **Interactive explorer.** `index.html` is a self-contained page that embeds the
   model and draws it with Cytoscape.js and an ELK layered layout, loaded from a
-  CDN at pinned versions. Modules are compound nodes that expand into packages and
-  key types. A toggle shows all types, and selecting a type focuses on its
-  neighbourhood. Relation kinds and roles can be filtered, and a search box finds
-  types by name. A side panel shows the summary, role, linked ADRs, and source
-  link.
+  CDN at pinned versions. It has the same three levels, each with its own URL
+  fragment (`#module/corpus`, `#type/<qualified name>`), so that a view can be
+  linked. The module graph hides implied edges. A module view draws each package
+  as a box holding its key types, counts the others as "+N more", and draws one
+  node per other module that the key types refer to or are referred to by. A type
+  view draws the type and up to 30 neighbours, the strongest relations and key
+  types first. Checkboxes select the relation kinds, all types instead of key
+  types, edges to `common`, and implied module edges, and a search box finds a
+  module or type by name. A side panel shows the summary, role, linked ADRs,
+  source link, and every relation. Roles colour the nodes, and the page follows
+  the browser's light or dark theme.
 
 Type names link to the source on GitHub at the commit the atlas is built from. A
 mention of "ADR NNNN" in a summary links to that decision. `make architecture`

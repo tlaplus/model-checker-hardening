@@ -57,6 +57,15 @@ its role, and its summary.
 A type that relates to another in several ways shows the strongest relation only,
 in the order of this table. Thrown exceptions count as `DEPENDS`.
 
+**Explorer.** `index.html` shows the same three levels. Click a node to see its
+details in the side panel, and double-click it, or use a link in the panel, to
+open its view; Esc goes up one level, and the browser's back button works as
+usual. The checkboxes select the relation kinds to draw (`depends` is off by
+default), all types instead of key types, arrows to `common` in a module view,
+and implied arrows in the module graph. A type view draws at most 30 relations,
+the strongest kinds and key types first; the panel lists all of them. The search
+box takes a module or type name.
+
 ## 3. Annotating the code
 
 The atlas shows what the annotations in `io.github.tlaplus.hardening.common`
