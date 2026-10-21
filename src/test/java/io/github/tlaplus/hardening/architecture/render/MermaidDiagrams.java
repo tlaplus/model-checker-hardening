@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.architecture.model.ArchModel.TypeKind;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.TypeNode;
 import io.github.tlaplus.hardening.architecture.model.RelationKind;
 import io.github.tlaplus.hardening.architecture.model.RoleLabels;
+import io.github.tlaplus.hardening.architecture.model.TransitiveReduction;
 import io.github.tlaplus.hardening.common.ArchModule;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,6 +45,17 @@ final class MermaidDiagrams {
         for (var index : red) {
             out.append("  linkStyle ").append(index).append(" stroke:#d1242f,stroke-width:3px\n");
         }
+        return out.append("```\n").toString();
+    }
+
+    /** A graph of a module's packages, labelled relative to the root, with arcs counting relations. */
+    static String packages(List<String> packages, Map<TransitiveReduction.Arc<String>, Integer> arcs) {
+        var out = new StringBuilder("```mermaid\nflowchart TB\n");
+        for (var pkg : packages) {
+            out.append("  ").append(namespace(pkg)).append("[\"").append(relative(pkg)).append("\"]\n");
+        }
+        arcs.forEach((arc, count) -> out.append("  ").append(namespace(arc.from())).append(" -->|")
+                .append(count).append("| ").append(namespace(arc.to())).append('\n'));
         return out.append("```\n").toString();
     }
 
@@ -115,10 +127,15 @@ final class MermaidDiagrams {
     }
 
     private static String namespace(String packageName) {
+        return relative(packageName).replace('.', '_');
+    }
+
+    /** A package's name below the root package, or {@code root}. */
+    static String relative(String packageName) {
         if (packageName.equals(ArchModule.ROOT_PACKAGE)) {
             return "root";
         }
-        return packageName.substring(ArchModule.ROOT_PACKAGE.length() + 1).replace('.', '_');
+        return packageName.substring(ArchModule.ROOT_PACKAGE.length() + 1);
     }
 
 }

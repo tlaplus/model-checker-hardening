@@ -1,16 +1,20 @@
 package io.github.tlaplus.hardening.architecture.render;
 
 import io.github.tlaplus.hardening.architecture.model.ArchModel.ModuleNode;
+import io.github.tlaplus.hardening.architecture.model.ArchModel.PackageNode;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.Relation;
 import io.github.tlaplus.hardening.architecture.model.ArchModel.TypeNode;
 import io.github.tlaplus.hardening.architecture.model.ArchModel;
 import io.github.tlaplus.hardening.architecture.model.RelationKind;
 import io.github.tlaplus.hardening.architecture.model.RoleLabels;
+import io.github.tlaplus.hardening.architecture.model.TransitiveReduction.Arc;
+import io.github.tlaplus.hardening.architecture.model.TransitiveReduction;
 import io.github.tlaplus.hardening.common.Role;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -93,26 +97,29 @@ final class MarkdownAtlas {
         out.append("**Used by:** ").append(list(edges.stream()
                 .filter(e -> e.to().equals(module.name())).map(e -> moduleLink(e.from())))).append("\n\n");
 
-        var types = index.typesOf(module);
-        var keys = types.stream().filter(TypeNode::key).toList();
-        out.append("## Key types\n\n");
-        if (keys.isEmpty()) {
-            out.append("No type of this module is marked `@Key` yet.\n\n");
-        } else {
-            var names = keys.stream().map(TypeNode::name).collect(Collectors.toSet());
-            var among = index.model().relations().stream()
-                    .filter(r -> r.kind() != RelationKind.DEPENDS)
-                    .filter(r -> names.contains(r.from()) && names.contains(r.to()))
-                    .toList();
-            out.append(MermaidDiagrams.classes(keys, among, true)).append('\n');
+        var packages = index.packagesOf(module);
+        if (packages.size() > 1) {
+            out.append("## Packages\n\n")
+                    .append("An arrow counts the relations other than `depends` from one package to another. ")
+                    .append("An arrow that a longer path implies is not drawn.\n\n")
+                    .append(MermaidDiagrams.packages(packages.stream().map(PackageNode::name).toList(),
+                            packageArcs(module)))
+                    .append('\n');
         }
-        for (var pkg : index.packagesOf(module)) {
+        for (var pkg : packages) {
             out.append("## `").append(pkg.name()).append("`\n\n");
             if (!pkg.summary().isEmpty() && !pkg.name().equals(module.packageName())) {
                 out.append(text(pkg.summary())).append("\n\n");
             }
+            var types = index.typesOf(pkg);
+            var keys = types.stream().filter(TypeNode::key).toList();
+            if (!keys.isEmpty()) {
+                var names = keys.stream().map(TypeNode::name).collect(Collectors.toSet());
+                var among = structural().filter(r -> names.contains(r.from()) && names.contains(r.to())).toList();
+                out.append(MermaidDiagrams.classes(keys, among, false)).append('\n');
+            }
             out.append("| Type | Kind | Role | Summary |\n|---|---|---|---|\n");
-            for (var type : index.typesOf(pkg)) {
+            for (var type : types) {
                 var name = type.key() ? "**" + type.simpleName() + "** ★" : type.simpleName();
                 out.append("| [").append(name).append("](../").append(AtlasLinks.typePage(type)).append(") | ")
                         .append(kind(type)).append(" | ").append(RoleLabels.of(type.role())).append(" | ")
@@ -126,6 +133,27 @@ final class MarkdownAtlas {
             adrs.forEach(n -> out.append("- ").append(decisionLink(n, null)).append('\n'));
         }
         return out.toString();
+    }
+
+    /** The relations a diagram draws by default: every kind but {@link RelationKind#DEPENDS}. */
+    private Stream<Relation> structural() {
+        return index.model().relations().stream().filter(r -> r.kind() != RelationKind.DEPENDS);
+    }
+
+    /** The arcs between a module's packages that no longer path implies, with their relation counts. */
+    private Map<Arc<String>, Integer> packageArcs(ModuleNode module) {
+        var counts = new TreeMap<Arc<String>, Integer>(
+                Comparator.comparing((Arc<String> a) -> a.from()).thenComparing(Arc::to));
+        structural().forEach(r -> {
+            var from = index.type(r.from());
+            var to = index.type(r.to());
+            if (index.moduleOf(from).equals(module.name()) && index.moduleOf(to).equals(module.name())
+                    && !from.packageName().equals(to.packageName())) {
+                counts.merge(new Arc<>(from.packageName(), to.packageName()), 1, Integer::sum);
+            }
+        });
+        TransitiveReduction.implied(counts.keySet()).forEach(counts::remove);
+        return counts;
     }
 
     private String type(TypeNode type) {

@@ -143,14 +143,33 @@ const state = {
   showImplied: false,
 };
 
+// Views: the module graph, a module's package graph, a package's types, and one type. A module
+// with a single package opens at that package.
 function route() {
   const hash = decodeURIComponent(location.hash.slice(1));
   const [view, ...rest] = hash.split("/");
   const id = rest.join("/");
-  if (view === "module" && modulesByName.has(id)) return { view, id };
+  if (view === "module" && modulesByName.has(id)) {
+    const packages = packagesOfModule(id);
+    return packages.length === 1 ? { view: "package", id: packages[0].name } : { view, id };
+  }
+  if (view === "package" && packagesByName.has(id)) return { view, id };
   if (view === "type" && typesByName.has(id)) return { view, id };
   return { view: "modules", id: null };
 }
+const singlePackage = m => packagesOfModule(m).length === 1;
+// The view one level up from a package or a type.
+const parentOf = r => {
+  if (r.view === "type") {
+    const t = typesByName.get(r.id);
+    return singlePackage(moduleOf(t)) ? ["module", moduleOf(t)] : ["package", t.packageName];
+  }
+  if (r.view === "package") {
+    const m = packagesByName.get(r.id).module;
+    return singlePackage(m) ? ["modules", null] : ["module", m];
+  }
+  return ["modules", null];
+};
 const go = (view, id) => { location.hash = view === "modules" ? "" : view + "/" + encodeURIComponent(id); };
 window.addEventListener("hashchange", render);
 
@@ -170,6 +189,7 @@ function decisionLinks(numbers) {
 }
 const typeButton = name => `<button class="link" data-type="${esc(name)}">${esc(simpleName(name))}</button>`;
 const moduleButton = name => `<button class="link" data-module="${esc(name)}">${esc(name)}</button>`;
+const packageButton = name => `<button class="link" data-package="${esc(name)}">${esc(relativePackage(name))}</button>`;
 
 // ---- Theme-aware graph style ----------------------------------------------------
 function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -189,6 +209,8 @@ function graphStyle() {
       "background-color": "data(fill)", "border-width": 1, "border-color": css("--border") } },
     { selector: "node[?key]", style: { "border-width": 2.5, "border-color": css("--accent"), "font-weight": 600 } },
     { selector: "node[kind = 'module']", style: { "font-size": 14, "font-weight": 600, padding: 14,
+      "background-color": css("--surface") } },
+    { selector: "node[kind = 'package-node']", style: { "font-size": 12, padding: 12, "text-max-width": 230,
       "background-color": css("--surface") } },
     { selector: "node[kind = 'stub'], node[kind = 'more']", style: {
       "background-color": css("--stub"), "border-style": "dashed", color: css("--muted"), "font-size": 11 } },
@@ -238,7 +260,7 @@ function layout(direction) {
 }
 
 const typeNode = (t, parent, kind = "type") => ({ data: {
-  id: "t:" + t.name, label: t.simpleName || simpleName(t.name) + (t.role ? "\n«" + roleName(t.role) + "»" : ""),
+  id: "t:" + t.name, label: simpleName(t.name) + (t.role ? "\n«" + roleName(t.role) + "»" : ""),
   kind, type: t.name, key: t.key, fill: css(roleVar(t.role)), parent } });
 const relationEdge = (r, labelled) => ({ data: {
   id: "r:" + r.from + ">" + r.to, source: "t:" + r.from, target: "t:" + r.to,
@@ -258,43 +280,105 @@ function moduleElements() {
   return [...nodes, ...edges];
 }
 
-function moduleViewElements(moduleName) {
-  const all = typesOfModule(moduleName);
-  const curated = all.some(t => t.key);
-  const showAll = state.allTypes || !curated;
-  const shown = new Set();
+// Counts relations of the selected kinds, folded by keyOf(relation), which returns null to skip.
+function fold(relations, keyOf) {
+  const counts = new Map();
+  for (const r of relations) {
+    if (!state.kinds.has(r.kind)) continue;
+    const key = keyOf(r);
+    if (key !== null) counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+const visibleModule = (m, here) => m !== here && (m !== LEAF || state.showLeaf);
+const stubNode = (id, label, data) => ({ data: { id, kind: "stub", label, ...data } });
+// An edge that counts relations; edges to stubs are dotted, as they leave the view.
+const countEdge = (id, source, target, count) =>
+  ({ data: { id, source, target, weight: count, label: String(count),
+    relation: /^[xy]:/.test(source) || /^[xy]:/.test(target) ? "DEPENDS" : undefined } });
+
+function packageGraphElements(moduleName) {
   const elements = [];
   for (const p of packagesOfModule(moduleName)) {
     const types = typesOfPackage(p.name);
-    const visible = showAll ? types : types.filter(t => t.key);
-    elements.push({ data: { id: "p:" + p.name, label: relativePackage(p.name), kind: "package", package: p.name } });
-    for (const t of visible) { elements.push(typeNode(t, "p:" + p.name)); shown.add(t.name); }
-    const hidden = types.length - visible.length;
-    if (hidden > 0) elements.push({ data: { id: "more:" + p.name, kind: "more", parent: "p:" + p.name,
-      label: `+${hidden} more` } });
+    const keys = types.filter(t => t.key).map(t => simpleName(t.name));
+    const listed = keys.length > 4 ? keys.slice(0, 4).join(", ") + ", …" : keys.join(", ");
+    elements.push({ data: { id: "p:" + p.name, kind: "package-node", package: p.name,
+      label: `${relativePackage(p.name)}\n${plural(types.length, "type")}${listed ? "\n" + listed : ""}` } });
   }
-  const stubs = new Map();
-  for (const name of shown) {
-    for (const r of [...(outgoing.get(name) || []), ...(incoming.get(name) || [])]) {
-      if (!state.kinds.has(r.kind)) continue;
-      const inside = shown.has(r.from) && shown.has(r.to);
-      if (inside) { if (r.from === name) elements.push(relationEdge(r, false)); continue; }
-      const other = typesByName.get(r.from === name ? r.to : r.from);
-      const otherModule = moduleOf(other);
-      if (otherModule === moduleName || (otherModule === LEAF && !state.showLeaf)) continue;
-      const out = r.from === name;
-      const key = (out ? name + ">" : "<" + name) + otherModule;
-      const stub = stubs.get(key) || { name, otherModule, out, count: 0 };
-      stub.count++; stubs.set(key, stub);
+  const pkgOf = n => typesByName.get(n).packageName;
+  const modOf = n => moduleOf(typesByName.get(n));
+  const inside = fold(MODEL.relations, r => modOf(r.from) === moduleName && modOf(r.to) === moduleName
+    && pkgOf(r.from) !== pkgOf(r.to) ? pkgOf(r.from) + ">" + pkgOf(r.to) : null);
+  const implied = state.showImplied ? new Set() : impliedEdges([...inside.keys()]);
+  for (const [key, count] of inside) {
+    if (implied.has(key)) continue;
+    const [from, to] = key.split(">");
+    elements.push(countEdge("e:" + key, "p:" + from, "p:" + to, count));
+  }
+  // The module graph and the panel show the dependencies on other modules.
+  return elements;
+}
+
+// The edges "a>b" that a path through other nodes also connects, as ModelBuilder marks module edges.
+function impliedEdges(keys) {
+  const next = new Map();
+  for (const key of keys) {
+    const [a, b] = key.split(">");
+    (next.get(a) || next.set(a, []).get(a)).push(b);
+  }
+  const reaches = (from, to, skip) => {
+    const seen = new Set([from]), pending = (next.get(from) || []).filter(n => n !== skip);
+    while (pending.length) {
+      const n = pending.pop();
+      if (n === to) return true;
+      if (!seen.has(n)) { seen.add(n); pending.push(...(next.get(n) || [])); }
     }
+    return false;
+  };
+  return new Set(keys.filter(key => { const [a, b] = key.split(">"); return reaches(a, b, b); }));
+}
+
+function packageViewElements(packageName) {
+  const pkg = packagesByName.get(packageName);
+  const types = typesOfPackage(packageName);
+  const curated = types.some(t => t.key);
+  const visible = state.allTypes || !curated ? types : types.filter(t => t.key);
+  const shown = new Set(visible.map(t => t.name));
+  const elements = visible.map(t => typeNode(t, undefined));
+  if (visible.length < types.length) {
+    elements.push({ data: { id: "more:" + packageName, kind: "more", label: `+${types.length - visible.length} more` } });
   }
-  const stubModules = new Set([...stubs.values()].map(s => s.otherModule));
-  for (const m of stubModules) elements.push({ data: { id: "x:" + m, kind: "stub", module: m, label: m } });
-  for (const [key, s] of stubs) {
-    const [source, target] = s.out ? ["t:" + s.name, "x:" + s.otherModule] : ["x:" + s.otherModule, "t:" + s.name];
-    elements.push({ data: { id: "s:" + key, source, target, label: String(s.count), relation: "DEPENDS" } });
-  }
+  const local = MODEL.relations.filter(r => shown.has(r.from) && shown.has(r.to) && state.kinds.has(r.kind));
+  for (const r of local) elements.push(relationEdge(r, false));
+  // Other packages of the module, and other modules, as one stub each.
+  const stubOf = name => {
+    const t = typesByName.get(name);
+    if (t.packageName === packageName) return null;
+    const m = moduleOf(t);
+    if (m === pkg.module) return "y:" + t.packageName;
+    return visibleModule(m, pkg.module) ? "x:" + m : null;
+  };
+  const across = fold(MODEL.relations, r => {
+    if (shown.has(r.from)) { const stub = stubOf(r.to); return stub && "t:" + r.from + ">" + stub; }
+    if (shown.has(r.to)) { const stub = stubOf(r.from); return stub && stub + ">t:" + r.to; }
+    return null;
+  });
+  addStubs(elements, across, id => id.startsWith("y:")
+    ? stubNode(id, relativePackage(id.slice(2)), { package: id.slice(2) })
+    : stubNode(id, id.slice(2), { module: id.slice(2) }));
   return { elements, curated };
+}
+
+function addStubs(elements, counts, nodeOf) {
+  const stubs = new Set();
+  for (const [key, count] of counts) {
+    const [source, target] = key.split(">");
+    for (const end of [source, target]) {
+      if (/^[xy]:/.test(end) && !stubs.has(end)) { stubs.add(end); elements.push(nodeOf(end)); }
+    }
+    elements.push(countEdge("s:" + key, source, target, count));
+  }
 }
 
 // A type view draws at most this many relations; the panel lists them all.
@@ -322,8 +406,9 @@ function typeViewElements(typeName) {
 // ---- Panel ---------------------------------------------------------------------
 const panel = document.getElementById("panel");
 panel.addEventListener("click", e => {
-  const t = e.target.closest("[data-type]"), m = e.target.closest("[data-module]");
+  const t = e.target.closest("[data-type]"), m = e.target.closest("[data-module]"), p = e.target.closest("[data-package]");
   if (t) go("type", t.dataset.type);
+  else if (p) go("package", p.dataset.package);
   else if (m) go("module", m.dataset.module);
   else if (e.target.closest("[data-all-types]")) { state.allTypes = true; renderFilters(); render(); }
 });
@@ -345,26 +430,50 @@ function showDefault(view) {
       ${bad.length ? `<p class="bad">${bad.length} dependencies break the layering that ArchModule declares.</p>` : ""}
       ${legendHtml()}`;
   } else if (r.view === "module") {
-    showModule(r.id, view);
+    showModule(r.id);
+  } else if (r.view === "package") {
+    showPackage(r.id, view);
   } else {
     showType(r.id);
   }
 }
 
-function showModule(name, view) {
+function showModule(name) {
   const m = modulesByName.get(name);
   const out = MODEL.moduleEdges.filter(e => e.from === name);
   const inc = MODEL.moduleEdges.filter(e => e.to === name);
   const types = typesOfModule(name);
   const adrs = [...new Set([...packagesOfModule(name).flatMap(p => p.adrs), ...types.flatMap(t => t.adrs)])].sort();
-  const curated = types.some(t => t.key);
+  const graph = route().view === "module" && route().id === name;
   panel.innerHTML = `<h2>${esc(name)}</h2><div class="meta"><code>${esc(m.packageName)}</code> · ${plural(types.length, "type")}</div>
     <p>${prose(m.summary)}</p>
-    ${view && !curated ? `<div class="notice">No type of this module is marked <code>@Key</code> yet, so every type is shown.</div>` : ""}
-    ${view && curated && !state.allTypes ? `<div class="notice">Showing key types. <button class="link" data-all-types>Show all ${types.length} types</button></div>` : ""}
+    ${graph ? `<p class="meta">Each node is a package with its first key types. An arrow counts the relations of the selected kinds from one package to another${state.showImplied ? "" : "; an arrow that a longer path implies is hidden"}.</p>` : ""}
     <h3>Depends on</h3><ul>${out.map(e => `<li>${moduleButton(e.to)} <span class="meta">${e.typePairs} pairs</span>${e.allowed ? "" : ' <span class="bad">not allowed</span>'}</li>`).join("") || "<li>none</li>"}</ul>
     <h3>Used by</h3><ul>${inc.map(e => `<li>${moduleButton(e.from)} <span class="meta">${e.typePairs} pairs</span></li>`).join("") || "<li>none</li>"}</ul>
-    <h3>Packages</h3><ul>${packagesOfModule(name).map(p => `<li><code>${esc(relativePackage(p.name))}</code> ${prose(p.summary)}</li>`).join("")}</ul>
+    <h3>Packages</h3><ul>${packagesOfModule(name).map(p => `<li>${packageButton(p.name)} ${prose(p.summary)}</li>`).join("")}</ul>
+    ${adrs.length ? `<h3>Decisions</h3><ul>${decisionLinks(adrs)}</ul>` : ""}`;
+}
+
+function showPackage(name, view) {
+  const p = packagesByName.get(name);
+  const types = typesOfPackage(name);
+  const curated = types.some(t => t.key);
+  const pkgOf = n => typesByName.get(n).packageName;
+  const counts = side => [...fold(MODEL.relations, r => side === "out"
+      ? (pkgOf(r.from) === name && pkgOf(r.to) !== name ? pkgOf(r.to) : null)
+      : (pkgOf(r.to) === name && pkgOf(r.from) !== name ? pkgOf(r.from) : null))]
+    .sort((a, b) => b[1] - a[1]).map(([q, n]) => `<li>${packageButton(q)} <span class="meta">${n}</span></li>`).join("");
+  const listed = [...types].sort((a, b) => b.key - a.key).map(t =>
+    `<li><span class="swatch" style="background:var(${roleVar(t.role)})"></span>${typeButton(t.name)}${t.key ? " ★" : ""} <span class="meta">${prose(t.summary)}</span></li>`).join("");
+  const adrs = [...new Set([...p.adrs, ...types.flatMap(t => t.adrs)])].sort();
+  panel.innerHTML = `<h2>${esc(relativePackage(name))}</h2>
+    <div class="meta">module ${moduleButton(p.module)} · ${plural(types.length, "type")}</div>
+    <p>${prose(p.summary)}</p>
+    ${view && !curated ? `<div class="notice">No type of this package is marked <code>@Key</code> yet, so every type is shown.</div>` : ""}
+    ${view && curated && !state.allTypes ? `<div class="notice">Showing key types. <button class="link" data-all-types>Show all ${types.length} types</button></div>` : ""}
+    <h3>Refers to packages</h3><ul>${counts("out") || "<li>none</li>"}</ul>
+    <h3>Referred to by packages</h3><ul>${counts("in") || "<li>none</li>"}</ul>
+    <h3>Types</h3><ul>${listed}</ul>
     ${adrs.length ? `<h3>Decisions</h3><ul>${decisionLinks(adrs)}</ul>` : ""}`;
 }
 
@@ -377,7 +486,7 @@ function showType(name) {
   const out = outgoing.get(name) || [], inc = incoming.get(name) || [];
   panel.innerHTML = `<h2>${esc(simpleName(name))}</h2>
     <div class="meta">${esc(t.kind.toLowerCase())} · <span class="swatch" style="background:var(${roleVar(t.role)})"></span>${esc(roleName(t.role))}${t.key ? " · key" : ""}
-      · ${moduleButton(moduleOf(t))} · <code>${esc(relativePackage(t.packageName))}</code></div>
+      · ${moduleButton(moduleOf(t))} · ${packageButton(t.packageName)}</div>
     <p>${prose(t.summary) || '<span class="meta">No Javadoc.</span>'}</p>
     <p><a href="${esc(sourceLink(t))}" target="_blank" rel="noopener">Source on GitHub</a>${route().id === name ? "" : ` · <button class="link" data-type="${esc(name)}">Open</button>`}</p>
     ${t.adrs.length ? `<h3>Decisions</h3><ul>${decisionLinks(t.adrs)}</ul>` : ""}
@@ -390,13 +499,16 @@ function showType(name) {
 cy.on("tap", "node", e => {
   const d = e.target.data();
   if (d.type) showType(d.type);
-  else if (d.module) showModule(d.module, false);
+  else if (d.package) showPackage(d.package, false);
+  else if (d.module) showModule(d.module);
   else if (d.kind === "more") { state.allTypes = true; renderFilters(); render(); }
 });
 cy.on("tap", e => { if (e.target === cy) showDefault(true); });
 cy.on("dbltap", "node", e => {
   const d = e.target.data();
-  if (d.type) go("type", d.type); else if (d.module) go("module", d.module);
+  if (d.type) go("type", d.type);
+  else if (d.package) go("package", d.package);
+  else if (d.module) go("module", d.module);
 });
 cy.on("mouseover", "node", e => {
   const hood = e.target.closedNeighborhood().union(e.target.ancestors()).union(e.target.descendants());
@@ -406,19 +518,21 @@ cy.on("mouseover", "node", e => {
 cy.on("mouseout", "node", () => cy.elements().removeClass("faded"));
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape" || e.target.tagName === "INPUT") return;
-  const r = route();
-  if (r.view === "type") go("module", moduleOf(typesByName.get(r.id)));
-  else if (r.view === "module") go("modules");
+  const [view, id] = parentOf(route());
+  go(view, id);
 });
 
 // ---- Header ---------------------------------------------------------------------------
 function renderCrumbs(r) {
-  const parts = [r.view === "modules" ? `<span class="current">Modules</span>` : `<a href="#">Modules</a>`];
-  if (r.view === "module") parts.push(`<span class="current">${esc(r.id)}</span>`);
-  if (r.view === "type") {
-    const m = moduleOf(typesByName.get(r.id));
-    parts.push(`<a href="#module/${encodeURIComponent(m)}">${esc(m)}</a>`, `<span class="current">${esc(simpleName(r.id))}</span>`);
-  }
+  const link = (view, id, label) => `<a href="#${view}/${encodeURIComponent(id)}">${esc(label)}</a>`;
+  const current = label => `<span class="current">${esc(label)}</span>`;
+  const parts = [r.view === "modules" ? current("Modules") : `<a href="#">Modules</a>`];
+  const pkg = r.view === "package" ? r.id : r.view === "type" ? typesByName.get(r.id).packageName : null;
+  const module = r.view === "module" ? r.id : pkg && packagesByName.get(pkg).module;
+  if (module) parts.push(r.view === "module" || (r.view === "package" && singlePackage(module))
+    ? current(module) : link("module", module, module));
+  if (pkg && !singlePackage(module)) parts.push(r.view === "package" ? current(relativePackage(pkg)) : link("package", pkg, relativePackage(pkg)));
+  if (r.view === "type") parts.push(current(simpleName(r.id)));
   document.getElementById("crumbs").innerHTML = parts.join('<span class="sep">›</span>');
 }
 
@@ -442,6 +556,7 @@ document.getElementById("filters").addEventListener("change", e => {
 const search = document.getElementById("search");
 const searchTargets = new Map();
 for (const m of MODEL.modules) searchTargets.set(m.name + " (module)", ["module", m.name]);
+for (const p of MODEL.packages) searchTargets.set(relativePackage(p.name) + " (package)", ["package", p.name]);
 for (const t of MODEL.types) searchTargets.set(simpleName(t.name) + " — " + relativePackage(t.packageName), ["type", t.name]);
 document.getElementById("names").innerHTML = [...searchTargets.keys()].sort().map(k => `<option value="${esc(k)}">`).join("");
 search.addEventListener("change", () => {
@@ -459,7 +574,8 @@ function render() {
   renderCrumbs(r);
   let elements;
   if (r.view === "modules") elements = moduleElements();
-  else if (r.view === "module") elements = moduleViewElements(r.id).elements;
+  else if (r.view === "module") elements = packageGraphElements(r.id);
+  else if (r.view === "package") elements = packageViewElements(r.id).elements;
   else {
     const view = typeViewElements(r.id);
     elements = view.elements;
@@ -470,7 +586,8 @@ function render() {
   cy.add(elements);
   layout(r.view === "type" ? "RIGHT" : "DOWN");
   showDefault(true);
-  document.title = (r.view === "modules" ? "Modules" : r.view === "module" ? r.id : simpleName(r.id)) + " · FuzzTLA Architecture Atlas";
+  const name = { modules: () => "Modules", module: () => r.id, package: () => relativePackage(r.id), type: () => simpleName(r.id) };
+  document.title = name[r.view]() + " · FuzzTLA Architecture Atlas";
 }
 renderFilters();
 render();
