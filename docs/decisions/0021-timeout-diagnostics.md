@@ -26,12 +26,14 @@ The worker already has the means to say more. Each worker main runs under
 `ToolWorkerRuntime.main`, whose shutdown hook prints the tool output of the input in
 progress to standard error. The parent appends the child's standard error to the
 crash diagnostic. The hook was added for TLC calling `System.exit(1)`
-([tlc-019][tlc-019]), and it works when the child receives `SIGTERM`.
+([tlc-019][tlc-019]), and it works when the tool ends the JVM itself or when
+`kill -TERM` reaches the child from outside.
 
-A timed-out worker never receives `SIGTERM`. Replaying `5319b006` through
+A timed-out worker loses that output. Replaying `5319b006` through
 `IsolatedWorkerProcess`, and a specification that is merely slow, both store only
 the timeout line. Sending `SIGTERM` to the same child by hand stores the TLC output.
-The cause is in the parent:
+Two causes are in the parent: items 1 to 3 end the child with `SIGKILL`, and item 4
+discards what a child prints after `SIGTERM`.
 
 1. `WorkerChannel.await` reads the result on a virtual thread and cancels it when
    the deadline passes. Interrupting a virtual thread blocked in a
@@ -39,7 +41,12 @@ The cause is in the parent:
 2. `IsolatedWorkerProcess.close` then calls `requestStop`, which fails with
    `SocketException: Socket is closed`.
 3. Its `catch (IOException)` calls `process.destroyForcibly()`, which sends
-   `SIGKILL`. No shutdown hook runs, and everything the tool printed is lost.
+   `SIGKILL`. No shutdown hook runs.
+4. Where the parent does send `SIGTERM`, it uses `Process.destroy()`. On Linux and
+   macOS, `ProcessImpl.destroy` closes the parent's end of the child's standard
+   output and error right after the signal, so what the hook prints is discarded
+   as well. A child whose output goes to a file, or that is sent the signal through
+   `ProcessHandle.destroy()`, keeps it.
 
 Even with the output, a timeout diagnostic would rarely name its cause: TLC's
 output of `5319b006` ends at `Progress(1)`, as for any slow input. What names the
@@ -50,17 +57,19 @@ build a domain-error message.
 
 ## Decision
 
-### 1. A timed-out worker receives `SIGTERM`
+### 1. A timed-out worker receives `SIGTERM`, and its output is kept
 
 After a timeout, the parent does not ask the child to stop over the control
 channel, since the child is busy in the tool and the channel is closed. It sends
-`SIGTERM` (`Process.destroy`), waits for a grace period, and sends `SIGKILL` only
-if the child is still alive. The grace period of a timed-out worker is 2 seconds;
-the other terminations keep 500 milliseconds. Every other path that retires a
-worker is unchanged.
+`SIGTERM`, waits for a grace period, and sends `SIGKILL` only if the child is
+still alive. The grace period of a timed-out worker is 2 seconds; the other
+terminations keep 500 milliseconds.
 
-`close()` keeps the fallback for an unusable channel, but the fallback becomes the
-same `SIGTERM`-then-`SIGKILL` sequence instead of `SIGKILL` alone.
+Every `SIGTERM` to a worker goes through `ProcessHandle.destroy()`, which sends
+the signal and leaves the pipes open, so the parent drains what the child prints
+while it shuts down. `close()` keeps the fallback for an unusable channel, but the
+fallback becomes the same `SIGTERM`-then-`SIGKILL` sequence instead of `SIGKILL`
+alone.
 
 This step alone restores the behavior that the shutdown hook was written for:
 the diagnostic of a timeout carries the tool output of the input.

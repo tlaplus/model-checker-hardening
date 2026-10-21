@@ -82,7 +82,10 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
             }
             return result;
         } catch (TimeoutException exception) {
-            return crashAndClose(description + " timed out after " + timeout);
+            release(true);
+            return new ToolResult(
+                    StageOutcome.CRASH,
+                    output.describe(description + " timed out after " + timeout));
         } catch (ExecutionException exception) {
             var cause = exception.getCause();
             if (cause instanceof EOFException || !process.isAlive()) {
@@ -98,17 +101,30 @@ public final class IsolatedWorkerProcess implements AutoCloseable {
 
     /** Stops the child, releases the channel, and removes its scratch tree. */
     @Override
-    public synchronized void close() {
+    public void close() {
+        release(false);
+    }
+
+    /**
+     * Stops the child and releases everything it holds. A timed-out child is busy in its tool, and
+     * cancelling the read of its result has closed the channel, so it cannot be asked to stop: it
+     * gets {@code SIGTERM} and a grace period for the shutdown hook that reports where the tool was
+     * (ADR 0021). A child that cannot be asked otherwise gets {@code SIGTERM} too, never only
+     * {@code SIGKILL}, which would lose that report.
+     */
+    private synchronized void release(boolean timedOut) {
         if (closed) {
             return;
         }
         closed = true;
-        if (process.isAlive()) {
+        if (timedOut) {
+            WorkerLaunch.terminate(process, WorkerLaunch.TIMED_OUT_GRACE);
+        } else if (process.isAlive()) {
             try {
                 channel.requestStop();
                 WorkerLaunch.awaitStop(process);
             } catch (IOException exception) {
-                process.destroyForcibly();
+                WorkerLaunch.terminate(process);
             }
         }
         channel.close();

@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -56,6 +58,17 @@ class WorkerLaunchLifecycleTest {
     }
 
     @Test
+    void givesATimedOutChildItsGracePeriodBeforeKillingIt() {
+        var exits = new RecordingProcess(true, List.of(Wait.EXITED));
+        WorkerLaunch.terminate(exits, WorkerLaunch.TIMED_OUT_GRACE);
+        assertEquals(List.of("alive", "destroy", "wait 2000"), exits.events);
+
+        var hangs = new RecordingProcess(true, List.of(Wait.RUNNING, Wait.EXITED));
+        WorkerLaunch.terminate(hangs, WorkerLaunch.TIMED_OUT_GRACE);
+        assertEquals(List.of("alive", "destroy", "wait 2000", "force", "wait"), hangs.events);
+    }
+
+    @Test
     void keepsTheAcceptTimeoutCauseAndDeletesAllScratch(@TempDir Path scratch) throws Exception {
         var failure = assertThrows(WorkflowException.class, () -> IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, Duration.ZERO, NeverConnects.class, "timeout worker")));
@@ -84,6 +97,21 @@ class WorkerLaunchLifecycleTest {
         }
     }
 
+    /** Records the SIGTERM a termination sends through the handle. */
+    private record RecordingHandle(List<String> events) implements ProcessHandle {
+        @Override public boolean destroy() { events.add("destroy"); return true; }
+        @Override public long pid() { throw new AssertionError("pid"); }
+        @Override public Optional<ProcessHandle> parent() { throw new AssertionError("parent"); }
+        @Override public Stream<ProcessHandle> children() { throw new AssertionError("children"); }
+        @Override public Stream<ProcessHandle> descendants() { throw new AssertionError("descendants"); }
+        @Override public Info info() { throw new AssertionError("info"); }
+        @Override public CompletableFuture<ProcessHandle> onExit() { throw new AssertionError("onExit"); }
+        @Override public boolean supportsNormalTermination() { return true; }
+        @Override public boolean destroyForcibly() { throw new AssertionError("forced through the handle"); }
+        @Override public boolean isAlive() { throw new AssertionError("alive through the handle"); }
+        @Override public int compareTo(ProcessHandle other) { throw new AssertionError("compareTo"); }
+    }
+
     private static final class RecordingProcess extends Process {
         final boolean alive;
         final ArrayDeque<Wait> waits;
@@ -95,11 +123,12 @@ class WorkerLaunchLifecycleTest {
         }
 
         @Override public boolean isAlive() { events.add("alive"); return alive; }
-        @Override public void destroy() { events.add("destroy"); }
+        @Override public void destroy() { throw new AssertionError("destroy closes the pipes"); }
+        @Override public ProcessHandle toHandle() { return new RecordingHandle(events); }
         @Override public Process destroyForcibly() { events.add("force"); return this; }
         @Override public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
-            assertEquals(500, unit.toMillis(timeout));
-            events.add("wait");
+            var millis = unit.toMillis(timeout);
+            events.add(millis == 500 ? "wait" : "wait " + millis);
             return switch (waits.removeFirst()) {
                 case EXITED -> true;
                 case RUNNING -> false;
