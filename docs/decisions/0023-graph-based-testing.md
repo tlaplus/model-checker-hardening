@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Implemented, except stage 2 (tautological guards, section 6)
+**Status:** Implemented
 
 **Date:** 2026-10-22
 
@@ -24,6 +24,28 @@ details, recorded where they apply:
 - `Oracle.judge` takes the results per checker stage, and whether a checker reports a
   shortest counterexample is a fact on its `CorpusStage`. The probe showed that
   Apalache, like TLC with one worker, does (section 5).
+
+Stage 2, phase 4, is implemented on the branch `igor/gbt-stage2` (FuzzTLA `e3fa311`,
+TLC `d2e1472`, Apalache 0.62.3 `3eb15b2`); Probe 3 measured it. It changed these
+details:
+
+- The guard section is the last `GraphSection`, `GUARDS`, of weight 4. Without rules
+  its weight is 0, so the other slices, and every stage-1 entry, decode as before
+  (section 3).
+- A rule guards an edge only when it has a positive weight, no action-level operator,
+  no higher-order parameter, which no drawn value fills, and no helper, which the
+  module does not link. `gen.rewrite.Tautologies` implements `gen.engine.EdgeGuards`,
+  so `gen.engine` still does not depend on `gen.rewrite` (section 6).
+- `RewriteRule` keeps its formula `A = B` or `A <=> B`, and
+  `RuleInstantiation.instantiateFormula` instantiates both sides at once, so labels
+  and `LET` definitions that a value repeats across them are renamed apart. A
+  parameter that the formula puts under one of its binders draws no label (section 6).
+- The open type variables of a guard are instantiated through a template of the types
+  that hold them, not bare variables, so the row of a record or variant stays a row
+  (section 6).
+- `[graph] rules` is read into `FuzzTlaConfig.graphGuards`, a `RuleLibraryConfig`;
+  `max_guards` is a component of `GraphLimits`. A `pbt` corpus prepares the guard rules
+  as well, since it may hold graph entries; `mt` ignores them (section 7).
 
 ## Context
 
@@ -169,9 +191,10 @@ The rest of the payload splits into the weighted sections of `GraphSection`, thr
    forward skip of at most two nodes. Duplicates collapse, byte-free. A one-node
    graph's spine is the self-loop `0 -> 0`.
 6. **Nodes** (8). N equal slices; slice u decodes `Node<u>` with a fresh node budget.
-7. **Guards** (stage 2, proposed). Present only when `[graph] rules` is set, so stage-1
-   entries decode alike after stage 2 lands, as the property section does (§9.1).
-   Split into N slices aligned with the nodes; section 6 specifies a slice.
+7. **Guards** (weight 4). Present only when `[graph] rules` is set, so stage-1 entries
+   decode alike, as the property section does (§9.1): without rules the section's
+   weight is 0. Split into N slices aligned with the nodes; section 6 specifies a
+   slice.
 
 The successor lists have their own section, rather than following the action in a
 node's slice as first designed: the action's expressions consumed the slice, and
@@ -239,7 +262,7 @@ the oracle needs no second checker, `[workflow] checkers = ["tlc"]` or
 
 ### 6. Tautological guards (stage 2)
 
-**Proposed; not implemented.** Stage 2 conjoins up to `max_guards` tautologies to each edge, after `pc = u`:
+Stage 2 conjoins up to `max_guards` tautologies to each edge, after `pc = u`:
 
 ```tla
 \/ step < 5 /\ pc = 1 /\ var1 = var1 \union var1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
@@ -251,7 +274,8 @@ parameters are drawn by `engine.OperandGenerator` at their types, in the edge's 
 scope, so a guard reads the data variables. `gen.rewrite.RuleInstantiation` builds
 the instance. The example instantiates `UnionSelf(S) == S = S \union S` of the shipped
 `Rewrites.tla` with `S := var1`. Rules of action or temporal level, such as
-`UnchangedPrime`, are not offered.
+`UnchangedPrime`, are not offered, nor are rules with a higher-order parameter or a
+helper. `RuleInstantiation.instantiateFormula` instantiates A and B together.
 
 A guard slice of section 3 decodes, for each edge leaving u in successor order, a
 terminated list of guards; each guard is a rule index, two bytes as in the rewriter,
@@ -275,12 +299,12 @@ configuration decodes graphs alike:
 | `max_graph_nodes` | `32` | Maximum N. |
 | `max_extra_successors` | `2` | Maximum successors of a node besides its spine successor. |
 | `max_steps` | `max_graph_nodes` | Cap on the step bound B each input draws. |
-| `max_guards` | `2` | Maximum tautological guards per edge (stage 2, proposed). |
-| `rules` | absent | Rule module of the guards; absent disables stage 2 (proposed). |
-| `weights` | `{}` | Rule weights, as in `[metamorphic]` (proposed). |
+| `max_guards` | `2` | Maximum tautological guards per edge. |
+| `rules` | absent | Rule module of the guards; absent disables stage 2. |
+| `weights` | `{}` | Rule weights, as in `[metamorphic]`. |
 
-`[metamorphic]` already defines `rules` and `weights` (`config.MetamorphicConfig`).
-Stage 2 will make both tables use one shared record, `config.RuleLibraryConfig`, and one preparation,
+Both tables read `rules` and `weights` into one record, `config.RuleLibraryConfig`,
+through one schema, `config.RuleLibrarySchema`, and one preparation,
 `workflow.library.RuleLibraryPreparation`; the corpus file `.rewrite-library` pins the
 prepared rules. The data variables and the expression limits come from `[generator]`;
 `[generator] max_steps` does not apply to graph inputs.
@@ -306,7 +330,7 @@ Everything else is reused:
 3. Rule 3 of section 5, after a probe measures `traceLength` on reachable targets for
    each checker. *Implemented; see [Probes](#probes).*
 4. Tautological guards, the shared `RuleLibraryConfig`, and the guard section.
-   *Proposed.*
+   *Implemented; see [Probes](#probes).*
 
 Each phase updates [ir-generators.md][generators] and
 [fuzzing-workflows.md][workflows] when it lands, and types carrying a new `@Key`
@@ -381,6 +405,40 @@ default 30 s.
 **Failures.** All 28 aggregator failures pair a TLC failure on a partial term with
 an Apalache pass (10) or counterexample (18).
 
+### Probe 3: guards
+
+**Setup.** One `run --how=gbt` of 600 graph entries in two generations of 300, seed
+31, with FuzzTLA `e3fa311`, `[graph] rules` the shipped `Rewrites.tla` at its annotated
+weights, `max_guards = 2`, TLC and Apalache, `[workflow.apalache] timeout_sec = 120`
+and `signatures/all-defects.toml`. The signatures quarantined 1431 candidates, 881 of
+them distinct. 599 entries were aggregated; Apalache timed out on the other.
+
+**Verdicts and lengths.** 283 entries predicted a counterexample and 316 a pass. No
+checker contradicted a prediction, and every counterexample had exactly dist(k)
+transitions:
+
+| Checker | Pass, expected pass | Counterexample, expected | Fail | Counterexample lengths |
+| --- | ---: | ---: | ---: | --- |
+| TLC | 288 | 268 | 43 | 10–30; 119 of 20 or more |
+| Apalache | 316 | 283 | 0 | 10–30; 119 of 20 or more |
+
+So no checker evaluated a guard on a shortest path to the target to `FALSE`.
+
+**Guards.** The 599 entries have 15955 edges and 1676 guards, 0.11 per edge; 219
+entries have a guard, and one has 22. Guards are sparse because the admitted inputs
+are short: 58 bytes at the median and 645 at most, so the guard section, 4/19 of the
+input, leaves most of its 20 to 32 slices empty. The 4 entries of more than 256 bytes
+have 0.36 to 0.44 guards per edge.
+
+**Cost.** TLC took at most 4 s per entry and found at most 187 distinct states (median
+18). Apalache took 3 s at the median, 16 s at the 95th percentile and 49 s at most,
+against 2 s, 10 s and 45 s in Probe 2.
+
+**Failures.** All 43 aggregator failures pair a TLC failure on a partial term, a
+function applied outside its domain (21), a `CASE` without a true arm (17), a value it
+cannot compute (4) and a tuple index (1), with an Apalache pass (28) or
+counterexample (15).
+
 ## Alternatives considered
 
 - **An input kind under `pbt` only.** It would need no new technique, but conformance
@@ -431,6 +489,12 @@ an Apalache pass (10) or counterexample (18).
   whose data never changes still has projected depth. Whether to project out `pc`
   too is left open until a GBT corpus shows how the gate ranks such entries.
 - **Graph entries cannot be rewritten yet.** `mt` rejects the `graph` kind.
+- **Guard rules are part of the encoding.** Setting `[graph] rules` re-slices every
+  graph input, so a corpus keeps the rule module it started with.
+- **Guards are sparse on short inputs.** In Probe 3, the admitted inputs had 58 bytes
+  at the median and 0.11 guards per edge, since every node and edge shares those
+  bytes. Denser guards need longer admitted inputs or a larger share for the guard
+  section.
 
 [adr-0008]: 0008-exploration-metrics.md
 [apalache-bmc-004]: ../../findings/apalache-bmc/apalache-bmc-004.md

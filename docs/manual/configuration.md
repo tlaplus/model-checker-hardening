@@ -122,7 +122,12 @@ generation is selected and mutated. They are described in
 | `max_graph_nodes` | `32` | Maximum nodes. Node 0 is initial. |
 | `max_extra_successors` | `2` | Maximum successors of one node besides its spine successor: back edges, self-loops and forward skips of at most two nodes. |
 | `max_steps` | `max_graph_nodes` | Cap on the step bound. Each input draws its own bound between half its node count and its node count minus one. |
+| `max_guards` | `2` | Maximum tautological guards of one edge, when `rules` is set. |
+| `rules` | absent | Rule module of the edge guards, as `{ module = "Rewrites", classpath = ["../libraries/rewrites"] }`. Absent, edges have no guards. |
+| `weights` | `{}` | Selection slots per guard rule, overriding its `@weight` annotation; 0 disables a rule. |
 
 The keys apply to `graph` inputs only ([Graph-based testing](graph-based-testing.md)).
 Their data variables and expressions use the `[generator]` keys; `[generator]
-max_steps` does not apply to them.
+max_steps` does not apply to them. Setting or changing `rules` changes how every
+`graph` input decodes, so a corpus records the rule module in `.rewrite-library` and
+refuses a different one.

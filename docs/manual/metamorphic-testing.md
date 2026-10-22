@@ -195,6 +195,11 @@ AlwaysTwice(F) == []F <=> [][]F
   module `EXTENDS`. B may apply them, A may not. The relation module does not link
   helpers yet, so the shipped rules define what they need in a `LET` inside B.
 - **Rewriting goes from A to B only.** Add a second rule for the other direction.
+- **A rule module can also guard graph edges.** `[graph] rules` conjoins whole
+  instances `A = B` of its rules to the edges of graph inputs, all parameters drawn
+  ([Graph-based testing](graph-based-testing.md#4-tautological-guards)). Only rules
+  without an action-level operator, a higher-order parameter or a helper serve as
+  guards.
 - **Use `<=>` for temporal formulas.** SANY rejects `=` between them.
 - **Annotate when Snowcat asks.** Snowcat cannot tell a tuple from a sequence, or a
   record from a function, by their use alone. Add `\* @type: (<<a, b>>) => Bool;` above
