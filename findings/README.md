@@ -64,6 +64,11 @@ label and the tool labels declared in the finding, and closes issues whose
 finding IDs have been removed. Changes to a managed issue's title, summary,
 state, or tool labels must be made in its Markdown source.
 
+A run that would create more than 5 issues fails without changing anything. Such a
+plan most likely comes from an incomplete issue listing, which would duplicate every
+existing finding the listing missed. To populate a new repository, run the workflow
+manually with a larger `max_creates`.
+
 Validate the complete catalog and run the synchronization tests locally with:
 
 ```sh

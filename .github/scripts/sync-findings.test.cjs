@@ -175,6 +175,71 @@ test("ignores unprivileged markers and rejects duplicate managed markers", () =>
   assert.throws(() => syncFindings.indexManagedIssues([first, second]), /both claim finding id/);
 });
 
+test("refuses a plan that creates more issues than the limit", () => {
+  const findings = Array.from({ length: syncFindings.DEFAULT_MAX_CREATES + 1 }, (_, index) =>
+    syncFindings.parseFinding(
+      `findings/tool/tool-${String(index + 1).padStart(3, "0")}.md`,
+      findingText(),
+    ),
+  );
+  const [known] = findings;
+
+  // One issue exists, so the plan creates exactly the limit.
+  const plan = syncFindings.planReconciliation(findings, [remoteIssue(known)], RENDER_OPTIONS);
+  assert.doesNotThrow(() =>
+    syncFindings.enforceCreateLimit(plan, syncFindings.DEFAULT_MAX_CREATES),
+  );
+
+  const emptyListing = syncFindings.planReconciliation(findings, [], RENDER_OPTIONS);
+  assert.throws(
+    () => syncFindings.enforceCreateLimit(emptyListing, syncFindings.DEFAULT_MAX_CREATES),
+    /refusing to create 6 issues, more than the limit of 5: tool-001, .*tool-006/,
+  );
+  assert.doesNotThrow(() => syncFindings.enforceCreateLimit(emptyListing, findings.length));
+});
+
+test("synchronization changes nothing when the issue listing comes back empty", async () => {
+  const calls = [];
+  const record = (method) => async (request) => {
+    calls.push([method, request]);
+    return { data: { number: 1 } };
+  };
+  const github = {
+    paginate: async () => [],
+    rest: {
+      issues: {
+        listForRepo: record("listForRepo"),
+        getLabel: record("getLabel"),
+        createLabel: record("createLabel"),
+        create: record("create"),
+        update: record("update"),
+        setLabels: record("setLabels"),
+      },
+    },
+  };
+  const context = { repo: { owner: "owner", repo: "repo" }, payload: {} };
+  const core = { info: () => {} };
+
+  const directory = process.cwd();
+  process.chdir(path.resolve(__dirname, "../.."));
+  try {
+    await assert.rejects(syncFindings({ github, context, core }), /refusing to create/);
+  } finally {
+    process.chdir(directory);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test("parses the create limit and defaults when it is unset", () => {
+  assert.equal(syncFindings.parseMaxCreates(undefined), syncFindings.DEFAULT_MAX_CREATES);
+  assert.equal(syncFindings.parseMaxCreates(""), syncFindings.DEFAULT_MAX_CREATES);
+  assert.equal(syncFindings.parseMaxCreates("0"), 0);
+  assert.equal(syncFindings.parseMaxCreates("80"), 80);
+  for (const invalid of ["-1", "2.5", "five", " 5"]) {
+    assert.throws(() => syncFindings.parseMaxCreates(invalid), /non-negative integer/);
+  }
+});
+
 test("executes planned mutations through Octokit", async () => {
   const calls = [];
   const github = {

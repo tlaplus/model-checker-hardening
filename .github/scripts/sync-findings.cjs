@@ -14,6 +14,10 @@ const GITHUB_API_VERSION = "2026-03-10";
 const MANAGED_MARKER_PREFIX = "<!-- finding-sync-id: ";
 const MANAGED_MARKER_PATTERN = /^<!-- finding-sync-id: ([a-z0-9]+(?:-[a-z0-9]+)*) -->$/;
 const GITHUB_ACTIONS_BOT = "github-actions[bot]";
+// A merge adds a few findings. A plan that creates more issues than this most likely
+// comes from an incomplete issue listing, which would duplicate every finding it missed.
+const DEFAULT_MAX_CREATES = 5;
+const MAX_CREATES_VARIABLE = "FINDING_SYNC_MAX_CREATES";
 
 function versionedRequest(parameters) {
   return {
@@ -441,6 +445,29 @@ function planReconciliation(findings, issues, renderOptions) {
   return operations;
 }
 
+function parseMaxCreates(value) {
+  if (value === undefined || value === "") {
+    return DEFAULT_MAX_CREATES;
+  }
+  if (!/^[0-9]+$/.test(value)) {
+    throw new Error(`${MAX_CREATES_VARIABLE} must be a non-negative integer, got "${value}"`);
+  }
+  return Number(value);
+}
+
+function enforceCreateLimit(operations, maxCreates) {
+  const created = operations
+    .filter((operation) => operation.kind === "create")
+    .map((operation) => operation.id);
+  if (created.length > maxCreates) {
+    throw new Error(
+      `refusing to create ${created.length} issues, more than the limit of ${maxCreates}: ` +
+        `${created.join(", ")}. If the issue listing was incomplete, rerun later. ` +
+        "To create them, run the workflow manually with a larger max_creates.",
+    );
+  }
+}
+
 async function ensureLabels(github, owner, repo) {
   for (const [name, properties] of LABEL_CATALOG) {
     try {
@@ -546,6 +573,7 @@ async function synchronize({ github, context, core }) {
     branch: context.payload.repository?.default_branch || "main",
   };
   const operations = planReconciliation(findings, issues, renderOptions);
+  enforceCreateLimit(operations, parseMaxCreates(process.env[MAX_CREATES_VARIABLE]));
 
   await ensureLabels(github, owner, repo);
   const counts = await executePlan(github, owner, repo, operations, core);
@@ -583,12 +611,15 @@ if (require.main === module) {
 
 module.exports = synchronize;
 module.exports.FindingFormatError = FindingFormatError;
+module.exports.DEFAULT_MAX_CREATES = DEFAULT_MAX_CREATES;
+module.exports.enforceCreateLimit = enforceCreateLimit;
 module.exports.executePlan = executePlan;
 module.exports.indexManagedIssues = indexManagedIssues;
 module.exports.loadFindings = loadFindings;
 module.exports.managedIssueId = managedIssueId;
 module.exports.managedMarker = managedMarker;
 module.exports.parseFinding = parseFinding;
+module.exports.parseMaxCreates = parseMaxCreates;
 module.exports.planReconciliation = planReconciliation;
 module.exports.renderIssue = renderIssue;
 module.exports.rewriteRelativeLinks = rewriteRelativeLinks;
