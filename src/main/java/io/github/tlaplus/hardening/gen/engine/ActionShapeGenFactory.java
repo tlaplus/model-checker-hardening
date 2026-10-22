@@ -12,6 +12,12 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
     /** At least one non-step variable must be assigned on every complete execution path. */
     enum AssignmentRequirement { REQUIRED, OPTIONAL }
 
+    /**
+     * Which assignments a leaf may draw. {@code EXACT} draws only {@code v' = e} and spends no
+     * marker on the choice, so a successor always exists when {@code e} evaluates (ADR 0023 §4).
+     */
+    enum AssignmentForm { ANY, EXACT }
+
     /** Declaration-order variables and the independent shape/expression recursion budgets. */
     record Request(List<ScopedName> variables, int depth, int expressionDepth,
                    AssignmentRequirement requirement) {
@@ -67,17 +73,17 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
     Generator<List<TlaEx>> shape(Request request, VisibleActionOperators visible) {
         return draw -> {
             if (request.depth() <= 0 || !context.consumeNode() || draw.isEmpty()) {
-                return leaf(draw, request);
+                return leaf(draw, request, AssignmentForm.ANY);
             }
             return switch (drawShapeKind(draw)) {
-                case LEAF -> leaf(draw, request);
+                case LEAF -> leaf(draw, request, AssignmentForm.ANY);
                 case CALL -> {
                     var candidates = visible.within(request.variables());
-                    yield candidates.isEmpty() ? leaf(draw, request)
+                    yield candidates.isEmpty() ? leaf(draw, request, AssignmentForm.ANY)
                             : call(draw, draw.choose(candidates), request, visible);
                 }
                 case CONJUNCTION -> request.variables().size() < 2
-                        ? leaf(draw, request) : conjunction(draw, request, visible);
+                        ? leaf(draw, request, AssignmentForm.ANY) : conjunction(draw, request, visible);
                 case DISJUNCTION -> {
                     var armA = conjoin(draw.draw(shape(request.descend(), visible)));
                     var armB = conjoin(draw.draw(shape(request.descend(), visible)));
@@ -116,7 +122,16 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
         return conjuncts;
     }
 
-    private List<TlaEx> leaf(Draw draw, Request request) {
+    /**
+     * Returns a leaf over the requested variables that assigns only exact values: the shape of a
+     * graph node's action (ADR 0023 §2). It reads no kind marker and keeps both repairs of a
+     * required leaf.
+     */
+    Generator<List<TlaEx>> exactLeaf(Request request) {
+        return draw -> leaf(draw, request, AssignmentForm.EXACT);
+    }
+
+    private List<TlaEx> leaf(Draw draw, Request request, AssignmentForm form) {
         var assigned = new ArrayList<ScopedName>();
         var unchanged = new ArrayList<ScopedName>();
         for (var variable : request.variables()) {
@@ -128,7 +143,7 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
         }
         var assignments = new ArrayList<Assignment>();
         for (var variable : assigned) {
-            assignments.add(draw.draw(assignment(variable, request.expressionDepth())));
+            assignments.add(draw.draw(assignment(variable, request.expressionDepth(), form)));
         }
         if (required && assignments.stream().allMatch(Assignment::stutters)) {
             // A terminal rotating over the visible bindings names the assigned variable itself as
@@ -180,10 +195,10 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
         }
     }
 
-    private Generator<Assignment> assignment(ScopedName variable, int expressionDepth) {
+    private Generator<Assignment> assignment(ScopedName variable, int expressionDepth, AssignmentForm form) {
         return draw -> {
             var type = variable.type();
-            if (nondeterministic(draw, type)) {
+            if (form == AssignmentForm.ANY && nondeterministic(draw, type)) {
                 return new Assignment(variable, true,
                         draw.draw(expression(new SetType(type), expressionDepth - 1)));
             }

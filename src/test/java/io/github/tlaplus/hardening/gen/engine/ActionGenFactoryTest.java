@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.gen.engine;
 
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
@@ -160,6 +161,49 @@ class ActionGenFactoryTest {
         assertShape("x' = FALSE /\\ UNCHANGED y", 3, 0);
     }
 
+    /** An exact leaf reads no kind marker and no membership marker (ADR 0023 §2). */
+    @Test
+    void anExactLeafSpendsOneMarkerPerVariableAndNoMembershipMarker() {
+        assertExactLeaf("x' = FALSE /\\ UNCHANGED y", 1, 0, 0, 42);
+        assertExactLeaf("x' = FALSE /\\ y' = FALSE", 1, 1, 1, 42);
+        assertExactLeaf("x' = FALSE /\\ UNCHANGED y", 0);
+    }
+
+    @Test
+    void anExactLeafNeverDrawsAMembership() {
+        var random = new java.util.Random(23);
+        for (var attempt = 0; attempt < 200; attempt++) {
+            var input = new byte[random.nextInt(1, 64)];
+            random.nextBytes(input);
+            var draw = new Draw(input);
+            var conjuncts = draw.draw(context.withBindings(variables, shapes.exactLeaf(
+                    new ActionShapeGenFactory.Request(variables, 3, 2,
+                            ActionShapeGenFactory.AssignmentRequirement.REQUIRED))));
+            for (var conjunct : conjuncts) {
+                var printed = print(conjunct).replaceAll("\\s+", " ");
+                assertTrue(printed.startsWith("x' = ") || printed.startsWith("y' = ")
+                        || printed.startsWith("UNCHANGED"), printed);
+            }
+        }
+    }
+
+    @Test
+    void anExactInitAssignsEveryVariableAndZeroesTheControls() {
+        var draw = bytes(42);
+        var init = draw.draw(factory.initPredicate(0, ActionShapeGenFactory.AssignmentForm.EXACT,
+                List.of(ScopedName.stateVariable("pc", PrimitiveType.INT))));
+        assertEquals("x = FALSE /\\ y = FALSE /\\ pc = 0 /\\ step = 0", print(init).replaceAll("\\s+", " "));
+        assertEquals(1, draw.remaining());
+    }
+
+    @Test
+    void anInitWithAnyFormSpendsAMembershipMarkerPerVariable() {
+        var draw = bytes(0, 0, 42);
+        var init = draw.draw(factory.initPredicate(0, ActionShapeGenFactory.AssignmentForm.ANY, List.of()));
+        assertEquals("x = FALSE /\\ y = FALSE /\\ step = 0", print(init).replaceAll("\\s+", " "));
+        assertEquals(1, draw.remaining());
+    }
+
     @Test
     void decoderOrderAndGeometricMarkersArePinned() throws Exception {
         var kind = ActionShapeGenFactory.ShapeKind.class;
@@ -184,6 +228,16 @@ class ActionGenFactoryTest {
         var shape = conjuncts.size() == 1 ? conjuncts.getFirst()
                 : context.builder().and(BuilderArrays.expressions(conjuncts));
         assertEquals(expected, print(shape));
+        assertEquals(remaining, draw.remaining());
+    }
+
+    private void assertExactLeaf(String expected, int remaining, int... input) {
+        var draw = bytes(input);
+        var conjuncts = draw.draw(shapes.exactLeaf(new ActionShapeGenFactory.Request(variables, 3, 0,
+                ActionShapeGenFactory.AssignmentRequirement.REQUIRED)));
+        var leaf = conjuncts.size() == 1 ? conjuncts.getFirst()
+                : context.builder().and(BuilderArrays.expressions(conjuncts));
+        assertEquals(expected, print(leaf));
         assertEquals(remaining, draw.remaining());
     }
 

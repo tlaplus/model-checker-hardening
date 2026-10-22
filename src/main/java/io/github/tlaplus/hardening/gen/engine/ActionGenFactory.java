@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentForm;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentRequirement;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.Request;
 import java.math.BigInteger;
@@ -66,16 +67,23 @@ final class ActionGenFactory extends AbstractExprGenFactory {
         };
     }
 
-    /** One constraint per variable, drawn without state-variable bindings, followed by step = 0. */
-    Generator<TlaEx> initPredicate(int expressionDepth) {
+    /**
+     * One constraint per variable, drawn without state-variable bindings, followed by {@code c = 0}
+     * for each of {@code controls} and by step = 0. With {@link AssignmentForm#EXACT} every
+     * constraint is {@code v = e}, and no marker is spent.
+     */
+    Generator<TlaEx> initPredicate(int expressionDepth, AssignmentForm form, List<ScopedName> controls) {
         return draw -> {
             var conjuncts = new ArrayList<TlaEx>();
             for (var variable : variables) {
                 var name = shapes.nameOf(variable);
                 var type = variable.type();
-                conjuncts.add(shapes.nondeterministic(draw, type)
+                conjuncts.add(form == AssignmentForm.ANY && shapes.nondeterministic(draw, type)
                         ? builder().in(name, draw.draw(expression(new SetType(type), expressionDepth)))
                         : builder().eql(name, draw.draw(expression(type, expressionDepth))));
+            }
+            for (var control : controls) {
+                conjuncts.add(builder().eql(shapes.nameOf(control), builder().integer(BigInteger.ZERO)));
             }
             conjuncts.add(builder().eql(shapes.nameOf(step), builder().integer(BigInteger.ZERO)));
             return builder().and(BuilderArrays.expressions(conjuncts));
@@ -151,21 +159,25 @@ final class ActionGenFactory extends AbstractExprGenFactory {
             var postGuards = draw.draw(BasicGenerators.listOf(
                     atLevel(LevelContext.ACTION, PrimitiveType.BOOL, expressionDepth - 1),
                     0, maximumPostGuards));
-            var conjuncts = new ArrayList<TlaEx>();
-            conjuncts.add(builder().lt(shapes.nameOf(step), builder().integer(
-                    BigInteger.valueOf(context.config().modules().maximumSteps()))));
-            conjuncts.addAll(guards);
-            conjuncts.addAll(shape);
-            conjuncts.add(stepUpdate());
-            conjuncts.addAll(postGuards);
-            return builder().and(BuilderArrays.expressions(conjuncts));
+            var spine = new ArrayList<TlaEx>(guards);
+            spine.addAll(shape);
+            return boundedStep(spine, postGuards);
         };
     }
 
-    /** Returns {@code step' = step + 1}, the conjunct that ends a disjunct's accounted spine. */
-    private TlaEx stepUpdate() {
-        return builder().primeEq(shapes.nameOf(step),
-                builder().plus(shapes.nameOf(step), builder().integer(BigInteger.ONE)));
+    /**
+     * Returns {@code step < maximumSteps /\ spine /\ step' = step + 1 /\ postGuards}: one
+     * disjunct of Next. The step update ends the accounted spine (ADR 0007).
+     */
+    TlaEx boundedStep(List<TlaEx> spine, List<TlaEx> postGuards) {
+        var conjuncts = new ArrayList<TlaEx>();
+        conjuncts.add(builder().lt(shapes.nameOf(step), builder().integer(
+                BigInteger.valueOf(context.config().modules().maximumSteps()))));
+        conjuncts.addAll(spine);
+        conjuncts.add(builder().primeEq(shapes.nameOf(step),
+                builder().plus(shapes.nameOf(step), builder().integer(BigInteger.ONE))));
+        conjuncts.addAll(postGuards);
+        return builder().and(BuilderArrays.expressions(conjuncts));
     }
 
     private Request request(List<ScopedName> effect, int expressionDepth) {

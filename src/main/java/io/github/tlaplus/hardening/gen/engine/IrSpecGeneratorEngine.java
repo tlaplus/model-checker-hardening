@@ -1,14 +1,11 @@
 package io.github.tlaplus.hardening.gen.engine;
 
-import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
-import io.github.tlaplus.hardening.gen.BasicGenerators;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
-import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
@@ -16,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.apalache_mc.tla.jir.TlaDeclarations;
 
 /**
  * Reusable coordinator for generating the declarations of one TLA+ module.
@@ -74,26 +70,17 @@ public final class IrSpecGeneratorEngine {
         var expressionFactory = new IrExprGenFactory(context, typeFactory);
         var depth = config.expressions().maximumExpressionDepth();
 
-        var variableTypes = sections.get(ModuleSection.VARIABLES).draw(BasicGenerators.listOf(
-                typeFactory.valueType(), 1, config.modules().maximumVariables()));
-        var variables = new ArrayList<ScopedName>();
-        var declarations = new ArrayList<TlaVarDecl>();
-        for (var type : variableTypes) {
-            var variable = ScopedName.stateVariable(context.fresh("var"), type);
-            variables.add(variable);
-            declarations.add(
-                    TlaDeclarations.variable(variable.name(), type.toTlaType()));
-        }
-        var step = ScopedName.stateVariable(GeneratedSpec.STEP_VARIABLE, PrimitiveType.INT);
-        declarations.add(
-                TlaDeclarations.variable(step.name(), PrimitiveType.INT.toTlaType()));
+        var declared = sections.get(ModuleSection.VARIABLES).draw(
+                ModulePrelude.variables(context, typeFactory, List.of()));
+        var variables = declared.data();
+        var step = declared.step();
 
         var actions = new ActionGenFactory(
                 context, typeFactory, expressionFactory, variables, step);
 
         var operators = sections.get(ModuleSection.AUXILIARY_OPERATORS)
-                .draw(auxiliaryOperators(context, typeFactory, expressionFactory));
-        var operatorNames = operators.stream().map(DefinedOperator::binding).toList();
+                .draw(ModulePrelude.auxiliaryOperators(context, typeFactory, expressionFactory));
+        var operatorNames = ModulePrelude.bindings(operators);
         // Actions do not read step: a variable assigned from the counter changes on every
         // transition and passes for real state change in the projected exploration metrics.
         var actionScope = new ArrayList<ScopedName>(operatorNames);
@@ -120,7 +107,8 @@ public final class IrSpecGeneratorEngine {
         // Init sees the operators but not the variables: a conjunct that read another variable
         // would depend on an evaluation order the predicate does not fix.
         var initPredicate = sections.get(ModuleSection.INIT).draw(context.withBindings(
-                operatorNames, context.withFreshNodeBudget(actions.initPredicate(depth))));
+                operatorNames, context.withFreshNodeBudget(
+                        actions.initPredicate(depth, ActionShapeGenFactory.AssignmentForm.ANY, List.of()))));
         var nextAction = sections.get(ModuleSection.NEXT).draw(
                 context.withBindings(actionScope, actions.nextAction(depth,
                         new VisibleActionOperators(actionOperators))));
@@ -132,57 +120,12 @@ public final class IrSpecGeneratorEngine {
                         stateScope, properties.property(depth)))
                 : Optional.<TemporalProperty>empty();
         return new GeneratedSpec(
-                declarations,
+                declared.declarations(),
                 generatedOperators,
                 initPredicate,
                 nextAction,
                 invariant,
                 property,
                 config.modules().maximumSteps());
-    }
-
-    /** One generated definition and the binding through which later expressions apply it. */
-    private record DefinedOperator(
-            ScopedName binding, GeneratedOperator.Auxiliary generated) {}
-
-    /**
-     * Returns a generator of the auxiliary definitions, in dependency order.
-     *
-     * <p>A definition's body sees the definitions before it but no state variable, which is what
-     * makes every definition applicable in {@code Init}, {@code Next} and {@code Inv} alike: a
-     * definition that read a variable could not be applied in {@code Init}, where no variable has
-     * a value yet.
-     */
-    private Generator<List<DefinedOperator>> auxiliaryOperators(
-            GenerationContext context,
-            IrTypeGenFactory typeFactory,
-            IrExprGenFactory expressionFactory) {
-        return draw -> {
-            var defined = new ArrayList<DefinedOperator>();
-            var visible = new ArrayList<ScopedName>();
-            var maximum = config.modules().maximumAuxiliaryOperators();
-            while (defined.size() < maximum && draw.drawBoolean()) {
-                var arguments = draw.draw(typeFactory.parameterTypes());
-                var result = draw.draw(typeFactory.valueType());
-                var type = new OperatorType(arguments, result);
-
-                var parameters = context.definitionParameters("parameter", arguments);
-                var bindings = new ArrayList<ScopedName>(visible);
-                bindings.addAll(parameters.bindings());
-
-                var name = context.fresh("Op");
-                var body = draw.draw(context.withBindings(
-                        bindings,
-                        context.withDefinitionBoundary(context.withFreshNodeBudget(
-                                expressionFactory.mkGen(
-                                        result, config.expressions().maximumExpressionDepth())))));
-                var declaration = context.builder()
-                        .decl(name, body, parameters.declarations());
-                var binding = ScopedName.definition(name, type);
-                visible.add(binding);
-                defined.add(new DefinedOperator(binding, new GeneratedOperator.Auxiliary(declaration)));
-            }
-            return defined;
-        };
     }
 }
