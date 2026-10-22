@@ -40,6 +40,11 @@ import java.util.function.Function;
 @ArchRole(Role.FACADE)
 @Key
 public final class SpecDecoders {
+    /** The metamorphic decoder of a kind that no rewrite is defined for yet (ADR 0023 §1). */
+    private static final Generator<SpecArtifact> NOT_REWRITTEN = _ -> {
+        throw new InputRejectedException("--how=mt does not rewrite graph inputs");
+    };
+
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
     /** Decoders of a metamorphic payload's base paired with itself; empty for a conformance registry. */
     private final Map<InputKind, Generator<SpecArtifact>> unrewritten;
@@ -85,7 +90,7 @@ public final class SpecDecoders {
         try {
             var prepared = LibraryPreparation.prepare(config);
             return switch (technique) {
-                case PBT -> of(prepared.generator(), new Manifests(prepared.manifest(), ""));
+                case PBT, GBT -> of(prepared.generator(), new Manifests(prepared.manifest(), ""));
                 case MT -> {
                     var rules = RuleLibraryPreparation.prepare(
                             config.metamorphic(), config.workflow().checker(CorpusStage.APALACHE));
@@ -122,6 +127,9 @@ public final class SpecDecoders {
         decoders.put(
                 InputKind.MODULE,
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
+        decoders.put(
+                InputKind.GRAPH,
+                IrGenerators.graphs(config).map(graph -> SpecArtifact.fromGeneratedGraph(graph, config.library())));
         return new SpecDecoders(decoders, Map.of(), config.library(), manifests);
     }
 
@@ -142,9 +150,11 @@ public final class SpecDecoders {
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(InputKind.EXPRESSION, rewriting(expressions, rewriter::rewriteExpression, expressionRelation));
         decoders.put(InputKind.MODULE, rewriting(specs, rewriter::rewriteSpec, specRelation));
+        decoders.put(InputKind.GRAPH, NOT_REWRITTEN);
         var unrewritten = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         unrewritten.put(InputKind.EXPRESSION, unrewritten(expressions, expressionRelation));
         unrewritten.put(InputKind.MODULE, unrewritten(specs, specRelation));
+        unrewritten.put(InputKind.GRAPH, NOT_REWRITTEN);
         return new SpecDecoders(decoders, unrewritten, config.library(), manifests);
     }
 

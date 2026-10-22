@@ -196,6 +196,32 @@ class WorkflowRunnerTest {
         assertFalse(corpus.hasStoredInputs());
     }
 
+    /** A graph corpus (ADR 0023) runs every stage on graph modules; TLC alone checks them here. */
+    @Test
+    void runsAGraphCorpus(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var config = graphConfig(config(8, 3, 8, 512));
+
+        var summary = new WorkflowRunner(config, Technique.GBT).run(corpus, 42, 1);
+
+        var inventory = summary.corpus();
+        assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
+        assertTrue(inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE) > 0,
+                "no graph reached its target");
+        assertEquals(0, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.FAIL));
+        assertEquals(Technique.GBT, CorpusRecords.TECHNIQUE.read(corpus));
+    }
+
+    /** A technique runs only on the kinds it generates: gbt on graphs, mt on no graph. */
+    @Test
+    void refusesAKindTheTechniqueDoesNotGenerate() {
+        var modules = config(8, 3, 8, 64);
+        var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(modules, Technique.GBT));
+        assertTrue(refused.getMessage().contains("--how=gbt does not generate expr inputs"), refused.getMessage());
+        var graphs = graphConfig(modules);
+        assertThrows(WorkflowException.class, () -> new WorkflowRunner(graphs, Technique.MT));
+    }
+
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */
     @Test
     void runsOnlyTheConfiguredCheckers(@TempDir Path directory) throws Exception {
@@ -896,6 +922,13 @@ class WorkflowRunnerTest {
                         mutator.weights(),
                         mutator.gate()),
                 base.libraries());
+    }
+
+    /** {@code base} generating graph inputs, checked by TLC alone. */
+    private static FuzzTlaConfig graphConfig(FuzzTlaConfig base) {
+        return new FuzzTlaConfig(InputKind.GRAPH, base.generator(),
+                base.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)),
+                base.pbt(), base.mutator(), base.libraries(), base.metamorphic());
     }
 
     /** Checker limits of a test that does not enable TLC-n, which takes TLC's limits. */

@@ -59,6 +59,10 @@ public final class WorkflowRunner {
             throws WorkflowException {
         Objects.requireNonNull(config, "config");
         this.technique = Objects.requireNonNull(technique, "technique");
+        if (!technique.generates(config.generatedKind())) {
+            throw new WorkflowException("--how=" + technique.encodedName() + " does not generate "
+                    + config.generatedKind().encodedName() + " inputs: set [generator] kind to one it generates");
+        }
         checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers());
         final KnownDefectDatabase knownDefects;
         try {

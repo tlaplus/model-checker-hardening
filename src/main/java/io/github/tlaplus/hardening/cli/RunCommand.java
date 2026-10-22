@@ -43,7 +43,8 @@ final class RunCommand implements Callable<Integer> {
             required = true,
             converter = TechniqueConverter.class,
             paramLabel = "TECHNIQUE",
-            description = "Fuzzing technique: pbt, or mt for metamorphic testing (ADR 0016).")
+            description = "Fuzzing technique: pbt, mt for metamorphic testing (ADR 0016), or gbt for"
+                    + " graph-based testing (ADR 0023).")
     private Technique technique;
 
     @Option(

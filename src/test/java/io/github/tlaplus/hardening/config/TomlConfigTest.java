@@ -11,6 +11,7 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.CollectionLimits;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.IntegerExpressionKind;
@@ -109,6 +110,20 @@ class TomlConfigTest {
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[metamorphic]"));
         assertEquals(MetamorphicConfig.defaults(), readConfig(directory, withoutTable).metamorphic());
+    }
+
+    /** The [graph] table bounds the generator's graphs, and an omitted table reads the defaults. */
+    @Test
+    void readsTheGraphLimits(@TempDir Path directory) throws Exception {
+        var document = TomlConfig.render(FuzzTlaConfig.defaults())
+                .replace("max_graph_nodes = 6", "max_graph_nodes = 4")
+                .replace("max_successors = 3", "max_successors = 1");
+        assertEquals(new GraphLimits(4, 1), readConfig(directory, document).generator().graphs());
+        var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
+        withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[graph]"));
+        assertEquals(GraphLimits.defaults(), readConfig(directory, withoutTable).generator().graphs());
+        var invalid = TomlConfig.render(FuzzTlaConfig.defaults()).replace("max_graph_nodes = 6", "max_graph_nodes = 0");
+        assertThrows(ConfigException.class, () -> readConfig(directory, invalid));
     }
 
     /** A checker table may be omitted entirely; every one of its settings takes its default. */

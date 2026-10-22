@@ -18,7 +18,9 @@ import java.util.Optional;
 @Key
 public enum InputKind {
     EXPRESSION("expr"),
-    MODULE("module");
+    MODULE("module"),
+    /** A control graph tracked by {@code pc}, whose target the graph oracle predicts (ADR 0023). */
+    GRAPH("graph");
 
     private final String encodedName;
 

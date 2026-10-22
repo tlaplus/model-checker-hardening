@@ -1,5 +1,6 @@
 [generator]
-# What this run generates: "expr" for one expression wrapped in a single-state module, or "module" for a whole module.
+# What this run generates: "expr" for one expression wrapped in a single-state module, "module" for a whole module, or "graph" for a
+# module over a control graph (ADR 0023), which --how=gbt requires.
 # A corpus entry records its own kind, so a run only generates this one.
 kind = "module"
 max_type_depth = 3
@@ -158,3 +159,9 @@ max_rewrite_growth = 2
 # base_corpus = "../corpus-conf"
 # Share of a generation adopted from base_corpus; the mutator and PBT fill the rest.
 adopt_ratio = 0.5
+
+[graph]
+# Maximum nodes of the control graph of a graph input (ADR 0023); node 0 is initial.
+max_graph_nodes = 6
+# Maximum distinct successors of one node of the control graph.
+max_successors = 3
