@@ -5,7 +5,9 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine;
+import io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine;
 import io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine;
+import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import java.util.Objects;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 
@@ -146,5 +148,23 @@ public final class IrGenerators {
     public static Generator<GeneratedSpec> specs(IrGenerationConfig config) {
         Objects.requireNonNull(config, "config");
         return new IrSpecGeneratorEngine(config)::generate;
+    }
+
+    /**
+     * Returns a generator of graph modules (ADR 0023): a control graph of at most
+     * {@code config.graphs().maximumNodes()} nodes tracked by {@code pc}, whose nodes carry
+     * assignment-only actions, with the invariant {@code pc /= k} for a target node k.
+     *
+     * <p>The module satisfies the invariants of {@link #specs(IrGenerationConfig)}, and the graph
+     * determines whether a behaviour reaches the target within the step bound. The byte encoding
+     * shares nothing with the module and expression encodings.
+     *
+     * @param config immutable settings applied to every generation
+     * @return reusable generator of graph modules
+     * @throws NullPointerException if {@code config} is {@code null}
+     */
+    public static Generator<GeneratedGraph> graphs(IrGenerationConfig config) {
+        Objects.requireNonNull(config, "config");
+        return new IrGraphGeneratorEngine(config)::generate;
     }
 }
