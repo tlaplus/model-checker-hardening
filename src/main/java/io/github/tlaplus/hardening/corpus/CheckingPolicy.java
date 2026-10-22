@@ -12,17 +12,29 @@ import java.util.Objects;
  */
 @ArchRole(Role.POLICY)
 @Key
-public record CheckingPolicy(CheckerSet checkers, Oracle oracle) {
+public record CheckingPolicy(CheckerSet checkers, Oracle oracle, ExpectedOutcomes expectations) {
     /** The policy of every corpus before ADR 0016: the default checkers, judged by conformance. */
     public static final CheckingPolicy DEFAULT = new CheckingPolicy(CheckerSet.DEFAULT, Oracle.CONFORMANCE);
 
     public CheckingPolicy {
         Objects.requireNonNull(checkers, "checkers");
         Objects.requireNonNull(oracle, "oracle");
+        Objects.requireNonNull(expectations, "expectations");
+        if (oracle.needsExpectation() && expectations == ExpectedOutcomes.NONE) {
+            throw new IllegalArgumentException("the " + oracle + " oracle needs expected outcomes");
+        }
     }
 
-    /** Returns the policy of a corpus that runs {@code technique} with {@code checkers}. */
-    public static CheckingPolicy of(Technique technique, CheckerSet checkers) {
-        return new CheckingPolicy(checkers, technique.oracle());
+    /** A policy whose oracle needs no expected outcome. */
+    public CheckingPolicy(CheckerSet checkers, Oracle oracle) {
+        this(checkers, oracle, ExpectedOutcomes.NONE);
+    }
+
+    /**
+     * Returns the policy of a corpus that runs {@code technique} with {@code checkers}, whose
+     * entries {@code expectations} predicts when the technique's oracle needs it.
+     */
+    public static CheckingPolicy of(Technique technique, CheckerSet checkers, ExpectedOutcomes expectations) {
+        return new CheckingPolicy(checkers, technique.oracle(), expectations);
     }
 }

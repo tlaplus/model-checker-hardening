@@ -23,6 +23,7 @@ import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
+import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.time.Duration;
@@ -63,7 +64,7 @@ public final class WorkflowRunner {
             throw new WorkflowException("--how=" + technique.encodedName() + " does not generate "
                     + config.generatedKind().encodedName() + " inputs: set [generator] kind to one it generates");
         }
-        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers());
+        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers(), new GraphOutcomes(decoders));
         final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());

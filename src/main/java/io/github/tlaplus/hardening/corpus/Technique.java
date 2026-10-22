@@ -20,7 +20,7 @@ public enum Technique {
     /** Metamorphic testing: a base and its rewrite, judged by the metamorphic relation (ADR 0016). */
     MT("mt", Oracle.METAMORPHIC, EnumSet.of(InputKind.EXPRESSION, InputKind.MODULE)),
     /** Graph-based testing: control graphs whose target the graph predicts (ADR 0023). */
-    GBT("gbt", Oracle.CONFORMANCE, EnumSet.of(InputKind.GRAPH));
+    GBT("gbt", Oracle.GRAPH, EnumSet.of(InputKind.GRAPH));
 
     /** The technique of a corpus that records none, which every corpus did before ADR 0016. */
     public static final Technique UNRECORDED = PBT;

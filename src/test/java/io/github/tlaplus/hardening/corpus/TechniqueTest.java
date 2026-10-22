@@ -17,7 +17,7 @@ class TechniqueTest {
         assertEquals(List.of("pbt", "mt", "gbt"), Technique.encodedNames());
         assertEquals(Oracle.CONFORMANCE, Technique.PBT.oracle());
         assertEquals(Oracle.METAMORPHIC, Technique.MT.oracle());
-        assertEquals(Oracle.CONFORMANCE, Technique.GBT.oracle());
+        assertEquals(Oracle.GRAPH, Technique.GBT.oracle());
         assertEquals(Technique.PBT, Technique.UNRECORDED);
     }
 

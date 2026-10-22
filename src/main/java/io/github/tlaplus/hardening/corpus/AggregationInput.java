@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -12,11 +13,13 @@ import java.util.Set;
  * judges the whole records: verdicts and, for completed searches, state counts (ADR 0019).
  */
 public record AggregationInput(
-        Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy) {
+        Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy,
+        Optional<ExpectedOutcome> expected) {
     public AggregationInput {
         Objects.requireNonNull(candidate, "candidate");
         Objects.requireNonNull(checkerResults, "checkerResults");
         Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(expected, "expected");
         var copy = new EnumMap<CorpusStage, StageRecord>(CorpusStage.class);
         copy.putAll(checkerResults);
         Preconditions.require(copy.keySet().equals(Set.copyOf(policy.checkers().stages())),
@@ -24,6 +27,17 @@ public record AggregationInput(
         Preconditions.require(copy.values().stream().noneMatch(result -> result.verdict() == CorpusVerdict.CRASH),
                 "crashed checker results cannot be aggregated");
         checkerResults = Map.copyOf(copy);
+    }
+
+    /** An aggregation whose entry predicts no outcome. */
+    public AggregationInput(Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy) {
+        this(candidate, checkerResults, policy, Optional.empty());
+    }
+
+    /** An aggregation of the entry that stores {@code input}, with the outcome the policy predicts for it. */
+    static AggregationInput of(
+            Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy, CorpusInput input) {
+        return new AggregationInput(candidate, checkerResults, policy, policy.expectations().expected(input));
     }
 
     /** Returns the verdict of each checker. */
@@ -35,6 +49,6 @@ public record AggregationInput(
 
     /** Returns the aggregator's verdict: the oracle's judgement of the checker results. */
     public CorpusVerdict verdict() {
-        return policy.oracle().judge(checkerResults.values());
+        return policy.oracle().judge(checkerResults, expected);
     }
 }
