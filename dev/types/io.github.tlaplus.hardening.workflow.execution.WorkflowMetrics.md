@@ -1,6 +1,6 @@
 # `WorkflowMetrics`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowMetrics.java#L15) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowMetrics.java#L15) · module [workflow](../modules/workflow.md)
 
 The cumulative statistics of one workflow invocation: how long each stage has been busy, what input generation has produced, and the total elapsed time carried over from earlier runs.
 

@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "0b7c167b636088dd43d36713d157e22f7ebd4f79"
+    "commit" : "4206d99417cbe58b5b339e189936abe305c56cca"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -91,6 +91,10 @@
     "number" : "0022",
     "title" : "Architecture atlas",
     "path" : "docs/decisions/0022-architecture-atlas.md"
+  }, {
+    "number" : "0023",
+    "title" : "Graph-based testing",
+    "path" : "docs/decisions/0023-graph-based-testing.md"
   } ],
   "modules" : [ {
     "name" : "common",

@@ -1,6 +1,6 @@
 # `ToolWorkerRuntime`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolWorkerRuntime.java#L25) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolWorkerRuntime.java#L25) · module [workflow](../modules/workflow.md)
 
 The part of a child worker that is the same for every tool: report an escaped failure by exiting non-zero, announce itself to the parent, serve inputs until the parent stops asking, write each input where the tool reads it, and keep a bounded record of what the tool printed.
 

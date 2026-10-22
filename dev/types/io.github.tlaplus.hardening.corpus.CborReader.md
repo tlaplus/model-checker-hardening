@@ -1,6 +1,6 @@
 # `CborReader`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/corpus/CborReader.java#L30) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/corpus/CborReader.java#L30) · module [corpus](../modules/corpus.md)
 
 Reads one CBOR document of a corpus, checking its shape as it goes.
 

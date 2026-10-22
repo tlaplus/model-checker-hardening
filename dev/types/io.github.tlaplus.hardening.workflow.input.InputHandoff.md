@@ -1,6 +1,6 @@
 # `InputHandoff`
 
-`io.github.tlaplus.hardening.workflow.input` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/input/InputHandoff.java#L14) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/input/InputHandoff.java#L14) · module [workflow](../modules/workflow.md)
 
 How the input stage hands entries to the parser: the parser's queue, and the `00-inputs` slots that bound how many entries wait in it.
 

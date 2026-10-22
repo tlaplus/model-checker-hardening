@@ -1,6 +1,6 @@
 # `TlcValueShape`
 
-`io.github.tlaplus.hardening.workflow.tlc` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcValueShape.java#L20) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcValueShape.java#L20) · module [workflow](../modules/workflow.md)
 
 The shape of the values of one state: how many value nodes they hold, their largest collection, and their deepest nesting.
 

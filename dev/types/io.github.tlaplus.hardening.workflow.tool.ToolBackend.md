@@ -1,6 +1,6 @@
 # `ToolBackend`
 
-`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolBackend.java#L30) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolBackend.java#L30) · module [workflow](../modules/workflow.md)
 
 Tool-specific behavior injected into the shared `ToolStage`.
 

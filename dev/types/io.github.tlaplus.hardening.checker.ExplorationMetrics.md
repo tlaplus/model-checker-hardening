@@ -1,10 +1,10 @@
 # `ExplorationMetrics`
 
-`io.github.tlaplus.hardening.checker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/checker/ExplorationMetrics.java#L25) · module [checker](../modules/checker.md)
+`io.github.tlaplus.hardening.checker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/checker/ExplorationMetrics.java#L25) · module [checker](../modules/checker.md)
 
 What a model checker explored to reach its verdict, as ADR 0008 defines it.
 
-**Decisions:** [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/docs/decisions/0008-exploration-metrics.md)
+**Decisions:** [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/docs/decisions/0008-exploration-metrics.md)
 
 ```mermaid
 classDiagram

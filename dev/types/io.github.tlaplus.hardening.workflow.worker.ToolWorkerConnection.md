@@ -1,6 +1,6 @@
 # `ToolWorkerConnection`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolWorkerConnection.java#L14) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolWorkerConnection.java#L14) · module [workflow](../modules/workflow.md)
 
 Child-side connection to the parent's private worker-protocol listener.
 
