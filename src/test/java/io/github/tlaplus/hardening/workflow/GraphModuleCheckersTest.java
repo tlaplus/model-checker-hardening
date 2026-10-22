@@ -13,6 +13,7 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -35,6 +36,15 @@ class GraphModuleCheckersTest {
     /** Apalache type-checks a module in seconds; the bound only has to catch a hang. */
     private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 120, 1024, 1);
     private static final List<CorpusStage> CHECKERS = List.of(CorpusStage.TLC, CorpusStage.APALACHE);
+    /**
+     * The open finding findings/TLC/tlc-002.md: TLC reports an evaluation error raised in a
+     * standard-module operator, such as {@code x % 0} in Next, under a TLC_MODULE_* constant
+     * that exits 255, which the workflow records as a crash. Deep spines reach such errors often.
+     */
+    private static final java.util.regex.Pattern KNOWN_TLC_CRASH =
+            java.util.regex.Pattern.compile("TLC error code 21(69|7\\d|8\\d) mapped to exit status 255");
+    /** The shortest distance of a sampled reachable target, so the checkers unroll deep spines. */
+    private static final int DEEP = 10;
 
     @Test
     void theCheckersReportTheOutcomeTheGraphPredicts(@TempDir Path directory) throws Exception {
@@ -51,6 +61,10 @@ class GraphModuleCheckersTest {
                         var result = worker.check(new ToolInput(backend.renderer().apply(artifact), artifact.request()));
                         var context = stage.displayName() + " on " + graph.graph() + " with target " + graph.target()
                                 + ": " + result.diagnostic();
+                        if (result.outcome() == StageOutcome.CRASH && stage == CorpusStage.TLC
+                                && KNOWN_TLC_CRASH.matcher(result.diagnostic()).find()) {
+                            continue;
+                        }
                         assertNotEquals(StageOutcome.CRASH, result.outcome(), context);
                         if (result.outcome() == StageOutcome.FAIL) {
                             continue;
@@ -77,9 +91,11 @@ class GraphModuleCheckersTest {
         assertTrue(counterexamples >= CHECKERS.size(), "too few counterexamples were checked: " + counterexamples);
     }
 
-    /** Decodes graphs until it has {@code reachable} reached targets beyond node 0 and {@code unreachable} missed ones. */
-    private static List<GeneratedGraph> samples(int reachable, int unreachable) {
+    /** Decodes graphs until it has {@code reachable} targets at least {@link #DEEP} steps away and {@code unreachable} missed ones. */
+    private static List<GeneratedGraph> samples(int reachable, int unreachable) throws Exception {
         var generator = IrGenerators.graphs(IrGenerationConfig.defaults());
+        // As admission does, leave out the inputs that a recorded defect would decide.
+        var knownDefects = KnownDefectDatabase.load(List.of(Path.of("signatures/all-defects.toml")));
         var random = new Random(0x67b7L);
         var reached = new ArrayList<GeneratedGraph>();
         var missed = new ArrayList<GeneratedGraph>();
@@ -92,10 +108,14 @@ class GraphModuleCheckersTest {
             } catch (InputRejectedException rejected) {
                 continue;
             }
+            var artifact = SpecArtifact.fromGeneratedGraph(graph, OperatorLibrary.empty());
+            if (!knownDefects.matches(artifact.module(), artifact.entryPoints()).isEmpty()) {
+                continue;
+            }
             var distance = graph.targetDistance();
-            if (distance.isPresent() && distance.getAsInt() >= 1 && reached.size() < reachable) {
+            if (distance.isPresent() && distance.getAsInt() >= DEEP && reached.size() < reachable) {
                 reached.add(graph);
-            } else if (distance.isEmpty() && !graph.graph().edges().isEmpty() && missed.size() < unreachable) {
+            } else if (distance.isEmpty() && missed.size() < unreachable) {
                 missed.add(graph);
             }
         }

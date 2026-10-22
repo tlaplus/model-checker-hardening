@@ -11,6 +11,7 @@ import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentForm;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentRequirement;
@@ -27,12 +28,13 @@ import java.util.Optional;
  * Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry
  * assignment-only actions, tracked by the variable {@code pc}, and the invariant {@code pc /= k}.
  *
- * <p>The payload begins with a header, the node count N and the target k, which is not the initial
- * node unless N = 1, and the rest is divided
+ * <p>The graph has a spine {@code 0 -> 1 -> ... -> N-1}, so node u is at most u steps from node 0,
+ * and drawn extra edges add back edges, self-loops and short forward skips. The payload begins
+ * with a header, the node count N, the target k and the step bound B, and the rest is divided
  * among the {@link GraphSection}s. The edge and node sections are each split again into N equal
- * slices: slice u of the first holds the successors of node u, and slice u of the second its
- * action. Like {@link IrSpecGeneratorEngine}, the engine
- * stores only immutable configuration, and every invocation creates its own context.
+ * slices: slice u of the first holds the extra successors of node u, and slice u of the second
+ * its action. Like {@link IrSpecGeneratorEngine}, the engine stores only immutable
+ * configuration, and every invocation creates its own context.
  *
  * <p>Every edge leaving the current node is enabled while the step counter is below its bound: the
  * initial predicate and every node action assign exact values, and an edge has no guard but
@@ -65,11 +67,11 @@ public final class IrGraphGeneratorEngine {
      */
     public GeneratedGraph generate(Draw draw) {
         Objects.requireNonNull(draw, "draw");
-        var limits = config.graphs();
-        var nodeCount = Math.toIntExact(draw.drawLong(1, limits.maximumNodes()));
-        // The initial node is a target only when it is the only node: `pc /= 0` fails in every
-        // initial state, so such a module explores nothing.
-        var target = nodeCount == 1 ? 0 : Math.toIntExact(draw.drawLong(1, nodeCount - 1L));
+        var limits = this.config.graphs();
+        var header = Header.draw(draw, limits);
+        var nodeCount = header.nodes();
+        // Every disjunct is guarded by the entry's own bound, which ActionGenFactory reads.
+        var config = this.config.withModuleLimits(this.config.modules().withMaximumSteps(header.bound()));
         var sections = GraphSection.split(draw);
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
@@ -100,10 +102,7 @@ public final class IrGraphGeneratorEngine {
         var edgeSlices = WeightedSlices.equal(sections.get(GraphSection.EDGES), nodeCount);
         var nodeSlices = WeightedSlices.equal(sections.get(GraphSection.NODES), nodeCount);
         for (var node = 0; node < nodeCount; node++) {
-            // The initial node always has a successor, so Next has a disjunct that assigns every
-            // variable: Apalache rejects a `FALSE` disjunct, which assigns none.
-            successors.add(edgeSlices.get(node).draw(
-                    successorList(nodeCount, node == 0 ? 1 : 0, limits.maximumSuccessors())));
+            successors.add(edgeSlices.get(node).draw(successors(node, nodeCount, limits.maximumExtraSuccessors())));
             var body = nodeSlices.get(node).draw(context.withBindings(actionScope, context.withDefinitionBoundary(
                     context.withFreshNodeBudget(shapes.exactLeaf(
                             new Request(data, 0, depth, AssignmentRequirement.REQUIRED)).map(shapes::conjoin)))));
@@ -112,10 +111,26 @@ public final class IrGraphGeneratorEngine {
         var graph = new TransitionGraph(successors);
 
         var next = nextAction(actions, shapes, pc, graph);
-        var invariant = context.builder().neql(shapes.nameOf(pc), context.builder().integer(target));
+        var invariant = context.builder().neql(shapes.nameOf(pc), context.builder().integer(header.target()));
         var spec = new GeneratedSpec(declared.declarations(), operators, init, next, invariant,
-                Optional.empty(), config.modules().maximumSteps());
-        return new GeneratedGraph(spec, graph, target);
+                Optional.empty(), header.bound());
+        return new GeneratedGraph(spec, graph, header.target());
+    }
+
+    /**
+     * The first bytes of a graph input: the node count N, the target k in the upper half of the
+     * spine, and the step bound B, at least half the spine and at most its length, capped by
+     * {@link GraphLimits#maximumSteps()}. A target past the bound
+     * is unreachable, so about half the inputs predict a pass.
+     */
+    private record Header(int nodes, int target, int bound) {
+        static Header draw(Draw draw, GraphLimits limits) {
+            var nodes = Math.toIntExact(draw.drawLong(limits.minimumNodes(), limits.maximumNodes()));
+            var target = nodes == 1 ? 0 : Math.toIntExact(draw.drawLong((nodes + 1) / 2, nodes - 1L));
+            var cap = limits.maximumSteps();
+            var bound = Math.toIntExact(draw.drawLong(Math.min(nodes / 2, cap), Math.min(nodes - 1, cap)));
+            return new Header(nodes, target, bound);
+        }
     }
 
     /** One bounded step per edge (u, v), in edge order: {@code pc = u /\ Node<u> /\ pc' = v}. */
@@ -133,11 +148,22 @@ public final class IrGraphGeneratorEngine {
         return builder.or(BuilderArrays.expressions(edges));
     }
 
-    /** A terminated list of node indices, with repeats removed in order. */
-    private static Generator<List<Integer>> successorList(int nodeCount, int minimum, int maximum) {
-        return BasicGenerators.listOf(
-                        (Draw draw) -> Math.toIntExact(draw.drawLong(0, nodeCount - 1L)), minimum, maximum)
-                .map(drawn -> List.copyOf(new LinkedHashSet<>(drawn)));
+    /**
+     * The successors of {@code node}: its spine successor {@code node + 1}, byte-free, then a
+     * terminated list of extra successors, each a back edge, a self-loop or a forward skip of at
+     * most two nodes, with repeats removed in order. The last node has no spine successor, except
+     * in a one-node graph, where the spine is the self-loop {@code 0 -> 0}: Next then always has a
+     * disjunct, since Apalache rejects {@code FALSE \/ UNCHANGED vars}.
+     */
+    private static Generator<List<Integer>> successors(int node, int nodeCount, int maximumExtra) {
+        var spine = nodeCount == 1 ? List.of(0) : node + 1 < nodeCount ? List.of(node + 1) : List.<Integer>of();
+        var farthest = Math.min(node + 2, nodeCount - 1L);
+        return BasicGenerators.listOf((Draw draw) -> Math.toIntExact(draw.drawLong(0, farthest)), 0, maximumExtra)
+                .map(extra -> {
+                    var all = new LinkedHashSet<Integer>(spine);
+                    all.addAll(extra);
+                    return List.copyOf(all);
+                });
     }
 
     private static String nodeName(int node) {

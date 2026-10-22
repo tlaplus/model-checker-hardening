@@ -116,13 +116,17 @@ class TomlConfigTest {
     @Test
     void readsTheGraphLimits(@TempDir Path directory) throws Exception {
         var document = TomlConfig.render(FuzzTlaConfig.defaults())
-                .replace("max_graph_nodes = 6", "max_graph_nodes = 4")
-                .replace("max_successors = 3", "max_successors = 1");
-        assertEquals(new GraphLimits(4, 1), readConfig(directory, document).generator().graphs());
+                .replace("min_graph_nodes = 20", "min_graph_nodes = 2")
+                .replace("max_graph_nodes = 32", "max_graph_nodes = 40")
+                .replace("max_extra_successors = 2", "max_extra_successors = 1");
+        // max_steps is commented out, so it inherits max_graph_nodes.
+        assertEquals(new GraphLimits(2, 40, 1, 40), readConfig(directory, document).generator().graphs());
+        var capped = document.replace("# max_steps = 32", "max_steps = 12");
+        assertEquals(new GraphLimits(2, 40, 1, 12), readConfig(directory, capped).generator().graphs());
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[graph]"));
         assertEquals(GraphLimits.defaults(), readConfig(directory, withoutTable).generator().graphs());
-        var invalid = TomlConfig.render(FuzzTlaConfig.defaults()).replace("max_graph_nodes = 6", "max_graph_nodes = 0");
+        var invalid = TomlConfig.render(FuzzTlaConfig.defaults()).replace("min_graph_nodes = 20", "min_graph_nodes = 40");
         assertThrows(ConfigException.class, () -> readConfig(directory, invalid));
     }
 

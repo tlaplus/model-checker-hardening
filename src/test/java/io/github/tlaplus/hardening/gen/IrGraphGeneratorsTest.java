@@ -32,50 +32,57 @@ class IrGraphGeneratorsTest {
     private static final String PC = GeneratedGraph.PC_VARIABLE;
     private static final String STEP = GeneratedSpec.STEP_VARIABLE;
 
+    /** Exhausted input decodes to the shortest spine, whose target lies exactly at the bound. */
     @Test
-    void emptyInputProducesOneSelfLoopWhoseInitialStateViolatesTheInvariant() {
+    void emptyInputProducesTheMinimumSpineWithATargetAtTheBound() {
         var graph = generate(new byte[0]);
         var spec = graph.spec();
 
-        assertEquals(new TransitionGraph(List.of(List.of(0))), graph.graph());
-        assertEquals(0, graph.target());
-        assertEquals(OptionalInt.of(0), graph.targetDistance());
+        assertEquals(GraphLimits.DEFAULT_MINIMUM_NODES, graph.graph().nodeCount());
+        for (var node = 0; node < graph.graph().nodeCount(); node++) {
+            assertEquals(node + 1 < graph.graph().nodeCount() ? List.of(node + 1) : List.of(),
+                    graph.graph().successors().get(node));
+        }
+        assertEquals(10, graph.target());
+        assertEquals(10, spec.stepBound());
+        assertEquals(OptionalInt.of(10), graph.targetDistance());
         assertEquals(List.of("var0", PC, STEP), variableNames(spec));
-        assertEquals(List.of("Node0"), spec.operators().stream().map(operator -> operator.declaration().name()).toList());
         assertEquals("var0' = FALSE", print(spec.operators().getFirst().declaration().body()));
         assertEquals("var0 = FALSE /\\ pc = 0 /\\ step = 0", normalized(spec.initPredicate()));
-        assertEquals("(step < 5 /\\ pc = 0 /\\ Node0 /\\ pc' = 0 /\\ step' = step + 1)", normalized(spec.nextAction()));
-        assertEquals("pc /= 0", normalized(spec.invariant()));
+        assertEquals("step < 10 /\\ pc = 0 /\\ Node0 /\\ pc' = 1 /\\ step' = step + 1",
+                normalized(disjuncts(spec.nextAction()).getFirst()));
+        assertEquals("pc /= 10", normalized(spec.invariant()));
         assertTrue(spec.property().isEmpty());
-        assertEquals(ModuleLimits.DEFAULT_MAXIMUM_STEPS, spec.stepBound());
     }
 
+    /** N = 20 + 12, k = 16 + 15 and B = 16 + 0: the far end of the spine lies past the bound. */
     @Test
-    void theHeaderSelectsTheNodeCountAndTheTarget() {
-        // N = 1 + 5 mod 6 and k = 1 + 3 mod 5: the target is never the initial node of a larger graph.
-        var graph = generate(new byte[] {5, 3});
+    void theHeaderSelectsTheNodeCountTheTargetAndTheBound() {
+        var graph = generate(new byte[] {12, 15, 0});
 
-        assertEquals(6, graph.graph().nodeCount());
-        assertEquals(4, graph.target());
-        assertEquals(OptionalInt.empty(), graph.targetDistance(), "no edge leads to node 4");
-        assertEquals(List.of(new TransitionGraph.Edge(0, 0)), graph.graph().edges(), "an exhausted node 0 loops");
-        assertEquals(6, graph.spec().operators().size());
+        assertEquals(32, graph.graph().nodeCount());
+        assertEquals(31, graph.target());
+        assertEquals(16, graph.spec().stepBound());
+        assertEquals(OptionalInt.of(31), graph.graph().distance(31));
+        assertEquals(OptionalInt.empty(), graph.targetDistance(), "the target lies past the bound");
     }
 
     /** Two seeded inputs pin the graph encoding: header, sections and successor lists. */
     @Test
     void pinnedInputsDecodeToTheirGraphs() {
         var reachable = generate(Base64.getDecoder().decode(
-                "AX5tGn3sivVUTbYOOklQyuKLkESPHHAXakK+EeL74AE1NxKHHRuI9b7A04TeV5RfuNI2nD2soVo/nUcfWhl7xyuP0pMMOum/4ceQcGZoo1og0qAM80SLEo0wA27VjJvI"));
-        assertEquals(new TransitionGraph(List.of(List.of(1), List.of(0))), reachable.graph());
-        assertEquals(1, reachable.target());
-        assertEquals(OptionalInt.of(1), reachable.targetDistance());
+                "twK3Z5oy8TbTkAb9wYuzFHMpwlzGtOkJ9TTY0FCUS35DEyVP5mzis4LBJFUQf8gfCFik71m/Q/vpvjaCRKfi+lnHO/pwU2NurcJDhHleeHrLQ6pgZIe/QkQG2q6SA/hf"));
+        assertEquals(spineWith(21, 20, List.of(16, 20)), reachable.graph());
+        assertEquals(13, reachable.target());
+        assertEquals(17, reachable.spec().stepBound());
+        assertEquals(OptionalInt.of(13), reachable.targetDistance());
         assertEquals(List.of("var0", PC, STEP), variableNames(reachable.spec()));
 
         var unreachable = generate(Base64.getDecoder().decode(
-                "Faa55CsU1wJZh9uAZ3wRIcSXZRWCar3X+UtKBiqnWh+4lMEBXkP/rHTg234cpoEwI5+pjALcHEUak0I2FbAtLu5qehoQjVXitNNig+P4kb8SOKfTTjgNYP0H0eG2XtGz"));
-        assertEquals(new TransitionGraph(List.of(List.of(0), List.of(2, 0), List.of(0), List.of())), unreachable.graph());
-        assertEquals(2, unreachable.target());
+                "xuMyj4M+XP3YSExXCbAzm6jCGPK2ytiUY96SNVtDZ3khO3h1N7IjxkxthXSDmUWHCnrEoQ/XwRjAYctU4yxPsR8paNs/wATtZyKHe2rznVW+dN9tOCb938gVvH0qgl33"));
+        assertEquals(spineWith(23, 22, List.of(5, 9)), unreachable.graph());
+        assertEquals(19, unreachable.target());
+        assertEquals(13, unreachable.spec().stepBound());
         assertEquals(OptionalInt.empty(), unreachable.targetDistance());
         assertEquals(List.of("var0", "var1", PC, STEP), variableNames(unreachable.spec()));
     }
@@ -95,7 +102,7 @@ class IrGraphGeneratorsTest {
                     .map(edge -> "step < " + bound + " /\\ pc = " + edge.source() + " /\\ Node" + edge.source()
                             + " /\\ pc' = " + edge.target() + " /\\ step' = step + 1")
                     .toList();
-            assertFalse(expected.isEmpty(), "the initial node has a successor");
+            assertFalse(expected.isEmpty(), "the spine leaves node 0");
             var actual = disjuncts(graph.spec().nextAction()).stream()
                     .map(disjunct -> normalized(disjunct).replaceAll("^\\((.*)\\)$", "$1"))
                     .toList();
@@ -153,53 +160,82 @@ class IrGraphGeneratorsTest {
         });
     }
 
+    /** Every node but the last has its spine successor first; extra edges reach at most two nodes ahead. */
     @Test
-    void theTargetIsTheInitialNodeOnlyInASingleNodeGraph() {
-        forEachGeneratedGraph(graph -> assertEquals(graph.graph().nodeCount() == 1, graph.target() == 0));
+    void everyGraphHasASpineAndShortForwardEdges() {
+        forEachGeneratedGraph(graph -> {
+            var successors = graph.graph().successors();
+            var limits = GraphLimits.defaults();
+            assertTrue(successors.size() >= limits.minimumNodes() && successors.size() <= limits.maximumNodes());
+            for (var node = 0; node < successors.size(); node++) {
+                var targets = successors.get(node);
+                var spine = node + 1 < successors.size() ? 1 : 0;
+                if (spine == 1) {
+                    assertEquals(node + 1, targets.getFirst());
+                }
+                assertTrue(targets.size() - spine <= limits.maximumExtraSuccessors(), targets.toString());
+                for (var target : targets) {
+                    assertTrue(target <= node + 2, node + " -> " + target);
+                }
+                assertTrue(graph.graph().distance(node).orElseThrow() <= node, "node " + node + " is off the spine");
+            }
+        });
     }
 
+    /**
+     * The target lies in the upper half of the spine and the bound between half the spine and its
+     * length, so both outcomes occur, and many counterexamples are 20 or more steps long.
+     */
     @Test
-    void theGraphRespectsItsLimitsAndTheTargetDistanceItsBound() {
+    void theTargetAndTheBoundSplitTheOutcomes() {
         var reachable = new int[1];
         var unreachable = new int[1];
+        var deep = new int[1];
         forEachGeneratedGraph(graph -> {
-            var limits = GraphLimits.defaults();
-            assertTrue(graph.graph().nodeCount() <= limits.maximumNodes());
-            graph.graph().successors().forEach(targets -> assertTrue(targets.size() <= limits.maximumSuccessors()));
+            var nodes = graph.graph().nodeCount();
+            assertTrue(graph.target() >= (nodes + 1) / 2 && graph.target() < nodes, "target " + graph.target());
+            var bound = graph.spec().stepBound();
+            assertTrue(bound >= nodes / 2 && bound < nodes, "bound " + bound);
             var distance = graph.graph().distance(graph.target());
-            var withinBound = distance.isPresent() && distance.getAsInt() <= graph.spec().stepBound();
+            var withinBound = distance.getAsInt() <= bound;
             assertEquals(withinBound ? distance : OptionalInt.empty(), graph.targetDistance());
             (withinBound ? reachable : unreachable)[0]++;
+            deep[0] += withinBound && distance.getAsInt() >= 20 ? 1 : 0;
         });
-        assertTrue(reachable[0] > 50, "reachable targets: " + reachable[0]);
-        assertTrue(unreachable[0] > 50, "unreachable targets: " + unreachable[0]);
+        assertTrue(reachable[0] > 150, "reachable targets: " + reachable[0]);
+        assertTrue(unreachable[0] > 150, "unreachable targets: " + unreachable[0]);
+        assertTrue(deep[0] > 30, "counterexamples of 20 or more steps: " + deep[0]);
     }
 
     @Test
-    void theStepBoundCutsOffDistantTargets() {
-        var config = IrGenerationConfig.defaults().withModuleLimits(new ModuleLimits(
-                1, 0, ActionLimits.defaults(), 0, 0));
+    void theStepCapCutsOffTheUpperHalfOfTheSpine() {
+        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 5));
         var random = new Random(0xb0d);
         for (var sample = 0; sample < 200; sample++) {
-            var input = new byte[random.nextInt(8, 128)];
+            var input = new byte[random.nextInt(8, 256)];
             random.nextBytes(input);
             var graph = IrGenerators.graphs(config).generate(input);
-            assertEquals(graph.target() == 0 ? OptionalInt.of(0) : OptionalInt.empty(), graph.targetDistance());
+            assertEquals(5, graph.spec().stepBound());
+            var distance = graph.graph().distance(graph.target()).getAsInt();
+            assertEquals(distance <= 5, graph.targetDistance().isPresent(), "distance " + distance);
         }
     }
 
     @Test
-    void graphLimitsBoundNodesAndSuccessors() {
-        var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 3));
-        var chains = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(6, 1));
+    void graphLimitsBoundNodesAndExtraSuccessors() {
+        var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 1, 3, 32));
+        var spineOnly = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(4, 40, 0, 40));
         var random = new Random(0x11);
         for (var sample = 0; sample < 200; sample++) {
             var input = new byte[random.nextInt(256)];
             random.nextBytes(input);
-            assertEquals(1, IrGenerators.graphs(single).generate(input).graph().nodeCount());
-            var successors = IrGenerators.graphs(chains).generate(input).graph().successors();
-            assertEquals(1, successors.getFirst().size());
-            successors.forEach(targets -> assertTrue(targets.size() <= 1));
+            var one = IrGenerators.graphs(single).generate(input);
+            assertEquals(1, one.graph().nodeCount());
+            assertEquals(List.of(List.of(0)), one.graph().successors(), "a one-node spine is a self-loop");
+            assertEquals(OptionalInt.of(0), one.targetDistance());
+            var chain = IrGenerators.graphs(spineOnly).generate(input);
+            assertEquals(chain.graph().nodeCount() - 1, chain.graph().edges().size());
+            assertEquals(OptionalInt.of(chain.target()), chain.graph().distance(chain.target()));
         }
     }
 
@@ -279,6 +315,22 @@ class IrGraphGeneratorsTest {
     /** Whether some conjunct of {@code expression} assigns a primed variable by membership. */
     private static boolean assignsByMembership(TlaEx expression) {
         return normalized(expression).matches(".*\\w' \\\\in .*");
+    }
+
+    /** A spine of {@code nodes} nodes whose node {@code node} has {@code extra} after its spine successor. */
+    private static TransitionGraph spineWith(int nodes, int node, List<Integer> extra) {
+        var successors = new ArrayList<List<Integer>>();
+        for (var u = 0; u < nodes; u++) {
+            var targets = new ArrayList<Integer>();
+            if (u + 1 < nodes) {
+                targets.add(u + 1);
+            }
+            if (u == node) {
+                extra.stream().filter(target -> !targets.contains(target)).forEach(targets::add);
+            }
+            successors.add(targets);
+        }
+        return new TransitionGraph(successors);
     }
 
     private static GeneratedGraph generate(byte[] input) {

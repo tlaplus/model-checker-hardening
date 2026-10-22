@@ -161,7 +161,14 @@ max_rewrite_growth = 2
 adopt_ratio = 0.5
 
 [graph]
-# Maximum nodes of the control graph of a graph input (ADR 0023); node 0 is initial.
-max_graph_nodes = 6
-# Maximum distinct successors of one node of the control graph.
-max_successors = 3
+# Minimum nodes of the control graph of a graph input (ADR 0023). The graph has a spine
+# 0 -> 1 -> ... -> N-1, so a graph of N nodes is up to N - 1 steps deep.
+min_graph_nodes = 20
+# Maximum nodes of the control graph of a graph input; node 0 is initial.
+max_graph_nodes = 32
+# Maximum successors of one node besides its spine successor: back edges, self-loops
+# and forward skips of at most two nodes.
+max_extra_successors = 2
+# Cap on the step bound of a graph input, which each input draws between half its
+# node count and its node count minus one. Defaults to max_graph_nodes.
+# max_steps = 32

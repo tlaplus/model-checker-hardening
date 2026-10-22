@@ -44,8 +44,9 @@ class SpecDecodersTest {
         var config = IrGenerationConfig.defaults();
         var graph = SpecDecoders.of(config).decode(new CorpusInput(InputKind.GRAPH, new byte[0]));
 
-        assertEquals(CheckRequest.invariant(config.modules().maximumSteps()), graph.request());
-        assertEquals(0, graph.graph().orElseThrow().target());
+        // The exhausted spine has 20 nodes, target 10 and its own bound 10.
+        assertEquals(CheckRequest.invariant(10), graph.request());
+        assertEquals(10, graph.graph().orElseThrow().target());
         assertTrue(graph.rewrite().isEmpty());
         assertTrue(graph.standaloneExpression().isEmpty());
         assertTrue(SpecText.render(graph).contains("Node0 =="), SpecText.render(graph));

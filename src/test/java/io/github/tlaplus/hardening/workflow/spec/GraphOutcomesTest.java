@@ -40,8 +40,8 @@ class GraphOutcomesTest {
     }
 
     @Test
-    void theEmptyGraphViolatesItsInvariantInTheInitialState() {
-        assertEquals(Optional.of(ExpectedOutcome.counterexample(0)),
+    void theExhaustedSpineReachesItsTargetAtTheBound() {
+        assertEquals(Optional.of(ExpectedOutcome.counterexample(10)),
                 outcomes.expected(new CorpusInput(InputKind.GRAPH, new byte[0])));
     }
 }
