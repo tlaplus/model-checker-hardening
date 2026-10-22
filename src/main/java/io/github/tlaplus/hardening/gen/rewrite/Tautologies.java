@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import org.apalache_mc.tla.jir.TlaTypeSubstitution;
 
 /**
  * Draws edge guards of a graph module from a rule library (ADR 0023 §6): a guard is the formula
@@ -66,8 +65,7 @@ public final class Tautologies implements EdgeGuards {
         var visible = List.copyOf(Objects.requireNonNull(scope, "scope"));
         var plans = new ArrayList<RuleOperands.Plan>();
         for (var rule : rules) {
-            var unmatched = new RuleMatch(rule, Map.of(), TlaTypeSubstitution.empty());
-            RuleOperands.plan(unmatched, rule.parameters(), rule.formula(), operands).ifPresent(plans::add);
+            RuleOperands.planFormula(rule, operands).ifPresent(plans::add);
         }
         var slots = plans.stream().mapToInt(RuleOperands.Plan::weight).sum();
         if (slots == 0) {

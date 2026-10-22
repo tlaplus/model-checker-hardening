@@ -5,6 +5,7 @@ import at.forsyte.apalache.tla.lir.TlaType1;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.engine.OperandGenerator;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,23 +63,61 @@ final class RuleOperands {
     record Drawn(Map<String, TlaEx> values, TlaTypeSubstitution types) {}
 
     /**
-     * Plans drawing {@code drawn} for {@code match}, where {@code body} is the part of the rule
-     * that is instantiated. Empty when the type variables the match leaves open in {@code drawn}
-     * and {@code body} have no instance within the limits. Draws no byte.
+     * Plans drawing the fresh parameters of {@code match}. Empty when the type variables the match
+     * leaves open in them and in the replacement have no instance within the limits. Draws no byte.
      */
-    static Optional<Plan> plan(RuleMatch match, List<RuleParameter> drawn, TlaEx body, OperandGenerator operands) {
+    static Optional<Plan> planFresh(RuleMatch match, OperandGenerator operands) {
+        var rule = match.rule();
+        var drawn = rule.parameters(RuleParameter.Kind.FRESH);
         var open = new LinkedHashSet<Integer>();
         for (var parameter : drawn) {
             open.addAll(TlaTypes.usedVariables(match.types().applyFully(parameter.type())));
         }
-        TlaExpressions.forEach(body,
+        TlaExpressions.forEach(rule.replacement(),
                 node -> open.addAll(TlaTypes.usedVariables(match.types().applyFully(TlaTypes.typeOf(node)))));
-        if (open.isEmpty()) {
+        var template = open.stream().<TlaType1>map(TlaTypes::typeVariable).toList();
+        return plan(match, drawn, template, operands);
+    }
+
+    /**
+     * Plans drawing every parameter of {@code rule}, whose whole formula is instantiated. The
+     * template of the open type variables is made of the types that hold them, the parameters'
+     * first, so a row variable is instantiated as a row. Empty when they have no instance within
+     * the limits. Draws no byte.
+     */
+    static Optional<Plan> planFormula(RewriteRule rule, OperandGenerator operands) {
+        var match = new RuleMatch(rule, Map.of(), TlaTypeSubstitution.empty());
+        var template = new ArrayList<TlaType1>();
+        var covered = new LinkedHashSet<Integer>();
+        for (var parameter : rule.parameters()) {
+            var used = TlaTypes.usedVariables(parameter.type());
+            if (!used.isEmpty()) {
+                template.add(parameter.type());
+                covered.addAll(used);
+            }
+        }
+        // A variable no parameter mentions, such as the row of Variant("Tag0", x), enters with the
+        // type of the first subterm that mentions it, which keeps a row in a row position.
+        TlaExpressions.forEach(rule.formula(), node -> {
+            var type = TlaTypes.typeOf(node);
+            var used = TlaTypes.usedVariables(type);
+            if (!covered.containsAll(used)) {
+                template.add(type);
+                covered.addAll(used);
+            }
+        });
+        return plan(match, rule.parameters(), template, operands);
+    }
+
+    /** Plans drawing {@code drawn}, with the open type variables those of {@code template}. */
+    private static Optional<Plan> plan(
+            RuleMatch match, List<RuleParameter> drawn, List<TlaType1> template, OperandGenerator operands) {
+        if (template.isEmpty()) {
             return Optional.of(new Plan(match, drawn, Optional.empty()));
         }
-        var template = TlaTypes.operator(TlaTypes.BOOL, open.stream().map(TlaTypes::typeVariable).toArray(TlaType1[]::new));
-        return operands.instantiate(template)
-                .map(instantiation -> new Plan(match, drawn, Optional.of(new OpenTypes(template, instantiation))));
+        var operator = TlaTypes.operator(TlaTypes.BOOL, template.toArray(TlaType1[]::new));
+        return operands.instantiate(operator)
+                .map(instantiation -> new Plan(match, drawn, Optional.of(new OpenTypes(operator, instantiation))));
     }
 
     /**

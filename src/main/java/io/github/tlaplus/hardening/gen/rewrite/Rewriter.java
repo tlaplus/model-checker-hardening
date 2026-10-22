@@ -298,8 +298,7 @@ public final class Rewriter {
                     if (bodySize - size(node) + estimatedSize(match) > sizeLimit) {
                         return;
                     }
-                    RuleOperands.plan(match, rule.parameters(RuleParameter.Kind.FRESH), rule.replacement(), operands)
-                            .ifPresent(options::add);
+                    RuleOperands.planFresh(match, operands).ifPresent(options::add);
                 });
             }
             return options;
