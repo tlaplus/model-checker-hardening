@@ -15,10 +15,13 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.engine.EdgeGuards;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
+import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
 import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
@@ -26,6 +29,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -62,7 +66,10 @@ public final class SpecDecoders {
     /** The replay identity of the prepared library, empty when none is configured. */
     public String libraryManifest() { return manifests.library(); }
 
-    /** The replay identity of the prepared rewrite rules, empty unless the technique is metamorphic. */
+    /**
+     * The replay identity of the prepared rule module: the rewrites of a metamorphic technique, or
+     * the edge guards of graph inputs otherwise; empty without one.
+     */
     public String rewriteManifest() { return manifests.rules(); }
 
     private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders,
@@ -83,14 +90,21 @@ public final class SpecDecoders {
     }
 
     /**
-     * Loads configured libraries, and the rewrite rules of a metamorphic technique, once before
-     * constructing the reusable decoders of {@code technique}.
+     * Loads configured libraries, and the rule module of the technique, once before constructing
+     * the reusable decoders of {@code technique}: the rewrite rules of a metamorphic technique, or
+     * the edge guards of graph inputs otherwise. A conformance corpus may hold graph inputs too, so
+     * it decodes them with the same guards.
      */
     public static SpecDecoders prepare(FuzzTlaConfig config, Technique technique) throws WorkflowException {
         try {
             var prepared = LibraryPreparation.prepare(config);
             return switch (technique) {
-                case PBT, GBT -> of(prepared.generator(), new Manifests(prepared.manifest(), ""));
+                case PBT, GBT -> {
+                    var rules = RuleLibraryPreparation.prepare(
+                            config.graphGuards(), config.workflow().checker(CorpusStage.APALACHE));
+                    yield of(prepared.generator(), guards(rules.library()),
+                            new Manifests(prepared.manifest(), rules.manifest()));
+                }
                 case MT -> {
                     var rules = RuleLibraryPreparation.prepare(
                             config.metamorphic().rules(), config.workflow().checker(CorpusStage.APALACHE));
@@ -110,7 +124,24 @@ public final class SpecDecoders {
 
     /** Returns a complete conformance decoder registry under one generator configuration. */
     public static SpecDecoders of(IrGenerationConfig config) {
-        return of(config, new Manifests("", ""));
+        return of(config, Optional.empty(), new Manifests("", ""));
+    }
+
+    /** Returns a complete conformance decoder registry whose graph inputs conjoin {@code guards}. */
+    public static SpecDecoders of(IrGenerationConfig config, EdgeGuards guards) {
+        return of(config, Optional.of(Objects.requireNonNull(guards, "guards")), new Manifests("", ""));
+    }
+
+    /** The edge guards of a prepared rule module; none without one. */
+    private static Optional<EdgeGuards> guards(RewriteLibrary rules) throws WorkflowException {
+        if (rules.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new Tautologies(rules));
+        } catch (IllegalArgumentException exception) {
+            throw new WorkflowException("graph.rules: " + exception.getMessage(), exception);
+        }
     }
 
     /** Returns a complete metamorphic decoder registry, whose rules {@code rewriter} applies. */
@@ -118,7 +149,7 @@ public final class SpecDecoders {
         return metamorphic(config, rewriter, new Manifests("", ""));
     }
 
-    private static SpecDecoders of(IrGenerationConfig config, Manifests manifests) {
+    private static SpecDecoders of(IrGenerationConfig config, Optional<EdgeGuards> guards, Manifests manifests) {
         Objects.requireNonNull(config, "config");
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(
@@ -127,9 +158,9 @@ public final class SpecDecoders {
         decoders.put(
                 InputKind.MODULE,
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
-        decoders.put(
-                InputKind.GRAPH,
-                IrGenerators.graphs(config).map(graph -> SpecArtifact.fromGeneratedGraph(graph, config.library())));
+        var graphs = guards.map(edgeGuards -> IrGenerators.graphs(config, edgeGuards))
+                .orElseGet(() -> IrGenerators.graphs(config));
+        decoders.put(InputKind.GRAPH, graphs.map(graph -> SpecArtifact.fromGeneratedGraph(graph, config.library())));
         return new SpecDecoders(decoders, Map.of(), config.library(), manifests);
     }
 

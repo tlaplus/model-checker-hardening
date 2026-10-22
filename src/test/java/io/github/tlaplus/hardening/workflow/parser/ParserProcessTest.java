@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.CheckerProfile;
-import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
@@ -16,7 +15,9 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
+import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
+import io.github.tlaplus.hardening.workflow.library.ShippedRules;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
@@ -203,8 +204,7 @@ class ParserProcessTest {
         // EXCEPT replacement or under a binder the rule added, a LET definition that saw itself, and
         // copies of a LET definition that PrettyWriter nests by moving them in front of an
         // application.
-        var config = RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
-                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath())));
+        var config = ShippedRules.config();
         var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults()).library();
         var decoders = SpecDecoders.metamorphic(IrGenerationConfig.defaults(),
                 new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));
@@ -230,6 +230,35 @@ class ParserProcessTest {
             }
         }
         assertTrue(rewritten > 200, "too few modules were rewritten to be conclusive: " + rewritten);
+    }
+
+    /**
+     * A guard instantiates both sides of a rule, so SANY must accept every guarded graph module
+     * (ADR 0023 §6): the labels a guard's operands copy across A and B, and those it puts under a
+     * binder of the rule, are what this checks.
+     */
+    @Test
+    void everyGuardedGraphModuleParses(@TempDir Path directory) throws Exception {
+        var decoders = SpecDecoders.of(IrGenerationConfig.defaults(), new Tautologies(ShippedRules.library()));
+        var random = new Random(0x96a2L);
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        var decoded = 0;
+        try (var worker = ParserProcess.start(scratch, List.of(), STARTUP_TIMEOUT)) {
+            for (var sample = 0; sample < 200; sample++) {
+                var input = new byte[64 + random.nextInt(960)];
+                random.nextBytes(input);
+                final String source;
+                try {
+                    source = SpecText.render(decoders.decode(new CorpusInput(InputKind.GRAPH, input)));
+                } catch (InputRejectedException rejected) {
+                    continue;
+                }
+                decoded++;
+                var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
+                assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic() + "\n" + source);
+            }
+        }
+        assertTrue(decoded > 100, "too few graph modules were decoded to be conclusive: " + decoded);
     }
 
     private String validSource() {

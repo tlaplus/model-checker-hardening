@@ -17,6 +17,9 @@ import java.util.Set;
  * <p>The generated kind selects which decoder a run produces with. It is not a generation limit,
  * so it sits here rather than in {@link IrGenerationConfig}: an entry already in the corpus
  * records its own kind and is regenerated through that decoder whatever this run generates.
+ *
+ * @param graphGuards the rule module of the tautological edge guards of graph inputs (ADR 0023
+ *     §6, §7), read from {@code [graph]}; the bounds of a graph are {@link IrGenerationConfig#graphs()}
  */
 @ArchRole(Role.CONFIG)
 @Key
@@ -27,9 +30,11 @@ public record FuzzTlaConfig(
         PbtConfig pbt,
         MutatorConfig mutator,
         OperatorLibraryConfig libraries,
-        MetamorphicConfig metamorphic) {
+        MetamorphicConfig metamorphic,
+        RuleLibraryConfig graphGuards) {
     public FuzzTlaConfig {
         Objects.requireNonNull(metamorphic, "metamorphic");
+        Objects.requireNonNull(graphGuards, "graphGuards");
         Objects.requireNonNull(generatedKind, "generatedKind");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(workflow, "workflow");
@@ -60,6 +65,18 @@ public record FuzzTlaConfig(
         this(generatedKind, generator, workflow, pbt, mutator, libraries, MetamorphicConfig.defaults());
     }
 
+    /** A configuration whose graph inputs have no edge guards. */
+    public FuzzTlaConfig(
+            InputKind generatedKind,
+            IrGenerationConfig generator,
+            WorkflowConfig workflow,
+            PbtConfig pbt,
+            MutatorConfig mutator,
+            OperatorLibraryConfig libraries,
+            MetamorphicConfig metamorphic) {
+        this(generatedKind, generator, workflow, pbt, mutator, libraries, metamorphic, RuleLibraryConfig.none());
+    }
+
     /**
      * Returns the default configuration, which consults no known-defect database. {@code fuzztla
      * init} writes it with the repository's shipped database enabled, because only the command
@@ -77,17 +94,22 @@ public record FuzzTlaConfig(
 
     /** Returns this configuration with the given custom operator library. */
     public FuzzTlaConfig withLibraries(OperatorLibraryConfig libraries) {
-        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, metamorphic);
+        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, metamorphic, graphGuards);
     }
 
     /** Returns this configuration with the given workflow limits and checkers. */
     public FuzzTlaConfig withWorkflow(WorkflowConfig replacement) {
-        return new FuzzTlaConfig(generatedKind, generator, replacement, pbt, mutator, libraries, metamorphic);
+        return new FuzzTlaConfig(generatedKind, generator, replacement, pbt, mutator, libraries, metamorphic, graphGuards);
     }
 
     /** Returns this configuration with the given metamorphic settings. */
     public FuzzTlaConfig withMetamorphic(MetamorphicConfig replacement) {
-        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, replacement);
+        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, replacement, graphGuards);
+    }
+
+    /** Returns this configuration with the given rule module for the edge guards of graph inputs. */
+    public FuzzTlaConfig withGraphGuards(RuleLibraryConfig replacement) {
+        return new FuzzTlaConfig(generatedKind, generator, workflow, pbt, mutator, libraries, metamorphic, replacement);
     }
 
     /** Returns this configuration with the input stage consulting the given known-defect databases. */

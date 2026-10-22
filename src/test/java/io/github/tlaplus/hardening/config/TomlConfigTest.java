@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -98,10 +99,7 @@ class TomlConfigTest {
     /** The rule module's classpath resolves against the config file, like the generator's. */
     @Test
     void readsTheRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
-        var document = TomlConfig.render(FuzzTlaConfig.defaults())
-                .replace("# rules = { module = \"Rewrites\", classpath = [\"../libraries/rewrites\"] }",
-                        "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
-                .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
+        var document = withRules(TomlConfig.render(FuzzTlaConfig.defaults()), "metamorphic");
         var metamorphic = readConfig(directory, document).metamorphic();
         assertEquals(new RuleLibraryConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
                 metamorphic.rules().module().orElseThrow());
@@ -110,6 +108,31 @@ class TomlConfigTest {
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[metamorphic]"));
         assertEquals(MetamorphicConfig.defaults(), readConfig(directory, withoutTable).metamorphic());
+    }
+
+    /** [graph] names the rule module of the edge guards as [metamorphic] names its rewrites. */
+    @Test
+    void readsTheGuardRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        var config = readConfig(directory, withRules(defaults, "graph"));
+        assertEquals(new RuleLibraryConfig(Optional.of(new RuleLibraryConfig.RuleModule(
+                        "Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize()))),
+                        Map.of("AddSub", 3, "DoubleNeg", 0)),
+                config.graphGuards());
+        assertEquals(RuleLibraryConfig.none(), config.metamorphic().rules(), "the tables are independent");
+        assertEquals(RuleLibraryConfig.none(), readConfig(directory, defaults).graphGuards());
+    }
+
+    /** Names the rule module {@code rules} and weighs two rules, in table {@code [table]} only. */
+    private static String withRules(String document, String table) {
+        var start = document.indexOf("\n[" + table + "]");
+        var next = document.indexOf("\n[", start + 1);
+        var end = next < 0 ? document.length() : next;
+        var section = document.substring(start, end)
+                .replace("# rules = { module = \"Rewrites\", classpath = [\"../libraries/rewrites\"] }",
+                        "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
+                .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
+        return document.substring(0, start) + section + document.substring(end);
     }
 
     /** The [graph] table bounds the generator's graphs, and an omitted table reads the defaults. */
