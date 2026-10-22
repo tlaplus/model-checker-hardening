@@ -77,6 +77,7 @@ nav:
       - Community Modules: community-modules.md
       - Recursive operators: recursive-operators.md
       - Metamorphic testing: metamorphic-testing.md
+      - Graph-based testing: graph-based-testing.md
   - Tuning inputs:
       - Collection sizes: collection-size.md
       - Integer literals: integer-literals.md
