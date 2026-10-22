@@ -8,7 +8,7 @@ fuzztla run --how=TECHNIQUE [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
 |---|---|
 | `--how=pbt` | Property-based testing: generate random modules, compare the checkers, and mutate good inputs ([Generations and mutation](mutation.md)). |
 | `--how=mt` | Metamorphic testing: check one checker against equivalent rewrites of its input ([Metamorphic testing](metamorphic-testing.md)). |
-| `--how=gbt` | Graph-based testing, proposed: check each checker against the verdict that a generated control graph predicts ([Graph-based testing](graph-based-testing.md)). |
+| `--how=gbt` | Graph-based testing: check each checker against the verdict that a generated control graph predicts ([Graph-based testing](graph-based-testing.md)). |
 | `--corpus=DIR` | The corpus directory. Default: `corpus`. |
 | `--seed=SEED` | A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case. |
 | `--max-cpus=N` | Maximum number of jobs that run at the same time. Default: all processors. |
@@ -26,7 +26,7 @@ finishes the work in flight and prints a summary. See
 | Compare TLC's recursion with Apalache's folds | [Recursive operators](recursive-operators.md) |
 | Generate calls to your own operators | [Custom operators](custom-operators.md) |
 | Test one checker against itself | [Metamorphic testing](metamorphic-testing.md) |
-| Check verdicts against a predicted outcome (proposed) | [Graph-based testing](graph-based-testing.md) |
+| Check verdicts against a predicted outcome | [Graph-based testing](graph-based-testing.md) |
 | Compare TLC with one worker against TLC with several | [Comparing TLC with itself](#comparing-tlc-with-itself) |
 
 ## Stopping and resuming

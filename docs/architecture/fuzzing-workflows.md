@@ -20,7 +20,7 @@ that the model-checker stages store. [ADR 0010][] records generations, the
 quality gate that ranks entries by those metrics, and the mutator
 ([mutation manual][]). [ADR 0009][] records `fuzztla export-db`, which exports a
 corpus to a SQLite database for analysis ([corpus-database manual][database
-manual]).
+manual]). [ADR 0023][] records graph-based testing (§1.5).
 
 ### 1.1. General architecture
 
@@ -102,7 +102,8 @@ envelope's `kind` field names it, `workflow.spec.SpecDecoders` pairs each kind
 with its decoder, and `generator.kind` selects only what a run *generates*, so a
 corpus may hold entries of more than one kind. An `expr` entry is wrapped in the
 fixed single-state module; a `module` entry decodes to a whole module's
-declarations. Either way the stage receives one assembled module and a
+declarations, and a `graph` entry to a module over a control graph (§1.5). Either
+way the stage receives one assembled module and a
 `CheckRequest`: the exploration depth it asks for and whether it has a temporal
 property.
 
@@ -424,7 +425,50 @@ and the aggregator's policy differ:
 - **Quality gate.** Unchanged. The relation reaches exactly the states of the
   explored module, so its exploration metrics are that module's.
 
-### 1.5. Coverage-based fuzzing
+### 1.5. Graph-based testing of TLC and Apalache
+
+**Implemented architectural extension** ([ADR 0023][]; [manual][graph manual]).
+Tautological edge guards, the ADR's stage 2, are not implemented yet.
+
+In this workflow, the goal is a test suite whose verdicts are known without a second
+checker. Each input decodes to a control graph (V, E) over the nodes `0..N-1` and a
+module over it: the variable `pc` holds the current node, each node carries an
+assignment-only action, each edge (u, v) is a disjunct of `Next` that runs the action
+of u and sets `pc' = v`, and the invariant is `pc /= k` for a target k. Every edge
+leaving the current node is enabled while the step counter is below its bound B, so a
+counterexample exists exactly when the breadth-first distance d from node 0 to k is at
+most B, and its shortest trace has d transitions ([ir-generators.md §12](ir-generators.md#12-graph-generation)).
+The test suite contains three kinds of test inputs:
+
+- **Positive tests.** Every checker reports the predicted verdict.
+- **Negative tests.** A checker contradicts the graph, or the checkers disagree.
+- **Crash tests.** A model checker crashes on the input.
+
+The workflow reuses every stage. The technique, the kind and the aggregator's policy
+differ:
+
+- **Technique and kind.** `fuzztla run --how=gbt` enables the workflow and records
+  `gbt` in `.technique`. It generates only entries of kind `graph`, and `run` refuses
+  another `[generator] kind`. Each `corpus.Technique` names the kinds it generates;
+  `mt` defines no rewrite of a graph module yet and rejects the kind. A `graph` entry
+  in a `pbt` corpus is judged by conformance.
+- **Aggregator.** `Oracle.GRAPH` passes an entry when the checkers agree, in the sense
+  of §1.3, and every checker reports the predicted verdict or fails. A partial term
+  makes TLC fail on any input, so a failure contradicts no prediction. A recorded
+  counterexample has at least d transitions, and exactly d from a checker whose
+  `CorpusStage.counterexampleSearch()` is `SHORTEST`.
+- **Expected outcomes.** The corpus judges an aggregation at run time and again at
+  recovery, but cannot decode. `CheckingPolicy` therefore carries a
+  `corpus.ExpectedOutcomes`, which `workflow.spec.GraphOutcomes` implements by
+  replaying the entry, and `AggregationInput` holds the prediction for its entry.
+  Storage keeps only the bytes.
+- **Checkers.** The prediction is the oracle, so a corpus that runs one checker is
+  meaningful.
+- **Candidate sources and quality gate.** PBT and the mutator apply unchanged; there
+  is no adoption. The gate is unchanged, and `pc` counts as state in the projected
+  metrics.
+
+### 1.6. Coverage-based fuzzing
 
 In this workflow, the goal is to generate a test suite that produces a high coverage of the model checker's source code.
 This test suite contains one kind of test inputs:
@@ -480,9 +524,11 @@ The fields have the following meaning:
       TLA<sup>+</sup> module: its state variables, operator definitions, initial-state
       predicate, next-state action, invariant, and an optional temporal property with
       fairness.
+    - When `"kind"` is `"graph"`, the field `"input"` encodes a control graph and a
+      module over it, whose outcome the graph predicts (§1.5).
 
-   The two encodings are independent, so a change to one cannot reinterpret an
-   entry stored under the other.
+   The three encodings are independent, so a change to one cannot reinterpret an
+   entry stored under another.
 
 ### 2.3. Corpus storage
 
@@ -744,6 +790,8 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0013]: ../decisions/0013-behaviour-archive-and-operator-coverage.md
 [ADR 0016]: ../decisions/0016-metamorphic-testing.md
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
+[ADR 0023]: ../decisions/0023-graph-based-testing.md
+[graph manual]: ../manual/graph-based-testing.md
 [metamorphic manual]: ../manual/metamorphic-testing.md
 [adr-0018]: ../decisions/0018-parallel-tlc-stage.md
 [adr-0019]: ../decisions/0019-state-count-agreement.md

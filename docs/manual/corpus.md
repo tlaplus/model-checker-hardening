@@ -61,7 +61,8 @@ The aggregator waits until every configured checker has a verdict other than
 `pass`, all `counterexample` or all `fail`. Failure codes are not compared. Any other
 combination goes to `03aggregator-fail`, including a counterexample from only one
 checker. Two TLC runs that both complete must also report the same number of
-distinct states.
+distinct states. In a [graph-based](graph-based-testing.md#3-verdicts) corpus, every
+checker must in addition report the verdict the graph predicts, or fail.
 
 An entry that crashes a checker stays in that checker's `crash` directory and is not
 compared.

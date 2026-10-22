@@ -2,12 +2,25 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented, except stage 2 (tautological guards, section 6)
 
 **Date:** 2026-10-22
 
-**Implementation.** None. The design is written against FuzzTLA `ed5c97e`. The
-[manual][manual] describes the proposed user interface.
+**Implementation.** Stage 1, phases 1–3 of section 9, is implemented on the branch
+`igor/graph-based-testing2` (FuzzTLA `d67e591`, TLC `d2e1472`, Apalache 0.62.3
+`3eb15b2`). The [manual][manual] describes it for users. Implementation changed these
+details, recorded where they apply:
+
+- The decoder lives in `gen.engine`, whose factories are package-private; `gen.graph`
+  holds the model types, and `GraphLimits` is a component of `IrGenerationConfig`
+  (sections 3, 7).
+- The header is read before the weighted split; the successor lists have a section of
+  their own; the target is node 0 only in a one-node graph (section 3).
+- Node 0 always has a successor: the probe found that Apalache rejects a graph
+  without edges (sections 2, 3; [Probe](#probe)).
+- `Oracle.judge` takes the results per checker stage, and whether a checker reports a
+  shortest counterexample is a fact on its `CorpusStage`. The probe showed that
+  Apalache, like TLC with one worker, does (section 5).
 
 ## Context
 
@@ -59,6 +72,8 @@ chooses the decoder ([ADR 0016][adr-0016] §1).
 - `InputKind.GRAPH("graph")` names the graph decoder. `workflow.spec.SpecDecoders`
   maps it, so every stage regenerates a graph entry from its stored bytes.
 - `--how=gbt` requires `[generator] kind = "graph"`; `run` refuses any other kind.
+  Each `Technique` constant names the kinds it generates: `pbt` all, `mt` `expr` and
+  `module`, `gbt` `graph`.
 - A `graph` entry in a `pbt` corpus is legal and is judged by conformance alone.
 - The metamorphic registry rejects the `graph` kind with `InputRejectedException`
   until a later ADR defines rewrites of graph modules.
@@ -103,8 +118,10 @@ Node 2 has no incoming edge, so dist(2) = ∞ and the expected verdict is `pass`
 - **Next-state action.** One disjunct per edge (u, v), in node order and then in
   successor order:
   `step < B /\ pc = u /\ Node<u> /\ pc' = v /\ step' = step + 1`. `FuzzInputModule`
-  closes it with the stuttering disjunct, unchanged. A node without successors
-  only stutters; deadlock detection stays off.
+  closes it with the stuttering disjunct, unchanged. Node 0 always has a successor,
+  so `Next` has an edge disjunct: Apalache's assignment finder rejects
+  `FALSE \/ UNCHANGED vars`. Another node without successors only stutters;
+  deadlock detection stays off.
 - **Invariant.** `Inv == pc /= k`. No other invariant is generated: a conjoined `pbt`
   invariant could produce a counterexample before `pc` reaches k, which would weaken
   the prediction to one direction.
@@ -119,33 +136,44 @@ the expected outcome (section 4).
 
 ### 3. Byte encoding
 
-A new package `gen.graph` holds the decoder, its section enum `GraphSection`, the
-records above, and `GraphLimits`. Its decoder satisfies requirements 1–6 of
-[ir-generators.md §1][generators]. It reuses `engine.IrExprGenFactory`,
-`engine.GenerationContext`, `engine.IrTypeGenFactory` and the auxiliary-operator
-decoder of `engine.IrSpecGeneratorEngine`. `engine.ActionShapeGenFactory` gains an
-assignment-only leaf, which draws no `nondeterministic()` marker.
+`engine.IrGraphGeneratorEngine` decodes a graph input, and `engine.GraphSection` is its
+section enum; both live beside the factories they use, which are package-private. The
+model types `TransitionGraph` and `GeneratedGraph` are in `gen.graph`, and
+`gen.GraphLimits` bounds the graph. The decoder satisfies requirements 1–6 of
+[ir-generators.md §1][generators]. It shares `engine.ModulePrelude` (variables and
+auxiliary operators) with the module decoder, and `engine.ActionShapeGenFactory`
+gains an exact leaf, which draws no `nondeterministic()` marker.
 
-The payload splits into weighted sections through `Draw.slice`, as `ModuleSection`
-does:
+1. **Header.** N by `drawLong(1, max_graph_nodes)`. For N = 1, k = 0; otherwise k by
+   `drawLong(1, N - 1)`, since `pc /= 0` fails in every initial state. The header
+   comes before the split, because a weighted share for its two bytes would grow with
+   the input.
 
-1. **Header.** N by `drawLong(1, max_graph_nodes)`, then k by `drawIndex(N)`.
-2. **Variables.** As `ModuleSection.VARIABLES`.
-3. **Auxiliary operators.** As `ModuleSection.AUXILIARY_OPERATORS`.
-4. **Init.** One assignment per data variable.
-5. **Nodes.** Split into N equal slices. Slice u decodes `Node<u>` with a fresh node
-   budget, then `succ(u)` as a terminated list of at most `max_successors` indices,
-   each `drawIndex(N)`. Duplicates collapse, byte-free; self-loops stay.
-6. **Guards** (stage 2). Present only when `[graph] rules` is set, so stage-1 entries
-   decode alike after stage 2 lands, as the property section does (§9.1). Split into
-   N slices aligned with the nodes; section 6 specifies a slice.
+The rest of the payload splits into the weighted sections of `GraphSection`, through
+`engine.WeightedSlices`, the split of `ModuleSection`:
 
-Exhausted input decodes to N = 1, k = 0, one data variable and a node without
-successors: the initial state violates `Inv`.
+2. **Variables** (weight 1). As `ModuleSection.VARIABLES`.
+3. **Auxiliary operators** (2). As `ModuleSection.AUXILIARY_OPERATORS`.
+4. **Init** (2). One assignment per data variable.
+5. **Edges** (2). N equal slices; slice u is `succ(u)`, a terminated list of at most
+   `max_successors` indices, each `drawLong(0, N - 1)`, with at least one for node 0.
+   Duplicates collapse, byte-free; self-loops stay.
+6. **Nodes** (8). N equal slices; slice u decodes `Node<u>` with a fresh node budget.
+7. **Guards** (stage 2, proposed). Present only when `[graph] rules` is set, so stage-1
+   entries decode alike after stage 2 lands, as the property section does (§9.1).
+   Split into N slices aligned with the nodes; section 6 specifies a slice.
+
+The successor lists have their own section, rather than following the action in a
+node's slice as first designed: the action's expressions consumed the slice, and
+almost no graph had an edge. Separate sections also keep a mutation of an action
+from changing the graph.
+
+Exhausted input decodes to N = 1, k = 0, one data variable and the self-loop
+`0 -> 0`: the initial state violates `Inv`.
 
 **Deviation from [ir-generators.md §1][generators].** `graph` is a third encoding,
-independent of `expr` and `module`. Requirement 3 holds within a node slice; a
-mutation of N re-slices every node.
+independent of `expr` and `module` ([ir-generators.md §12][generators]). Requirement 3
+holds within a slice; a mutation of N re-slices the edge and node sections.
 
 ### 4. Expected outcome
 
@@ -166,6 +194,8 @@ TLC stops with an error, and Apalache assigns an arbitrary value.
 record for a counterexample, 0 for a violation in an initial state. Breadth-first
 search reaches a state with `pc = k` first at level dist(k), so TLC with one worker
 reports exactly dist(k). No path is shorter, so every checker reports at least dist(k).
+Apalache checks the invariant after every step of its bounded search, so its first
+violation is a shortest one as well; the probe confirmed it.
 
 The workflow translates the prediction into a `corpus.ExpectedOutcome(CorpusVerdict
 verdict, OptionalInt traceLength)`, so `corpus` depends on no type of `gen.graph`.
@@ -178,23 +208,25 @@ verdict, OptionalInt traceLength)`, so `corpus` depends on no type of `gen.graph
    [ADR 0019][adr-0019].
 2. Every checker reports the expected verdict or `fail`. A `pass` on a reachable
    target, or a `counterexample` on an unreachable one, fails the entry.
-3. Every counterexample has `traceLength` ≥ dist(k), and the `tlc` stage's equals
-   dist(k).
+3. Every recorded `traceLength` is at least dist(k), and equals dist(k) for a checker
+   whose `CorpusStage.counterexampleSearch()` is `SHORTEST`: TLC and Apalache. TLC-n
+   is `ANY`, since its workers need not report a shortest trace.
 
 `fail` is admitted in rule 2 because a partial term makes TLC fail on any input, and
-conformance already compares it with Apalache. Rule 3 states no equality for Apalache
-or TLC-n, whose search order this ADR does not rely on; phase 3 (section 9) measures
-whether Apalache's bounded search reports dist(k) as well.
+conformance already compares it with Apalache.
 
-`Oracle.judge` takes the expected outcome as a second argument, which `CONFORMANCE`
-and `METAMORPHIC` ignore. The aggregator obtains it by replaying the entry through
-`SpecDecoders`, as the quality gate replays inputs; storage keeps only bytes. Because
+`Oracle.judge` takes the results per checker stage, which rule 3 needs, and the
+expected outcome, which `CONFORMANCE` and `METAMORPHIC` ignore. The corpus judges an
+aggregation at run time and again at recovery, but cannot decode. `CheckingPolicy`
+therefore carries a `corpus.ExpectedOutcomes`, which `workflow.spec.GraphOutcomes`
+implements by replaying the entry through `SpecDecoders`, and `AggregationInput`
+holds the prediction for its entry; storage keeps only bytes. Because
 the oracle needs no second checker, `[workflow] checkers = ["tlc"]` or
 `["apalache"]` is a meaningful GBT corpus, as under `mt` ([ADR 0016][adr-0016] §5).
 
 ### 6. Tautological guards (stage 2)
 
-Stage 2 conjoins up to `max_guards` tautologies to each edge, after `pc = u`:
+**Proposed; not implemented.** Stage 2 conjoins up to `max_guards` tautologies to each edge, after `pc = u`:
 
 ```tla
 \/ step < 5 /\ pc = 1 /\ var1 = var1 \union var1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
@@ -220,19 +252,20 @@ indicates a checker defect or an unsound rule, which triage tells apart as under
 
 ### 7. Configuration
 
-A new `[graph]` table, parsed into `config.GraphConfig` and passed to the decoder as
-`gen.GraphLimits`:
+A new optional `[graph]` table, read into `gen.GraphLimits`, a component of
+`IrGenerationConfig`, so that every decoder registry built from a generator
+configuration decodes graphs alike:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `max_graph_nodes` | `6` | Maximum N. |
-| `max_successors` | `3` | Maximum out-degree of a node. |
-| `max_guards` | `2` | Maximum tautological guards per edge (stage 2). |
-| `rules` | absent | Rule module of the guards; absent disables stage 2. |
-| `weights` | `{}` | Rule weights, as in `[metamorphic]`. |
+| `max_successors` | `3` | Maximum out-degree of a node, at least 1. |
+| `max_guards` | `2` | Maximum tautological guards per edge (stage 2, proposed). |
+| `rules` | absent | Rule module of the guards; absent disables stage 2 (proposed). |
+| `weights` | `{}` | Rule weights, as in `[metamorphic]` (proposed). |
 
 `[metamorphic]` already defines `rules` and `weights` (`config.MetamorphicConfig`).
-Both tables use one shared record, `config.RuleLibraryConfig`, and one preparation,
+Stage 2 will make both tables use one shared record, `config.RuleLibraryConfig`, and one preparation,
 `workflow.library.RuleLibraryPreparation`; the corpus file `.rewrite-library` pins the
 prepared rules. The data variables, the step bound and the expression limits come
 from `[generator]`.
@@ -252,15 +285,59 @@ Everything else is reused:
 ### 9. Implementation phases
 
 1. `Technique.GBT`, `InputKind.GRAPH`, `gen.graph`, `[graph]` without rules, and the
-   conformance oracle.
+   conformance oracle. *Implemented.*
 2. `Oracle.GRAPH` with rules 1 and 2 of section 5, and `ExpectedOutcome`.
+   *Implemented.*
 3. Rule 3 of section 5, after a probe measures `traceLength` on reachable targets for
-   each checker.
+   each checker. *Implemented; see [Probe](#probe).*
 4. Tautological guards, the shared `RuleLibraryConfig`, and the guard section.
+   *Proposed.*
 
 Each phase updates [ir-generators.md][generators] and
 [fuzzing-workflows.md][workflows] when it lands, and types carrying a new `@Key`
 get an `@ArchRole`.
+
+## Probe
+
+**Setup.** One `run --how=gbt` of 600 graph entries in two generations of 300, seed
+23, with TLC and Apalache at their default limits (30 s per Apalache check) and the
+shipped `signatures/known-defects.toml`. The run used the decoder of FuzzTLA `39f0ef1`,
+before node 0 had to have a successor; the expected distances were computed with that
+decoder. 40 entries matched a known-defect signature, 443 were aggregated, and 157
+crashed Apalache.
+
+**Verdicts and lengths.** No checker contradicted a predicted verdict. Every
+counterexample had exactly dist(k) transitions:
+
+| Checker | Pass, expected pass | Counterexample, expected | Fail | Counterexamples by dist(k) = 0, 1, 2, 3 |
+| --- | ---: | ---: | ---: | --- |
+| TLC | 157 | 86 | 200 | 16, 57, 13, 0 |
+| Apalache | 258 | 157 | 28 | 32, 103, 20, 2 |
+
+This set Apalache's `counterexampleSearch()` to `SHORTEST`. `GraphModuleCheckersTest`
+pins both facts on decoded graphs.
+
+**Crashes.** 106 of the 107 graphs without edges crashed Apalache: 94 with
+`Missing assignments` on `Next == FALSE \/ UNCHANGED vars`, which its manual
+documents, and 12 by timeout. Node 0 now always has a successor. Of the 51 other
+crashes, 47 were timeouts and 4 known Apalache defects
+([apalache-bmc-004][apalache-bmc-004], [apalache-bmc-014][apalache-bmc-014],
+[apalache-bmc-016][apalache-bmc-016]).
+
+**Failures.** TLC failed on 200 of the 443 aggregated entries, on partial terms: a
+function applied outside its domain (67), a value it cannot compute, such as a
+`CHOOSE` without a witness (58), a `CASE` without a true arm (52), and 23 others.
+Apalache picked values and continued, so 176 of the 180 aggregator failures pair a
+TLC failure with an Apalache pass or counterexample. The other 4 are Apalache
+failures on `ENABLED` (3) and a division by zero (1), which signatures of
+`signatures/all-defects.toml` match. These are conformance differences of the kind a
+`pbt` corpus has. A node action runs on every visit, so a partial term on a reachable
+node is reached more often than in a `pbt` module.
+
+**Decoder statistics.** After the change, over 400 random inputs per length, the
+decoder yields 3.4–3.5 nodes on average and a target reachable within the bound for
+24% (16 bytes), 48% (64), 55% (256) and 61% (1024 bytes) of the graphs; a target at
+distance 2 or more for at most 7%.
 
 ## Alternatives considered
 
@@ -297,14 +374,21 @@ get an `@ArchRole`.
 - **Data values are not predicted.** The oracle constrains `pc` and trace lengths;
   defects in evaluating right-hand sides surface only through conformance and through
   guards.
-- **The share of expected passes depends on the graph.** With N ≤ 6 and B = 5, most
-  targets are reachable; the decoder does not balance the two outcomes.
+- **The share of expected passes depends on the graph.** With N ≤ 6 and B = 5, about
+  half of the targets are reachable, depending on the input length; the decoder does
+  not balance the two outcomes, and long traces are rare ([Probe](#probe)).
+- **TLC fails often.** A node action runs on every visit, so partial terms make TLC
+  fail on about 45% of graph entries. These are conformance differences, not graph
+  violations; `signatures/all-defects.toml` keeps part of them out.
 - **`pc` counts as state change.** ADR 0008 projects out only `step`, so an entry
   whose data never changes still has projected depth. Whether to project out `pc`
   too is left open until a GBT corpus shows how the gate ranks such entries.
 - **Graph entries cannot be rewritten yet.** `mt` rejects the `graph` kind.
 
 [adr-0008]: 0008-exploration-metrics.md
+[apalache-bmc-004]: ../../findings/apalache-bmc/apalache-bmc-004.md
+[apalache-bmc-014]: ../../findings/apalache-bmc/apalache-bmc-014.md
+[apalache-bmc-016]: ../../findings/apalache-bmc/apalache-bmc-016.md
 [adr-0016]: 0016-metamorphic-testing.md
 [adr-0017]: 0017-rewrite-rule-library.md
 [adr-0019]: 0019-state-count-agreement.md

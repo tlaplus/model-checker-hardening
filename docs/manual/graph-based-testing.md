@@ -1,8 +1,6 @@
 # Graph-based testing
 
-!!! warning "Proposed"
-    `--how=gbt` is designed in [ADR 0023](../decisions/0023-graph-based-testing.md)
-    and not implemented yet. This page describes the planned interface.
+Tautological guards on edges (section 4) are not implemented yet.
 
 A graph-based campaign generates modules whose control structure is a directed graph.
 A variable `pc` holds the current node. Each node assigns new values to the data
@@ -29,24 +27,42 @@ max_steps = 5                 # the step bound B
 [workflow]
 checkers = ["tlc", "apalache"] # one checker is enough, see section 3
 
+[workflow.inputs]
+known_defects = ["../signatures/all-defects.toml"]
+
 [graph]
 max_graph_nodes = 6
 max_successors = 3
-max_guards = 2                # used only with rules
-# rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }
-# weights = { UnionSelf = 2 }
 ```
 
 - **The technique is fixed.** The first run records `gbt` in `.technique`; later runs
-  must pass `--how=gbt`.
+  must pass `--how=gbt`. `run` refuses another `kind`.
 - **Mutation works as under `pbt`.** `[mutator] feedback_ratio` sets the share of
   byte mutants of `04quality-pass` entries; random inputs fill the rest.
-- **Guards need rules.** Without `rules`, edges have no guards (section 4).
+- **`[graph]` may be left out.** Its keys then take the defaults above. The data
+  variables, the step bound and the expressions use the `[generator]` keys.
+- **Use the full defect database.** A node action runs every time its node is
+  visited, so TLC fails on a partial term, such as a function applied outside its
+  domain, more often than in a `pbt` corpus: on 45% of the entries of a first
+  campaign with the shipped `known-defects.toml`. `all-defects.toml` keeps more of
+  these out ([Known-defect signatures](known-defect-signatures.md)).
 
 ## 2. What the checker sees
 
-`fuzztla print --spec` shows the module. Besides it, `print` shows the graph, the
-target k and the expected outcome.
+`fuzztla print` shows the graph, the target k and the expected outcome before the
+module; `fuzztla print --spec` shows the module alone:
+
+```text
+nodes: 3
+edges: 0 -> 1, 1 -> 1, 1 -> 0
+target: 2 (unreachable)
+expected: pass
+module:
+---- MODULE FuzzInput ----
+...
+```
+
+The module has this shape (simplified):
 
 ```tla
 VARIABLES var0, var1, pc, step
@@ -66,11 +82,13 @@ Next ==
 Inv == pc /= 2
 ```
 
-- Node 0 is initial; `pc` ranges over `0..N-1`.
+- Node 0 is initial and always has a successor; `pc` ranges over `0..N-1`.
 - `Node<u>` assigns some data variables with `v' = e` and leaves the others unchanged.
-  The right-hand sides are generated expressions, as under `pbt`.
+  The right-hand sides are generated expressions, as under `pbt`, and read neither
+  `pc` nor `step`.
 - There is one disjunct of `Next` per edge. The edges here are 0 → 1, 1 → 1 and
   1 → 0. Node 2 has no incoming edge.
+- The target is node 0 only in a one-node graph.
 
 ## 3. Verdicts
 
@@ -78,7 +96,7 @@ Let dist(k) be the length of a shortest path from node 0 to k, and B the step bo
 
 | Target | Expected verdict | Expected trace length |
 | --- | --- | --- |
-| dist(k) ≤ B | counterexample | dist(k) for TLC, at least dist(k) for the others |
+| dist(k) ≤ B | counterexample | dist(k) for TLC and Apalache, at least dist(k) for TLC-n |
 | dist(k) > B, or unreachable | pass | — |
 
 An entry passes the aggregator when the checkers agree, as under `pbt`, and every
@@ -86,6 +104,9 @@ checker reports the expected verdict or fails. The example expects a pass.
 
 - **A wrong verdict is a defect.** A pass on a reachable target, or a counterexample
   on an unreachable one, fails the entry, whatever the other checker reports.
+- **A wrong trace length is a defect.** A counterexample shorter than dist(k), or a
+  TLC or Apalache counterexample of another length, fails the entry. Both search for
+  a shortest counterexample; TLC with several workers need not find one.
 - **Failures are allowed.** A partial expression, such as `CHOOSE x \in {} : TRUE`,
   makes TLC fail on any input; conformance and the known-defect signatures handle it.
 - **One checker suffices.** With `checkers = ["apalache"]`, the expected outcome is
@@ -93,8 +114,9 @@ checker reports the expected verdict or fails. The example expects a pass.
 
 ## 4. Tautological guards
 
-With `rules` set, each edge may carry guards that are always true, built from the
-rules of a [rewrite-rule module](metamorphic-testing.md#5-writing-rules). The rule
+**Proposed** ([ADR 0023](../decisions/0023-graph-based-testing.md) §6). Each edge
+would carry guards that are always true, built from the rules of a
+[rewrite-rule module](metamorphic-testing.md#5-writing-rules). The rule
 `UnionSelf(S) == S = S \union S` with `S := var1` yields the guard below:
 
 ```tla
@@ -102,18 +124,29 @@ rules of a [rewrite-rule module](metamorphic-testing.md#5-writing-rules). The ru
 ```
 
 A checker that evaluates a guard to `FALSE` disables the edge, and then reports a
-pass or a longer trace than expected. Either the checker is wrong or the rule is
-unsound; check the rule first.
+pass or a longer trace than expected.
 
-## 5. Limitations
+## 5. Triage
+
+Most entries of `03aggregator-fail` are conformance differences, as in a `pbt`
+corpus: TLC fails on a partial term where Apalache picks a value. An entry is a
+graph-oracle failure when the checkers report the same verdict, or the same failure
+status, and `print` shows another expected outcome. Compare the checkers' verdicts
+and `traceLength` (`print --envelope`) with the `expected:` line.
+
+## 6. Limitations
 
 - Only `pc` and trace lengths are predicted. A wrong value of a data variable is
-  found only through conformance or a guard.
+  found only through conformance.
+- Most reachable targets are one step from node 0; few traces are longer.
+- Apalache timed out on about 10% of the entries of a first campaign at the default
+  `timeout_sec = 30`.
 - `--how=mt` does not rewrite `graph` entries.
 - Graph modules have no temporal property.
 
 ## Background
 
-[ADR 0023](../decisions/0023-graph-based-testing.md) records the design. Rules come
-from [ADR 0017](../decisions/0017-rewrite-rule-library.md), and the step bound from
+[ADR 0023](../decisions/0023-graph-based-testing.md) records the design.
+[ir-generators.md §12](../architecture/ir-generators.md#12-graph-generation) specifies
+the encoding. The step bound comes from
 [ADR 0007](../decisions/0007-levels-and-temporal-properties.md).
