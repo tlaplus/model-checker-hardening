@@ -27,7 +27,12 @@ import org.junit.jupiter.api.io.TempDir;
  * checker defect; any other verdict is acceptable.
  */
 class GeneratedDefinitionShapesTest {
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    /**
+     * Apalache type-checks a whole generated module in 3 to 12 seconds on a developer machine, and
+     * a hosted CI runner is several times slower. A timeout gives no verdict, so the bound only has
+     * to catch a hang.
+     */
+    private static final Duration TIMEOUT = Duration.ofSeconds(120);
     private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 30, 1024, 1);
 
     @Test
