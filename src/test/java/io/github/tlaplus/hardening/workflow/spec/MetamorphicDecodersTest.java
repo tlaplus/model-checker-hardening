@@ -64,6 +64,14 @@ class MetamorphicDecodersTest {
         assertTrue(rewritten > 20, "only " + rewritten + " of 200 payloads were rewritten");
     }
 
+    /** No rewrite of a graph module is defined yet, so `mt` rejects graph inputs (ADR 0023 §1). */
+    @Test
+    void aGraphInputIsRejected() {
+        var input = new CorpusInput(InputKind.GRAPH, new byte[] {1, 2, 3});
+        assertThrows(InputRejectedException.class, () -> decoders.decode(input));
+        assertThrows(InputRejectedException.class, () -> decoders.decodeUnrewritten(input));
+    }
+
     @Test
     void aPayloadWithoutRewriteBytesIsRejectedAsAnIdentity() {
         var failure = assertThrows(InputRejectedException.class, () -> decoders.decode(

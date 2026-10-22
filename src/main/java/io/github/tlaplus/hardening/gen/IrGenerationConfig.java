@@ -23,6 +23,7 @@ import java.util.Set;
  * @param ignoredCategories syntax capabilities excluded before byte-level selection
  * @param formWeights selection slots per expression form, for the forms that are not weighted one
  * @param library immutable prepared definitions; loading them is the caller's responsibility
+ * @param graphs bounds on the control graph of a graph input (ADR 0023)
  */
 @ArchRole(Role.CONFIG)
 @Key
@@ -31,7 +32,8 @@ public record IrGenerationConfig(
         ModuleLimits modules,
         Set<ExpressionCategory> ignoredCategories,
         Map<ExpressionKind, Integer> formWeights,
-        OperatorLibrary library) {
+        OperatorLibrary library,
+        GraphLimits graphs) {
 
     /**
      * Largest slot count a single form may occupy. The bound is arbitrary but deliberate: a form
@@ -59,6 +61,7 @@ public record IrGenerationConfig(
         Objects.requireNonNull(expressions, "expressions");
         Objects.requireNonNull(library, "library");
         Objects.requireNonNull(modules, "modules");
+        Objects.requireNonNull(graphs, "graphs");
         ignoredCategories = Set.copyOf(
                 Objects.requireNonNull(ignoredCategories, "ignoredCategories"));
         if (ignoredCategories.stream().anyMatch(category -> !category.isIgnorable())) {
@@ -77,6 +80,13 @@ public record IrGenerationConfig(
             }
         }
         formWeights = copyOf(formWeights);
+    }
+
+    /** Settings with the default graph limits, for callers that generate no graph input. */
+    public IrGenerationConfig(ExpressionLimits expressions, ModuleLimits modules,
+                              Set<ExpressionCategory> ignoredCategories,
+                              Map<ExpressionKind, Integer> formWeights, OperatorLibrary library) {
+        this(expressions, modules, ignoredCategories, formWeights, library, GraphLimits.defaults());
     }
 
     /** Returns an unmodifiable snapshot that iterates in declaration order. */
@@ -121,32 +131,37 @@ public record IrGenerationConfig(
         var ignored = EnumSet.noneOf(ExpressionCategory.class);
         ignored.addAll(ignoredCategories);
         Collections.addAll(ignored, categories);
-        return new IrGenerationConfig(expressions, modules, ignored, formWeights, library);
+        return new IrGenerationConfig(expressions, modules, ignored, formWeights, library, graphs);
     }
 
     /** Returns these settings with a different set of excluded categories. */
     public IrGenerationConfig withIgnoredCategories(Set<ExpressionCategory> categories) {
-        return new IrGenerationConfig(expressions, modules, categories, formWeights, library);
+        return new IrGenerationConfig(expressions, modules, categories, formWeights, library, graphs);
     }
 
     /** Returns these settings with different expression limits. */
     public IrGenerationConfig withExpressionLimits(ExpressionLimits limits) {
-        return new IrGenerationConfig(limits, modules, ignoredCategories, formWeights, library);
+        return new IrGenerationConfig(limits, modules, ignoredCategories, formWeights, library, graphs);
     }
 
     /** Returns these settings with different module limits. */
     public IrGenerationConfig withModuleLimits(ModuleLimits limits) {
-        return new IrGenerationConfig(expressions, limits, ignoredCategories, formWeights, library);
+        return new IrGenerationConfig(expressions, limits, ignoredCategories, formWeights, library, graphs);
     }
 
     /** Returns these settings with different form weights. */
     public IrGenerationConfig withFormWeights(Map<ExpressionKind, Integer> weights) {
-        return new IrGenerationConfig(expressions, modules, ignoredCategories, weights, library);
+        return new IrGenerationConfig(expressions, modules, ignoredCategories, weights, library, graphs);
     }
 
     /** Returns these settings with a prepared library, without performing any source I/O. */
     public IrGenerationConfig withLibrary(OperatorLibrary library) {
-        return new IrGenerationConfig(expressions, modules, ignoredCategories, formWeights, library);
+        return new IrGenerationConfig(expressions, modules, ignoredCategories, formWeights, library, graphs);
+    }
+
+    /** Returns these settings with different graph limits. */
+    public IrGenerationConfig withGraphLimits(GraphLimits limits) {
+        return new IrGenerationConfig(expressions, modules, ignoredCategories, formWeights, library, limits);
     }
 
     public static IrGenerationConfig defaults() {
@@ -154,6 +169,6 @@ public record IrGenerationConfig(
                 ExpressionLimits.defaults(),
                 ModuleLimits.defaults(),
                 Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC),
-                DEFAULT_FORM_WEIGHTS, OperatorLibrary.empty());
+                DEFAULT_FORM_WEIGHTS, OperatorLibrary.empty(), GraphLimits.defaults());
     }
 }

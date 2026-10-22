@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -71,26 +72,13 @@ enum ModuleSection {
      * An absent section receives an empty cursor.
      */
     static Map<ModuleSection, Draw> split(Draw draw, IrGenerationConfig config) {
-        var total = 0;
-        ModuleSection last = null;
-        for (var section : values()) {
-            if (section.isPresent(config)) {
-                total += section.weight;
-                last = section;
-            }
-        }
-        var remaining = (long) draw.remaining();
+        var sections = List.of(values());
+        var slices = WeightedSlices.split(draw, sections.stream()
+                .map(section -> section.isPresent(config) ? section.weight : 0)
+                .toList());
         var result = new EnumMap<ModuleSection, Draw>(ModuleSection.class);
-        for (var section : values()) {
-            final int length;
-            if (!section.isPresent(config)) {
-                length = 0;
-            } else if (section == last) {
-                length = draw.remaining();
-            } else {
-                length = Math.toIntExact(remaining * section.weight / total);
-            }
-            result.put(section, draw.slice(length));
+        for (var index = 0; index < sections.size(); index++) {
+            result.put(sections.get(index), slices.get(index));
         }
         return result;
     }

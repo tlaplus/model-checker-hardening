@@ -7,13 +7,14 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016
- * §4, ADR 0019). Each technique names one oracle.
+ * §4, ADR 0019, ADR 0023 §5). Each technique names one oracle.
  *
- * <p>Both oracles require the checkers to agree: they report the same verdict, and every checker
+ * <p>Every oracle requires the checkers to agree: they report the same verdict, and every checker
  * whose search completed and that counts the distinct reachable states reports the same count.
  */
 @ArchRole(Role.POLICY)
@@ -25,8 +26,8 @@ public enum Oracle {
      */
     CONFORMANCE {
         @Override
-        CorpusVerdict judge(Collection<StageRecord> results) {
-            return agree(results) ? CorpusVerdict.PASS : CorpusVerdict.FAIL;
+        CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
+            return agree(results.values()) ? CorpusVerdict.PASS : CorpusVerdict.FAIL;
         }
     },
     /**
@@ -36,16 +37,50 @@ public enum Oracle {
      */
     METAMORPHIC {
         @Override
-        CorpusVerdict judge(Collection<StageRecord> results) {
-            return agree(results)
-                            && results.stream().noneMatch(result -> result.verdict() == CorpusVerdict.COUNTEREXAMPLE)
+        CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
+            return agree(results.values())
+                            && results.values().stream()
+                                    .noneMatch(result -> result.verdict() == CorpusVerdict.COUNTEREXAMPLE)
+                    ? CorpusVerdict.PASS
+                    : CorpusVerdict.FAIL;
+        }
+    },
+    /**
+     * Passes when the checkers agree and every one reports the outcome the input predicts, or fails
+     * (ADR 0023 §5). A checker that reports a pass where the graph reaches its target, or a
+     * counterexample where it does not, fails the entry even when every checker agrees with it; so
+     * does a counterexample shorter than the shortest path to the target, or longer from a checker
+     * that reports a shortest one.
+     */
+    GRAPH {
+        @Override
+        boolean needsExpectation() {
+            return true;
+        }
+
+        @Override
+        CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
+            var outcome = expected.orElseThrow(
+                    () -> new IllegalArgumentException("the graph oracle judges against an expected outcome"));
+            return agree(results.values())
+                            && results.entrySet().stream().allMatch(result -> outcome.admits(result.getKey(), result.getValue()))
                     ? CorpusVerdict.PASS
                     : CorpusVerdict.FAIL;
         }
     };
 
-    /** Judges the non-crash results of every checker that ran on one entry. */
-    abstract CorpusVerdict judge(Collection<StageRecord> results);
+    /**
+     * Judges the non-crash results of every checker that ran on one entry, against what the entry
+     * predicts when the oracle needs a prediction.
+     *
+     * @throws IllegalArgumentException if this oracle needs an expectation and none is given
+     */
+    abstract CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected);
+
+    /** Reports whether this oracle judges against the outcome an entry predicts. */
+    boolean needsExpectation() {
+        return false;
+    }
 
     private static boolean agree(Collection<StageRecord> results) {
         return results.stream().map(StageRecord::verdict).distinct().count() == 1

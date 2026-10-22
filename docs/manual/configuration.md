@@ -4,8 +4,8 @@ Each corpus has a `config.toml`, written by `fuzztla init`. The file is commente
 this page lists every key by table. Paths in the file are relative to the file itself.
 
 You may leave out a checker table (`[workflow.tlc]`, `[workflow.tlcn]`,
-`[workflow.apalache]`) or any of its keys, as well as `[metamorphic]`, `checkers`
-and the `max_entries` key of a stage table. Anything left out takes the default
+`[workflow.apalache]`) or any of its keys, as well as `[metamorphic]`, `[graph]`,
+`checkers` and the `max_entries` key of a stage table. Anything left out takes the default
 shown below. The other keys are required. Some settings are recorded by the first
 run and cannot change afterwards: `checkers`, the technique (`--how`), and the
 operator library. To change those, initialize a new corpus.
@@ -14,7 +14,7 @@ operator library. To change those, initialize a new corpus.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `kind` | `"module"` | `"module"` generates whole modules with variables, actions and properties. `"expr"` generates one expression and wraps it in a fixed single-state module. |
+| `kind` | `"module"` | `"module"` generates whole modules with variables, actions and properties. `"expr"` generates one expression and wraps it in a fixed single-state module. `"graph"` generates a module over a control graph, whose verdict the graph predicts; `run --how=gbt` requires it ([Graph-based testing](graph-based-testing.md)). |
 | `max_type_depth` | `3` | Maximum nesting of generated types, such as a set of functions to sequences. |
 | `max_expression_depth` | `32` | Maximum depth of an expression tree. |
 | `max_nodes` | `128` | Maximum nodes of an expression tree. |
@@ -113,3 +113,16 @@ generation is selected and mutated. They are described in
 `rules`, `weights`, `max_rewrites`, `max_rewrite_depth`, `max_rewrite_growth`,
 `base_corpus` and `adopt_ratio` are used only by `run --how=mt`. They are described in
 [Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus).
+
+## `[graph]`: control graphs
+
+| Key | Default | Meaning |
+|---|---|---|
+| `min_graph_nodes` | `20` | Minimum nodes of the control graph of a `graph` input. The graph has a spine `0 -> 1 -> ... -> N-1`, so it is up to N - 1 steps deep. |
+| `max_graph_nodes` | `32` | Maximum nodes. Node 0 is initial. |
+| `max_extra_successors` | `2` | Maximum successors of one node besides its spine successor: back edges, self-loops and forward skips of at most two nodes. |
+| `max_steps` | `max_graph_nodes` | Cap on the step bound. Each input draws its own bound between half its node count and its node count minus one. |
+
+The keys apply to `graph` inputs only ([Graph-based testing](graph-based-testing.md)).
+Their data variables and expressions use the `[generator]` keys; `[generator]
+max_steps` does not apply to them.

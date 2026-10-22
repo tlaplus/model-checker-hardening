@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import java.io.IOException;
@@ -140,7 +141,11 @@ public final class TomlConfig {
                 ConfigSchema.GENERATOR_LIMITS.readExpressionLimits(tables),
                 ConfigSchema.GENERATOR_LIMITS.readModuleLimits(tables),
                 ConfigSchema.IGNORED_CATEGORIES.read(tables),
-                ConfigSchema.FORM_WEIGHTS.read(tables), OperatorLibrary.empty());
+                ConfigSchema.FORM_WEIGHTS.read(tables), OperatorLibrary.empty(),
+                new GraphLimits(ConfigSchema.MINIMUM_GRAPH_NODES.read(tables),
+                        ConfigSchema.MAXIMUM_GRAPH_NODES.read(tables),
+                        ConfigSchema.MAXIMUM_EXTRA_SUCCESSORS.read(tables),
+                        ConfigSchema.MAXIMUM_GRAPH_STEPS.read(tables)));
 
         var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {

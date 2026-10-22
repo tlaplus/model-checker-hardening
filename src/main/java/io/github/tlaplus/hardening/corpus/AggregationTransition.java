@@ -39,7 +39,8 @@ final class AggregationTransition {
             return Optional.empty();
         }
         requireCompatibleBranches(name, branches);
-        return Optional.of(new AggregationInput(candidate, records(branches), policy));
+        return Optional.of(AggregationInput.of(candidate, records(branches), policy,
+                branches.getFirst().entry().envelope().corpusInput()));
     }
 
     /** Installs one merged result before removing either checker source. */

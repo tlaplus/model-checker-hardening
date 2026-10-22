@@ -10,13 +10,15 @@ an arbitrary byte array to typed Apalache TLA<sup>+</sup> IR. The decoders favor
 well-formed output from short inputs and remain useful under byte-level
 mutation.
 
-There are two entry points, and an `InputKind` names which one a byte array
+There are three entry points, and an `InputKind` names which one a byte array
 belongs to:
 
 - `IrGenerators.expressions` produces a single `TlaEx`.
 - `IrGenerators.specs` produces a `GeneratedSpec`: the state variables,
   auxiliary and action operator definitions, initial-state predicate,
   next-state action, invariant and bound predicate of one module.
+- `IrGenerators.graphs` produces a `GeneratedGraph`: a `GeneratedSpec` over a
+  control graph, the graph and its target node (section 12).
 
 Both accept an immutable prepared custom-operator library. With a nonempty
 library, their output may reference its exported operators; the workflow linker
@@ -30,8 +32,8 @@ search, maintains a corpus, or shrinks failing inputs. The
 [fuzzing workflow](fuzzing-workflows.md) supplies byte arrays and decides how to
 store or mutate them.
 
-The two encodings are independent and share no bytes. Adding a module form
-cannot reinterpret a stored expression input, and the reverse holds too.
+The three encodings are independent and share no bytes. Adding a module form
+cannot reinterpret a stored expression or graph input, and the reverse holds too.
 
 **Implemented extension** ([ADR 0016](../decisions/0016-metamorphic-testing.md)).
 Metamorphic testing (`run --how=mt`) adds a byte-directed rewriter in
@@ -71,11 +73,20 @@ IR-generator facade.
 | `InputRejectedException` | Expected rejection of one semantically unsuitable input. |
 | `ExpressionCategory` | User-facing syntax capabilities assigned to expression forms and structural types. |
 | `IrGenerationConfig` | Category exclusions, resource limits, selection weights keyed by `ExpressionKind`, and the prepared `OperatorLibrary`. |
-| `IrGenerators` | Public factory for reusable expression and module generators. |
+| `IrGenerators` | Public factory for reusable expression, module and graph generators. |
 | `ExpressionLimits`, `ModuleLimits`, and `ActionLimits` | Bounds on expressions, module declarations and exploration, and action construction; `ModuleLimits` contains `ActionLimits`. |
+| `GraphLimits` | Bounds on the control graph of a graph input: nodes and successors per node. |
 | `GeneratedSpec` | The declarations of one generated module, and the exploration depth it asks for. |
 | `GeneratedOperator` | One canonical definition: a state-free auxiliary or a `GeneratedActionOperator` with an immutable `ActionEffect`. |
-| `InputKind` | Which decoder a byte array belongs to: `expr` or `module`. |
+| `InputKind` | Which decoder a byte array belongs to: `expr`, `module` or `graph`. |
+
+The package `io.github.tlaplus.hardening.gen.graph` holds the model of a graph input
+(section 12).
+
+| Type | Responsibility |
+| --- | --- |
+| `TransitionGraph` | The successor lists of nodes `0..N-1`, the edges in decoder order, and breadth-first distances from node 0. |
+| `GeneratedGraph` | A `GeneratedSpec` over a graph, the graph, the target, and the predicted distance to the target within the step bound. |
 
 The package `io.github.tlaplus.hardening.gen.engine` implements type-directed IR
 construction. Most engine types are package-private. `IrGeneratorEngine` is
@@ -85,10 +96,13 @@ public so callers that already own a `Draw` may invoke the coordinator directly.
 | --- | --- |
 | `IrGeneratorEngine` | Creates per-run state, then draws the result type and expression. |
 | `IrSpecGeneratorEngine` | Creates per-run state, then draws a module's variables, definitions, and predicates. |
+| `IrGraphGeneratorEngine` | Creates per-run state, then draws a graph input's header, variables, definitions, initial values, successors and node actions. |
+| `ModulePrelude` | Draws the state variables and auxiliary definitions that every generated module begins with. |
 | `ActionGenFactory` | Assembles Init, action definitions, bounded parameters, guards, Next disjuncts and the unconditional step update. |
 | `ActionShapeGenFactory` | Decodes recursive shapes, partitions effects, builds assignments and `UNCHANGED`, and applies explicitly visible action operators. |
 | `VisibleActionOperators` | Immutable effect index over an explicit declaration-order operator prefix, preserving candidate order. |
-| `ModuleSection` | Divides a module input into the contiguous byte sections its top-level bodies decode from. |
+| `ModuleSection`, `GraphSection` | Divide a module or graph input into the contiguous byte sections its top-level bodies decode from. |
+| `WeightedSlices` | The proportional split behind both section enums and the per-node slices of a graph input. |
 | `GenerationContext` | Owns the type-safe builder, lexical scope, fresh-name supplies, node budget, and immutable configuration for one run. |
 | `IrType` and `IrTypeGenFactory` | Represent and generate enabled internal types used to direct construction, including the scope-directed type of a read and definition signatures. |
 | `ExpressionKind` | Selectable form with category, applicability, and weight policy. |
@@ -1111,6 +1125,73 @@ export is aliased like an instance-linked one, but the alias instantiates a diff
 module. A `ModuleLink(linkage, sourceModule)` on the export names that module. The
 importer sees only the reference module. The rules above, including the rejection of
 recursion, therefore constrain the Apalache side only.
+
+
+## 12. Graph generation
+
+**Implemented extension** ([ADR 0023](../decisions/0023-graph-based-testing.md)).
+`IrGraphGeneratorEngine` decodes a graph input: a directed graph over the nodes
+`0..N-1`, the control structure of a module whose state variable `pc` holds the
+current node. Node 0 is initial. The module satisfies both invariants of section 9,
+so `FuzzInputModule` assembles it as it assembles a module input.
+
+### 12.1. Byte layout
+
+The graph has a *spine* `0 -> 1 -> ... -> N-1`, so node u is at most u steps from
+node 0, and the decoder only adds edges to it. The payload begins with a header of
+three draws:
+
+- N by `drawLong(minimumNodes, maximumNodes)`, by default 20 to 32;
+- the target k by `drawLong(⌈N/2⌉, N - 1)`, in the upper half of the spine, and k = 0
+  for N = 1;
+- the step bound B by `drawLong(⌊N/2⌋, N - 1)`, both ends capped by `maximumSteps`.
+
+A target with dist(k) > B is unreachable, so roughly half the inputs predict a pass.
+The bound is the input's own: `GeneratedSpec.stepBound` and every step guard use B,
+not `[generator] max_steps`. The rest of the payload is split by `GraphSection`, with
+weights `1, 2, 2, 2, 8`:
+
+1. **Variables** and 2. **auxiliary operators**, as for a module (section 9.1);
+   `pc : Int` and `step` are appended to the data variables.
+3. **Init**: one `v = e` per data variable, then `pc = 0 /\ step = 0`.
+4. **Edges**: N equal slices; slice u is a terminated list of at most
+   `maximumExtraSuccessors` extra successors of u, each `drawLong(0, min(u + 2, N - 1))`:
+   a back edge, a self-loop or a forward skip of at most two nodes. Node u's
+   successors are its spine successor u + 1, byte-free, then the extras, with repeats
+   removed in order. A one-node graph's spine is the self-loop `0 -> 0`.
+5. **Nodes**: N equal slices; slice u decodes the action of node u.
+
+Forward edges are bounded because a long forward skip shortens every path behind it:
+with uniform random successors, the part of the graph reachable from node 0 had about
+4 nodes and depth 2 even for N ≤ 30. The successor lists have a section of their own
+because, in one slice with the action, the action's expressions consumed the bytes
+the successors follow. Separate sections also keep a mutation of an action from
+changing the graph. A mutation of N re-slices both sections.
+
+### 12.2. Module
+
+- **Node actions.** `Node<u>` is a required leaf of section 9.2 with the
+  `AssignmentForm.EXACT` form: a non-empty subset of the data variables is assigned
+  by `v' = e` and the rest are `UNCHANGED`, with both repairs and no membership
+  marker. It is a nullary `GeneratedActionOperator` whose effect is every data
+  variable. Right-hand sides see the auxiliary operators and the data variables,
+  but neither `pc` nor `step`.
+- **Next.** One disjunct per edge (u, v), in node order and then successor order:
+  `ActionGenFactory.boundedStep` of `pc = u /\ Node<u> /\ pc' = v`, under the
+  input's bound B. The spine leaves node 0, so `Next` always has a disjunct: Apalache's
+  assignment finder rejects `FALSE \/ UNCHANGED vars`, whose first disjunct assigns
+  no variable.
+- **Invariant.** `pc /= k`. No other invariant and no property are generated.
+
+### 12.3. Prediction
+
+While `step` is below its bound, every edge leaving the current node is enabled:
+`Init` and every node action assign exact values, and an edge has no guard but
+`pc = u` and the step guard. A partial right-hand side makes TLC fail and gives
+Apalache an arbitrary value; neither disables an edge. A state with `pc = k` is
+therefore reachable exactly when dist(k), the breadth-first distance from node 0,
+is at most the step bound, and it is first reached after dist(k) transitions.
+`GeneratedGraph.targetDistance()` returns that distance, and is empty otherwise.
 
 [adr-0011]: ../decisions/0011-collection-base-size.md
 [adr-0012]: ../decisions/0012-integer-literals.md

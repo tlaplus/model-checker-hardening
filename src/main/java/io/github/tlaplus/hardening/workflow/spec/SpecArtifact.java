@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
@@ -42,13 +43,18 @@ public final class SpecArtifact {
     private final SourceLink source;
     private final CheckRequest request;
     private final List<TlaEx> generated;
-    private final TlaEx standaloneExpression;
-    private final Rewrite<?> rewrite;
+    private final Origin origin;
 
     /** What a decoder assembled, before the library is linked. */
-    private record Parts(
-            TlaModule skeleton, CheckRequest request, List<TlaEx> generated, TlaEx standaloneExpression,
-            Rewrite<?> rewrite) {}
+    private record Parts(TlaModule skeleton, CheckRequest request, List<TlaEx> generated, Origin origin) {}
+
+    /**
+     * What the decoder produced besides the module, each part absent ({@code null}) unless the
+     * decoder has it: the standalone expression, the metamorphic pair, the control graph.
+     */
+    private record Origin(TlaEx standaloneExpression, Rewrite<?> rewrite, GeneratedGraph graph) {
+        static final Origin MODULE = new Origin(null, null, null);
+    }
 
     private SpecArtifact(Parts parts, OperatorLibrary library) {
         this.source = library.linkSource(parts.skeleton(), parts.generated());
@@ -56,15 +62,14 @@ public final class SpecArtifact {
         this.module = source.aliases().isEmpty() ? source.module() : library.link(parts.skeleton(), parts.generated());
         this.request = Objects.requireNonNull(parts.request(), "request");
         this.generated = List.copyOf(Objects.requireNonNull(parts.generated(), "generated"));
-        this.standaloneExpression = parts.standaloneExpression();
-        this.rewrite = parts.rewrite();
+        this.origin = Objects.requireNonNull(parts.origin(), "origin");
     }
 
     /** Wraps one generated expression, and the library definitions it uses, in the checker module. */
     public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
         return new SpecArtifact(new Parts(FuzzInputModule.create(expression),
-                CheckRequest.invariant(0), List.of(expression), library.close(expression), null), library);
+                CheckRequest.invariant(0), List.of(expression), new Origin(library.close(expression), null, null)), library);
     }
 
     /**
@@ -76,7 +81,7 @@ public final class SpecArtifact {
         var explored = rewrite.explored();
         var checked = rewrite.checked();
         return new SpecArtifact(new Parts(FuzzInputModule.create(explored, checked), CheckRequest.invariant(0),
-                List.of(explored, checked), library.close(rewrite.original()), rewrite), library);
+                List.of(explored, checked), new Origin(library.close(rewrite.original()), rewrite, null)), library);
     }
 
     /**
@@ -91,14 +96,26 @@ public final class SpecArtifact {
         var generated = new ArrayList<>(original.generated());
         generated.addAll(rewritten.generated());
         return new SpecArtifact(new Parts(FuzzInputModule.create(original, rewritten, rewrite.orientation()),
-                new CheckRequest(original.stepBound(), false, true), generated, null, rewrite), library);
+                new CheckRequest(original.stepBound(), false, true), generated, new Origin(null, rewrite, null)), library);
     }
 
     /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
         return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
-                new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(), null, null), library);
+                new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(), Origin.MODULE), library);
+    }
+
+    /**
+     * Assembles a graph module (ADR 0023) as a module input, and keeps its graph for the oracle
+     * and for inspection.
+     */
+    public static SpecArtifact fromGeneratedGraph(GeneratedGraph graph, OperatorLibrary library) {
+        Objects.requireNonNull(graph, "graph");
+        var spec = graph.spec();
+        return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
+                new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(),
+                new Origin(null, null, graph)), library);
     }
 
     public TlaModule module() {
@@ -124,11 +141,16 @@ public final class SpecArtifact {
 
     /** Returns the metamorphic pair this artifact relates, when it came from a metamorphic decoder. */
     public Optional<Rewrite<?>> rewrite() {
-        return Optional.ofNullable(rewrite);
+        return Optional.ofNullable(origin.rewrite());
+    }
+
+    /** Returns the control graph this artifact encodes, when it came from the graph decoder. */
+    public Optional<GeneratedGraph> graph() {
+        return Optional.ofNullable(origin.graph());
     }
 
     /** Returns the input expression when this artifact came from the expression decoder. */
     public Optional<TlaEx> standaloneExpression() {
-        return Optional.ofNullable(standaloneExpression);
+        return Optional.ofNullable(origin.standaloneExpression());
     }
 }

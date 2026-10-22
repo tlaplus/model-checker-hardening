@@ -37,8 +37,8 @@ final class AggregationRecovery {
             for (var path : CorpusLayout.entryPaths(
                     layout.resolve(CorpusStage.AGGREGATOR.result(verdict)))) {
                 var entry = entries.verify(path);
-                var aggregation = new AggregationInput(
-                        entry.path(), upstreamCheckerResults(entry), policy);
+                var aggregation = AggregationInput.of(
+                        entry.path(), upstreamCheckerResults(entry), policy, entry.envelope().corpusInput());
                 if (verdict != aggregation.verdict()) {
                     throw new CorpusException(
                             "aggregator verdict does not match checker results: " + path);

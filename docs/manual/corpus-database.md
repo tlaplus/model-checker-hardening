@@ -75,7 +75,7 @@ One row per property of the export.
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
 | `key` | TEXT | no | `corpus`, `exportedAt`, `fuzztlaVersion` or `technique` | – |
-| `value` | TEXT | no | The corpus's absolute path, the export start time, the `fuzztla --version` string, or the technique the corpus runs (`pbt` or `mt`) | – |
+| `value` | TEXT | no | The corpus's absolute path, the export start time, the `fuzztla --version` string, or the technique the corpus runs (`pbt`, `mt` or `gbt`) | – |
 
 ### 2.2. `entry`
 
@@ -89,7 +89,7 @@ records.
 | `id` | INTEGER | no | Row id, referenced by `stage`, `knownDefect`, `mutationOperator` and `expr` | – |
 | `directory` | TEXT | no | Directory name, such as `03aggregator-pass` | file path |
 | `hash` | TEXT | no | SHA-256 of the input bytes, from the file name | file name |
-| `kind` | TEXT | no | `expr` or `module` | `kind` |
+| `kind` | TEXT | no | `expr`, `module` or `graph` | `kind` |
 | `inputBytes` | INTEGER | no | Size of the generator input | `input` |
 | `cohort` | INTEGER | yes | Richness cohort of the admission | `gen.cohort` |
 | `richness` | REAL | yes | Richness score of the admission | `gen.richness` |

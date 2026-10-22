@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
@@ -242,12 +243,15 @@ final class ConfigSchema {
     private static final ConfigTableBuilder<QualityGateConfig> GATE = MUTATOR.project(MutatorConfig::gate);
     private static final ConfigTableBuilder<MetamorphicConfig> METAMORPHIC =
             new ConfigTableBuilder<>("metamorphic", FuzzTlaConfig::metamorphic);
+    private static final ConfigTableBuilder<GraphLimits> GRAPH =
+            new ConfigTableBuilder<>("graph", config -> config.generator().graphs());
     private static final Map<CorpusStage, Table> CHECKER_TABLES = new EnumMap<>(CorpusStage.class);
 
     static final Key<InputKind> GENERATED_KIND = GENERATOR.key(
             "kind", ConfigValueType.INPUT_KIND, FuzzTlaConfig::generatedKind,
             "What this run generates: \"expr\" for one expression wrapped in a"
-                    + " single-state module, or \"module\" for a whole module.",
+                    + " single-state module, \"module\" for a whole module, or \"graph\" for a",
+            "module over a control graph (ADR 0023), which --how=gbt requires.",
             "A corpus entry records its own kind, so a run only generates this one.");
     static final GeneratorLimitSchema GENERATOR_LIMITS = new GeneratorLimitSchema(GENERATION);
     static final Key<Set<ExpressionCategory>> IGNORED_CATEGORIES = GENERATION.key(
@@ -362,6 +366,22 @@ final class ConfigSchema {
             new Constant<>(MetamorphicConfig.Adoption.defaults().ratio()),
             "Share of a generation adopted from base_corpus; the mutator and PBT fill the rest.");
 
+    static final Key<Integer> MINIMUM_GRAPH_NODES = GRAPH.defaultedInteger(
+            "min_graph_nodes", GraphLimits::minimumNodes, GraphLimits.DEFAULT_MINIMUM_NODES,
+            "Minimum nodes of the control graph of a graph input (ADR 0023). The graph has a spine",
+            "0 -> 1 -> ... -> N-1, so a graph of N nodes is up to N - 1 steps deep.");
+    static final Key<Integer> MAXIMUM_GRAPH_NODES = GRAPH.defaultedInteger(
+            "max_graph_nodes", GraphLimits::maximumNodes, GraphLimits.DEFAULT_MAXIMUM_NODES,
+            "Maximum nodes of the control graph of a graph input; node 0 is initial.");
+    static final Key<Integer> MAXIMUM_EXTRA_SUCCESSORS = GRAPH.defaultedInteger(
+            "max_extra_successors", GraphLimits::maximumExtraSuccessors, GraphLimits.DEFAULT_MAXIMUM_EXTRA_SUCCESSORS,
+            "Maximum successors of one node besides its spine successor: back edges, self-loops",
+            "and forward skips of at most two nodes.");
+    static final Key<Integer> MAXIMUM_GRAPH_STEPS = GRAPH.optionalInteger(
+            "max_steps", GraphLimits::maximumSteps, MAXIMUM_GRAPH_NODES,
+            "Cap on the step bound of a graph input, which each input draws between half its",
+            "node count and its node count minus one. Defaults to max_graph_nodes.");
+
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();
 
@@ -423,6 +443,7 @@ final class ConfigSchema {
         tables.add(PBT.build());
         tables.add(MUTATOR.build());
         tables.add(METAMORPHIC.buildOptional());
+        tables.add(GRAPH.buildOptional());
         return List.copyOf(tables);
     }
 

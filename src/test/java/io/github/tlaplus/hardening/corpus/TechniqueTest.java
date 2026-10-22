@@ -1,6 +1,9 @@
 package io.github.tlaplus.hardening.corpus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.github.tlaplus.hardening.gen.InputKind;
 
 import java.util.Arrays;
 import java.util.List;
@@ -11,10 +14,21 @@ class TechniqueTest {
     /** The encoded names are stored in `.technique` and accepted by `--how`. */
     @Test
     void pinsEncodedNamesAndOracles() {
-        assertEquals(List.of("pbt", "mt"), Technique.encodedNames());
+        assertEquals(List.of("pbt", "mt", "gbt"), Technique.encodedNames());
         assertEquals(Oracle.CONFORMANCE, Technique.PBT.oracle());
         assertEquals(Oracle.METAMORPHIC, Technique.MT.oracle());
+        assertEquals(Oracle.GRAPH, Technique.GBT.oracle());
         assertEquals(Technique.PBT, Technique.UNRECORDED);
+    }
+
+    /** pbt generates every kind, mt rewrites no graph, and gbt generates only graphs (ADR 0023 §1). */
+    @Test
+    void namesTheKindsEachTechniqueGenerates() {
+        for (var kind : InputKind.values()) {
+            assertTrue(Technique.PBT.generates(kind), kind.encodedName());
+            assertEquals(kind != InputKind.GRAPH, Technique.MT.generates(kind), kind.encodedName());
+            assertEquals(kind == InputKind.GRAPH, Technique.GBT.generates(kind), kind.encodedName());
+        }
     }
 
     @Test

@@ -27,6 +27,11 @@ public record ModuleLimits(int maximumVariables, int maximumAuxiliaryOperators,
         Preconditions.requireNonnegative(maximumFairnessConditions, "maximumFairnessConditions");
     }
 
+    /** Returns these limits with another step bound. */
+    public ModuleLimits withMaximumSteps(int steps) {
+        return new ModuleLimits(maximumVariables, maximumAuxiliaryOperators, actions, steps, maximumFairnessConditions);
+    }
+
     public static ModuleLimits defaults() {
         return new ModuleLimits(DEFAULT_MAXIMUM_VARIABLES, DEFAULT_MAXIMUM_AUXILIARY_OPERATORS,
                 ActionLimits.defaults(), DEFAULT_MAXIMUM_STEPS, DEFAULT_MAXIMUM_FAIRNESS_CONDITIONS);

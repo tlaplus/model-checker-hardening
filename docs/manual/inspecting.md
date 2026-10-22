@@ -12,7 +12,7 @@ fuzztla print --corpus my-corpus my-corpus/03aggregator-fail/<hash>.cbor
 
 | Option | Prints |
 |---|---|
-| none | The generated TLA<sup>+</sup> module, or the expression for an `expr` corpus. |
+| none | The generated TLA<sup>+</sup> module, or the expression for an `expr` corpus. For a `graph` entry, first the graph, the target and the expected outcome ([Graph-based testing](graph-based-testing.md#2-what-the-checker-sees)). |
 | `--spec` | The complete specification given to SANY and TLC. |
 | `--apalache-ir` | The typed JSON given to Apalache. |
 | `--envelope` | The stored metadata: how the entry was generated, and each stage's verdict, failure code, timestamps and metrics. |
