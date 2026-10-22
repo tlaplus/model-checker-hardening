@@ -7,7 +7,7 @@
 **Date:** 2026-10-22
 
 **Implementation.** Stage 1, phases 1–3 of section 9, is implemented on the branch
-`igor/graph-based-testing2` (FuzzTLA `d67e591`, TLC `d2e1472`, Apalache 0.62.3
+`igor/graph-based-testing2` (FuzzTLA `71f911a`, TLC `d2e1472`, Apalache 0.62.3
 `3eb15b2`). The [manual][manual] describes it for users. Implementation changed these
 details, recorded where they apply:
 
@@ -16,8 +16,11 @@ details, recorded where they apply:
   (sections 3, 7).
 - The header is read before the weighted split; the successor lists have a section of
   their own; the target is node 0 only in a one-node graph (section 3).
-- Node 0 always has a successor: the probe found that Apalache rejects a graph
-  without edges (sections 2, 3; [Probe](#probe)).
+- Graphs have a spine `0 -> 1 -> ... -> N-1` of 20 to 32 nodes, extra edges reach at
+  most two nodes ahead, and each input draws its own step bound (sections 2, 3, 7).
+  The first probe found random successor lists too shallow: the targets lay at most
+  6 steps from node 0, and Apalache rejected graphs without edges
+  ([Probes](#probes)).
 - `Oracle.judge` takes the results per checker stage, and whether a checker reports a
   shortest counterexample is a fact on its `CorpusStage`. The probe showed that
   Apalache, like TLC with one worker, does (section 5).
@@ -56,7 +59,7 @@ temporal properties and a graph-specific quality-gate policy are out of scope.
 | N | number of nodes; V = {0, ..., N - 1}, node 0 is initial |
 | E ⊆ V × V | edges; `succ(u)` is the successor set of u |
 | k ∈ V | target node, named by the invariant `pc /= k` |
-| B | step bound, `[generator] max_steps` ([ir-generators.md §9.3][generators]) |
+| B | step bound of the input, drawn in [⌊N/2⌋, N - 1] and capped by `[graph] max_steps` ([ir-generators.md §9.3][generators]) |
 | dist(u) | length of a shortest path from 0 to u in (V, E), ∞ if none |
 
 ## Decision
@@ -81,7 +84,8 @@ chooses the decoder ([ADR 0016][adr-0016] §1).
 ### 2. Generated module
 
 The decoder emits the following module shape. In the example, `var0 : Int` and
-`var1 : Set(Int)`, N = 3, E = {(0, 1), (1, 1), (1, 0)}, k = 2 and B = 5.
+`var1 : Set(Int)`, N = 3, the spine edges are (0, 1) and (1, 2), the extra edges
+(1, 1) and (1, 0), k = 2 and B = 2. Real graphs have 20 to 32 nodes.
 
 ```tla
 VARIABLES var0, var1, pc, step
@@ -93,15 +97,17 @@ Node2 == var0' = 0 /\ var1' = {}
 Init == var0 = 3 /\ var1 = {1} /\ pc = 0 /\ step = 0
 
 Next ==
-  \/ step < 5 /\ pc = 0 /\ Node0 /\ pc' = 1 /\ step' = step + 1
-  \/ step < 5 /\ pc = 1 /\ Node1 /\ pc' = 1 /\ step' = step + 1
-  \/ step < 5 /\ pc = 1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
+  \/ step < 2 /\ pc = 0 /\ Node0 /\ pc' = 1 /\ step' = step + 1
+  \/ step < 2 /\ pc = 1 /\ Node1 /\ pc' = 2 /\ step' = step + 1
+  \/ step < 2 /\ pc = 1 /\ Node1 /\ pc' = 1 /\ step' = step + 1
+  \/ step < 2 /\ pc = 1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
   \/ UNCHANGED <<var0, var1, pc, step>>
 
 Inv == pc /= 2
 ```
 
-Node 2 has no incoming edge, so dist(2) = ∞ and the expected verdict is `pass`.
+dist(2) = 2 ≤ B, so the expected verdict is a counterexample of 2 transitions; with
+B = 1 it would be `pass`.
 
 - **Variables.** The data variables are drawn as under `pbt` (§9.1, item 1). `pc : Int`
   and `step : Int` are appended. Right-hand sides see the data variables and the
@@ -117,11 +123,11 @@ Node 2 has no incoming edge, so dist(2) = ∞ and the expected verdict is `pass`
   `v \in S` is excluded: an empty `S` empties `Init` and voids the prediction.
 - **Next-state action.** One disjunct per edge (u, v), in node order and then in
   successor order:
-  `step < B /\ pc = u /\ Node<u> /\ pc' = v /\ step' = step + 1`. `FuzzInputModule`
-  closes it with the stuttering disjunct, unchanged. Node 0 always has a successor,
-  so `Next` has an edge disjunct: Apalache's assignment finder rejects
-  `FALSE \/ UNCHANGED vars`. Another node without successors only stutters;
-  deadlock detection stays off.
+  `step < B /\ pc = u /\ Node<u> /\ pc' = v /\ step' = step + 1`, with the input's
+  own B. `FuzzInputModule` closes it with the stuttering disjunct, unchanged. The
+  spine leaves node 0, so `Next` has an edge disjunct: Apalache's assignment finder
+  rejects `FALSE \/ UNCHANGED vars`. The last node may have no successor and then
+  only stutters; deadlock detection stays off.
 - **Invariant.** `Inv == pc /= k`. No other invariant is generated: a conjoined `pbt`
   invariant could produce a counterexample before `pc` reaches k, which would weaken
   the prediction to one direction.
@@ -144,10 +150,12 @@ model types `TransitionGraph` and `GeneratedGraph` are in `gen.graph`, and
 auxiliary operators) with the module decoder, and `engine.ActionShapeGenFactory`
 gains an exact leaf, which draws no `nondeterministic()` marker.
 
-1. **Header.** N by `drawLong(1, max_graph_nodes)`. For N = 1, k = 0; otherwise k by
-   `drawLong(1, N - 1)`, since `pc /= 0` fails in every initial state. The header
-   comes before the split, because a weighted share for its two bytes would grow with
-   the input.
+1. **Header.** N by `drawLong(min_graph_nodes, max_graph_nodes)`; the target k by
+   `drawLong(⌈N/2⌉, N - 1)`, in the upper half of the spine (k = 0 for N = 1); and the
+   bound B by `drawLong(⌊N/2⌋, N - 1)`, both ends capped by `[graph] max_steps`. A
+   target with dist(k) > B predicts a pass, so the two outcomes are about equally
+   frequent, although every node is reachable along the spine. The header comes before
+   the split, because a weighted share for its three bytes would grow with the input.
 
 The rest of the payload splits into the weighted sections of `GraphSection`, through
 `engine.WeightedSlices`, the split of `ModuleSection`:
@@ -155,9 +163,11 @@ The rest of the payload splits into the weighted sections of `GraphSection`, thr
 2. **Variables** (weight 1). As `ModuleSection.VARIABLES`.
 3. **Auxiliary operators** (2). As `ModuleSection.AUXILIARY_OPERATORS`.
 4. **Init** (2). One assignment per data variable.
-5. **Edges** (2). N equal slices; slice u is `succ(u)`, a terminated list of at most
-   `max_successors` indices, each `drawLong(0, N - 1)`, with at least one for node 0.
-   Duplicates collapse, byte-free; self-loops stay.
+5. **Edges** (2). N equal slices. `succ(u)` is the spine successor u + 1, byte-free,
+   followed by slice u: a terminated list of at most `max_extra_successors` extra
+   successors, each `drawLong(0, min(u + 2, N - 1))`, a back edge, a self-loop or a
+   forward skip of at most two nodes. Duplicates collapse, byte-free. A one-node
+   graph's spine is the self-loop `0 -> 0`.
 6. **Nodes** (8). N equal slices; slice u decodes `Node<u>` with a fresh node budget.
 7. **Guards** (stage 2, proposed). Present only when `[graph] rules` is set, so stage-1
    entries decode alike after stage 2 lands, as the property section does (§9.1).
@@ -166,10 +176,13 @@ The rest of the payload splits into the weighted sections of `GraphSection`, thr
 The successor lists have their own section, rather than following the action in a
 node's slice as first designed: the action's expressions consumed the slice, and
 almost no graph had an edge. Separate sections also keep a mutation of an action
-from changing the graph.
+from changing the graph. The spine replaces uniform random successors, under which
+the part of a graph reachable from node 0 had about 4 nodes even for N ≤ 30, and
+forward edges are bounded because a long skip shortens every path behind it.
 
-Exhausted input decodes to N = 1, k = 0, one data variable and the self-loop
-`0 -> 0`: the initial state violates `Inv`.
+Exhausted input decodes to the bare spine of `min_graph_nodes` nodes, one data
+variable, no extra edge, k = ⌈N/2⌉ and B = ⌊N/2⌋, both 10 by default: a
+counterexample of 10 transitions.
 
 **Deviation from [ir-generators.md §1][generators].** `graph` is a third encoding,
 independent of `expr` and `module` ([ir-generators.md §12][generators]). Requirement 3
@@ -258,8 +271,10 @@ configuration decodes graphs alike:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `max_graph_nodes` | `6` | Maximum N. |
-| `max_successors` | `3` | Maximum out-degree of a node, at least 1. |
+| `min_graph_nodes` | `20` | Minimum N, so a spine is at least 19 steps long. |
+| `max_graph_nodes` | `32` | Maximum N. |
+| `max_extra_successors` | `2` | Maximum successors of a node besides its spine successor. |
+| `max_steps` | `max_graph_nodes` | Cap on the step bound B each input draws. |
 | `max_guards` | `2` | Maximum tautological guards per edge (stage 2, proposed). |
 | `rules` | absent | Rule module of the guards; absent disables stage 2 (proposed). |
 | `weights` | `{}` | Rule weights, as in `[metamorphic]` (proposed). |
@@ -267,8 +282,8 @@ configuration decodes graphs alike:
 `[metamorphic]` already defines `rules` and `weights` (`config.MetamorphicConfig`).
 Stage 2 will make both tables use one shared record, `config.RuleLibraryConfig`, and one preparation,
 `workflow.library.RuleLibraryPreparation`; the corpus file `.rewrite-library` pins the
-prepared rules. The data variables, the step bound and the expression limits come
-from `[generator]`.
+prepared rules. The data variables and the expression limits come from `[generator]`;
+`[generator] max_steps` does not apply to graph inputs.
 
 ### 8. Pipeline
 
@@ -289,7 +304,7 @@ Everything else is reused:
 2. `Oracle.GRAPH` with rules 1 and 2 of section 5, and `ExpectedOutcome`.
    *Implemented.*
 3. Rule 3 of section 5, after a probe measures `traceLength` on reachable targets for
-   each checker. *Implemented; see [Probe](#probe).*
+   each checker. *Implemented; see [Probes](#probes).*
 4. Tautological guards, the shared `RuleLibraryConfig`, and the guard section.
    *Proposed.*
 
@@ -297,7 +312,9 @@ Each phase updates [ir-generators.md][generators] and
 [fuzzing-workflows.md][workflows] when it lands, and types carrying a new `@Key`
 get an `@ArchRole`.
 
-## Probe
+## Probes
+
+### Probe 1: random successors
 
 **Setup.** One `run --how=gbt` of 600 graph entries in two generations of 300, seed
 23, with TLC and Apalache at their default limits (30 s per Apalache check) and the
@@ -334,10 +351,35 @@ failures on `ENABLED` (3) and a division by zero (1), which signatures of
 `pbt` corpus has. A node action runs on every visit, so a partial term on a reachable
 node is reached more often than in a `pbt` module.
 
-**Decoder statistics.** After the change, over 400 random inputs per length, the
-decoder yields 3.4–3.5 nodes on average and a target reachable within the bound for
+**Decoder statistics.** After node 0 was given a successor, and before the spine,
+over 400 random inputs per length the decoder yields 3.4–3.5 nodes on average and a target reachable within the bound for
 24% (16 bytes), 48% (64), 55% (256) and 61% (1024 bytes) of the graphs; a target at
 distance 2 or more for at most 7%.
+
+### Probe 2: spines
+
+**Setup.** One `run --how=gbt` of 300 graph entries, seed 29, with the spine decoder
+of FuzzTLA `71f911a`, TLC and Apalache, `[workflow.apalache] timeout_sec = 120` and
+`signatures/all-defects.toml`. The signatures quarantined 726 candidates while 300
+were admitted; every admitted entry was aggregated, and no checker crashed.
+
+**Verdicts and lengths.** 151 entries predicted a counterexample and 149 a pass. No
+checker contradicted a prediction, and every counterexample had exactly dist(k)
+transitions:
+
+| Checker | Pass, expected pass | Counterexample, expected | Fail | Counterexample lengths |
+| --- | ---: | ---: | ---: | --- |
+| TLC | 139 | 133 | 28 | 11–30; 33 of 20 or more |
+| Apalache | 149 | 151 | 0 | 11–30; 39 of 20 or more |
+
+**Cost.** TLC took at most 2 s per entry and found at most 284 distinct states
+(median 17): the node actions are deterministic, so the states are the walks of
+length at most B, and back edges revisit few new values. Apalache took 2 s at the
+median, 10 s at the 95th percentile and 45 s at most; 1 entry of 300 exceeded the
+default 30 s.
+
+**Failures.** All 28 aggregator failures pair a TLC failure on a partial term with
+an Apalache pass (10) or counterexample (18).
 
 ## Alternatives considered
 
@@ -374,12 +416,17 @@ distance 2 or more for at most 7%.
 - **Data values are not predicted.** The oracle constrains `pc` and trace lengths;
   defects in evaluating right-hand sides surface only through conformance and through
   guards.
-- **The share of expected passes depends on the graph.** With N ≤ 6 and B = 5, about
-  half of the targets are reachable, depending on the input length; the decoder does
-  not balance the two outcomes, and long traces are rare ([Probe](#probe)).
-- **TLC fails often.** A node action runs on every visit, so partial terms make TLC
-  fail on about 45% of graph entries. These are conformance differences, not graph
-  violations; `signatures/all-defects.toml` keeps part of them out.
+- **Traces are long, and the outcomes balanced.** In Probe 2, predicted
+  counterexamples had 11 to 30 transitions, about a quarter of them 20 or more, and
+  the per-input bound makes about half the entries predict a pass ([Probes](#probes)).
+- **Partial terms are frequent.** A node action runs on every visit. With the shipped
+  `known-defects.toml`, TLC failed on 45% of graph entries; with
+  `signatures/all-defects.toml`, on 9%, at the cost of quarantining more than two
+  candidates per admitted entry. These are conformance differences, not graph
+  violations.
+- **Checking stays cheap.** Deterministic node actions keep TLC's state space small,
+  and Apalache's bounded search of 10 to 31 steps rarely approaches its default
+  timeout.
 - **`pc` counts as state change.** ADR 0008 projects out only `step`, so an entry
   whose data never changes still has projected depth. Whether to project out `pc`
   too is left open until a GBT corpus shows how the gate ranks such entries.

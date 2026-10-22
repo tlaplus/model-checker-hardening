@@ -2,8 +2,9 @@
 
 Tautological guards on edges (section 4) are not implemented yet.
 
-A graph-based campaign generates modules whose control structure is a directed graph.
-A variable `pc` holds the current node. Each node assigns new values to the data
+A graph-based campaign generates modules whose control structure is a directed graph
+of 20 to 32 nodes. A spine `0 -> 1 -> ... -> N-1` makes it up to N - 1 steps deep, and
+extra edges add loops, cycles and short skips. A variable `pc` holds the current node. Each node assigns new values to the data
 variables, and each edge runs its source node's assignments and moves `pc` to its
 target. The invariant is `pc /= k` for one target node k. Because every edge is
 enabled, FuzzTLA knows from the graph whether a checker must report a counterexample,
@@ -22,7 +23,6 @@ checker agrees with it.
 [generator]
 kind = "graph"                # required by --how=gbt
 max_variables = 3
-max_steps = 5                 # the step bound B
 
 [workflow]
 checkers = ["tlc", "apalache"] # one checker is enough, see section 3
@@ -30,9 +30,14 @@ checkers = ["tlc", "apalache"] # one checker is enough, see section 3
 [workflow.inputs]
 known_defects = ["../signatures/all-defects.toml"]
 
+[workflow.apalache]
+timeout_sec = 60              # deep spines unroll 10 to 31 steps
+
 [graph]
-max_graph_nodes = 6
-max_successors = 3
+min_graph_nodes = 20
+max_graph_nodes = 32
+max_extra_successors = 2
+# max_steps = 32              # cap on each input's own step bound
 ```
 
 - **The technique is fixed.** The first run records `gbt` in `.technique`; later runs
@@ -40,12 +45,16 @@ max_successors = 3
 - **Mutation works as under `pbt`.** `[mutator] feedback_ratio` sets the share of
   byte mutants of `04quality-pass` entries; random inputs fill the rest.
 - **`[graph]` may be left out.** Its keys then take the defaults above. The data
-  variables, the step bound and the expressions use the `[generator]` keys.
+  variables and the expressions use the `[generator]` keys. Each input draws its own
+  step bound, so `[generator] max_steps` does not apply.
+- **Give Apalache some margin.** Apalache unrolls one step per transition, and a
+  spine is checked to a bound of 10 to 31 steps. In a first campaign it took 2 s at
+  the median and 45 s at most; 1 entry in 300 exceeded the default 30 s.
 - **Use the full defect database.** A node action runs every time its node is
   visited, so TLC fails on a partial term, such as a function applied outside its
-  domain, more often than in a `pbt` corpus: on 45% of the entries of a first
-  campaign with the shipped `known-defects.toml`. `all-defects.toml` keeps more of
-  these out ([Known-defect signatures](known-defect-signatures.md)).
+  domain, more often than in a `pbt` corpus. With `all-defects.toml`, TLC failed on
+  9% of the entries of a campaign, against 45% with the shipped `known-defects.toml`
+  ([Known-defect signatures](known-defect-signatures.md)).
 
 ## 2. What the checker sees
 
@@ -53,16 +62,16 @@ max_successors = 3
 module; `fuzztla print --spec` shows the module alone:
 
 ```text
-nodes: 3
-edges: 0 -> 1, 1 -> 1, 1 -> 0
-target: 2 (unreachable)
+nodes: 23
+edges: 0 -> 1, 1 -> 2, 2 -> 3, ..., 21 -> 22, 22 -> 5, 22 -> 9
+target: 19 (distance 19, step bound 13)
 expected: pass
 module:
 ---- MODULE FuzzInput ----
 ...
 ```
 
-The module has this shape (simplified):
+A small graph shows the shape of the module (simplified, three nodes, target 2, bound 2):
 
 ```tla
 VARIABLES var0, var1, pc, step
@@ -74,21 +83,25 @@ Node2 == var0' = 0 /\ var1' = {}
 Init == var0 = 3 /\ var1 = {1} /\ pc = 0 /\ step = 0
 
 Next ==
-  \/ step < 5 /\ pc = 0 /\ Node0 /\ pc' = 1 /\ step' = step + 1
-  \/ step < 5 /\ pc = 1 /\ Node1 /\ pc' = 1 /\ step' = step + 1
-  \/ step < 5 /\ pc = 1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
+  \/ step < 2 /\ pc = 0 /\ Node0 /\ pc' = 1 /\ step' = step + 1
+  \/ step < 2 /\ pc = 1 /\ Node1 /\ pc' = 2 /\ step' = step + 1
+  \/ step < 2 /\ pc = 1 /\ Node1 /\ pc' = 1 /\ step' = step + 1
+  \/ step < 2 /\ pc = 1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
   \/ UNCHANGED <<var0, var1, pc, step>>
 
 Inv == pc /= 2
 ```
 
-- Node 0 is initial and always has a successor; `pc` ranges over `0..N-1`.
+- Node 0 is initial; `pc` ranges over `0..N-1`. The spine edges here are 0 → 1 and
+  1 → 2, and the extra edges 1 → 1 and 1 → 0.
 - `Node<u>` assigns some data variables with `v' = e` and leaves the others unchanged.
   The right-hand sides are generated expressions, as under `pbt`, and read neither
   `pc` nor `step`.
-- There is one disjunct of `Next` per edge. The edges here are 0 → 1, 1 → 1 and
-  1 → 0. Node 2 has no incoming edge.
-- The target is node 0 only in a one-node graph.
+- There is one disjunct of `Next` per edge, and each is guarded by the input's own
+  step bound.
+- The target lies in the upper half of the spine, and the bound between half the
+  spine and its length. When the target is farther than the bound, the expected
+  verdict is a pass.
 
 ## 3. Verdicts
 
@@ -100,7 +113,9 @@ Let dist(k) be the length of a shortest path from node 0 to k, and B the step bo
 | dist(k) > B, or unreachable | pass | — |
 
 An entry passes the aggregator when the checkers agree, as under `pbt`, and every
-checker reports the expected verdict or fails. The example expects a pass.
+checker reports the expected verdict or fails. The small example expects a
+counterexample of 2 steps; the 23-node graph above expects a pass, because its target
+is 19 steps away and its bound is 13.
 
 - **A wrong verdict is a defect.** A pass on a reachable target, or a counterexample
   on an unreachable one, fails the entry, whatever the other checker reports.
@@ -138,9 +153,8 @@ and `traceLength` (`print --envelope`) with the `expected:` line.
 
 - Only `pc` and trace lengths are predicted. A wrong value of a data variable is
   found only through conformance.
-- Most reachable targets are one step from node 0; few traces are longer.
-- Apalache timed out on about 10% of the entries of a first campaign at the default
-  `timeout_sec = 30`.
+- Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
+  steps long, and one in four was 20 or more.
 - `--how=mt` does not rewrite `graph` entries.
 - Graph modules have no temporal property.
 

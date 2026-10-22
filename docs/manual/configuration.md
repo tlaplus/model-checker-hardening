@@ -118,8 +118,11 @@ generation is selected and mutated. They are described in
 
 | Key | Default | Meaning |
 |---|---|---|
-| `max_graph_nodes` | `6` | Maximum nodes of the control graph of a `graph` input. Node 0 is initial. |
-| `max_successors` | `3` | Maximum distinct successors of one node. |
+| `min_graph_nodes` | `20` | Minimum nodes of the control graph of a `graph` input. The graph has a spine `0 -> 1 -> ... -> N-1`, so it is up to N - 1 steps deep. |
+| `max_graph_nodes` | `32` | Maximum nodes. Node 0 is initial. |
+| `max_extra_successors` | `2` | Maximum successors of one node besides its spine successor: back edges, self-loops and forward skips of at most two nodes. |
+| `max_steps` | `max_graph_nodes` | Cap on the step bound. Each input draws its own bound between half its node count and its node count minus one. |
 
 The keys apply to `graph` inputs only ([Graph-based testing](graph-based-testing.md)).
-Their data variables, step bound and expressions use the `[generator]` keys.
+Their data variables and expressions use the `[generator]` keys; `[generator]
+max_steps` does not apply to them.

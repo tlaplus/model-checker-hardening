@@ -1137,24 +1137,36 @@ so `FuzzInputModule` assembles it as it assembles a module input.
 
 ### 12.1. Byte layout
 
-The payload begins with a header: N by `drawLong(1, maximumNodes)` and the target k.
-For N = 1, k = 0 and the header draws no second byte; otherwise k is
-`drawLong(1, N - 1)`, because `pc /= 0` fails in every initial state and such a module
-explores nothing. The rest of the payload is split by `GraphSection`, with weights
-`1, 2, 2, 2, 8`:
+The graph has a *spine* `0 -> 1 -> ... -> N-1`, so node u is at most u steps from
+node 0, and the decoder only adds edges to it. The payload begins with a header of
+three draws:
+
+- N by `drawLong(minimumNodes, maximumNodes)`, by default 20 to 32;
+- the target k by `drawLong(⌈N/2⌉, N - 1)`, in the upper half of the spine, and k = 0
+  for N = 1;
+- the step bound B by `drawLong(⌊N/2⌋, N - 1)`, both ends capped by `maximumSteps`.
+
+A target with dist(k) > B is unreachable, so roughly half the inputs predict a pass.
+The bound is the input's own: `GeneratedSpec.stepBound` and every step guard use B,
+not `[generator] max_steps`. The rest of the payload is split by `GraphSection`, with
+weights `1, 2, 2, 2, 8`:
 
 1. **Variables** and 2. **auxiliary operators**, as for a module (section 9.1);
    `pc : Int` and `step` are appended to the data variables.
 3. **Init**: one `v = e` per data variable, then `pc = 0 /\ step = 0`.
 4. **Edges**: N equal slices; slice u is a terminated list of at most
-   `maximumSuccessors` node indices, each `drawLong(0, N - 1)`, with at least one
-   for node 0. Repeats collapse byte-free, in order; self-loops stay.
+   `maximumExtraSuccessors` extra successors of u, each `drawLong(0, min(u + 2, N - 1))`:
+   a back edge, a self-loop or a forward skip of at most two nodes. Node u's
+   successors are its spine successor u + 1, byte-free, then the extras, with repeats
+   removed in order. A one-node graph's spine is the self-loop `0 -> 0`.
 5. **Nodes**: N equal slices; slice u decodes the action of node u.
 
-The successor lists have a section of their own because, in one slice with the
-action, the action's expressions consumed the bytes its successors follow, and
-almost no graph had an edge. Separate sections also keep a mutation of an action
-from changing the graph. A mutation of N re-slices both sections.
+Forward edges are bounded because a long forward skip shortens every path behind it:
+with uniform random successors, the part of the graph reachable from node 0 had about
+4 nodes and depth 2 even for N ≤ 30. The successor lists have a section of their own
+because, in one slice with the action, the action's expressions consumed the bytes
+the successors follow. Separate sections also keep a mutation of an action from
+changing the graph. A mutation of N re-slices both sections.
 
 ### 12.2. Module
 
@@ -1165,10 +1177,10 @@ from changing the graph. A mutation of N re-slices both sections.
   variable. Right-hand sides see the auxiliary operators and the data variables,
   but neither `pc` nor `step`.
 - **Next.** One disjunct per edge (u, v), in node order and then successor order:
-  `ActionGenFactory.boundedStep` of `pc = u /\ Node<u> /\ pc' = v`. Node 0 always
-  has a successor, so `Next` has a disjunct: Apalache's assignment finder rejects
-  `FALSE \/ UNCHANGED vars`, whose first disjunct assigns no variable. An exhausted
-  input decodes to the self-loop `0 -> 0`.
+  `ActionGenFactory.boundedStep` of `pc = u /\ Node<u> /\ pc' = v`, under the
+  input's bound B. The spine leaves node 0, so `Next` always has a disjunct: Apalache's
+  assignment finder rejects `FALSE \/ UNCHANGED vars`, whose first disjunct assigns
+  no variable.
 - **Invariant.** `pc /= k`. No other invariant and no property are generated.
 
 ### 12.3. Prediction
