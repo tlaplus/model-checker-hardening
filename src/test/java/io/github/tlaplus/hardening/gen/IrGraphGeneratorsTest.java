@@ -33,18 +33,18 @@ class IrGraphGeneratorsTest {
     private static final String STEP = GeneratedSpec.STEP_VARIABLE;
 
     @Test
-    void emptyInputProducesOneNodeWithoutEdgesWhoseInitialStateViolatesTheInvariant() {
+    void emptyInputProducesOneSelfLoopWhoseInitialStateViolatesTheInvariant() {
         var graph = generate(new byte[0]);
         var spec = graph.spec();
 
-        assertEquals(new TransitionGraph(List.of(List.of())), graph.graph());
+        assertEquals(new TransitionGraph(List.of(List.of(0))), graph.graph());
         assertEquals(0, graph.target());
         assertEquals(OptionalInt.of(0), graph.targetDistance());
         assertEquals(List.of("var0", PC, STEP), variableNames(spec));
         assertEquals(List.of("Node0"), spec.operators().stream().map(operator -> operator.declaration().name()).toList());
         assertEquals("var0' = FALSE", print(spec.operators().getFirst().declaration().body()));
         assertEquals("var0 = FALSE /\\ pc = 0 /\\ step = 0", normalized(spec.initPredicate()));
-        assertEquals("FALSE", print(spec.nextAction()));
+        assertEquals("(step < 5 /\\ pc = 0 /\\ Node0 /\\ pc' = 0 /\\ step' = step + 1)", normalized(spec.nextAction()));
         assertEquals("pc /= 0", normalized(spec.invariant()));
         assertTrue(spec.property().isEmpty());
         assertEquals(ModuleLimits.DEFAULT_MAXIMUM_STEPS, spec.stepBound());
@@ -58,6 +58,7 @@ class IrGraphGeneratorsTest {
         assertEquals(6, graph.graph().nodeCount());
         assertEquals(4, graph.target());
         assertEquals(OptionalInt.empty(), graph.targetDistance(), "no edge leads to node 4");
+        assertEquals(List.of(new TransitionGraph.Edge(0, 0)), graph.graph().edges(), "an exhausted node 0 loops");
         assertEquals(6, graph.spec().operators().size());
     }
 
@@ -66,14 +67,14 @@ class IrGraphGeneratorsTest {
     void pinnedInputsDecodeToTheirGraphs() {
         var reachable = generate(Base64.getDecoder().decode(
                 "AX5tGn3sivVUTbYOOklQyuKLkESPHHAXakK+EeL74AE1NxKHHRuI9b7A04TeV5RfuNI2nD2soVo/nUcfWhl7xyuP0pMMOum/4ceQcGZoo1og0qAM80SLEo0wA27VjJvI"));
-        assertEquals(new TransitionGraph(List.of(List.of(1, 0), List.of(0))), reachable.graph());
+        assertEquals(new TransitionGraph(List.of(List.of(1), List.of(0))), reachable.graph());
         assertEquals(1, reachable.target());
         assertEquals(OptionalInt.of(1), reachable.targetDistance());
         assertEquals(List.of("var0", PC, STEP), variableNames(reachable.spec()));
 
         var unreachable = generate(Base64.getDecoder().decode(
                 "Faa55CsU1wJZh9uAZ3wRIcSXZRWCar3X+UtKBiqnWh+4lMEBXkP/rHTg234cpoEwI5+pjALcHEUak0I2FbAtLu5qehoQjVXitNNig+P4kb8SOKfTTjgNYP0H0eG2XtGz"));
-        assertEquals(new TransitionGraph(List.of(List.of(), List.of(2, 0), List.of(0), List.of())), unreachable.graph());
+        assertEquals(new TransitionGraph(List.of(List.of(0), List.of(2, 0), List.of(0), List.of())), unreachable.graph());
         assertEquals(2, unreachable.target());
         assertEquals(OptionalInt.empty(), unreachable.targetDistance());
         assertEquals(List.of("var0", "var1", PC, STEP), variableNames(unreachable.spec()));
@@ -94,10 +95,7 @@ class IrGraphGeneratorsTest {
                     .map(edge -> "step < " + bound + " /\\ pc = " + edge.source() + " /\\ Node" + edge.source()
                             + " /\\ pc' = " + edge.target() + " /\\ step' = step + 1")
                     .toList();
-            if (expected.isEmpty()) {
-                assertEquals("FALSE", print(graph.spec().nextAction()));
-                return;
-            }
+            assertFalse(expected.isEmpty(), "the initial node has a successor");
             var actual = disjuncts(graph.spec().nextAction()).stream()
                     .map(disjunct -> normalized(disjunct).replaceAll("^\\((.*)\\)$", "$1"))
                     .toList();
@@ -193,13 +191,15 @@ class IrGraphGeneratorsTest {
     @Test
     void graphLimitsBoundNodesAndSuccessors() {
         var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 3));
-        var noEdges = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(6, 0));
+        var chains = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(6, 1));
         var random = new Random(0x11);
         for (var sample = 0; sample < 200; sample++) {
             var input = new byte[random.nextInt(256)];
             random.nextBytes(input);
             assertEquals(1, IrGenerators.graphs(single).generate(input).graph().nodeCount());
-            assertTrue(IrGenerators.graphs(noEdges).generate(input).graph().edges().isEmpty());
+            var successors = IrGenerators.graphs(chains).generate(input).graph().successors();
+            assertEquals(1, successors.getFirst().size());
+            successors.forEach(targets -> assertTrue(targets.size() <= 1));
         }
     }
 
@@ -285,8 +285,9 @@ class IrGraphGeneratorsTest {
         return IrGenerators.graphs(IrGenerationConfig.defaults()).generate(input);
     }
 
+    /** The printed expression with whitespace collapsed and every conjunction spaced alike. */
     private static String normalized(TlaEx expression) {
-        return print(expression).replaceAll("\\s+", " ").trim();
+        return print(expression).replaceAll("\\s+", " ").replaceAll(" ?/\\\\ ?", " /\\\\ ").trim();
     }
 
     private static String render(GeneratedGraph graph) {

@@ -101,7 +101,10 @@ public final class IrGraphGeneratorEngine {
         var edgeSlices = WeightedSlices.equal(sections.get(GraphSection.EDGES), nodeCount);
         var nodeSlices = WeightedSlices.equal(sections.get(GraphSection.NODES), nodeCount);
         for (var node = 0; node < nodeCount; node++) {
-            successors.add(edgeSlices.get(node).draw(successorList(nodeCount, limits.maximumSuccessors())));
+            // The initial node always has a successor, so Next has a disjunct that assigns every
+            // variable: Apalache rejects a `FALSE` disjunct, which assigns none.
+            successors.add(edgeSlices.get(node).draw(
+                    successorList(nodeCount, node == 0 ? 1 : 0, limits.maximumSuccessors())));
             var body = nodeSlices.get(node).draw(context.withBindings(actionScope, context.withDefinitionBoundary(
                     context.withFreshNodeBudget(shapes.exactLeaf(
                             new Request(data, 0, depth, AssignmentRequirement.REQUIRED)).map(shapes::conjoin)))));
@@ -117,8 +120,7 @@ public final class IrGraphGeneratorEngine {
                     builder.operApply(builder.name(nodeName(edge.source()), nodeType.toTlaType())),
                     builder.primeEq(shapes.nameOf(pc), builder.integer(edge.target()))), List.of()));
         }
-        // Without an edge only the skeleton's stuttering disjunct remains.
-        var next = edges.isEmpty() ? builder.bool(false) : builder.or(BuilderArrays.expressions(edges));
+        var next = builder.or(BuilderArrays.expressions(edges));
         var invariant = builder.neql(shapes.nameOf(pc), builder.integer(target));
         var spec = new GeneratedSpec(declared.declarations(), operators, init, next, invariant,
                 Optional.empty(), config.modules().maximumSteps());
@@ -126,9 +128,9 @@ public final class IrGraphGeneratorEngine {
     }
 
     /** A terminated list of node indices, with repeats removed in order. */
-    private static Generator<List<Integer>> successorList(int nodeCount, int maximum) {
+    private static Generator<List<Integer>> successorList(int nodeCount, int minimum, int maximum) {
         return BasicGenerators.listOf(
-                        (Draw draw) -> Math.toIntExact(draw.drawLong(0, nodeCount - 1L)), 0, maximum)
+                        (Draw draw) -> Math.toIntExact(draw.drawLong(0, nodeCount - 1L)), minimum, maximum)
                 .map(drawn -> List.copyOf(new LinkedHashSet<>(drawn)));
     }
 

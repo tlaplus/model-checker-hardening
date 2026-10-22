@@ -10,7 +10,8 @@ import io.github.tlaplus.hardening.common.Role;
  * {@link ExpressionLimits}, as for a module input.
  *
  * @param maximumNodes maximum number of nodes; node 0 is initial
- * @param maximumSuccessors maximum number of distinct successors of one node
+ * @param maximumSuccessors maximum number of distinct successors of one node; the initial node has
+ *     at least one
  */
 @ArchRole(Role.CONFIG)
 public record GraphLimits(int maximumNodes, int maximumSuccessors) {
@@ -19,7 +20,7 @@ public record GraphLimits(int maximumNodes, int maximumSuccessors) {
 
     public GraphLimits {
         Preconditions.requirePositive(maximumNodes, "maximumNodes");
-        Preconditions.requireNonnegative(maximumSuccessors, "maximumSuccessors");
+        Preconditions.requirePositive(maximumSuccessors, "maximumSuccessors");
     }
 
     public static GraphLimits defaults() {

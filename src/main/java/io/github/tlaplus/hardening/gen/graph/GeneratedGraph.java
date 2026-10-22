@@ -32,6 +32,7 @@ public record GeneratedGraph(GeneratedSpec spec, TransitionGraph graph, int targ
         Objects.requireNonNull(spec, "spec");
         Objects.requireNonNull(graph, "graph");
         Preconditions.require(target >= 0 && target < graph.nodeCount(), "the target is a node of the graph");
+        Preconditions.require(!graph.successors().getFirst().isEmpty(), "the initial node has a successor");
         Preconditions.require(spec.variables().stream().map(TlaVarDecl::name).anyMatch(PC_VARIABLE::equals),
                 "a graph module declares pc");
     }
