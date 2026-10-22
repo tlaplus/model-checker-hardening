@@ -81,10 +81,10 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<CheckerSet> CHECKERS = checkers();
 
     /** The example a configuration without a rule module shows, commented out. */
-    static final MetamorphicConfig.RuleModule EXAMPLE_RULES =
-            new MetamorphicConfig.RuleModule("Rewrites", List.of(Path.of("../libraries/rewrites")));
+    static final RuleLibraryConfig.RuleModule EXAMPLE_RULES =
+            new RuleLibraryConfig.RuleModule("Rewrites", List.of(Path.of("../libraries/rewrites")));
 
-    static final ConfigValueType<Optional<MetamorphicConfig.RuleModule>> RULE_MODULE = new ConfigValueType<>(
+    static final ConfigValueType<Optional<RuleLibraryConfig.RuleModule>> RULE_MODULE = new ConfigValueType<>(
             ConfigValueType::readRuleModule,
             rules -> formatRuleModule(rules.orElse(EXAMPLE_RULES)));
 
@@ -175,17 +175,17 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     }
 
     /** Reads the ordered module selections, each an inline table of a name and its operators. */
-    private static Optional<MetamorphicConfig.RuleModule> readRuleModule(TomlTable table, String path, String key)
+    private static Optional<RuleLibraryConfig.RuleModule> readRuleModule(TomlTable table, String path, String key)
             throws ConfigException {
         if (!(table.get(List.of(key)) instanceof TomlTable rules)
                 || !Set.of(MODULE, CLASSPATH).equals(rules.keySet()) || !rules.isString(MODULE)) {
             throw new ConfigException("expected '" + path + "' to contain module (string) and classpath (array)");
         }
-        return Optional.of(new MetamorphicConfig.RuleModule(rules.getString(MODULE),
+        return Optional.of(new RuleLibraryConfig.RuleModule(rules.getString(MODULE),
                 strings(array(rules, path + "." + CLASSPATH, CLASSPATH), path).stream().map(Path::of).toList()));
     }
 
-    private static String formatRuleModule(MetamorphicConfig.RuleModule rules) {
+    private static String formatRuleModule(RuleLibraryConfig.RuleModule rules) {
         return "{ module = " + quote(rules.module()) + ", classpath = "
                 + formatList(rules.classpath().stream().map(Path::toString).toList()) + " }";
     }

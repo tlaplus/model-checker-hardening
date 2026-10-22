@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.config.CheckerProfile;
-import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -19,8 +19,6 @@ import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
@@ -33,8 +31,8 @@ class MetamorphicDecodersTest {
 
     @BeforeAll
     static void prepareTheShippedRules() throws Exception {
-        var config = new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
-                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))), Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults());
+        var config = RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
+                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath())));
         var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults()).library();
         decoders = SpecDecoders.metamorphic(
                 IrGenerationConfig.defaults(), new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));

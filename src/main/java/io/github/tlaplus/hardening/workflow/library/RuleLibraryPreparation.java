@@ -5,7 +5,7 @@ import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.common.TemporaryDirectory;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
-import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
@@ -20,9 +20,9 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Loads the rule module of a metamorphic run once, before decoding (ADR 0017 §1, §6): SANY names
- * its rules and reads their weight annotations, Snowcat types them, and {@link RewriteLibrary}
- * checks the rule contract.
+ * Loads a rule module once, before decoding (ADR 0017 §1, §6): the rewrites of a metamorphic run
+ * or the edge guards of graph inputs (ADR 0023 §6). SANY names its rules and reads their weight
+ * annotations, Snowcat types them, and {@link RewriteLibrary} checks the rule contract.
  */
 @ArchRole(Role.FACADE)
 @Key
@@ -36,11 +36,11 @@ public final class RuleLibraryPreparation {
     private RuleLibraryPreparation() {}
 
     /** Typechecks with the Apalache settings of the run, as custom operator libraries are. */
-    public static Prepared prepare(MetamorphicConfig config, CheckerStageConfig apalache) throws WorkflowException {
-        if (config.rules().isEmpty()) {
+    public static Prepared prepare(RuleLibraryConfig config, CheckerStageConfig apalache) throws WorkflowException {
+        if (config.module().isEmpty()) {
             return new Prepared(RewriteLibrary.empty(), "");
         }
-        var rules = config.rules().get();
+        var rules = config.module().get();
         try (var temporary = TemporaryDirectory.create("fuzztla-rules-")) {
             var scratch = temporary.path();
             var sources = Files.createDirectory(scratch.resolve("sources"));
@@ -48,7 +48,7 @@ public final class RuleLibraryPreparation {
             LibrarySources.snapshot(rules.classpath(), sources, jar);
             var source = sources.resolve(rules.module() + ".tla");
             if (!Files.isRegularFile(source)) {
-                throw new WorkflowException("rule module not found on metamorphic.rules classpath: " + rules.module());
+                throw new WorkflowException("rule module not found on its classpath: " + rules.module());
             }
             var definitions = RuleModuleDefinitions.of(sources, rules.module());
             var names = new LinkedHashSet<String>();

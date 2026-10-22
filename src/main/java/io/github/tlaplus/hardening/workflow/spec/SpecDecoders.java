@@ -93,7 +93,7 @@ public final class SpecDecoders {
                 case PBT, GBT -> of(prepared.generator(), new Manifests(prepared.manifest(), ""));
                 case MT -> {
                     var rules = RuleLibraryPreparation.prepare(
-                            config.metamorphic(), config.workflow().checker(CorpusStage.APALACHE));
+                            config.metamorphic().rules(), config.workflow().checker(CorpusStage.APALACHE));
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("--how=mt needs rewrite rules: set metamorphic.rules");
                     }

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.CheckerProfile;
-import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
@@ -27,8 +27,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -205,9 +203,8 @@ class ParserProcessTest {
         // EXCEPT replacement or under a binder the rule added, a LET definition that saw itself, and
         // copies of a LET definition that PrettyWriter nests by moving them in front of an
         // application.
-        var config = new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
-                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))), Map.of(),
-                RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults());
+        var config = RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
+                "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath())));
         var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults()).library();
         var decoders = SpecDecoders.metamorphic(IrGenerationConfig.defaults(),
                 new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));

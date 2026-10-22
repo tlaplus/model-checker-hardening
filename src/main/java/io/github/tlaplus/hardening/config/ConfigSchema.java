@@ -337,14 +337,10 @@ final class ConfigSchema {
             "feature_coverage", ConfigValueType.BOOLEAN, QualityGateConfig::featureCoverage,
             "Also keep an entry that adds an operator-edge coverage feature (ADR 0013).");
 
-    static final Key<Optional<MetamorphicConfig.RuleModule>> RULES = METAMORPHIC.optional(
-            "rules", ConfigValueType.RULE_MODULE, MetamorphicConfig::rules, new Absent<>(),
+    static final RuleLibrarySchema REWRITE_RULES = new RuleLibrarySchema(
+            METAMORPHIC.project(MetamorphicConfig::rules), "rewrite rule",
             "Rule module of --how=mt, relative to this config file (ADR 0017): every top-level",
             "definition F(p1, ..., pn) == A = B of the module is a rewrite rule.");
-    static final Key<Map<String, Integer>> RULE_WEIGHTS = METAMORPHIC.optional(
-            "weights", ConfigValueType.RULE_WEIGHTS, MetamorphicConfig::weights, new Constant<>(Map.of()),
-            "Selection slots per rewrite rule, overriding the rule's @weight annotation; a rule",
-            "with neither has weight 1, and 0 disables it.");
     private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
     static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
             "max_rewrites", RewriteLimits::maximumRewrites, RewriteLimits.defaults().maximumRewrites(),

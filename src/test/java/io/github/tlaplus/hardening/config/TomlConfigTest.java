@@ -103,9 +103,9 @@ class TomlConfigTest {
                         "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
                 .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
         var metamorphic = readConfig(directory, document).metamorphic();
-        assertEquals(new MetamorphicConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
-                metamorphic.rules().orElseThrow());
-        assertEquals(Map.of("AddSub", 3, "DoubleNeg", 0), metamorphic.weights());
+        assertEquals(new RuleLibraryConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
+                metamorphic.rules().module().orElseThrow());
+        assertEquals(Map.of("AddSub", 3, "DoubleNeg", 0), metamorphic.rules().weights());
         assertEquals(RewriteLimits.defaults(), metamorphic.limits());
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[metamorphic]"));

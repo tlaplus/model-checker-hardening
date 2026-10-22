@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.config.ParserStageConfig;
 import io.github.tlaplus.hardening.config.PbtConfig;
 import io.github.tlaplus.hardening.config.InputStageConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.config.MutatorConfig;
 import io.github.tlaplus.hardening.config.QualityGateConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
@@ -79,9 +80,9 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var base = config(8, 3, 8, 64);
         var config = base.withWorkflow(base.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)))
-                .withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                .withMetamorphic(new MetamorphicConfig(RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
+                RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
 
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
 
@@ -108,9 +109,9 @@ class WorkflowRunnerTest {
         var config = new FuzzTlaConfig(InputKind.MODULE, IrGenerationConfig.defaults(),
                 expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)),
                 expressions.pbt(), expressions.mutator(), expressions.libraries(),
-                new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+                new MetamorphicConfig(RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
+                RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
 
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
 
@@ -142,9 +143,9 @@ class WorkflowRunnerTest {
         }
 
         var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
-        var config = tlcOnly.withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+        var config = tlcOnly.withMetamorphic(new MetamorphicConfig(RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                Map.of(), RewriteLimits.defaults(),
+                RewriteLimits.defaults(),
                 new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
         var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1);
 
@@ -159,7 +160,7 @@ class WorkflowRunnerTest {
         }
         assertEquals(4, adopted);
         var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(
-                config.withMetamorphic(new MetamorphicConfig(config.metamorphic().rules(), Map.of(), RewriteLimits.defaults(),
+                config.withMetamorphic(new MetamorphicConfig(config.metamorphic().rules(), RewriteLimits.defaults(),
                         new MetamorphicConfig.Adoption(Optional.of(directory.resolve("mt")), 0.5))),
                 Technique.MT).run(corpus, 7, 1));
         assertTrue(refused.getMessage().contains("must be a pbt corpus"), refused.getMessage());
@@ -174,9 +175,9 @@ class WorkflowRunnerTest {
     void refusesABaseCorpusThatDecodesOtherwise(@TempDir Path directory) throws Exception {
         var expressions = config(8, 3, 8, 64);
         var tlcOnly = expressions.withWorkflow(expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
-        var config = tlcOnly.withMetamorphic(new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(
+        var config = tlcOnly.withMetamorphic(new MetamorphicConfig(RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(
                         "Rewrites", List.of(Path.of("libraries/rewrites").toAbsolutePath()))),
-                Map.of(), RewriteLimits.defaults(),
+                RewriteLimits.defaults(),
                 new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
         var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
 
