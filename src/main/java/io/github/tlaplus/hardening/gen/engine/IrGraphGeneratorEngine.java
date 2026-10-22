@@ -96,7 +96,6 @@ public final class IrGraphGeneratorEngine {
         var operators = new ArrayList<GeneratedOperator>();
         auxiliaries.forEach(operator -> operators.add(operator.generated()));
         var effect = new ActionEffect(data.stream().map(ScopedName::name).toList());
-        var nodeType = new OperatorType(List.of(), PrimitiveType.BOOL);
         var successors = new ArrayList<List<Integer>>();
         var edgeSlices = WeightedSlices.equal(sections.get(GraphSection.EDGES), nodeCount);
         var nodeSlices = WeightedSlices.equal(sections.get(GraphSection.NODES), nodeCount);
@@ -112,19 +111,26 @@ public final class IrGraphGeneratorEngine {
         }
         var graph = new TransitionGraph(successors);
 
-        var builder = context.builder();
+        var next = nextAction(actions, shapes, pc, graph);
+        var invariant = context.builder().neql(shapes.nameOf(pc), context.builder().integer(target));
+        var spec = new GeneratedSpec(declared.declarations(), operators, init, next, invariant,
+                Optional.empty(), config.modules().maximumSteps());
+        return new GeneratedGraph(spec, graph, target);
+    }
+
+    /** One bounded step per edge (u, v), in edge order: {@code pc = u /\ Node<u> /\ pc' = v}. */
+    private static TlaEx nextAction(ActionGenFactory actions, ActionShapeGenFactory shapes, ScopedName pc,
+                                    TransitionGraph graph) {
+        var builder = shapes.builder();
+        var nodeType = new OperatorType(List.of(), PrimitiveType.BOOL).toTlaType();
         var edges = new ArrayList<TlaEx>();
         for (var edge : graph.edges()) {
             edges.add(actions.boundedStep(List.of(
                     builder.eql(shapes.nameOf(pc), builder.integer(edge.source())),
-                    builder.operApply(builder.name(nodeName(edge.source()), nodeType.toTlaType())),
+                    builder.operApply(builder.name(nodeName(edge.source()), nodeType)),
                     builder.primeEq(shapes.nameOf(pc), builder.integer(edge.target()))), List.of()));
         }
-        var next = builder.or(BuilderArrays.expressions(edges));
-        var invariant = builder.neql(shapes.nameOf(pc), builder.integer(target));
-        var spec = new GeneratedSpec(declared.declarations(), operators, init, next, invariant,
-                Optional.empty(), config.modules().maximumSteps());
-        return new GeneratedGraph(spec, graph, target);
+        return builder.or(BuilderArrays.expressions(edges));
     }
 
     /** A terminated list of node indices, with repeats removed in order. */
