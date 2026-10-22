@@ -14,6 +14,11 @@ on:
       - ".github/scripts/**"
       - ".github/workflows/sync-findings.yml"
   workflow_dispatch:
+    inputs:
+      max_creates:
+        description: "Most issues one run may create. Raise it only to populate a new repository."
+        type: number
+        default: 5
 
 concurrency:
   group: sync-findings
@@ -46,6 +51,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Synchronize findings
         uses: actions/github-script@v9
+        env:
+          # Empty outside workflow_dispatch; the script then uses its default.
+          FINDING_SYNC_MAX_CREATES: ${{ inputs.max_creates }}
         with:
           retries: 3
           script: |
