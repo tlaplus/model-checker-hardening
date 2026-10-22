@@ -48,7 +48,9 @@ public enum Oracle {
     /**
      * Passes when the checkers agree and every one reports the outcome the input predicts, or fails
      * (ADR 0023 §5). A checker that reports a pass where the graph reaches its target, or a
-     * counterexample where it does not, fails the entry even when every checker agrees with it.
+     * counterexample where it does not, fails the entry even when every checker agrees with it; so
+     * does a counterexample shorter than the shortest path to the target, or longer from a checker
+     * that reports a shortest one.
      */
     GRAPH {
         @Override
@@ -60,7 +62,8 @@ public enum Oracle {
         CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
             var outcome = expected.orElseThrow(
                     () -> new IllegalArgumentException("the graph oracle judges against an expected outcome"));
-            return agree(results.values()) && results.values().stream().allMatch(outcome::admits)
+            return agree(results.values())
+                            && results.entrySet().stream().allMatch(result -> outcome.admits(result.getKey(), result.getValue()))
                     ? CorpusVerdict.PASS
                     : CorpusVerdict.FAIL;
         }

@@ -1,11 +1,13 @@
 package io.github.tlaplus.hardening.corpus;
 
+import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.Role;
 import java.util.Objects;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 
 /**
  * The checker verdict an input predicts, independently of any checker (ADR 0023 §4): a graph input
@@ -40,11 +42,28 @@ public record ExpectedOutcome(CorpusVerdict verdict, OptionalInt traceLength) {
     }
 
     /**
-     * Reports whether one checker result is consistent with this outcome: the checker reports the
-     * expected verdict, or fails, which a partial term causes on any input (ADR 0023 §5).
+     * Reports whether the result of one checker is consistent with this outcome (ADR 0023 §5). The
+     * checker reports the expected verdict, or fails, which a partial term causes on any input. A
+     * counterexample whose length the checker recorded has at least the expected transitions, and
+     * exactly that many from a checker that reports a shortest one.
      */
-    boolean admits(StageRecord result) {
+    boolean admits(CorpusStage checker, StageRecord result) {
+        Objects.requireNonNull(checker, "checker");
         Objects.requireNonNull(result, "result");
-        return result.verdict() == verdict || result.verdict() == CorpusVerdict.FAIL;
+        if (result.verdict() == CorpusVerdict.FAIL) {
+            return true;
+        }
+        if (result.verdict() != verdict) {
+            return false;
+        }
+        var recorded = result.metrics().map(metrics -> metrics.count(ExplorationCount.TRACE_LENGTH))
+                .orElse(OptionalLong.empty());
+        if (recorded.isEmpty() || traceLength.isEmpty()) {
+            return true;
+        }
+        var shortest = traceLength.getAsInt();
+        return checker.counterexampleSearch() == CorpusStage.CounterexampleSearch.SHORTEST
+                ? recorded.getAsLong() == shortest
+                : recorded.getAsLong() >= shortest;
     }
 }

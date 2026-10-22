@@ -12,6 +12,23 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class CorpusStageTest {
+    /**
+     * The graph oracle requires a shortest counterexample only from these checkers (ADR 0023 §5);
+     * {@code GraphModuleCheckersTest} measures it on the checkers themselves.
+     */
+    @Test
+    void pinsWhichCheckersReportAShortestCounterexample() {
+        var search = Arrays.stream(CorpusStage.values())
+                .collect(Collectors.toMap(CorpusStage::metadataName, CorpusStage::counterexampleSearch));
+        assertEquals(Map.of(
+                "parser", CorpusStage.CounterexampleSearch.ANY,
+                "tlc", CorpusStage.CounterexampleSearch.SHORTEST,
+                "tlcn", CorpusStage.CounterexampleSearch.ANY,
+                "apalache", CorpusStage.CounterexampleSearch.SHORTEST,
+                "aggregator", CorpusStage.CounterexampleSearch.ANY,
+                "quality", CorpusStage.CounterexampleSearch.ANY), search);
+    }
+
     @Test
     void meaningsGiveVerdictsTheirStageSpecificLabel() {
         for (var stage : CorpusStage.capacityLimitedStages()) {

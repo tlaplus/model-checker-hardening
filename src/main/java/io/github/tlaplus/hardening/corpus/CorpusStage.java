@@ -32,7 +32,8 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.PARSER_PASS,
                             CorpusVerdict.FAIL, CorpusPath.PARSER_FAIL,
                             CorpusVerdict.CRASH, CorpusPath.PARSER_CRASH)),
-            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN, PipelineRole.PARSING),
+            new StagePolicy(Passes.FAN_OUT, true, FailureMetadata.FORBIDDEN, PipelineRole.PARSING,
+                    CounterexampleSearch.ANY),
             Map.of(
                     CorpusVerdict.PASS, ResultMeaning.PASS,
                     CorpusVerdict.FAIL, ResultMeaning.FAIL,
@@ -47,7 +48,8 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.TLC_PASS,
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLC_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.TLC_FAIL,
-                            CorpusVerdict.CRASH, CorpusPath.TLC_CRASH))),
+                            CorpusVerdict.CRASH, CorpusPath.TLC_CRASH)),
+            CounterexampleSearch.SHORTEST),
     /** TLC with n workers (ADR 0018); compared with {@link #TLC}, it tests TLC's parallel paths. */
     TLCN(
             "tlcn",
@@ -59,7 +61,8 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.TLCN_PASS,
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.TLCN_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.TLCN_FAIL,
-                            CorpusVerdict.CRASH, CorpusPath.TLCN_CRASH))),
+                            CorpusVerdict.CRASH, CorpusPath.TLCN_CRASH)),
+            CounterexampleSearch.ANY),
     APALACHE(
             "apalache",
             "Apalache",
@@ -70,7 +73,10 @@ public enum CorpusStage {
                             CorpusVerdict.PASS, CorpusPath.APALACHE_PASS,
                             CorpusVerdict.COUNTEREXAMPLE, CorpusPath.APALACHE_COUNTEREXAMPLE,
                             CorpusVerdict.FAIL, CorpusPath.APALACHE_FAIL,
-                            CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH))),
+                            CorpusVerdict.CRASH, CorpusPath.APALACHE_CRASH)),
+            // Bounded model checking checks the invariant after each step, so the first
+            // violation found is a shortest one; 157 of 157 graph counterexamples agreed (ADR 0023).
+            CounterexampleSearch.SHORTEST),
     AGGREGATOR(
             "aggregator",
             "aggregator",
@@ -80,7 +86,8 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.AGGREGATOR_PASS,
                             CorpusVerdict.FAIL, CorpusPath.AGGREGATOR_FAIL)),
-            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN, PipelineRole.AGGREGATION),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN, PipelineRole.AGGREGATION,
+                    CounterexampleSearch.ANY),
             Map.of(CorpusVerdict.PASS, ResultMeaning.AGREE, CorpusVerdict.FAIL, ResultMeaning.DIFFER)),
     /**
      * The quality gate of ADR 0010. It consumes the aggregator's passes, which are its input
@@ -95,7 +102,8 @@ public enum CorpusStage {
                     Map.of(
                             CorpusVerdict.PASS, CorpusPath.QUALITY_PASS,
                             CorpusVerdict.FAIL, CorpusPath.QUALITY_FAIL)),
-            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN, PipelineRole.SELECTION),
+            new StagePolicy(Passes.RETAINED, false, FailureMetadata.FORBIDDEN, PipelineRole.SELECTION,
+                    CounterexampleSearch.ANY),
             Map.of(CorpusVerdict.PASS, ResultMeaning.KEEP, CorpusVerdict.FAIL, ResultMeaning.DROP));
 
     /**
@@ -133,6 +141,20 @@ public enum CorpusStage {
         SELECTION
     }
 
+    /**
+     * Whether a checker branch reports a shortest counterexample, on which the graph oracle relies
+     * (ADR 0023 §5). A stage that checks nothing reports none, which {@link #ANY} describes.
+     */
+    public enum CounterexampleSearch {
+        /**
+         * Every counterexample has the fewest transitions of any: a breadth-first search by one
+         * worker, or bounded model checking that checks the invariant after every step.
+         */
+        SHORTEST,
+        /** A counterexample may have more transitions than a shortest one. */
+        ANY
+    }
+
     /** What becomes of an entry this stage passes. */
     private enum Passes {
         /** The pass is copied onward to the next stages and leaves this stage's directories. */
@@ -162,7 +184,8 @@ public enum CorpusStage {
             Passes passes,
             boolean configuredResultCapacity,
             FailureMetadata failureMetadata,
-            PipelineRole role) {}
+            PipelineRole role,
+            CounterexampleSearch counterexamples) {}
 
     private static final List<CorpusStage> CHECKER_BRANCHES =
             Arrays.stream(values()).filter(stage -> stage.role() == PipelineRole.CHECKING).toList();
@@ -177,9 +200,10 @@ public enum CorpusStage {
      * A checker branch. Checkers differ only in their names and directories: each retains its
      * passes, records a failure code on every failure, and gives its verdicts the same meanings.
      */
-    CorpusStage(String metadataName, String displayName, StagePaths paths) {
+    CorpusStage(String metadataName, String displayName, StagePaths paths, CounterexampleSearch counterexamples) {
         this(metadataName, displayName, paths,
-                new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING),
+                new StagePolicy(Passes.RETAINED, true, FailureMetadata.REQUIRED_ON_FAIL, PipelineRole.CHECKING,
+                        counterexamples),
                 Map.of(
                         CorpusVerdict.PASS, ResultMeaning.PASS,
                         CorpusVerdict.COUNTEREXAMPLE, ResultMeaning.COUNTEREXAMPLE,
@@ -209,6 +233,10 @@ public enum CorpusStage {
     }
 
     /** Returns what this stage contributes to an entry's journey through the pipeline. */
+    public CounterexampleSearch counterexampleSearch() {
+        return policy.counterexamples();
+    }
+
     public PipelineRole role() {
         return policy.role();
     }

@@ -77,6 +77,24 @@ class OracleTest {
         assertEquals(FAIL, judge(Oracle.GRAPH, verdicts(COUNTEREXAMPLE, FAIL), reached), "the checkers disagree");
     }
 
+    /**
+     * A counterexample has at least the transitions of a shortest path to the target, and exactly
+     * that many from TLC and Apalache, which report a shortest one, but not necessarily from TLC-n
+     * (ADR 0023 §5). The results are keyed TLC, TLC-n, Apalache.
+     */
+    @Test
+    void theGraphOracleBoundsTheLengthOfACounterexample() {
+        var reached = Optional.of(ExpectedOutcome.counterexample(2));
+        assertEquals(PASS, judge(Oracle.GRAPH, List.of(counterexample(2), counterexample(2), counterexample(2)), reached));
+        assertEquals(PASS, judge(Oracle.GRAPH, List.of(counterexample(2), counterexample(3), counterexample(2)), reached));
+        assertEquals(FAIL, judge(Oracle.GRAPH, List.of(counterexample(2), counterexample(2), counterexample(3)), reached),
+                "Apalache reports a longer trace");
+        assertEquals(FAIL, judge(Oracle.GRAPH, List.of(counterexample(3)), reached), "TLC reports a longer trace");
+        assertEquals(FAIL, judge(Oracle.GRAPH, List.of(counterexample(2), counterexample(1)), reached),
+                "a trace shorter than the shortest path");
+        assertEquals(PASS, judge(Oracle.GRAPH, List.of(result(COUNTEREXAMPLE)), reached), "no length was recorded");
+    }
+
     @Test
     void onlyTheGraphOracleNeedsAnExpectation() {
         for (var oracle : Oracle.values()) {
@@ -107,6 +125,13 @@ class OracleTest {
 
     private static StageRecord result(CorpusVerdict verdict) {
         return record(verdict, Optional.empty());
+    }
+
+    private static StageRecord counterexample(long traceLength) {
+        return record(COUNTEREXAMPLE, Optional.of(ExplorationMetrics.builder()
+                .phase(ExplorationPhase.EXPLORE)
+                .count(ExplorationCount.TRACE_LENGTH, traceLength)
+                .build()));
     }
 
     private static StageRecord complete(long distinctStates) {

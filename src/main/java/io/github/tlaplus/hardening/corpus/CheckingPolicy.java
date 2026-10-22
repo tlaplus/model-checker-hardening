@@ -9,6 +9,11 @@ import java.util.Objects;
  * Which checkers a workflow run feeds and how the aggregator judges their verdicts. The workflow
  * derives it from the configuration and the corpus records it has verified; the corpus only
  * applies it.
+ *
+ * @param checkers the checker branches the corpus runs
+ * @param oracle how the aggregator judges their results
+ * @param expectations what each entry predicts, for an oracle that judges against a prediction
+ *     (ADR 0023 §5); the corpus cannot decode, so the workflow supplies the replay
  */
 @ArchRole(Role.POLICY)
 @Key
