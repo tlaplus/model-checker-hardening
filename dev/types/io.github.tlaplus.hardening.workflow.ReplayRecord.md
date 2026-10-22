@@ -1,6 +1,6 @@
 # `ReplayRecord`
 
-`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/workflow/ReplayRecord.java#L21) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/workflow/ReplayRecord.java#L21) · module [workflow](../modules/workflow.md)
 
 Replay policy for one corpus record: a run may proceed only when the record says what the run would write.
 

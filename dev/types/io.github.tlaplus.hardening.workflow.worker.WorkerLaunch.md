@@ -1,6 +1,6 @@
 # `WorkerLaunch`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/workflow/worker/WorkerLaunch.java#L38) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/workflow/worker/WorkerLaunch.java#L38) · module [workflow](../modules/workflow.md)
 
 Brings one isolated worker up: private scratch storage, a private loopback listener, the child JVM, and an authenticated control connection.
 
