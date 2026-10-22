@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
@@ -18,11 +19,13 @@ import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentRe
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.Request;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.graph.TransitionGraph;
+import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry
@@ -38,8 +41,13 @@ import java.util.Optional;
  *
  * <p>Every edge leaving the current node is enabled while the step counter is below its bound: the
  * initial predicate and every node action assign exact values, and an edge has no guard but
- * {@code pc = u} and the step guard. That is what makes the outcome of the invariant predictable
- * from the graph alone ({@link GeneratedGraph#targetDistance()}).
+ * {@code pc = u}, the step guard and tautologies. That is what makes the outcome of the invariant
+ * predictable from the graph alone ({@link GeneratedGraph#targetDistance()}).
+ *
+ * <p>With {@link EdgeGuards}, the {@link GraphSection#GUARDS} section is split into N equal slices
+ * as well: slice u holds, for each edge leaving node u in successor order, a terminated list of
+ * at most {@link GraphLimits#maximumGuards()} guards, which the edge conjoins after {@code pc = u}
+ * (ADR 0023 §6). Without them the section is empty, so the other slices do not move.
  */
 @ArchRole(Role.FACADE)
 @Key
@@ -47,15 +55,32 @@ public final class IrGraphGeneratorEngine {
     private static final String NODE_PREFIX = "Node";
 
     private final IrGenerationConfig config;
+    private final Optional<EdgeGuards> guards;
 
     /**
-     * Creates a reusable engine with the supplied generation settings.
+     * Creates a reusable engine with the supplied generation settings, whose edges have no
+     * tautological guards.
      *
      * @throws IllegalArgumentException if the configured weights need more selection slots than
      *     one index can address
      */
     public IrGraphGeneratorEngine(IrGenerationConfig config) {
+        this(config, Optional.empty());
+    }
+
+    /**
+     * Creates a reusable engine whose edges conjoin tautological guards drawn by {@code guards}.
+     *
+     * @throws IllegalArgumentException if the configured weights need more selection slots than
+     *     one index can address
+     */
+    public IrGraphGeneratorEngine(IrGenerationConfig config, EdgeGuards guards) {
+        this(config, Optional.of(Objects.requireNonNull(guards, "guards")));
+    }
+
+    private IrGraphGeneratorEngine(IrGenerationConfig config, Optional<EdgeGuards> guards) {
         this.config = Objects.requireNonNull(config, "config");
+        this.guards = guards;
         ExpressionKindCatalog.requireAddressableSlots(this.config);
         CustomExpressionKind.requireUsableLibrary(this.config);
     }
@@ -72,7 +97,7 @@ public final class IrGraphGeneratorEngine {
         var nodeCount = header.nodes();
         // Every disjunct is guarded by the entry's own bound, which ActionGenFactory reads.
         var config = this.config.withModuleLimits(this.config.modules().withMaximumSteps(header.bound()));
-        var sections = GraphSection.split(draw);
+        var sections = GraphSection.split(draw, guards.isPresent());
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
         var expressions = new IrExprGenFactory(context, types);
@@ -109,8 +134,10 @@ public final class IrGraphGeneratorEngine {
             operators.add(new GeneratedActionOperator(context.builder().decl(nodeName(node), body), effect));
         }
         var graph = new TransitionGraph(successors);
+        var edgeGuards = guards.isEmpty() ? noGuards(graph) : drawGuards(config, sections.get(GraphSection.GUARDS),
+                graph, namesInUse(declared.declarations(), operators, init), actionScope);
 
-        var next = nextAction(actions, shapes, pc, graph);
+        var next = nextAction(actions, shapes, pc, graph, edgeGuards);
         var invariant = context.builder().neql(shapes.nameOf(pc), context.builder().integer(header.target()));
         var spec = new GeneratedSpec(declared.declarations(), operators, init, next, invariant,
                 Optional.empty(), header.bound());
@@ -133,17 +160,64 @@ public final class IrGraphGeneratorEngine {
         }
     }
 
-    /** One bounded step per edge (u, v), in edge order: {@code pc = u /\ Node<u> /\ pc' = v}. */
+    /** No guard on any edge. */
+    private static List<List<TlaEx>> noGuards(TransitionGraph graph) {
+        return graph.edges().stream().map(edge -> List.<TlaEx>of()).toList();
+    }
+
+    /** Returns every name a module of these declarations and bodies uses. */
+    private static Set<String> namesInUse(List<? extends TlaDecl> variables, List<GeneratedOperator> operators,
+            TlaEx init) {
+        var names = new LinkedHashSet<String>();
+        variables.forEach(variable -> names.add(variable.name()));
+        for (var operator : operators) {
+            names.add(operator.declaration().name());
+            names.addAll(IrNames.used(operator.declaration().body()));
+        }
+        names.addAll(IrNames.used(init));
+        return names;
+    }
+
+    /**
+     * Draws the guards of every edge, in edge order, from the guard section: slice u holds a
+     * terminated list for each edge leaving node u. The operands avoid every name in use, and see
+     * what a node action sees: the auxiliary operators and the data variables.
+     */
+    private List<List<TlaEx>> drawGuards(IrGenerationConfig config, Draw section, TransitionGraph graph,
+            Set<String> namesInUse, List<ScopedName> scope) {
+        var operands = new OperandGenerator(config, namesInUse);
+        var guard = guards.orElseThrow().guard(operands, scope.stream().map(OperandGenerator.Name::of).toList());
+        var nodeCount = graph.nodeCount();
+        var slices = WeightedSlices.equal(section, nodeCount);
+        var result = new ArrayList<List<TlaEx>>();
+        for (var node = 0; node < nodeCount; node++) {
+            var slice = slices.get(node);
+            for (var ignored : graph.successors().get(node)) {
+                result.add(guard.isEmpty() ? List.of()
+                        : slice.draw(BasicGenerators.listOf(guard.get(), 0, config.graphs().maximumGuards())));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * One bounded step per edge (u, v), in edge order: {@code pc = u /\ g1 /\ ... /\ gk /\ Node<u> /\ pc' = v},
+     * where the g are the edge's guards.
+     */
     private static TlaEx nextAction(ActionGenFactory actions, ActionShapeGenFactory shapes, ScopedName pc,
-                                    TransitionGraph graph) {
+                                    TransitionGraph graph, List<List<TlaEx>> guards) {
         var builder = shapes.builder();
         var nodeType = new OperatorType(List.of(), PrimitiveType.BOOL).toTlaType();
         var edges = new ArrayList<TlaEx>();
-        for (var edge : graph.edges()) {
-            edges.add(actions.boundedStep(List.of(
-                    builder.eql(shapes.nameOf(pc), builder.integer(edge.source())),
-                    builder.operApply(builder.name(nodeName(edge.source()), nodeType)),
-                    builder.primeEq(shapes.nameOf(pc), builder.integer(edge.target()))), List.of()));
+        var allEdges = graph.edges();
+        for (var index = 0; index < allEdges.size(); index++) {
+            var edge = allEdges.get(index);
+            var conjuncts = new ArrayList<TlaEx>();
+            conjuncts.add(builder.eql(shapes.nameOf(pc), builder.integer(edge.source())));
+            conjuncts.addAll(guards.get(index));
+            conjuncts.add(builder.operApply(builder.name(nodeName(edge.source()), nodeType)));
+            conjuncts.add(builder.primeEq(shapes.nameOf(pc), builder.integer(edge.target())));
+            edges.add(actions.boundedStep(conjuncts, List.of()));
         }
         return builder.or(BuilderArrays.expressions(edges));
     }

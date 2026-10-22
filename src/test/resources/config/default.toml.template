@@ -172,3 +172,6 @@ max_extra_successors = 2
 # Cap on the step bound of a graph input, which each input draws between half its
 # node count and its node count minus one. Defaults to max_graph_nodes.
 # max_steps = 32
+# Maximum tautological guards of one edge, drawn from the rule module that rules
+# names (ADR 0023 §6). Without rules, edges have no guards.
+max_guards = 2

@@ -377,6 +377,10 @@ final class ConfigSchema {
             "max_steps", GraphLimits::maximumSteps, MAXIMUM_GRAPH_NODES,
             "Cap on the step bound of a graph input, which each input draws between half its",
             "node count and its node count minus one. Defaults to max_graph_nodes.");
+    static final Key<Integer> MAXIMUM_GUARDS = GRAPH.defaultedInteger(
+            "max_guards", GraphLimits::maximumGuards, GraphLimits.DEFAULT_MAXIMUM_GUARDS,
+            "Maximum tautological guards of one edge, drawn from the rule module that rules",
+            "names (ADR 0023 §6). Without rules, edges have no guards.");
 
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();

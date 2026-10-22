@@ -13,23 +13,28 @@ import io.github.tlaplus.hardening.common.Role;
  * @param maximumNodes maximum number of nodes; node 0 is initial
  * @param maximumExtraSuccessors maximum successors of one node besides its spine successor
  * @param maximumSteps cap on the step bound an input draws
+ * @param maximumGuards maximum tautological guards of one edge, when the decoder has a rule library
+ *     (ADR 0023 §6)
  */
 @ArchRole(Role.CONFIG)
-public record GraphLimits(int minimumNodes, int maximumNodes, int maximumExtraSuccessors, int maximumSteps) {
+public record GraphLimits(
+        int minimumNodes, int maximumNodes, int maximumExtraSuccessors, int maximumSteps, int maximumGuards) {
     public static final int DEFAULT_MINIMUM_NODES = 20;
     public static final int DEFAULT_MAXIMUM_NODES = 32;
     public static final int DEFAULT_MAXIMUM_EXTRA_SUCCESSORS = 2;
     public static final int DEFAULT_MAXIMUM_STEPS = DEFAULT_MAXIMUM_NODES;
+    public static final int DEFAULT_MAXIMUM_GUARDS = 2;
 
     public GraphLimits {
         Preconditions.requirePositive(minimumNodes, "minimumNodes");
         Preconditions.require(minimumNodes <= maximumNodes, "minimumNodes must not exceed maximumNodes");
         Preconditions.requireNonnegative(maximumExtraSuccessors, "maximumExtraSuccessors");
         Preconditions.requireNonnegative(maximumSteps, "maximumSteps");
+        Preconditions.requireNonnegative(maximumGuards, "maximumGuards");
     }
 
     public static GraphLimits defaults() {
         return new GraphLimits(DEFAULT_MINIMUM_NODES, DEFAULT_MAXIMUM_NODES, DEFAULT_MAXIMUM_EXTRA_SUCCESSORS,
-                DEFAULT_MAXIMUM_STEPS);
+                DEFAULT_MAXIMUM_STEPS, DEFAULT_MAXIMUM_GUARDS);
     }
 }

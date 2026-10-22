@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 class GraphReportTest {
     /** Three-node spines: N and k are fixed and draw no byte, so the first byte picks the bound 1 or 2. */
     private static final SpecDecoders DECODERS = SpecDecoders.of(
-            IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(3, 3, 1, 3)));
+            IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(3, 3, 1, 3, 2)));
 
     @Test
     void rendersTheGraphTheTargetAndTheExpectedOutcomeBeforeTheModule() {

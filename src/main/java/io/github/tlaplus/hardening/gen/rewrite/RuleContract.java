@@ -115,6 +115,11 @@ final class RuleContract {
                 assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
     }
 
+    /** Whether the rule's formula applies no action-level operator, so its instances are state predicates. */
+    static boolean isStateLevel(RewriteRule rule) {
+        return operators(rule.formula(), ACTION).isEmpty();
+    }
+
     /** Returns the parameters a match binds to subterms of the node: every one but the fresh ones. */
     private static Set<String> bound(List<RuleParameter> parameters) {
         return parameters.stream()

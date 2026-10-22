@@ -145,7 +145,8 @@ public final class TomlConfig {
                 new GraphLimits(ConfigSchema.MINIMUM_GRAPH_NODES.read(tables),
                         ConfigSchema.MAXIMUM_GRAPH_NODES.read(tables),
                         ConfigSchema.MAXIMUM_EXTRA_SUCCESSORS.read(tables),
-                        ConfigSchema.MAXIMUM_GRAPH_STEPS.read(tables)));
+                        ConfigSchema.MAXIMUM_GRAPH_STEPS.read(tables),
+                        ConfigSchema.MAXIMUM_GUARDS.read(tables)));
 
         var checkers = new EnumMap<CorpusStage, CheckerStageConfig>(CorpusStage.class);
         for (var stage : CorpusStage.checkerBranches()) {

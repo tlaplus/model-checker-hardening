@@ -4,6 +4,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
+import io.github.tlaplus.hardening.gen.engine.EdgeGuards;
 import io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine;
 import io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine;
 import io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine;
@@ -166,5 +167,18 @@ public final class IrGenerators {
     public static Generator<GeneratedGraph> graphs(IrGenerationConfig config) {
         Objects.requireNonNull(config, "config");
         return new IrGraphGeneratorEngine(config)::generate;
+    }
+
+    /**
+     * Returns a generator of graph modules whose edges conjoin tautological guards drawn by
+     * {@code guards} (ADR 0023 §6). The guards occupy a section of their own, so the same bytes
+     * decode to another graph than under {@link #graphs(IrGenerationConfig)}.
+     *
+     * @return reusable generator of guarded graph modules
+     * @throws NullPointerException if an argument is {@code null}
+     */
+    public static Generator<GeneratedGraph> graphs(IrGenerationConfig config, EdgeGuards guards) {
+        Objects.requireNonNull(config, "config");
+        return new IrGraphGeneratorEngine(config, guards)::generate;
     }
 }
