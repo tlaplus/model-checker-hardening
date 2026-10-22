@@ -39,7 +39,12 @@ import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
  * regression net for that risk. Any non-crash verdict is acceptable; a crash is not.
  */
 class GeneratedNestedActionShapesTest {
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    /**
+     * Apalache type-checks a whole generated module in 3 to 12 seconds on a developer machine, and
+     * a hosted CI runner is several times slower. A timeout gives no verdict, so the bound only has
+     * to catch a hang.
+     */
+    private static final Duration TIMEOUT = Duration.ofSeconds(120);
     private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 30, 1024, 1);
     /**
      * The filed crash of findings/apalache-bmc/apalache-bmc-001.md, independent of action shapes: a
