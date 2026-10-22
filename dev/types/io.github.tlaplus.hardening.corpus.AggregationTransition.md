@@ -1,6 +1,6 @@
 # `AggregationTransition`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ed5c97e61582ad2ff90b4ea4209355aa0d555717/src/main/java/io/github/tlaplus/hardening/corpus/AggregationTransition.java#L19) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/corpus/AggregationTransition.java#L19) · module [corpus](../modules/corpus.md)
 
 Joins the checker copies of one logical input into one durable aggregator result.
 

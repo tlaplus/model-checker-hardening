@@ -1,6 +1,6 @@
 # `TlcProcess`
 
-`io.github.tlaplus.hardening.workflow.tlc` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ed5c97e61582ad2ff90b4ea4209355aa0d555717/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcProcess.java#L19) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcProcess.java#L19) · module [workflow](../modules/workflow.md)
 
 Runs one TLC request in a fresh isolated JVM.
 

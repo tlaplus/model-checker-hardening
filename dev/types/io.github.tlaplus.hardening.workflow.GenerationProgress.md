@@ -1,10 +1,10 @@
 # `GenerationProgress`
 
-`io.github.tlaplus.hardening.workflow` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ed5c97e61582ad2ff90b4ea4209355aa0d555717/src/main/java/io/github/tlaplus/hardening/workflow/GenerationProgress.java#L44) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/src/main/java/io/github/tlaplus/hardening/workflow/GenerationProgress.java#L44) · module [workflow](../modules/workflow.md)
 
 Where every generation of a run stands, tracked from stage events instead of a corpus rescan (ADR 0010).
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/ed5c97e61582ad2ff90b4ea4209355aa0d555717/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/0b7c167b636088dd43d36713d157e22f7ebd4f79/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram
