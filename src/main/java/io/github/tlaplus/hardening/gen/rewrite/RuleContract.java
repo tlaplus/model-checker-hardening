@@ -111,7 +111,7 @@ final class RuleContract {
         var signature = new HashSet<Integer>(TlaTypes.usedVariables(TlaTypes.typeOf(pattern)));
         parameters.forEach(parameter -> signature.addAll(TlaTypes.usedVariables(parameter.type())));
         replacement = LetSpecialization.specialize(name, replacement, signature);
-        return new RewriteRule(name, weight, pattern, replacement, parameters,
+        return new RewriteRule(name, weight, TlaExpressions.withArguments(relation, List.of(pattern, replacement)), parameters,
                 assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
     }
 
