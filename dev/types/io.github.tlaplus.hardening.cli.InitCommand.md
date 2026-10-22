@@ -1,6 +1,6 @@
 # `InitCommand`
 
-`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java#L32) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java#L32) · module [cli](../modules/cli.md)
 
 `fuzztla init`: writes the default configuration of a new corpus and installs its libraries.
 

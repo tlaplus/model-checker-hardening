@@ -1,6 +1,6 @@
 # `FileTrees`
 
-`io.github.tlaplus.hardening.common` · class · utility · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/common/FileTrees.java#L11) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · class · utility · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/common/FileTrees.java#L11) · module [common](../modules/common.md)
 
 File-tree operations shared by the corpus and by isolated worker processes.
 

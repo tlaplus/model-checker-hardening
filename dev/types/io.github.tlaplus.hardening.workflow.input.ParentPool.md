@@ -1,6 +1,6 @@
 # `ParentPool`
 
-`io.github.tlaplus.hardening.workflow.input` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/workflow/input/ParentPool.java#L27) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/workflow/input/ParentPool.java#L27) · module [workflow](../modules/workflow.md)
 
 The entries of `04quality-pass` that a generation mutates or adopts: those of the kind the run generates, read once when the generation starts.
 

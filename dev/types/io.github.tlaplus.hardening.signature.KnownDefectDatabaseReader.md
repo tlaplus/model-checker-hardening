@@ -1,6 +1,6 @@
 # `KnownDefectDatabaseReader`
 
-`io.github.tlaplus.hardening.signature` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabaseReader.java#L26) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabaseReader.java#L26) · module [signature](../modules/signature.md)
 
 Reads one database file: a TOML document of `[[signature]]` tables with exactly the keys `id`, `references`, `description`, and `match`.
 

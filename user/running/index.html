@@ -1466,6 +1466,10 @@ TLC-n can be added to a TLC and Apalache campaign as a third checker.</p>
 <p>The triager reports a disagreement in which one TLC run finds a counterexample and the
 other an evaluation error as <code>FIRST_ERROR</code>. Multi-threaded TLC may reach either error
 first, so this is not a defect.</p>
+<p>The triager reports two completed searches with different numbers of distinct states
+as <code>STATE_COUNT</code>. Rerun such an entry many times with several workers: in corpus68,
+one was <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/TLC/tlc-020.md">tlc-020</a>, a race that corrupts values shared
+by TLC's workers.</p>
 <div class="admonition warning">
 <p class="admonition-title">Older corpora</p>
 <p>A corpus created before TLC-n existed lacks its directories. Create them with

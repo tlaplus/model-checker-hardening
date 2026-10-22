@@ -1,6 +1,6 @@
 # `KnownDefectDatabase`
 
-`io.github.tlaplus.hardening.signature` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4206d99417cbe58b5b339e189936abe305c56cca/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabase.java#L20) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a304ba37155136c3ba79e4f2fb414cbb47d01606/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabase.java#L20) · module [signature](../modules/signature.md)
 
 The known-defect signatures of one invocation, in database order.
 
