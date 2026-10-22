@@ -30,6 +30,9 @@
 #   an exception it discards; any evaluation error can trigger it.
 # - tlc-019: the stack overflow while TLC reconstructs a liveness counterexample depends on the
 #   run-time sequence length, the JVM stack size and JIT timing, as for tlc-performance-001.
+# - tlc-020: the corruption depends on thread scheduling and affects only TLC with several
+#   workers. A structural signature would match every action parameter bounded by a constant set
+#   of sets, which generated modules write often, while one of corpus68's 500,000 inputs hit it.
 # - tlc-performance-002: formatting a domain error re-evaluates nested lazy functions whose
 #   evaluation fails at run time. A structural signature would match every fold combinator that
 #   nests function constructors, failing or not; one of corpus67's 10^6 checked inputs hit it.

@@ -64,6 +64,7 @@ class AllDefectsTest {
             "findings/TLC/tlc-013.md",
             "findings/TLC/tlc-018.md",
             "findings/TLC/tlc-019.md",
+            "findings/TLC/tlc-020.md",
             "findings/tlc-performance/tlc-performance-001.md",
             "findings/tlc-performance/tlc-performance-002.md");
 

@@ -76,6 +76,11 @@ The triager reports a disagreement in which one TLC run finds a counterexample a
 other an evaluation error as `FIRST_ERROR`. Multi-threaded TLC may reach either error
 first, so this is not a defect.
 
+The triager reports two completed searches with different numbers of distinct states
+as `STATE_COUNT`. Rerun such an entry many times with several workers: in corpus68,
+one was [tlc-020](../../findings/TLC/tlc-020.md), a race that corrupts values shared
+by TLC's workers.
+
 !!! warning "Older corpora"
     A corpus created before TLC-n existed lacks its directories. Create them with
     `mkdir corpus/02tlcn-{inputs,pass,counterexample,fail,crash}`.
