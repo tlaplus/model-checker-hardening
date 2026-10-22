@@ -1,6 +1,6 @@
 # `IrGenerationConfig`
 
-`io.github.tlaplus.hardening.gen` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/IrGenerationConfig.java#L27) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/IrGenerationConfig.java#L28) · module [gen](../modules/gen.md)
 
 Settings for generated TLA+ expressions and modules.
 
@@ -14,6 +14,9 @@ classDiagram
   }
   class ExpressionLimits {
     <<record>>
+  }
+  class GraphLimits {
+    <<config>>
   }
   class ModuleLimits {
     <<record>>
@@ -31,6 +34,9 @@ classDiagram
     <<model>>
   }
   class IrGeneratorEngine {
+    <<facade>>
+  }
+  class IrGraphGeneratorEngine {
     <<facade>>
   }
   class IrSpecGeneratorEngine {
@@ -68,12 +74,14 @@ classDiagram
   }
   IrGenerationConfig --> ExpressionCategory : has
   IrGenerationConfig --> ExpressionLimits : has
+  IrGenerationConfig --> GraphLimits : has
   IrGenerationConfig --> ModuleLimits : has
   IrGenerationConfig --> ExpressionKind : has
   IrGenerationConfig --> OperatorLibrary : has
   FuzzTlaConfig --> IrGenerationConfig : has
   GenerationContext --> IrGenerationConfig : has
   IrGeneratorEngine --> IrGenerationConfig : has
+  IrGraphGeneratorEngine --> IrGenerationConfig : has
   IrSpecGeneratorEngine --> IrGenerationConfig : has
   Rewriter --> IrGenerationConfig : has
   ConfigSchema ..> IrGenerationConfig : uses
@@ -90,18 +98,20 @@ classDiagram
   SpecDecoders ..> IrGenerationConfig : uses
 ```
 
-The diagram draws 22 of 40 relations; the table lists them all.
+The diagram draws 24 of 43 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [ExpressionCategory](io.github.tlaplus.hardening.gen.ExpressionCategory.md) | A user-facing category assigned to generated expression forms. |
 | → | has | [ExpressionLimits](io.github.tlaplus.hardening.gen.ExpressionLimits.md) | Bounds on recursive construction and variable-size payloads within one expression. |
+| → | has | [GraphLimits](io.github.tlaplus.hardening.gen.GraphLimits.md) | Bounds on the control graph of one graph input (ADR 0023 §3). |
 | → | has | [ModuleLimits](io.github.tlaplus.hardening.gen.ModuleLimits.md) | Declaration, action and exploration bounds on one module. |
 | → | has | [ExpressionKind](io.github.tlaplus.hardening.gen.engine.ExpressionKind.md) | A selectable expression form grouped by the component that constructs it. |
 | → | has | [OperatorLibrary](io.github.tlaplus.hardening.gen.library.OperatorLibrary.md) | Immutable prepared library. |
 | ← | has | [FuzzTlaConfig](io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | Complete configuration of input generation and workflow execution. |
 | ← | has | [GenerationContext](io.github.tlaplus.hardening.gen.engine.GenerationContext.md) | Mutable semantic state shared by every component of one generation run. |
 | ← | has | [IrGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine.md) | Reusable coordinator for type-directed IR-expression generation. |
+| ← | has | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | has | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |
 | ← | has | [Rewriter](io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | ← | uses | [ConfigSchema](io.github.tlaplus.hardening.config.ConfigSchema.md) | The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back. |
@@ -129,6 +139,7 @@ The diagram draws 22 of 40 relations; the table lists them all.
 | ← | depends | [IntegerExprGenFactory](io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory.md) | Constructs integer-valued expression generators. |
 | ← | depends | [IrExprGenFactory](io.github.tlaplus.hardening.gen.engine.IrExprGenFactory.md) | Factory for deferred, type-directed expression generators within one generation run. |
 | ← | depends | [IrTypeGenFactory](io.github.tlaplus.hardening.gen.engine.IrTypeGenFactory.md) | Factory for deferred generators of internal types within the configured remaining-depth budget. |
+| ← | depends | [ModulePrelude](io.github.tlaplus.hardening.gen.engine.ModulePrelude.md) | The declarations every generated module begins with: its state variables and its state-free auxiliary definitions. |
 | ← | depends | [OtherExprGenFactory](io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory.md) | Constructs expression generators not covered by the dedicated form families. |
 | ← | depends | [PropertyGenFactory](io.github.tlaplus.hardening.gen.engine.PropertyGenFactory.md) | Module-level temporal property: the property formula and its fairness conditions. |
 | ← | depends | [SetExprGenFactory](io.github.tlaplus.hardening.gen.engine.SetExprGenFactory.md) | Constructs set-valued expression generators. |

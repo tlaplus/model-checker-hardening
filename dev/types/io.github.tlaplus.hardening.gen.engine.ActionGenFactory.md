@@ -1,6 +1,6 @@
 # `ActionGenFactory`
 
-`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/engine/ActionGenFactory.java#L20) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/engine/ActionGenFactory.java#L21) · module [gen](../modules/gen.md)
 
 Module-level action assembly: Init, operator definitions, bounded parameters, guards, Next and the unconditional step update.
 
@@ -33,7 +33,7 @@ classDiagram
   ActionGenFactory ..> VisibleActionOperators : uses
 ```
 
-The diagram draws 8 of 25 relations; the table lists them all.
+The diagram draws 8 of 26 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -61,4 +61,5 @@ The diagram draws 8 of 25 relations; the table lists them all.
 | → | depends | [OperatorType](io.github.tlaplus.hardening.gen.engine.OperatorType.md) | Operator type. |
 | → | depends | [PrimitiveType](io.github.tlaplus.hardening.gen.engine.PrimitiveType.md) | Primitive expression result types. |
 | → | depends | [SetType](io.github.tlaplus.hardening.gen.engine.SetType.md) | Set type. |
+| ← | depends | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | depends | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |

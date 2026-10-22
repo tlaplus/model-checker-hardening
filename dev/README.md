@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`4f18277`](https://github.com/tlaplus/model-checker-hardening/commit/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`6bd7d92`](https://github.com/tlaplus/model-checker-hardening/commit/6bd7d927f1cffd7642029a3d925dff47091ddde9) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -39,14 +39,14 @@ flowchart TB
 |---|---|---|---|---|
 | [common](modules/common.md) | Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, and the architecture annotations and layering of ADR 0022. | 16 | 5 |  |
 | [checker](modules/checker.md) | Checker-independent results of a model-checker run: stable failure codes (ADR 0003) and exploration metrics (ADR 0008). | 5 | 3 | common |
-| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 102 | 24 | common |
+| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 109 | 27 | common |
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 15 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
-| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 50 | 10 | common, checker, gen, mutation |
+| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 52 | 11 | common, checker, gen, mutation |
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 19 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
-| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 116 | 60 | common, checker, gen, signature, mutation, corpus, config |
-| [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 33 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
+| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 117 | 60 | common, checker, gen, signature, mutation, corpus, config |
+| [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 34 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
 ## Roles
@@ -54,18 +54,18 @@ flowchart TB
 | Role | Meaning | Types |
 |---|---|---|
 | entry point | a command or a process main | 11 |
-| facade | the type other packages call | 16 |
-| contract | an interface or base type that other types implement | 9 |
+| facade | the type other packages call | 17 |
+| contract | an interface or base type that other types implement | 10 |
 | process | a loop or orchestrator that owns threads or a lifecycle | 8 |
-| adapter | wraps an external tool, process, or protocol | 10 |
+| adapter | wraps an external tool, process, or protocol | 11 |
 | store | layout, locking, persistence | 5 |
 | codec | a wire or storage format | 9 |
 | policy | a decision rule | 17 |
-| model | a domain value or enum | 29 |
-| config | configuration and its schema | 5 |
+| model | a domain value or enum | 32 |
+| config | configuration and its schema | 6 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 242 |
+| other | no `@ArchRole` | 246 |
 
 ## Relations
 

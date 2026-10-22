@@ -1,10 +1,10 @@
 # `ValueAtomBudget`
 
-`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/engine/ValueAtomBudget.java#L15) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/engine/ValueAtomBudget.java#L15) · module [gen](../modules/gen.md)
 
 Bounds the elements of one generated collection value over all nesting levels (ADR 0011).
 
-**Decisions:** [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0011-collection-base-size.md)
+**Decisions:** [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0011-collection-base-size.md)
 
 ```mermaid
 classDiagram

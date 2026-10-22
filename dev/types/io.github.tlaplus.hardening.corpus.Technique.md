@@ -1,6 +1,6 @@
 # `Technique`
 
-`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/corpus/Technique.java#L14) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/corpus/Technique.java#L17) · module [corpus](../modules/corpus.md)
 
 The fuzzing technique a corpus runs (`fuzztla run --how`).
 
@@ -11,6 +11,9 @@ classDiagram
   }
   class Oracle {
     <<policy>>
+  }
+  class InputKind {
+    <<model>>
   }
   class RunCommand {
     <<entry point>>
@@ -29,6 +32,7 @@ classDiagram
     <<facade>>
   }
   Technique --> Oracle : has
+  Technique --> InputKind : has
   RunCommand --> Technique : has
   WorkflowRunner --> Technique : has
   CheckingPolicy ..> Technique : uses
@@ -37,11 +41,12 @@ classDiagram
   SpecDecoders ..> Technique : uses
 ```
 
-The diagram draws 7 of 12 relations; the table lists them all.
+The diagram draws 8 of 13 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
-| → | has | [Oracle](io.github.tlaplus.hardening.corpus.Oracle.md) | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019). |
+| → | has | [Oracle](io.github.tlaplus.hardening.corpus.Oracle.md) | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5). |
+| → | has | [InputKind](io.github.tlaplus.hardening.gen.InputKind.md) | What a generator payload decodes to. |
 | ← | has | [RunCommand](io.github.tlaplus.hardening.cli.RunCommand.md) | `fuzztla run`: reads a corpus configuration and runs `WorkflowRunner` with live progress output. |
 | ← | has | [WorkflowRunner](io.github.tlaplus.hardening.workflow.WorkflowRunner.md) | Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget. |
 | ← | uses | [CheckingPolicy](io.github.tlaplus.hardening.corpus.CheckingPolicy.md) | Which checkers a workflow run feeds and how the aggregator judges their verdicts. |

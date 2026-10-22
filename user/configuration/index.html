@@ -596,6 +596,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#graph-control-graphs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [graph]: control graphs
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1401,6 +1412,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#graph-control-graphs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [graph]: control graphs
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1425,8 +1447,8 @@
 <p>Each corpus has a <code>config.toml</code>, written by <code>fuzztla init</code>. The file is commented, and
 this page lists every key by table. Paths in the file are relative to the file itself.</p>
 <p>You may leave out a checker table (<code>[workflow.tlc]</code>, <code>[workflow.tlcn]</code>,
-<code>[workflow.apalache]</code>) or any of its keys, as well as <code>[metamorphic]</code>, <code>checkers</code>
-and the <code>max_entries</code> key of a stage table. Anything left out takes the default
+<code>[workflow.apalache]</code>) or any of its keys, as well as <code>[metamorphic]</code>, <code>[graph]</code>,
+<code>checkers</code> and the <code>max_entries</code> key of a stage table. Anything left out takes the default
 shown below. The other keys are required. Some settings are recorded by the first
 run and cannot change afterwards: <code>checkers</code>, the technique (<code>--how</code>), and the
 operator library. To change those, initialize a new corpus.</p>
@@ -1443,7 +1465,7 @@ operator library. To change those, initialize a new corpus.</p>
 <tr>
 <td><code>kind</code></td>
 <td><code>"module"</code></td>
-<td><code>"module"</code> generates whole modules with variables, actions and properties. <code>"expr"</code> generates one expression and wraps it in a fixed single-state module.</td>
+<td><code>"module"</code> generates whole modules with variables, actions and properties. <code>"expr"</code> generates one expression and wraps it in a fixed single-state module. <code>"graph"</code> generates a module over a control graph, whose verdict the graph predicts; <code>run --how=gbt</code> requires it (<a href="../graph-based-testing/">Graph-based testing</a>).</td>
 </tr>
 <tr>
 <td><code>max_type_depth</code></td>
@@ -1689,6 +1711,41 @@ generation is selected and mutated. They are described in
 <p><code>rules</code>, <code>weights</code>, <code>max_rewrites</code>, <code>max_rewrite_depth</code>, <code>max_rewrite_growth</code>,
 <code>base_corpus</code> and <code>adopt_ratio</code> are used only by <code>run --how=mt</code>. They are described in
 <a href="../metamorphic-testing/#1-setting-up-a-corpus">Metamorphic testing</a>.</p>
+<h2 id="graph-control-graphs"><code>[graph]</code>: control graphs<a class="headerlink" href="#graph-control-graphs" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>min_graph_nodes</code></td>
+<td><code>20</code></td>
+<td>Minimum nodes of the control graph of a <code>graph</code> input. The graph has a spine <code>0 -&gt; 1 -&gt; ... -&gt; N-1</code>, so it is up to N - 1 steps deep.</td>
+</tr>
+<tr>
+<td><code>max_graph_nodes</code></td>
+<td><code>32</code></td>
+<td>Maximum nodes. Node 0 is initial.</td>
+</tr>
+<tr>
+<td><code>max_extra_successors</code></td>
+<td><code>2</code></td>
+<td>Maximum successors of one node besides its spine successor: back edges, self-loops and forward skips of at most two nodes.</td>
+</tr>
+<tr>
+<td><code>max_steps</code></td>
+<td><code>max_graph_nodes</code></td>
+<td>Cap on the step bound. Each input draws its own bound between half its node count and its node count minus one.</td>
+</tr>
+</tbody>
+</table>
+<p>The keys apply to <code>graph</code> inputs only (<a href="../graph-based-testing/">Graph-based testing</a>).
+Their data variables and expressions use the <code>[generator]</code> keys; <code>[generator]
+max_steps</code> does not apply to them.</p>
 
 
 

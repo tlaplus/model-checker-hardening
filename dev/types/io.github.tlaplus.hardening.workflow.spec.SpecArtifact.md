@@ -1,10 +1,10 @@
 # `SpecArtifact`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L38) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L39) · module [workflow](../modules/workflow.md)
 
 One assembled module, what its checkers are asked about it, and what its decoder produced.
 
-**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0014-per-checker-library-linking.md)
+**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0014-per-checker-library-linking.md)
 
 ```mermaid
 classDiagram
@@ -13,9 +13,6 @@ classDiagram
   }
   class SourceLink {
     <<record>>
-  }
-  class Rewrite {
-    <<model>>
   }
   class CheckRequest {
     <<record>>
@@ -30,8 +27,14 @@ classDiagram
   class GeneratedSpec {
     <<model>>
   }
+  class GeneratedGraph {
+    <<model>>
+  }
   class OperatorLibrary {
     <<facade>>
+  }
+  class Rewrite {
+    <<model>>
   }
   class DecodedInputRenderer
   class ApalacheCheckerBackend {
@@ -54,13 +57,14 @@ classDiagram
     <<contract>>
   }
   SpecArtifact --> SourceLink : has
-  SpecArtifact --> Rewrite : has
   SpecArtifact --> CheckRequest : has
   MutantCandidates --> SpecArtifact : has
   GeneratedInputPreparation --> SpecArtifact : has
   SpecDecoders --> SpecArtifact : has
   SpecArtifact ..> GeneratedSpec : uses
+  SpecArtifact ..> GeneratedGraph : uses
   SpecArtifact ..> OperatorLibrary : uses
+  SpecArtifact ..> Rewrite : uses
   DecodedInputRenderer ..> SpecArtifact : uses
   ApalacheCheckerBackend ..> SpecArtifact : uses
   CandidateSource ..> SpecArtifact : uses
@@ -71,18 +75,19 @@ classDiagram
   ToolBackend ..> SpecArtifact : uses
 ```
 
-The diagram draws 16 of 23 relations; the table lists them all.
+The diagram draws 17 of 25 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [SourceLink](io.github.tlaplus.hardening.gen.library.SourceLink.md) | The module the parser and TLC evaluate, and the aliases its renderer must define through named instances. |
-| → | has | [Rewrite](io.github.tlaplus.hardening.gen.rewrite.Rewrite.md) | A decoded metamorphic pair: the base the payload's base part decodes to, its rewrite, the orientation, and the rules applied in order. |
 | → | has | [CheckRequest](io.github.tlaplus.hardening.workflow.worker.CheckRequest.md) | What a checker is asked about one assembled module. |
 | ← | has | [MutantCandidates](io.github.tlaplus.hardening.workflow.input.MutantCandidates.md) | Mutants of the parent pool (ADR 0010): every candidate mutates a uniformly drawn parent, keeps its cohort, and is rejected as a clone when it renders to the parent's module. |
 | ← | has | [GeneratedInputPreparation](io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation.md) | Regenerates and renders one tool input while preserving generator-crash artifacts. |
 | ← | has | [SpecDecoders](io.github.tlaplus.hardening.workflow.spec.SpecDecoders.md) | Immutable registry of the decoders that turn stored payloads into checkable modules. |
 | → | uses | [GeneratedSpec](io.github.tlaplus.hardening.gen.GeneratedSpec.md) | The declarations one generated module consists of. |
+| → | uses | [GeneratedGraph](io.github.tlaplus.hardening.gen.graph.GeneratedGraph.md) | A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names. |
 | → | uses | [OperatorLibrary](io.github.tlaplus.hardening.gen.library.OperatorLibrary.md) | Immutable prepared library. |
+| → | uses | [Rewrite](io.github.tlaplus.hardening.gen.rewrite.Rewrite.md) | A decoded metamorphic pair: the base the payload's base part decodes to, its rewrite, the orientation, and the rules applied in order. |
 | ← | uses | [DecodedInputRenderer](io.github.tlaplus.hardening.cli.DecodedInputRenderer.md) | Renders a decoded input independently of picocli command wiring. |
 | ← | uses | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
 | ← | uses | [CandidateSource](io.github.tlaplus.hardening.workflow.input.CandidateSource.md) | Where the candidates for a target entry of the input stage come from: property-based generation or mutation of a selected parent (ADR 0010). |
@@ -98,3 +103,4 @@ The diagram draws 16 of 23 relations; the table lists them all.
 | ← | depends | [WorkflowRunner](io.github.tlaplus.hardening.workflow.WorkflowRunner.md) | Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget. |
 | ← | depends | [MetamorphicCandidates](io.github.tlaplus.hardening.workflow.input.MetamorphicCandidates.md) | Adopts elite conformance entries (ADR 0016 §6): every candidate is the payload of a uniformly drawn parent of a pbt corpus behind the metamorphic header, followed by random rewrite bytes. |
 | ← | depends | [EvaluatedExprs](io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs.md) | Replays a stored input and counts the expression constructs of the code the checkers evaluate: the definitions reachable from `SpecArtifact.entryPoints`. |
+| ← | depends | [GraphOutcomes](io.github.tlaplus.hardening.workflow.spec.GraphOutcomes.md) | Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise. |

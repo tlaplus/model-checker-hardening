@@ -1,6 +1,6 @@
 # `ToolWorker`
 
-`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolWorker.java#L11) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolWorker.java#L11) · module [workflow](../modules/workflow.md)
 
 Worker-local tool state used for one or more sequential inputs.
 

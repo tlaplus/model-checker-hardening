@@ -1,6 +1,6 @@
 # `CheckingPolicy`
 
-`io.github.tlaplus.hardening.corpus` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/corpus/CheckingPolicy.java#L13) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/corpus/CheckingPolicy.java#L18) · module [corpus](../modules/corpus.md)
 
 Which checkers a workflow run feeds and how the aggregator judges their verdicts.
 
@@ -11,6 +11,9 @@ classDiagram
   }
   class CheckerSet {
     <<record>>
+  }
+  class ExpectedOutcomes {
+    <<contract>>
   }
   class Oracle {
     <<policy>>
@@ -30,6 +33,7 @@ classDiagram
   }
   class AggregationTransition
   CheckingPolicy --> CheckerSet : has
+  CheckingPolicy --> ExpectedOutcomes : has
   CheckingPolicy --> Oracle : has
   AggregationInput --> CheckingPolicy : has
   AggregationRecovery --> CheckingPolicy : has
@@ -42,7 +46,8 @@ classDiagram
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckerSet](io.github.tlaplus.hardening.corpus.CheckerSet.md) | The checker branches a corpus runs: a non-empty set of checking stages, in stage order. |
-| → | has | [Oracle](io.github.tlaplus.hardening.corpus.Oracle.md) | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019). |
+| → | has | [ExpectedOutcomes](io.github.tlaplus.hardening.corpus.ExpectedOutcomes.md) | Predicts the outcome of one stored input, typically by replaying it through the generator (ADR 0023 §5). |
+| → | has | [Oracle](io.github.tlaplus.hardening.corpus.Oracle.md) | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5). |
 | ← | has | [AggregationInput](io.github.tlaplus.hardening.corpus.AggregationInput.md) | A logical corpus entry whose non-crash checker results are ready for aggregation. |
 | ← | has | [AggregationRecovery](io.github.tlaplus.hardening.corpus.AggregationRecovery.md) | Recovers aggregate commits and inventories the aggregator's result directories. |
 | ← | has | [CorpusDirectory](io.github.tlaplus.hardening.corpus.CorpusDirectory.md) | Owns the on-disk layout and integrity checks for one FuzzTLA corpus. |

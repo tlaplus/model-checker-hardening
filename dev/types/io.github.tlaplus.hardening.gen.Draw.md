@@ -1,6 +1,6 @@
 # `Draw`
 
-`io.github.tlaplus.hardening.gen` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/Draw.java#L37) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/Draw.java#L37) · module [gen](../modules/gen.md)
 
 A forward-only deterministic cursor that decodes structured choices from an unstructured byte array.
 
@@ -13,7 +13,13 @@ classDiagram
     <<contract>>
   }
   class ActionShapeGenFactory
+  class GraphSection {
+    <<enum>>
+  }
   class IrGeneratorEngine {
+    <<facade>>
+  }
+  class IrGraphGeneratorEngine {
     <<facade>>
   }
   class IrSpecGeneratorEngine {
@@ -22,6 +28,7 @@ classDiagram
   class ModuleSection {
     <<enum>>
   }
+  class WeightedSlices
   class MetamorphicPayload {
     <<codec>>
   }
@@ -31,23 +38,29 @@ classDiagram
   Draw ..> Generator : uses
   Generator ..> Draw : uses
   ActionShapeGenFactory ..> Draw : uses
+  GraphSection ..> Draw : uses
   IrGeneratorEngine ..> Draw : uses
+  IrGraphGeneratorEngine ..> Draw : uses
   IrSpecGeneratorEngine ..> Draw : uses
   ModuleSection ..> Draw : uses
+  WeightedSlices ..> Draw : uses
   MetamorphicPayload ..> Draw : uses
   Rewriter ..> Draw : uses
 ```
 
-The diagram draws 8 of 27 relations; the table lists them all.
+The diagram draws 11 of 31 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | uses | [Generator](io.github.tlaplus.hardening.gen.Generator.md) | A composable recipe for decoding a value from a shared `Draw` cursor. |
 | ← | uses | [Generator](io.github.tlaplus.hardening.gen.Generator.md) | A composable recipe for decoding a value from a shared `Draw` cursor. |
 | ← | uses | [ActionShapeGenFactory](io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.md) | Recursive, complete action shapes. |
+| ← | uses | [GraphSection](io.github.tlaplus.hardening.gen.engine.GraphSection.md) | The independent parts of a graph input after its header, each decoded from its own contiguous range of bytes (ADR 0023 §3), as `ModuleSection` does for a module input. |
 | ← | uses | [IrGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine.md) | Reusable coordinator for type-directed IR-expression generation. |
+| ← | uses | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | uses | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |
 | ← | uses | [ModuleSection](io.github.tlaplus.hardening.gen.engine.ModuleSection.md) | The independent parts of a module input, each decoded from its own contiguous range of bytes. |
+| ← | uses | [WeightedSlices](io.github.tlaplus.hardening.gen.engine.WeightedSlices.md) | Divides the remaining bytes of a cursor into contiguous slices of proportional length. |
 | ← | uses | [MetamorphicPayload](io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload.md) | The layout of a metamorphic input (ADR 0016 §1): |
 | ← | uses | [Rewriter](io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
@@ -62,6 +75,7 @@ The diagram draws 8 of 27 relations; the table lists them all.
 | ← | depends | [IntegerExprGenFactory](io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory.md) | Constructs integer-valued expression generators. |
 | ← | depends | [IrExprGenFactory](io.github.tlaplus.hardening.gen.engine.IrExprGenFactory.md) | Factory for deferred, type-directed expression generators within one generation run. |
 | ← | depends | [IrTypeGenFactory](io.github.tlaplus.hardening.gen.engine.IrTypeGenFactory.md) | Factory for deferred generators of internal types within the configured remaining-depth budget. |
+| ← | depends | [ModulePrelude](io.github.tlaplus.hardening.gen.engine.ModulePrelude.md) | The declarations every generated module begins with: its state variables and its state-free auxiliary definitions. |
 | ← | depends | [OtherExprGenFactory](io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory.md) | Constructs expression generators not covered by the dedicated form families. |
 | ← | depends | [PropertyGenFactory](io.github.tlaplus.hardening.gen.engine.PropertyGenFactory.md) | Module-level temporal property: the property formula and its fairness conditions. |
 | ← | depends | [SequenceExprGenFactory](io.github.tlaplus.hardening.gen.engine.SequenceExprGenFactory.md) | Constructs sequence-valued expression generators. |

@@ -53,6 +53,7 @@ classDiagram
 | [ExportDbReport](../types/io.github.tlaplus.hardening.cli.ExportDbReport.md) | class | other | Renders the outcome of a corpus export. |
 | [**FuzzTlaCommand** ★](../types/io.github.tlaplus.hardening.cli.FuzzTlaCommand.md) | class | entry point | The root `fuzztla` command: registers the subcommands and runs one command line. |
 | [Glyphs](../types/io.github.tlaplus.hardening.cli.Glyphs.md) | enum | other | Characters for the live diagram and change markers. |
+| [GraphReport](../types/io.github.tlaplus.hardening.cli.GraphReport.md) | class | other | Renders a graph module for triage (ADR 0023): the control graph, the target, the outcome the graph predicts, and the module the checkers see. |
 | [HumanDuration](../types/io.github.tlaplus.hardening.cli.HumanDuration.md) | class | other | Formats nonnegative durations as compact day, hour, minute, and second parts. |
 | [HumanNumber](../types/io.github.tlaplus.hardening.cli.HumanNumber.md) | class | other | Locale-independent numeric fields; compact counts occupy at most five columns. |
 | [**InitCommand** ★](../types/io.github.tlaplus.hardening.cli.InitCommand.md) | class | entry point | `fuzztla init`: writes the default configuration of a new corpus and installs its libraries. |
@@ -82,6 +83,7 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0009-corpus-database.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0020: Campaign report](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0020-campaign-report.md)
+- [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0009-corpus-database.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0020: Campaign report](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0020-campaign-report.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0023-graph-based-testing.md)

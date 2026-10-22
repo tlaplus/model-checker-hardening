@@ -15,10 +15,12 @@ An arrow counts the relations other than `depends` from one package to another. 
 flowchart TB
   gen["gen"]
   gen_engine["gen.engine"]
+  gen_graph["gen.graph"]
   gen_ir["gen.ir"]
   gen_library["gen.library"]
   gen_rewrite["gen.rewrite"]
   gen -->|1| gen_engine
+  gen_graph -->|1| gen
   gen_library -->|4| gen
 ```
 
@@ -64,6 +66,7 @@ classDiagram
 | [GeneratedOperator](../types/io.github.tlaplus.hardening.gen.GeneratedOperator.md) | interface | other | A generated definition, stored once in module declaration order. |
 | [**GeneratedSpec** ★](../types/io.github.tlaplus.hardening.gen.GeneratedSpec.md) | record | model | The declarations one generated module consists of. |
 | [**Generator** ★](../types/io.github.tlaplus.hardening.gen.Generator.md) | interface | contract | A composable recipe for decoding a value from a shared `Draw` cursor. |
+| [GraphLimits](../types/io.github.tlaplus.hardening.gen.GraphLimits.md) | record | config | Bounds on the control graph of one graph input (ADR 0023 §3). |
 | [**InputKind** ★](../types/io.github.tlaplus.hardening.gen.InputKind.md) | enum | model | What a generator payload decodes to. |
 | [InputRejectedException](../types/io.github.tlaplus.hardening.gen.InputRejectedException.md) | class | other | Indicates that the current input cannot be decoded into a valid value. |
 | [IntegerLimits](../types/io.github.tlaplus.hardening.gen.IntegerLimits.md) | record | other | Integer literals and the closed integer terminal. |
@@ -89,6 +92,9 @@ classDiagram
     <<model>>
   }
   class IrGeneratorEngine {
+    <<facade>>
+  }
+  class IrGraphGeneratorEngine {
     <<facade>>
   }
   class IrSpecGeneratorEngine {
@@ -122,17 +128,20 @@ classDiagram
 | [GeneralExprGenFactory](../types/io.github.tlaplus.hardening.gen.engine.GeneralExprGenFactory.md) | class | other | Constructs terminal and type-polymorphic expression generators. |
 | [GeneralExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind.md) | enum | other | Type-polymorphic and terminal expression forms. |
 | [**GenerationContext** ★](../types/io.github.tlaplus.hardening.gen.engine.GenerationContext.md) | class | model | Mutable semantic state shared by every component of one generation run. |
+| [GraphSection](../types/io.github.tlaplus.hardening.gen.engine.GraphSection.md) | enum | other | The independent parts of a graph input after its header, each decoded from its own contiguous range of bytes (ADR 0023 §3), as `ModuleSection` does for a module input. |
 | [ImportedTypes](../types/io.github.tlaplus.hardening.gen.engine.ImportedTypes.md) | class | other | Converts concrete imported type terms at the private generator boundary. |
 | [IndexedValues](../types/io.github.tlaplus.hardening.gen.engine.IndexedValues.md) | class | other | The byte-free k-th value of a value type, from which collection terminals take distinct elements (ADR 0011). |
 | [IntegerExprGenFactory](../types/io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory.md) | class | other | Constructs integer-valued expression generators. |
 | [IntegerExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.IntegerExpressionKind.md) | enum | other | Integer-valued expression forms. |
 | [IrExprGenFactory](../types/io.github.tlaplus.hardening.gen.engine.IrExprGenFactory.md) | class | other | Factory for deferred, type-directed expression generators within one generation run. |
 | [**IrGeneratorEngine** ★](../types/io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine.md) | class | facade | Reusable coordinator for type-directed IR-expression generation. |
+| [**IrGraphGeneratorEngine** ★](../types/io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | class | facade | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | [**IrSpecGeneratorEngine** ★](../types/io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | class | facade | Reusable coordinator for generating the declarations of one TLA+ module. |
 | [**IrType** ★](../types/io.github.tlaplus.hardening.gen.engine.IrType.md) | interface | model | Internal type model used to direct checked expression construction. |
 | [IrTypeGenFactory](../types/io.github.tlaplus.hardening.gen.engine.IrTypeGenFactory.md) | class | other | Factory for deferred generators of internal types within the configured remaining-depth budget. |
 | [Level](../types/io.github.tlaplus.hardening.gen.engine.Level.md) | enum | other | The TLA+ level of the formula an expression form builds, as Specifying Systems defines it and SANY checks it. |
 | [LevelContext](../types/io.github.tlaplus.hardening.gen.engine.LevelContext.md) | enum | other | The levels an expression request may produce, which `GenerationContext` keeps as a dynamic ceiling while a body is drawn. |
+| [ModulePrelude](../types/io.github.tlaplus.hardening.gen.engine.ModulePrelude.md) | class | other | The declarations every generated module begins with: its state variables and its state-free auxiliary definitions. |
 | [ModuleSection](../types/io.github.tlaplus.hardening.gen.engine.ModuleSection.md) | enum | other | The independent parts of a module input, each decoded from its own contiguous range of bytes. |
 | [NameScope](../types/io.github.tlaplus.hardening.gen.engine.NameScope.md) | class | other | Exception-safe dynamic view over a persistent lexical-scope list. |
 | [OperandGenerator](../types/io.github.tlaplus.hardening.gen.engine.OperandGenerator.md) | class | other | Draws expressions for a rewrite that leaves an operand open (ADR 0017 §3): a fresh parameter is drawn by the ordinary expression factory, at its type, in the lexical scope of the rewritten node, and in the state-level context, so a fresh operand adds no prime. |
@@ -157,6 +166,27 @@ classDiagram
 | [ValueAtomBudget](../types/io.github.tlaplus.hardening.gen.engine.ValueAtomBudget.md) | class | other | Bounds the elements of one generated collection value over all nesting levels (ADR 0011). |
 | [VariantType](../types/io.github.tlaplus.hardening.gen.engine.VariantType.md) | record | other | Variant type. |
 | [VisibleActionOperators](../types/io.github.tlaplus.hardening.gen.engine.VisibleActionOperators.md) | class | other | Immutable operator prefix; candidates retain declaration order for byte selection. |
+| [WeightedSlices](../types/io.github.tlaplus.hardening.gen.engine.WeightedSlices.md) | class | other | Divides the remaining bytes of a cursor into contiguous slices of proportional length. |
+
+## `io.github.tlaplus.hardening.gen.graph`
+
+The control graph of a graph input and the module decoded from it, with the outcome the graph predicts (ADR 0023).
+
+```mermaid
+classDiagram
+  class GeneratedGraph {
+    <<model>>
+  }
+  class TransitionGraph {
+    <<model>>
+  }
+  GeneratedGraph --> TransitionGraph : has
+```
+
+| Type | Kind | Role | Summary |
+|---|---|---|---|
+| [**GeneratedGraph** ★](../types/io.github.tlaplus.hardening.gen.graph.GeneratedGraph.md) | record | model | A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names. |
+| [**TransitionGraph** ★](../types/io.github.tlaplus.hardening.gen.graph.TransitionGraph.md) | record | model | A directed graph over the nodes `0..N-1`, the control structure of a graph module (ADR 0023 §2). |
 
 ## `io.github.tlaplus.hardening.gen.ir`
 
@@ -265,10 +295,11 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0007-levels-and-temporal-properties.md)
-- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0011-collection-base-size.md)
-- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0012-integer-literals.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0007-levels-and-temporal-properties.md)
+- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0011-collection-base-size.md)
+- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0012-integer-literals.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0023-graph-based-testing.md)

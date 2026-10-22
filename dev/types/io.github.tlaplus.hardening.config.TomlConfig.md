@@ -1,6 +1,6 @@
 # `TomlConfig`
 
-`io.github.tlaplus.hardening.config` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/config/TomlConfig.java#L30) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/config/TomlConfig.java#L31) · module [config](../modules/config.md)
 
 Reads and writes the strict `config.toml` format used by a corpus.
 
@@ -19,7 +19,7 @@ classDiagram
   TomlConfig ..> OperatorLibraryConfig : uses
 ```
 
-The diagram draws 2 of 27 relations; the table lists them all.
+The diagram draws 2 of 28 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -39,6 +39,7 @@ The diagram draws 2 of 27 relations; the table lists them all.
 | → | depends | [CheckerSet](io.github.tlaplus.hardening.corpus.CheckerSet.md) | The checker branches a corpus runs: a non-empty set of checking stages, in stage order. |
 | → | depends | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
 | → | depends | [ExpressionLimits](io.github.tlaplus.hardening.gen.ExpressionLimits.md) | Bounds on recursive construction and variable-size payloads within one expression. |
+| → | depends | [GraphLimits](io.github.tlaplus.hardening.gen.GraphLimits.md) | Bounds on the control graph of one graph input (ADR 0023 §3). |
 | → | depends | [InputKind](io.github.tlaplus.hardening.gen.InputKind.md) | What a generator payload decodes to. |
 | → | depends | [IrGenerationConfig](io.github.tlaplus.hardening.gen.IrGenerationConfig.md) | Settings for generated TLA+ expressions and modules. |
 | → | depends | [ModuleLimits](io.github.tlaplus.hardening.gen.ModuleLimits.md) | Declaration, action and exploration bounds on one module. |

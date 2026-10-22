@@ -1,6 +1,6 @@
 # `ConfigSchema`
 
-`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L41) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L42) · module [config](../modules/config.md)
 
 The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back.
 
@@ -53,6 +53,9 @@ classDiagram
   class ExpressionCategory {
     <<enum>>
   }
+  class GraphLimits {
+    <<config>>
+  }
   class InputKind {
     <<model>>
   }
@@ -86,6 +89,7 @@ classDiagram
   ConfigSchema ..> CorpusStage : uses
   ConfigSchema ..> ShallowPattern : uses
   ConfigSchema ..> ExpressionCategory : uses
+  ConfigSchema ..> GraphLimits : uses
   ConfigSchema ..> InputKind : uses
   ConfigSchema ..> IrGenerationConfig : uses
   ConfigSchema ..> ExpressionKind : uses
@@ -93,7 +97,7 @@ classDiagram
   ConfigSchema ..> MutationOperator : uses
 ```
 
-The diagram draws 23 of 28 relations; the table lists them all.
+The diagram draws 24 of 29 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -115,6 +119,7 @@ The diagram draws 23 of 28 relations; the table lists them all.
 | → | uses | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
 | → | uses | [ShallowPattern](io.github.tlaplus.hardening.corpus.ShallowPattern.md) | A way in which a TLC run explored almost nothing, as the calibration table of ADR 0008 defines it. |
 | → | uses | [ExpressionCategory](io.github.tlaplus.hardening.gen.ExpressionCategory.md) | A user-facing category assigned to generated expression forms. |
+| → | uses | [GraphLimits](io.github.tlaplus.hardening.gen.GraphLimits.md) | Bounds on the control graph of one graph input (ADR 0023 §3). |
 | → | uses | [InputKind](io.github.tlaplus.hardening.gen.InputKind.md) | What a generator payload decodes to. |
 | → | uses | [IrGenerationConfig](io.github.tlaplus.hardening.gen.IrGenerationConfig.md) | Settings for generated TLA+ expressions and modules. |
 | → | uses | [ExpressionKind](io.github.tlaplus.hardening.gen.engine.ExpressionKind.md) | A selectable expression form grouped by the component that constructs it. |

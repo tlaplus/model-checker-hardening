@@ -1,10 +1,10 @@
 # `LevelContext`
 
-`io.github.tlaplus.hardening.gen.engine` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/engine/LevelContext.java#L17) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/engine/LevelContext.java#L17) · module [gen](../modules/gen.md)
 
 The levels an expression request may produce, which `GenerationContext` keeps as a dynamic ceiling while a body is drawn.
 
-**Decisions:** [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0007-levels-and-temporal-properties.md)
+**Decisions:** [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0007-levels-and-temporal-properties.md)
 
 ```mermaid
 classDiagram

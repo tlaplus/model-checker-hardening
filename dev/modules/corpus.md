@@ -32,6 +32,9 @@ classDiagram
   class CorpusVerdict {
     <<model>>
   }
+  class ExpectedOutcome {
+    <<model>>
+  }
   class Oracle {
     <<policy>>
   }
@@ -51,7 +54,12 @@ classDiagram
   CorpusEntryStore --> CorpusLayout : has
   CorpusLayout ..> CorpusStage : uses
   CorpusStage --> CorpusVerdict : has
+  ExpectedOutcome ..> CorpusStage : uses
+  ExpectedOutcome --> CorpusVerdict : has
+  ExpectedOutcome ..> StageRecord : uses
+  Oracle ..> CorpusStage : uses
   Oracle ..> CorpusVerdict : uses
+  Oracle ..> ExpectedOutcome : uses
   Oracle ..> StageRecord : uses
   StageRecord --> CorpusVerdict : has
   StageTransition --> CorpusLayout : has
@@ -90,12 +98,14 @@ classDiagram
 | [EntryName](../types/io.github.tlaplus.hardening.corpus.EntryName.md) | record | other | The identity of one logical corpus entry: the file name it keeps in every stage directory it passes through. |
 | [EntryOrigin](../types/io.github.tlaplus.hardening.corpus.EntryOrigin.md) | enum | other | Which candidate source admitted an entry, as its generation metadata records it (ADR 0010, ADR 0016 §6). |
 | [EntryProgress](../types/io.github.tlaplus.hardening.corpus.EntryProgress.md) | record | other | How far one logical entry has moved through the pipeline, and the single definition of the two questions generation scheduling asks of it (ADR 0010). |
+| [**ExpectedOutcome** ★](../types/io.github.tlaplus.hardening.corpus.ExpectedOutcome.md) | record | model | The checker verdict an input predicts, independently of any checker (ADR 0023 §4): a graph input predicts a counterexample of known length when its target is reachable within the step bound, and a pass otherwise. |
+| [ExpectedOutcomes](../types/io.github.tlaplus.hardening.corpus.ExpectedOutcomes.md) | interface | contract | Predicts the outcome of one stored input, typically by replaying it through the generator (ADR 0023 §5). |
 | [GenerationMetadata](../types/io.github.tlaplus.hardening.corpus.GenerationMetadata.md) | record | other | Admission-time facts about one corpus input: the generation that admitted it, its PBT cohort and collection-richness score, and, for a mutant, the parent and operators it was derived from. |
 | [GeneratorCrashRecording](../types/io.github.tlaplus.hardening.corpus.GeneratorCrashRecording.md) | interface | other | Result of trying to preserve a payload that crashed its generator. |
 | [InputAnalysis](../types/io.github.tlaplus.hardening.corpus.InputAnalysis.md) | interface | other | Counts the evaluated nodes, expression constructs and construct edges of one stored input, and names the rewrite rules it applied, typically by replaying it through the generator. |
 | [InventoryScan](../types/io.github.tlaplus.hardening.corpus.InventoryScan.md) | class | other | The second pass of startup recovery: validates every entry of a corpus in which no transition is half-finished, and reports what it holds. |
 | [Mutation](../types/io.github.tlaplus.hardening.corpus.Mutation.md) | record | other | How a mutated input was derived: the digest of the parent it was mutated from and the operators applied to the parent, in order. |
-| [**Oracle** ★](../types/io.github.tlaplus.hardening.corpus.Oracle.md) | enum | policy | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019). |
+| [**Oracle** ★](../types/io.github.tlaplus.hardening.corpus.Oracle.md) | enum | policy | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5). |
 | [ReplayedInput](../types/io.github.tlaplus.hardening.corpus.ReplayedInput.md) | record | other | What replaying one stored input shows beyond its envelope. |
 | [ShallowPattern](../types/io.github.tlaplus.hardening.corpus.ShallowPattern.md) | enum | other | A way in which a TLC run explored almost nothing, as the calibration table of ADR 0008 defines it. |
 | [StageEntryCounts](../types/io.github.tlaplus.hardening.corpus.StageEntryCounts.md) | record | other | How many entries one stage has produced under each verdict. |
@@ -113,8 +123,9 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0004: Stage identity](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0004-stage-identity.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0008-exploration-metrics.md)
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0010-mutation.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0019: State-count agreement of completed searches](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0019-state-count-agreement.md)
+- [ADR 0004: Stage identity](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0004-stage-identity.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0010-mutation.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0019: State-count agreement of completed searches](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0019-state-count-agreement.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0023-graph-based-testing.md)

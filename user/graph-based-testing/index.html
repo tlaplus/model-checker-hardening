@@ -785,10 +785,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-limitations" class="md-nav__link">
+  <a href="#5-triage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Limitations
+        5. Triage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Limitations
       
     </span>
   </a>
@@ -1290,10 +1301,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-limitations" class="md-nav__link">
+  <a href="#5-triage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Limitations
+        5. Triage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Limitations
       
     </span>
   </a>
@@ -1332,13 +1354,10 @@
 
 
 <h1 id="graph-based-testing">Graph-based testing<a class="headerlink" href="#graph-based-testing" title="Permanent link">&para;</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">Proposed</p>
-<p><code>--how=gbt</code> is designed in <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0023-graph-based-testing.md">ADR 0023</a>
-and not implemented yet. This page describes the planned interface.</p>
-</div>
-<p>A graph-based campaign generates modules whose control structure is a directed graph.
-A variable <code>pc</code> holds the current node. Each node assigns new values to the data
+<p>Tautological guards on edges (section 4) are not implemented yet.</p>
+<p>A graph-based campaign generates modules whose control structure is a directed graph
+of 20 to 32 nodes. A spine <code>0 -&gt; 1 -&gt; ... -&gt; N-1</code> makes it up to N - 1 steps deep, and
+extra edges add loops, cycles and short skips. A variable <code>pc</code> holds the current node. Each node assigns new values to the data
 variables, and each edge runs its source node's assignments and moves <code>pc</code> to its
 target. The invariant is <code>pc /= k</code> for one target node k. Because every edge is
 enabled, FuzzTLA knows from the graph whether a checker must report a counterexample,
@@ -1352,28 +1371,51 @@ checker agrees with it.</p>
 <div class="highlight"><pre><span></span><code><span class="k">[generator]</span>
 <span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"graph"</span><span class="w">                </span><span class="c1"># required by --how=gbt</span>
 <span class="n">max_variables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
-<span class="n">max_steps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w">                 </span><span class="c1"># the step bound B</span>
 
 <span class="k">[workflow]</span>
 <span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">,</span><span class="w"> </span><span class="s2">"apalache"</span><span class="p">]</span><span class="w"> </span><span class="c1"># one checker is enough, see section 3</span>
 
+<span class="k">[workflow.inputs]</span>
+<span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">]</span>
+
+<span class="k">[workflow.apalache]</span>
+<span class="n">timeout_sec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">60</span><span class="w">              </span><span class="c1"># deep spines unroll 10 to 31 steps</span>
+
 <span class="k">[graph]</span>
-<span class="n">max_graph_nodes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span>
-<span class="n">max_successors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
-<span class="n">max_guards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w">                </span><span class="c1"># used only with rules</span>
-<span class="c1"># rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }</span>
-<span class="c1"># weights = { UnionSelf = 2 }</span>
+<span class="n">min_graph_nodes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span>
+<span class="n">max_graph_nodes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span>
+<span class="n">max_extra_successors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="c1"># max_steps = 32              # cap on each input's own step bound</span>
 </code></pre></div>
 <ul>
 <li><strong>The technique is fixed.</strong> The first run records <code>gbt</code> in <code>.technique</code>; later runs
-  must pass <code>--how=gbt</code>.</li>
+  must pass <code>--how=gbt</code>. <code>run</code> refuses another <code>kind</code>.</li>
 <li><strong>Mutation works as under <code>pbt</code>.</strong> <code>[mutator] feedback_ratio</code> sets the share of
   byte mutants of <code>04quality-pass</code> entries; random inputs fill the rest.</li>
-<li><strong>Guards need rules.</strong> Without <code>rules</code>, edges have no guards (section 4).</li>
+<li><strong><code>[graph]</code> may be left out.</strong> Its keys then take the defaults above. The data
+  variables and the expressions use the <code>[generator]</code> keys. Each input draws its own
+  step bound, so <code>[generator] max_steps</code> does not apply.</li>
+<li><strong>Give Apalache some margin.</strong> Apalache unrolls one step per transition, and a
+  spine is checked to a bound of 10 to 31 steps. In a first campaign it took 2 s at
+  the median and 45 s at most; 1 entry in 300 exceeded the default 30 s.</li>
+<li><strong>Use the full defect database.</strong> A node action runs every time its node is
+  visited, so TLC fails on a partial term, such as a function applied outside its
+  domain, more often than in a <code>pbt</code> corpus. With <code>all-defects.toml</code>, TLC failed on
+  9% of the entries of a campaign, against 45% with the shipped <code>known-defects.toml</code>
+  (<a href="../known-defect-signatures/">Known-defect signatures</a>).</li>
 </ul>
 <h2 id="2-what-the-checker-sees">2. What the checker sees<a class="headerlink" href="#2-what-the-checker-sees" title="Permanent link">&para;</a></h2>
-<p><code>fuzztla print --spec</code> shows the module. Besides it, <code>print</code> shows the graph, the
-target k and the expected outcome.</p>
+<p><code>fuzztla print</code> shows the graph, the target k and the expected outcome before the
+module; <code>fuzztla print --spec</code> shows the module alone:</p>
+<div class="highlight"><pre><span></span><code>nodes: 23
+edges: 0 -&gt; 1, 1 -&gt; 2, 2 -&gt; 3, ..., 21 -&gt; 22, 22 -&gt; 5, 22 -&gt; 9
+target: 19 (distance 19, step bound 13)
+expected: pass
+module:
+---- MODULE FuzzInput ----
+...
+</code></pre></div>
+<p>A small graph shows the shape of the module (simplified, three nodes, target 2, bound 2):</p>
 <div class="highlight"><pre><span></span><code>VARIABLES var0, var1, pc, step
 
 Node0 == var0' = var0 + 1 /\ UNCHANGED var1
@@ -1383,19 +1425,25 @@ Node2 == var0' = 0 /\ var1' = {}
 Init == var0 = 3 /\ var1 = {1} /\ pc = 0 /\ step = 0
 
 Next ==
-  \/ step &lt; 5 /\ pc = 0 /\ Node0 /\ pc' = 1 /\ step' = step + 1
-  \/ step &lt; 5 /\ pc = 1 /\ Node1 /\ pc' = 1 /\ step' = step + 1
-  \/ step &lt; 5 /\ pc = 1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
+  \/ step &lt; 2 /\ pc = 0 /\ Node0 /\ pc' = 1 /\ step' = step + 1
+  \/ step &lt; 2 /\ pc = 1 /\ Node1 /\ pc' = 2 /\ step' = step + 1
+  \/ step &lt; 2 /\ pc = 1 /\ Node1 /\ pc' = 1 /\ step' = step + 1
+  \/ step &lt; 2 /\ pc = 1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
   \/ UNCHANGED &lt;&lt;var0, var1, pc, step&gt;&gt;
 
 Inv == pc /= 2
 </code></pre></div>
 <ul>
-<li>Node 0 is initial; <code>pc</code> ranges over <code>0..N-1</code>.</li>
+<li>Node 0 is initial; <code>pc</code> ranges over <code>0..N-1</code>. The spine edges here are 0 → 1 and
+  1 → 2, and the extra edges 1 → 1 and 1 → 0.</li>
 <li><code>Node&lt;u&gt;</code> assigns some data variables with <code>v' = e</code> and leaves the others unchanged.
-  The right-hand sides are generated expressions, as under <code>pbt</code>.</li>
-<li>There is one disjunct of <code>Next</code> per edge. The edges here are 0 → 1, 1 → 1 and
-  1 → 0. Node 2 has no incoming edge.</li>
+  The right-hand sides are generated expressions, as under <code>pbt</code>, and read neither
+  <code>pc</code> nor <code>step</code>.</li>
+<li>There is one disjunct of <code>Next</code> per edge, and each is guarded by the input's own
+  step bound.</li>
+<li>The target lies in the upper half of the spine, and the bound between half the
+  spine and its length. When the target is farther than the bound, the expected
+  verdict is a pass.</li>
 </ul>
 <h2 id="3-verdicts">3. Verdicts<a class="headerlink" href="#3-verdicts" title="Permanent link">&para;</a></h2>
 <p>Let dist(k) be the length of a shortest path from node 0 to k, and B the step bound.</p>
@@ -1411,7 +1459,7 @@ Inv == pc /= 2
 <tr>
 <td>dist(k) ≤ B</td>
 <td>counterexample</td>
-<td>dist(k) for TLC, at least dist(k) for the others</td>
+<td>dist(k) for TLC and Apalache, at least dist(k) for TLC-n</td>
 </tr>
 <tr>
 <td>dist(k) &gt; B, or unreachable</td>
@@ -1421,34 +1469,48 @@ Inv == pc /= 2
 </tbody>
 </table>
 <p>An entry passes the aggregator when the checkers agree, as under <code>pbt</code>, and every
-checker reports the expected verdict or fails. The example expects a pass.</p>
+checker reports the expected verdict or fails. The small example expects a
+counterexample of 2 steps; the 23-node graph above expects a pass, because its target
+is 19 steps away and its bound is 13.</p>
 <ul>
 <li><strong>A wrong verdict is a defect.</strong> A pass on a reachable target, or a counterexample
   on an unreachable one, fails the entry, whatever the other checker reports.</li>
+<li><strong>A wrong trace length is a defect.</strong> A counterexample shorter than dist(k), or a
+  TLC or Apalache counterexample of another length, fails the entry. Both search for
+  a shortest counterexample; TLC with several workers need not find one.</li>
 <li><strong>Failures are allowed.</strong> A partial expression, such as <code>CHOOSE x \in {} : TRUE</code>,
   makes TLC fail on any input; conformance and the known-defect signatures handle it.</li>
 <li><strong>One checker suffices.</strong> With <code>checkers = ["apalache"]</code>, the expected outcome is
   the oracle.</li>
 </ul>
 <h2 id="4-tautological-guards">4. Tautological guards<a class="headerlink" href="#4-tautological-guards" title="Permanent link">&para;</a></h2>
-<p>With <code>rules</code> set, each edge may carry guards that are always true, built from the
-rules of a <a href="../metamorphic-testing/#5-writing-rules">rewrite-rule module</a>. The rule
+<p><strong>Proposed</strong> (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0023-graph-based-testing.md">ADR 0023</a> §6). Each edge
+would carry guards that are always true, built from the rules of a
+<a href="../metamorphic-testing/#5-writing-rules">rewrite-rule module</a>. The rule
 <code>UnionSelf(S) == S = S \union S</code> with <code>S := var1</code> yields the guard below:</p>
 <div class="highlight"><pre><span></span><code>\/ step &lt; 5 /\ pc = 1 /\ var1 = var1 \union var1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
 </code></pre></div>
 <p>A checker that evaluates a guard to <code>FALSE</code> disables the edge, and then reports a
-pass or a longer trace than expected. Either the checker is wrong or the rule is
-unsound; check the rule first.</p>
-<h2 id="5-limitations">5. Limitations<a class="headerlink" href="#5-limitations" title="Permanent link">&para;</a></h2>
+pass or a longer trace than expected.</p>
+<h2 id="5-triage">5. Triage<a class="headerlink" href="#5-triage" title="Permanent link">&para;</a></h2>
+<p>Most entries of <code>03aggregator-fail</code> are conformance differences, as in a <code>pbt</code>
+corpus: TLC fails on a partial term where Apalache picks a value. An entry is a
+graph-oracle failure when the checkers report the same verdict, or the same failure
+status, and <code>print</code> shows another expected outcome. Compare the checkers' verdicts
+and <code>traceLength</code> (<code>print --envelope</code>) with the <code>expected:</code> line.</p>
+<h2 id="6-limitations">6. Limitations<a class="headerlink" href="#6-limitations" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Only <code>pc</code> and trace lengths are predicted. A wrong value of a data variable is
-  found only through conformance or a guard.</li>
+  found only through conformance.</li>
+<li>Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
+  steps long, and one in four was 20 or more.</li>
 <li><code>--how=mt</code> does not rewrite <code>graph</code> entries.</li>
 <li>Graph modules have no temporal property.</li>
 </ul>
 <h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0023-graph-based-testing.md">ADR 0023</a> records the design. Rules come
-from <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0017-rewrite-rule-library.md">ADR 0017</a>, and the step bound from
+<p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0023-graph-based-testing.md">ADR 0023</a> records the design.
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/architecture/ir-generators.md#12-graph-generation">ir-generators.md §12</a> specifies
+the encoding. The step bound comes from
 <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0007-levels-and-temporal-properties.md">ADR 0007</a>.</p>
 
 

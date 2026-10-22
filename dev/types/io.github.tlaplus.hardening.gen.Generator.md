@@ -1,6 +1,6 @@
 # `Generator`
 
-`io.github.tlaplus.hardening.gen` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/Generator.java#L39) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/Generator.java#L39) · module [gen](../modules/gen.md)
 
 A composable recipe for decoding a value from a shared `Draw` cursor.
 
@@ -36,6 +36,7 @@ classDiagram
   class IntegerExprGenFactory
   class IrExprGenFactory
   class IrTypeGenFactory
+  class ModulePrelude
   class OperandGenerator
   class OtherExprGenFactory
   class PropertyGenFactory
@@ -65,6 +66,7 @@ classDiagram
   IntegerExprGenFactory ..> Generator : uses
   IrExprGenFactory ..> Generator : uses
   IrTypeGenFactory ..> Generator : uses
+  ModulePrelude ..> Generator : uses
   OperandGenerator ..> Generator : uses
   OtherExprGenFactory ..> Generator : uses
   PropertyGenFactory ..> Generator : uses
@@ -76,7 +78,7 @@ classDiagram
   ParentPool ..> Generator : uses
 ```
 
-The diagram draws 25 of 29 relations; the table lists them all.
+The diagram draws 26 of 31 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -96,6 +98,7 @@ The diagram draws 25 of 29 relations; the table lists them all.
 | ← | uses | [IntegerExprGenFactory](io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory.md) | Constructs integer-valued expression generators. |
 | ← | uses | [IrExprGenFactory](io.github.tlaplus.hardening.gen.engine.IrExprGenFactory.md) | Factory for deferred, type-directed expression generators within one generation run. |
 | ← | uses | [IrTypeGenFactory](io.github.tlaplus.hardening.gen.engine.IrTypeGenFactory.md) | Factory for deferred generators of internal types within the configured remaining-depth budget. |
+| ← | uses | [ModulePrelude](io.github.tlaplus.hardening.gen.engine.ModulePrelude.md) | The declarations every generated module begins with: its state variables and its state-free auxiliary definitions. |
 | ← | uses | [OperandGenerator](io.github.tlaplus.hardening.gen.engine.OperandGenerator.md) | Draws expressions for a rewrite that leaves an operand open (ADR 0017 §3): a fresh parameter is drawn by the ordinary expression factory, at its type, in the lexical scope of the rewritten node, and in the state-level context, so a fresh operand adds no prime. |
 | ← | uses | [OtherExprGenFactory](io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory.md) | Constructs expression generators not covered by the dedicated form families. |
 | ← | uses | [PropertyGenFactory](io.github.tlaplus.hardening.gen.engine.PropertyGenFactory.md) | Module-level temporal property: the property formula and its fairness conditions. |
@@ -106,6 +109,7 @@ The diagram draws 25 of 29 relations; the table lists them all.
 | ← | uses | [Rewriter](io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | ← | uses | [ParentPool](io.github.tlaplus.hardening.workflow.input.ParentPool.md) | The entries of `04quality-pass` that a generation mutates or adopts: those of the kind the run generates, read once when the generation starts. |
 | ← | depends | [IrGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine.md) | Reusable coordinator for type-directed IR-expression generation. |
+| ← | depends | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | depends | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |
 | ← | depends | [GenerationLoop](io.github.tlaplus.hardening.workflow.GenerationLoop.md) | Runs the generations of one workflow invocation over a single stage graph (ADR 0010). |
 | ← | depends | [InputStage](io.github.tlaplus.hardening.workflow.input.InputStage.md) | Concurrent input stage: admits reserved target ranges from adjacent generations. |

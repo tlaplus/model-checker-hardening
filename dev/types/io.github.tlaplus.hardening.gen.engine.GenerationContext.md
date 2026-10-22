@@ -1,6 +1,6 @@
 # `GenerationContext`
 
-`io.github.tlaplus.hardening.gen.engine` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/src/main/java/io/github/tlaplus/hardening/gen/engine/GenerationContext.java#L32) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/engine/GenerationContext.java#L32) · module [gen](../modules/gen.md)
 
 Mutable semantic state shared by every component of one generation run.
 
@@ -51,6 +51,7 @@ classDiagram
     <<enum>>
   }
   class IntegerExprGenFactory
+  class ModulePrelude
   class OtherExprGenFactory
   class PropertyGenFactory
   class SequenceExprGenFactory
@@ -80,6 +81,7 @@ classDiagram
   GeneralExprGenFactory ..> GenerationContext : uses
   GeneralExpressionKind ..> GenerationContext : uses
   IntegerExprGenFactory ..> GenerationContext : uses
+  ModulePrelude ..> GenerationContext : uses
   OtherExprGenFactory ..> GenerationContext : uses
   PropertyGenFactory ..> GenerationContext : uses
   SequenceExprGenFactory ..> GenerationContext : uses
@@ -87,7 +89,7 @@ classDiagram
   TypeInstantiation ..> GenerationContext : uses
 ```
 
-The diagram draws 27 of 34 relations; the table lists them all.
+The diagram draws 28 of 36 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -113,6 +115,7 @@ The diagram draws 27 of 34 relations; the table lists them all.
 | ← | uses | [GeneralExprGenFactory](io.github.tlaplus.hardening.gen.engine.GeneralExprGenFactory.md) | Constructs terminal and type-polymorphic expression generators. |
 | ← | uses | [GeneralExpressionKind](io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind.md) | Type-polymorphic and terminal expression forms. |
 | ← | uses | [IntegerExprGenFactory](io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory.md) | Constructs integer-valued expression generators. |
+| ← | uses | [ModulePrelude](io.github.tlaplus.hardening.gen.engine.ModulePrelude.md) | The declarations every generated module begins with: its state variables and its state-free auxiliary definitions. |
 | ← | uses | [OtherExprGenFactory](io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory.md) | Constructs expression generators not covered by the dedicated form families. |
 | ← | uses | [PropertyGenFactory](io.github.tlaplus.hardening.gen.engine.PropertyGenFactory.md) | Module-level temporal property: the property formula and its fairness conditions. |
 | ← | uses | [SequenceExprGenFactory](io.github.tlaplus.hardening.gen.engine.SequenceExprGenFactory.md) | Constructs sequence-valued expression generators. |
@@ -124,4 +127,5 @@ The diagram draws 27 of 34 relations; the table lists them all.
 | → | depends | [InputRejectedException](io.github.tlaplus.hardening.gen.InputRejectedException.md) | Indicates that the current input cannot be decoded into a valid value. |
 | → | depends | [OperatorType](io.github.tlaplus.hardening.gen.engine.OperatorType.md) | Operator type. |
 | ← | depends | [IrGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine.md) | Reusable coordinator for type-directed IR-expression generation. |
+| ← | depends | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | depends | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |

@@ -49,4 +49,4 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/4f182776ab66c4f93ff45cb83dfcd11e34fa32d1/docs/decisions/0022-architecture-atlas.md)
+- [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0022-architecture-atlas.md)

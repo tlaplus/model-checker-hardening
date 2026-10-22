@@ -1396,7 +1396,8 @@ the <a href="../timeout-diagnostics/">timeout diagnostic</a>.</p>
 <code>pass</code>, all <code>counterexample</code> or all <code>fail</code>. Failure codes are not compared. Any other
 combination goes to <code>03aggregator-fail</code>, including a counterexample from only one
 checker. Two TLC runs that both complete must also report the same number of
-distinct states.</p>
+distinct states. In a <a href="../graph-based-testing/#3-verdicts">graph-based</a> corpus, every
+checker must in addition report the verdict the graph predicts, or fail.</p>
 <p>An entry that crashes a checker stays in that checker's <code>crash</code> directory and is not
 compared.</p>
 <h2 id="what-the-checkers-are-asked">What the checkers are asked<a class="headerlink" href="#what-the-checkers-are-asked" title="Permanent link">&para;</a></h2>
