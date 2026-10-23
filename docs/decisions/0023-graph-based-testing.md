@@ -26,12 +26,15 @@ details, recorded where they apply:
   Apalache, like TLC with one worker, does (section 5).
 
 Stage 2, phase 4, is implemented on the branch `igor/gbt-stage2` (FuzzTLA `e3fa311`,
-TLC `d2e1472`, Apalache 0.62.3 `3eb15b2`); Probe 3 measured it. It changed these
-details:
+TLC `d2e1472`, Apalache 0.62.3 `3eb15b2`); Probes 3 and 4 measured it. It changed
+these details:
 
 - The guard section is the last `GraphSection`, `GUARDS`, of weight 4. Without rules
   its weight is 0, so the other slices, and every stage-1 entry, decode as before
   (section 3).
+- The guard section is one cursor over the edges in edge order, not N slices aligned
+  with the nodes, and each guard reads at most 8 bytes of it. Probe 3 found the
+  slices left 81% of the paths to a reachable target unguarded (section 6).
 - A rule guards an edge only when it has a positive weight, no action-level operator,
   no higher-order parameter, which no drawn value fills, and no helper, which the
   module does not link. `gen.rewrite.Tautologies` implements `gen.engine.EdgeGuards`,
@@ -193,8 +196,7 @@ The rest of the payload splits into the weighted sections of `GraphSection`, thr
 6. **Nodes** (8). N equal slices; slice u decodes `Node<u>` with a fresh node budget.
 7. **Guards** (weight 4). Present only when `[graph] rules` is set, so stage-1 entries
    decode alike, as the property section does (§9.1): without rules the section's
-   weight is 0. Split into N slices aligned with the nodes; section 6 specifies a
-   slice.
+   weight is 0. One cursor over the edges in edge order; section 6 specifies it.
 
 The successor lists have their own section, rather than following the action in a
 node's slice as first designed: the action's expressions consumed the slice, and
@@ -277,9 +279,14 @@ the instance. The example instantiates `UnionSelf(S) == S = S \union S` of the s
 `UnchangedPrime`, are not offered, nor are rules with a higher-order parameter or a
 helper. `RuleInstantiation.instantiateFormula` instantiates A and B together.
 
-A guard slice of section 3 decodes, for each edge leaving u in successor order, a
-terminated list of guards; each guard is a rule index, two bytes as in the rewriter,
-followed by its operands. An exhausted slice decodes no guard.
+The guard section of section 3 decodes, for each edge in edge order, a terminated list
+of guards; each guard is a rule index, two bytes as in the rewriter, followed by its
+operands, and reads at most 8 bytes. An exhausted section decodes no guard, so a short
+section guards the edges leaving node 0, where every path to the target starts. The
+section was first split into N slices aligned with the nodes. An equal split of a
+section shorter than N gives every byte to the last node, and admitted inputs are
+short, so Probe 3 found most paths to a reachable target unguarded. Without the cap,
+the operands of the first guards drained a longer section.
 
 The prediction of section 4 is unchanged. A guard that a checker evaluates to `FALSE`
 disables its edge; when that edge lies on every shortest path to k, the checker
@@ -424,11 +431,13 @@ transitions:
 
 So no checker evaluated a guard on a shortest path to the target to `FALSE`.
 
-**Guards.** The 599 entries have 15955 edges and 1676 guards, 0.11 per edge; 219
-entries have a guard, and one has 22. Guards are sparse because the admitted inputs
-are short: 58 bytes at the median and 645 at most, so the guard section, 4/19 of the
-input, leaves most of its 20 to 32 slices empty. The 4 entries of more than 256 bytes
-have 0.36 to 0.44 guards per edge.
+**Guards.** This probe used the first layout: the guard section split into N slices
+aligned with the nodes. The 599 entries have 15955 edges and 1676 guards, 0.11 per
+edge; 219 entries have a guard, and one has 22. Of the 283 entries with a reachable
+target, 228 have no guard on the first shortest path. Guards are sparse because the
+admitted inputs are short, 58 bytes at the median and 645 at most, and an equal split
+of a guard section shorter than N gives every byte to the last node. Of the distinct
+inputs over 256 bytes, 658 matched a known-defect signature and 6 were admitted.
 
 **Cost.** TLC took at most 4 s per entry and found at most 187 distinct states (median
 18). Apalache took 3 s at the median, 16 s at the 95th percentile and 49 s at most,
@@ -438,6 +447,36 @@ against 2 s, 10 s and 45 s in Probe 2.
 function applied outside its domain (21), a `CASE` without a true arm (17), a value it
 cannot compute (4) and a tuple index (1), with an Apalache pass (28) or
 counterexample (15).
+
+### Probe 4: guards read in edge order
+
+**Setup.** As Probe 3, with FuzzTLA `8fec038`: the guard section is one cursor over
+the edges in edge order, and each guard reads at most 8 bytes. The signatures
+quarantined 1504 candidates, 852 of them distinct. 599 entries were aggregated; TLC
+crashed on the other, on `Head(<<>>)` in `Next`, which it reports with exit status 255
+([tlc-002][tlc-002]).
+
+**Verdicts and lengths.** 274 entries predicted a counterexample and 325 a pass. No
+checker contradicted a prediction, and every counterexample had exactly dist(k)
+transitions:
+
+| Checker | Pass, expected pass | Counterexample, expected | Fail | Counterexample lengths |
+| --- | ---: | ---: | ---: | --- |
+| TLC | 300 | 259 | 40 | 10–30; 94 of 20 or more |
+| Apalache | 325 | 274 | 0 | 10–30; 97 of 20 or more |
+
+**Guards.** 580 of the 599 entries have a guard, against 219 in Probe 3, and 9 of the
+274 entries with a reachable target have none on the first shortest path, against 228
+of 283. The entries hold fewer guards in total, 990 on 15931 edges, at most 8 in one
+entry: a guard section of a few bytes guards the first edges and stops. The admitted
+inputs are shorter, 31 bytes at the median and 323 at most.
+
+**Cost.** TLC took at most 1 s per entry and found at most 187 distinct states (median
+19). Apalache took 3 s at the median, 15 s at the 95th percentile and 49 s at most.
+
+**Failures.** All 40 aggregator failures pair a TLC failure on a partial term, a
+function applied outside its domain (17), a `CASE` without a true arm (17) and a value
+it cannot compute (6), with an Apalache pass (25) or counterexample (15).
 
 ## Alternatives considered
 
@@ -491,15 +530,16 @@ counterexample (15).
 - **Graph entries cannot be rewritten yet.** `mt` rejects the `graph` kind.
 - **Guard rules are part of the encoding.** Setting `[graph] rules` re-slices every
   graph input, so a corpus keeps the rule module it started with.
-- **Guards are sparse on short inputs.** In Probe 3, the admitted inputs had 58 bytes
-  at the median and 0.11 guards per edge, since every node and edge shares those
-  bytes. Denser guards need longer admitted inputs or a larger share for the guard
-  section.
+- **Guards are few on short inputs.** Admitted inputs are short, 31 bytes at the
+  median in Probe 4, because the known-defect signatures quarantine almost every long
+  graph module. Read in edge order, a short guard section still guards the start of
+  almost every path to the target, but with one or two guards rather than many.
 
 [adr-0008]: 0008-exploration-metrics.md
 [apalache-bmc-004]: ../../findings/apalache-bmc/apalache-bmc-004.md
 [apalache-bmc-014]: ../../findings/apalache-bmc/apalache-bmc-014.md
 [apalache-bmc-016]: ../../findings/apalache-bmc/apalache-bmc-016.md
+[tlc-002]: ../../findings/TLC/tlc-002.md
 [adr-0016]: 0016-metamorphic-testing.md
 [adr-0017]: 0017-rewrite-rule-library.md
 [adr-0019]: 0019-state-count-agreement.md

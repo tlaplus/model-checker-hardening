@@ -1161,9 +1161,10 @@ rules, so the other slices are those of an unguarded decoder:
    successors are its spine successor u + 1, byte-free, then the extras, with repeats
    removed in order. A one-node graph's spine is the self-loop `0 -> 0`.
 5. **Nodes**: N equal slices; slice u decodes the action of node u.
-6. **Guards**, only with `[graph] rules`: N equal slices; slice u holds, for each edge
-   leaving u in successor order, a terminated list of at most `maximumGuards` guards
-   (section 12.2).
+6. **Guards**, only with `[graph] rules`: one cursor over the edges in edge order; for
+   each edge, a terminated list of at most `maximumGuards` guards, each reading at most
+   8 bytes (section 12.2). A short section guards the edges leaving node 0 first, where
+   every path to the target starts; N equal slices would give it all to the last node.
 
 Forward edges are bounded because a long forward skip shortens every path behind it:
 with uniform random successors, the part of the graph reachable from node 0 had about

@@ -151,9 +151,10 @@ S` with `S := var1` yields the guard below:
   own, so setting `rules` changes how every graph input decodes. The first run records
   the rule module in `.rewrite-library`, and later runs refuse another one.
 - **A `pbt` corpus with graph entries** decodes them with the same guards.
-- **Short inputs carry few guards.** Guards take about a fifth of the input, shared by
-  all edges. In a first campaign, whose admitted inputs had 58 bytes at the median,
-  edges had 0.11 guards on average and a third of the entries had any.
+- **Guards start at node 0.** The guard bytes, about a fifth of the input, are read
+  edge by edge from node 0, at most 8 bytes per guard, so a short input guards the
+  first edges of every path to the target. In a campaign whose inputs had 31 bytes at
+  the median, 97% of the entries had a guard, but at most 8.
 
 ## 5. Triage
 
