@@ -44,15 +44,23 @@ import java.util.Set;
  * {@code pc = u}, the step guard and tautologies. That is what makes the outcome of the invariant
  * predictable from the graph alone ({@link GeneratedGraph#targetDistance()}).
  *
- * <p>With {@link EdgeGuards}, the {@link GraphSection#GUARDS} section is split into N equal slices
- * as well: slice u holds, for each edge leaving node u in successor order, a terminated list of
- * at most {@link GraphLimits#maximumGuards()} guards, which the edge conjoins after {@code pc = u}
- * (ADR 0023 §6). Without them the section is empty, so the other slices do not move.
+ * <p>With {@link EdgeGuards}, the {@link GraphSection#GUARDS} section is one cursor over the edges
+ * in edge order: for each edge, a terminated list of at most {@link GraphLimits#maximumGuards()}
+ * guards, which the edge conjoins after {@code pc = u} (ADR 0023 §6). Each guard reads at most
+ * {@link #GUARD_BYTES} bytes of it. The section is not sliced: a short section, split into N
+ * slices, would give its bytes to the last node, while read in edge order it guards the edges
+ * leaving node 0 first, where every path to the target starts. Without guards the section is
+ * empty, so the other sections do not move.
  */
 @ArchRole(Role.FACADE)
 @Key
 public final class IrGraphGeneratorEngine {
     private static final String NODE_PREFIX = "Node";
+    /**
+     * The bytes of the guard section one guard may read, so that a guard's operands cannot drain
+     * the section and leave the later edges unguarded. Part of the byte encoding.
+     */
+    static final int GUARD_BYTES = 8;
 
     private final IrGenerationConfig config;
     private final Optional<EdgeGuards> guards;
@@ -179,23 +187,23 @@ public final class IrGraphGeneratorEngine {
     }
 
     /**
-     * Draws the guards of every edge, in edge order, from the guard section: slice u holds a
-     * terminated list for each edge leaving node u. The operands avoid every name in use, and see
-     * what a node action sees: the auxiliary operators and the data variables.
+     * Draws the guards of every edge, in edge order, from the one cursor of the guard section: a
+     * terminated list per edge, each guard from at most {@link #GUARD_BYTES} bytes, so an exhausted
+     * section leaves the later edges unguarded. The operands avoid every name in use, and see what
+     * a node action sees: the auxiliary operators and the data variables.
      */
     private List<List<TlaEx>> drawGuards(IrGenerationConfig config, Draw section, TransitionGraph graph,
             Set<String> namesInUse, List<ScopedName> scope) {
         var operands = new OperandGenerator(config, namesInUse);
         var guard = guards.orElseThrow().guard(operands, scope.stream().map(OperandGenerator.Name::of).toList());
-        var nodeCount = graph.nodeCount();
-        var slices = WeightedSlices.equal(section, nodeCount);
+        if (guard.isEmpty()) {
+            return noGuards(graph);
+        }
+        Generator<TlaEx> bounded = draw -> draw.slice(Math.min(GUARD_BYTES, draw.remaining())).draw(guard.get());
+        var list = BasicGenerators.listOf(bounded, 0, config.graphs().maximumGuards());
         var result = new ArrayList<List<TlaEx>>();
-        for (var node = 0; node < nodeCount; node++) {
-            var slice = slices.get(node);
-            for (var ignored : graph.successors().get(node)) {
-                result.add(guard.isEmpty() ? List.of()
-                        : slice.draw(BasicGenerators.listOf(guard.get(), 0, config.graphs().maximumGuards())));
-            }
+        for (var ignored : graph.edges()) {
+            result.add(section.draw(list));
         }
         return result;
     }

@@ -286,6 +286,30 @@ class IrGraphGeneratorsTest {
         assertTrue(guards > 1000, "too few guards to be conclusive: " + guards);
     }
 
+    /**
+     * The guard section is one cursor in edge order, so a short input guards the edges leaving
+     * node 0, where every path to the target starts, rather than those of the last node.
+     */
+    @Test
+    void guardsAreReadInEdgeOrderFromNodeZero() {
+        var graphs = IrGenerators.graphs(IrGenerationConfig.defaults(), BOOLEAN_GUARDS);
+        var random = new Random(0x0e0);
+        var first = 0;
+        var last = 0;
+        var samples = 0;
+        for (var sample = 0; sample < 300; sample++) {
+            var input = new byte[16 + random.nextInt(112)];
+            random.nextBytes(input);
+            var disjuncts = disjuncts(graphs.generate(input).spec().nextAction());
+            first += TlaExpressions.arguments((OperEx) disjuncts.getFirst()).size() > 5 ? 1 : 0;
+            last += TlaExpressions.arguments((OperEx) disjuncts.getLast()).size() > 5 ? 1 : 0;
+            samples++;
+        }
+        // The first list marker starts a guard on about half the inputs.
+        assertTrue(first > samples / 3, "edges leaving node 0 with a guard: " + first + " of " + samples);
+        assertTrue(last < first / 4, "edges of the last node with a guard: " + last + ", of node 0: " + first);
+    }
+
     /** With max_guards = 0 the guard section still takes its share, but no edge has a guard. */
     @Test
     void noEdgeHasAGuardUnderAZeroMaximum() {

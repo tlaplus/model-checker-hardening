@@ -30,9 +30,9 @@ enum GraphSection {
     /** The node actions, in equal slices, one per node. */
     NODES(8),
     /**
-     * The tautological guards of the edges, in equal slices aligned with the nodes (ADR 0023 §6).
-     * Present only when the decoder has a rule library, so a graph input without guards decodes as
-     * it did before guards existed.
+     * The tautological guards of the edges, read as one cursor in edge order (ADR 0023 §6). Present
+     * only when the decoder has a rule library, so a graph input without guards decodes as it did
+     * before guards existed.
      */
     GUARDS(4, true);
 
