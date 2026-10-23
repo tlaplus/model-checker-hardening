@@ -120,16 +120,20 @@ this order, higher first:
 5. `maxCardinality`, by power of two;
 6. `maxNesting`.
 
-Ties go to the shorter input.
+Ties go to the shorter input. A `gbt` corpus ranks by action coverage instead
+([ADR 0024](../decisions/0024-graph-action-coverage.md)): `dataActions` by power of
+two, `projectedStates` by power of two, `projectedDepth`, then the last three as
+above. Its metrics project out `pc` as well as `step`, so they measure the data a
+graph entry computes rather than the length of its walks.
 
 The gate walks the admissible entries in this order and keeps an entry while it
 has kept fewer than `ceil(select_fraction × agreeing entries of the generation)`
 and either of these holds:
 
 - **Behaviour.** The entry's *cell* holds fewer than `cell_capacity` kept
-  entries. The cell is the TLC verdict together with the six metrics above,
-  each compared as in the ranking (states, nodes and cardinality by power of
-  two).
+  entries. The cell is the TLC verdict together with the six metrics of the
+  corpus's ranking, each compared as in the ranking (states, nodes and
+  cardinality by power of two, and, under action coverage, `dataActions` too).
 - **Coverage.** `feature_coverage` is enabled and the entry has a *feature* that no kept
   entry has.
 

@@ -23,6 +23,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.ReplayedInput;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
+import io.github.tlaplus.hardening.corpus.Ranking;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
@@ -70,6 +71,22 @@ class QualityGateTest {
         assertEquals(3, counters.count(CorpusVerdict.FAIL));
         var inventory = corpus.recoverAndValidate(CorpusEntryValidator.NONE);
         assertEquals(2, inventory.counts(CorpusStage.QUALITY).count(CorpusVerdict.PASS));
+    }
+
+    /**
+     * Under action coverage (ADR 0024 §2), the entry whose actions produce more data is kept over
+     * a deeper walk that changes the data on one edge only.
+     */
+    @Test
+    void actionCoverageKeepsTheEntryWithMoreDataActions(@TempDir Path directory) throws Exception {
+        var corpus = corpus(directory);
+        var deep = aggregated(corpus, 1, 0, CorpusVerdict.PASS, withDataActions(explored(30, 2), 1));
+        var rich = aggregated(corpus, 2, 0, CorpusVerdict.PASS, withDataActions(explored(6, 5), 6));
+
+        new QualityGate(corpus, config(0.5), QualityGateTest::analyze, counters(), Ranking.ACTION_COVERAGE).run(0);
+
+        assertEquals(Set.of(rich), digests(corpus, CorpusVerdict.PASS));
+        assertEquals(Set.of(deep), digests(corpus, CorpusVerdict.FAIL));
     }
 
     @Test
@@ -226,7 +243,7 @@ class QualityGateTest {
 
     private static QualityGate gate(
             CorpusDirectory corpus, QualityGateConfig config, InputAnalysis analysis, StageCounters counters) {
-        return new QualityGate(corpus, config, analysis, counters);
+        return new QualityGate(corpus, config, analysis, counters, Ranking.DEPTH);
     }
 
     /** Bounded cells, with or without coverage, keeping at most every admissible entry. */
@@ -269,6 +286,15 @@ class QualityGateTest {
 
     private static StageCounters counters() {
         return new StageCounters(StageVerdictSummary.empty(), new ElapsedTimeAccumulator());
+    }
+
+    private static ExplorationMetrics withDataActions(ExplorationMetrics metrics, long dataActions) {
+        var builder = ExplorationMetrics.builder().phase(metrics.phase().orElseThrow())
+                .count(ExplorationCount.DATA_ACTIONS, dataActions);
+        for (var count : ExplorationCount.values()) {
+            metrics.count(count).ifPresent(value -> builder.count(count, value));
+        }
+        return builder.build();
     }
 
     private static ExplorationMetrics explored(long depth, long states) {

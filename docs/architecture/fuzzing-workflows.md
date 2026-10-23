@@ -470,8 +470,9 @@ differ:
   module as it loads the `[metamorphic]` one, and `.rewrite-library` pins it. A `pbt`
   corpus prepares it too, since it may hold graph entries; `mt` ignores it.
 - **Candidate sources and quality gate.** PBT and the mutator apply unchanged; there
-  is no adoption. The gate is unchanged, and `pc` counts as state in the projected
-  metrics.
+  is no adoption. TLC projects `pc` out of the metrics of a graph entry, and the
+  gate ranks `gbt` entries by action coverage: edges whose node action produced new
+  data, then data valuations, then data depth ([ADR 0024][]).
 
 ### 1.6. Coverage-based fuzzing
 
@@ -796,6 +797,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0016]: ../decisions/0016-metamorphic-testing.md
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
 [ADR 0023]: ../decisions/0023-graph-based-testing.md
+[ADR 0024]: ../decisions/0024-graph-action-coverage.md
 [graph manual]: ../manual/graph-based-testing.md
 [metamorphic manual]: ../manual/metamorphic-testing.md
 [adr-0018]: ../decisions/0018-parallel-tlc-stage.md

@@ -13,12 +13,15 @@ import org.junit.jupiter.api.Test;
 class TechniqueTest {
     /** The encoded names are stored in `.technique` and accepted by `--how`. */
     @Test
-    void pinsEncodedNamesAndOracles() {
+    void pinsEncodedNamesOraclesAndRankings() {
         assertEquals(List.of("pbt", "mt", "gbt"), Technique.encodedNames());
         assertEquals(Oracle.CONFORMANCE, Technique.PBT.oracle());
         assertEquals(Oracle.METAMORPHIC, Technique.MT.oracle());
         assertEquals(Oracle.GRAPH, Technique.GBT.oracle());
         assertEquals(Technique.PBT, Technique.UNRECORDED);
+        assertEquals(Ranking.DEPTH, Technique.PBT.ranking());
+        assertEquals(Ranking.DEPTH, Technique.MT.ranking());
+        assertEquals(Ranking.ACTION_COVERAGE, Technique.GBT.ranking());
     }
 
     /** pbt generates every kind, mt rewrites no graph, and gbt generates only graphs (ADR 0023 §1). */

@@ -115,7 +115,7 @@ public final class WorkflowRunner {
         Preconditions.requireNonnegative(seed, "seed");
         limits.requireCpus(maximumCpus);
         var invocation = new StageGraph.Invocation(
-                corpus, seed, maximumCpus, ApalacheDistribution.locate());
+                corpus, technique, seed, maximumCpus, ApalacheDistribution.locate());
         requireAdoptableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {

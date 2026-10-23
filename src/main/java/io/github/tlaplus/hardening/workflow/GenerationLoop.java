@@ -88,7 +88,8 @@ final class GenerationLoop {
                 invocation.corpus(),
                 setup.config().mutator().gate(),
                 new EvaluatedExprs(setup.decoders())::analyze,
-                graph.counters(CorpusStage.QUALITY));
+                graph.counters(CorpusStage.QUALITY),
+                invocation.technique().ranking());
         current = new Generation(oldestIncomplete(startup.initial()), graph);
         if (limits.exhausted(startup.initial())) {
             graph.control().capacityReached();

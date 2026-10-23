@@ -13,6 +13,7 @@ import io.github.tlaplus.hardening.corpus.CorpusFormatException;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
+import io.github.tlaplus.hardening.corpus.Ranking;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.corpus.StoredEntry;
@@ -53,17 +54,21 @@ public final class QualityGate {
     private final QualityGateConfig config;
     private final InputAnalysis analysis;
     private final StageCounters counters;
+    private final Ranking ranking;
 
     /**
      * @param analysis replays an input into the counts its coverage features derive from; called
      *     only when cells are bounded and feature coverage is enabled
+     * @param ranking how the gate ranks the entries and forms their cells: the ranking of the
+     *     corpus's technique
      */
-    public QualityGate(
-            CorpusDirectory corpus, QualityGateConfig config, InputAnalysis analysis, StageCounters counters) {
+    public QualityGate(CorpusDirectory corpus, QualityGateConfig config, InputAnalysis analysis,
+            StageCounters counters, Ranking ranking) {
         this.corpus = Objects.requireNonNull(corpus, "corpus");
         this.config = Objects.requireNonNull(config, "config");
         this.analysis = Objects.requireNonNull(analysis, "analysis");
         this.counters = Objects.requireNonNull(counters, "counters");
+        this.ranking = Objects.requireNonNull(ranking, "ranking");
     }
 
     /** Places every entry of {@code generation} still waiting in {@code 03aggregator-pass}. */
@@ -79,7 +84,7 @@ public final class QualityGate {
             for (var entry : entries(CorpusStage.QUALITY, CorpusVerdict.PASS)) {
                 var recorded = generationOf(entry);
                 if (recorded < generation) {
-                    archive.keep(entry.cell(), features(archive, entry));
+                    archive.keep(entry.cell(ranking), features(archive, entry));
                 } else if (recorded == generation) {
                     passed.add(entry);
                 }
@@ -110,7 +115,7 @@ public final class QualityGate {
             SelectionArchive archive, List<Candidate> committed, List<Candidate> pending, long limit) {
         var committedSet = Set.copyOf(committed);
         var ranked = Stream.concat(committed.stream(), pending.stream().filter(this::admissible))
-                .sorted(Comparator.comparing(Candidate::ranked, QualityKey.BEST_FIRST))
+                .sorted(Comparator.comparing(Candidate::ranked, QualityKey.bestFirst(ranking)))
                 .toList();
         var kept = new ArrayList<Candidate>();
         var keptCount = 0L;
@@ -120,8 +125,9 @@ public final class QualityGate {
             }
             var features = features(archive, entry);
             var isCommitted = committedSet.contains(entry);
-            if (isCommitted || archive.admits(entry.cell(), features)) {
-                archive.keep(entry.cell(), features);
+            var cell = entry.cell(ranking);
+            if (isCommitted || archive.admits(cell, features)) {
+                archive.keep(cell, features);
                 keptCount++;
                 if (!isCommitted) {
                     kept.add(entry);
@@ -221,8 +227,8 @@ public final class QualityGate {
             return envelope.stage(CorpusStage.TLC).orElseThrow();
         }
 
-        QualityCell cell() {
-            return QualityCell.of(tlc().verdict(), tlc().metrics().orElseThrow());
+        QualityCell cell(Ranking ranking) {
+            return QualityCell.of(tlc().verdict(), tlc().metrics().orElseThrow(), ranking);
         }
 
         QualityKey.Ranked ranked() {
