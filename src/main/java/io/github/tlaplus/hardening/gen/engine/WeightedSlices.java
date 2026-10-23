@@ -51,6 +51,25 @@ final class WeightedSlices {
         return List.copyOf(slices);
     }
 
+    /**
+     * Returns {@code count} slices filled in order: each takes {@code max(minimum, n / count)} of
+     * the {@code n} bytes of {@code draw}, or what is left, and the last takes the remainder. A
+     * cursor shorter than {@code count * minimum} fills its first slices and leaves the later ones
+     * empty, where {@link #equal} would give every byte to the last slice; a longer one is divided
+     * as {@link #equal} divides it.
+     */
+    static List<Draw> filled(Draw draw, int count, int minimum) {
+        Objects.requireNonNull(draw, "draw");
+        Preconditions.requireNonnegative(count, "count");
+        Preconditions.requirePositive(minimum, "minimum");
+        var length = Math.max(minimum, draw.remaining() / Math.max(count, 1));
+        var slices = new ArrayList<Draw>(count);
+        for (var index = 0; index < count; index++) {
+            slices.add(draw.slice(index == count - 1 ? draw.remaining() : Math.min(length, draw.remaining())));
+        }
+        return List.copyOf(slices);
+    }
+
     /** Returns {@code count} slices of equal weight. */
     static List<Draw> equal(Draw draw, int count) {
         Preconditions.requireNonnegative(count, "count");

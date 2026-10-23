@@ -34,10 +34,13 @@ import java.util.Set;
  * <p>The graph has a spine {@code 0 -> 1 -> ... -> N-1}, so node u is at most u steps from node 0,
  * and drawn extra edges add back edges, self-loops and short forward skips. The payload begins
  * with a header, the node count N, the target k and the step bound B, and the rest is divided
- * among the {@link GraphSection}s. The edge and node sections are each split again into N equal
- * slices: slice u of the first holds the extra successors of node u, and slice u of the second
- * its action. Like {@link IrSpecGeneratorEngine}, the engine stores only immutable
- * configuration, and every invocation creates its own context.
+ * among the {@link GraphSection}s. Both per-node sections are read from node 0 on, so a short
+ * input spends its bytes where every path to the target starts: the edge section is one cursor
+ * that holds the extra successors of each node in turn, and the node section is split into N
+ * slices filled in node order, each of at least {@link #NODE_BYTES} bytes, slice u holding the
+ * action of node u. An equal split would give a short section's every byte to the last node.
+ * Like {@link IrSpecGeneratorEngine}, the engine stores only immutable configuration, and every
+ * invocation creates its own context.
  *
  * <p>Every edge leaving the current node is enabled while the step counter is below its bound: the
  * initial predicate and every node action assign exact values, and an edge has no guard but
@@ -61,6 +64,12 @@ public final class IrGraphGeneratorEngine {
      * the section and leave the later edges unguarded. Part of the byte encoding.
      */
     static final int GUARD_BYTES = 8;
+    /**
+     * The least bytes of the node section one node action reads while bytes remain, so that a
+     * short section gives actions to the first nodes rather than all its bytes to the last one.
+     * Part of the byte encoding.
+     */
+    static final int NODE_BYTES = 8;
 
     private final IrGenerationConfig config;
     private final Optional<EdgeGuards> guards;
@@ -132,10 +141,10 @@ public final class IrGraphGeneratorEngine {
         auxiliaries.forEach(operator -> operators.add(operator.generated()));
         var effect = new ActionEffect(data.stream().map(ScopedName::name).toList());
         var successors = new ArrayList<List<Integer>>();
-        var edgeSlices = WeightedSlices.equal(sections.get(GraphSection.EDGES), nodeCount);
-        var nodeSlices = WeightedSlices.equal(sections.get(GraphSection.NODES), nodeCount);
+        var edges = sections.get(GraphSection.EDGES);
+        var nodeSlices = WeightedSlices.filled(sections.get(GraphSection.NODES), nodeCount, NODE_BYTES);
         for (var node = 0; node < nodeCount; node++) {
-            successors.add(edgeSlices.get(node).draw(successors(node, nodeCount, limits.maximumExtraSuccessors())));
+            successors.add(edges.draw(successors(node, nodeCount, limits.maximumExtraSuccessors())));
             var body = nodeSlices.get(node).draw(context.withBindings(actionScope, context.withDefinitionBoundary(
                     context.withFreshNodeBudget(shapes.exactLeaf(
                             new Request(data, 0, depth, AssignmentRequirement.REQUIRED)).map(shapes::conjoin)))));

@@ -22,12 +22,13 @@ enum GraphSection {
     /** The initial values of the data variables. */
     INIT(2),
     /**
-     * The successor lists, in equal slices, one per node. They have a section of their own, apart
-     * from the node actions, because an action's expressions would otherwise consume the bytes its
-     * successors follow, and because a mutation of an action then leaves the graph unchanged.
+     * The successor lists, read as one cursor in node order. They have a section of their own,
+     * apart from the node actions, because an action's expressions would otherwise consume the
+     * bytes its successors follow, and because a mutation of an action then leaves the graph
+     * unchanged.
      */
     EDGES(2),
-    /** The node actions, in equal slices, one per node. */
+    /** The node actions, in slices filled in node order, one per node. */
     NODES(8),
     /**
      * The tautological guards of the edges, read as one cursor in edge order (ADR 0023 §6). Present
