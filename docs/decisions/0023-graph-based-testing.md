@@ -542,7 +542,8 @@ it cannot compute (6), with an Apalache pass (25) or counterexample (15).
   timeout.
 - **`pc` counts as state change.** ADR 0008 projects out only `step`, so an entry
   whose data never changes still has projected depth. Whether to project out `pc`
-  too is left open until a GBT corpus shows how the gate ranks such entries.
+  too was left open until a GBT corpus showed how the gate ranks such entries;
+  [ADR 0024][adr-0024] projects it out and ranks `gbt` entries by action coverage.
 - **Graph entries cannot be rewritten yet.** `mt` rejects the `graph` kind.
 - **Guard rules are part of the encoding.** Setting `[graph] rules` re-slices every
   graph input, so a corpus keeps the rule module it started with.
@@ -559,6 +560,7 @@ it cannot compute (6), with an Apalache pass (25) or counterexample (15).
 [adr-0016]: 0016-metamorphic-testing.md
 [adr-0017]: 0017-rewrite-rule-library.md
 [adr-0019]: 0019-state-count-agreement.md
+[adr-0024]: 0024-graph-action-coverage.md
 [generators]: ../architecture/ir-generators.md
 [manual]: ../manual/graph-based-testing.md
 [workflows]: ../architecture/fuzzing-workflows.md

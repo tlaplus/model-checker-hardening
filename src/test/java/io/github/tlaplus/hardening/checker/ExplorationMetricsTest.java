@@ -26,6 +26,7 @@ class ExplorationMetricsTest {
                         "actions",
                         "actionsFired",
                         "actionsDiscovering",
+                        "dataActions",
                         "maxStateNodes",
                         "maxCardinality",
                         "maxNesting",

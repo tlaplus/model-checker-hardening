@@ -13,7 +13,10 @@ public enum ExplorationCount {
     DISTINCT_STATES("distinctStates"),
     /** States generated, including duplicates. */
     GENERATED_STATES("generatedStates"),
-    /** Distinct states after removing the step counter of a generated module. */
+    /**
+     * Distinct states after removing the control variables of a generated module: its step counter,
+     * and {@code pc} of a graph module.
+     */
     PROJECTED_STATES("projectedStates"),
     /** Largest breadth-first level of a found state; an initial state is at depth 0. */
     DEPTH("depth"),
@@ -25,6 +28,12 @@ public enum ExplorationCount {
     ACTIONS_FIRED("actionsFired"),
     /** Disjuncts of the next-state action, by source location, that produced a new state. */
     ACTIONS_DISCOVERING("actionsDiscovering"),
+    /**
+     * Disjuncts of the next-state action, by source location, that produced a new projected state:
+     * one whose data variables, the variables other than the control variables, take values not
+     * seen before (ADR 0024 §1).
+     */
+    DATA_ACTIONS("dataActions"),
     /** Largest value node count of a found state. */
     MAX_STATE_NODES("maxStateNodes"),
     /** Largest set, sequence, tuple, record or function domain in a found state. */

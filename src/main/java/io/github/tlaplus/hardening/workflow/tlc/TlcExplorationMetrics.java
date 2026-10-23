@@ -3,10 +3,10 @@ package io.github.tlaplus.hardening.workflow.tlc;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
-import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.util.Objects;
+import java.util.Set;
 import tlc2.TLC;
 import tlc2.TLCGlobals;
 import tlc2.output.MP;
@@ -24,12 +24,13 @@ final class TlcExplorationMetrics {
     private final TlcStateMetrics states;
     private final TlcMessageMetrics messages = new TlcMessageMetrics();
 
-    TlcExplorationMetrics() {
-        this(STATE_NODE_CAP);
+    /** @param controlVariables the variables the projected counts omit (ADR 0024 §1) */
+    TlcExplorationMetrics(Set<String> controlVariables) {
+        this(controlVariables, STATE_NODE_CAP);
     }
 
-    TlcExplorationMetrics(long stateNodeCap) {
-        states = new TlcStateMetrics(GeneratedSpec.STEP_VARIABLE, stateNodeCap);
+    TlcExplorationMetrics(Set<String> controlVariables, long stateNodeCap) {
+        states = new TlcStateMetrics(controlVariables, stateNodeCap);
     }
 
     /** Registers the observers with {@code tlc}, whose parameters must already be handled. */

@@ -73,13 +73,13 @@ public final class TlcWorkerMain {
             if (!tlc.handleParameters(arguments)) {
                 throw new IOException("TLC rejected the fixed worker parameters");
             }
-            var metrics = new TlcExplorationMetrics();
-            metrics.install(tlc);
-
             ToolWorkerRuntime.serve(
                     connection,
                     ToolWorkerRuntime.Lifetime.ONE_INPUT,
                     source -> {
+                        // The request names the variables the metrics project out (ADR 0024 §1).
+                        var metrics = new TlcExplorationMetrics(source.request().controlVariables());
+                        metrics.install(tlc);
                         ToolWorkerRuntime.writeInput(specification, source);
                         // TLC reads the configuration when it processes the input, not when it
                         // accepts its parameters, so the file can follow the request.

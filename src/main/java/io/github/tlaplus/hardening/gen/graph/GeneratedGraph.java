@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import java.util.Objects;
 import java.util.OptionalInt;
+import java.util.Set;
 
 /**
  * A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its
@@ -27,6 +28,11 @@ import java.util.OptionalInt;
 public record GeneratedGraph(GeneratedSpec spec, TransitionGraph graph, int target) {
     /** Name of the control variable, whose value is the current node. */
     public static final String PC_VARIABLE = "pc";
+    /**
+     * The variables that sequence a graph module's actions rather than compute data: the current
+     * node and the step counter (ADR 0024 §1).
+     */
+    public static final Set<String> CONTROL_VARIABLES = Set.of(PC_VARIABLE, GeneratedSpec.STEP_VARIABLE);
 
     public GeneratedGraph {
         Objects.requireNonNull(spec, "spec");

@@ -114,8 +114,9 @@ public final class SpecArtifact {
         Objects.requireNonNull(graph, "graph");
         var spec = graph.spec();
         return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
-                new CheckRequest(spec.stepBound(), spec.property().isPresent()), spec.generated(),
-                new Origin(null, null, graph)), library);
+                new CheckRequest(spec.stepBound(), spec.property().isPresent())
+                        .withControlVariables(GeneratedGraph.CONTROL_VARIABLES),
+                spec.generated(), new Origin(null, null, graph)), library);
     }
 
     public TlaModule module() {

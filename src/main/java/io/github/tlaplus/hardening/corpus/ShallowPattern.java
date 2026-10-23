@@ -25,7 +25,7 @@ public enum ShallowPattern {
     /** No disjunct of the next-state action produced a new state. */
     NO_DISCOVERING_ACTION("no_discovering_action", null,
             metrics -> equals(metrics, ExplorationCount.ACTIONS_DISCOVERING, 0)),
-    /** At most one state remains once the step counter is projected away. */
+    /** At most one state remains once the control variables are projected away (ADR 0024 §1). */
     COUNTER_ONLY_PROGRESS("counter_only_progress", null,
             metrics -> metrics.count(ExplorationCount.PROJECTED_STATES).stream().anyMatch(value -> value <= 1));
 

@@ -19,7 +19,7 @@ from campaign_report.errors import ReportError
 from campaign_report.stages import Outcome, Stage
 from campaign_report.triage import LabelClass
 
-SCHEMA = Path(__file__).resolve().parent / "testdata" / "corpus-schema-v9.sql"
+SCHEMA = Path(__file__).resolve().parent / "testdata" / "corpus-schema-v10.sql"
 NO_DATA = "*No data for this plot in this corpus.*"
 
 H_SELECTED, H_AGREEING, H_STATES, H_CRASH, H_KNOWN = (c * 64 for c in "12345")

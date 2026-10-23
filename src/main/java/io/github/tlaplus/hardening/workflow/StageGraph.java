@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.EntryName;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage;
 import io.github.tlaplus.hardening.workflow.checker.CheckerRouting;
@@ -77,9 +78,10 @@ final class StageGraph {
     }
 
     /** The corpus one invocation runs on, and its arguments. */
-    record Invocation(CorpusDirectory corpus, long seed, int maximumCpus, Path apalacheJar) {
+    record Invocation(CorpusDirectory corpus, Technique technique, long seed, int maximumCpus, Path apalacheJar) {
         Invocation {
             Objects.requireNonNull(corpus, "corpus");
+            Objects.requireNonNull(technique, "technique");
             Preconditions.requireNonnegative(seed, "seed");
             Preconditions.requirePositive(maximumCpus, "maximumCpus");
             Objects.requireNonNull(apalacheJar, "apalacheJar");

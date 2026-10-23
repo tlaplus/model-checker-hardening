@@ -182,9 +182,10 @@ known-defect signatures cover those cases.
 
 ## 7. Selection of parents
 
-**Proposed** ([ADR 0024](../decisions/0024-graph-action-coverage.md)); not
-implemented. Today the quality gate ranks graph entries by the length of their walks,
-because `pc` changes on every step.
+The quality gate picks the parents of mutation ([Generations and
+mutation](mutation.md)). It would rank graph entries by the length of their walks,
+because `pc` changes on every step, so a `gbt` corpus measures and ranks them
+differently ([ADR 0024](../decisions/0024-graph-action-coverage.md)):
 
 - **`pc` is projected out.** TLC measures graph entries on their data variables, so
   `projectedStates` counts data valuations, and a new count, `dataActions`, counts the
@@ -198,7 +199,7 @@ because `pc` changes on every step.
 ## Background
 
 [ADR 0023](../decisions/0023-graph-based-testing.md) records the design;
-[ADR 0024](../decisions/0024-graph-action-coverage.md) proposes how the gate selects
+[ADR 0024](../decisions/0024-graph-action-coverage.md) decides how the gate selects
 graph parents.
 [ir-generators.md §12](../architecture/ir-generators.md#12-graph-generation) specifies
 the encoding. The step bound comes from

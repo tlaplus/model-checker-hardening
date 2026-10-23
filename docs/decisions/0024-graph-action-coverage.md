@@ -2,9 +2,22 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Accepted; phases 1 and 2 implemented, validation pending
 
 **Date:** 2026-10-23
+
+**Implementation.** Phases 1 and 2 of section 6 are implemented on the branch
+`igor/gbt-action-coverage-gate`. The review settled two questions: `dataActions`
+counts edges rather than nodes, and entries with constant data cannot become parents.
+Implementation fixed these details:
+
+- `GeneratedGraph.CONTROL_VARIABLES` names a graph module's control variables, and
+  `CheckRequest.controlVariables` carries them in worker protocol version 8. The TLC
+  worker builds its state metrics from each request.
+- `corpus.Ranking` holds the components of both keys, and each `Technique` constant
+  names its ranking. The key's components are also the cell, as in ADR 0013, so
+  `dataActions` is bucketed in both (section 2).
+- The export adds the column `dataActions` and raises the schema version to 10.
 
 ## Context
 
@@ -35,7 +48,7 @@ mutation should breed such entries rather than longer walks.
 
 **Scope.** This ADR decides what TLC measures for a graph module, how the gate ranks
 and buckets `gbt` entries, and which graph entries are shallow. The byte encoding,
-the oracle and the mutation operators are unchanged. Proposed; not implemented.
+the oracle and the mutation operators are unchanged.
 
 ## Decision
 
