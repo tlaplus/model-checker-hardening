@@ -180,9 +180,26 @@ known-defect signatures cover those cases.
 - `--how=mt` does not rewrite `graph` entries.
 - Graph modules have no temporal property.
 
+## 7. Selection of parents
+
+**Proposed** ([ADR 0024](../decisions/0024-graph-action-coverage.md)); not
+implemented. Today the quality gate ranks graph entries by the length of their walks,
+because `pc` changes on every step.
+
+- **`pc` is projected out.** TLC measures graph entries on their data variables, so
+  `projectedStates` counts data valuations, and a new count, `dataActions`, counts the
+  edges whose node action produced new data.
+- **`gbt` ranks by action coverage.** The gate prefers entries with more
+  `dataActions`, then more data valuations, then deeper data change. `pbt` and `mt`
+  keep ranking by depth.
+- **Constant data is shallow.** An entry whose node actions never change the data
+  matches `counter_only_progress` and is never mutated.
+
 ## Background
 
-[ADR 0023](../decisions/0023-graph-based-testing.md) records the design.
+[ADR 0023](../decisions/0023-graph-based-testing.md) records the design;
+[ADR 0024](../decisions/0024-graph-action-coverage.md) proposes how the gate selects
+graph parents.
 [ir-generators.md §12](../architecture/ir-generators.md#12-graph-generation) specifies
 the encoding. The step bound comes from
 [ADR 0007](../decisions/0007-levels-and-temporal-properties.md).
