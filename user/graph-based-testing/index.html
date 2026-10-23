@@ -1554,9 +1554,10 @@ known-defect signatures cover those cases.</p>
 <li>Graph modules have no temporal property.</li>
 </ul>
 <h2 id="7-selection-of-parents">7. Selection of parents<a class="headerlink" href="#7-selection-of-parents" title="Permanent link">&para;</a></h2>
-<p><strong>Proposed</strong> (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a>); not
-implemented. Today the quality gate ranks graph entries by the length of their walks,
-because <code>pc</code> changes on every step.</p>
+<p>The quality gate picks the parents of mutation (<a href="../mutation/">Generations and
+mutation</a>). It would rank graph entries by the length of their walks,
+because <code>pc</code> changes on every step, so a <code>gbt</code> corpus measures and ranks them
+differently (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a>):</p>
 <ul>
 <li><strong><code>pc</code> is projected out.</strong> TLC measures graph entries on their data variables, so
   <code>projectedStates</code> counts data valuations, and a new count, <code>dataActions</code>, counts the
@@ -1569,7 +1570,7 @@ because <code>pc</code> changes on every step.</p>
 </ul>
 <h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0023-graph-based-testing.md">ADR 0023</a> records the design;
-<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a> proposes how the gate selects
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a> decides how the gate selects
 graph parents.
 <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/architecture/ir-generators.md#12-graph-generation">ir-generators.md §12</a> specifies
 the encoding. The step bound comes from

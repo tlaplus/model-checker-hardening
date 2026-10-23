@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`47a7fcf`](https://github.com/tlaplus/model-checker-hardening/commit/47a7fcfd71d20c6a404ebf5a8a3e7d9a0e250e9b) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/47a7fcfd71d20c6a404ebf5a8a3e7d9a0e250e9b/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`12d0a3f`](https://github.com/tlaplus/model-checker-hardening/commit/12d0a3fd62c72add470e6ee06490c4e3591f490e) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/12d0a3fd62c72add470e6ee06490c4e3591f490e/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -42,7 +42,7 @@ flowchart TB
 | [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 112 | 28 | common |
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 15 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
-| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 52 | 11 | common, checker, gen, mutation |
+| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 53 | 11 | common, checker, gen, mutation |
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 21 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
 | [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 117 | 60 | common, checker, gen, signature, mutation, corpus, config |
@@ -60,7 +60,7 @@ flowchart TB
 | adapter | wraps an external tool, process, or protocol | 11 |
 | store | layout, locking, persistence | 5 |
 | codec | a wire or storage format | 9 |
-| policy | a decision rule | 17 |
+| policy | a decision rule | 18 |
 | model | a domain value or enum | 32 |
 | config | configuration and its schema | 7 |
 | view | rendering and formatting | 3 |

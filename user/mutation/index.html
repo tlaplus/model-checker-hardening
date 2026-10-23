@@ -1467,15 +1467,19 @@ this order, higher first:</p>
 <li><code>maxCardinality</code>, by power of two;</li>
 <li><code>maxNesting</code>.</li>
 </ol>
-<p>Ties go to the shorter input.</p>
+<p>Ties go to the shorter input. A <code>gbt</code> corpus ranks by action coverage instead
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a>): <code>dataActions</code> by power of
+two, <code>projectedStates</code> by power of two, <code>projectedDepth</code>, then the last three as
+above. Its metrics project out <code>pc</code> as well as <code>step</code>, so they measure the data a
+graph entry computes rather than the length of its walks.</p>
 <p>The gate walks the admissible entries in this order and keeps an entry while it
 has kept fewer than <code>ceil(select_fraction × agreeing entries of the generation)</code>
 and either of these holds:</p>
 <ul>
 <li><strong>Behaviour.</strong> The entry's <em>cell</em> holds fewer than <code>cell_capacity</code> kept
-  entries. The cell is the TLC verdict together with the six metrics above,
-  each compared as in the ranking (states, nodes and cardinality by power of
-  two).</li>
+  entries. The cell is the TLC verdict together with the six metrics of the
+  corpus's ranking, each compared as in the ranking (states, nodes and
+  cardinality by power of two, and, under action coverage, <code>dataActions</code> too).</li>
 <li><strong>Coverage.</strong> <code>feature_coverage</code> is enabled and the entry has a <em>feature</em> that no kept
   entry has.</li>
 </ul>

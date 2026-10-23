@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "47a7fcfd71d20c6a404ebf5a8a3e7d9a0e250e9b"
+    "commit" : "12d0a3fd62c72add470e6ee06490c4e3591f490e"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -1448,6 +1448,16 @@
     "line" : 20,
     "adrs" : [ "0016", "0019", "0023" ]
   }, {
+    "name" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "packageName" : "io.github.tlaplus.hardening.corpus",
+    "kind" : "ENUM",
+    "role" : "POLICY",
+    "key" : false,
+    "summary" : "How the quality gate ranks the admissible entries of a generation, best first: the components of its key, compared lexicographically, higher first.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/corpus/Ranking.java",
+    "line" : 16,
+    "adrs" : [ "0013" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
     "packageName" : "io.github.tlaplus.hardening.corpus",
     "kind" : "RECORD",
@@ -2495,7 +2505,7 @@
     "key" : true,
     "summary" : "A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/graph/GeneratedGraph.java",
-    "line" : 25,
+    "line" : 26,
     "adrs" : [ "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.graph.TransitionGraph",
@@ -3115,7 +3125,7 @@
     "key" : true,
     "summary" : "The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/StageGraph.java",
-    "line" : 58,
+    "line" : 59,
     "adrs" : [ "0010" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.WorkflowException",
@@ -3713,9 +3723,9 @@
     "kind" : "RECORD",
     "role" : null,
     "key" : false,
-    "summary" : "The behaviour cell of an admissible entry (ADR 0013): its TLC verdict and the components of its `QualityKey`, each after its bucket.",
+    "summary" : "The behaviour cell of an admissible entry (ADR 0013): its TLC verdict and the components of the gate's `Ranking`, each after its bucket.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityCell.java",
-    "line" : 12,
+    "line" : 13,
     "adrs" : [ "0013" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
@@ -3725,7 +3735,7 @@
     "key" : true,
     "summary" : "Selects the parents of the next generation from one settled generation (ADR 0010, ADR 0013).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityGate.java",
-    "line" : 49,
+    "line" : 50,
     "adrs" : [ "0010", "0013" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
@@ -3733,10 +3743,10 @@
     "kind" : "CLASS",
     "role" : "POLICY",
     "key" : true,
-    "summary" : "The order in which the quality gate ranks admissible entries, best first (ADR 0010).",
+    "summary" : "The order in which the quality gate ranks admissible entries, best first (ADR 0010, ADR 0024 §2).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityKey.java",
-    "line" : 21,
-    "adrs" : [ "0010" ]
+    "line" : 19,
+    "adrs" : [ "0010", "0024" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.quality.SelectionArchive",
     "packageName" : "io.github.tlaplus.hardening.workflow.quality",
@@ -3895,8 +3905,8 @@
     "key" : false,
     "summary" : "Measures the state graph TLC explores, through the state-writer callbacks TLC makes for every initial state and every generated transition.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcStateMetrics.java",
-    "line" : 30,
-    "adrs" : [ ]
+    "line" : 31,
+    "adrs" : [ "0024" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcValueShape",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
@@ -3995,8 +4005,8 @@
     "key" : false,
     "summary" : "What a checker is asked about one assembled module.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/CheckRequest.java",
-    "line" : 17,
-    "adrs" : [ "0016" ]
+    "line" : 25,
+    "adrs" : [ "0016", "0024" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.ChildJvm",
     "packageName" : "io.github.tlaplus.hardening.workflow.worker",
@@ -4105,7 +4115,7 @@
     "key" : true,
     "summary" : "Binary framing shared by isolated parser and model-checker workers.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolWorkerProtocol.java",
-    "line" : 20,
+    "line" : 23,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime",
@@ -6469,6 +6479,14 @@
     "to" : "io.github.tlaplus.hardening.corpus.StageRecord",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationCount",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
     "to" : "io.github.tlaplus.hardening.common.ExprCounts",
     "kind" : "HAS"
@@ -6651,6 +6669,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.Technique",
     "to" : "io.github.tlaplus.hardening.corpus.Oracle",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.Technique",
+    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.Technique",
@@ -10066,7 +10088,15 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
+    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
     "to" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
@@ -10443,6 +10473,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.StageGraph",
     "to" : "io.github.tlaplus.hardening.corpus.StageScratchSet",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.StageGraph",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.StageGraph",
@@ -12010,8 +12044,8 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityCell",
-    "to" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
-    "kind" : "DEPENDS"
+    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
@@ -12070,6 +12104,10 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
+    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
     "kind" : "DEPENDS"
   }, {
@@ -12118,11 +12156,11 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
-    "to" : "io.github.tlaplus.hardening.checker.ExplorationCount",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
-    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.SelectionArchive",
@@ -12478,10 +12516,6 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics",
-    "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics",
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcMessageMetrics",
     "kind" : "HAS"
   }, {
@@ -12833,6 +12867,10 @@
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.worker.ChildJvm",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -12967,7 +13005,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol",
     "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
-    "kind" : "DEPENDS"
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol",
     "to" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
@@ -13132,7 +13170,7 @@
   }, {
     "from" : "corpus",
     "to" : "checker",
-    "typePairs" : 20,
+    "typePairs" : 22,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec",
@@ -13236,7 +13274,7 @@
   }, {
     "from" : "workflow",
     "to" : "checker",
-    "typePairs" : 23,
+    "typePairs" : 22,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheFailureDetail",
@@ -13268,7 +13306,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 176,
+    "typePairs" : 182,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

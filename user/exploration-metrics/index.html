@@ -1422,6 +1422,7 @@ completed must report the same <code>distinctStates</code>
         "actions": 2,
         "actionsFired": 2,
         "actionsDiscovering": 1,
+        "dataActions": 1,
         "maxStateNodes": 9,
         "maxCardinality": 3,
         "maxNesting": 2,
@@ -1474,7 +1475,7 @@ unchanged, so metrics reach <code>03aggregator-pass</code> and <code>03aggregato
 </tr>
 <tr>
 <td><code>projectedStates</code></td>
-<td>Distinct states after removing <code>step</code>, the step counter of a generated module. In an <code>expr</code> entry, equal to <code>distinctStates</code>.</td>
+<td>Distinct states after removing the control variables: <code>step</code>, the step counter of a generated module, and <code>pc</code>, the current node of a graph entry (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a>). In an <code>expr</code> entry, equal to <code>distinctStates</code>.</td>
 </tr>
 <tr>
 <td><code>depth</code></td>
@@ -1495,6 +1496,10 @@ unchanged, so metrics reach <code>03aggregator-pass</code> and <code>03aggregato
 <tr>
 <td><code>actionsDiscovering</code></td>
 <td>Disjuncts of <code>Next</code>, by source location, that produced at least one new state.</td>
+</tr>
+<tr>
+<td><code>dataActions</code></td>
+<td>Disjuncts of <code>Next</code>, by source location, that produced at least one new projected state: values of the data variables not seen before. In a graph entry, a disjunct is an edge.</td>
 </tr>
 <tr>
 <td><code>maxStateNodes</code></td>
@@ -1552,6 +1557,7 @@ line:</p>
       actions: 2
       actionsFired: 2
       actionsDiscovering: 1
+      dataActions: 1
       maxStateNodes: 9
       maxCardinality: 3
       maxNesting: 2
@@ -1593,7 +1599,7 @@ the agreeing entries of corpus22 match at least one of them.</p>
 <tr>
 <td>Counter-only progress</td>
 <td><code>projectedStates</code> at most 1</td>
-<td>Only <code>step</code> changes. Every other variable keeps its initial value.</td>
+<td>Only the control variables change: <code>step</code>, and <code>pc</code> in a graph entry. Every data variable keeps its initial value.</td>
 </tr>
 </tbody>
 </table>

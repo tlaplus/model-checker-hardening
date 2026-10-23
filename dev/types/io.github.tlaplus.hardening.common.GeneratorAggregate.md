@@ -1,6 +1,6 @@
 # `GeneratorAggregate`
 
-`io.github.tlaplus.hardening.common` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/47a7fcfd71d20c6a404ebf5a8a3e7d9a0e250e9b/src/main/java/io/github/tlaplus/hardening/common/GeneratorAggregate.java#L15) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/12d0a3fd62c72add470e6ee06490c4e3591f490e/src/main/java/io/github/tlaplus/hardening/common/GeneratorAggregate.java#L15) · module [common](../modules/common.md)
 
 Immutable generation counters shared by persisted statistics and invocation summaries.
 

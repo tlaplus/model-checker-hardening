@@ -1588,7 +1588,7 @@ export time: about 1.2 ms of CPU per entry, so a corpus of 100,000 entries takes
 about two minutes on one thread. The export writes rows in the same order for
 every <code>--max-cpus</code>, so the database does not depend on it.</p>
 <h2 id="2-schema">2. Schema<a class="headerlink" href="#2-schema" title="Permanent link">&para;</a></h2>
-<p><code>PRAGMA user_version</code> holds the schema version, currently <code>9</code>. Any change to a
+<p><code>PRAGMA user_version</code> holds the schema version, currently <code>10</code>. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.</p>
 <p>Table and column names are camelCase. A column that stores an envelope field has
@@ -1945,7 +1945,7 @@ verdict and both times.</p>
 <td><code>projectedStates</code></td>
 <td>INTEGER</td>
 <td>yes</td>
-<td>Distinct states without the step variable</td>
+<td>Distinct states without the control variables: the step variable, and <code>pc</code> of a graph entry</td>
 <td><code>stages.&lt;stage&gt;.metrics.projectedStates</code></td>
 </tr>
 <tr>
@@ -1982,6 +1982,13 @@ verdict and both times.</p>
 <td>yes</td>
 <td>Actions that produced a new state</td>
 <td><code>stages.&lt;stage&gt;.metrics.actionsDiscovering</code></td>
+</tr>
+<tr>
+<td><code>dataActions</code></td>
+<td>INTEGER</td>
+<td>yes</td>
+<td>Actions that produced a new projected state: new values of the data variables (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a>)</td>
+<td><code>stages.&lt;stage&gt;.metrics.dataActions</code></td>
 </tr>
 <tr>
 <td><code>maxStateNodes</code></td>
