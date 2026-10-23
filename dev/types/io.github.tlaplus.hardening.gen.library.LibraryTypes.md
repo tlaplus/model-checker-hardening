@@ -1,6 +1,6 @@
 # `LibraryTypes`
 
-`io.github.tlaplus.hardening.gen.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/src/main/java/io/github/tlaplus/hardening/gen/library/LibraryTypes.java#L11) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/47a7fcfd71d20c6a404ebf5a8a3e7d9a0e250e9b/src/main/java/io/github/tlaplus/hardening/gen/library/LibraryTypes.java#L11) · module [gen](../modules/gen.md)
 
 Structural inspection of imported type terms, including row variables.
 

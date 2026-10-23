@@ -1,6 +1,6 @@
 # `CorpusRunStatisticsCodec`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/src/main/java/io/github/tlaplus/hardening/corpus/CorpusRunStatisticsCodec.java#L12) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/47a7fcfd71d20c6a404ebf5a8a3e7d9a0e250e9b/src/main/java/io/github/tlaplus/hardening/corpus/CorpusRunStatisticsCodec.java#L12) · module [corpus](../modules/corpus.md)
 
 Encodes and decodes the aggregate workflow-statistics CBOR document.
 
