@@ -66,7 +66,7 @@ The corpus database exports `dataActions` beside the other counts.
 rank by depth (ADR 0010), `gbt` by action coverage. Under action coverage the key is
 
 ```
-(dataActions, bucket(projectedStates), projectedDepth,
+(bucket(dataActions), bucket(projectedStates), projectedDepth,
  bucket(maxStateNodes), bucket(maxCardinality), maxNesting)
 ```
 
@@ -74,19 +74,37 @@ compared lexicographically, higher first, with ADR 0010's tie-breaks. An entry w
 more node actions that each reach new data outranks a longer walk over constant
 actions; data depth decides only between equals.
 
+`bucket` is ADR 0010's logarithmic bucket, `bucket(v) = floor(log2(v + 1))`. It maps
+a count to the number of binary digits it needs:
+
+| v | 0 | 1 | 2–3 | 4–7 | 8–15 | 16–31 | 32–63 | 64–127 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `bucket(v)` | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+
+ADR 0010 compares `actionsDiscovering` directly, because `[generator] max_actions`
+bounds it by 3 by default. `dataActions` is bounded only by the edges of the graph,
+at most three per node, so fewer than 96 under the default `[graph]` limits. Compared
+directly, one more data action would outrank any difference in the data valuations,
+since the key is lexicographic: 11 data actions over 3 valuations would beat 10 over
+60. Bucketed, entries with 8 to 15 data actions tie, and `bucket(projectedStates)`
+decides between them. An order-of-magnitude difference in data actions still
+dominates.
+
 ### 3. Cells
 
-Under action coverage, the behaviour cell of ADR 0013 replaces `actionsDiscovering`
-with `bucket(dataActions)`:
+The behaviour cell of ADR 0013 is the TLC verdict and the components of the key, so
+under action coverage it is
 
 ```
-(verdict, projectedDepth, bucket(projectedStates), bucket(dataActions),
+(verdict, bucket(dataActions), bucket(projectedStates), projectedDepth,
  bucket(maxStateNodes), bucket(maxCardinality), maxNesting)
 ```
 
-`projectedDepth` and `projectedStates` already exclude `pc` by section 1. A cell then
-holds entries with the same data behaviour, so walk length alone no longer opens a
-new cell.
+`projectedDepth` and `projectedStates` already exclude `pc` by section 1, so a cell
+holds entries with the same data behaviour, and walk length alone no longer opens a
+new cell. The bucket matters here as well: `[mutator] cell_capacity` admits 4 entries
+per cell by default, and with `dataActions` compared directly almost every count
+from 0 to 96 would open a cell of its own, so the capacity would bound nothing.
 
 ### 4. Shallow graph entries
 
