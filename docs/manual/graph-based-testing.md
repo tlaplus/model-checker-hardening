@@ -1,7 +1,5 @@
 # Graph-based testing
 
-Tautological guards on edges (section 4) are not implemented yet.
-
 A graph-based campaign generates modules whose control structure is a directed graph
 of 20 to 32 nodes. A spine `0 -> 1 -> ... -> N-1` makes it up to N - 1 steps deep, and
 extra edges add loops, cycles and short skips. A variable `pc` holds the current node. Each node assigns new values to the data
@@ -9,7 +7,8 @@ variables, and each edge runs its source node's assignments and moves `pc` to it
 target. The invariant is `pc /= k` for one target node k. Because every edge is
 enabled, FuzzTLA knows from the graph whether a checker must report a counterexample,
 and how long it must be. A checker that disagrees has a defect, even when the other
-checker agrees with it.
+checker agrees with it. Optionally, edges carry tautological guards (section 4), which
+a correct checker always evaluates to `TRUE`.
 
 ## 1. Setting up a corpus
 
@@ -38,6 +37,8 @@ min_graph_nodes = 20
 max_graph_nodes = 32
 max_extra_successors = 2
 # max_steps = 32              # cap on each input's own step bound
+rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }  # edge guards, section 4
+max_guards = 2
 ```
 
 - **The technique is fixed.** The first run records `gbt` in `.technique`; later runs
@@ -129,17 +130,31 @@ is 19 steps away and its bound is 13.
 
 ## 4. Tautological guards
 
-**Proposed** ([ADR 0023](../decisions/0023-graph-based-testing.md) §6). Each edge
-would carry guards that are always true, built from the rules of a
-[rewrite-rule module](metamorphic-testing.md#5-writing-rules). The rule
-`UnionSelf(S) == S = S \union S` with `S := var1` yields the guard below:
+With `[graph] rules`, each edge conjoins up to `max_guards` guards after `pc = u`. A
+guard is an instance of a rule `F(x, y) == A = B` of a
+[rewrite-rule module](metamorphic-testing.md#5-writing-rules), with every parameter
+drawn as an expression over the data variables. The rule `UnionSelf(S) == S = S \union
+S` with `S := var1` yields the guard below:
 
 ```tla
 \/ step < 5 /\ pc = 1 /\ var1 = var1 \union var1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
 ```
 
-A checker that evaluates a guard to `FALSE` disables the edge, and then reports a
-pass or a longer trace than expected.
+- **The expected outcome does not change.** Every rule is valid, so a guard holds in
+  every state. A checker that evaluates one to `FALSE` disables the edge, and then
+  reports a pass or a longer trace than expected.
+- **Some rules do not guard.** A rule with an action-level operator, such as
+  `UnchangedPrime`, a higher-order parameter, such as `P(_)` in `ForallNotExists`, or
+  a helper definition is left out. `[graph] weights` reweighs the rest as
+  `[metamorphic] weights` does.
+- **The rules are part of the encoding.** Guards take a section of the input of their
+  own, so setting `rules` changes how every graph input decodes. The first run records
+  the rule module in `.rewrite-library`, and later runs refuse another one.
+- **A `pbt` corpus with graph entries** decodes them with the same guards.
+- **Guards start at node 0.** The guard bytes, about a fifth of the input, are read
+  edge by edge from node 0, at most 8 bytes per guard, so a short input guards the
+  first edges of every path to the target. In a campaign whose inputs had 31 bytes at
+  the median, 97% of the entries had a guard, but at most 8.
 
 ## 5. Triage
 
@@ -149,10 +164,17 @@ graph-oracle failure when the checkers report the same verdict, or the same fail
 status, and `print` shows another expected outcome. Compare the checkers' verdicts
 and `traceLength` (`print --envelope`) with the `expected:` line.
 
+In a guarded corpus, such an entry points at a guard on a shortest path to the target:
+a checker evaluated it to `FALSE`. Evaluate the guard alone, in the state the trace
+reaches before the edge, to tell a checker defect from an unsound rule. A partial term
+in a guard, such as a function applied outside its domain, can make Apalache pick
+different values for its copies in A and B, as under metamorphic testing; the
+known-defect signatures cover those cases.
+
 ## 6. Limitations
 
 - Only `pc` and trace lengths are predicted. A wrong value of a data variable is
-  found only through conformance.
+  found only through conformance, or through a guard that reads it.
 - Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
   steps long, and one in four was 20 or more.
 - `--how=mt` does not rewrite `graph` entries.

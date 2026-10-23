@@ -1149,7 +1149,8 @@ three draws:
 A target with dist(k) > B is unreachable, so roughly half the inputs predict a pass.
 The bound is the input's own: `GeneratedSpec.stepBound` and every step guard use B,
 not `[generator] max_steps`. The rest of the payload is split by `GraphSection`, with
-weights `1, 2, 2, 2, 8`:
+weights `1, 2, 2, 2, 8, 4`; the last section has weight 0 when the decoder has no guard
+rules, so the other slices are those of an unguarded decoder:
 
 1. **Variables** and 2. **auxiliary operators**, as for a module (section 9.1);
    `pc : Int` and `step` are appended to the data variables.
@@ -1160,6 +1161,10 @@ weights `1, 2, 2, 2, 8`:
    successors are its spine successor u + 1, byte-free, then the extras, with repeats
    removed in order. A one-node graph's spine is the self-loop `0 -> 0`.
 5. **Nodes**: N equal slices; slice u decodes the action of node u.
+6. **Guards**, only with `[graph] rules`: one cursor over the edges in edge order; for
+   each edge, a terminated list of at most `maximumGuards` guards, each reading at most
+   8 bytes (section 12.2). A short section guards the edges leaving node 0 first, where
+   every path to the target starts; N equal slices would give it all to the last node.
 
 Forward edges are bounded because a long forward skip shortens every path behind it:
 with uniform random successors, the part of the graph reachable from node 0 had about
@@ -1177,8 +1182,18 @@ changing the graph. A mutation of N re-slices both sections.
   variable. Right-hand sides see the auxiliary operators and the data variables,
   but neither `pc` nor `step`.
 - **Next.** One disjunct per edge (u, v), in node order and then successor order:
-  `ActionGenFactory.boundedStep` of `pc = u /\ Node<u> /\ pc' = v`, under the
-  input's bound B. The spine leaves node 0, so `Next` always has a disjunct: Apalache's
+  `ActionGenFactory.boundedStep` of `pc = u /\ g1 /\ ... /\ gk /\ Node<u> /\ pc' = v`,
+  under the input's bound B, where the g are the edge's guards.
+- **Guards.** `engine.EdgeGuards` draws them; `gen.rewrite.Tautologies` implements it
+  from a rule library, so `gen.engine` does not depend on `gen.rewrite`. A guard is a
+  two-byte index over the weighted slots of the rules that can guard an edge, in
+  declaration order, then every parameter of the rule, drawn by `OperandGenerator` at
+  its type in the action scope, and the rule's formula `A = B` or `A <=> B`
+  instantiated whole (`RuleInstantiation.instantiateFormula`). A rule qualifies when it
+  has a positive weight, no action-level operator, no higher-order parameter and no
+  helper. Open type variables are instantiated through a template of the types that
+  hold them, so a row stays a row. A parameter the formula puts where a label is
+  invalid draws none. The spine leaves node 0, so `Next` always has a disjunct: Apalache's
   assignment finder rejects `FALSE \/ UNCHANGED vars`, whose first disjunct assigns
   no variable.
 - **Invariant.** `pc /= k`. No other invariant and no property are generated.
@@ -1187,8 +1202,11 @@ changing the graph. A mutation of N re-slices both sections.
 
 While `step` is below its bound, every edge leaving the current node is enabled:
 `Init` and every node action assign exact values, and an edge has no guard but
-`pc = u` and the step guard. A partial right-hand side makes TLC fail and gives
-Apalache an arbitrary value; neither disables an edge. A state with `pc = k` is
+`pc = u`, the step guard and tautologies, which hold in every state. A partial
+right-hand side makes TLC fail and gives Apalache an arbitrary value; neither disables
+an edge. A partial term in a guard is the exception: Apalache may give its copies in A
+and B different values, and then reports a guard `FALSE`, as under metamorphic
+testing ([ADR 0016](../decisions/0016-metamorphic-testing.md)). A state with `pc = k` is
 therefore reachable exactly when dist(k), the breadth-first distance from node 0,
 is at most the step bound, and it is first reached after dist(k) transitions.
 `GeneratedGraph.targetDistance()` returns that distance, and is empty otherwise.

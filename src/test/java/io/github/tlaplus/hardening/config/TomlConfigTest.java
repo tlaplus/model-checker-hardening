@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -98,18 +99,40 @@ class TomlConfigTest {
     /** The rule module's classpath resolves against the config file, like the generator's. */
     @Test
     void readsTheRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
-        var document = TomlConfig.render(FuzzTlaConfig.defaults())
-                .replace("# rules = { module = \"Rewrites\", classpath = [\"../libraries/rewrites\"] }",
-                        "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
-                .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
+        var document = withRules(TomlConfig.render(FuzzTlaConfig.defaults()), "metamorphic");
         var metamorphic = readConfig(directory, document).metamorphic();
-        assertEquals(new MetamorphicConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
-                metamorphic.rules().orElseThrow());
-        assertEquals(Map.of("AddSub", 3, "DoubleNeg", 0), metamorphic.weights());
+        assertEquals(new RuleLibraryConfig.RuleModule("Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize())),
+                metamorphic.rules().module().orElseThrow());
+        assertEquals(Map.of("AddSub", 3, "DoubleNeg", 0), metamorphic.rules().weights());
         assertEquals(RewriteLimits.defaults(), metamorphic.limits());
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[metamorphic]"));
         assertEquals(MetamorphicConfig.defaults(), readConfig(directory, withoutTable).metamorphic());
+    }
+
+    /** [graph] names the rule module of the edge guards as [metamorphic] names its rewrites. */
+    @Test
+    void readsTheGuardRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        var config = readConfig(directory, withRules(defaults, "graph"));
+        assertEquals(new RuleLibraryConfig(Optional.of(new RuleLibraryConfig.RuleModule(
+                        "Rewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize()))),
+                        Map.of("AddSub", 3, "DoubleNeg", 0)),
+                config.graphGuards());
+        assertEquals(RuleLibraryConfig.none(), config.metamorphic().rules(), "the tables are independent");
+        assertEquals(RuleLibraryConfig.none(), readConfig(directory, defaults).graphGuards());
+    }
+
+    /** Names the rule module {@code rules} and weighs two rules, in table {@code [table]} only. */
+    private static String withRules(String document, String table) {
+        var start = document.indexOf("\n[" + table + "]");
+        var next = document.indexOf("\n[", start + 1);
+        var end = next < 0 ? document.length() : next;
+        var section = document.substring(start, end)
+                .replace("# rules = { module = \"Rewrites\", classpath = [\"../libraries/rewrites\"] }",
+                        "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
+                .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
+        return document.substring(0, start) + section + document.substring(end);
     }
 
     /** The [graph] table bounds the generator's graphs, and an omitted table reads the defaults. */
@@ -118,11 +141,12 @@ class TomlConfigTest {
         var document = TomlConfig.render(FuzzTlaConfig.defaults())
                 .replace("min_graph_nodes = 20", "min_graph_nodes = 2")
                 .replace("max_graph_nodes = 32", "max_graph_nodes = 40")
-                .replace("max_extra_successors = 2", "max_extra_successors = 1");
+                .replace("max_extra_successors = 2", "max_extra_successors = 1")
+                .replace("max_guards = 2", "max_guards = 3");
         // max_steps is commented out, so it inherits max_graph_nodes.
-        assertEquals(new GraphLimits(2, 40, 1, 40), readConfig(directory, document).generator().graphs());
+        assertEquals(new GraphLimits(2, 40, 1, 40, 3), readConfig(directory, document).generator().graphs());
         var capped = document.replace("# max_steps = 32", "max_steps = 12");
-        assertEquals(new GraphLimits(2, 40, 1, 12), readConfig(directory, capped).generator().graphs());
+        assertEquals(new GraphLimits(2, 40, 1, 12, 3), readConfig(directory, capped).generator().graphs());
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[graph]"));
         assertEquals(GraphLimits.defaults(), readConfig(directory, withoutTable).generator().graphs());

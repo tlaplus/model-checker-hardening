@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.CheckerProfile;
-import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteRule;
 import io.github.tlaplus.hardening.gen.rewrite.RuleParameter;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
@@ -122,17 +122,16 @@ class RuleLibraryPreparationTest {
 
     @Test
     void preparesNothingWithoutARuleModule() throws Exception {
-        var prepared = prepare(MetamorphicConfig.defaults());
+        var prepared = prepare(RuleLibraryConfig.none());
         assertTrue(prepared.library().isEmpty());
         assertEquals("", prepared.manifest());
     }
 
-    private static RuleLibraryPreparation.Prepared prepare(MetamorphicConfig config) throws WorkflowException {
+    private static RuleLibraryPreparation.Prepared prepare(RuleLibraryConfig config) throws WorkflowException {
         return RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults());
     }
 
-    private static MetamorphicConfig config(Path classpath, String module, Map<String, Integer> weights) {
-        return new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule(module, List.of(classpath))), weights,
-                io.github.tlaplus.hardening.gen.rewrite.RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults());
+    private static RuleLibraryConfig config(Path classpath, String module, Map<String, Integer> weights) {
+        return new RuleLibraryConfig(Optional.of(new RuleLibraryConfig.RuleModule(module, List.of(classpath))), weights);
     }
 }

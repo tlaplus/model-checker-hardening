@@ -32,7 +32,8 @@ public final class CorpusRecords {
                     + "; restore [workflow] checkers or initialize a new corpus");
 
     /**
-     * The rewrite rules of a metamorphic corpus: their manifest pins the sources, the module and the
+     * The rule module of a corpus: the rewrites of a metamorphic corpus, or the edge guards of
+     * graph inputs otherwise (ADR 0023 §6). Its manifest pins the sources, the module and the
      * weights, since rule order and text are part of the byte encoding. Empty without rules.
      */
     public static final ReplayRecord<String> REWRITE_LIBRARY = new ReplayRecord<>(

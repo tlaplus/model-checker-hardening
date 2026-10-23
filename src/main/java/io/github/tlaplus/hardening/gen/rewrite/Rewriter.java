@@ -4,7 +4,6 @@ import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
-import at.forsyte.apalache.tla.lir.TlaType1;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
@@ -12,25 +11,20 @@ import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
-import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.OperandGenerator;
 import io.github.tlaplus.hardening.gen.ir.IrAlpha;
 import io.github.tlaplus.hardening.gen.ir.IrBinding;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaOperators;
-import org.apalache_mc.tla.jir.TlaTypeSubstitution;
-import org.apalache_mc.tla.jir.TlaTypeUnifier;
 import org.apalache_mc.tla.jir.TlaTypes;
 
 /**
@@ -79,10 +73,7 @@ public final class Rewriter {
     public Rewrite<TlaEx> rewriteExpression(TlaEx expression, Draw draw) {
         Objects.requireNonNull(expression, "expression");
         var orientation = Orientation.of(draw.drawBoolean());
-        var names = new LinkedHashSet<>(IrNames.free(expression));
-        names.addAll(IrNames.bound(expression));
-        names.addAll(IrNames.labels(expression));
-        var walk = new Walk(draw, new OperandGenerator(generation, names));
+        var walk = new Walk(draw, new OperandGenerator(generation, IrNames.used(expression)));
         var rewritten = walk.body(expression, List.of());
         return new Rewrite<>(expression, rewritten, orientation, walk.applied);
     }
@@ -104,11 +95,7 @@ public final class Rewriter {
         var names = new LinkedHashSet<String>();
         spec.variables().forEach(variable -> names.add(variable.name()));
         spec.operators().forEach(operator -> names.add(operator.declaration().name()));
-        for (var body : spec.generated()) {
-            names.addAll(IrNames.free(body));
-            names.addAll(IrNames.bound(body));
-            names.addAll(IrNames.labels(body));
-        }
+        spec.generated().forEach(body -> names.addAll(IrNames.used(body)));
         var walk = new Walk(draw, new OperandGenerator(generation, names));
 
         var variables = new ArrayList<OperandGenerator.Name>();
@@ -156,13 +143,6 @@ public final class Rewriter {
         return new Rewrite<>(spec, rewritten, orientation, walk.applied);
     }
 
-    /** One rule that applies at a node, with the plan of any type variable its match leaves open. */
-    private record Option(RuleMatch match, TlaType1 residual, Optional<Generator<TlaType1>> instantiation) {
-        int weight() {
-            return match.rule().weight();
-        }
-    }
-
     /** The state of one decoding: its cursor, its name and operand supply, and the rules applied. */
     private final class Walk {
         private final Draw draw;
@@ -204,16 +184,16 @@ public final class Rewriter {
             for (; stacked < limits.maximumRewriteDepth()
                     && rewrites < limits.maximumRewrites() && RewritePositions.rewritable(current, assigned); stacked++) {
                 var options = applicable(current);
-                var slots = options.stream().mapToInt(Option::weight).sum();
+                var slots = options.stream().mapToInt(RuleOperands.Plan::weight).sum();
                 if (slots == 0 || !draw.drawBoolean()) {
                     break;
                 }
-                var chosen = select(options, draw.drawIndex(slots, SELECTION_BYTES));
+                var chosen = RuleOperands.select(options, RuleOperands.Plan::weight, draw.drawIndex(slots, SELECTION_BYTES));
                 var replaced = current;
                 current = apply(chosen, scope);
                 bodySize += size(current) - size(replaced);
                 rewrites++;
-                applied.add(chosen.match().rule().name());
+                applied.add(chosen.rule().name());
             }
             var below = current != node ? new Stack(continued ? stack.origin() : node, stacked) : stack;
             return descend(current, scope, below);
@@ -308,8 +288,8 @@ public final class Rewriter {
         }
 
         /** Returns the rules that match at {@code node}, whose open type variables fit the limits. */
-        private List<Option> applicable(TlaEx node) {
-            var options = new ArrayList<Option>();
+        private List<RuleOperands.Plan> applicable(TlaEx node) {
+            var options = new ArrayList<RuleOperands.Plan>();
             for (var rule : library.candidates(node)) {
                 if (rule.weight() == 0) {
                     continue;
@@ -318,44 +298,16 @@ public final class Rewriter {
                     if (bodySize - size(node) + estimatedSize(match) > sizeLimit) {
                         return;
                     }
-                    var residual = residual(match);
-                    if (residual == null) {
-                        options.add(new Option(match, null, Optional.empty()));
-                    } else {
-                        operands.instantiate(residual).ifPresent(plan -> options.add(new Option(match, residual, Optional.of(plan))));
-                    }
+                    RuleOperands.planFresh(match, operands).ifPresent(options::add);
                 });
             }
             return options;
         }
 
-        private Option select(List<Option> options, int slot) {
-            var remaining = slot;
-            for (var option : options) {
-                if (remaining < option.weight()) {
-                    return option;
-                }
-                remaining -= option.weight();
-            }
-            throw new IllegalStateException("slot " + slot + " exceeds the applicable weights");
-        }
-
-        private TlaEx apply(Option option, List<OperandGenerator.Name> scope) {
-            var match = option.match();
-            var types = match.types();
-            if (option.residual() != null) {
-                var concrete = draw.draw(option.instantiation().orElseThrow());
-                types = new TlaTypeUnifier(option.residual())
-                        .unify(Optional.of(types), option.residual(), concrete)
-                        .orElseThrow(() -> new IllegalStateException("instantiation does not unify: " + concrete))
-                        .substitution();
-            }
-            var fresh = new HashMap<String, TlaEx>();
-            for (var parameter : match.rule().parameters(RuleParameter.Kind.FRESH)) {
-                fresh.put(parameter.name(), draw.draw(operands.operand(types.applyFully(parameter.type()), scope, exceptReplacements > 0)));
-            }
-            return RuleInstantiation.instantiate(match, fresh, types,
-                    name -> operands.freshName(name.replaceAll("\\d+$", "")));
+        private TlaEx apply(RuleOperands.Plan option, List<OperandGenerator.Name> scope) {
+            var drawn = RuleOperands.draw(option, draw, operands, scope, ignored -> exceptReplacements > 0);
+            return RuleInstantiation.instantiate(
+                    option.match(), drawn.values(), drawn.types(), RuleOperands.freshNames(operands));
         }
 
         /** Bounds the size of a match's replacement, before any fresh operand is drawn. */
@@ -373,24 +325,6 @@ public final class Rewriter {
 
         private int freshSize() {
             return generation.expressions().maximumNodes();
-        }
-
-        /**
-         * Returns an operator type over the type variables the match leaves open in the fresh
-         * parameters and the replacement, or null when it leaves none.
-         */
-        private TlaType1 residual(RuleMatch match) {
-            var open = new LinkedHashSet<Integer>();
-            for (var parameter : match.rule().parameters(RuleParameter.Kind.FRESH)) {
-                open.addAll(TlaTypes.usedVariables(match.types().applyFully(parameter.type())));
-            }
-            TlaExpressions.forEach(match.rule().replacement(),
-                    node -> open.addAll(TlaTypes.usedVariables(match.types().applyFully(TlaTypes.typeOf(node)))));
-            if (open.isEmpty()) {
-                return null;
-            }
-            return TlaTypes.operator(TlaTypes.BOOL,
-                    open.stream().map(TlaTypes::typeVariable).toArray(TlaType1[]::new));
         }
     }
 

@@ -428,7 +428,6 @@ and the aggregator's policy differ:
 ### 1.5. Graph-based testing of TLC and Apalache
 
 **Implemented architectural extension** ([ADR 0023][]; [manual][graph manual]).
-Tautological edge guards, the ADR's stage 2, are not implemented yet.
 
 In this workflow, the goal is a test suite whose verdicts are known without a second
 checker. Each input decodes to a control graph (V, E) over the nodes `0..N-1` and a
@@ -438,6 +437,9 @@ of u and sets `pc' = v`, and the invariant is `pc /= k` for a target k. Every ed
 leaving the current node is enabled while the step counter is below its bound B, so a
 counterexample exists exactly when the breadth-first distance d from node 0 to k is at
 most B, and its shortest trace has d transitions ([ir-generators.md §12](ir-generators.md#12-graph-generation)).
+When `[graph] rules` names a rule module, each edge also conjoins up to `max_guards`
+tautologies, instances `A = B` of its rules; a checker that evaluates one to `FALSE`
+disables the edge and contradicts the prediction.
 The test suite contains three kinds of test inputs:
 
 - **Positive tests.** Every checker reports the predicted verdict.
@@ -464,6 +466,9 @@ differ:
   Storage keeps only the bytes.
 - **Checkers.** The prediction is the oracle, so a corpus that runs one checker is
   meaningful.
+- **Guard rules.** `workflow.library.RuleLibraryPreparation` loads the `[graph]` rule
+  module as it loads the `[metamorphic]` one, and `.rewrite-library` pins it. A `pbt`
+  corpus prepares it too, since it may hold graph entries; `mt` ignores it.
 - **Candidate sources and quality gate.** PBT and the mutator apply unchanged; there
   is no adoption. The gate is unchanged, and `pc` counts as state in the projected
   metrics.

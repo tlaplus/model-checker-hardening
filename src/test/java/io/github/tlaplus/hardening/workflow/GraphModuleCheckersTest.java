@@ -4,17 +4,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.OperEx;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
+import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.library.ShippedRules;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -22,6 +27,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.apalache_mc.tla.jir.TlaExpressions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -48,7 +54,23 @@ class GraphModuleCheckersTest {
 
     @Test
     void theCheckersReportTheOutcomeTheGraphPredicts(@TempDir Path directory) throws Exception {
-        var samples = samples(4, 3);
+        assertPredicted(samples(IrGenerators.graphs(IrGenerationConfig.defaults()), 4, 3), directory);
+    }
+
+    /**
+     * Tautological guards from the shipped rules leave the prediction unchanged (ADR 0023 §6), so
+     * both checkers evaluate every guard on a shortest path to TRUE.
+     */
+    @Test
+    void guardedEdgesLeaveTheOutcomeAsTheGraphPredicts(@TempDir Path directory) throws Exception {
+        var samples = samples(IrGenerators.graphs(IrGenerationConfig.defaults(), new Tautologies(ShippedRules.library())), 4, 3);
+        // An edge conjoins step < B, pc = u, Node<u>, pc' = v and the step update besides its guards.
+        assertTrue(samples.stream().flatMap(graph -> TlaIrTestSupport.disjuncts(graph.spec().nextAction()).stream())
+                .anyMatch(edge -> TlaExpressions.arguments((OperEx) edge).size() > 5), "no sample has a guard");
+        assertPredicted(samples, directory);
+    }
+
+    private static void assertPredicted(List<GeneratedGraph> samples, Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), "");
         var counterexamples = 0;
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
@@ -92,8 +114,8 @@ class GraphModuleCheckersTest {
     }
 
     /** Decodes graphs until it has {@code reachable} targets at least {@link #DEEP} steps away and {@code unreachable} missed ones. */
-    private static List<GeneratedGraph> samples(int reachable, int unreachable) throws Exception {
-        var generator = IrGenerators.graphs(IrGenerationConfig.defaults());
+    private static List<GeneratedGraph> samples(Generator<GeneratedGraph> generator, int reachable, int unreachable)
+            throws Exception {
         // As admission does, leave out the inputs that a recorded defect would decide.
         var knownDefects = KnownDefectDatabase.load(List.of(Path.of("signatures/all-defects.toml")));
         var random = new Random(0x67b7L);

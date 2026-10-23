@@ -74,6 +74,17 @@ public final class IrNames {
     }
 
     /**
+     * Returns every name {@code expression} reads, binds or labels, which a name drawn for a new
+     * binder or label must avoid.
+     */
+    public static Set<String> used(TlaEx expression) {
+        var used = new LinkedHashSet<>(free(expression));
+        used.addAll(bound(expression));
+        used.addAll(labels(expression));
+        return Set.copyOf(used);
+    }
+
+    /**
      * Renames every label that repeats the name of a label visited before it, bottom-up, to a name
      * from {@code fresh}, so that no two labels of the result share a name. SANY rejects a
      * definition with two labels of one name, which a copied subexpression would otherwise have.

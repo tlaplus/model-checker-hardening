@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.gen.engine.EdgeGuards;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.graph.TransitionGraph;
 import java.util.ArrayList;
@@ -19,12 +20,14 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaOperators;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
 /** The graph decoder of ADR 0023 §2–§4. */
@@ -209,7 +212,7 @@ class IrGraphGeneratorsTest {
 
     @Test
     void theStepCapCutsOffTheUpperHalfOfTheSpine() {
-        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 5));
+        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 5, 2));
         var random = new Random(0xb0d);
         for (var sample = 0; sample < 200; sample++) {
             var input = new byte[random.nextInt(8, 256)];
@@ -223,8 +226,8 @@ class IrGraphGeneratorsTest {
 
     @Test
     void graphLimitsBoundNodesAndExtraSuccessors() {
-        var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 1, 3, 32));
-        var spineOnly = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(4, 40, 0, 40));
+        var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 1, 3, 32, 2));
+        var spineOnly = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(4, 40, 0, 40, 2));
         var random = new Random(0x11);
         for (var sample = 0; sample < 200; sample++) {
             var input = new byte[random.nextInt(256)];
@@ -237,6 +240,96 @@ class IrGraphGeneratorsTest {
             assertEquals(chain.graph().nodeCount() - 1, chain.graph().edges().size());
             assertEquals(OptionalInt.of(chain.target()), chain.graph().distance(chain.target()));
         }
+    }
+
+    /** A guard source that draws any Boolean operand: the engine places it as it places a tautology. */
+    private static final EdgeGuards BOOLEAN_GUARDS =
+            (operands, scope) -> Optional.of(operands.operand(TlaTypes.BOOL, scope, false));
+
+    /**
+     * Each edge conjoins at most max_guards guards between its pc test and its node action, and a
+     * guard reads what a node action reads: neither pc nor step.
+     */
+    @Test
+    void guardsFollowThePcTestOfTheirEdgeAndReadNeitherPcNorStep() {
+        var config = IrGenerationConfig.defaults();
+        var random = new Random(0x6a2d);
+        var guards = 0;
+        for (var sample = 0; sample < 300; sample++) {
+            var input = new byte[16 + random.nextInt(496)];
+            random.nextBytes(input);
+            final GeneratedGraph graph;
+            try {
+                graph = IrGenerators.graphs(config, BOOLEAN_GUARDS).generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            var edges = graph.graph().edges();
+            var disjuncts = disjuncts(graph.spec().nextAction());
+            assertEquals(edges.size(), disjuncts.size());
+            for (var index = 0; index < edges.size(); index++) {
+                var conjuncts = TlaExpressions.arguments((OperEx) disjuncts.get(index));
+                var edge = edges.get(index);
+                assertEquals("pc = " + edge.source(), print(conjuncts.get(1)));
+                assertEquals("Node" + edge.source(), print(conjuncts.get(conjuncts.size() - 3)));
+                var edgeGuards = conjuncts.subList(2, conjuncts.size() - 3);
+                assertTrue(edgeGuards.size() <= config.graphs().maximumGuards(), edgeGuards.toString());
+                for (var guard : edgeGuards) {
+                    var reads = new ArrayList<String>();
+                    collectFreeReads(guard, Set.of(PC, STEP), reads, false);
+                    assertTrue(reads.isEmpty(), "a guard reads " + reads + ": " + print(guard));
+                }
+                guards += edgeGuards.size();
+            }
+            TlaIrTestSupport.assertLabelParameters(graph.spec().nextAction());
+        }
+        assertTrue(guards > 1000, "too few guards to be conclusive: " + guards);
+    }
+
+    /**
+     * The guard section is one cursor in edge order, so a short input guards the edges leaving
+     * node 0, where every path to the target starts, rather than those of the last node.
+     */
+    @Test
+    void guardsAreReadInEdgeOrderFromNodeZero() {
+        var graphs = IrGenerators.graphs(IrGenerationConfig.defaults(), BOOLEAN_GUARDS);
+        var random = new Random(0x0e0);
+        var first = 0;
+        var last = 0;
+        var samples = 0;
+        for (var sample = 0; sample < 300; sample++) {
+            var input = new byte[16 + random.nextInt(112)];
+            random.nextBytes(input);
+            var disjuncts = disjuncts(graphs.generate(input).spec().nextAction());
+            first += TlaExpressions.arguments((OperEx) disjuncts.getFirst()).size() > 5 ? 1 : 0;
+            last += TlaExpressions.arguments((OperEx) disjuncts.getLast()).size() > 5 ? 1 : 0;
+            samples++;
+        }
+        // The first list marker starts a guard on about half the inputs.
+        assertTrue(first > samples / 3, "edges leaving node 0 with a guard: " + first + " of " + samples);
+        assertTrue(last < first / 4, "edges of the last node with a guard: " + last + ", of node 0: " + first);
+    }
+
+    /** With max_guards = 0 the guard section still takes its share, but no edge has a guard. */
+    @Test
+    void noEdgeHasAGuardUnderAZeroMaximum() {
+        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 32, 0));
+        var random = new Random(0x0a);
+        for (var sample = 0; sample < 50; sample++) {
+            var input = new byte[16 + random.nextInt(496)];
+            random.nextBytes(input);
+            var graph = IrGenerators.graphs(config, BOOLEAN_GUARDS).generate(input);
+            for (var disjunct : disjuncts(graph.spec().nextAction())) {
+                assertEquals(5, TlaExpressions.arguments((OperEx) disjunct).size(), print(disjunct));
+            }
+        }
+    }
+
+    @Test
+    void guardedGenerationIsDeterministic() {
+        var input = new byte[] {7, 1, 3, 1, 9, 0, 5, 12, 1, 8, 0, 33, 91, 4, 17, 1, 1, 2, 1, 0, 44, 2, 9, 1, 1, 7};
+        var graphs = IrGenerators.graphs(IrGenerationConfig.defaults(), BOOLEAN_GUARDS);
+        assertEquals(render(graphs.generate(input)), render(graphs.generate(input)));
     }
 
     @Test

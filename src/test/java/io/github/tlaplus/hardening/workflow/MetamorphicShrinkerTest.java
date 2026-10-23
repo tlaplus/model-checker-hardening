@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
-import io.github.tlaplus.hardening.config.MetamorphicConfig;
+import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.InputKind;
@@ -22,8 +22,6 @@ import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -63,8 +61,7 @@ class MetamorphicShrinkerTest {
         Files.writeString(rules.resolve("Wrong.tla"),
                 "---- MODULE Wrong ----\nEXTENDS Integers\nPlusOne(x) == x = x + 1\n====\n");
         var library = RuleLibraryPreparation.prepare(
-                new MetamorphicConfig(Optional.of(new MetamorphicConfig.RuleModule("Wrong", List.of(rules))),
-                        Map.of(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()),
+                RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule("Wrong", List.of(rules))),
                 CheckerProfile.APALACHE.defaults()).library();
         var decoders = SpecDecoders.metamorphic(IrGenerationConfig.defaults(),
                 new Rewriter(library, IrGenerationConfig.defaults(), RewriteLimits.defaults()));

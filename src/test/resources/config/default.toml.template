@@ -172,3 +172,13 @@ max_extra_successors = 2
 # Cap on the step bound of a graph input, which each input draws between half its
 # node count and its node count minus one. Defaults to max_graph_nodes.
 # max_steps = 32
+# Maximum tautological guards of one edge, drawn from the rule module that rules
+# names (ADR 0023 §6). Without rules, edges have no guards.
+max_guards = 2
+# Rule module of the edge guards of graph inputs, relative to this config file
+# (ADR 0023 §6): each guard is an instance A = B of one of its rules. Setting it
+# changes how every graph input decodes.
+# rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }
+# Selection slots per guard rule, overriding the rule's @weight annotation; a rule
+# with neither has weight 1, and 0 disables it.
+weights = {}

@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.rewrite;
 
+import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
@@ -9,11 +10,17 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 
 /**
- * One rewrite rule {@code F(p1, ..., pn) == A = B} of a rule module (ADR 0017 §2): the rewriter
- * replaces an instance of {@code pattern} (A) with the same instance of {@code replacement} (B).
+ * One rewrite rule {@code F(p1, ..., pn) == A = B} or {@code A <=> B} of a rule module (ADR 0017
+ * §2): the rewriter replaces an instance of {@code pattern} (A) with the same instance of {@code
+ * replacement} (B). Every instance of the formula is valid, so an edge guard of a graph module may
+ * conjoin one (ADR 0023 §6).
  *
+ * @param formula {@code A = B} or {@code A <=> B}, as the rule declares it, where B has its LET
+ *     definitions specialized
  * @param weight the number of selection slots the rule takes when it applies; 0 disables it
  * @param unlabelled the parameters the replacement places where a label of their binding is
  *     invalid, see {@link LabelPlacement}
@@ -23,19 +30,29 @@ import java.util.Set;
 public record RewriteRule(
         String name,
         int weight,
-        TlaEx pattern,
-        TlaEx replacement,
+        OperEx formula,
         List<RuleParameter> parameters,
         AssignmentFacts assignments,
         Set<String> unlabelled) {
     public RewriteRule {
         Objects.requireNonNull(name, "name");
         Preconditions.requireNonnegative(weight, "weight");
-        Objects.requireNonNull(pattern, "pattern");
-        Objects.requireNonNull(replacement, "replacement");
+        Objects.requireNonNull(formula, "formula");
+        Preconditions.require((formula.oper() == TlaOperators.EQ || formula.oper() == TlaOperators.EQUIV)
+                && TlaExpressions.arguments(formula).size() == 2, "a rule's formula must be A = B or A <=> B");
         parameters = List.copyOf(Objects.requireNonNull(parameters, "parameters"));
         Objects.requireNonNull(assignments, "assignments");
         unlabelled = Set.copyOf(Objects.requireNonNull(unlabelled, "unlabelled"));
+    }
+
+    /** Returns A, the side the rewriter matches. */
+    public TlaEx pattern() {
+        return TlaExpressions.arguments(formula).getFirst();
+    }
+
+    /** Returns B, the side the rewriter substitutes for a match of A. */
+    public TlaEx replacement() {
+        return TlaExpressions.arguments(formula).getLast();
     }
 
     /** Returns the parameter of this name, if the rule declares one. */

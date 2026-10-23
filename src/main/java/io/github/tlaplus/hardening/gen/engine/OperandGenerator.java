@@ -11,13 +11,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Draws expressions for a rewrite that leaves an operand open (ADR 0017 §3): a fresh parameter is
- * drawn by the ordinary expression factory, at its type, in the lexical scope of the rewritten
- * node, and in the state-level context, so a fresh operand adds no prime.
+ * Draws expressions for a rewrite that leaves an operand open (ADR 0017 §3), and for the
+ * parameters of an edge guard of a graph module (ADR 0023 §6): an operand is drawn by the ordinary
+ * expression factory, at its type, in the lexical scope of the rewritten node or the edge, and in
+ * the state-level context, so an operand adds no prime.
  *
- * <p>One instance serves one rewritten module. Its name supply continues above every numeric
- * suffix the module already uses, so a binder of a fresh operand never captures or shadows a name
- * of the module.
+ * <p>One instance serves one rewritten or guarded module. Its name supply continues above every
+ * numeric suffix the module already uses, so a binder of an operand never captures or shadows a
+ * name of the module.
  */
 public final class OperandGenerator {
     /** What a name in scope denotes. */
@@ -42,6 +43,16 @@ public final class OperandGenerator {
             Objects.requireNonNull(name, "name");
             Objects.requireNonNull(type, "type");
             Objects.requireNonNull(kind, "kind");
+        }
+
+        /** Returns the name a generator of this package has in scope. */
+        static Name of(ScopedName scoped) {
+            for (var kind : Kind.values()) {
+                if (kind.scoped == scoped.kind()) {
+                    return new Name(scoped.name(), scoped.type().toTlaType(), kind);
+                }
+            }
+            throw new IllegalArgumentException("no operand kind for " + scoped.kind());
         }
     }
 
