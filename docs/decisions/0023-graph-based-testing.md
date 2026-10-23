@@ -35,6 +35,10 @@ these details:
 - The guard section is one cursor over the edges in edge order, not N slices aligned
   with the nodes, and each guard reads at most 8 bytes of it. Probe 3 found the
   slices left 81% of the paths to a reachable target unguarded (section 6).
+- For the same reason, the edge section is one cursor in node order, and the node
+  section is split into slices filled in node order, of at least 8 bytes each
+  (section 3). This changed the encoding of every graph entry, so corpora from
+  before it decode to other graphs.
 - A rule guards an edge only when it has a positive weight, no action-level operator,
   no higher-order parameter, which no drawn value fills, and no helper, which the
   module does not link. `gen.rewrite.Tautologies` implements `gen.engine.EdgeGuards`,
@@ -188,12 +192,14 @@ The rest of the payload splits into the weighted sections of `GraphSection`, thr
 2. **Variables** (weight 1). As `ModuleSection.VARIABLES`.
 3. **Auxiliary operators** (2). As `ModuleSection.AUXILIARY_OPERATORS`.
 4. **Init** (2). One assignment per data variable.
-5. **Edges** (2). N equal slices. `succ(u)` is the spine successor u + 1, byte-free,
-   followed by slice u: a terminated list of at most `max_extra_successors` extra
-   successors, each `drawLong(0, min(u + 2, N - 1))`, a back edge, a self-loop or a
-   forward skip of at most two nodes. Duplicates collapse, byte-free. A one-node
-   graph's spine is the self-loop `0 -> 0`.
-6. **Nodes** (8). N equal slices; slice u decodes `Node<u>` with a fresh node budget.
+5. **Edges** (2). One cursor, read in node order. `succ(u)` is the spine successor
+   u + 1, byte-free, followed by a terminated list of at most `max_extra_successors`
+   extra successors, each `drawLong(0, min(u + 2, N - 1))`, a back edge, a self-loop
+   or a forward skip of at most two nodes. Duplicates collapse, byte-free. A one-node
+   graph's spine is the self-loop `0 -> 0`. Bytes left after node N - 1 are unused.
+6. **Nodes** (8). N slices filled in node order, each of `max(8, L / N)` bytes of the
+   section's L while bytes remain, the last taking the remainder; slice u decodes
+   `Node<u>` with a fresh node budget.
 7. **Guards** (weight 4). Present only when `[graph] rules` is set, so stage-1 entries
    decode alike, as the property section does (§9.1): without rules the section's
    weight is 0. One cursor over the edges in edge order; section 6 specifies it.
@@ -205,13 +211,23 @@ from changing the graph. The spine replaces uniform random successors, under whi
 the part of a graph reachable from node 0 had about 4 nodes even for N ≤ 30, and
 forward edges are bounded because a long skip shortens every path behind it.
 
+The edge and node sections were first split into N equal slices. `WeightedSlices`
+gives each of N slices ⌊L/N⌋ bytes and the last the remainder, so a section shorter
+than N gave its every byte to node N - 1, and admitted inputs are short: in a campaign
+of 3000 entries, 51 bytes at the median. 1915 of its 2138 extra edges left the last
+node, 1675 entries had none, and the median entry had 2 distinct node actions among 29
+nodes. Read from node 0 on, a short input spends its bytes where every path to the
+target starts, and a long one is divided as before.
+
 Exhausted input decodes to the bare spine of `min_graph_nodes` nodes, one data
 variable, no extra edge, k = ⌈N/2⌉ and B = ⌊N/2⌋, both 10 by default: a
 counterexample of 10 transitions.
 
 **Deviation from [ir-generators.md §1][generators].** `graph` is a third encoding,
 independent of `expr` and `module` ([ir-generators.md §12][generators]). Requirement 3
-holds within a slice; a mutation of N re-slices the edge and node sections.
+holds within a node's slice; a mutation of N re-slices the node section, and a
+mutation of the edge section that changes the length of one node's list shifts the
+lists of the nodes after it.
 
 ### 4. Expected outcome
 

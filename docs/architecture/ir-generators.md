@@ -1155,23 +1155,31 @@ rules, so the other slices are those of an unguarded decoder:
 1. **Variables** and 2. **auxiliary operators**, as for a module (section 9.1);
    `pc : Int` and `step` are appended to the data variables.
 3. **Init**: one `v = e` per data variable, then `pc = 0 /\ step = 0`.
-4. **Edges**: N equal slices; slice u is a terminated list of at most
+4. **Edges**: one cursor in node order; node u reads a terminated list of at most
    `maximumExtraSuccessors` extra successors of u, each `drawLong(0, min(u + 2, N - 1))`:
    a back edge, a self-loop or a forward skip of at most two nodes. Node u's
    successors are its spine successor u + 1, byte-free, then the extras, with repeats
    removed in order. A one-node graph's spine is the self-loop `0 -> 0`.
-5. **Nodes**: N equal slices; slice u decodes the action of node u.
+5. **Nodes**: N slices filled in node order, `WeightedSlices.filled`, each of
+   `max(NODE_BYTES, L / N)` bytes while bytes remain and the last taking the remainder;
+   slice u decodes the action of node u. `NODE_BYTES` is 8.
 6. **Guards**, only with `[graph] rules`: one cursor over the edges in edge order; for
    each edge, a terminated list of at most `maximumGuards` guards, each reading at most
    8 bytes (section 12.2). A short section guards the edges leaving node 0 first, where
    every path to the target starts; N equal slices would give it all to the last node.
+
+Both per-node sections are read from node 0 on. An equal split gives each of N slices
+⌊L/N⌋ bytes and the last the remainder, so a short section, the common case among
+admitted inputs, would give all its bytes to node N - 1, which is rarely on a path to
+the target.
 
 Forward edges are bounded because a long forward skip shortens every path behind it:
 with uniform random successors, the part of the graph reachable from node 0 had about
 4 nodes and depth 2 even for N ≤ 30. The successor lists have a section of their own
 because, in one slice with the action, the action's expressions consumed the bytes
 the successors follow. Separate sections also keep a mutation of an action from
-changing the graph. A mutation of N re-slices both sections.
+changing the graph. A mutation of N re-slices the node section; a mutation that
+changes the length of one node's successor list shifts the lists after it.
 
 ### 12.2. Module
 

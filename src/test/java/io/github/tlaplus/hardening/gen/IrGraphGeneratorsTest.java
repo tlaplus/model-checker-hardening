@@ -20,6 +20,7 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
@@ -70,20 +71,23 @@ class IrGraphGeneratorsTest {
         assertEquals(OptionalInt.empty(), graph.targetDistance(), "the target lies past the bound");
     }
 
-    /** Two seeded inputs pin the graph encoding: header, sections and successor lists. */
+    /**
+     * Two seeded inputs pin the graph encoding: header, sections and successor lists. The edge
+     * section is read from node 0 on, so their extra edges leave the first nodes.
+     */
     @Test
     void pinnedInputsDecodeToTheirGraphs() {
         var reachable = generate(Base64.getDecoder().decode(
                 "twK3Z5oy8TbTkAb9wYuzFHMpwlzGtOkJ9TTY0FCUS35DEyVP5mzis4LBJFUQf8gfCFik71m/Q/vpvjaCRKfi+lnHO/pwU2NurcJDhHleeHrLQ6pgZIe/QkQG2q6SA/hf"));
-        assertEquals(spineWith(21, 20, List.of(16, 20)), reachable.graph());
+        assertEquals(spineWith(21, Map.of(0, List.of(2), 3, List.of(0), 4, List.of(2))), reachable.graph());
         assertEquals(13, reachable.target());
         assertEquals(17, reachable.spec().stepBound());
-        assertEquals(OptionalInt.of(13), reachable.targetDistance());
+        assertEquals(OptionalInt.of(12), reachable.targetDistance(), "0 -> 2 skips a spine edge");
         assertEquals(List.of("var0", PC, STEP), variableNames(reachable.spec()));
 
         var unreachable = generate(Base64.getDecoder().decode(
                 "xuMyj4M+XP3YSExXCbAzm6jCGPK2ytiUY96SNVtDZ3khO3h1N7IjxkxthXSDmUWHCnrEoQ/XwRjAYctU4yxPsR8paNs/wATtZyKHe2rznVW+dN9tOCb938gVvH0qgl33"));
-        assertEquals(spineWith(23, 22, List.of(5, 9)), unreachable.graph());
+        assertEquals(spineWith(23, Map.of(0, List.of(0), 3, List.of(1), 4, List.of(0))), unreachable.graph());
         assertEquals(19, unreachable.target());
         assertEquals(13, unreachable.spec().stepBound());
         assertEquals(OptionalInt.empty(), unreachable.targetDistance());
@@ -240,6 +244,41 @@ class IrGraphGeneratorsTest {
             assertEquals(chain.graph().nodeCount() - 1, chain.graph().edges().size());
             assertEquals(OptionalInt.of(chain.target()), chain.graph().distance(chain.target()));
         }
+    }
+
+    /**
+     * The edge and node sections are read from node 0 on, so a short input gives extra edges and
+     * actions to the first nodes, where every path starts, rather than every byte to the last node.
+     */
+    @Test
+    void shortInputsSpendTheirBytesOnTheFirstNodes() {
+        var random = new Random(0x5a0);
+        var early = 0;
+        var last = 0;
+        var richerFirst = 0;
+        var richerLast = 0;
+        for (var sample = 0; sample < 300; sample++) {
+            var input = new byte[16 + random.nextInt(112)];
+            random.nextBytes(input);
+            var graph = generate(input);
+            var successors = graph.graph().successors();
+            var nodes = successors.size();
+            for (var node = 0; node < nodes; node++) {
+                var extra = successors.get(node).size() - (node + 1 < nodes ? 1 : 0);
+                if (node < nodes / 2) {
+                    early += extra;
+                } else if (node == nodes - 1) {
+                    last += extra;
+                }
+            }
+            var bodies = actionOperatorBodies(graph.spec());
+            var first = print(bodies.get("Node0")).length();
+            var final_ = print(bodies.get("Node" + (nodes - 1))).length();
+            richerFirst += first > final_ ? 1 : 0;
+            richerLast += final_ > first ? 1 : 0;
+        }
+        assertTrue(early > 10 * Math.max(last, 1), "extra edges of the first half: " + early + ", of the last node: " + last);
+        assertTrue(richerFirst > 3 * richerLast, "Node0 richer: " + richerFirst + ", last node richer: " + richerLast);
     }
 
     /** A guard source that draws any Boolean operand: the engine places it as it places a tautology. */
@@ -410,17 +449,15 @@ class IrGraphGeneratorsTest {
         return normalized(expression).matches(".*\\w' \\\\in .*");
     }
 
-    /** A spine of {@code nodes} nodes whose node {@code node} has {@code extra} after its spine successor. */
-    private static TransitionGraph spineWith(int nodes, int node, List<Integer> extra) {
+    /** A spine of {@code nodes} nodes where each node of {@code extra} has those successors after its spine successor. */
+    private static TransitionGraph spineWith(int nodes, Map<Integer, List<Integer>> extra) {
         var successors = new ArrayList<List<Integer>>();
         for (var u = 0; u < nodes; u++) {
             var targets = new ArrayList<Integer>();
             if (u + 1 < nodes) {
                 targets.add(u + 1);
             }
-            if (u == node) {
-                extra.stream().filter(target -> !targets.contains(target)).forEach(targets::add);
-            }
+            extra.getOrDefault(u, List.of()).stream().filter(target -> !targets.contains(target)).forEach(targets::add);
             successors.add(targets);
         }
         return new TransitionGraph(successors);

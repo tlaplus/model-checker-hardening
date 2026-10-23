@@ -121,7 +121,7 @@ class GraphModuleCheckersTest {
         var random = new Random(0x67b7L);
         var reached = new ArrayList<GeneratedGraph>();
         var missed = new ArrayList<GeneratedGraph>();
-        for (var attempt = 0; attempt < 2000 && (reached.size() < reachable || missed.size() < unreachable); attempt++) {
+        for (var attempt = 0; attempt < 6000 && (reached.size() < reachable || missed.size() < unreachable); attempt++) {
             var input = new byte[256 + random.nextInt(768)];
             random.nextBytes(input);
             final GeneratedGraph graph;
