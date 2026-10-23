@@ -1,6 +1,6 @@
 # `IrGenerators`
 
-`io.github.tlaplus.hardening.gen` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/gen/IrGenerators.java#L68) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/src/main/java/io/github/tlaplus/hardening/gen/IrGenerators.java#L69) · module [gen](../modules/gen.md)
 
 Factory methods for deterministic generators of type-checked Apalache IR expressions.
 
@@ -18,22 +18,27 @@ classDiagram
   class IrGenerationConfig {
     <<config>>
   }
+  class EdgeGuards {
+    <<contract>>
+  }
   class GeneratedGraph {
     <<model>>
   }
   IrGenerators ..> GeneratedSpec : uses
   IrGenerators ..> Generator : uses
   IrGenerators ..> IrGenerationConfig : uses
+  IrGenerators ..> EdgeGuards : uses
   IrGenerators ..> GeneratedGraph : uses
 ```
 
-The diagram draws 4 of 9 relations; the table lists them all.
+The diagram draws 5 of 10 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | uses | [GeneratedSpec](io.github.tlaplus.hardening.gen.GeneratedSpec.md) | The declarations one generated module consists of. |
 | → | uses | [Generator](io.github.tlaplus.hardening.gen.Generator.md) | A composable recipe for decoding a value from a shared `Draw` cursor. |
 | → | uses | [IrGenerationConfig](io.github.tlaplus.hardening.gen.IrGenerationConfig.md) | Settings for generated TLA+ expressions and modules. |
+| → | uses | [EdgeGuards](io.github.tlaplus.hardening.gen.engine.EdgeGuards.md) | Draws the tautological guards that a graph module conjoins to its edges (ADR 0023 §6). |
 | → | uses | [GeneratedGraph](io.github.tlaplus.hardening.gen.graph.GeneratedGraph.md) | A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names. |
 | → | depends | [Draw](io.github.tlaplus.hardening.gen.Draw.md) | A forward-only deterministic cursor that decodes structured choices from an unstructured byte array. |
 | → | depends | [IrGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine.md) | Reusable coordinator for type-directed IR-expression generation. |

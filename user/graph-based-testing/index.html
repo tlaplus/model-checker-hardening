@@ -1354,7 +1354,6 @@
 
 
 <h1 id="graph-based-testing">Graph-based testing<a class="headerlink" href="#graph-based-testing" title="Permanent link">&para;</a></h1>
-<p>Tautological guards on edges (section 4) are not implemented yet.</p>
 <p>A graph-based campaign generates modules whose control structure is a directed graph
 of 20 to 32 nodes. A spine <code>0 -&gt; 1 -&gt; ... -&gt; N-1</code> makes it up to N - 1 steps deep, and
 extra edges add loops, cycles and short skips. A variable <code>pc</code> holds the current node. Each node assigns new values to the data
@@ -1362,7 +1361,8 @@ variables, and each edge runs its source node's assignments and moves <code>pc</
 target. The invariant is <code>pc /= k</code> for one target node k. Because every edge is
 enabled, FuzzTLA knows from the graph whether a checker must report a counterexample,
 and how long it must be. A checker that disagrees has a defect, even when the other
-checker agrees with it.</p>
+checker agrees with it. Optionally, edges carry tautological guards (section 4), which
+a correct checker always evaluates to <code>TRUE</code>.</p>
 <h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--corpus<span class="w"> </span>corpus-gbt
 <span class="c1"># edit corpus-gbt/config.toml as below</span>
@@ -1386,6 +1386,8 @@ checker agrees with it.</p>
 <span class="n">max_graph_nodes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span>
 <span class="n">max_extra_successors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
 <span class="c1"># max_steps = 32              # cap on each input's own step bound</span>
+<span class="n">rules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Rewrites"</span><span class="p">,</span><span class="w"> </span><span class="n">classpath</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../libraries/rewrites"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w">  </span><span class="c1"># edge guards, section 4</span>
+<span class="n">max_guards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
 </code></pre></div>
 <ul>
 <li><strong>The technique is fixed.</strong> The first run records <code>gbt</code> in <code>.technique</code>; later runs
@@ -1484,24 +1486,46 @@ is 19 steps away and its bound is 13.</p>
   the oracle.</li>
 </ul>
 <h2 id="4-tautological-guards">4. Tautological guards<a class="headerlink" href="#4-tautological-guards" title="Permanent link">&para;</a></h2>
-<p><strong>Proposed</strong> (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0023-graph-based-testing.md">ADR 0023</a> §6). Each edge
-would carry guards that are always true, built from the rules of a
-<a href="../metamorphic-testing/#5-writing-rules">rewrite-rule module</a>. The rule
-<code>UnionSelf(S) == S = S \union S</code> with <code>S := var1</code> yields the guard below:</p>
+<p>With <code>[graph] rules</code>, each edge conjoins up to <code>max_guards</code> guards after <code>pc = u</code>. A
+guard is an instance of a rule <code>F(x, y) == A = B</code> of a
+<a href="../metamorphic-testing/#5-writing-rules">rewrite-rule module</a>, with every parameter
+drawn as an expression over the data variables. The rule <code>UnionSelf(S) == S = S \union
+S</code> with <code>S := var1</code> yields the guard below:</p>
 <div class="highlight"><pre><span></span><code>\/ step &lt; 5 /\ pc = 1 /\ var1 = var1 \union var1 /\ Node1 /\ pc' = 0 /\ step' = step + 1
 </code></pre></div>
-<p>A checker that evaluates a guard to <code>FALSE</code> disables the edge, and then reports a
-pass or a longer trace than expected.</p>
+<ul>
+<li><strong>The expected outcome does not change.</strong> Every rule is valid, so a guard holds in
+  every state. A checker that evaluates one to <code>FALSE</code> disables the edge, and then
+  reports a pass or a longer trace than expected.</li>
+<li><strong>Some rules do not guard.</strong> A rule with an action-level operator, such as
+  <code>UnchangedPrime</code>, a higher-order parameter, such as <code>P(_)</code> in <code>ForallNotExists</code>, or
+  a helper definition is left out. <code>[graph] weights</code> reweighs the rest as
+  <code>[metamorphic] weights</code> does.</li>
+<li><strong>The rules are part of the encoding.</strong> Guards take a section of the input of their
+  own, so setting <code>rules</code> changes how every graph input decodes. The first run records
+  the rule module in <code>.rewrite-library</code>, and later runs refuse another one.</li>
+<li><strong>A <code>pbt</code> corpus with graph entries</strong> decodes them with the same guards.</li>
+<li><strong>Guards start at node 0.</strong> The guard bytes, about a fifth of the input, are read
+  edge by edge from node 0, at most 8 bytes per guard, so a short input guards the
+  first edges of every path to the target. In a campaign whose inputs had 31 bytes at
+  the median, 97% of the entries had a guard, but at most 8.</li>
+</ul>
 <h2 id="5-triage">5. Triage<a class="headerlink" href="#5-triage" title="Permanent link">&para;</a></h2>
 <p>Most entries of <code>03aggregator-fail</code> are conformance differences, as in a <code>pbt</code>
 corpus: TLC fails on a partial term where Apalache picks a value. An entry is a
 graph-oracle failure when the checkers report the same verdict, or the same failure
 status, and <code>print</code> shows another expected outcome. Compare the checkers' verdicts
 and <code>traceLength</code> (<code>print --envelope</code>) with the <code>expected:</code> line.</p>
+<p>In a guarded corpus, such an entry points at a guard on a shortest path to the target:
+a checker evaluated it to <code>FALSE</code>. Evaluate the guard alone, in the state the trace
+reaches before the edge, to tell a checker defect from an unsound rule. A partial term
+in a guard, such as a function applied outside its domain, can make Apalache pick
+different values for its copies in A and B, as under metamorphic testing; the
+known-defect signatures cover those cases.</p>
 <h2 id="6-limitations">6. Limitations<a class="headerlink" href="#6-limitations" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Only <code>pc</code> and trace lengths are predicted. A wrong value of a data variable is
-  found only through conformance.</li>
+  found only through conformance, or through a guard that reads it.</li>
 <li>Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
   steps long, and one in four was 20 or more.</li>
 <li><code>--how=mt</code> does not rewrite <code>graph</code> entries.</li>

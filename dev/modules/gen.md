@@ -19,7 +19,7 @@ flowchart TB
   gen_ir["gen.ir"]
   gen_library["gen.library"]
   gen_rewrite["gen.rewrite"]
-  gen -->|1| gen_engine
+  gen -->|2| gen_engine
   gen_graph -->|1| gen
   gen_library -->|4| gen
 ```
@@ -121,6 +121,7 @@ classDiagram
 | [BuilderArrays](../types/io.github.tlaplus.hardening.gen.engine.BuilderArrays.md) | class | other | Array conversions for the builder's generic varargs APIs. |
 | [ConstantType](../types/io.github.tlaplus.hardening.gen.engine.ConstantType.md) | record | other | Model-value type. |
 | [CustomExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.CustomExpressionKind.md) | record | other | One configured operator kind; its type scheme comes from the immutable prepared library. |
+| [EdgeGuards](../types/io.github.tlaplus.hardening.gen.engine.EdgeGuards.md) | interface | contract | Draws the tautological guards that a graph module conjoins to its edges (ADR 0023 §6). |
 | [ExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.ExpressionKind.md) | interface | other | A selectable expression form grouped by the component that constructs it. |
 | [**ExpressionKindCatalog** ★](../types/io.github.tlaplus.hardening.gen.engine.ExpressionKindCatalog.md) | class | model | The catalog of every expression form, in decoder order. |
 | [Field](../types/io.github.tlaplus.hardening.gen.engine.Field.md) | record | other | Named component of a record or variant type. |
@@ -144,7 +145,7 @@ classDiagram
 | [ModulePrelude](../types/io.github.tlaplus.hardening.gen.engine.ModulePrelude.md) | class | other | The declarations every generated module begins with: its state variables and its state-free auxiliary definitions. |
 | [ModuleSection](../types/io.github.tlaplus.hardening.gen.engine.ModuleSection.md) | enum | other | The independent parts of a module input, each decoded from its own contiguous range of bytes. |
 | [NameScope](../types/io.github.tlaplus.hardening.gen.engine.NameScope.md) | class | other | Exception-safe dynamic view over a persistent lexical-scope list. |
-| [OperandGenerator](../types/io.github.tlaplus.hardening.gen.engine.OperandGenerator.md) | class | other | Draws expressions for a rewrite that leaves an operand open (ADR 0017 §3): a fresh parameter is drawn by the ordinary expression factory, at its type, in the lexical scope of the rewritten node, and in the state-level context, so a fresh operand adds no prime. |
+| [OperandGenerator](../types/io.github.tlaplus.hardening.gen.engine.OperandGenerator.md) | class | other | Draws expressions for a rewrite that leaves an operand open (ADR 0017 §3), and for the parameters of an edge guard of a graph module (ADR 0023 §6): an operand is drawn by the ordinary expression factory, at its type, in the lexical scope of the rewritten node or the edge, and in the state-level context, so an operand adds no prime. |
 | [OperatorType](../types/io.github.tlaplus.hardening.gen.engine.OperatorType.md) | record | other | Operator type. |
 | [OtherExprGenFactory](../types/io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory.md) | class | other | Constructs expression generators not covered by the dedicated form families. |
 | [OtherExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.OtherExpressionKind.md) | enum | other | Expression forms not covered by the dedicated type and general families. |
@@ -268,10 +269,15 @@ classDiagram
   class RuleMatcher {
     <<policy>>
   }
+  class Tautologies {
+    <<facade>>
+  }
   RewriteLibrary --> RewriteRule : has
   Rewriter ..> Rewrite : uses
   Rewriter --> RewriteLibrary : has
   RuleMatcher ..> RewriteRule : uses
+  Tautologies ..> RewriteLibrary : uses
+  Tautologies --> RewriteRule : has
 ```
 
 | Type | Kind | Role | Summary |
@@ -285,21 +291,23 @@ classDiagram
 | [**RewriteLibrary** ★](../types/io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary.md) | class | model | The rules of one rule module, in declaration order (ADR 0017 §1). |
 | [RewriteLimits](../types/io.github.tlaplus.hardening.gen.rewrite.RewriteLimits.md) | record | other | Bounds of one rewrite (ADR 0016 §2, §7). |
 | [RewritePositions](../types/io.github.tlaplus.hardening.gen.rewrite.RewritePositions.md) | class | other | Where the rewriter may apply a rule. |
-| [**RewriteRule** ★](../types/io.github.tlaplus.hardening.gen.rewrite.RewriteRule.md) | record | model | One rewrite rule `F(p1, ..., pn) == A = B` of a rule module (ADR 0017 §2): the rewriter replaces an instance of `pattern` (A) with the same instance of `replacement` (B). |
+| [**RewriteRule** ★](../types/io.github.tlaplus.hardening.gen.rewrite.RewriteRule.md) | record | model | One rewrite rule `F(p1, ..., pn) == A = B` or `A &lt;=&gt; B` of a rule module (ADR 0017 §2): the rewriter replaces an instance of `pattern` (A) with the same instance of ` replacement` (B). |
 | [**Rewriter** ★](../types/io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | class | facade | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | [RuleContract](../types/io.github.tlaplus.hardening.gen.rewrite.RuleContract.md) | class | other | Reads one rule definition and checks the parts of the rule contract that the loader can decide (ADR 0017 §2, §3, §5): the shape `A = B` or `A &lt;=&gt; B`, the parameter classes, level preservation and closedness. |
-| [RuleInstantiation](../types/io.github.tlaplus.hardening.gen.rewrite.RuleInstantiation.md) | class | other | Builds the replacement of a match (ADR 0017 §4): the rule's replacement with its own binders renamed apart, its types instantiated, its parameters substituted and its lambdas applied. |
+| [RuleInstantiation](../types/io.github.tlaplus.hardening.gen.rewrite.RuleInstantiation.md) | class | other | Builds the instance of a rule (ADR 0017 §4): the rule's replacement for a match, or its whole formula for an edge guard (ADR 0023 §6). |
 | [RuleMatch](../types/io.github.tlaplus.hardening.gen.rewrite.RuleMatch.md) | record | other | A rule's pattern matched at one node. |
 | [**RuleMatcher** ★](../types/io.github.tlaplus.hardening.gen.rewrite.RuleMatcher.md) | class | policy | Matches a rule's pattern at one node (ADR 0017 §4). |
+| [RuleOperands](../types/io.github.tlaplus.hardening.gen.rewrite.RuleOperands.md) | class | other | Draws what instantiating a rule needs beyond a match (ADR 0017 §3): a concrete type for every type variable the match leaves open, then a value for each drawn parameter at its type. |
 | [RuleParameter](../types/io.github.tlaplus.hardening.gen.rewrite.RuleParameter.md) | record | other | One formal parameter of a rewrite rule, classified by where it occurs (ADR 0017 §3). |
+| [**Tautologies** ★](../types/io.github.tlaplus.hardening.gen.rewrite.Tautologies.md) | class | facade | Draws edge guards of a graph module from a rule library (ADR 0023 §6): a guard is the formula `A = B` or `A &lt;=&gt; B` of a rule, with every parameter drawn at its type. |
 
 ## Decisions
 
-- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0007-levels-and-temporal-properties.md)
-- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0011-collection-base-size.md)
-- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0012-integer-literals.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0007-levels-and-temporal-properties.md)
+- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0011-collection-base-size.md)
+- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0012-integer-literals.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/docs/decisions/0023-graph-based-testing.md)

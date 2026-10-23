@@ -1,6 +1,6 @@
 # `FuzzTlaConfig`
 
-`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L21) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L24) · module [config](../modules/config.md)
 
 Complete configuration of input generation and workflow execution.
 
@@ -20,6 +20,9 @@ classDiagram
   }
   class PbtConfig {
     <<record>>
+  }
+  class RuleLibraryConfig {
+    <<config>>
   }
   class WorkflowConfig {
     <<config>>
@@ -59,6 +62,7 @@ classDiagram
   FuzzTlaConfig --> MutatorConfig : has
   FuzzTlaConfig --> OperatorLibraryConfig : has
   FuzzTlaConfig --> PbtConfig : has
+  FuzzTlaConfig --> RuleLibraryConfig : has
   FuzzTlaConfig --> WorkflowConfig : has
   FuzzTlaConfig --> InputKind : has
   FuzzTlaConfig --> IrGenerationConfig : has
@@ -73,7 +77,7 @@ classDiagram
   SpecDecoders ..> FuzzTlaConfig : uses
 ```
 
-The diagram draws 16 of 27 relations; the table lists them all.
+The diagram draws 17 of 28 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -81,6 +85,7 @@ The diagram draws 16 of 27 relations; the table lists them all.
 | → | has | [MutatorConfig](io.github.tlaplus.hardening.config.MutatorConfig.md) | Generations, the quality gate's selection, and the mutator's share and operators (ADR 0010). |
 | → | has | [OperatorLibraryConfig](io.github.tlaplus.hardening.config.OperatorLibraryConfig.md) | Source-only library settings. |
 | → | has | [PbtConfig](io.github.tlaplus.hardening.config.PbtConfig.md) | Limits and collection-richness controls for property-based input generation. |
+| → | has | [RuleLibraryConfig](io.github.tlaplus.hardening.config.RuleLibraryConfig.md) | A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `--how=mt` and `[graph]` the tautological edge guards of ADR 0023 §6. |
 | → | has | [WorkflowConfig](io.github.tlaplus.hardening.config.WorkflowConfig.md) | Global and per-stage limits for the implemented fuzzing workflow. |
 | → | has | [InputKind](io.github.tlaplus.hardening.gen.InputKind.md) | What a generator payload decodes to. |
 | → | has | [IrGenerationConfig](io.github.tlaplus.hardening.gen.IrGenerationConfig.md) | Settings for generated TLA+ expressions and modules. |

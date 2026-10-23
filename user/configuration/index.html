@@ -1741,11 +1741,28 @@ generation is selected and mutated. They are described in
 <td><code>max_graph_nodes</code></td>
 <td>Cap on the step bound. Each input draws its own bound between half its node count and its node count minus one.</td>
 </tr>
+<tr>
+<td><code>max_guards</code></td>
+<td><code>2</code></td>
+<td>Maximum tautological guards of one edge, when <code>rules</code> is set.</td>
+</tr>
+<tr>
+<td><code>rules</code></td>
+<td>absent</td>
+<td>Rule module of the edge guards, as <code>{ module = "Rewrites", classpath = ["../libraries/rewrites"] }</code>. Absent, edges have no guards.</td>
+</tr>
+<tr>
+<td><code>weights</code></td>
+<td><code>{}</code></td>
+<td>Selection slots per guard rule, overriding its <code>@weight</code> annotation; 0 disables a rule.</td>
+</tr>
 </tbody>
 </table>
 <p>The keys apply to <code>graph</code> inputs only (<a href="../graph-based-testing/">Graph-based testing</a>).
 Their data variables and expressions use the <code>[generator]</code> keys; <code>[generator]
-max_steps</code> does not apply to them.</p>
+max_steps</code> does not apply to them. Setting or changing <code>rules</code> changes how every
+<code>graph</code> input decodes, so a corpus records the rule module in <code>.rewrite-library</code> and
+refuses a different one.</p>
 
 
 

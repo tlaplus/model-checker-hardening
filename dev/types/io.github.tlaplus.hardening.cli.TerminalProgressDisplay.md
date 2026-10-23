@@ -1,6 +1,6 @@
 # `TerminalProgressDisplay`
 
-`io.github.tlaplus.hardening.cli` · class · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bd7d927f1cffd7642029a3d925dff47091ddde9/src/main/java/io/github/tlaplus/hardening/cli/TerminalProgressDisplay.java#L16) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/af09a9e32eb710979ef0c76f29507ce1ffe85a15/src/main/java/io/github/tlaplus/hardening/cli/TerminalProgressDisplay.java#L16) · module [cli](../modules/cli.md)
 
 Terminal mechanics of live progress: snapshots, change highlighting, resizing, and screen restoration.
 
