@@ -16,7 +16,7 @@ import cbor2
 from .errors import ReportError
 
 # The database schema this report reads (`PRAGMA user_version`, corpus-database manual §2).
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 REPOSITORY = Path(__file__).resolve().parents[2]
 STATS_FILE = ".workflow-stats.cbor"
 CONFIG_FILE = "config.toml"

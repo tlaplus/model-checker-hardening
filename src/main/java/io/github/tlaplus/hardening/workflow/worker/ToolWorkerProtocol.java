@@ -14,18 +14,23 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 
 /** Binary framing shared by isolated parser and model-checker workers. */
 @ArchRole(Role.CODEC)
 @Key
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 7;
+    static final int VERSION = 8;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 128 * 1024 * 1024;
     static final int MAXIMUM_DIAGNOSTIC_BYTES = 1024 * 1024;
+    /** The most control variables one request names. */
+    static final int MAXIMUM_CONTROL_VARIABLES = 16;
     static final String PORT_PROPERTY = "fuzztla.worker.protocol.port";
     static final String TOKEN_PROPERTY = "fuzztla.worker.protocol.token";
 
@@ -66,12 +71,45 @@ public final class ToolWorkerProtocol {
         }
         var temporalProperty = input.readBoolean();
         var actionInvariant = input.readBoolean();
+        var controlVariables = readControlVariables(input);
         var bytes = input.readNBytes(byteCount);
         if (bytes.length != byteCount) {
             throw new IOException("truncated worker request");
         }
         return new ToolInput(new String(bytes, StandardCharsets.UTF_8),
-                new CheckRequest(transitions, temporalProperty, actionInvariant));
+                new CheckRequest(transitions, temporalProperty, actionInvariant, controlVariables));
+    }
+
+    /** Writes one request frame, which {@link #readRequest} reads. */
+    static void writeRequest(DataOutputStream output, byte[] source, CheckRequest request) throws IOException {
+        output.writeInt(source.length);
+        output.writeInt(request.transitions());
+        output.writeBoolean(request.temporalProperty());
+        output.writeBoolean(request.actionInvariant());
+        writeControlVariables(output, request.controlVariables());
+        output.write(source);
+        output.flush();
+    }
+
+    /** Writes the control variables of a request: a count, then each name, in sorted order. */
+    private static void writeControlVariables(DataOutputStream output, Set<String> names) throws IOException {
+        var sorted = new TreeSet<>(names);
+        output.writeInt(sorted.size());
+        for (var name : sorted) {
+            output.writeUTF(name);
+        }
+    }
+
+    private static Set<String> readControlVariables(DataInputStream input) throws IOException {
+        var count = input.readInt();
+        if (count < 0 || count > MAXIMUM_CONTROL_VARIABLES) {
+            throw new IOException("invalid worker request control variable count: " + count);
+        }
+        var names = new LinkedHashSet<String>();
+        for (var index = 0; index < count; index++) {
+            names.add(input.readUTF());
+        }
+        return names;
     }
 
     public static void writeResult(DataOutputStream output, ToolResult result) throws IOException {

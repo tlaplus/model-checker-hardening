@@ -56,7 +56,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `9`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `10`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -155,12 +155,13 @@ verdict and both times.
 | `initStates` | INTEGER | yes | Distinct initial states | `stages.<stage>.metrics.initStates` |
 | `distinctStates` | INTEGER | yes | Distinct reachable states | `stages.<stage>.metrics.distinctStates` |
 | `generatedStates` | INTEGER | yes | Generated states, duplicates included | `stages.<stage>.metrics.generatedStates` |
-| `projectedStates` | INTEGER | yes | Distinct states without the step variable | `stages.<stage>.metrics.projectedStates` |
+| `projectedStates` | INTEGER | yes | Distinct states without the control variables: the step variable, and `pc` of a graph entry | `stages.<stage>.metrics.projectedStates` |
 | `depth` | INTEGER | yes | Largest depth of a new state | `stages.<stage>.metrics.depth` |
 | `projectedDepth` | INTEGER | yes | Largest depth of a new projected state | `stages.<stage>.metrics.projectedDepth` |
 | `actions` | INTEGER | yes | Sub-actions of the next-state action | `stages.<stage>.metrics.actions` |
 | `actionsFired` | INTEGER | yes | Actions that produced a transition | `stages.<stage>.metrics.actionsFired` |
 | `actionsDiscovering` | INTEGER | yes | Actions that produced a new state | `stages.<stage>.metrics.actionsDiscovering` |
+| `dataActions` | INTEGER | yes | Actions that produced a new projected state: new values of the data variables ([ADR 0024][adr-0024]) | `stages.<stage>.metrics.dataActions` |
 | `maxStateNodes` | INTEGER | yes | Largest value node count of a state | `stages.<stage>.metrics.maxStateNodes` |
 | `maxCardinality` | INTEGER | yes | Largest collection in a state | `stages.<stage>.metrics.maxCardinality` |
 | `maxNesting` | INTEGER | yes | Deepest value nesting in a state | `stages.<stage>.metrics.maxNesting` |
@@ -409,3 +410,4 @@ rationale.
 [metrics]: exploration-metrics.md#2-metric-reference
 [signatures]: known-defect-signatures.md
 [adr-0003]: ../decisions/0003-checker-failure-codes.md
+[adr-0024]: ../decisions/0024-graph-action-coverage.md

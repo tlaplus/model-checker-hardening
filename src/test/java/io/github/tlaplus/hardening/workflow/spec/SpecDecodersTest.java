@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
+import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
@@ -62,7 +63,8 @@ class SpecDecodersTest {
         var graph = SpecDecoders.of(config).decode(new CorpusInput(InputKind.GRAPH, new byte[0]));
 
         // The exhausted spine has 20 nodes, target 10 and its own bound 10.
-        assertEquals(CheckRequest.invariant(10), graph.request());
+        // A graph entry's metrics project out pc as well as the step counter (ADR 0024 §1).
+        assertEquals(CheckRequest.invariant(10).withControlVariables(GeneratedGraph.CONTROL_VARIABLES), graph.request());
         assertEquals(10, graph.graph().orElseThrow().target());
         assertTrue(graph.rewrite().isEmpty());
         assertTrue(graph.standaloneExpression().isEmpty());

@@ -23,16 +23,18 @@ import tlc2.value.impl.Value;
  * metrics therefore cover exactly the states TLC found, including when TLC stops on a violation or
  * an evaluation error. The callbacks are synchronized because TLC may run several workers.
  *
- * <p>Two states that differ only in the step counter project to the same state. Actions are counted
+ * <p>Two states that differ only in their control variables, the step counter and a graph module's
+ * {@code pc}, project to the same state (ADR 0024 §1). Actions are counted
  * by source location: TLC creates one {@link Action} per binding of an existential parameter, and
  * those are one disjunct of the specification.
  */
 final class TlcStateMetrics implements IStateWriter {
-    private final String projectedAwayVariable;
+    private final Set<String> controlVariables;
     private final long stateNodeCap;
     private final Map<Action, String> locations = new IdentityHashMap<>();
     private final Set<String> fired = new HashSet<>();
     private final Set<String> discovering = new HashSet<>();
+    private final Set<String> dataDiscovering = new HashSet<>();
     private final Set<Long> projected = new HashSet<>();
 
     private long initStates;
@@ -46,11 +48,11 @@ final class TlcStateMetrics implements IStateWriter {
     private boolean saturated;
 
     /**
-     * @param projectedAwayVariable the variable a projected state omits
+     * @param controlVariables the variables a projected state omits
      * @param stateNodeCap the value nodes measured per state before the size walk stops
      */
-    TlcStateMetrics(String projectedAwayVariable, long stateNodeCap) {
-        this.projectedAwayVariable = Objects.requireNonNull(projectedAwayVariable, "projectedAwayVariable");
+    TlcStateMetrics(Set<String> controlVariables, long stateNodeCap) {
+        this.controlVariables = Set.copyOf(Objects.requireNonNull(controlVariables, "controlVariables"));
         this.stateNodeCap = stateNodeCap;
     }
 
@@ -64,6 +66,7 @@ final class TlcStateMetrics implements IStateWriter {
                 .count(ExplorationCount.PROJECTED_DEPTH, projectedDepth)
                 .count(ExplorationCount.ACTIONS_FIRED, fired.size())
                 .count(ExplorationCount.ACTIONS_DISCOVERING, discovering.size())
+                .count(ExplorationCount.DATA_ACTIONS, dataDiscovering.size())
                 .count(ExplorationCount.MAX_STATE_NODES, maxStateNodes)
                 .count(ExplorationCount.MAX_CARDINALITY, maxCardinality)
                 .count(ExplorationCount.MAX_NESTING, maxNesting)
@@ -87,7 +90,10 @@ final class TlcStateMetrics implements IStateWriter {
             if (location != null) {
                 discovering.add(location);
             }
-            found(successor);
+            // A state seen before has a projection seen before, so only a new state can add data.
+            if (found(successor) && location != null) {
+                dataDiscovering.add(location);
+            }
         }
     }
 
@@ -158,7 +164,8 @@ final class TlcStateMetrics implements IStateWriter {
     @Override
     public void snapshot() {}
 
-    private void found(TLCState state) {
+    /** Records a new state and returns whether its projection is new as well. */
+    private boolean found(TLCState state) {
         distinctStates++;
         var level = (long) state.getLevel() - TLCState.INIT_LEVEL;
         depth = Math.max(depth, level);
@@ -172,17 +179,19 @@ final class TlcStateMetrics implements IStateWriter {
                 continue;
             }
             shape.add(value);
-            if (!projectedAwayVariable.equals(name.toString())) {
+            if (!controlVariables.contains(name.toString())) {
                 fingerprint = FP64.Extend(fingerprint, name.toString());
                 fingerprint = ((Value) value).fingerPrint(fingerprint);
             }
         }
-        if (projected.add(fingerprint)) {
+        var newProjection = projected.add(fingerprint);
+        if (newProjection) {
             projectedDepth = Math.max(projectedDepth, level);
         }
         maxStateNodes = Math.max(maxStateNodes, shape.nodes());
         maxCardinality = Math.max(maxCardinality, shape.cardinality());
         maxNesting = Math.max(maxNesting, shape.nesting());
         saturated |= shape.saturated();
+        return newProjection;
     }
 }

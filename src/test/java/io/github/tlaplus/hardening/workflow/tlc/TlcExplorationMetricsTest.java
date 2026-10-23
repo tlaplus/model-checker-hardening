@@ -63,6 +63,43 @@ class TlcExplorationMetricsTest {
                 ExplorationCount.MAX_NESTING, 0L));
     }
 
+    /**
+     * In a graph-shaped module, pc is a control variable (ADR 0024 §1): projected out, the walk
+     * 0 -> 1 -> 2 leaves two data valuations, and only the edge that changes x adds data.
+     */
+    @Test
+    void projectsAwayEveryControlVariableAndCountsTheActionsThatAddData() throws Exception {
+        var source = """
+                ---- MODULE FuzzInput ----
+                EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants
+                VARIABLES x, pc, step
+                vars == <<x, pc, step>>
+                Init == x = 0 /\\ pc = 0 /\\ step = 0
+                Next == \\/ step < 3 /\\ pc = 0 /\\ x' = x /\\ pc' = 1 /\\ step' = step + 1
+                        \\/ step < 3 /\\ pc = 1 /\\ x' = x + 1 /\\ pc' = 2 /\\ step' = step + 1
+                        \\/ UNCHANGED vars
+                Inv == TRUE
+                Fairness == TRUE
+                Spec == Init /\\ [][Next]_vars /\\ Fairness
+                Prop == TRUE
+                Liveness == Fairness => Prop
+                ====
+                """;
+        var graph = check(source, new CheckRequest(3, false).withControlVariables(java.util.Set.of("step", "pc")));
+        assertEquals(StageOutcome.PASS, graph.outcome(), graph.diagnostic());
+        assertCounts(metrics(graph), Map.of(
+                ExplorationCount.DISTINCT_STATES, 3L,
+                ExplorationCount.ACTIONS_DISCOVERING, 2L,
+                ExplorationCount.PROJECTED_STATES, 2L,
+                ExplorationCount.PROJECTED_DEPTH, 2L,
+                ExplorationCount.DATA_ACTIONS, 1L));
+
+        var stepOnly = check(source, new CheckRequest(3, false));
+        assertCounts(metrics(stepOnly), Map.of(
+                ExplorationCount.PROJECTED_STATES, 3L,
+                ExplorationCount.DATA_ACTIONS, 2L));
+    }
+
     @Test
     void countsDisjunctsBySourceLocationRatherThanByBinding() throws Exception {
         var source = """
@@ -174,8 +211,12 @@ class TlcExplorationMetricsTest {
     }
 
     private ToolResult check(String source, boolean temporalProperty) throws Exception {
+        return check(source, new CheckRequest(3, temporalProperty));
+    }
+
+    private ToolResult check(String source, CheckRequest request) throws Exception {
         var scratch = Files.createTempDirectory(directory, "scratch");
-        return TlcProcess.check(scratch, List.of(), new ToolInput(source, new CheckRequest(3, temporalProperty)), CONFIG, TIMEOUT);
+        return TlcProcess.check(scratch, List.of(), new ToolInput(source, request), CONFIG, TIMEOUT);
     }
 
     private static ExplorationMetrics metrics(ToolResult result) {

@@ -39,6 +39,7 @@ Each checker stores its metrics in a `metrics` map under its own stage record:
         "actions": 2,
         "actionsFired": 2,
         "actionsDiscovering": 1,
+        "dataActions": 1,
         "maxStateNodes": 9,
         "maxCardinality": 3,
         "maxNesting": 2,
@@ -77,12 +78,13 @@ unchanged, so metrics reach `03aggregator-pass` and `03aggregator-fail`.
 | `initStates` | Distinct initial states. |
 | `distinctStates` | Distinct reachable states, initial states included. |
 | `generatedStates` | Initial states plus transitions, including transitions to states already found. |
-| `projectedStates` | Distinct states after removing `step`, the step counter of a generated module. In an `expr` entry, equal to `distinctStates`. |
+| `projectedStates` | Distinct states after removing the control variables: `step`, the step counter of a generated module, and `pc`, the current node of a graph entry ([ADR 0024](../decisions/0024-graph-action-coverage.md)). In an `expr` entry, equal to `distinctStates`. |
 | `depth` | Length of the longest shortest path from an initial state to a found state. |
 | `projectedDepth` | The largest depth at which a new projected state appeared. |
 | `actions` | Sub-actions TLC split `Next` into, including the skeleton's `UNCHANGED` disjunct. |
 | `actionsFired` | Disjuncts of `Next`, by source location, that produced at least one transition. |
 | `actionsDiscovering` | Disjuncts of `Next`, by source location, that produced at least one new state. |
+| `dataActions` | Disjuncts of `Next`, by source location, that produced at least one new projected state: values of the data variables not seen before. In a graph entry, a disjunct is an edge. |
 | `maxStateNodes` | Largest state by value node count: every scalar, collection, record, tuple and function node counts one. |
 | `maxCardinality` | Largest set, sequence, tuple, record or function domain in any state. |
 | `maxNesting` | Deepest value nesting in any state. A scalar variable has nesting 0. |
@@ -117,6 +119,7 @@ stages:
       actions: 2
       actionsFired: 2
       actionsDiscovering: 1
+      dataActions: 1
       maxStateNodes: 9
       maxCardinality: 3
       maxNesting: 2
@@ -135,7 +138,7 @@ the agreeing entries of corpus22 match at least one of them.
 | Initial-state violation | verdict `counterexample`, `phase: init` | `Inv` or `Prop` fails on an initial state. `Next` is never evaluated. |
 | Early failure | verdict `fail`, `phase: init` | TLC fails before its initial states are complete. `Next` is never evaluated. |
 | No discovering action | `actionsDiscovering: 0` | No disjunct of `Next` reaches a new state. |
-| Counter-only progress | `projectedStates` at most 1 | Only `step` changes. Every other variable keeps its initial value. |
+| Counter-only progress | `projectedStates` at most 1 | Only the control variables change: `step`, and `pc` in a graph entry. Every data variable keeps its initial value. |
 
 The gate will combine metrics from both stages. Agreement on `traceLength`, and
 on the failure code of a fail/fail pair, is derived from the stored values
