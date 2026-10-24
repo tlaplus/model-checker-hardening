@@ -38,7 +38,7 @@ these details:
 - For the same reason, the edge section is one cursor in node order, and the node
   section is split into slices filled in node order, of at least 8 bytes each
   (section 3). This changed the encoding of every graph entry, so corpora from
-  before it decode to other graphs.
+  before it decode to other graphs. Probe 5 compares the two layouts.
 - A rule guards an edge only when it has a positive weight, no action-level operator,
   no higher-order parameter, which no drawn value fills, and no helper, which the
   module does not link. `gen.rewrite.Tautologies` implements `gen.engine.EdgeGuards`,
@@ -493,6 +493,54 @@ inputs are shorter, 31 bytes at the median and 323 at most.
 **Failures.** All 40 aggregator failures pair a TLC failure on a partial term, a
 function applied outside its domain (17), a `CASE` without a true arm (17) and a value
 it cannot compute (6), with an Apalache pass (25) or counterexample (15).
+
+### Probe 5: node and edge sections read from node 0
+
+**Setup.** Two campaigns of 3000 `gbt` entries in ten generations of 300, seed 37,
+with TLC and Apalache (four workers, `timeout_sec = 120`), `[graph] rules` the shipped
+`Rewrites.tla`, and `signatures/all-defects.toml`. corpus71 ran FuzzTLA `ab9b847`, with
+equal node and edge slices; corpus72 ran FuzzTLA `9c40de3e`, which reads both sections
+from node 0 on. TLC `d2e1472`, Apalache 0.62.3 `3eb15b2`. corpus72 was interrupted
+once and resumed with the same build, so its generator statistics cover only the
+second session.
+
+| | corpus71 | corpus72 |
+| --- | ---: | ---: |
+| Aggregated entries | 2997 | 2952 |
+| Predicted counterexample / pass | 1479 / 1518 | 1846 / 1106 |
+| Contradicted predictions | 0 | 0 |
+| Input bytes, median | 51 | 37 |
+| Extra edges | 2138 | 3181 |
+| Extra edges leaving the last node | 1915 | 1 |
+| Entries without an extra edge | 1675 | 979 |
+| Distinct node actions per entry, median | 2 | 2 |
+| Entries with one node action on every node | 607 | 506 |
+| Node actions that read a data variable | 2.8% | 3.6% |
+| TLC distinct states, median / 95th percentile | 21 / 32 | 42 / 497 |
+| Apalache time, median / 95th percentile / max | 5 / 21 / 37 s | 7 / 49 / 116 s |
+| Apalache timeouts | 1 | 40 |
+| Disagreements, all documented | 205 (6.8%) | 440 (14.9%) |
+| Paths to a reachable target without a guard | 33 of 1479 | 370 of 1846 |
+
+**Edges.** Extra edges now leave the first nodes, so the graphs have cycles and skips
+where every path starts: TLC's state counts double at the median and grow by an order
+of magnitude at the 95th percentile. Forward skips near node 0 shorten paths, so more
+targets fall within the bound: 62% of the entries predict a counterexample, against
+49%.
+
+**Node actions.** They barely change. The median entry still has 2 distinct actions,
+because an admitted input has a few dozen bytes, of which the node section receives
+about ten: enough for one or two actions whichever nodes they go to. The node
+section is limited by the known-defect quarantine of longer inputs, not by its split.
+
+**Cost and disagreements.** More edges make Apalache's bounded search harder: 40
+entries timed out at 120 s, against 1. Disagreements doubled, all of documented kinds
+in which TLC fails on a partial term and Apalache continues, since more actions run
+on more paths.
+
+**Guards.** More paths lack a guard. Node 0 now has two or three edges, which read
+the guard section first, so fewer guard bytes reach the later edges of a shortest
+path.
 
 ## Alternatives considered
 

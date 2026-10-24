@@ -2,12 +2,13 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Accepted; phases 1 and 2 implemented, validation pending
+**Status:** Implemented; the validation campaign met two of the three criteria of
+section 5, and known-defect quarantine rose (see [Validation](#validation))
 
 **Date:** 2026-10-23
 
 **Implementation.** Phases 1 and 2 of section 6 are implemented on the branch
-`igor/gbt-action-coverage-gate`. The review settled two questions: `dataActions`
+`igor/gbt-action-coverage-gate`, merged as FuzzTLA `a981b4e8`. The review settled two questions: `dataActions`
 counts edges rather than nodes, and entries with constant data cannot become parents.
 Implementation fixed these details:
 
@@ -144,6 +145,62 @@ known-defect quarantine.
    `workflow.quality`, and the shallow patterns over `dataActions`.
 3. The validation campaign, recorded in this ADR.
 
+## Validation
+
+**Setup.** Phase 3 compares two campaigns of 3000 `gbt` entries with the encoding of
+ADR 0023 Probe 5, in ten generations of 300, seed 37, with TLC and Apalache
+(`timeout_sec = 120`), `[graph] rules` the shipped `Rewrites.tla`, and
+`signatures/all-defects.toml`. corpus72 ran FuzzTLA `9c40de3e`, which ranks by depth;
+corpus74 ran FuzzTLA `12d0a3fd`, which ranks `gbt` entries by action coverage. TLC
+`d2e1472`, Apalache 0.62.3 `3eb15b2`. Section 5 named corpus71 as the baseline, but
+corpus71 predates the node and edge encoding of Probe 5, so corpus72 is the baseline.
+corpus74 ran two Apalache workers instead of four, after memory pressure stopped an
+earlier attempt, so its times are not comparable.
+
+**Selected entries.** The gate now selects entries whose actions compute data:
+
+| `04quality-pass` | corpus72 | corpus74 |
+| --- | ---: | ---: |
+| Entries | 130 | 129 |
+| Distinct node actions, median | 2 | 5 |
+| Entries with at least 4 distinct node actions | 10% | 98% |
+| Node actions that read data, mean | 0.56 | 3.36 |
+| Entries with more than one data variable | 1% | 70% |
+| Extra edges, mean | 1.19 | 3.95 |
+| Targets 30 or more steps away | 79% | 0% |
+| `dataActions`, median | – | 3 |
+| TLC distinct states, median | 497 | 181 |
+
+**Mutants.** Mutation breeds the selected traits. In generations 5 to 9, the mutants
+of corpus74 have 9 distinct node actions at the median, against 2 in corpus72; 98% of
+them have a node action that reads data, against 52%; and 59% have more than one data
+variable, against 3%.
+
+**Whole corpus.**
+
+| All aggregated entries | corpus72 | corpus74 |
+| --- | ---: | ---: |
+| Entries | 2952 | 2927 |
+| Distinct node actions, median | 2 | 4 |
+| Predicted counterexamples | 1846 | 1959 |
+| Counterexamples of 20 or more steps | 999 | 532 |
+| Contradicted predictions | 0 | 0 |
+| Disagreements, all documented | 440 | 452 |
+| TLC crashes, all tlc-002 | 8 | 30 |
+| Apalache timeouts | 40 | 43 |
+| Candidates that matched a known-defect signature | 48% | 54% |
+
+corpus72's generator statistics cover only its second session, 3865 candidates; its
+first session was stopped and did not record them. corpus71, with the earlier
+encoding, quarantined 50%.
+
+**Criteria.** The selected entries have more distinct and more data-reading node
+actions, and the corpus predicts more counterexamples, so two criteria hold. Known-
+defect quarantine rose from 48% to 54% of candidates: mutants of richer parents
+contain more expressions, and so match a signature more often. The gate also stopped
+selecting deep targets, as the Consequences expected: counterexamples of 20 or more
+steps fell from 999 to 532, and none is longer than 29 steps.
+
 ## Alternatives considered
 
 - **Static action features.** The gate could replay the decoder and count distinct
@@ -171,9 +228,12 @@ known-defect quarantine.
 - **Fewer admissible graph entries.** Entries with constant data become shallow. In
   corpus71, 607 of 2997 entries had one node action repeated on every node, and 1833
   had no node action that reads data; the gate may fill fewer than `select_fraction`
-  slots until mutation breeds richer entries.
-- **Depth is no longer selected for.** Deep targets still occur, because the header
-  draws them, but the gate no longer prefers them.
+  slots until mutation breeds richer entries. In corpus74 it kept 129 entries,
+  against 130 under the depth ranking.
+- **Depth is no longer selected for.** Only mutation bred the deepest targets: in
+  corpus72 all 590 targets 30 or more steps away were in mutants, and random inputs
+  produced none. corpus74 has none, and half as many counterexamples of 20 or more
+  steps ([Validation](#validation)).
 
 [adr-0008]: 0008-exploration-metrics.md
 [adr-0010]: 0010-mutation.md

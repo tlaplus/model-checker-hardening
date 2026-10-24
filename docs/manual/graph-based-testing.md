@@ -196,6 +196,11 @@ differently ([ADR 0024](../decisions/0024-graph-action-coverage.md)):
 - **Constant data is shallow.** An entry whose node actions never change the data
   matches `counter_only_progress` and is never mutated.
 
+In a campaign of 3000 entries, the selected parents had 5 distinct node actions at the
+median, against 2 under the depth ranking, and 70% had more than one data variable,
+against 1%. Deep targets became rare: no entry had a target 30 or more steps away,
+since only mutation of deep parents produced them.
+
 ## Background
 
 [ADR 0023](../decisions/0023-graph-based-testing.md) records the design;
