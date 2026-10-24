@@ -1,6 +1,6 @@
 # `CorpusDirectory`
 
-`io.github.tlaplus.hardening.corpus` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/12d0a3fd62c72add470e6ee06490c4e3591f490e/src/main/java/io/github/tlaplus/hardening/corpus/CorpusDirectory.java#L77) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/src/main/java/io/github/tlaplus/hardening/corpus/CorpusDirectory.java#L77) · module [corpus](../modules/corpus.md)
 
 Owns the on-disk layout and integrity checks for one FuzzTLA corpus.
 
