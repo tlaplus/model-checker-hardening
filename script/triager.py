@@ -379,8 +379,11 @@ SIGNATURES = (
     finding("apalache-bmc-009.md", Tool.APALACHE,
             all_of(r"java\.lang\.IllegalArgumentException: requirement failed: The right-hand side of a function set should be: a finite set or a powerset",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FunSetCtorRule\.apply")),
+    # SetUnionRule accepts only a set of sets, not the PowSet cell of SUBSET S,
+    # whatever expression yields that cell: a CHOOSE, a state variable, a fold
+    # (corpus71).
     finding("apalache-bmc-010.md", Tool.APALACHE,
-            all_of(r"internal error in type checking: Applying UNION to CHOOSE", r"of type PowSet\[Set\(")),
+            all_of(r"internal error in type checking: Applying UNION to [\s\S]+? of type PowSet\[Set\(")),
     finding("apalache-bmc-011.md", Tool.APALACHE,
             all_of(r"java\.lang\.AssertionError: assertion failed",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.subsetEq",

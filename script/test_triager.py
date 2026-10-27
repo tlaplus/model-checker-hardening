@@ -662,6 +662,25 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, set_filter, HASH_A),
         )
 
+    def test_union_of_any_powerset_cell_is_bmc_010(self) -> None:
+        """corpus3 28a21652 (CHOOSE) and corpus71 (a state variable, a fold)."""
+        for operand in (
+            "CHOOSE sets$1 \\in {SUBSET {}} : TRUE",
+            "var0",
+            "⟨var0⟩[1]",
+            "Apalache!ApaFoldSeqLeft(LET Lambda3$1(parameter1$1, parameter2$1) ≜ parameter2$1 IN Lambda3$1, var0, ⟨TRUE, FALSE⟩)",
+        ):
+            diagnostic = (
+                "Apalache exited with status 255\n"
+                f"<unknown>: internal error in type checking: Applying UNION to {operand} "
+                "of type PowSet[Set(Bool)] E@09:28:04.316"
+            )
+            self.assertEqual(
+                "apalache-bmc-010.md",
+                triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+                operand,
+            )
+
     def test_classifies_truncated_and_new_overridden_value_details(self) -> None:
         results = {
             triager.Checker.TLC: triager.CheckerResult(
