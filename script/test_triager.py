@@ -662,6 +662,39 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, set_filter, HASH_A),
         )
 
+    def test_apalache_resource_guards_are_cli_001(self) -> None:
+        """corpus71: the SUBSET expansion limit and the set-map product guard."""
+        for message in (
+            "<unknown>: known limitation: Attempted to expand a SUBSET of size 2^29, "
+            "whereas the built-in limit is 2^20 E@16:16:06.012",
+            "<unknown>: rewriter error: Too many elements to enumerate: 1065024 E@06:15:22.544",
+        ):
+            diagnostic = f"Apalache exited with status 255\n{message}"
+            self.assertEqual(
+                "apalache-cli-001.md",
+                triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+                message,
+            )
+
+    def test_union_of_any_powerset_cell_is_bmc_010(self) -> None:
+        """corpus3 28a21652 (CHOOSE) and corpus71 (a state variable, a fold)."""
+        for operand in (
+            "CHOOSE sets$1 \\in {SUBSET {}} : TRUE",
+            "var0",
+            "⟨var0⟩[1]",
+            "Apalache!ApaFoldSeqLeft(LET Lambda3$1(parameter1$1, parameter2$1) ≜ parameter2$1 IN Lambda3$1, var0, ⟨TRUE, FALSE⟩)",
+        ):
+            diagnostic = (
+                "Apalache exited with status 255\n"
+                f"<unknown>: internal error in type checking: Applying UNION to {operand} "
+                "of type PowSet[Set(Bool)] E@09:28:04.316"
+            )
+            self.assertEqual(
+                "apalache-bmc-010.md",
+                triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+                operand,
+            )
+
     def test_classifies_truncated_and_new_overridden_value_details(self) -> None:
         results = {
             triager.Checker.TLC: triager.CheckerResult(
@@ -1163,6 +1196,43 @@ class Corpus53CrashTest(unittest.TestCase):
         ))
         self.assertEqual(
             "tlc-019.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+    def test_lost_trace_state_after_evaluation_error_is_tlc_021(self) -> None:
+        """corpus71 00eb6c89: a function over Int in the fifth state."""
+        diagnostic = "\n".join((
+            "TLC worker exited while processing the input",
+            "TLC worker stderr:",
+            "Finished computing initial states: 1 distinct state generated at 2026-10-24 09:49:42.",
+            "Error: TLC threw an unexpected exception.",
+            "This was probably caused by an error in the spec or model.",
+            "See the User Output or TLC Console for clues to what happened.",
+            "The exception was a java.lang.RuntimeException",
+            ": Attempted to compute the number of elements in the overridden value Int.",
+            "Error: The behavior up to this point is:",
+            "State 1: <Initial predicate>",
+            "/\\ var0 = <<1, 1, 1>>",
+            "",
+            "Error: Failed to recover the initial state from its fingerprint.",
+            "Error: This is probably a TLC bug(5).",
+            "State :",
+            "/\\ var0 = [arg12 \\in Int |-> <expression line 82, col 9 to line 83, col 17 of module FuzzInput>]",
+        ))
+        self.assertEqual(
+            "tlc-021.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+    def test_lost_trace_state_without_evaluation_error_stays_new(self) -> None:
+        diagnostic = "\n".join((
+            "TLC worker exited while processing the input",
+            "TLC worker stderr:",
+            "Error: Failed to recover the initial state from its fingerprint.",
+            "Error: This is probably a TLC bug(5).",
+        ))
+        self.assertEqual(
+            triager.NEW_FINDING,
             classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
 

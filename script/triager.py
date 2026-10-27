@@ -285,6 +285,16 @@ SIGNATURES = (
                    r"^Checking temporal properties for ",
                    r"^The exception was a java\.util\.concurrent\.ExecutionException\n"
                    r": java\.lang\.StackOverflowError$")),
+    # An evaluation error in a successor two or more steps deep: printing the
+    # trace re-generates the failing state, cannot match it because comparing it
+    # raises the same error, and calls System.exit(1) (corpus71 00eb6c89). Other
+    # causes of a lost trace state, such as nondeterministic actions, print the
+    # same two lines, so the signature also requires the evaluation error.
+    finding("tlc-021.md", Tool.TLC,
+            all_of(r"^TLC worker exited while processing the input$",
+                   r"^The exception was a java\.lang\.RuntimeException$",
+                   r"^Error: Failed to recover the initial state from its fingerprint\.\n"
+                   r"Error: This is probably a TLC bug\(5\)\.$")),
     # An evaluation error forced by fingerprinting an initial state is raised
     # again when the error handler prints that state (corpus59 a96cc07a).
     finding("tlc-001.md", Tool.TLC,
@@ -369,8 +379,11 @@ SIGNATURES = (
     finding("apalache-bmc-009.md", Tool.APALACHE,
             all_of(r"java\.lang\.IllegalArgumentException: requirement failed: The right-hand side of a function set should be: a finite set or a powerset",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.rules\.FunSetCtorRule\.apply")),
+    # SetUnionRule accepts only a set of sets, not the PowSet cell of SUBSET S,
+    # whatever expression yields that cell: a CHOOSE, a state variable, a fold
+    # (corpus71).
     finding("apalache-bmc-010.md", Tool.APALACHE,
-            all_of(r"internal error in type checking: Applying UNION to CHOOSE", r"of type PowSet\[Set\(")),
+            all_of(r"internal error in type checking: Applying UNION to [\s\S]+? of type PowSet\[Set\(")),
     finding("apalache-bmc-011.md", Tool.APALACHE,
             all_of(r"java\.lang\.AssertionError: assertion failed",
                    r"at\.forsyte\.apalache\.tla\.bmcmt\.LazyEquality\.subsetEq",
@@ -399,7 +412,10 @@ SIGNATURES = (
             apalache_error(r"rewriter error: Accessing a non-existing variant option via tag "),
             apalache_error(r"rewriter error: Range bounds are too large to fit in scala\.Int"),
             apalache_error(r"error when rewriting to SMT: SMT \d+: z3 reports UNKNOWN"),
-            apalache_error(r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\.")),
+            apalache_error(r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\."),
+            apalache_error(r"known limitation: Attempted to expand a SUBSET of size 2\^\d+, "
+                           r"whereas the built-in limit is 2\^\d+"),
+            apalache_error(r"rewriter error: Too many elements to enumerate: \d+")),
     finding("apalache-optimizer-001.md", Tool.APALACHE,
             all_of(r"unexpected expression: undeclared operator LocalOp\d+\$\d+ \[FlatLanguagePred\]",
                    r"ConstSimplifier", r"ExprOptimizer")),
