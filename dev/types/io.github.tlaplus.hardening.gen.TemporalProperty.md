@@ -1,10 +1,10 @@
 # `TemporalProperty`
 
-`io.github.tlaplus.hardening.gen` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/src/main/java/io/github/tlaplus/hardening/gen/TemporalProperty.java#L28) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/src/main/java/io/github/tlaplus/hardening/gen/TemporalProperty.java#L28) · module [gen](../modules/gen.md)
 
 The temporal property of a generated module and the fairness that constrains it.
 
-**Decisions:** [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/docs/decisions/0007-levels-and-temporal-properties.md)
+**Decisions:** [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/docs/decisions/0007-levels-and-temporal-properties.md)
 
 ```mermaid
 classDiagram

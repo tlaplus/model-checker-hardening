@@ -1,6 +1,6 @@
 # `FuzzTlaCommand`
 
-`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/src/main/java/io/github/tlaplus/hardening/cli/FuzzTlaCommand.java#L14) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/src/main/java/io/github/tlaplus/hardening/cli/FuzzTlaCommand.java#L14) · module [cli](../modules/cli.md)
 
 The root `fuzztla` command: registers the subcommands and runs one command line.
 

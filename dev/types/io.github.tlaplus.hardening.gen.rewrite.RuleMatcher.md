@@ -1,10 +1,10 @@
 # `RuleMatcher`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java#L53) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java#L53) · module [gen](../modules/gen.md)
 
 Matches a rule's pattern at one node (ADR 0017 §4).
 
-**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/docs/decisions/0017-rewrite-rule-library.md)
+**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/docs/decisions/0017-rewrite-rule-library.md)
 
 ```mermaid
 classDiagram

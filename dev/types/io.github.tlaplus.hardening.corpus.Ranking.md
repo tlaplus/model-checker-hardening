@@ -1,10 +1,10 @@
 # `Ranking`
 
-`io.github.tlaplus.hardening.corpus` · enum · policy · [source](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/src/main/java/io/github/tlaplus/hardening/corpus/Ranking.java#L16) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · policy · [source](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/src/main/java/io/github/tlaplus/hardening/corpus/Ranking.java#L16) · module [corpus](../modules/corpus.md)
 
 How the quality gate ranks the admissible entries of a generation, best first: the components of its key, compared lexicographically, higher first.
 
-**Decisions:** [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/e180a3892e661e5d7ba7636c4f24a6fca66ded14/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+**Decisions:** [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
 
 ```mermaid
 classDiagram
