@@ -1,6 +1,6 @@
 # `IrTypeGenFactory`
 
-`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fd29bdb142d5d87538f91aeddca09d5ac3d7d0a7/src/main/java/io/github/tlaplus/hardening/gen/engine/IrTypeGenFactory.java#L26) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/src/main/java/io/github/tlaplus/hardening/gen/engine/IrTypeGenFactory.java#L26) · module [gen](../modules/gen.md)
 
 Factory for deferred generators of internal types within the configured remaining-depth budget.
 
