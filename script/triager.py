@@ -285,6 +285,16 @@ SIGNATURES = (
                    r"^Checking temporal properties for ",
                    r"^The exception was a java\.util\.concurrent\.ExecutionException\n"
                    r": java\.lang\.StackOverflowError$")),
+    # An evaluation error in a successor two or more steps deep: printing the
+    # trace re-generates the failing state, cannot match it because comparing it
+    # raises the same error, and calls System.exit(1) (corpus71 00eb6c89). Other
+    # causes of a lost trace state, such as nondeterministic actions, print the
+    # same two lines, so the signature also requires the evaluation error.
+    finding("tlc-021.md", Tool.TLC,
+            all_of(r"^TLC worker exited while processing the input$",
+                   r"^The exception was a java\.lang\.RuntimeException$",
+                   r"^Error: Failed to recover the initial state from its fingerprint\.\n"
+                   r"Error: This is probably a TLC bug\(5\)\.$")),
     # An evaluation error forced by fingerprinting an initial state is raised
     # again when the error handler prints that state (corpus59 a96cc07a).
     finding("tlc-001.md", Tool.TLC,

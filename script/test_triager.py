@@ -1166,6 +1166,43 @@ class Corpus53CrashTest(unittest.TestCase):
             classify_quietly(self, triager.CrashKind.TLC, diagnostic),
         )
 
+    def test_lost_trace_state_after_evaluation_error_is_tlc_021(self) -> None:
+        """corpus71 00eb6c89: a function over Int in the fifth state."""
+        diagnostic = "\n".join((
+            "TLC worker exited while processing the input",
+            "TLC worker stderr:",
+            "Finished computing initial states: 1 distinct state generated at 2026-10-24 09:49:42.",
+            "Error: TLC threw an unexpected exception.",
+            "This was probably caused by an error in the spec or model.",
+            "See the User Output or TLC Console for clues to what happened.",
+            "The exception was a java.lang.RuntimeException",
+            ": Attempted to compute the number of elements in the overridden value Int.",
+            "Error: The behavior up to this point is:",
+            "State 1: <Initial predicate>",
+            "/\\ var0 = <<1, 1, 1>>",
+            "",
+            "Error: Failed to recover the initial state from its fingerprint.",
+            "Error: This is probably a TLC bug(5).",
+            "State :",
+            "/\\ var0 = [arg12 \\in Int |-> <expression line 82, col 9 to line 83, col 17 of module FuzzInput>]",
+        ))
+        self.assertEqual(
+            "tlc-021.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
+    def test_lost_trace_state_without_evaluation_error_stays_new(self) -> None:
+        diagnostic = "\n".join((
+            "TLC worker exited while processing the input",
+            "TLC worker stderr:",
+            "Error: Failed to recover the initial state from its fingerprint.",
+            "Error: This is probably a TLC bug(5).",
+        ))
+        self.assertEqual(
+            triager.NEW_FINDING,
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
     def test_worker_exit_without_output_stays_new(self) -> None:
         """corpus64 4c8676fa as recorded, before the worker printed pending output."""
         self.assertEqual(

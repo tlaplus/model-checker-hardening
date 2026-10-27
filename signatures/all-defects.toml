@@ -213,6 +213,7 @@ references = [
   "../findings/apalache-bmc/apalache-bmc-015.md",
   "../findings/apalache-bmc/apalache-bmc-016.md",
   "../findings/apalache-cli/apalache-cli-001.md",
+  "../findings/TLC/tlc-021.md",
 ]
 description = "TLC cannot enumerate or represent Int and Nat in most positions, and Apalache mishandles them in filters, quantifiers, unions, IsFiniteSet and function domains."
 match = [
