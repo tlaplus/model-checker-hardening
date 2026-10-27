@@ -26,6 +26,8 @@ known to reach this status:
 | `Range bounds are too large to fit in scala.Int` | rewriter diagnosis | `corpus3`: 2 | 0 |
 | `error when rewriting to SMT: z3 reports UNKNOWN` | solver capability | `corpus1`: 3 | 50 |
 | `rewriter error: Trying to expand a set of functions` | rewriter refusal | `corpus1`: 1 | 7 |
+| `known limitation: Attempted to expand a SUBSET of size 2^N, whereas the built-in limit is 2^20` | known limitation | `corpus71`: 19 | 0 |
+| `rewriter error: Too many elements to enumerate` | resource guard | `corpus47`: 1; `corpus71`: 3 | 0 |
 
 The first is reproduced below. See also the
 [`2d51b926...` input](../../corpus4/02apa-crash/2d51b9265c46d4427ec4a3900abcd820cea1df91d284d032c3b9d2577362906a.cbor)
@@ -40,6 +42,17 @@ from the earlier sessions: the constant-integer-range and `z3 reports UNKNOWN`
 rows dominate it, while the two rewriter-diagnosis rows produced nothing. The
 grouping is by exit status, so the mix is a property of the generator settings
 rather than of this defect.
+
+The last two rows are Apalache's resource guards. `PowSetCtor` refuses to
+expand `SUBSET T` when `T` has more than 20 elements. In corpus71, the
+expansions come from `CHOOSE b \in SUBSET T : FALSE`, `UNION (SUBSET S)` and
+the recursion library's `SetPowerset`, over base sets of 29 to 50,014
+elements, which TLC could not enumerate either. `IntTupleIterator` refuses a
+set map over more than 1,000,000 tuples, and counts a mapped set by its tuples;
+[set-map guard over duplicate elements](../../conformance/set-map-product-guard.md)
+describes the deviation from TLC that this causes. Both guards print a
+definite diagnosis, but exit 255. Observed with Apalache 0.62.3 (`3eb15b2`),
+FuzzTLA `e180a389` and TLC `606dfa4` (not involved).
 
 The rewriter and solver rows are grouped here because they share this exit
 status, not because they share a cause. `Trying to expand a set of functions`

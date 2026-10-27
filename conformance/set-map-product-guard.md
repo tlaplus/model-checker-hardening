@@ -108,6 +108,17 @@ initial two-element set. The workflow does not run TLC after an Apalache crash.
 Rerun with `SPECIFICATION Spec` and `INVARIANT Inv`, TLC reports no error in 6
 distinct states.
 
+corpus71 adds 3 Apalache crashes, `1fcc9617`, `4dbfc113` and `d19fc5d5`, with
+`Too many elements to enumerate: 1065024` in the recursion library's
+`TransitiveClosure(R)`. Its pivot filters `nodes \X nodes`, where `nodes` is
+`{e[1] : e \in R} \cup {e[2] : e \in R}`. Apalache rewrites `S \X T` into the
+set map `{<<y1, y2>> : y1 \in S, y2 \in T}` (`Keramelizer.transformTuples`), so
+the product passes the same guard, and the count 1,032² is the square of the
+count of `nodes`. The workflow did not run TLC on these entries, so whether
+`nodes` also has more than 1,000 distinct elements is not known. The triager
+attributes these crashes to [apalache-cli-001](../findings/apalache-cli/apalache-cli-001.md),
+which groups the diagnoses that Apalache reports with exit 255.
+
 The recall-first database quarantines these shapes with the signature
 `set-map-duplicate-product`. It matches a fold whose combinator contains a set
 map with at least two bound variables, and a set map with at least two bound

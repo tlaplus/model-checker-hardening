@@ -662,6 +662,20 @@ class AggregatorClassificationTest(unittest.TestCase):
             triager.classify(triager.CrashKind.APALACHE, set_filter, HASH_A),
         )
 
+    def test_apalache_resource_guards_are_cli_001(self) -> None:
+        """corpus71: the SUBSET expansion limit and the set-map product guard."""
+        for message in (
+            "<unknown>: known limitation: Attempted to expand a SUBSET of size 2^29, "
+            "whereas the built-in limit is 2^20 E@16:16:06.012",
+            "<unknown>: rewriter error: Too many elements to enumerate: 1065024 E@06:15:22.544",
+        ):
+            diagnostic = f"Apalache exited with status 255\n{message}"
+            self.assertEqual(
+                "apalache-cli-001.md",
+                triager.classify(triager.CrashKind.APALACHE, diagnostic, HASH_A),
+                message,
+            )
+
     def test_union_of_any_powerset_cell_is_bmc_010(self) -> None:
         """corpus3 28a21652 (CHOOSE) and corpus71 (a state variable, a fold)."""
         for operand in (

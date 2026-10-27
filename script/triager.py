@@ -412,7 +412,10 @@ SIGNATURES = (
             apalache_error(r"rewriter error: Accessing a non-existing variant option via tag "),
             apalache_error(r"rewriter error: Range bounds are too large to fit in scala\.Int"),
             apalache_error(r"error when rewriting to SMT: SMT \d+: z3 reports UNKNOWN"),
-            apalache_error(r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\.")),
+            apalache_error(r"rewriter error: Trying to expand a set of functions\. This will blow up the solver\."),
+            apalache_error(r"known limitation: Attempted to expand a SUBSET of size 2\^\d+, "
+                           r"whereas the built-in limit is 2\^\d+"),
+            apalache_error(r"rewriter error: Too many elements to enumerate: \d+")),
     finding("apalache-optimizer-001.md", Tool.APALACHE,
             all_of(r"unexpected expression: undeclared operator LocalOp\d+\$\d+ \[FlatLanguagePred\]",
                    r"ConstSimplifier", r"ExprOptimizer")),
