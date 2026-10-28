@@ -36,7 +36,7 @@ checkers = ["tlc"]            # default ["tlc", "apalache"]
 known_defects = ["../signatures/all-defects.toml"]
 
 [metamorphic]
-rules = { module = "Rewrites", classpath = ["rewrites"] }
+rules = { module = "Rewrites", classpath = ["tla/rewrites"] }  # written by init
 weights = { AddSub = 3 }      # overrides the rule's @weight, else 1; 0 disables a rule
 base_corpus = "../corpus-conf"
 adopt_ratio = 0.5
@@ -58,19 +58,18 @@ max_rewrite_growth = 2
   it.
 - **The base corpus decodes alike.** An adopted payload decodes under the metamorphic
   corpus's settings, and decodes to the parent's module only if they agree. `run`
-  therefore refuses a base corpus whose `[generator]` or `[graph]` settings differ,
-  whose `.operator-library` differs from the library this run prepares, or whose edge
-  guards differ from this run's `[graph] rules`. `classpath` and `custom_operators` are
-  compared through `.operator-library`, which pins the library sources rather than
-  their paths. Copy the base corpus's `[generator]` and `[graph]` tables and its
-  library sources.
+  therefore refuses a base corpus whose `[generator]` or `[graph]` settings differ, or
+  whose custom library or edge guards decode otherwise. It compares the library and
+  the guards by the sources and the Apalache JAR each corpus holds, not by their
+  paths. Copy the base corpus's `[generator]` and `[graph]` tables, its `tla/` and its
+  `tools/`.
 - **Graph entries are rewritten as modules.** With `kind = "graph"` and a `gbt` base,
   the rewriter rewrites the module a graph entry decodes to, and the relation is the
   `module` relation of section 2. The graph's prediction (`expected:` in
   [Graph-based testing](graph-based-testing.md#2-what-the-checker-sees)) does not
   apply: the relation does not check the target. `pc` is not projected out, so the
   quality gate ranks graph entries by the length of their walks. With `[graph] rules`,
-  `.rewrite-library` also records the guards.
+  graph bases decode with the same guards as in the base corpus.
 - **Adopted entries record their parent.** `gen.parent` is the parent's digest in the
   base corpus, and `gen.operators` is `["adopt"]`.
 - **Keep the checker set.** Once the corpus holds entries, keep `checkers` as it is;
@@ -80,9 +79,10 @@ max_rewrite_growth = 2
   rule, `\* @weight: 8;`, and `weights` overrides it. The shipped `Rewrites.tla`
   weighs padding such as `x + 0` 1, reordering 2, value rebuilding 4, and rules that
   replace an operator 8.
-- **The rules are fixed.** The first run records the rule module's sources and the
-  effective weights in `.rewrite-library`. Editing a rule or its weight requires a new
-  corpus.
+- **The rules travel with the corpus.** `init` copies the rule module into
+  `tla/rewrites`, so a rule edit in the repository does not reach the corpus. Edit
+  the copy or a weight only before the first run; FuzzTLA does not detect a later
+  edit.
 
 ## 2. What the checker sees
 

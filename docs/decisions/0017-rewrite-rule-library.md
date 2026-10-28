@@ -361,6 +361,9 @@ catalog ADR will rely on this mechanism.
 
 ### 6. Encoding and replay
 
+*Superseded by [ADR 0025](0025-self-contained-corpora.md) §2 and §4: `init` copies the rule module into the corpus's
+`tla/`, and no corpus records `.rewrite-library`.*
+
 The rule module is part of the byte encoding. Declaration order fixes the slots,
 parameter types fix applicability, and the text of B fixes the result. The loader
 therefore writes a manifest to the new corpus file `.rewrite-library`, next to

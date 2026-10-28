@@ -302,18 +302,18 @@ operators and arities.
 operator. The TLC side is checked only for its interface: the module exists and
 exports each operator with the right arity.
 
-The first custom-library run records `.operator-library` atomically under the
-corpus lock, before admitting inputs. It contains the ordered export selection
-with non-default linkages and the `tlc_module` of each diff-linked module,
-source filenames and SHA-256 digests, the pinned Apalache JAR digest, and, with
-instance or diff linkage, the digest of every classpath file. Subsequent
-runs and `print --corpus` require an exact match. Paths may move without changing
-identity. A missing manifest cannot be initialized over existing inputs, and
-read-only printing never creates one. Removing the custom library from the config
-also fails verification if a manifest exists. To change a library, initialize a
-new corpus. `fuzztla init --library FILE` copies a library's classpath into
-`<corpus>/tla/` so that each corpus keeps its release. Storage reads and writes opaque
-bytes; this validation policy belongs to the workflow.
+`fuzztla init` copies a library's classpath into `<corpus>/tla/`, and the tool JARs
+into `<corpus>/tools/`, so that each corpus keeps its release
+([ADR 0025][] §2, §3). No run fingerprints them. `workflow.library.LibraryManifest`
+still computes a library's identity, which consists of:
+- the ordered export selection, with non-default linkages and the `tlc_module` of
+  each diff-linked module;
+- source filenames and SHA-256 digests;
+- the Apalache JAR digest;
+- with instance or diff linkage, the digest of every classpath file.
+
+A metamorphic run compares this identity with its base corpus's (§1.4). Paths may
+move without changing it.
 
 ### 1.3. Conformance testing of TLC vs. Apalache with random inputs
 
@@ -469,9 +469,8 @@ differ:
 - **Checkers.** The prediction is the oracle, so a corpus that runs one checker is
   meaningful.
 - **Guard rules.** `workflow.library.RuleLibraryPreparation` loads the `[graph]` rule
-  module as it loads the `[metamorphic]` one, and `.rewrite-library` pins it. A `pbt`
-  corpus prepares it too, since it may hold graph entries, and so does an `mt` corpus,
-  which pins it after its rewrite rules.
+  module as it loads the `[metamorphic]` one, from the corpus's `tla/` copy. A `pbt`
+  corpus prepares it too, since it may hold graph entries, and so does an `mt` corpus.
 - **Candidate sources and quality gate.** PBT and the mutator apply unchanged; there
   is no adoption. TLC projects `pc` out of the metrics of a graph entry, and the
   gate ranks `gbt` entries by action coverage: edges whose node action produced new

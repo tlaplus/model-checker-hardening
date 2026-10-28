@@ -67,8 +67,11 @@ The change is small enough to record here:
   with the guards that a `pbt` or `gbt` corpus decodes it with. An `mt` corpus pins
   them in `.rewrite-library` after the rewrite manifest, under a `graph-guards`
   line. Without guards, the record is the rewrite manifest alone, as before.
+  *Superseded by [ADR 0025](0025-self-contained-corpora.md) §4: no corpus records `.rewrite-library`.*
 - `metamorphic.base_corpus` may be a `gbt` corpus. Adoption also compares the base's
   `.rewrite-library`, which holds its guards, with the run's guard manifest.
+  *Since [ADR 0025](0025-self-contained-corpora.md) §5, it compares the guard manifests computed from both
+  corpora.*
 - The relation does not project out `pc`, and `mt` keeps the depth ranking
   ([ADR 0024][adr-0024] §2). The gate therefore ranks graph relations by the length of
   their walks.
@@ -350,7 +353,8 @@ configuration decodes graphs alike:
 Both tables read `rules` and `weights` into one record, `config.RuleLibraryConfig`,
 through one schema, `config.RuleLibrarySchema`, and one preparation,
 `workflow.library.RuleLibraryPreparation`; the corpus file `.rewrite-library` pins the
-prepared rules. The data variables and the expression limits come from `[generator]`;
+prepared rules (since [ADR 0025](0025-self-contained-corpora.md), the corpus keeps a
+copy of the rule module in `tla/` instead). The data variables and the expression limits come from `[generator]`;
 `[generator] max_steps` does not apply to graph inputs.
 
 ### 8. Pipeline

@@ -87,7 +87,9 @@ Probed with fuzztla `f08b942`, tla2tools 1.8.0-SNAPSHOT (tlaplus/tlaplus commit
    calls it.
 6. The replay manifest records `operator <module>!<Op> diff <tlc_module>` and pins the
    classpath files, as for instance linkage. Inline and instance lines are unchanged.
-   The source snapshot already digests `<tlc_module>.tla`.
+   The source snapshot already digests `<tlc_module>.tla`. *Superseded by [ADR 0025](0025-self-contained-corpora.md)
+   §4: no corpus records the manifest; a metamorphic run computes it only to compare
+   its base corpus.*
 7. `LibraryLinkage` carries the per-linkage facts that callers used to test with
    `== INSTANCE`:
    - `aliasesSource()`: true for instance and diff;

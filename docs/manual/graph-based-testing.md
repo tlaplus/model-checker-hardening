@@ -148,8 +148,8 @@ S` with `S := var1` yields the guard below:
   a helper definition is left out. `[graph] weights` reweighs the rest as
   `[metamorphic] weights` does.
 - **The rules are part of the encoding.** Guards take a section of the input of their
-  own, so setting `rules` changes how every graph input decodes. The first run records
-  the rule module in `.rewrite-library`, and later runs refuse another one.
+  own, so setting `rules` changes how every graph input decodes. Set it before the
+  first run; `init` copies the rule module into `tla/`.
 - **A `pbt` or `mt` corpus with graph entries** decodes them with the same guards.
 - **Guards start at node 0.** The guard bytes, about a fifth of the input, are read
   edge by edge from node 0, at most 8 bytes per guard, so a short input guards the
