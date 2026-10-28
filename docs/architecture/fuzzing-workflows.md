@@ -393,9 +393,10 @@ and the aggregator's policy differ:
 
 - **Technique.** `fuzztla run --how=mt` enables the workflow. The first run records
   the technique in the corpus file `.technique`, and later runs must match it. Entries
-  keep their kind, `expr` or `module`.
+  keep their kind, `expr`, `module` or `graph`.
 - **Inputs.** Under `mt`, a payload is a two-byte base length, the payload of an
-  `expr` or `module` entry, and a rewrite payload. A byte-directed rewriter in
+  `expr`, `module` or `graph` entry, and a rewrite payload. A graph base is rewritten
+  as the module it decodes to. A byte-directed rewriter in
   `gen.rewrite` decodes the rewrite payload into an orientation bit and rule
   applications. A rule is an operator `F(x, y) == A = B` of a TLA<sup>+</sup> rule
   module ([ADR 0017][]). The rule catalog is the subject of a later ADR.
@@ -452,7 +453,8 @@ differ:
 - **Technique and kind.** `fuzztla run --how=gbt` enables the workflow and records
   `gbt` in `.technique`. It generates only entries of kind `graph`, and `run` refuses
   another `[generator] kind`. Each `corpus.Technique` names the kinds it generates;
-  `mt` defines no rewrite of a graph module yet and rejects the kind. A `graph` entry
+  `mt` rewrites a graph base as the module it decodes to, without its prediction
+  ([ADR 0023][] amendment). A `graph` entry
   in a `pbt` corpus is judged by conformance.
 - **Aggregator.** `Oracle.GRAPH` passes an entry when the checkers agree, in the sense
   of §1.3, and every checker reports the predicted verdict or fails. A partial term
@@ -468,7 +470,8 @@ differ:
   meaningful.
 - **Guard rules.** `workflow.library.RuleLibraryPreparation` loads the `[graph]` rule
   module as it loads the `[metamorphic]` one, and `.rewrite-library` pins it. A `pbt`
-  corpus prepares it too, since it may hold graph entries; `mt` ignores it.
+  corpus prepares it too, since it may hold graph entries, and so does an `mt` corpus,
+  which pins it after its rewrite rules.
 - **Candidate sources and quality gate.** PBT and the mutator apply unchanged; there
   is no adoption. TLC projects `pc` out of the metrics of a graph entry, and the
   gate ranks `gbt` entries by action coverage: edges whose node action produced new

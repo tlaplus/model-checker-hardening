@@ -52,7 +52,26 @@ these details:
   (section 6).
 - `[graph] rules` is read into `FuzzTlaConfig.graphGuards`, a `RuleLibraryConfig`;
   `max_guards` is a component of `GraphLimits`. A `pbt` corpus prepares the guard rules
-  as well, since it may hold graph entries; `mt` ignores them (section 7).
+  as well, since it may hold graph entries; `mt` first ignored them (section 7).
+
+**Amendment: graph bases under `mt`.** The branch `igor/mt-graph` (FuzzTLA `8f1fedd`,
+TLC `56d37a9`, Apalache 0.62.3 `3eb15b2`) revises section 1
+and the scope below, which deferred graph entries under `--how=mt` to a later ADR.
+The change is small enough to record here:
+
+- `Technique.MT` generates every kind. The metamorphic registry decodes a graph base
+  and rewrites the `GeneratedSpec` it holds, so a graph entry is a `module` relation
+  ([ADR 0016][adr-0016] §3), judged by `Oracle.METAMORPHIC`. The graph's prediction
+  does not apply to the relation and is not used.
+- Every technique prepares `[graph] rules`, so an `mt` corpus decodes a graph base
+  with the guards that a `pbt` or `gbt` corpus decodes it with. An `mt` corpus pins
+  them in `.rewrite-library` after the rewrite manifest, under a `graph-guards`
+  line. Without guards, the record is the rewrite manifest alone, as before.
+- `metamorphic.base_corpus` may be a `gbt` corpus. Adoption also compares the base's
+  `.rewrite-library`, which holds its guards, with the run's guard manifest.
+- The relation does not project out `pc`, and `mt` keeps the depth ranking
+  ([ADR 0024][adr-0024] §2). The gate therefore ranks graph relations by the length of
+  their walks.
 
 ## Context
 
@@ -78,8 +97,9 @@ the prediction, so a checker that evaluates one to `FALSE` disables an edge and
 contradicts the predicted verdict.
 
 **Scope.** This ADR decides the technique, the encoding, the generated module, the
-oracle, the stage-2 guards and their configuration. Graph entries under `--how=mt`,
-temporal properties and a graph-specific quality-gate policy are out of scope.
+oracle, the stage-2 guards and their configuration. Graph entries under `--how=mt`
+(see the amendment above), temporal properties and a graph-specific quality-gate
+policy are out of scope.
 
 ### Notation
 
@@ -108,7 +128,8 @@ chooses the decoder ([ADR 0016][adr-0016] §1).
   `module`, `gbt` `graph`.
 - A `graph` entry in a `pbt` corpus is legal and is judged by conformance alone.
 - The metamorphic registry rejects the `graph` kind with `InputRejectedException`
-  until a later ADR defines rewrites of graph modules.
+  until a later ADR defines rewrites of graph modules. *Revised by the amendment
+  above: `mt` rewrites a graph base as its module.*
 
 ### 2. Generated module
 
@@ -592,7 +613,8 @@ path.
   whose data never changes still has projected depth. Whether to project out `pc`
   too was left open until a GBT corpus showed how the gate ranks such entries;
   [ADR 0024][adr-0024] projects it out and ranks `gbt` entries by action coverage.
-- **Graph entries cannot be rewritten yet.** `mt` rejects the `graph` kind.
+- **Graph entries were not rewritten.** `mt` rejected the `graph` kind until the
+  amendment above.
 - **Guard rules are part of the encoding.** Setting `[graph] rules` re-slices every
   graph input, so a corpus keeps the rule module it started with.
 - **Guards are few on short inputs.** Admitted inputs are short, 31 bytes at the

@@ -150,7 +150,7 @@ S` with `S := var1` yields the guard below:
 - **The rules are part of the encoding.** Guards take a section of the input of their
   own, so setting `rules` changes how every graph input decodes. The first run records
   the rule module in `.rewrite-library`, and later runs refuse another one.
-- **A `pbt` corpus with graph entries** decodes them with the same guards.
+- **A `pbt` or `mt` corpus with graph entries** decodes them with the same guards.
 - **Guards start at node 0.** The guard bytes, about a fifth of the input, are read
   edge by edge from node 0, at most 8 bytes per guard, so a short input guards the
   first edges of every path to the target. In a campaign whose inputs had 31 bytes at
@@ -177,7 +177,8 @@ known-defect signatures cover those cases.
   found only through conformance, or through a guard that reads it.
 - Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
   steps long, and one in four was 20 or more.
-- `--how=mt` does not rewrite `graph` entries.
+- `--how=mt` rewrites a `graph` entry as a module and ignores its prediction
+  ([Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus)).
 - Graph modules have no temporal property.
 
 ## 7. Selection of parents

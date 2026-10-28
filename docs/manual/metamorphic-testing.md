@@ -26,7 +26,7 @@ Adopting elite entries of an existing conformance corpus gives the richest input
 
 ```toml
 [generator]
-kind = "module"               # or "expr"
+kind = "module"               # or "expr", or "graph" with a gbt base corpus
 
 [workflow]
 checkers = ["tlc"]            # default ["tlc", "apalache"]
@@ -52,16 +52,24 @@ max_rewrite_growth = 2
   parents: the `04quality-pass` entries of `base_corpus`, each combined with random
   rewrite bytes. `[mutator] feedback_ratio` still sets the share of byte mutants, and
   PBT fills the rest.
-- **The base corpus is read-only.** It must be a `pbt` corpus. It is never written
+- **The base corpus is read-only.** It must be a `pbt` or `gbt` corpus. It is never written
   to, and an entry keeps its parent's bytes, so `base_corpus` is not needed to replay
   it.
 - **The base corpus decodes alike.** An adopted payload decodes under the metamorphic
   corpus's settings, and decodes to the parent's module only if they agree. `run`
-  therefore refuses a base corpus whose `[generator]` settings differ, or whose
-  `.operator-library` differs from the library this run prepares. `classpath` and
-  `custom_operators` are compared through `.operator-library`, which pins the library
-  sources rather than their paths. Copy the base corpus's `[generator]` table and its
+  therefore refuses a base corpus whose `[generator]` or `[graph]` settings differ,
+  whose `.operator-library` differs from the library this run prepares, or whose edge
+  guards differ from this run's `[graph] rules`. `classpath` and `custom_operators` are
+  compared through `.operator-library`, which pins the library sources rather than
+  their paths. Copy the base corpus's `[generator]` and `[graph]` tables and its
   library sources.
+- **Graph entries are rewritten as modules.** With `kind = "graph"` and a `gbt` base,
+  the rewriter rewrites the module a graph entry decodes to, and the relation is the
+  `module` relation of section 2. The graph's prediction (`expected:` in
+  [Graph-based testing](graph-based-testing.md#2-what-the-checker-sees)) does not
+  apply: the relation does not check the target. `pc` is not projected out, so the
+  quality gate ranks graph entries by the length of their walks. With `[graph] rules`,
+  `.rewrite-library` also records the guards.
 - **Adopted entries record their parent.** `gen.parent` is the parent's digest in the
   base corpus, and `gen.operators` is `["adopt"]`.
 - **The checker set is fixed.** The first run records `checkers` in `.checkers`, and
