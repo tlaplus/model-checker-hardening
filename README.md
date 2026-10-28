@@ -53,8 +53,8 @@ campaign.
 ## Quick start
 
 ```sh
-./bin/fuzztla init --corpus my-corpus
-./bin/fuzztla run --how=pbt --corpus my-corpus
+./bin/fuzztla init --how=pbt --corpus my-corpus
+./bin/fuzztla run --corpus my-corpus
 ./bin/fuzztla print --corpus my-corpus my-corpus/03aggregator-fail/<hash>.cbor
 python3 -m pip install -r script/requirements.txt
 python3 script/triager.py my-corpus

@@ -6,15 +6,18 @@ this page lists every key by table. Paths in the file are relative to the file i
 You may leave out a checker table (`[workflow.tlc]`, `[workflow.tlcn]`,
 `[workflow.apalache]`) or any of its keys, as well as `[metamorphic]`, `[graph]`,
 `checkers` and the `max_entries` key of a stage table. Anything left out takes the default
-shown below. The other keys are required. Some settings are recorded by the first
-run and cannot change afterwards: `checkers`, the technique (`--how`), and the
-operator library. To change those, initialize a new corpus.
+shown below. The other keys are required. Settings that decide how entries decode
+and are judged must not change once the corpus holds entries: `technique`,
+`checkers`, the `[generator]` and `[graph]` tables, the rules and the libraries.
+FuzzTLA does not detect such an edit
+([ADR 0025](../decisions/0025-self-contained-corpora.md) §4). To change them,
+initialize a new corpus.
 
 ## `[generator]`: what is generated
 
 | Key | Default | Meaning |
 |---|---|---|
-| `kind` | `"module"` | `"module"` generates whole modules with variables, actions and properties. `"expr"` generates one expression and wraps it in a fixed single-state module. `"graph"` generates a module over a control graph, whose verdict the graph predicts; `run --how=gbt` requires it ([Graph-based testing](graph-based-testing.md)). |
+| `kind` | `"module"` | `"module"` generates whole modules with variables, actions and properties. `"expr"` generates one expression and wraps it in a fixed single-state module. `"graph"` generates a module over a control graph, whose verdict the graph predicts; `technique = "gbt"` requires it, and `init --how=gbt` sets it ([Graph-based testing](graph-based-testing.md)). |
 | `max_type_depth` | `3` | Maximum nesting of generated types, such as a set of functions to sequences. |
 | `max_expression_depth` | `32` | Maximum depth of an expression tree. |
 | `max_nodes` | `128` | Maximum nodes of an expression tree. |
@@ -59,12 +62,13 @@ or `temporal_forall`, to a weight. A form with weight *N* is chosen *N* times as
 as a form of weight one. Unlisted forms have weight one. Custom operators are weighted
 as `"Module!Operator"`.
 
-## `[workflow]`: campaign size and checkers
+## `[workflow]`: campaign size, technique and checkers
 
 | Key | Default | Meaning |
 |---|---|---|
 | `max_entries` | `1000` | Unique entries after which the campaign stops, across all directories. |
-| `checkers` | `["tlc", "apalache"]` | Checkers to run, a subset of `tlc`, `tlcn` and `apalache`. With one checker, nothing is compared. Fixed by the first run. |
+| `technique` | `"pbt"` | `"pbt"`, `"mt"` or `"gbt"`, written by `init --how`. Every `run` follows it. Keep it once the corpus holds entries. |
+| `checkers` | `["tlc", "apalache"]` | Checkers to run, a subset of `tlc`, `tlcn` and `apalache`. With one checker, nothing is compared. Keep it once the corpus holds entries. |
 
 ### `[workflow.inputs]`
 
@@ -111,7 +115,7 @@ generation is selected and mutated. They are described in
 ## `[metamorphic]`: rewrites
 
 `rules`, `weights`, `max_rewrites`, `max_rewrite_depth`, `max_rewrite_growth`,
-`base_corpus` and `adopt_ratio` are used only by `run --how=mt`. They are described in
+`base_corpus` and `adopt_ratio` are used only by an `mt` corpus. They are described in
 [Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus).
 
 ## `[graph]`: control graphs

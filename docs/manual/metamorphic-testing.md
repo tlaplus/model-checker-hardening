@@ -18,10 +18,10 @@ rejects.
 Adopting elite entries of an existing conformance corpus gives the richest inputs:
 
 ```sh
-./bin/fuzztla run --how=pbt --corpus corpus-conf          # conformance generations
-./bin/fuzztla init --corpus corpus-mt
+./bin/fuzztla run --corpus corpus-conf     # a pbt corpus: conformance generations
+./bin/fuzztla init --how=mt --corpus corpus-mt
 # edit corpus-mt/config.toml as below
-./bin/fuzztla run --how=mt --corpus corpus-mt
+./bin/fuzztla run --corpus corpus-mt
 ```
 
 ```toml
@@ -32,7 +32,7 @@ kind = "module"               # or "expr", or "graph" with a gbt base corpus
 checkers = ["tlc"]            # default ["tlc", "apalache"]
 
 [workflow.inputs]
-# With Apalache among the checkers, also list metamorphic-defects.toml (section 3).
+# init adds metamorphic-defects.toml when Apalache is among the checkers (section 3).
 known_defects = ["../signatures/all-defects.toml"]
 
 [metamorphic]
@@ -45,9 +45,10 @@ max_rewrite_depth = 4
 max_rewrite_growth = 2
 ```
 
-- **The technique is fixed.** The first run records `mt` in `.technique`. Later runs
-  must pass `--how=mt`, and `print` and `export-db` read the file. A corpus without it
-  is a `pbt` corpus.
+- **The technique is fixed.** `init --how=mt` writes `technique = "mt"` under
+  `[workflow]`. Every `run` follows it, and `print`, `export-db` and `shrink` read it.
+  `init` also sets the shipped rules and, with Apalache among the checkers,
+  `metamorphic-defects.toml`.
 - **Adopted parents.** A generation takes `adopt_ratio` of its entries from adopted
   parents: the `04quality-pass` entries of `base_corpus`, each combined with random
   rewrite bytes. `[mutator] feedback_ratio` still sets the share of byte mutants, and
@@ -72,8 +73,8 @@ max_rewrite_growth = 2
   `.rewrite-library` also records the guards.
 - **Adopted entries record their parent.** `gen.parent` is the parent's digest in the
   base corpus, and `gen.operators` is `["adopt"]`.
-- **The checker set is fixed.** The first run records `checkers` in `.checkers`, and
-  later runs must use the same list.
+- **Keep the checker set.** Once the corpus holds entries, keep `checkers` as it is;
+  FuzzTLA does not detect a change.
 - **Rule weights.** A rule's weight is the number of selection slots it takes among
   the rules that match a node. The rule module sets a default in the comment before a
   rule, `\* @weight: 8;`, and `weights` overrides it. The shipped `Rewrites.tla`
