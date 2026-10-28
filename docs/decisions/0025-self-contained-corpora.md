@@ -2,9 +2,26 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-10-28
+
+**Implementation.** Three stacked branches implement the phases of the last section:
+- `igor/init-how`: the technique key and `init --how` (FuzzTLA `8241615c`), and the
+  removal of `.technique` and `.checkers` (`826ef4f6`).
+- `igor/self-contained-corpus`:
+  - `tools/` and the `[tools]` table (`284b2b9b`, `ad0b74d0`);
+  - the copied rule libraries (`a78ac6c0`);
+  - the removal of the two manifests (`d63536b2`).
+- `igor/init-mt-base`: `init --how=mt --base-corpus` (`4d352c9d`).
+
+Implementation settled these details:
+- The tool table is keyed by `config.ToolJar`. `workflow.CorpusTools` resolves it, and
+  `workflow.library.LibraryInstall` plans the copies of a whole configuration.
+- The TLC classpath keeps the library first and puts `tla2tools` after it, so a
+  library's TLC overrides still win, as before.
+- A legacy `.technique` is still read, through `ReplayRecord.requireUnchanged`. Delete
+  it once old corpora are gone.
 
 ## Context
 

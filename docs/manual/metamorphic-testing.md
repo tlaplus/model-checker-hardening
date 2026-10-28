@@ -15,30 +15,33 @@ rejects.
 
 ## 1. Setting up a corpus
 
-Adopting elite entries of an existing conformance corpus gives the richest inputs:
+Adopting elite entries of a previous `pbt` or `gbt` run gives the richest inputs.
+`init --base-corpus` sets this up in one command:
 
 ```sh
-./bin/fuzztla run --corpus corpus-conf     # a pbt corpus: conformance generations
-./bin/fuzztla init --how=mt --corpus corpus-mt
-# edit corpus-mt/config.toml as below
+./bin/fuzztla init --how=mt --base-corpus corpus71 --corpus corpus-mt
 ./bin/fuzztla run --corpus corpus-mt
 ```
 
+`init --how=mt --base-corpus DIR` ([ADR 0025](../decisions/0025-self-contained-corpora.md) §5):
+- refuses an `mt` base;
+- starts from the base's whole `config.toml`, so `[generator]`, `[graph]`, the
+  checkers, timeouts, workers and known-defect databases match;
+- copies the base's `tla/` and `tools/`, so adopted parents decode with the same
+  libraries and tools;
+- sets `technique = "mt"`, `base_corpus`, the shipped rules and, with Apalache among
+  the checkers, `metamorphic-defects.toml`.
+
+Review the inherited settings before the first run: a 100,000-entry base gives a
+100,000-entry `max_entries`, and its `workers` suit the machine it ran on. Without
+`--base-corpus`, `init --how=mt` starts from the defaults and generates its own bases.
+The `[metamorphic]` table then reads:
+
 ```toml
-[generator]
-kind = "module"               # or "expr", or "graph" with a gbt base corpus
-
-[workflow]
-checkers = ["tlc"]            # default ["tlc", "apalache"]
-
-[workflow.inputs]
-# init adds metamorphic-defects.toml when Apalache is among the checkers (section 3).
-known_defects = ["../signatures/all-defects.toml"]
-
 [metamorphic]
 rules = { module = "Rewrites", classpath = ["tla/rewrites"] }  # written by init
 weights = { AddSub = 3 }      # overrides the rule's @weight, else 1; 0 disables a rule
-base_corpus = "../corpus-conf"
+base_corpus = "../corpus71"   # written by init --base-corpus
 adopt_ratio = 0.5
 max_rewrites = 16
 max_rewrite_depth = 4
@@ -61,8 +64,7 @@ max_rewrite_growth = 2
   therefore refuses a base corpus whose `[generator]` or `[graph]` settings differ, or
   whose custom library or edge guards decode otherwise. It compares the library and
   the guards by the sources and the Apalache JAR each corpus holds, not by their
-  paths. Copy the base corpus's `[generator]` and `[graph]` tables, its `tla/` and its
-  `tools/`.
+  paths. `init --base-corpus` copies all of them; keep them as they are.
 - **Graph entries are rewritten as modules.** With `kind = "graph"` and a `gbt` base,
   the rewriter rewrites the module a graph entry decodes to, and the relation is the
   `module` relation of section 2. The graph's prediction (`expected:` in
