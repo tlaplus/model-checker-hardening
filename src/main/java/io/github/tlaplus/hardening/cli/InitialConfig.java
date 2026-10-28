@@ -61,7 +61,8 @@ final class InitialConfig {
         }
         var metamorphic = result.metamorphic();
         if (metamorphic.rules().isEmpty()) {
-            var classpath = SHIPPED_RULES.classpath().stream().map(this::shipped).toList();
+            // Absolute, since init copies the rules into the corpus (ADR 0025 §2).
+            var classpath = SHIPPED_RULES.classpath().stream().map(project.orElseThrow()::resolve).toList();
             result = result.withMetamorphic(new MetamorphicConfig(
                     RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(SHIPPED_RULES.module(), classpath)),
                     metamorphic.limits(), metamorphic.adoption()));
