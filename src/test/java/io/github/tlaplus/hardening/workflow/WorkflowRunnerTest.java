@@ -208,14 +208,12 @@ class WorkflowRunnerTest {
         assertEquals(Technique.GBT, CorpusRecords.TECHNIQUE.read(corpus));
     }
 
-    /** A technique runs only on the kinds it generates: gbt on graphs, mt on no graph. */
+    /** A technique runs only on the kinds it generates: gbt only on graphs. */
     @Test
     void refusesAKindTheTechniqueDoesNotGenerate() {
         var modules = config(8, 3, 8, 64);
         var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(modules, Technique.GBT));
         assertTrue(refused.getMessage().contains("--how=gbt does not generate expr inputs"), refused.getMessage());
-        var graphs = graphConfig(modules);
-        assertThrows(WorkflowException.class, () -> new WorkflowRunner(graphs, Technique.MT));
     }
 
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */

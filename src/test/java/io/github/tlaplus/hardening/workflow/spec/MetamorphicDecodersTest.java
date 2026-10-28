@@ -8,6 +8,7 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
@@ -23,7 +24,7 @@ import org.apalache_mc.tla.jir.TlaModules;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/** Decodes metamorphic expression payloads with the shipped rules (ADR 0016 §1, §3). */
+/** Decodes metamorphic expression and graph payloads with the shipped rules (ADR 0016 §1, §3). */
 class MetamorphicDecodersTest {
     private static SpecDecoders decoders;
 
@@ -59,12 +60,43 @@ class MetamorphicDecodersTest {
         assertTrue(rewritten > 20, "only " + rewritten + " of 200 payloads were rewritten");
     }
 
-    /** No rewrite of a graph module is defined yet, so `mt` rejects graph inputs (ADR 0023 §1). */
+    /**
+     * A graph base is rewritten as the module it decodes to: the original side is the graph's
+     * module, the relation checks the action invariant, and the unrewritten relation pairs that
+     * module with itself.
+     */
     @Test
-    void aGraphInputIsRejected() {
-        var input = new CorpusInput(InputKind.GRAPH, new byte[] {1, 2, 3});
-        assertThrows(InputRejectedException.class, () -> decoders.decode(input));
-        assertThrows(InputRejectedException.class, () -> decoders.decodeUnrewritten(input));
+    void aGraphBaseIsRewrittenAsItsModule() {
+        var conformance = SpecDecoders.of(IrGenerationConfig.defaults());
+        var random = new Random(11);
+        var rewritten = 0;
+        for (var sample = 0; sample < 200 && rewritten < 10; sample++) {
+            var base = new byte[64];
+            var rewrite = new byte[32];
+            random.nextBytes(base);
+            random.nextBytes(rewrite);
+            var input = new CorpusInput(InputKind.GRAPH, MetamorphicPayload.encode(base, rewrite));
+            try {
+                var graph = conformance.decode(new CorpusInput(InputKind.GRAPH, base)).graph().orElseThrow();
+                var artifact = decoders.decode(input);
+                var pair = artifact.rewrite().orElseThrow();
+                assertTrue(!pair.isIdentity());
+                assertTrue(artifact.request().actionInvariant());
+                assertTrue(artifact.graph().isEmpty());
+                assertEquals(moduleText(graph.spec()), moduleText((GeneratedSpec) pair.original()));
+                var identity = decoders.decodeUnrewritten(input).rewrite().orElseThrow();
+                assertTrue(identity.isIdentity());
+                assertEquals(moduleText(graph.spec()), moduleText((GeneratedSpec) identity.original()));
+                rewritten++;
+            } catch (InputRejectedException rejected) {
+                // A base where no rule applied, or one the graph decoder rejects.
+            }
+        }
+        assertEquals(10, rewritten);
+    }
+
+    private static String moduleText(GeneratedSpec spec) {
+        return SpecText.render(FuzzInputModule.create(spec));
     }
 
     @Test

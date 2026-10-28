@@ -17,8 +17,11 @@ import java.util.Set;
 public enum Technique {
     /** Property-based generation and mutation, judged by conformance of TLC and Apalache. */
     PBT("pbt", Oracle.CONFORMANCE, EnumSet.allOf(InputKind.class), Ranking.DEPTH),
-    /** Metamorphic testing: a base and its rewrite, judged by the metamorphic relation (ADR 0016). */
-    MT("mt", Oracle.METAMORPHIC, EnumSet.of(InputKind.EXPRESSION, InputKind.MODULE), Ranking.DEPTH),
+    /**
+     * Metamorphic testing: a base and its rewrite, judged by the metamorphic relation (ADR 0016). A
+     * graph base is rewritten as the module it decodes to.
+     */
+    MT("mt", Oracle.METAMORPHIC, EnumSet.allOf(InputKind.class), Ranking.DEPTH),
     /**
      * Graph-based testing: control graphs whose target the graph predicts (ADR 0023), whose parents
      * are selected for node actions that produce new data (ADR 0024).

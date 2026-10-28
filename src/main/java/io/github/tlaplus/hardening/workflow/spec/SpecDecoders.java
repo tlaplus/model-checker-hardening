@@ -16,6 +16,7 @@ import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.gen.engine.EdgeGuards;
+import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
@@ -44,11 +45,6 @@ import java.util.function.Function;
 @ArchRole(Role.FACADE)
 @Key
 public final class SpecDecoders {
-    /** The metamorphic decoder of a kind that no rewrite is defined for yet (ADR 0023 §1). */
-    private static final Generator<SpecArtifact> NOT_REWRITTEN = _ -> {
-        throw new InputRejectedException("--how=mt does not rewrite graph inputs");
-    };
-
     private final Map<InputKind, Generator<SpecArtifact>> decoders;
     /** Decoders of a metamorphic payload's base paired with itself; empty for a conformance registry. */
     private final Map<InputKind, Generator<SpecArtifact>> unrewritten;
@@ -158,22 +154,29 @@ public final class SpecDecoders {
         decoders.put(
                 InputKind.MODULE,
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
-        var graphs = guards.map(edgeGuards -> IrGenerators.graphs(config, edgeGuards))
-                .orElseGet(() -> IrGenerators.graphs(config));
-        decoders.put(InputKind.GRAPH, graphs.map(graph -> SpecArtifact.fromGeneratedGraph(graph, config.library())));
+        decoders.put(InputKind.GRAPH,
+                graphs(config, guards).map(graph -> SpecArtifact.fromGeneratedGraph(graph, config.library())));
         return new SpecDecoders(decoders, Map.of(), config.library(), manifests);
+    }
+
+    /** The graph decoder, whose edges conjoin {@code guards} when present. */
+    private static Generator<GeneratedGraph> graphs(IrGenerationConfig config, Optional<EdgeGuards> guards) {
+        return guards.map(edgeGuards -> IrGenerators.graphs(config, edgeGuards))
+                .orElseGet(() -> IrGenerators.graphs(config));
     }
 
     /**
      * Decodes a metamorphic payload (ADR 0016 §1): the base part through the decoder of the kind,
      * the rewrite part through the rewriter. A pair in which no rule applied is rejected, since both
-     * sides would be the same module.
+     * sides would be the same module. A graph base is rewritten as the module it decodes to, so its
+     * relation is a module relation and its graph predicts nothing.
      */
     private static SpecDecoders metamorphic(IrGenerationConfig config, Rewriter rewriter, Manifests manifests) {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(rewriter, "rewriter");
         var expressions = IrGenerators.expressions(config);
         var specs = IrGenerators.specs(config);
+        var graphSpecs = graphs(config, Optional.empty()).map(GeneratedGraph::spec);
         Function<Rewrite<TlaEx>, SpecArtifact> expressionRelation =
                 rewrite -> SpecArtifact.fromExpressionRewrite(rewrite, config.library());
         Function<Rewrite<GeneratedSpec>, SpecArtifact> specRelation =
@@ -181,11 +184,11 @@ public final class SpecDecoders {
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(InputKind.EXPRESSION, rewriting(expressions, rewriter::rewriteExpression, expressionRelation));
         decoders.put(InputKind.MODULE, rewriting(specs, rewriter::rewriteSpec, specRelation));
-        decoders.put(InputKind.GRAPH, NOT_REWRITTEN);
+        decoders.put(InputKind.GRAPH, rewriting(graphSpecs, rewriter::rewriteSpec, specRelation));
         var unrewritten = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         unrewritten.put(InputKind.EXPRESSION, unrewritten(expressions, expressionRelation));
         unrewritten.put(InputKind.MODULE, unrewritten(specs, specRelation));
-        unrewritten.put(InputKind.GRAPH, NOT_REWRITTEN);
+        unrewritten.put(InputKind.GRAPH, unrewritten(graphSpecs, specRelation));
         return new SpecDecoders(decoders, unrewritten, config.library(), manifests);
     }
 
