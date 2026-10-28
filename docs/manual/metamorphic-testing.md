@@ -237,6 +237,10 @@ The loader rejects a rule that:
 The matcher skips a rule where it would move a primed equation out of an assignment
 position, or reorder primed conjuncts. For example, `DoubleNeg` does not apply to
 `x' = 1`: under `~~`, TLC no longer treats the equation as an assignment. It also skips
+a rule that would add a branch of `\/` or `IF` assigning other variables than the
+branches of A. `OrFalse` does not apply to `x' = 1`: Apalache rejects
+`x' = 1 \/ FALSE` with "Missing assignments", because the `FALSE` branch assigns
+nothing ([ADR 0017](../decisions/0017-rewrite-rule-library.md) §5.3). It also skips
 operators, such as a lambda passed to a fold, and a match that would move a label under
 a binder of B or into an `EXCEPT` replacement, where SANY rejects it.
 
