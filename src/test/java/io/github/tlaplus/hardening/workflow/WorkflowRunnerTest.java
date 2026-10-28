@@ -159,7 +159,55 @@ class WorkflowRunnerTest {
                 config.withMetamorphic(new MetamorphicConfig(config.metamorphic().rules(), RewriteLimits.defaults(),
                         new MetamorphicConfig.Adoption(Optional.of(directory.resolve("mt")), 0.5))),
                 Technique.MT).run(corpus, 7, 1));
-        assertTrue(refused.getMessage().contains("must be a pbt corpus"), refused.getMessage());
+        assertTrue(refused.getMessage().contains("must be a pbt or gbt corpus"), refused.getMessage());
+    }
+
+    /**
+     * A metamorphic corpus of graph inputs adopts the entries a gbt corpus's quality gate kept, and
+     * refuses a gbt corpus whose edge guards differ, since its entries would decode to other modules.
+     */
+    @Test
+    void adoptsTheSelectedEntriesOfAGbtCorpus(@TempDir Path directory) throws Exception {
+        var graphs = graphConfig(config(8, 3, 8, 512));
+        var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(graphs));
+        base.writeRecord(CorpusRecord.TECHNIQUE, Technique.GBT.encodedName().getBytes(StandardCharsets.UTF_8));
+        var conformance = SpecDecoders.of(graphs.generator());
+        var random = new java.util.Random(13);
+        var parents = new HashSet<String>();
+        while (parents.size() < 3) {
+            var payload = new byte[64];
+            random.nextBytes(payload);
+            try {
+                conformance.decode(new CorpusInput(InputKind.GRAPH, payload));
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            Files.write(base.resolve(CorpusPath.QUALITY_PASS).resolve(Digests.digest(payload) + ".cbor"),
+                    CorpusInputCodec.encode(new CorpusInput(InputKind.GRAPH, payload),
+                            GenerationMetadata.generated(0, 0, 1.0)));
+            parents.add(Digests.digest(payload));
+        }
+
+        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var config = graphs.withMetamorphic(new MetamorphicConfig(ShippedRules.config(),
+                RewriteLimits.defaults(),
+                new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
+        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1);
+
+        assertEquals(4, summary.corpus().admitted(0, EntryOrigin.ADOPTED));
+        for (var entry : corpus.storedEntries()) {
+            var envelope = CorpusEnvelopeCodec.decodeEnvelope(Files.readAllBytes(entry.path()));
+            assertEquals(InputKind.GRAPH, envelope.corpusInput().kind());
+            var mutation = envelope.generation().orElseThrow().mutation();
+            if (EntryOrigin.of(mutation) == EntryOrigin.ADOPTED) {
+                assertTrue(parents.contains(mutation.orElseThrow().parent()));
+            }
+        }
+
+        base.writeRecord(CorpusRecord.REWRITE_LIBRARY, "fuzztla-rules-v1\n".getBytes(StandardCharsets.UTF_8));
+        var guards = assertThrows(WorkflowException.class,
+                () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
+        assertTrue(guards.getMessage().contains("has other edge guards"), guards.getMessage());
     }
 
     /**
@@ -182,7 +230,7 @@ class WorkflowRunnerTest {
         var base = CorpusDirectory.initialize(directory.resolve("base"), smaller);
         var settings = assertThrows(WorkflowException.class,
                 () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
-        assertTrue(settings.getMessage().contains("has other [generator] settings"), settings.getMessage());
+        assertTrue(settings.getMessage().contains("has other [generator] or [graph] settings"), settings.getMessage());
 
         Files.writeString(base.resolve(CorpusPath.CONFIG), rendered);
         base.writeRecord(CorpusRecord.LIBRARY_MANIFEST, "fuzztla-library-v1\n".getBytes(StandardCharsets.UTF_8));

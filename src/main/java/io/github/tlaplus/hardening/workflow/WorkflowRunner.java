@@ -142,7 +142,8 @@ public final class WorkflowRunner {
     private void requireAdoptableBase() throws IOException, CorpusException, WorkflowException {
         var base = setup.adoption().baseCorpus();
         if (base.isPresent()) {
-            AdoptableBase.require(base.get(), setup.config().generator(), setup.decoders().libraryManifest());
+            AdoptableBase.require(base.get(), setup.config().generator(), setup.decoders().libraryManifest(),
+                    setup.decoders().guardManifest());
         }
     }
 

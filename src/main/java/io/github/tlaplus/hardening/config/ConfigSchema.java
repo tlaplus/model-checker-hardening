@@ -356,7 +356,7 @@ final class ConfigSchema {
     private static final ConfigTableBuilder<MetamorphicConfig.Adoption> ADOPTION = METAMORPHIC.project(MetamorphicConfig::adoption);
     static final Key<Optional<Path>> BASE_CORPUS = ADOPTION.optional(
             "base_corpus", ConfigValueType.OPTIONAL_PATH, MetamorphicConfig.Adoption::baseCorpus, new Absent<>(),
-            "pbt corpus, relative to this config file, whose 04quality-pass entries are adopted:",
+            "pbt or gbt corpus, relative to this config file, whose 04quality-pass entries are adopted:",
             "each is combined with random rewrite bytes (ADR 0016 §6). It is read, never written.");
     static final Key<Double> ADOPT_RATIO = ADOPTION.optional(
             "adopt_ratio", ConfigValueType.NUMBER, MetamorphicConfig.Adoption::ratio,
