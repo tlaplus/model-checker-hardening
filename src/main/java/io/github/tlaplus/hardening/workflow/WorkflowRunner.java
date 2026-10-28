@@ -119,7 +119,6 @@ public final class WorkflowRunner {
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
-            CorpusReplay.verify(corpus, setup.decoders(), true);
             var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());

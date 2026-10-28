@@ -2,18 +2,16 @@ package io.github.tlaplus.hardening.workflow.library;
 
 import io.github.tlaplus.hardening.common.Digests;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
-import io.github.tlaplus.hardening.corpus.CorpusDirectory;
-import io.github.tlaplus.hardening.corpus.CorpusException;
-import io.github.tlaplus.hardening.corpus.CorpusRecord;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
-import io.github.tlaplus.hardening.workflow.ReplayRecord;
-import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Replay policy for external source snapshots. Storage treats this manifest as opaque bytes. */
+/**
+ * The identity of a custom operator library's source snapshot, which a metamorphic run compares
+ * with its base corpus's (ADR 0016 §6, ADR 0025 §5).
+ */
 public final class LibraryManifest {
     private LibraryManifest() {}
 
@@ -56,22 +54,5 @@ public final class LibraryManifest {
             }
         }
         return text;
-    }
-
-    private static final ReplayRecord<String> RECORD = new ReplayRecord<>(
-            CorpusRecord.LIBRARY_MANIFEST, "", ReplayRecord.Codec.TEXT, (saved, expected) -> saved.isEmpty()
-                    ? "custom operator replay manifest is missing; start with an empty corpus"
-                    : "custom operator library changed: restore its sources, classpath files, selections and "
-                            + "Apalache distribution, or initialize a new corpus");
-
-    /** The writer calls this under the corpus lock before decoding or admitting any entry. */
-    public static void verify(CorpusDirectory corpus, String manifest, boolean initialize)
-            throws IOException, CorpusException, WorkflowException {
-        RECORD.verify(corpus, manifest, initialize);
-    }
-
-    /** Returns the manifest a corpus recorded, empty when it runs no custom library. */
-    public static String read(CorpusDirectory corpus) throws IOException, CorpusException, WorkflowException {
-        return RECORD.read(corpus);
     }
 }

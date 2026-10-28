@@ -51,6 +51,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -72,7 +73,7 @@ class WorkflowRunnerTest {
     /**
      * A metamorphic corpus of expressions (ADR 0016 phase 1): every entry pairs an expression with a
      * rewrite by the shipped rules, which are valid, so no checker may report a counterexample. The
-     * corpus records its technique and rules, and refuses a run with another technique.
+     * corpus records no fingerprint, and a legacy technique record must agree with the configuration.
      */
     @Test
     void runsAMetamorphicExpressionCorpus(@TempDir Path directory) throws Exception {
@@ -89,7 +90,7 @@ class WorkflowRunnerTest {
         assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
                 "a valid rule violated the metamorphic relation");
         assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty(), "the configuration names the technique");
-        assertFalse(CorpusRecords.REWRITE_LIBRARY.read(corpus).isEmpty());
+        assertFalse(Files.exists(directory.resolve("corpus").resolve(".rewrite-library")), "no fingerprint (ADR 0025 §4)");
         // A corpus from before ADR 0025 records its technique, which the configuration must repeat.
         corpus.writeRecord(CorpusRecord.TECHNIQUE, Technique.MT.encodedName().getBytes(StandardCharsets.UTF_8));
         new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 42, 1);
@@ -206,7 +207,8 @@ class WorkflowRunnerTest {
             }
         }
 
-        base.writeRecord(CorpusRecord.REWRITE_LIBRARY, "fuzztla-rules-v1\n".getBytes(StandardCharsets.UTF_8));
+        Files.writeString(base.resolve(CorpusPath.CONFIG),
+                TomlConfig.render(graphs.withTechnique(Technique.GBT).withGraphGuards(ShippedRules.config())));
         var guards = assertThrows(WorkflowException.class,
                 () -> new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(guards.getMessage().contains("has other edge guards"), guards.getMessage());
@@ -234,8 +236,10 @@ class WorkflowRunnerTest {
                 () -> new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(settings.getMessage().contains("has other [generator] or [graph] settings"), settings.getMessage());
 
-        Files.writeString(base.resolve(CorpusPath.CONFIG), rendered);
-        base.writeRecord(CorpusRecord.LIBRARY_MANIFEST, "fuzztla-library-v1\n".getBytes(StandardCharsets.UTF_8));
+        var sources = Files.createDirectory(directory.resolve("library"));
+        Files.writeString(sources.resolve("Mine.tla"), "---- MODULE Mine ----\nIdentity(x) == x\n====\n");
+        Files.writeString(base.resolve(CorpusPath.CONFIG), TomlConfig.render(tlcOnly.withLibraries(new OperatorLibraryConfig(
+                List.of(sources), List.of(new OperatorLibraryConfig.Module("Mine", List.of("Identity")))))));
         var library = assertThrows(WorkflowException.class,
                 () -> new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(library.getMessage().contains("has another custom operator library"), library.getMessage());

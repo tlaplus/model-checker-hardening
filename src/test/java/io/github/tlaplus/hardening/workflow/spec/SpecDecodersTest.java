@@ -84,13 +84,13 @@ class SpecDecodersTest {
         new Random(0x5eed).nextBytes(input);
         var entry = new CorpusInput(InputKind.GRAPH, input);
         var plain = SpecDecoders.prepare(FuzzTlaConfig.defaults(), Technique.GBT);
-        assertEquals("", plain.rewriteManifest());
+        assertEquals("", plain.guardManifest());
         assertEquals(0, guards(plain.decode(entry)));
 
         var guarded = FuzzTlaConfig.defaults().withGraphGuards(ShippedRules.config());
         for (var technique : List.of(Technique.PBT, Technique.GBT)) {
             var decoders = SpecDecoders.prepare(guarded, technique);
-            assertTrue(decoders.rewriteManifest().contains("module Rewrites"), decoders.rewriteManifest());
+            assertTrue(decoders.guardManifest().contains("module Rewrites"), decoders.guardManifest());
             assertTrue(guards(decoders.decode(entry)) > 0, SpecText.render(decoders.decode(entry)));
         }
         var metamorphic = guarded.withMetamorphic(new MetamorphicConfig(
@@ -101,8 +101,7 @@ class SpecDecodersTest {
 
     /**
      * A metamorphic corpus decodes a graph base with the guards a gbt corpus decodes it with, so an
-     * adopted graph entry rewrites its parent's module. The rule record pins the rewrites and the
-     * guards, and a corpus without guards pins the rewrites alone.
+     * adopted graph entry rewrites its parent's module.
      */
     @Test
     void metamorphicGraphBasesDecodeWithTheGuardsOfAGbtCorpus() throws Exception {
@@ -112,11 +111,9 @@ class SpecDecodersTest {
         var gbt = SpecDecoders.prepare(guarded, Technique.GBT);
         var mt = SpecDecoders.prepare(metamorphic, Technique.MT);
         assertEquals(gbt.guardManifest(), mt.guardManifest());
-        assertTrue(mt.rewriteManifest().endsWith("graph-guards\n" + gbt.guardManifest()), mt.rewriteManifest());
         var unguarded = SpecDecoders.prepare(
                 metamorphic.withGraphGuards(RuleLibraryConfig.none()), Technique.MT);
         assertEquals("", unguarded.guardManifest());
-        assertEquals(mt.rewriteManifest(), unguarded.rewriteManifest() + "graph-guards\n" + gbt.guardManifest());
 
         var random = new Random(0x5eed);
         var compared = 0;
