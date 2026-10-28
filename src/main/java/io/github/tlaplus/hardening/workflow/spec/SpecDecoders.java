@@ -51,11 +51,31 @@ public final class SpecDecoders {
     private final OperatorLibrary library;
     private final Manifests manifests;
 
-    /** The replay identities of the prepared custom library and rule library, empty when absent. */
-    private record Manifests(String library, String rules) {
+    /** Separates the guard manifest from the rewrite manifest in a metamorphic corpus's rule record. */
+    private static final String GUARD_SECTION = "graph-guards\n";
+
+    /**
+     * The replay identities of the prepared libraries, empty when absent: the custom library, the
+     * rule record the corpus pins, and the edge guards of graph inputs.
+     */
+    private record Manifests(String library, String rules, String guards) {
         Manifests {
             Objects.requireNonNull(library, "library");
             Objects.requireNonNull(rules, "rules");
+            Objects.requireNonNull(guards, "guards");
+        }
+
+        /** A conformance registry pins its guards alone. */
+        static Manifests conformance(String library, String guards) {
+            return new Manifests(library, guards, guards);
+        }
+
+        /**
+         * A metamorphic registry pins its rewrites, followed by its guards when it has any, so a
+         * corpus without guards pins the rewrites alone.
+         */
+        static Manifests metamorphic(String library, String rewrites, String guards) {
+            return new Manifests(library, guards.isEmpty() ? rewrites : rewrites + GUARD_SECTION + guards, guards);
         }
     }
 
@@ -63,10 +83,14 @@ public final class SpecDecoders {
     public String libraryManifest() { return manifests.library(); }
 
     /**
-     * The replay identity of the prepared rule module: the rewrites of a metamorphic technique, or
-     * the edge guards of graph inputs otherwise; empty without one.
+     * The replay identity of the prepared rule modules, which {@code .rewrite-library} pins: the
+     * edge guards of graph inputs, preceded by the rewrites of a metamorphic technique; empty
+     * without either.
      */
     public String rewriteManifest() { return manifests.rules(); }
+
+    /** The replay identity of the edge guards of graph inputs, empty without them. */
+    public String guardManifest() { return manifests.guards(); }
 
     private SpecDecoders(Map<InputKind, Generator<SpecArtifact>> decoders,
             Map<InputKind, Generator<SpecArtifact>> unrewritten, OperatorLibrary library, Manifests manifests) {
@@ -86,30 +110,29 @@ public final class SpecDecoders {
     }
 
     /**
-     * Loads configured libraries, and the rule module of the technique, once before constructing
-     * the reusable decoders of {@code technique}: the rewrite rules of a metamorphic technique, or
-     * the edge guards of graph inputs otherwise. A conformance corpus may hold graph inputs too, so
-     * it decodes them with the same guards.
+     * Loads configured libraries, the edge guards of graph inputs, and the rewrite rules of a
+     * metamorphic technique once before constructing the reusable decoders of {@code technique}.
+     * Every technique may decode graph inputs, so each decodes them with the same guards; a
+     * metamorphic graph base therefore decodes as it does in a pbt or gbt corpus.
      */
     public static SpecDecoders prepare(FuzzTlaConfig config, Technique technique) throws WorkflowException {
         try {
             var prepared = LibraryPreparation.prepare(config);
+            var apalache = config.workflow().checker(CorpusStage.APALACHE);
+            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), apalache);
+            var guards = guards(guardRules.library());
             return switch (technique) {
-                case PBT, GBT -> {
-                    var rules = RuleLibraryPreparation.prepare(
-                            config.graphGuards(), config.workflow().checker(CorpusStage.APALACHE));
-                    yield of(prepared.generator(), guards(rules.library()),
-                            new Manifests(prepared.manifest(), rules.manifest()));
-                }
+                case PBT, GBT -> of(prepared.generator(), guards,
+                        Manifests.conformance(prepared.manifest(), guardRules.manifest()));
                 case MT -> {
-                    var rules = RuleLibraryPreparation.prepare(
-                            config.metamorphic().rules(), config.workflow().checker(CorpusStage.APALACHE));
+                    var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache);
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("--how=mt needs rewrite rules: set metamorphic.rules");
                     }
                     yield metamorphic(prepared.generator(),
                             new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),
-                            new Manifests(prepared.manifest(), rules.manifest()));
+                            guards,
+                            Manifests.metamorphic(prepared.manifest(), rules.manifest(), guardRules.manifest()));
                 }
             };
         } catch (IllegalArgumentException exception) {
@@ -120,12 +143,12 @@ public final class SpecDecoders {
 
     /** Returns a complete conformance decoder registry under one generator configuration. */
     public static SpecDecoders of(IrGenerationConfig config) {
-        return of(config, Optional.empty(), new Manifests("", ""));
+        return of(config, Optional.empty(), Manifests.conformance("", ""));
     }
 
     /** Returns a complete conformance decoder registry whose graph inputs conjoin {@code guards}. */
     public static SpecDecoders of(IrGenerationConfig config, EdgeGuards guards) {
-        return of(config, Optional.of(Objects.requireNonNull(guards, "guards")), new Manifests("", ""));
+        return of(config, Optional.of(Objects.requireNonNull(guards, "guards")), Manifests.conformance("", ""));
     }
 
     /** The edge guards of a prepared rule module; none without one. */
@@ -142,7 +165,7 @@ public final class SpecDecoders {
 
     /** Returns a complete metamorphic decoder registry, whose rules {@code rewriter} applies. */
     public static SpecDecoders metamorphic(IrGenerationConfig config, Rewriter rewriter) {
-        return metamorphic(config, rewriter, new Manifests("", ""));
+        return metamorphic(config, rewriter, Optional.empty(), Manifests.metamorphic("", "", ""));
     }
 
     private static SpecDecoders of(IrGenerationConfig config, Optional<EdgeGuards> guards, Manifests manifests) {
@@ -168,15 +191,17 @@ public final class SpecDecoders {
     /**
      * Decodes a metamorphic payload (ADR 0016 §1): the base part through the decoder of the kind,
      * the rewrite part through the rewriter. A pair in which no rule applied is rejected, since both
-     * sides would be the same module. A graph base is rewritten as the module it decodes to, so its
-     * relation is a module relation and its graph predicts nothing.
+     * sides would be the same module. A graph base, whose edges conjoin {@code guards} when present,
+     * is rewritten as the module it decodes to, so its relation is a module relation and its graph
+     * predicts nothing.
      */
-    private static SpecDecoders metamorphic(IrGenerationConfig config, Rewriter rewriter, Manifests manifests) {
+    private static SpecDecoders metamorphic(
+            IrGenerationConfig config, Rewriter rewriter, Optional<EdgeGuards> guards, Manifests manifests) {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(rewriter, "rewriter");
         var expressions = IrGenerators.expressions(config);
         var specs = IrGenerators.specs(config);
-        var graphSpecs = graphs(config, Optional.empty()).map(GeneratedGraph::spec);
+        var graphSpecs = graphs(config, guards).map(GeneratedGraph::spec);
         Function<Rewrite<TlaEx>, SpecArtifact> expressionRelation =
                 rewrite -> SpecArtifact.fromExpressionRewrite(rewrite, config.library());
         Function<Rewrite<GeneratedSpec>, SpecArtifact> specRelation =
