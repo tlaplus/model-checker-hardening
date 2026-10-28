@@ -287,7 +287,7 @@ final class ConfigSchema {
             "Model checkers to run, a subset of "
                     + ConfigValueType.CHECKERS.format().apply(new CheckerSet(CorpusStage.checkerBranches()))
                     + " (ADR 0016 §5).",
-            "A corpus with one checker compares no verdicts; the first run records the list.");
+            "A corpus with one checker compares no verdicts; keep the list once the corpus holds entries.");
     static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.optionalInteger(
             "max_entries", InputStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,
             "Maximum current occupancy of 00-inputs.", INHERITS_MAXIMUM_ENTRIES);

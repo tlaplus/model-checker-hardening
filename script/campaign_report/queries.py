@@ -227,8 +227,7 @@ class CorpusQueries:
             )
         )
         connection.execute("CREATE INDEX temp.entryOutcomeEntry ON entryOutcome(entryId)")
-        # The checkers the entries record, which need not be in a `.checkers` file:
-        # the corpus writes one only for a non-default checker set.
+        # The checkers the entries record, whatever the configuration now says.
         self.checkers = tuple(
             stage for stage in self.stages() if stage.checks and stage is not Stage.PARSER
         )

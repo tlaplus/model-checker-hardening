@@ -119,8 +119,7 @@ public final class WorkflowRunner {
         requireAdoptableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
-            CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
-            CorpusRecords.CHECKERS.verify(corpus, checking.checkers(), true);
+            CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
             CorpusReplay.verify(corpus, setup.decoders(), true);
             var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);

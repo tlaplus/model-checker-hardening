@@ -60,7 +60,7 @@ max_entries = 1000
 # fuzztla init --how sets it; every entry decodes and is judged by it, so keep it (ADR 0025).
 technique = "pbt"
 # Model checkers to run, a subset of ["tlc", "tlcn", "apalache"] (ADR 0016 §5).
-# A corpus with one checker compares no verdicts; the first run records the list.
+# A corpus with one checker compares no verdicts; keep the list once the corpus holds entries.
 checkers = ["tlc", "apalache"]
 
 [workflow.inputs]

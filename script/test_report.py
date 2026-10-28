@@ -320,7 +320,7 @@ class DatabaseTest(unittest.TestCase):
                 corpus_queries.construct_pairs().pairs,
                 [("AND", "EQ", 2), ("AND", "MOD", 2), ("AND", "PLUS", 1), ("EQ", "PLUS", 1)],
             )
-            # Without a `.checkers` file, the checkers come from the stage records.
+            # The checkers come from the stage records, not from the configuration.
             self.assertEqual(corpus_queries.checkers, (Stage.TLC, Stage.TLCN))
             connection.close()
 

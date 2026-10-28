@@ -5,10 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusRecord;
-import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.nio.file.Path;
@@ -50,21 +48,6 @@ class ReplayRecordTest {
         assertThrows(WorkflowException.class, () -> RECORD.verify(corpus, "new", true));
     }
 
-    @Test
-    void recordsAndRereadsACheckerSet() throws Exception {
-        var corpus = CorpusDirectory.initialize(temporary.resolve("corpus"), "");
-        assertEquals(CheckerSet.DEFAULT, CorpusRecords.CHECKERS.read(corpus));
-        var tlc = CheckerSet.of(CorpusStage.TLC);
-        try (var lock = corpus.acquireExclusiveLock()) {
-            CorpusRecords.CHECKERS.verify(corpus, tlc, true);
-        }
-        assertEquals("tlc", new String(corpus.readRecord(CorpusRecord.CHECKERS).orElseThrow(), UTF_8));
-        assertEquals(tlc, CorpusRecords.CHECKERS.read(corpus));
-        var changed = assertThrows(WorkflowException.class,
-                () -> CorpusRecords.CHECKERS.verify(corpus, CheckerSet.DEFAULT, true));
-        assertTrue(changed.getMessage().contains("runs the checkers tlc, not tlc,apalache"), changed.getMessage());
-    }
-
     /** A legacy .technique must agree with [workflow] technique; a corpus without one takes the key. */
     @Test
     void aLegacyTechniqueMustMatchTheConfiguredOne() throws Exception {
@@ -82,6 +65,6 @@ class ReplayRecordTest {
     void readsACorpusWithoutATechniqueAsPbt() throws Exception {
         var corpus = CorpusDirectory.initialize(temporary.resolve("corpus"), "");
         assertEquals(Technique.PBT, CorpusRecords.TECHNIQUE.read(corpus));
-        CorpusRecords.TECHNIQUE.verify(corpus, Technique.PBT, false);
+        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, Technique.PBT);
     }
 }

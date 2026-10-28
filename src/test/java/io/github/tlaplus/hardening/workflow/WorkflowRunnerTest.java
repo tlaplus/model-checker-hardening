@@ -88,8 +88,11 @@ class WorkflowRunnerTest {
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
         assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
                 "a valid rule violated the metamorphic relation");
-        assertEquals(Technique.MT, CorpusRecords.TECHNIQUE.read(corpus));
+        assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty(), "the configuration names the technique");
         assertFalse(CorpusRecords.REWRITE_LIBRARY.read(corpus).isEmpty());
+        // A corpus from before ADR 0025 records its technique, which the configuration must repeat.
+        corpus.writeRecord(CorpusRecord.TECHNIQUE, Technique.MT.encodedName().getBytes(StandardCharsets.UTF_8));
+        new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 42, 1);
         var refused = assertThrows(WorkflowException.class,
                 () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1));
         assertTrue(refused.getMessage().contains("this corpus holds mt entries, but its config.toml sets technique = \"pbt\""), refused.getMessage());
@@ -252,7 +255,7 @@ class WorkflowRunnerTest {
         assertTrue(inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE) > 0,
                 "no graph reached its target");
         assertEquals(0, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.FAIL));
-        assertEquals(Technique.GBT, CorpusRecords.TECHNIQUE.read(corpus));
+        assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty());
     }
 
     /** A technique runs only on the kinds it generates: gbt only on graphs. */
@@ -278,10 +281,7 @@ class WorkflowRunnerTest {
         assertEquals(
                 inventory.counts(CorpusStage.TLC).processed() - inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH),
                 inventory.processedEntries(CorpusStage.AGGREGATOR) + inventory.pendingEntries(CorpusStage.AGGREGATOR));
-        assertEquals(CheckerSet.of(CorpusStage.TLC), CorpusRecords.CHECKERS.read(corpus));
-        var refused = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(both.withTechnique(Technique.PBT)).run(corpus, 42, 1));
-        assertTrue(refused.getMessage().contains("runs the checkers tlc"), refused.getMessage());
+        assertFalse(Files.exists(directory.resolve("corpus").resolve(".checkers")), "the configuration names the checkers");
     }
 
     /**
@@ -303,7 +303,6 @@ class WorkflowRunnerTest {
         assertEquals(inventory.counts(CorpusStage.TLC).processed(), inventory.counts(CorpusStage.TLCN).processed(),
                 "every parser pass reaches both TLC stages");
         assertTrue(inventory.processedEntries(CorpusStage.AGGREGATOR) + inventory.pendingEntries(CorpusStage.AGGREGATOR) > 0);
-        assertEquals(checkers, CorpusRecords.CHECKERS.read(corpus));
     }
 
     @Test
