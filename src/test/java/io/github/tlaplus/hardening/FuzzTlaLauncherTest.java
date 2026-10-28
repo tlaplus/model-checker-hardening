@@ -32,6 +32,8 @@ class FuzzTlaLauncherTest {
         Files.writeString(packagedJar, "original", StandardCharsets.UTF_8);
         var packagedApalacheJar = target.resolve("apalache.jar");
         Files.writeString(packagedApalacheJar, "apalache-original", StandardCharsets.UTF_8);
+        var packagedTla2toolsJar = target.resolve("tla2tools.jar");
+        Files.writeString(packagedTla2toolsJar, "tla2tools-original", StandardCharsets.UTF_8);
 
         var observedHome = directory.resolve("observed-home");
         var observedJar = directory.resolve("observed-jar");
@@ -55,6 +57,8 @@ class FuzzTlaLauncherTest {
                 cat "$3"
                 printf '|'
                 cat "$runtime_dir/apalache.jar"
+                printf '|'
+                cat "$runtime_dir/tla2tools.jar"
                 exit 23
                 """,
                 StandardCharsets.UTF_8);
@@ -77,6 +81,7 @@ class FuzzTlaLauncherTest {
             Files.writeString(packagedJar, "replacement", StandardCharsets.UTF_8);
             Files.writeString(
                     packagedApalacheJar, "apalache-replacement", StandardCharsets.UTF_8);
+            Files.writeString(packagedTla2toolsJar, "tla2tools-replacement", StandardCharsets.UTF_8);
             Files.writeString(proceed, "", StandardCharsets.UTF_8);
             assertTrue(process.waitFor(5, TimeUnit.SECONDS));
         } finally {
@@ -88,7 +93,7 @@ class FuzzTlaLauncherTest {
 
         assertEquals(23, process.exitValue());
         assertEquals(
-                "original|apalache-original",
+                "original|apalache-original|tla2tools-original",
                 new String(
                         process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
         assertEquals(
