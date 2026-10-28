@@ -193,8 +193,9 @@ public final class TomlConfig {
                 new MetamorphicConfig.Adoption(ConfigSchema.BASE_CORPUS.read(tables), ConfigSchema.ADOPT_RATIO.read(tables)))
                 .relativeTo(directory);
         var graphGuards = ConfigSchema.GUARD_RULES.read(tables).relativeTo(directory);
+        var tools = ConfigSchema.readTools(tables).relativeTo(directory);
         return new FuzzTlaConfig(generatedKind, generationConfig, workflowConfig, pbtConfig, mutatorConfig, libraries,
-                metamorphic, graphGuards);
+                metamorphic, graphGuards, tools);
     }
 
     /** Reads one checker table, naming the stage in every diagnostic. */

@@ -8,7 +8,6 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -35,8 +35,13 @@ public final class RuleLibraryPreparation {
 
     private RuleLibraryPreparation() {}
 
-    /** Typechecks with the Apalache settings of the run, as custom operator libraries are. */
-    public static Prepared prepare(RuleLibraryConfig config, CheckerStageConfig apalache) throws WorkflowException {
+    /**
+     * Typechecks with the Apalache settings of the run and the corpus's Apalache JAR, as custom
+     * operator libraries are.
+     */
+    public static Prepared prepare(RuleLibraryConfig config, CheckerStageConfig apalache, Path jar)
+            throws WorkflowException {
+        Objects.requireNonNull(jar, "jar");
         if (config.module().isEmpty()) {
             return new Prepared(RewriteLibrary.empty(), "");
         }
@@ -44,7 +49,6 @@ public final class RuleLibraryPreparation {
         try (var temporary = TemporaryDirectory.create("fuzztla-rules-")) {
             var scratch = temporary.path();
             var sources = Files.createDirectory(scratch.resolve("sources"));
-            var jar = ApalacheDistribution.locate();
             LibrarySources.snapshot(rules.classpath(), sources, jar);
             var source = sources.resolve(rules.module() + ".tla");
             if (!Files.isRegularFile(source)) {

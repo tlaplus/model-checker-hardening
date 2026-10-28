@@ -11,7 +11,7 @@ import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.CorpusTools;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,7 +37,7 @@ public final class LibraryPreparation {
         try (var temporary = TemporaryDirectory.create("fuzztla-library-")) {
             var scratch = temporary.path();
             var sources = Files.createDirectory(scratch.resolve("sources"));
-            var jar = ApalacheDistribution.locate();
+            var jar = CorpusTools.apalache(config);
             LibrarySources.snapshot(config.libraries().classpath(), sources, jar);
             var settings = config.workflow().checker(CorpusStage.APALACHE);
             var typechecker = new LibraryTypechecker(jar, scratch, settings);
@@ -61,7 +61,7 @@ public final class LibraryPreparation {
             }
             var library = OperatorLibrary.fromModules(modules, config.libraries().operators(), links);
             LibrarySourceProbe.check(library.sourceAliases(), config.workflow().parser(), scratch.resolve("parser"),
-                    config.libraries().sourceCheckerClasspath());
+                    CorpusTools.sourceCheckerClasspath(config));
             return new Prepared(config.generator().withLibrary(library), manifest);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

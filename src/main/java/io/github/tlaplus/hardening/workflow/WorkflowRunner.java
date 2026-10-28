@@ -17,7 +17,6 @@ import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
@@ -115,7 +114,7 @@ public final class WorkflowRunner {
         Preconditions.requireNonnegative(seed, "seed");
         limits.requireCpus(maximumCpus);
         var invocation = new StageGraph.Invocation(
-                corpus, technique, seed, maximumCpus, ApalacheDistribution.locate());
+                corpus, technique, seed, maximumCpus, CorpusTools.apalache(setup.config()));
         requireAdoptableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {

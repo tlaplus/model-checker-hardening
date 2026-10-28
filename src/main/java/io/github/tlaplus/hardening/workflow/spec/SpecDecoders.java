@@ -23,6 +23,7 @@ import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
 import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
+import io.github.tlaplus.hardening.workflow.CorpusTools;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
 import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
@@ -117,15 +118,17 @@ public final class SpecDecoders {
      */
     public static SpecDecoders prepare(FuzzTlaConfig config, Technique technique) throws WorkflowException {
         try {
+            CorpusTools.require(config);
             var prepared = LibraryPreparation.prepare(config);
             var apalache = config.workflow().checker(CorpusStage.APALACHE);
-            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), apalache);
+            var jar = CorpusTools.apalache(config);
+            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), apalache, jar);
             var guards = guards(guardRules.library());
             return switch (technique) {
                 case PBT, GBT -> of(prepared.generator(), guards,
                         Manifests.conformance(prepared.manifest(), guardRules.manifest()));
                 case MT -> {
-                    var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache);
+                    var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache, jar);
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("technique = \"mt\" needs rewrite rules: set metamorphic.rules");
                     }
