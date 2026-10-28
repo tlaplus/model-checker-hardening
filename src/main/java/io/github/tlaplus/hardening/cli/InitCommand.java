@@ -4,11 +4,13 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.Technique;
+import io.github.tlaplus.hardening.workflow.AdoptableBase;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryInstall;
 import java.io.IOException;
@@ -56,12 +58,35 @@ final class InitCommand implements Callable<Integer> {
                     + " uses; its classpath is copied into the corpus.")
     private Path library;
 
+    @Option(
+            names = "--base-corpus",
+            paramLabel = "DIR",
+            description = "With --how=mt, a pbt or gbt corpus whose selected entries the corpus adopts;"
+                    + " the corpus starts from its configuration, libraries and tools.")
+    private Path baseCorpus;
+
     @Spec private CommandSpec spec;
 
     @Override
     public Integer call() {
+        if (baseCorpus != null && technique != Technique.MT) {
+            return usage("--base-corpus requires --how=mt");
+        }
+        if (baseCorpus != null && library != null) {
+            return usage("--base-corpus names the library already; leave out --library");
+        }
         var initial = new InitialConfig(corpus, InitialConfig.locateProject());
-        var config = initial.create(technique);
+        FuzzTlaConfig config;
+        if (baseCorpus == null) {
+            config = initial.create(technique);
+        } else {
+            try {
+                config = initial.inherit(AdoptableBase.configuration(baseCorpus), baseCorpus);
+            } catch (IOException | CorpusException | WorkflowException exception) {
+                CommandDiagnostic.print(spec.commandLine().getErr(), "cannot adopt from", baseCorpus, exception);
+                return CommandLine.ExitCode.USAGE;
+            }
+        }
         if (!initial.hasProject()) {
             spec.commandLine().getErr().printf(
                     "fuzztla: shipped known-defect database not found; known_defects is empty%n");
@@ -92,13 +117,19 @@ final class InitCommand implements Callable<Integer> {
             spec.commandLine()
                     .getOut()
                     .printf(
-                            "fuzztla: initialized %s corpus at '%s'%n",
+                            "fuzztla: initialized %s corpus at '%s'%s%n",
                             technique.encodedName(),
-                            initialized.resolve(CorpusPath.ROOT));
+                            initialized.resolve(CorpusPath.ROOT),
+                            baseCorpus == null ? "" : ", adopting from '" + baseCorpus + "'");
             return CommandLine.ExitCode.OK;
         } catch (IOException | CorpusException exception) {
             CommandDiagnostic.print(spec.commandLine().getErr(), "cannot initialize corpus", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
+    }
+
+    private int usage(String message) {
+        spec.commandLine().getErr().printf("fuzztla: %s%n", message);
+        return CommandLine.ExitCode.USAGE;
     }
 }

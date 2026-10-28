@@ -51,6 +51,21 @@ final class InitialConfig {
     }
 
     /**
+     * Returns the configuration of an {@code mt} corpus that adopts from {@code baseCorpus} (ADR
+     * 0025 §5): the base's whole configuration {@code base}, whose paths are absolute, with the
+     * {@code mt} settings and {@code base_corpus}. The libraries, rules and tools it names stay
+     * absolute, since init copies them into the corpus.
+     */
+    FuzzTlaConfig inherit(FuzzTlaConfig base, Path baseCorpus) {
+        var adoption = base.metamorphic().adoption();
+        var config = base
+                .withKnownDefects(base.workflow().inputs().knownDefects().stream().map(this::path).toList())
+                .withMetamorphic(new MetamorphicConfig(base.metamorphic().rules(), base.metamorphic().limits(),
+                        new MetamorphicConfig.Adoption(Optional.of(path(baseCorpus)), adoption.ratio())));
+        return forTechnique(config, Technique.MT);
+    }
+
+    /**
      * Returns {@code config} running {@code technique}: a kind the technique generates and, for
      * {@code mt}, the shipped rewrite rules and, with Apalache, the metamorphic signatures.
      */

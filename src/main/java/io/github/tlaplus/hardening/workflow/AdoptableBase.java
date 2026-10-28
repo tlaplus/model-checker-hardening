@@ -19,10 +19,33 @@ import java.nio.file.Path;
  * and decodes it with this run's generator, so it reproduces its parent only when both corpora
  * decode alike: the base must store plain payloads, as a {@code pbt} or {@code gbt} corpus does,
  * and have the same {@code [generator]} and {@code [graph]} settings, the same custom operator
- * library and the same edge guards.
+ * library and the same edge guards. {@code fuzztla init --how=mt --base-corpus} starts from the
+ * base's configuration, so the two agree from the start (ADR 0025 §5).
  */
-final class AdoptableBase {
+public final class AdoptableBase {
     private AdoptableBase() {}
+
+    /**
+     * Returns the configuration of a base corpus, with absolute paths, refusing a corpus that
+     * cannot be a base: an {@code mt} corpus, whose payloads carry a metamorphic header.
+     */
+    public static FuzzTlaConfig configuration(Path base) throws IOException, CorpusException, WorkflowException {
+        var corpus = CorpusDirectory.openExisting(base);
+        final FuzzTlaConfig config;
+        try {
+            config = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG));
+        } catch (ConfigException exception) {
+            throw new WorkflowException("cannot read the configuration of the base corpus '" + base
+                    + "': " + Diagnostics.message(exception), exception);
+        }
+        var technique = config.workflow().technique();
+        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
+        if (technique == Technique.MT) {
+            throw new WorkflowException("the base corpus must be a pbt or gbt corpus, but '" + base
+                    + "' runs " + technique.encodedName());
+        }
+        return config;
+    }
 
     /**
      * Refuses a base corpus whose entries this run would not decode to their parents.
@@ -34,21 +57,8 @@ final class AdoptableBase {
      */
     static void require(Path base, IrGenerationConfig generator, String libraryManifest, String guardManifest)
             throws IOException, CorpusException, WorkflowException {
-        var corpus = CorpusDirectory.openExisting(base);
-        final FuzzTlaConfig baseConfig;
-        try {
-            baseConfig = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG));
-        } catch (ConfigException exception) {
-            throw new WorkflowException("cannot read the configuration of metamorphic.base_corpus '" + base
-                    + "': " + Diagnostics.message(exception), exception);
-        }
+        var baseConfig = configuration(base);
         var technique = baseConfig.workflow().technique();
-        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
-        // An mt payload carries a metamorphic header, so it is not the payload of a base.
-        if (technique == Technique.MT) {
-            throw new WorkflowException("metamorphic.base_corpus must be a pbt or gbt corpus, but '" + base
-                    + "' runs " + technique.encodedName());
-        }
         var baseGenerator = baseConfig.generator();
         if (!withoutLibrary(baseGenerator).equals(withoutLibrary(generator))) {
             throw new WorkflowException("metamorphic.base_corpus '" + base + "' has other [generator] or [graph] "

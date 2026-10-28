@@ -262,6 +262,49 @@ class MainTest {
         assertTrue(result.err().contains("Unknown option: '--how=pbt'"), result.err());
     }
 
+    /**
+     * An mt corpus over a previous run is one command: it starts from the base's configuration,
+     * copies its libraries and tools, and adopts from it (ADR 0025 §5).
+     */
+    @Test
+    void initializesAMetamorphicCorpusOverAGraphCorpus(@TempDir Path directory) throws Exception {
+        var base = directory.resolve("base");
+        assertEquals(CommandLine.ExitCode.OK, execute("init", "--how=gbt", "--corpus=" + base).exitCode());
+        var corpus = directory.resolve("mt");
+
+        var result = execute("init", "--how=mt", "--base-corpus=" + base, "--corpus=" + corpus);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        assertTrue(result.out().contains("adopting from '" + base + "'"), result.out());
+        var config = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath()));
+        var baseConfig = TomlConfig.read(base.resolve(CorpusPath.CONFIG.relativePath()));
+        assertEquals(Technique.MT, config.workflow().technique());
+        assertEquals(InputKind.GRAPH, config.generatedKind());
+        assertEquals(baseConfig.generator(), config.generator());
+        assertEquals(Optional.of(base.toAbsolutePath().normalize()), config.metamorphic().adoption().baseCorpus());
+        assertTrue(Files.isRegularFile(corpus.resolve("tla/rewrites/Rewrites.tla")));
+        for (var tool : ToolJar.values()) {
+            assertEquals(Files.size(base.resolve("tools").resolve(tool.fileName())),
+                    Files.size(corpus.resolve("tools").resolve(tool.fileName())));
+        }
+
+        var nested = execute("init", "--how=mt", "--base-corpus=" + corpus, "--corpus=" + directory.resolve("mt2"));
+        assertEquals(CommandLine.ExitCode.USAGE, nested.exitCode());
+        assertTrue(nested.err().contains("must be a pbt or gbt corpus"), nested.err());
+    }
+
+    @Test
+    void onlyAnMtCorpusAdoptsFromABase(@TempDir Path directory) {
+        var base = directory.resolve("base");
+        var pbt = execute("init", "--how=pbt", "--base-corpus=" + base, "--corpus=" + directory.resolve("c"));
+        assertEquals(CommandLine.ExitCode.USAGE, pbt.exitCode());
+        assertTrue(pbt.err().contains("--base-corpus requires --how=mt"), pbt.err());
+        var library = execute("init", "--how=mt", "--base-corpus=" + base, "--library=lib.toml",
+                "--corpus=" + directory.resolve("c"));
+        assertEquals(CommandLine.ExitCode.USAGE, library.exitCode());
+        assertTrue(library.err().contains("leave out --library"), library.err());
+    }
+
     /** A gbt corpus generates graphs, so init writes the graph kind with the technique. */
     @Test
     void initializesAGraphCorpus(@TempDir Path directory) throws Exception {
