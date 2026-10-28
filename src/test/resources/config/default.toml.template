@@ -1,6 +1,6 @@
 [generator]
 # What this run generates: "expr" for one expression wrapped in a single-state module, "module" for a whole module, or "graph" for a
-# module over a control graph (ADR 0023), which --how=gbt requires.
+# module over a control graph (ADR 0023), which technique = "gbt" requires.
 # A corpus entry records its own kind, so a run only generates this one.
 kind = "module"
 max_type_depth = 3
@@ -56,6 +56,9 @@ custom_operators = []
 # Maximum number of unique entries across every workflow directory.
 # A stage table that omits max_entries inherits this value.
 max_entries = 1000
+# Fuzzing technique: "pbt", "mt" for metamorphic testing (ADR 0016) or "gbt" for graph-based testing (ADR 0023).
+# fuzztla init --how sets it; every entry decodes and is judged by it, so keep it (ADR 0025).
+technique = "pbt"
 # Model checkers to run, a subset of ["tlc", "tlcn", "apalache"] (ADR 0016 §5).
 # A corpus with one checker compares no verdicts; the first run records the list.
 checkers = ["tlc", "apalache"]
@@ -141,7 +144,7 @@ cell_capacity = 4
 feature_coverage = true
 
 [metamorphic]
-# Rule module of --how=mt, relative to this config file (ADR 0017): every top-level
+# Rule module of technique = "mt", relative to this config file (ADR 0017): every top-level
 # definition F(p1, ..., pn) == A = B of the module is a rewrite rule.
 # rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }
 # Selection slots per rewrite rule, overriding the rule's @weight annotation; a rule

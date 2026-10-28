@@ -65,6 +65,19 @@ class ReplayRecordTest {
         assertTrue(changed.getMessage().contains("runs the checkers tlc, not tlc,apalache"), changed.getMessage());
     }
 
+    /** A legacy .technique must agree with [workflow] technique; a corpus without one takes the key. */
+    @Test
+    void aLegacyTechniqueMustMatchTheConfiguredOne() throws Exception {
+        var corpus = CorpusDirectory.initialize(temporary.resolve("corpus"), "");
+        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, Technique.GBT);
+        corpus.writeRecord(CorpusRecord.TECHNIQUE, "gbt".getBytes(UTF_8));
+        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, Technique.GBT);
+        var refused = assertThrows(WorkflowException.class,
+                () -> CorpusRecords.TECHNIQUE.requireUnchanged(corpus, Technique.PBT));
+        assertEquals("this corpus holds gbt entries, but its config.toml sets technique = \"pbt\"; set technique ="
+                + " \"gbt\" under [workflow]", refused.getMessage());
+    }
+
     @Test
     void readsACorpusWithoutATechniqueAsPbt() throws Exception {
         var corpus = CorpusDirectory.initialize(temporary.resolve("corpus"), "");

@@ -127,7 +127,7 @@ public final class SpecDecoders {
                 case MT -> {
                     var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache);
                     if (rules.library().isEmpty()) {
-                        throw new WorkflowException("--how=mt needs rewrite rules: set metamorphic.rules");
+                        throw new WorkflowException("technique = \"mt\" needs rewrite rules: set metamorphic.rules");
                     }
                     yield metamorphic(prepared.generator(),
                             new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),

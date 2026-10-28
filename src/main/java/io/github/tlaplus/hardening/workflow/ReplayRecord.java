@@ -59,6 +59,19 @@ public record ReplayRecord<T>(
         }
     }
 
+    /**
+     * Refuses a saved record that differs from {@code expected}, the configured value; a corpus
+     * without the record passes, since its configuration now says what the record said.
+     */
+    public void requireUnchanged(CorpusDirectory corpus, T expected)
+            throws IOException, CorpusException, WorkflowException {
+        var encoded = codec.encode().apply(Objects.requireNonNull(expected, "expected"));
+        var saved = savedText(Objects.requireNonNull(corpus, "corpus"));
+        if (saved.isPresent() && !saved.get().equals(encoded)) {
+            throw new WorkflowException(mismatch.apply(saved.get(), encoded));
+        }
+    }
+
     /** Returns the saved value, or {@code unrecorded} for a corpus without the record. */
     public T read(CorpusDirectory corpus) throws IOException, CorpusException, WorkflowException {
         var saved = savedText(corpus);

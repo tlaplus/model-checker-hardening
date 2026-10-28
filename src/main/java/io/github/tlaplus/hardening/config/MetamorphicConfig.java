@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The {@code [metamorphic]} table (ADR 0016 §7, ADR 0017 §1): what a {@code --how=mt} run reads
+ * The {@code [metamorphic]} table (ADR 0016 §7, ADR 0017 §1): what an {@code mt} corpus reads
  * besides the generator settings. Another technique ignores it.
  *
  * @param rules the rule module and its weights; an omitted rule has weight 1

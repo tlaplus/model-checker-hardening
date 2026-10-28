@@ -34,6 +34,16 @@ class TechniqueTest {
         }
     }
 
+    /** init keeps a configured kind the technique generates, and otherwise picks one it does. */
+    @Test
+    void choosesTheKindANewCorpusGenerates() {
+        for (var kind : InputKind.values()) {
+            assertEquals(kind, Technique.PBT.kindFor(kind));
+            assertEquals(kind, Technique.MT.kindFor(kind));
+            assertEquals(InputKind.GRAPH, Technique.GBT.kindFor(kind));
+        }
+    }
+
     @Test
     void decodesEveryEncodedName() {
         for (var technique : Technique.values()) {

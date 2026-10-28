@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -11,7 +12,6 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
-import io.github.tlaplus.hardening.workflow.CorpusRecords;
 import io.github.tlaplus.hardening.workflow.CorpusReplay;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
@@ -74,14 +74,15 @@ final class ExportDbCommand implements Callable<Integer> {
         var exportedAt = Instant.now();
         try (var shutdown = RunShutdownHook.install()) {
             var directory = CorpusDirectory.openExisting(corpus);
+            var config = TomlConfig.read(directory.resolve(CorpusPath.CONFIG));
             var options = new CorpusExport.Options(
                     corpus,
                     output == null ? CorpusExport.defaultOutput(corpus) : output,
                     force,
                     !noLock,
                     new CorpusExport.Provenance(new FuzzTlaCommand.VersionProvider().getVersion()[0], exportedAt,
-                            CorpusRecords.TECHNIQUE.read(directory)));
-            var analysis = new CorpusExport.Analysis(replay(directory), maximumCpus);
+                            config.workflow().technique()));
+            var analysis = new CorpusExport.Analysis(replay(directory, config), maximumCpus);
             var summary = CorpusExport.run(options, analysis);
             spec.commandLine().getOut().print(ExportDbReport.render(summary));
             spec.commandLine().getOut().flush();
@@ -101,9 +102,9 @@ final class ExportDbCommand implements Callable<Integer> {
     }
 
     /** Replays inputs under the corpus's own generator settings and operator library. */
-    private static InputAnalysis replay(CorpusDirectory directory)
-            throws IOException, ConfigException, CorpusException, WorkflowException {
-        var decoders = CorpusReplay.decoders(directory, TomlConfig.read(directory.resolve(CorpusPath.CONFIG)));
+    private static InputAnalysis replay(CorpusDirectory directory, FuzzTlaConfig config)
+            throws IOException, CorpusException, WorkflowException {
+        var decoders = CorpusReplay.decoders(directory, config);
         return new EvaluatedExprs(decoders)::analyze;
     }
 }

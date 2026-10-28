@@ -112,9 +112,10 @@ public final class MetamorphicShrinker {
     public static Result shrink(CorpusDirectory corpus, FuzzTlaConfig config, CorpusInput entry, int maximumCpus)
             throws IOException, CorpusException, WorkflowException, InterruptedException {
         var decoders = CorpusReplay.decoders(corpus, config);
-        if (CorpusRecords.TECHNIQUE.read(corpus) != Technique.MT) {
-            throw new WorkflowException("only a metamorphic corpus can be shrunk; this one runs --how="
-                    + CorpusRecords.TECHNIQUE.read(corpus).encodedName());
+        var technique = config.workflow().technique();
+        if (technique != Technique.MT) {
+            throw new WorkflowException("only a metamorphic corpus can be shrunk; this one runs "
+                    + technique.encodedName());
         }
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
             var resources = new CheckerBackends.Resources(maximumCpus, scratch, ApalacheDistribution.locate(),

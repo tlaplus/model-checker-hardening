@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
@@ -105,6 +106,8 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
             weights -> weights.isEmpty() ? "{}" : new TreeMap<>(weights).entrySet().stream()
                     .map(entry -> entry.getKey() + " = " + entry.getValue())
                     .collect(Collectors.joining(", ", "{ ", " }")));
+
+    static final ConfigValueType<Technique> TECHNIQUE = name(Technique.class, Technique::encodedName, "technique");
 
     static final ConfigValueType<InputKind> INPUT_KIND = new ConfigValueType<>(
             ConfigValueType::readInputKind, kind -> quote(kind.encodedName()));

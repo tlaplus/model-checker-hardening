@@ -15,13 +15,16 @@ import java.util.stream.Collectors;
  * out and judged.
  */
 public final class CorpusRecords {
-    /** The technique of `fuzztla run --how`; a corpus that records none runs {@code pbt}. */
+    /**
+     * The technique the corpus's entries were admitted under, which must equal {@code [workflow]
+     * technique}; a corpus that records none runs {@code pbt}.
+     */
     public static final ReplayRecord<Technique> TECHNIQUE = new ReplayRecord<>(
             CorpusRecord.TECHNIQUE,
             Technique.UNRECORDED,
             new ReplayRecord.Codec<>(Technique::encodedName, Technique::fromEncodedName),
-            (saved, expected) -> "this corpus runs --how=" + saved + ", not --how=" + expected
-                    + "; initialize a new corpus for --how=" + expected);
+            (saved, expected) -> "this corpus holds " + saved + " entries, but its config.toml sets technique = \""
+                    + expected + "\"; set technique = \"" + saved + "\" under [workflow]");
 
     /** The checkers of `[workflow] checkers`; a corpus that records none runs the default. */
     public static final ReplayRecord<CheckerSet> CHECKERS = new ReplayRecord<>(

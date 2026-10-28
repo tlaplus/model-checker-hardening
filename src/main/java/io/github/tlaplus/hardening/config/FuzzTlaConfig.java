@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
@@ -54,7 +55,7 @@ public record FuzzTlaConfig(
         }
     }
 
-    /** A configuration without metamorphic settings, which only {@code --how=mt} reads. */
+    /** A configuration without metamorphic settings, which only an {@code mt} corpus reads. */
     public FuzzTlaConfig(
             InputKind generatedKind,
             IrGenerationConfig generator,
@@ -100,6 +101,16 @@ public record FuzzTlaConfig(
     /** Returns this configuration with the given workflow limits and checkers. */
     public FuzzTlaConfig withWorkflow(WorkflowConfig replacement) {
         return new FuzzTlaConfig(generatedKind, generator, replacement, pbt, mutator, libraries, metamorphic, graphGuards);
+    }
+
+    /** Returns this configuration generating inputs of {@code kind}. */
+    public FuzzTlaConfig withGeneratedKind(InputKind kind) {
+        return new FuzzTlaConfig(kind, generator, workflow, pbt, mutator, libraries, metamorphic, graphGuards);
+    }
+
+    /** Returns this configuration running the given technique. */
+    public FuzzTlaConfig withTechnique(Technique technique) {
+        return withWorkflow(workflow.withTechnique(technique));
     }
 
     /** Returns this configuration with the given metamorphic settings. */

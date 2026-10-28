@@ -24,11 +24,11 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress -DskipTests package
       - name: Initialize a 100-entry corpus
         run: |
-          ./bin/fuzztla init
+          ./bin/fuzztla init --how=pbt
           sed -i 's/^max_entries = .*/max_entries = 100/' corpus/config.toml
       - name: Run the PBT workflow
         run: |
-          ./bin/fuzztla run --how=pbt
+          ./bin/fuzztla run
           logical_entries=$(find \
             corpus/00-inputs \
             corpus/01parser-fail \

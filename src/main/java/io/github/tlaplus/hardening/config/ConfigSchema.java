@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.ShallowPattern;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.InputKind;
@@ -252,7 +253,7 @@ final class ConfigSchema {
             "kind", ConfigValueType.INPUT_KIND, FuzzTlaConfig::generatedKind,
             "What this run generates: \"expr\" for one expression wrapped in a"
                     + " single-state module, \"module\" for a whole module, or \"graph\" for a",
-            "module over a control graph (ADR 0023), which --how=gbt requires.",
+            "module over a control graph (ADR 0023), which technique = \"gbt\" requires.",
             "A corpus entry records its own kind, so a run only generates this one.");
     static final GeneratorLimitSchema GENERATOR_LIMITS = new GeneratorLimitSchema(GENERATION);
     static final Key<Set<ExpressionCategory>> IGNORED_CATEGORIES = GENERATION.key(
@@ -274,6 +275,12 @@ final class ConfigSchema {
             "max_entries", WorkflowConfig::maximumEntries,
             "Maximum number of unique entries across every workflow directory.",
             "A stage table that omits max_entries inherits this value.");
+    static final Key<Technique> TECHNIQUE = WORKFLOW.optional(
+            "technique", ConfigValueType.TECHNIQUE, WorkflowConfig::technique,
+            new Constant<>(Technique.UNRECORDED),
+            "Fuzzing technique: \"pbt\", \"mt\" for metamorphic testing (ADR 0016) or \"gbt\" for"
+                    + " graph-based testing (ADR 0023).",
+            "fuzztla init --how sets it; every entry decodes and is judged by it, so keep it (ADR 0025).");
     static final Key<CheckerSet> ENABLED_CHECKERS = WORKFLOW.optional(
             "checkers", ConfigValueType.CHECKERS, WorkflowConfig::enabledCheckers,
             new Constant<>(CheckerSet.DEFAULT),
@@ -340,7 +347,7 @@ final class ConfigSchema {
 
     static final RuleLibrarySchema REWRITE_RULES = new RuleLibrarySchema(
             METAMORPHIC.project(MetamorphicConfig::rules), "rewrite rule",
-            "Rule module of --how=mt, relative to this config file (ADR 0017): every top-level",
+            "Rule module of technique = \"mt\", relative to this config file (ADR 0017): every top-level",
             "definition F(p1, ..., pn) == A = B of the module is a rewrite rule.");
     private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
     static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
