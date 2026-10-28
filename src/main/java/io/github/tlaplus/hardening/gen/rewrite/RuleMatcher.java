@@ -43,8 +43,10 @@ import org.apalache_mc.tla.jir.TypedParameter;
  *       at every type it admits.
  * </ul>
  *
- * <p>A match is refused when it would take away one of TLC's assignments (ADR 0017 §5.3): at a
- * Boolean node, when it would move an assigning equation out of an assigning position; anywhere,
+ * <p>A match is refused when it would take away one of the checkers' assignments (ADR 0017 §5.3):
+ * at a Boolean node, when it would move an assigning equation out of an assigning position, or
+ * make a branch of a disjunction or an {@code IF} whose assignments no branch of the pattern makes,
+ * which Apalache rejects; anywhere,
  * when the replacement would prime a parameter bound to something other than a name, or keep one
  * UNCHANGED that is neither a name nor a tuple of names. {@code <<a, b>>' = <<a, b>>} is valid TLA+
  * but assigns nothing in TLC. A match is also refused when the replacement would put a label of a

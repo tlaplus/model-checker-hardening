@@ -129,6 +129,17 @@ final class RuleFixtures {
                 B.param("P", TlaTypes.BOOL), B.param("Q", TlaTypes.BOOL), B.param("R", TlaTypes.BOOL));
     }
 
+    /** {@code OrFalse(P) == P = (P \/ FALSE)}, whose second disjunct assigns nothing. */
+    static TlaOperDecl orFalse() {
+        return B.decl("OrFalse", B.eql(bool("P"), B.or(bool("P"), B.bool(false))), B.param("P", TlaTypes.BOOL));
+    }
+
+    /** {@code IfTrueBool(P, Q) == P = (IF TRUE THEN P ELSE Q)}, whose ELSE branch is fresh. */
+    static TlaOperDecl ifTrueBool() {
+        return B.decl("IfTrueBool", B.eql(bool("P"), B.ite(B.bool(true), bool("P"), bool("Q"))),
+                B.param("P", TlaTypes.BOOL), B.param("Q", TlaTypes.BOOL));
+    }
+
     private static TlaEx nestedForall() {
         return B.forall(B.name("e", ELEMENT), elements("S"),
                 B.forall(B.name("d", OTHER), others("T"), applyRelation()));

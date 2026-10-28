@@ -138,6 +138,24 @@ class RewriteLibraryTest {
     }
 
     /**
+     * Apalache requires every branch of a disjunction or an IF to assign every variable, so a branch
+     * of the replacement must hold the primed formulas of some branch of the pattern.
+     */
+    @Test
+    void everyBranchOfTheReplacementAssignsAsABranchOfThePattern() {
+        var library = library(orFalse(), ifTrueBool(), ifAsAndOr());
+        for (var unbalanced : List.of("OrFalse", "IfTrueBool")) {
+            var facts = find(library, unbalanced).assignments();
+            assertTrue(facts.admits(Set.of()), unbalanced + " applies to a guard");
+            assertFalse(facts.admits(Set.of("P")), unbalanced + " adds a branch that assigns nothing");
+        }
+        var conditional = find(library, "IfAsAndOr").assignments();
+        assertEquals(Set.of(Set.of("Q"), Set.of("R")), conditional.pattern().branches());
+        assertEquals(Set.of(Set.of("P", "Q"), Set.of("R")), conditional.replacement().branches());
+        assertTrue(conditional.admits(Set.of("Q")), "the ELSE branch assigned nothing before either");
+    }
+
+    /**
      * Snowcat types a LET definition that reads no parameter over variables of its own, which the
      * rewriter would draw apart from the definition's application.
      */

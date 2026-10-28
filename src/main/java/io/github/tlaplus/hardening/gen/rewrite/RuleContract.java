@@ -28,7 +28,7 @@ import org.apalache_mc.tla.jir.TlaTypes;
 /**
  * Reads one rule definition and checks the parts of the rule contract that the loader can decide
  * (ADR 0017 §2, §3, §5): the shape {@code A = B} or {@code A <=> B}, the parameter classes, level
- * preservation and closedness. It also precomputes what the rule does to TLC's assignments.
+ * preservation and closedness. It also precomputes what the rule does to the checkers' assignments.
  * Validity in TLA+ is the author's obligation, which the rule module's self-test checks.
  */
 final class RuleContract {
@@ -39,6 +39,9 @@ final class RuleContract {
     private static final Set<TlaOper> ACTION = identitySet(PRIME, UNCHANGED, ENABLED, COMPOSE, STUTTER, NO_STUTTER);
     private static final Set<TlaOper> TEMPORAL = identitySet(GLOBALLY, EVENTUALLY, LEADS_TO, GUARANTEES,
             WEAK_FAIRNESS, STRONG_FAIRNESS, TEMPORAL_EXISTS, TEMPORAL_FORALL);
+
+    /** The single branch of an expression that holds no parameter in an assignment position. */
+    private static final Set<Set<String>> NO_PARAMETERS = Set.of(Set.of());
 
     private RuleContract() {}
 
@@ -203,11 +206,61 @@ final class RuleContract {
                 .map(RuleParameter::name)
                 .collect(java.util.stream.Collectors.toSet());
         // A formula that assigned in the pattern must still assign, once; one that did not must not
-        // start to, or a guard such as an IF condition would become an assignment.
+        // start to, or a guard such as an IF condition would become an assignment. Each branch of
+        // the replacement must hold the formulas of a branch of the pattern, for Apalache.
         var preserved = assigningOnce(replacement, booleans);
         preserved.retainAll(assigningOnce(pattern, booleans));
-        return new AssignmentFacts(preserved, firstOccurrences(pattern, booleans), firstOccurrences(replacement, booleans),
+        return new AssignmentFacts(preserved, side(pattern, booleans), side(replacement, booleans),
                 operands(replacement, PRIME), operands(replacement, UNCHANGED));
+    }
+
+    private static AssignmentFacts.Side side(TlaEx expression, Set<String> parameters) {
+        return new AssignmentFacts.Side(firstOccurrences(expression, parameters), branches(expression, parameters));
+    }
+
+    /**
+     * Returns, for each branch through the disjunctions and {@code IF} branches of {@code expression},
+     * the parameters it holds in an assignment position. A conjunction, an {@code \E} body, a label
+     * and a {@code LET} body hold one branch of each of their assigning arguments.
+     */
+    private static Set<Set<String>> branches(TlaEx expression, Set<String> parameters) {
+        return switch (expression) {
+            case NameEx name -> parameters.contains(name.name()) ? Set.of(Set.of(name.name())) : NO_PARAMETERS;
+            case LetInEx let -> branches(let.body(), parameters);
+            case OperEx application -> {
+                var operator = application.oper();
+                var alternatives = operator == OR || operator == IF_THEN_ELSE;
+                var arguments = TlaExpressions.arguments(application);
+                Set<Set<String>> result = alternatives ? new HashSet<>() : NO_PARAMETERS;
+                for (var index = 0; index < arguments.size(); index++) {
+                    if (keepsAssignments(operator, index)) {
+                        var argument = branches(arguments.get(index), parameters);
+                        result = alternatives ? union(result, argument) : product(result, argument);
+                    }
+                }
+                yield result;
+            }
+            default -> NO_PARAMETERS;
+        };
+    }
+
+    private static Set<Set<String>> union(Set<Set<String>> left, Set<Set<String>> right) {
+        var result = new HashSet<>(left);
+        result.addAll(right);
+        return result;
+    }
+
+    /** Returns every union of one branch of {@code left} with one branch of {@code right}. */
+    private static Set<Set<String>> product(Set<Set<String>> left, Set<Set<String>> right) {
+        var result = new HashSet<Set<String>>();
+        for (var first : left) {
+            for (var second : right) {
+                var branch = new HashSet<>(first);
+                branch.addAll(second);
+                result.add(branch);
+            }
+        }
+        return result;
     }
 
     /** Returns the parameters that occur exactly once in {@code expression}, in an assigning position. */
