@@ -1,6 +1,6 @@
 # `ConfigSchema`
 
-`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
 
 The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back.
 
@@ -38,6 +38,12 @@ classDiagram
   }
   class QualityGateConfig {
     <<record>>
+  }
+  class ToolJar {
+    <<enum>>
+  }
+  class ToolsConfig {
+    <<config>>
   }
   class WorkflowConfig {
     <<config>>
@@ -90,6 +96,8 @@ classDiagram
   ConfigSchema ..> PbtConfig : uses
   ConfigSchema ..> QualityGateConfig : uses
   ConfigSchema ..> RuleLibrarySchema : uses
+  ConfigSchema ..> ToolJar : uses
+  ConfigSchema ..> ToolsConfig : uses
   ConfigSchema ..> WorkflowConfig : uses
   ConfigSchema ..> CheckerSet : uses
   ConfigSchema ..> CorpusStage : uses
@@ -104,7 +112,7 @@ classDiagram
   ConfigSchema ..> MutationOperator : uses
 ```
 
-The diagram draws 27 of 33 relations; the table lists them all.
+The diagram draws 29 of 35 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -123,6 +131,8 @@ The diagram draws 27 of 33 relations; the table lists them all.
 | → | uses | [PbtConfig](io.github.tlaplus.hardening.config.PbtConfig.md) | Limits and collection-richness controls for property-based input generation. |
 | → | uses | [QualityGateConfig](io.github.tlaplus.hardening.config.QualityGateConfig.md) | What the quality gate keeps of a settled generation (ADR 0010, ADR 0013). |
 | → | uses | [RuleLibrarySchema](io.github.tlaplus.hardening.config.RuleLibrarySchema.md) | Declares and assembles the `rules` and `weights` keys of a table that names a rule module (ADR 0017 §1), so every such table reads them alike. |
+| → | uses | [ToolJar](io.github.tlaplus.hardening.config.ToolJar.md) | A checker distribution that a corpus copies into its `tools/` directory, so its entries keep being checked, and its libraries typed, with the release they were admitted under (ADR 0025 §3). |
+| → | uses | [ToolsConfig](io.github.tlaplus.hardening.config.ToolsConfig.md) | The `[tools]` table (ADR 0025 §3): the tool JARs a corpus checks and types with. |
 | → | uses | [WorkflowConfig](io.github.tlaplus.hardening.config.WorkflowConfig.md) | Global and per-stage limits for the implemented fuzzing workflow. |
 | → | uses | [CheckerSet](io.github.tlaplus.hardening.corpus.CheckerSet.md) | The checker branches a corpus runs: a non-empty set of checking stages, in stage order. |
 | → | uses | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |

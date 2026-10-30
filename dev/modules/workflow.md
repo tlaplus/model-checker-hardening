@@ -34,7 +34,6 @@ flowchart TB
   workflow_apalache -->|3| workflow_tool
   workflow_execution -->|1| workflow
   workflow_input -->|6| workflow_execution
-  workflow_library -->|1| workflow
   workflow_quality -->|1| workflow_execution
   workflow_spec -->|2| workflow_worker
   workflow_tlc -->|2| workflow_tool
@@ -76,16 +75,18 @@ classDiagram
 |---|---|---|---|
 | [AdoptableBase](../types/io.github.tlaplus.hardening.workflow.AdoptableBase.md) | class | other | The base corpus of a metamorphic run (ADR 0016 §6). |
 | [**CheckerBackends** ★](../types/io.github.tlaplus.hardening.workflow.CheckerBackends.md) | class | policy | How each model-checker stage builds its backend for one invocation. |
-| [CorpusRecords](../types/io.github.tlaplus.hardening.workflow.CorpusRecords.md) | class | other | The corpus records that pin how entries replay (ADR 0017 §6), and the technique record of a corpus from before ADR 0025, whose configuration must now repeat it. |
-| [**CorpusReplay** ★](../types/io.github.tlaplus.hardening.workflow.CorpusReplay.md) | class | facade | Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and only while the libraries they load match the corpus's manifests. |
+| [CorpusRecords](../types/io.github.tlaplus.hardening.workflow.CorpusRecords.md) | class | other | The one corpus record still read: the technique of a corpus from before ADR 0025, whose configuration must now repeat it. |
+| [**CorpusReplay** ★](../types/io.github.tlaplus.hardening.workflow.CorpusReplay.md) | class | facade | Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and the libraries, rules and tools the corpus holds (ADR 0025). |
+| [CorpusTools](../types/io.github.tlaplus.hardening.workflow.CorpusTools.md) | class | other | The tool JARs a corpus runs (ADR 0025 §3): those of its `[tools]` table, or the ones staged with FuzzTLA for a tool the table leaves out. |
 | [**GenerationLoop** ★](../types/io.github.tlaplus.hardening.workflow.GenerationLoop.md) | class | process | Runs the generations of one workflow invocation over a single stage graph (ADR 0010). |
 | [**GenerationProgress** ★](../types/io.github.tlaplus.hardening.workflow.GenerationProgress.md) | class | model | Where every generation of a run stands, tracked from stage events instead of a corpus rescan (ADR 0010). |
 | [GenerationTargets](../types/io.github.tlaplus.hardening.workflow.GenerationTargets.md) | class | other | Which target ordinals of one generation are already spoken for, and which source fills the rest (ADR 0010, ADR 0016 §6). |
 | [**MetamorphicShrinker** ★](../types/io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | class | facade | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | [OccupancyLimits](../types/io.github.tlaplus.hardening.workflow.OccupancyLimits.md) | class | other | Checks an invocation and a recovered corpus against the configured capacity limits. |
-| [ReplayRecord](../types/io.github.tlaplus.hardening.workflow.ReplayRecord.md) | record | other | Replay policy for one corpus record: a run may proceed only when the record says what the run would write. |
+| [ReplayRecord](../types/io.github.tlaplus.hardening.workflow.ReplayRecord.md) | record | other | A corpus record written before ADR 0025, which no run writes any more: a run may proceed only when the configuration repeats what the record says. |
 | [RunStatisticsOnExit](../types/io.github.tlaplus.hardening.workflow.RunStatisticsOnExit.md) | class | other | Stops the invocation clock and saves its aggregate while the corpus lock is still held. |
 | [**StageGraph** ★](../types/io.github.tlaplus.hardening.workflow.StageGraph.md) | class | process | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |
+| [StagedTools](../types/io.github.tlaplus.hardening.workflow.StagedTools.md) | class | other | Locates the tool JARs the build stages beside FuzzTLA's own JAR, or beside its classes when it runs from the build directory. |
 | [WorkflowException](../types/io.github.tlaplus.hardening.workflow.WorkflowException.md) | class | other | Reports an infrastructure or lifecycle failure in a fuzzing workflow. |
 | [WorkflowProgress](../types/io.github.tlaplus.hardening.workflow.WorkflowProgress.md) | record | other | Best-effort snapshot of cumulative corpus statistics and current pending work. |
 | [WorkflowRunSummary](../types/io.github.tlaplus.hardening.workflow.WorkflowRunSummary.md) | record | other | Cumulative corpus statistics and stopping reason after one complete workflow invocation. |
@@ -283,9 +284,9 @@ classDiagram
 
 | Type | Kind | Role | Summary |
 |---|---|---|---|
-| [**LibraryInstall** ★](../types/io.github.tlaplus.hardening.workflow.library.LibraryInstall.md) | class | store | Copies a library's classpath into a corpus, so that the corpus keeps the release it was initialized with. |
+| [**LibraryInstall** ★](../types/io.github.tlaplus.hardening.workflow.library.LibraryInstall.md) | class | store | Copies into a new corpus every file its configuration names (ADR 0025 §2, §3), so the corpus keeps the releases it was initialized with: the classpath of the operator library, of the rewrite rules and of the edge guards goes to `tla/`. |
 | [LibraryJson](../types/io.github.tlaplus.hardening.workflow.library.LibraryJson.md) | class | other | Prunes typechecker JSON to the operator declarations reachable from the selected operators. |
-| [LibraryManifest](../types/io.github.tlaplus.hardening.workflow.library.LibraryManifest.md) | class | other | Replay policy for external source snapshots. |
+| [LibraryManifest](../types/io.github.tlaplus.hardening.workflow.library.LibraryManifest.md) | class | other | The identity of a custom operator library's source snapshot, which a metamorphic run compares with its base corpus's (ADR 0016 §6, ADR 0025 §5). |
 | [**LibraryPreparation** ★](../types/io.github.tlaplus.hardening.workflow.library.LibraryPreparation.md) | class | facade | Prepares custom libraries once before decoding; no importer/typechecker Maven dependency. |
 | [LibrarySourceProbe](../types/io.github.tlaplus.hardening.workflow.library.LibrarySourceProbe.md) | class | other | Parses every source alias of a prepared library once, with the classpath the parser and TLC workers receive (ADR 0015). |
 | [LibrarySources](../types/io.github.tlaplus.hardening.workflow.library.LibrarySources.md) | class | other | Materializes an ordered module search path as one source-only snapshot for SANY. |
@@ -513,15 +514,15 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0002-pbt-richness-score.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0008-exploration-metrics.md)
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0021-timeout-diagnostics.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0024-graph-action-coverage.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0002-pbt-richness-score.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0021-timeout-diagnostics.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0024-graph-action-coverage.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/docs/decisions/0025-self-contained-corpora.md)

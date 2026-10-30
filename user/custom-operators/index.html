@@ -1391,10 +1391,11 @@ TLC side may be recursive.</p>
 <code>config.toml</code>. The repository ships <code>libraries/community-modules.toml</code> and
 <code>libraries/recursion.toml</code>.</p>
 <h2 id="the-library-is-fixed-per-corpus">The library is fixed per corpus<a class="headerlink" href="#the-library-is-fixed-per-corpus" title="Permanent link">&para;</a></h2>
-<p>The first run records the library's sources, the selected operators and the Apalache
-version in <code>.operator-library</code>. Later runs, and <code>print --corpus</code>, refuse to work with
-a changed library, because the old entries would no longer replay. To change the
-library, initialize a new corpus.</p>
+<p><code>init</code> copies the library's classpath into <code>&lt;corpus&gt;/tla/</code>, and the Apalache JAR that
+types it into <code>&lt;corpus&gt;/tools/</code>. Every run, and <code>print --corpus</code>, uses these copies,
+so a newer library or Apalache in the repository does not reach the corpus. Edit the
+copies only before the first run: the old entries would no longer replay, and
+FuzzTLA does not detect the edit. To change the library, initialize a new corpus.</p>
 
 
 

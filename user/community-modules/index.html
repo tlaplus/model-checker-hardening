@@ -1325,8 +1325,8 @@ commit. Rerun it to pick up a newer release.</p>
 FILE, whose paths are relative to FILE. It copies each classpath entry, plus a
 sibling <code>VERSION</code>, into <code>&lt;corpus&gt;/tla/</code>, and writes the corresponding keys into
 <code>config.toml</code>. Every other setting is the default. The corpus therefore keeps the
-release it was initialized with; the replay manifest rejects a changed JAR. To
-move to a newer release, initialize a new corpus.</p>
+release it was initialized with, as it keeps its own TLC and Apalache in <code>tools/</code>.
+To move to a newer release, initialize a new corpus.</p>
 <h2 id="2-linkage">2. Linkage<a class="headerlink" href="#2-linkage" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="n">custom_operators</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"FiniteSetsExt"</span><span class="p">,</span><span class="w"> </span><span class="n">operators</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"SumSet"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Max"</span><span class="p">],</span><span class="w"> </span><span class="n">link</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"instance"</span><span class="w"> </span><span class="p">},</span>

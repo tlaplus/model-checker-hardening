@@ -1769,8 +1769,8 @@ generation is selected and mutated. They are described in
 <p>The keys apply to <code>graph</code> inputs only (<a href="../graph-based-testing/">Graph-based testing</a>).
 Their data variables and expressions use the <code>[generator]</code> keys; <code>[generator]
 max_steps</code> does not apply to them. Setting or changing <code>rules</code> changes how every
-<code>graph</code> input decodes, so a corpus records the rule module in <code>.rewrite-library</code> and
-refuses a different one.</p>
+<code>graph</code> input decodes, so set it before the first run. <code>init</code> copies the module into
+<code>tla/</code>.</p>
 
 
 
