@@ -86,7 +86,7 @@ class GeneratedNestedActionShapesTest {
     private void assertNoCrashes(Path directory, List<GeneratedSpec> samples) throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
         var results = new ArrayList<ToolResult>();
-        try (var worker = ApalacheProcess.start(
+        try (var worker = ApalacheCheckerBackend.start(
                 StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {
             for (var spec : samples) {
                 var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());

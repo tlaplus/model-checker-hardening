@@ -7,9 +7,16 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
+import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
+import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
+import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
+import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -52,11 +59,30 @@ public final class ApalacheCheckerBackend implements ToolBackend {
 
     @Override
     public ToolWorker startWorker() throws WorkflowException, InterruptedException {
-        return ApalacheProcess.start(releaseJar, scratchDirectory, config, config.timeout());
+        return start(releaseJar, scratchDirectory, config, config.timeout());
     }
 
     @Override
     public Optional<String> failureDetail(String diagnostic) {
         return ApalacheFailureDetail.extract(diagnostic);
+    }
+
+    /** Starts one persistent isolated Apalache JVM, which serves inputs until a crash retires it. */
+    static ToolWorker start(Path releaseJar, Path scratchDirectory, CheckerStageConfig config, Duration timeout)
+            throws WorkflowException, InterruptedException {
+        Objects.requireNonNull(releaseJar, "releaseJar");
+        Objects.requireNonNull(config, "config");
+        Objects.requireNonNull(timeout, "timeout");
+        var process = IsolatedWorkerProcess.start(new WorkerSpec(
+                scratchDirectory,
+                timeout,
+                ApalacheWorkerMain.class,
+                List.of(releaseJar),
+                new ChildJvm(
+                        1,
+                        ChildJvm.Compilation.TIERED,
+                        JavaLaunch.boundedHeap(config.maximumHeapMegabytes(), "-XX:-UsePerfData")),
+                "Apalache worker"));
+        return new ProcessToolWorker(process, timeout);
     }
 }

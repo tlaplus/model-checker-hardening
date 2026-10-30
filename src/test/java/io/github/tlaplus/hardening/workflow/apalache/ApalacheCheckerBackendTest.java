@@ -28,7 +28,7 @@ import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class ApalacheProcessTest {
+class ApalacheCheckerBackendTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final CheckerStageConfig CONFIG =
             new CheckerStageConfig(10, 30, 512, 1);
@@ -42,7 +42,7 @@ class ApalacheProcessTest {
         ToolResult pass;
         ToolResult fail;
         ToolResult secondPass;
-        try (var worker = ApalacheProcess.start(releaseJar, scratch, CONFIG, TIMEOUT)) {
+        try (var worker = ApalacheCheckerBackend.start(releaseJar, scratch, CONFIG, TIMEOUT)) {
             pass = worker.check(new ToolInput(specification(true), 0));
             fail = worker.check(new ToolInput(specification(false), 0));
             secondPass = worker.check(new ToolInput(specification(true), 0));
@@ -91,7 +91,7 @@ class ApalacheProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
         ToolResult result;
-        try (var worker = ApalacheProcess.start(
+        try (var worker = ApalacheCheckerBackend.start(
                 StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {
             result = worker.check(new ToolInput(
                     ApalacheIrJson.render(FuzzInputModule.create(expression)), 0));
