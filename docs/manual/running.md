@@ -1,7 +1,7 @@
 # Running campaigns
 
 ```sh
-fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE]
+fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE | --base-corpus=DIR]
 fuzztla run [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
 ```
 
@@ -12,7 +12,7 @@ fuzztla run [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
 | `init --how` | Technique |
 |---|---|
 | `pbt` | Property-based testing: generate random modules, compare the checkers, and mutate good inputs ([Generations and mutation](mutation.md)). |
-| `mt` | Metamorphic testing: check one checker against equivalent rewrites of its input ([Metamorphic testing](metamorphic-testing.md)). `init` also sets the shipped rewrite rules and, with Apalache, `metamorphic-defects.toml`. |
+| `mt` | Metamorphic testing: check one checker against equivalent rewrites of its input ([Metamorphic testing](metamorphic-testing.md)). `init` also sets the shipped rewrite rules and, with Apalache, `metamorphic-defects.toml`. With `--base-corpus=DIR`, the corpus starts from a previous `pbt` or `gbt` run and adopts its selected entries. |
 | `gbt` | Graph-based testing: check each checker against the verdict that a generated control graph predicts ([Graph-based testing](graph-based-testing.md)). `init` also sets `kind = "graph"`. |
 
 | `run` option | Meaning |

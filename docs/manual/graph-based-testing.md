@@ -177,7 +177,8 @@ known-defect signatures cover those cases.
   found only through conformance, or through a guard that reads it.
 - Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
   steps long, and one in four was 20 or more.
-- An `mt` corpus rewrites a `graph` entry as a module and ignores its prediction
+- An `mt` corpus rewrites a `graph` entry as a module and ignores its prediction.
+  `init --how=mt --base-corpus corpus-gbt` starts one over this corpus
   ([Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus)).
 - Graph modules have no temporal property.
 
