@@ -211,6 +211,18 @@ class RuleMatcherTest {
         assertTrue(rewrite(inFilter(), filtered).isEmpty(), "the filter's body would become an assigning conjunct");
     }
 
+    /** Apalache rejects {@code x' = 1 \/ FALSE}: its second disjunct does not assign x. */
+    @Test
+    void aRuleDoesNotAddABranchWithoutTheAssignments() {
+        var assignment = B.primeEq(integer("x"), B.integer(1));
+        assertTrue(RuleMatcher.match(checked(orFalse()), assignment).isEmpty());
+        var guard = B.gt(integer("y"), B.integer(0));
+        assertEquals(B.or(guard, B.bool(false)), rewrite(orFalse(), guard).orElseThrow());
+        assertTrue(RuleMatcher.match(checked(orFalse()), B.and(guard, assignment)).isEmpty(),
+                "a formula that holds an assignment anywhere assigns");
+        assertTrue(RuleMatcher.match(checked(ifTrueBool()), assignment).isEmpty(), "the ELSE branch would not assign x");
+    }
+
     /** Matches the rule and instantiates it with numbered binder names and no fresh parameter. */
     private static Optional<TlaEx> rewrite(TlaOperDecl definition, TlaEx node) {
         var counter = new AtomicInteger();

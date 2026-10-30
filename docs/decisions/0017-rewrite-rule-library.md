@@ -50,6 +50,19 @@ like padding. Four engine changes come with them:
   5.3), so an `IF` condition does not become an assignment.
 - a `LET` definition of B is typed as B applies it (section 4).
 
+**Revision: balanced branches.** Apalache requires every branch of a disjunction or an
+`IF` in an action to assign every variable. It rejects any other branch before checking
+anything, with "Assignment error: Missing assignments to: x". TLC accepts such a branch,
+so the original section 5.3 let `OrFalse` turn `x' = 1` into `x' = 1 \/ FALSE`. In
+corpus75, an `mt` corpus over the graph bases of corpus71, 37 of 300 entries crashed in
+Apalache this way, all with `OrFalse` applied on the explored rewrite (FuzzTLA
+`8f1fedd`, TLC `56d37a9`, Apalache 0.62.3 `3eb15b2`). Section 5.3 now also requires
+balanced branches, and the matcher enforces it whichever side the checker explores. Of
+the 129 shipped rules, only `OrFalse` loses matches: it still pads guards, but no
+longer pads assignments. A rerun of 100 entries over corpus71 with this check (FuzzTLA
+`6c0a1cd` on top of `8f1fedd`, same seed) had no assignment error; its three Apalache
+crashes were timeouts.
+
 Replacements do not bind tuples, as in `\A <<e, d>> \in S \X T`. Apalache's
 `PrettyWriter` prints such a binder of `\A`, `\E` or `CHOOSE` as an identifier,
 `id_e__d_`, which SANY rejects. This holds for Apalache 0.62.3 (build `3eb15b2`) and
@@ -328,6 +341,16 @@ checks items 2–4.
    - a commutation `(P /\ Q) = (Q /\ P)` on `x' = 1 /\ x' > 0`;
    - `(IF P THEN Q ELSE R) = ((P /\ Q) \/ (~P /\ R))` on `IF x' = 1 THEN … ELSE …`,
      which would turn the condition into an assigning conjunct.
+
+   Apalache moreover requires every branch of a disjunction or an `IF` to assign every
+   variable. The loader records, for each side, the Boolean parameters that each branch
+   through its disjunctions and `IF` branches holds in an assigning position; a
+   conjunction, an `\E` body, a label and a `LET` body combine one branch of each
+   operand. Restricted to the parameters a match binds to primed subterms, every branch
+   of B must be a branch of A. Each branch of the result then assigns what some branch
+   of the original assigned. This rules out `P = (P \/ FALSE)` on `x' = 1`, whose
+   `FALSE` branch assigns nothing. `IfAsAndOr` on `IF c THEN x' = 1 ELSE x' = 2` still
+   applies: both sides have one branch with `Q` and one with `R`.
 4. **Closed.** Every free name of B is a parameter, a built-in operator, or a helper.
 
 A rule is **TLC-only** when its helper closure includes a definition that Snowcat
@@ -409,8 +432,10 @@ signature's types, so the TLC self-test was removed.
   operator and against every generic rule. The cost is byte-free, and ADR 0016's
   `max_rewrites` bounds the rewrites.
 - **A rule edit starts a new corpus** (section 6).
-- **Rule authors must know TLC's assignment semantics** only for rules with Boolean
-  parameters. The loader and rewriter enforce section 5.3 either way.
+- **Rule authors must know TLC's and Apalache's assignment semantics** only for rules
+  with Boolean parameters. The loader and rewriter enforce section 5.3 either way.
+- **Balance is required under every checker set.** A corpus that runs TLC alone also
+  loses `OrFalse` on assignments, so one rule library decodes the same everywhere.
 - **Precedence surprises are visible.** A pattern that does not match what its author
   expected shows up in `fuzztla print`, which lists the applied rules.
 
