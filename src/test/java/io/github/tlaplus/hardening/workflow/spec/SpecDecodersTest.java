@@ -11,10 +11,12 @@ import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.Technique;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
+import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
@@ -95,6 +97,44 @@ class SpecDecodersTest {
                 RuleLibraryConfig.none(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
         var refused = assertThrows(WorkflowException.class, () -> SpecDecoders.prepare(metamorphic, Technique.MT));
         assertTrue(refused.getMessage().contains("set metamorphic.rules"), refused.getMessage());
+    }
+
+    /**
+     * A metamorphic corpus decodes a graph base with the guards a gbt corpus decodes it with, so an
+     * adopted graph entry rewrites its parent's module. The rule record pins the rewrites and the
+     * guards, and a corpus without guards pins the rewrites alone.
+     */
+    @Test
+    void metamorphicGraphBasesDecodeWithTheGuardsOfAGbtCorpus() throws Exception {
+        var guarded = FuzzTlaConfig.defaults().withGraphGuards(ShippedRules.config());
+        var metamorphic = guarded.withMetamorphic(new MetamorphicConfig(
+                ShippedRules.config(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
+        var gbt = SpecDecoders.prepare(guarded, Technique.GBT);
+        var mt = SpecDecoders.prepare(metamorphic, Technique.MT);
+        assertEquals(gbt.guardManifest(), mt.guardManifest());
+        assertTrue(mt.rewriteManifest().endsWith("graph-guards\n" + gbt.guardManifest()), mt.rewriteManifest());
+        var unguarded = SpecDecoders.prepare(
+                metamorphic.withGraphGuards(RuleLibraryConfig.none()), Technique.MT);
+        assertEquals("", unguarded.guardManifest());
+        assertEquals(mt.rewriteManifest(), unguarded.rewriteManifest() + "graph-guards\n" + gbt.guardManifest());
+
+        var random = new Random(0x5eed);
+        var compared = 0;
+        for (var sample = 0; sample < 50 && compared < 5; sample++) {
+            var base = new byte[512];
+            random.nextBytes(base);
+            var parent = gbt.decode(new CorpusInput(InputKind.GRAPH, base));
+            if (guards(parent) == 0) {
+                continue;
+            }
+            var relation = mt.decodeUnrewritten(
+                    new CorpusInput(InputKind.GRAPH, MetamorphicPayload.encode(base, new byte[0])));
+            var original = (GeneratedSpec) relation.rewrite().orElseThrow().original();
+            assertEquals(SpecText.render(FuzzInputModule.create(parent.graph().orElseThrow().spec())),
+                    SpecText.render(FuzzInputModule.create(original)));
+            compared++;
+        }
+        assertEquals(5, compared);
     }
 
     @Test

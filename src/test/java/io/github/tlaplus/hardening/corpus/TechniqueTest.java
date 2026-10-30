@@ -24,12 +24,12 @@ class TechniqueTest {
         assertEquals(Ranking.ACTION_COVERAGE, Technique.GBT.ranking());
     }
 
-    /** pbt generates every kind, mt rewrites no graph, and gbt generates only graphs (ADR 0023 §1). */
+    /** pbt and mt generate every kind, and gbt generates only graphs (ADR 0023 §1). */
     @Test
     void namesTheKindsEachTechniqueGenerates() {
         for (var kind : InputKind.values()) {
             assertTrue(Technique.PBT.generates(kind), kind.encodedName());
-            assertEquals(kind != InputKind.GRAPH, Technique.MT.generates(kind), kind.encodedName());
+            assertTrue(Technique.MT.generates(kind), kind.encodedName());
             assertEquals(kind == InputKind.GRAPH, Technique.GBT.generates(kind), kind.encodedName());
         }
     }

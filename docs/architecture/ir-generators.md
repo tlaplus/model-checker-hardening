@@ -37,7 +37,7 @@ cannot reinterpret a stored expression or graph input, and the reverse holds too
 
 **Implemented extension** ([ADR 0016](../decisions/0016-metamorphic-testing.md)).
 Metamorphic testing (`run --how=mt`) adds a byte-directed rewriter in
-`gen.rewrite`. Under `mt`, an `expr` or `module` payload is prefixed with its two-byte
+`gen.rewrite`. Under `mt`, an `expr`, `module` or `graph` payload is prefixed with its two-byte
 length and followed by a rewrite payload. The rewriter decodes the rewrite payload into
 an orientation bit and a rewrite of the decoded IR that is equivalent to it. It follows
 the requirements below: decoding is deterministic, and exhaustion decodes to no
