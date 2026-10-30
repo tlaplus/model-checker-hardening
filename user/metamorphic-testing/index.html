@@ -1372,7 +1372,7 @@ rejects.</p>
 ./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="k">[generator]</span>
-<span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"module"</span><span class="w">               </span><span class="c1"># or "expr"</span>
+<span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"module"</span><span class="w">               </span><span class="c1"># or "expr", or "graph" with a gbt base corpus</span>
 
 <span class="k">[workflow]</span>
 <span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">]</span><span class="w">            </span><span class="c1"># default ["tlc", "apalache"]</span>
@@ -1398,16 +1398,24 @@ rejects.</p>
   parents: the <code>04quality-pass</code> entries of <code>base_corpus</code>, each combined with random
   rewrite bytes. <code>[mutator] feedback_ratio</code> still sets the share of byte mutants, and
   PBT fills the rest.</li>
-<li><strong>The base corpus is read-only.</strong> It must be a <code>pbt</code> corpus. It is never written
+<li><strong>The base corpus is read-only.</strong> It must be a <code>pbt</code> or <code>gbt</code> corpus. It is never written
   to, and an entry keeps its parent's bytes, so <code>base_corpus</code> is not needed to replay
   it.</li>
 <li><strong>The base corpus decodes alike.</strong> An adopted payload decodes under the metamorphic
   corpus's settings, and decodes to the parent's module only if they agree. <code>run</code>
-  therefore refuses a base corpus whose <code>[generator]</code> settings differ, or whose
-  <code>.operator-library</code> differs from the library this run prepares. <code>classpath</code> and
-  <code>custom_operators</code> are compared through <code>.operator-library</code>, which pins the library
-  sources rather than their paths. Copy the base corpus's <code>[generator]</code> table and its
+  therefore refuses a base corpus whose <code>[generator]</code> or <code>[graph]</code> settings differ,
+  whose <code>.operator-library</code> differs from the library this run prepares, or whose edge
+  guards differ from this run's <code>[graph] rules</code>. <code>classpath</code> and <code>custom_operators</code> are
+  compared through <code>.operator-library</code>, which pins the library sources rather than
+  their paths. Copy the base corpus's <code>[generator]</code> and <code>[graph]</code> tables and its
   library sources.</li>
+<li><strong>Graph entries are rewritten as modules.</strong> With <code>kind = "graph"</code> and a <code>gbt</code> base,
+  the rewriter rewrites the module a graph entry decodes to, and the relation is the
+  <code>module</code> relation of section 2. The graph's prediction (<code>expected:</code> in
+  <a href="../graph-based-testing/#2-what-the-checker-sees">Graph-based testing</a>) does not
+  apply: the relation does not check the target. <code>pc</code> is not projected out, so the
+  quality gate ranks graph entries by the length of their walks. With <code>[graph] rules</code>,
+  <code>.rewrite-library</code> also records the guards.</li>
 <li><strong>Adopted entries record their parent.</strong> <code>gen.parent</code> is the parent's digest in the
   base corpus, and <code>gen.operators</code> is <code>["adopt"]</code>.</li>
 <li><strong>The checker set is fixed.</strong> The first run records <code>checkers</code> in <code>.checkers</code>, and
