@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "3b201567990514c2a43b90dca521dbe32af37023"
+    "commit" : "918f7db91890f302587d25c76dc7ac189db3d023"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -2663,9 +2663,9 @@
     "kind" : "RECORD",
     "role" : null,
     "key" : false,
-    "summary" : "What a rule does to TLC's assignments (ADR 0017 §5.3).",
+    "summary" : "What a rule does to the checkers' assignments (ADR 0017 §5.3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/AssignmentFacts.java",
-    "line" : 22,
+    "line" : 25,
     "adrs" : [ "0017" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.LabelPlacement",
@@ -2805,7 +2805,7 @@
     "key" : true,
     "summary" : "Matches a rule's pattern at one node (ADR 0017 §4).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java",
-    "line" : 53,
+    "line" : 55,
     "adrs" : [ "0017" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleOperands",

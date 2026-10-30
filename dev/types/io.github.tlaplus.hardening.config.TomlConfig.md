@@ -1,6 +1,6 @@
 # `TomlConfig`
 
-`io.github.tlaplus.hardening.config` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/src/main/java/io/github/tlaplus/hardening/config/TomlConfig.java#L31) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/src/main/java/io/github/tlaplus/hardening/config/TomlConfig.java#L31) · module [config](../modules/config.md)
 
 Reads and writes the strict `config.toml` format used by a corpus.
 

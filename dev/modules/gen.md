@@ -282,7 +282,7 @@ classDiagram
 
 | Type | Kind | Role | Summary |
 |---|---|---|---|
-| [AssignmentFacts](../types/io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts.md) | record | other | What a rule does to TLC's assignments (ADR 0017 §5.3). |
+| [AssignmentFacts](../types/io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts.md) | record | other | What a rule does to the checkers' assignments (ADR 0017 §5.3). |
 | [LabelPlacement](../types/io.github.tlaplus.hardening.gen.rewrite.LabelPlacement.md) | class | other | Where a rule's replacement may not carry a label of the node it rewrites. |
 | [LetSpecialization](../types/io.github.tlaplus.hardening.gen.rewrite.LetSpecialization.md) | class | other | Specializes every LET definition of a rule's replacement to the types at which the replacement applies it. |
 | [**MetamorphicPayload** ★](../types/io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload.md) | class | codec | The layout of a metamorphic input (ADR 0016 §1): |
@@ -303,11 +303,11 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0007-levels-and-temporal-properties.md)
-- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0011-collection-base-size.md)
-- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0012-integer-literals.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0007-levels-and-temporal-properties.md)
+- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0011-collection-base-size.md)
+- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0012-integer-literals.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0023-graph-based-testing.md)

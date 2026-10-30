@@ -1674,6 +1674,10 @@ type. <code>UnionSelf</code> applies to sets of any element type.</p>
 <p>The matcher skips a rule where it would move a primed equation out of an assignment
 position, or reorder primed conjuncts. For example, <code>DoubleNeg</code> does not apply to
 <code>x' = 1</code>: under <code>~~</code>, TLC no longer treats the equation as an assignment. It also skips
+a rule that would add a branch of <code>\/</code> or <code>IF</code> assigning other variables than the
+branches of A. <code>OrFalse</code> does not apply to <code>x' = 1</code>: Apalache rejects
+<code>x' = 1 \/ FALSE</code> with "Missing assignments", because the <code>FALSE</code> branch assigns
+nothing (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0017-rewrite-rule-library.md">ADR 0017</a> §5.3). It also skips
 operators, such as a lambda passed to a fold, and a match that would move a label under
 a binder of B or into an <code>EXCEPT</code> replacement, where SANY rejects it.</p>
 <p><strong>Validity is the author's job.</strong> Prove each new rule in

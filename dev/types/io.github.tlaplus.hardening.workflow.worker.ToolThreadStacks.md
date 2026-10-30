@@ -1,10 +1,10 @@
 # `ToolThreadStacks`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolThreadStacks.java#L20) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolThreadStacks.java#L20) · module [workflow](../modules/workflow.md)
 
 The stacks of the threads a stopped worker was working on, for the diagnostic of a timeout (ADR 0021).
 
-**Decisions:** [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0021-timeout-diagnostics.md)
+**Decisions:** [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0021-timeout-diagnostics.md)
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|

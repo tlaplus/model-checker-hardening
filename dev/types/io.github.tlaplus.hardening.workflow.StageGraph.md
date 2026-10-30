@@ -1,10 +1,10 @@
 # `StageGraph`
 
-`io.github.tlaplus.hardening.workflow` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/src/main/java/io/github/tlaplus/hardening/workflow/StageGraph.java#L59) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/src/main/java/io/github/tlaplus/hardening/workflow/StageGraph.java#L59) · module [workflow](../modules/workflow.md)
 
 The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop.
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram

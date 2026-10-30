@@ -1,6 +1,6 @@
 # `GeneratedActionOperator`
 
-`io.github.tlaplus.hardening.gen` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3b201567990514c2a43b90dca521dbe32af37023/src/main/java/io/github/tlaplus/hardening/gen/GeneratedActionOperator.java#L18) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/918f7db91890f302587d25c76dc7ac189db3d023/src/main/java/io/github/tlaplus/hardening/gen/GeneratedActionOperator.java#L18) · module [gen](../modules/gen.md)
 
 One generated action operator: a definition the next-state action may apply.
 
