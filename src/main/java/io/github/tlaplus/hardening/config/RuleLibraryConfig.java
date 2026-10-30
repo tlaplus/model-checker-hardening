@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 /**
  * A rule module and its weights (ADR 0017 §1), as {@code [metamorphic]} configures the rewrites of
- * {@code --how=mt} and {@code [graph]} the tautological edge guards of ADR 0023 §6.
+ * {@code mt} corpora and {@code [graph]} the tautological edge guards of ADR 0023 §6.
  *
  * @param module the rule module, absent when none is configured
  * @param weights rule weights by rule name, overriding a rule's {@code @weight} annotation

@@ -13,14 +13,14 @@ a correct checker always evaluates to `TRUE`.
 ## 1. Setting up a corpus
 
 ```sh
-./bin/fuzztla init --corpus corpus-gbt
+./bin/fuzztla init --how=gbt --corpus corpus-gbt
 # edit corpus-gbt/config.toml as below
-./bin/fuzztla run --how=gbt --corpus corpus-gbt
+./bin/fuzztla run --corpus corpus-gbt
 ```
 
 ```toml
 [generator]
-kind = "graph"                # required by --how=gbt
+kind = "graph"                # written by init --how=gbt, which requires it
 max_variables = 3
 
 [workflow]
@@ -41,8 +41,8 @@ rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }  # edge g
 max_guards = 2
 ```
 
-- **The technique is fixed.** The first run records `gbt` in `.technique`; later runs
-  must pass `--how=gbt`. `run` refuses another `kind`.
+- **The technique is fixed.** `init --how=gbt` writes `technique = "gbt"` under
+  `[workflow]`, and every `run` follows it. `run` refuses another `kind`.
 - **Mutation works as under `pbt`.** `[mutator] feedback_ratio` sets the share of
   byte mutants of `04quality-pass` entries; random inputs fill the rest.
 - **`[graph]` may be left out.** Its keys then take the defaults above. The data
@@ -177,7 +177,7 @@ known-defect signatures cover those cases.
   found only through conformance, or through a guard that reads it.
 - Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
   steps long, and one in four was 20 or more.
-- `--how=mt` rewrites a `graph` entry as a module and ignores its prediction
+- An `mt` corpus rewrites a `graph` entry as a module and ignores its prediction
   ([Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus)).
 - Graph modules have no temporal property.
 

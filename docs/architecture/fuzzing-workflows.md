@@ -391,9 +391,9 @@ contains the following definitions, copied from X:
 The workflow reuses every stage. Only the technique, the payload, the assembled module
 and the aggregator's policy differ:
 
-- **Technique.** `fuzztla run --how=mt` enables the workflow. The first run records
-  the technique in the corpus file `.technique`, and later runs must match it. Entries
-  keep their kind, `expr`, `module` or `graph`.
+- **Technique.** `fuzztla init --how=mt` writes `technique = "mt"` into the corpus's
+  `[workflow]` table, and every `run` follows it ([ADR 0025][] §1). Entries keep their
+  kind, `expr`, `module` or `graph`.
 - **Inputs.** Under `mt`, a payload is a two-byte base length, the payload of an
   `expr`, `module` or `graph` entry, and a rewrite payload. A graph base is rewritten
   as the module it decodes to. A byte-directed rewriter in
@@ -450,9 +450,9 @@ The test suite contains three kinds of test inputs:
 The workflow reuses every stage. The technique, the kind and the aggregator's policy
 differ:
 
-- **Technique and kind.** `fuzztla run --how=gbt` enables the workflow and records
-  `gbt` in `.technique`. It generates only entries of kind `graph`, and `run` refuses
-  another `[generator] kind`. Each `corpus.Technique` names the kinds it generates;
+- **Technique and kind.** `fuzztla init --how=gbt` writes `technique = "gbt"` and
+  `kind = "graph"` ([ADR 0025][] §1). The technique generates only entries of kind
+  `graph`, and `run` refuses another `[generator] kind`. Each `corpus.Technique` names the kinds it generates;
   `mt` rewrites a graph base as the module it decodes to, without its prediction
   ([ADR 0023][] amendment). A `graph` entry
   in a `pbt` corpus is judged by conformance.
@@ -801,6 +801,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
 [ADR 0023]: ../decisions/0023-graph-based-testing.md
 [ADR 0024]: ../decisions/0024-graph-action-coverage.md
+[ADR 0025]: ../decisions/0025-self-contained-corpora.md
 [graph manual]: ../manual/graph-based-testing.md
 [metamorphic manual]: ../manual/metamorphic-testing.md
 [adr-0018]: ../decisions/0018-parallel-tlc-stage.md

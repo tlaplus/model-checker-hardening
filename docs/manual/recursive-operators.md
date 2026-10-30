@@ -13,8 +13,8 @@ The aggregator compares their verdicts.
 ## 1. Setting up a corpus
 
 ```sh
-./bin/fuzztla init --corpus corpus-rec --library libraries/recursion.toml
-./bin/fuzztla run --how=pbt --corpus corpus-rec
+./bin/fuzztla init --how=pbt --corpus corpus-rec --library libraries/recursion.toml
+./bin/fuzztla run --corpus corpus-rec
 ```
 
 The library ships with fuzztla, so nothing is downloaded. `init` copies

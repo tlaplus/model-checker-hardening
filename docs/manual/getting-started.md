@@ -29,25 +29,26 @@ disturb a running campaign.
 Create a corpus, the directory that holds the campaign:
 
 ```sh
-./bin/fuzztla init --corpus my-corpus
+./bin/fuzztla init --how=pbt --corpus my-corpus
 ```
 
-`init` writes `my-corpus/config.toml` with defaults and creates the stage directories.
+`--how=pbt` selects property-based testing, which generates fresh random inputs and
+mutates good ones. `init` writes `my-corpus/config.toml` with defaults and creates the stage directories.
 The default campaign stops at 1,000 entries. For a quick trial, lower `max_entries` in
 the `[workflow]` table and `generation_size` in the `[mutator]` table to `20` each.
 Then run:
 
 ```sh
-./bin/fuzztla run --how=pbt --corpus my-corpus
+./bin/fuzztla run --corpus my-corpus
 ```
 
-`--how=pbt` selects property-based testing, which generates fresh random inputs and
-mutates good ones. In a terminal, `run` shows a live flow diagram of the stages and
+`run` follows the technique in `config.toml`. In a terminal, it shows a live flow diagram of the stages and
 their counters. A new value is bold for one second, with an arrow showing its
 direction. When the run ends, it prints a summary:
 
 ```text
 Random seed: 42
+Technique: pbt
 Workflow run finished for 'my-corpus'
 Corpus entries: 20
 Total elapsed: 48s

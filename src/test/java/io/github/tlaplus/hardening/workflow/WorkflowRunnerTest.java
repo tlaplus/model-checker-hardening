@@ -82,17 +82,20 @@ class WorkflowRunnerTest {
                 .withMetamorphic(new MetamorphicConfig(ShippedRules.config(),
                 RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
 
-        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 42, 1);
 
         var inventory = summary.corpus();
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
         assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
                 "a valid rule violated the metamorphic relation");
-        assertEquals(Technique.MT, CorpusRecords.TECHNIQUE.read(corpus));
+        assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty(), "the configuration names the technique");
         assertFalse(CorpusRecords.REWRITE_LIBRARY.read(corpus).isEmpty());
+        // A corpus from before ADR 0025 records its technique, which the configuration must repeat.
+        corpus.writeRecord(CorpusRecord.TECHNIQUE, Technique.MT.encodedName().getBytes(StandardCharsets.UTF_8));
+        new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 42, 1);
         var refused = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1));
-        assertTrue(refused.getMessage().contains("this corpus runs --how=mt"), refused.getMessage());
+                () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1));
+        assertTrue(refused.getMessage().contains("this corpus holds mt entries, but its config.toml sets technique = \"pbt\""), refused.getMessage());
     }
 
     /**
@@ -110,7 +113,7 @@ class WorkflowRunnerTest {
                 new MetamorphicConfig(ShippedRules.config(),
                 RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
 
-        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 42, 1);
 
         var inventory = summary.corpus();
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
@@ -139,11 +142,11 @@ class WorkflowRunnerTest {
             parents.add(Digests.digest(payload));
         }
 
-        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults().withTechnique(Technique.MT)));
         var config = tlcOnly.withMetamorphic(new MetamorphicConfig(ShippedRules.config(),
                 RewriteLimits.defaults(),
                 new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
-        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1);
 
         assertEquals(4, summary.corpus().admitted(0, EntryOrigin.ADOPTED));
         var adopted = 0;
@@ -157,8 +160,8 @@ class WorkflowRunnerTest {
         assertEquals(4, adopted);
         var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(
                 config.withMetamorphic(new MetamorphicConfig(config.metamorphic().rules(), RewriteLimits.defaults(),
-                        new MetamorphicConfig.Adoption(Optional.of(directory.resolve("mt")), 0.5))),
-                Technique.MT).run(corpus, 7, 1));
+                        new MetamorphicConfig.Adoption(Optional.of(directory.resolve("mt")), 0.5)))
+                        .withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(refused.getMessage().contains("must be a pbt or gbt corpus"), refused.getMessage());
     }
 
@@ -169,8 +172,7 @@ class WorkflowRunnerTest {
     @Test
     void adoptsTheSelectedEntriesOfAGbtCorpus(@TempDir Path directory) throws Exception {
         var graphs = graphConfig(config(8, 3, 8, 512));
-        var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(graphs));
-        base.writeRecord(CorpusRecord.TECHNIQUE, Technique.GBT.encodedName().getBytes(StandardCharsets.UTF_8));
+        var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(graphs.withTechnique(Technique.GBT)));
         var conformance = SpecDecoders.of(graphs.generator());
         var random = new java.util.Random(13);
         var parents = new HashSet<String>();
@@ -188,11 +190,11 @@ class WorkflowRunnerTest {
             parents.add(Digests.digest(payload));
         }
 
-        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults().withTechnique(Technique.MT)));
         var config = graphs.withMetamorphic(new MetamorphicConfig(ShippedRules.config(),
                 RewriteLimits.defaults(),
                 new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
-        var summary = new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1);
 
         assertEquals(4, summary.corpus().admitted(0, EntryOrigin.ADOPTED));
         for (var entry : corpus.storedEntries()) {
@@ -206,7 +208,7 @@ class WorkflowRunnerTest {
 
         base.writeRecord(CorpusRecord.REWRITE_LIBRARY, "fuzztla-rules-v1\n".getBytes(StandardCharsets.UTF_8));
         var guards = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
+                () -> new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(guards.getMessage().contains("has other edge guards"), guards.getMessage());
     }
 
@@ -222,20 +224,20 @@ class WorkflowRunnerTest {
         var config = tlcOnly.withMetamorphic(new MetamorphicConfig(ShippedRules.config(),
                 RewriteLimits.defaults(),
                 new MetamorphicConfig.Adoption(Optional.of(directory.resolve("base")), 0.5)));
-        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var corpus = CorpusDirectory.initialize(directory.resolve("mt"), TomlConfig.render(FuzzTlaConfig.defaults().withTechnique(Technique.MT)));
 
         var rendered = TomlConfig.render(tlcOnly);
         var smaller = rendered.replace("\nmax_nodes = 128\n", "\nmax_nodes = 64\n");
         assertNotEquals(rendered, smaller);
         var base = CorpusDirectory.initialize(directory.resolve("base"), smaller);
         var settings = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
+                () -> new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(settings.getMessage().contains("has other [generator] or [graph] settings"), settings.getMessage());
 
         Files.writeString(base.resolve(CorpusPath.CONFIG), rendered);
         base.writeRecord(CorpusRecord.LIBRARY_MANIFEST, "fuzztla-library-v1\n".getBytes(StandardCharsets.UTF_8));
         var library = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(config, Technique.MT).run(corpus, 7, 1));
+                () -> new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 7, 1));
         assertTrue(library.getMessage().contains("has another custom operator library"), library.getMessage());
         assertFalse(corpus.hasStoredInputs());
     }
@@ -246,22 +248,22 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = graphConfig(config(8, 3, 8, 512));
 
-        var summary = new WorkflowRunner(config, Technique.GBT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.GBT)).run(corpus, 42, 1);
 
         var inventory = summary.corpus();
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
         assertTrue(inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE) > 0,
                 "no graph reached its target");
         assertEquals(0, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.FAIL));
-        assertEquals(Technique.GBT, CorpusRecords.TECHNIQUE.read(corpus));
+        assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty());
     }
 
     /** A technique runs only on the kinds it generates: gbt only on graphs. */
     @Test
     void refusesAKindTheTechniqueDoesNotGenerate() {
         var modules = config(8, 3, 8, 64);
-        var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(modules, Technique.GBT));
-        assertTrue(refused.getMessage().contains("--how=gbt does not generate expr inputs"), refused.getMessage());
+        var refused = assertThrows(WorkflowException.class, () -> new WorkflowRunner(modules.withTechnique(Technique.GBT)));
+        assertTrue(refused.getMessage().contains("this corpus runs gbt, which does not generate expr inputs"), refused.getMessage());
     }
 
     /** A corpus that runs TLC alone fans out, checks and aggregates on TLC only (ADR 0016 §5). */
@@ -271,7 +273,7 @@ class WorkflowRunnerTest {
         var both = config(8, 3, 8, 16);
         var tlcOnly = both.withWorkflow(both.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
 
-        var summary = new WorkflowRunner(tlcOnly, Technique.PBT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(tlcOnly.withTechnique(Technique.PBT)).run(corpus, 42, 1);
 
         var inventory = summary.corpus();
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
@@ -279,10 +281,7 @@ class WorkflowRunnerTest {
         assertEquals(
                 inventory.counts(CorpusStage.TLC).processed() - inventory.counts(CorpusStage.TLC).count(CorpusVerdict.CRASH),
                 inventory.processedEntries(CorpusStage.AGGREGATOR) + inventory.pendingEntries(CorpusStage.AGGREGATOR));
-        assertEquals(CheckerSet.of(CorpusStage.TLC), CorpusRecords.CHECKERS.read(corpus));
-        var refused = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(both, Technique.PBT).run(corpus, 42, 1));
-        assertTrue(refused.getMessage().contains("runs the checkers tlc"), refused.getMessage());
+        assertFalse(Files.exists(directory.resolve("corpus").resolve(".checkers")), "the configuration names the checkers");
     }
 
     /**
@@ -296,7 +295,7 @@ class WorkflowRunnerTest {
         var checkers = CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN);
         var config = base.withWorkflow(base.workflow().withEnabledCheckers(checkers));
 
-        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, TLCN_WORKERS);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, TLCN_WORKERS);
 
         var inventory = summary.corpus();
         assertTrue(inventory.processedEntries(CorpusStage.TLCN) > 0);
@@ -304,7 +303,6 @@ class WorkflowRunnerTest {
         assertEquals(inventory.counts(CorpusStage.TLC).processed(), inventory.counts(CorpusStage.TLCN).processed(),
                 "every parser pass reaches both TLC stages");
         assertTrue(inventory.processedEntries(CorpusStage.AGGREGATOR) + inventory.pendingEntries(CorpusStage.AGGREGATOR) > 0);
-        assertEquals(checkers, CorpusRecords.CHECKERS.read(corpus));
     }
 
     @Test
@@ -313,7 +311,7 @@ class WorkflowRunnerTest {
         var config = config(8, 3, 8, 16);
         var observed = new CopyOnWriteArrayList<WorkflowProgress>();
 
-        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1, observed::add);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1, observed::add);
 
         assertTrue(observed.size() >= 2);
         var initial = observed.getFirst();
@@ -439,7 +437,7 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 IOException.class,
-                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1, _ -> {
+                () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1, _ -> {
                     try {
                         Files.createDirectory(statisticsPath);
                     } catch (java.nio.file.FileAlreadyExistsException ignored) {
@@ -459,7 +457,7 @@ class WorkflowRunnerTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(12, 3, 12, 16);
 
-        var summary = new WorkflowRunner(config, Technique.PBT)
+        var summary = new WorkflowRunner(config.withTechnique(Technique.PBT))
                 .run(corpus, 42, Math.min(2, Runtime.getRuntime().availableProcessors()));
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
@@ -758,7 +756,7 @@ class WorkflowRunnerTest {
                         checkers(new CheckerStageConfig(2, 10, 512, 1), new CheckerStageConfig(2, 10, 512, 1))),
                 new PbtConfig(4, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
 
-        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
         assertEquals(2, summary.stage(CorpusStage.PARSER).count(CorpusVerdict.PASS));
@@ -781,7 +779,7 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 WorkflowException.class,
-                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1));
+                () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1));
 
         assertTrue(failure.getMessage().contains("workflow.tlc.workers"));
         assertTrue(failure.getMessage().contains("--max-cpus"));
@@ -803,7 +801,7 @@ class WorkflowRunnerTest {
 
         var failure = assertThrows(
                 WorkflowException.class,
-                () -> new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1));
+                () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1));
 
         assertTrue(failure.getMessage().contains("workflow.apalache.workers"));
         assertTrue(failure.getMessage().contains("--max-cpus"));
@@ -840,7 +838,7 @@ class WorkflowRunnerTest {
         var tlcInput = corpus.resolve(CorpusPath.TLC_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
 
-        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
         assertEquals(1, summary.corpus().pendingEntries(CorpusStage.TLC));
@@ -879,7 +877,7 @@ class WorkflowRunnerTest {
                 corpus.resolve(CorpusPath.APALACHE_INPUT).resolve(parserPass.getFileName());
         corpus.fanOutParserPass(parserPass);
 
-        var summary = new WorkflowRunner(config, Technique.PBT).run(corpus, 42, 1);
+        var summary = new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1);
 
         assertEquals(WorkflowRunSummary.StopReason.CAPACITY_REACHED, summary.stopReason());
         assertEquals(1, summary.corpus().pendingEntries(CorpusStage.APALACHE));
@@ -923,8 +921,7 @@ class WorkflowRunnerTest {
     private WorkflowRunner runner(FuzzTlaConfig config, Generator<TlaEx> expressions)
             throws WorkflowException {
         return new WorkflowRunner(
-                config,
-                Technique.PBT,
+                config.withTechnique(Technique.PBT),
                 SpecDecoders.of(config.generator()).replacingExpressions(expressions));
     }
 

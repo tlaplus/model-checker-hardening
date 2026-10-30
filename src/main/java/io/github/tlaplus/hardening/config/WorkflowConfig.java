@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.Technique;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +20,7 @@ import java.util.Objects;
  * checker has limits, whether or not {@code enabledCheckers} runs it.
  *
  * @param enabledCheckers the checkers a run feeds and aggregates (ADR 0016 §5)
+ * @param technique how the corpus generates, decodes and judges its entries (ADR 0025 §1)
  */
 @ArchRole(Role.CONFIG)
 @Key
@@ -27,12 +29,14 @@ public record WorkflowConfig(
         InputStageConfig inputs,
         ParserStageConfig parser,
         Map<CorpusStage, CheckerStageConfig> checkers,
-        CheckerSet enabledCheckers) {
+        CheckerSet enabledCheckers,
+        Technique technique) {
     public WorkflowConfig {
         Preconditions.requireNonnegative(maximumEntries, "maximumEntries");
         Objects.requireNonNull(inputs, "inputs");
         Objects.requireNonNull(parser, "parser");
         Objects.requireNonNull(enabledCheckers, "enabledCheckers");
+        Objects.requireNonNull(technique, "technique");
         checkers = EnumMaps.requireKeys(
                 CorpusStage.class, checkers, CorpusStage.checkerBranches(), "checkers");
 
@@ -45,23 +49,28 @@ public record WorkflowConfig(
         }
     }
 
-    /** A configuration that runs the default checkers, as every configuration did before ADR 0016. */
+    /** A pbt configuration that runs the default checkers, as every configuration did before ADR 0016. */
     public WorkflowConfig(
             int maximumEntries,
             InputStageConfig inputs,
             ParserStageConfig parser,
             Map<CorpusStage, CheckerStageConfig> checkers) {
-        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT);
+        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT, Technique.UNRECORDED);
     }
 
     /** Returns this configuration with the given input stage. */
     public WorkflowConfig withInputs(InputStageConfig replacement) {
-        return new WorkflowConfig(maximumEntries, replacement, parser, checkers, enabledCheckers);
+        return new WorkflowConfig(maximumEntries, replacement, parser, checkers, enabledCheckers, technique);
     }
 
     /** Returns this configuration running only {@code replacement}. */
     public WorkflowConfig withEnabledCheckers(CheckerSet replacement) {
-        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, replacement);
+        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, replacement, technique);
+    }
+
+    /** Returns this configuration running {@code replacement}. */
+    public WorkflowConfig withTechnique(Technique replacement) {
+        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, enabledCheckers, replacement);
     }
 
     public static WorkflowConfig defaults() {

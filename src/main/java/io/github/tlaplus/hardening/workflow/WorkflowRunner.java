@@ -51,17 +51,17 @@ public final class WorkflowRunner {
     private final Technique technique;
     private final CheckingPolicy checking;
 
-    public WorkflowRunner(FuzzTlaConfig config, Technique technique) throws WorkflowException {
-        this(config, technique, SpecDecoders.prepare(Objects.requireNonNull(config, "config"), technique));
+    /** Runs the technique of {@code config}, {@code [workflow] technique} (ADR 0025 §1). */
+    public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
+        this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config"), config.workflow().technique()));
     }
 
     /** Reads the configured known-defect databases before any corpus is locked. */
-    WorkflowRunner(FuzzTlaConfig config, Technique technique, SpecDecoders decoders)
-            throws WorkflowException {
+    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
         Objects.requireNonNull(config, "config");
-        this.technique = Objects.requireNonNull(technique, "technique");
+        this.technique = config.workflow().technique();
         if (!technique.generates(config.generatedKind())) {
-            throw new WorkflowException("--how=" + technique.encodedName() + " does not generate "
+            throw new WorkflowException("this corpus runs " + technique.encodedName() + ", which does not generate "
                     + config.generatedKind().encodedName() + " inputs: set [generator] kind to one it generates");
         }
         checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers(), new GraphOutcomes(decoders));
@@ -119,8 +119,7 @@ public final class WorkflowRunner {
         requireAdoptableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
-            CorpusRecords.TECHNIQUE.verify(corpus, technique, true);
-            CorpusRecords.CHECKERS.verify(corpus, checking.checkers(), true);
+            CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
             CorpusReplay.verify(corpus, setup.decoders(), true);
             var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);

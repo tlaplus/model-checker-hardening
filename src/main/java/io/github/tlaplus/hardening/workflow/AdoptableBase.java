@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.config.ConfigException;
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
@@ -34,19 +35,21 @@ final class AdoptableBase {
     static void require(Path base, IrGenerationConfig generator, String libraryManifest, String guardManifest)
             throws IOException, CorpusException, WorkflowException {
         var corpus = CorpusDirectory.openExisting(base);
-        var technique = CorpusRecords.TECHNIQUE.read(corpus);
-        // An mt payload carries a metamorphic header, so it is not the payload of a base.
-        if (technique == Technique.MT) {
-            throw new WorkflowException("metamorphic.base_corpus must be a pbt or gbt corpus, but '" + base
-                    + "' runs --how=" + technique.encodedName());
-        }
-        final IrGenerationConfig baseGenerator;
+        final FuzzTlaConfig baseConfig;
         try {
-            baseGenerator = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG)).generator();
+            baseConfig = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG));
         } catch (ConfigException exception) {
             throw new WorkflowException("cannot read the configuration of metamorphic.base_corpus '" + base
                     + "': " + Diagnostics.message(exception), exception);
         }
+        var technique = baseConfig.workflow().technique();
+        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
+        // An mt payload carries a metamorphic header, so it is not the payload of a base.
+        if (technique == Technique.MT) {
+            throw new WorkflowException("metamorphic.base_corpus must be a pbt or gbt corpus, but '" + base
+                    + "' runs " + technique.encodedName());
+        }
+        var baseGenerator = baseConfig.generator();
         if (!withoutLibrary(baseGenerator).equals(withoutLibrary(generator))) {
             throw new WorkflowException("metamorphic.base_corpus '" + base + "' has other [generator] or [graph] "
                     + "settings, so adopted entries would not decode to their parents; copy its [generator] and "

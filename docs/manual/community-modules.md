@@ -8,8 +8,8 @@ operators.
 
 ```sh
 make community-modules
-./bin/fuzztla init --corpus corpus-cm --library libraries/community-modules.toml
-./bin/fuzztla run --how=pbt --corpus corpus-cm
+./bin/fuzztla init --how=pbt --corpus corpus-cm --library libraries/community-modules.toml
+./bin/fuzztla run --corpus corpus-cm
 ```
 
 `make community-modules` downloads the latest `CommunityModules.jar` release into

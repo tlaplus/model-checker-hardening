@@ -8,7 +8,6 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
@@ -26,7 +25,8 @@ import picocli.CommandLine;
 
 /**
  * {@code fuzztla run}: reads a corpus configuration and runs {@code WorkflowRunner} with live
- * progress output.
+ * progress output. The configuration names the technique, which {@code fuzztla init --how} chose
+ * (ADR 0025 §1).
  */
 @ArchRole(Role.ENTRY_POINT)
 @Key
@@ -37,15 +37,6 @@ final class RunCommand implements Callable<Integer> {
             usageHelp = true,
             description = "Show this help message and exit.")
     private boolean helpRequested;
-
-    @Option(
-            names = "--how",
-            required = true,
-            converter = TechniqueConverter.class,
-            paramLabel = "TECHNIQUE",
-            description = "Fuzzing technique: pbt, mt for metamorphic testing (ADR 0016), or gbt for"
-                    + " graph-based testing (ADR 0023).")
-    private Technique technique;
 
     @Option(
             names = "--corpus",
@@ -75,7 +66,7 @@ final class RunCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        // Every technique runs the same workflow; the corpus records which one it runs.
+        // Every technique runs the same workflow; the configuration names which one it runs.
         // Shutdown waits until terminal restoration and diagnostics have completed as well.
         try (var shutdown = RunShutdownHook.install()) {
             return execute();
@@ -90,10 +81,12 @@ final class RunCommand implements Callable<Integer> {
             spec.commandLine().getOut().flush();
             var directory = CorpusDirectory.openExisting(corpus);
             var config = TomlConfig.read(directory.resolve(CorpusPath.CONFIG));
+            spec.commandLine().getOut().printf("Technique: %s%n", config.workflow().technique().encodedName());
+            spec.commandLine().getOut().flush();
             // Closing the output restores the terminal before a diagnostic is printed.
             try (var output = RunOutput.open(spec.commandLine().getOut(), parent.terminals(),
                     config.mutator().feedbackRatio() > 0)) {
-                var summary = output.run(new WorkflowRunner(config, technique), directory, effectiveSeed, maximumCpus);
+                var summary = output.run(new WorkflowRunner(config), directory, effectiveSeed, maximumCpus);
                 output.finish(directory.resolve(CorpusPath.ROOT), summary);
             }
             return CommandLine.ExitCode.OK;
@@ -109,14 +102,6 @@ final class RunCommand implements Callable<Integer> {
     /** Draws an unpredictable seed while clearing the sign bit. */
     private static long randomSeed() {
         return new SecureRandom().nextLong() & Long.MAX_VALUE;
-    }
-
-    public static final class TechniqueConverter implements ITypeConverter<Technique> {
-        @Override
-        public Technique convert(String value) {
-            return Technique.fromEncodedName(value).orElseThrow(() -> new TypeConversionException(
-                    "expected one of: " + String.join(", ", Technique.encodedNames())));
-        }
     }
 
     public static final class SeedConverter implements ITypeConverter<Long> {

@@ -4,19 +4,16 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.ConfigException;
-import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryInstall;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -26,8 +23,8 @@ import picocli.CommandLine.Spec;
 import picocli.CommandLine;
 
 /**
- * {@code fuzztla init}: writes the default configuration of a new corpus and installs its
- * libraries.
+ * {@code fuzztla init}: writes the configuration of a new corpus, which names the technique every
+ * run follows (ADR 0025 §1), and installs its libraries.
  */
 @ArchRole(Role.ENTRY_POINT)
 @Key
@@ -38,6 +35,14 @@ final class InitCommand implements Callable<Integer> {
             usageHelp = true,
             description = "Show this help message and exit.")
     private boolean helpRequested;
+
+    @Option(
+            names = "--how",
+            required = true,
+            converter = TechniqueConverter.class,
+            paramLabel = "TECHNIQUE",
+            description = TechniqueConverter.DESCRIPTION)
+    private Technique technique;
 
     @Option(
             names = "--corpus",
@@ -57,13 +62,15 @@ final class InitCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        var config = FuzzTlaConfig.defaults();
-        var project = projectWithShippedDatabase();
-        if (project.isPresent()) {
-            config = config.withKnownDefects(List.of(shippedDatabasePath(project.orElseThrow())));
-        } else {
+        var initial = new InitialConfig(corpus, InitialConfig.locateProject());
+        var config = initial.create(technique);
+        if (!initial.hasProject()) {
             spec.commandLine().getErr().printf(
                     "fuzztla: shipped known-defect database not found; known_defects is empty%n");
+            if (technique == Technique.MT) {
+                spec.commandLine().getErr().printf(
+                        "fuzztla: shipped rewrite rules not found; set [metamorphic] rules%n");
+            }
         }
         Optional<OperatorLibraryConfig> source = Optional.empty();
         if (library != null) {
@@ -81,29 +88,13 @@ final class InitCommand implements Callable<Integer> {
             spec.commandLine()
                     .getOut()
                     .printf(
-                            "fuzztla: initialized corpus at '%s'%n",
+                            "fuzztla: initialized %s corpus at '%s'%n",
+                            technique.encodedName(),
                             initialized.resolve(CorpusPath.ROOT));
             return CommandLine.ExitCode.OK;
         } catch (IOException | CorpusException exception) {
             CommandDiagnostic.print(spec.commandLine().getErr(), "cannot initialize corpus", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
         }
-    }
-
-    /** Returns the project directory if it holds the shipped known-defect database. */
-    private static Optional<Path> projectWithShippedDatabase() {
-        return ProjectDirectory.locate()
-                .filter(directory -> Files.isRegularFile(directory.resolve(KnownDefectDatabase.SHIPPED)));
-    }
-
-    /**
-     * Names the shipped database relative to a corpus inside the project, so that the corpus keeps
-     * working when the project moves, and absolutely for a corpus elsewhere, which does not move
-     * with it.
-     */
-    private Path shippedDatabasePath(Path project) {
-        var directory = corpus.toAbsolutePath().normalize();
-        var database = project.resolve(KnownDefectDatabase.SHIPPED);
-        return directory.startsWith(project) ? directory.relativize(database) : database;
     }
 }

@@ -1,16 +1,24 @@
 # Running campaigns
 
 ```sh
-fuzztla run --how=TECHNIQUE [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
+fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE]
+fuzztla run [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
 ```
 
-| Option | Meaning |
+`init` chooses the technique once and writes it into the corpus's `config.toml` as
+`[workflow] technique`. Every `run` follows it
+([ADR 0025](../decisions/0025-self-contained-corpora.md)).
+
+| `init --how` | Technique |
 |---|---|
-| `--how=pbt` | Property-based testing: generate random modules, compare the checkers, and mutate good inputs ([Generations and mutation](mutation.md)). |
-| `--how=mt` | Metamorphic testing: check one checker against equivalent rewrites of its input ([Metamorphic testing](metamorphic-testing.md)). |
-| `--how=gbt` | Graph-based testing: check each checker against the verdict that a generated control graph predicts ([Graph-based testing](graph-based-testing.md)). |
+| `pbt` | Property-based testing: generate random modules, compare the checkers, and mutate good inputs ([Generations and mutation](mutation.md)). |
+| `mt` | Metamorphic testing: check one checker against equivalent rewrites of its input ([Metamorphic testing](metamorphic-testing.md)). `init` also sets the shipped rewrite rules and, with Apalache, `metamorphic-defects.toml`. |
+| `gbt` | Graph-based testing: check each checker against the verdict that a generated control graph predicts ([Graph-based testing](graph-based-testing.md)). `init` also sets `kind = "graph"`. |
+
+| `run` option | Meaning |
+|---|---|
 | `--corpus=DIR` | The corpus directory. Default: `corpus`. |
-| `--seed=SEED` | A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case. |
+| `--seed=SEED` | A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case, followed by the technique. |
 | `--max-cpus=N` | Maximum number of jobs that run at the same time. Default: all processors. |
 
 A run admits inputs until the corpus holds `workflow.max_entries` entries, then
@@ -21,7 +29,7 @@ finishes the work in flight and prints a summary. See
 
 | Goal | Setup |
 |---|---|
-| Compare TLC and Apalache on the standard operators | `init`, then `run --how=pbt`. This is the default. |
+| Compare TLC and Apalache on the standard operators | `init --how=pbt`, then `run`. |
 | Compare them on the TLA<sup>+</sup> Community Modules | [Community Modules](community-modules.md) |
 | Compare TLC's recursion with Apalache's folds | [Recursive operators](recursive-operators.md) |
 | Generate calls to your own operators | [Custom operators](custom-operators.md) |

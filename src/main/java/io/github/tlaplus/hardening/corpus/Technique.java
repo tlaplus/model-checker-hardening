@@ -9,10 +9,11 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * The fuzzing technique a corpus runs (`fuzztla run --how`). A corpus records its technique on its
- * first run, so every later run and every replay decodes and judges its entries the same way.
+ * The fuzzing technique a corpus runs: {@code [workflow] technique}, which {@code fuzztla init
+ * --how} sets (ADR 0025 §1), so every run and every replay decodes and judges its entries the same
+ * way.
  *
- * <p>The encoded name is part of the corpus format and of the command line.
+ * <p>The encoded name is part of the configuration format and of the command line.
  */
 public enum Technique {
     /** Property-based generation and mutation, judged by conformance of TLC and Apalache. */
@@ -43,7 +44,7 @@ public enum Technique {
         this.ranking = ranking;
     }
 
-    /** Returns the name used by `--how` and in the corpus. */
+    /** Returns the name used by `init --how` and by `[workflow] technique`. */
     public String encodedName() {
         return encodedName;
     }
@@ -61,6 +62,17 @@ public enum Technique {
     /** Reports whether a run of this technique may generate inputs of {@code kind}. */
     public boolean generates(InputKind kind) {
         return kinds.contains(Objects.requireNonNull(kind, "kind"));
+    }
+
+    /**
+     * Returns the kind a new corpus of this technique generates: {@code configured} when this
+     * technique generates it, else the first kind it does, in declaration order.
+     */
+    public InputKind kindFor(InputKind configured) {
+        if (generates(configured)) {
+            return configured;
+        }
+        return Arrays.stream(InputKind.values()).filter(kinds::contains).findFirst().orElseThrow();
     }
 
     /** Returns the technique with this encoded name, or empty when none has it. */

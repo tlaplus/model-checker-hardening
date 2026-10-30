@@ -77,6 +77,9 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla init"));
         assertTrue(result.out().contains("--corpus=DIR"));
+        assertTrue(result.out().contains("--how=TECHNIQUE"));
+        assertTrue(result.out().contains("pbt, mt for metamorphic testing"), result.out());
+        assertTrue(result.out().contains("gbt for graph-based"), result.out());
         assertFalse(result.out().contains("--version"));
         assertEquals("", result.err());
     }
@@ -86,7 +89,7 @@ class MainTest {
             throws Exception {
         var corpus = directory.resolve("custom-corpus");
 
-        var result = execute("init", "--corpus=" + corpus);
+        var result = execute("init", "--how=pbt", "--corpus=" + corpus);
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains(corpus.toString()));
@@ -118,7 +121,7 @@ class MainTest {
         try {
             var corpus = parent.resolve("corpus");
 
-            assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+            assertEquals(CommandLine.ExitCode.OK, execute("init", "--how=pbt", "--corpus=" + corpus).exitCode());
 
             var relative = corpus.relativize(KnownDefectDatabase.SHIPPED.toAbsolutePath().normalize());
             assertTrue(relative.startsWith(".."));
@@ -137,7 +140,7 @@ class MainTest {
         var marker = corpus.resolve("keep-me");
         Files.writeString(marker, "preserved");
 
-        var result = execute("init", "--corpus=" + corpus);
+        var result = execute("init", "--how=pbt", "--corpus=" + corpus);
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertEquals("preserved", Files.readString(marker));
@@ -149,9 +152,9 @@ class MainTest {
         var corpus = directory.resolve("corpus");
         assertEquals(
                 CommandLine.ExitCode.OK,
-                execute("init", "--corpus=" + corpus).exitCode());
+                execute("init", "--how=pbt", "--corpus=" + corpus).exitCode());
 
-        var result = execute("init", "--corpus=" + corpus);
+        var result = execute("init", "--how=pbt", "--corpus=" + corpus);
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertTrue(result.err().contains("configuration already exists"));
@@ -160,7 +163,7 @@ class MainTest {
     @Test
     void exportsACorpusToADatabaseOnceWithoutForce(@TempDir Path directory) throws Exception {
         var corpus = directory.resolve("corpus");
-        assertEquals(CommandLine.ExitCode.OK, execute("init", "--corpus=" + corpus).exitCode());
+        assertEquals(CommandLine.ExitCode.OK, execute("init", "--how=pbt", "--corpus=" + corpus).exitCode());
         var input = new CorpusInput(InputKind.EXPRESSION, new byte[0]);
         Files.write(
                 corpus.resolve(CorpusPath.INPUT.relativePath()).resolve(Digests.digest(input.input()) + ".cbor"),
@@ -198,15 +201,15 @@ class MainTest {
 
     @Test
     void rejectsArgumentsToInit() {
-        var result = execute("init", "project");
+        var result = execute("init", "--how=pbt", "project");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
-        assertTrue(result.err().contains("Unmatched argument at index 1: 'project'"));
+        assertTrue(result.err().contains("Unmatched argument at index 2: 'project'"));
     }
 
     @Test
     void rejectsUnknownInitOptions() {
-        var result = execute("init", "--force");
+        var result = execute("init", "--how=pbt", "--force");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("Unknown option: '--force'"));
@@ -222,26 +225,48 @@ class MainTest {
         assertTrue(result.out().contains("--seed=SEED"));
         assertTrue(result.out().contains("--max-cpus=N"));
         assertTrue(result.out().contains("Nonnegative 64-bit seed"));
-        assertTrue(result.out().contains("pbt, mt for metamorphic testing"), result.out());
-        assertTrue(result.out().contains("gbt for graph-based"), result.out());
+        assertFalse(result.out().contains("--how"), result.out());
         assertFalse(result.out().contains("--version"));
         assertEquals("", result.err());
     }
 
     @Test
-    void requiresTechnique() {
-        var result = execute("run");
+    void initRequiresTechnique() {
+        var result = execute("init");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("Missing required option: '--how=TECHNIQUE'"));
     }
 
     @Test
-    void rejectsUnsupportedTechnique() {
-        var result = execute("run", "--how=random");
+    void initRejectsUnsupportedTechnique() {
+        var result = execute("init", "--how=random");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("expected one of: pbt, mt, gbt"));
+    }
+
+    /** The technique is chosen once, at init; run follows the configuration (ADR 0025 §1). */
+    @Test
+    void runTakesNoTechnique() {
+        var result = execute("run", "--how=pbt");
+
+        assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
+        assertTrue(result.err().contains("Unknown option: '--how=pbt'"), result.err());
+    }
+
+    /** A gbt corpus generates graphs, so init writes the graph kind with the technique. */
+    @Test
+    void initializesAGraphCorpus(@TempDir Path directory) throws Exception {
+        var corpus = directory.resolve("corpus");
+
+        var result = execute("init", "--how=gbt", "--corpus=" + corpus);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        assertTrue(result.out().contains("initialized gbt corpus"), result.out());
+        var config = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath()));
+        assertEquals(Technique.GBT, config.workflow().technique());
+        assertEquals(InputKind.GRAPH, config.generatedKind());
     }
 
     @Test
@@ -250,7 +275,6 @@ class MainTest {
 
         var result = execute(
                 "run",
-                "--how=pbt",
                 "--corpus=" + corpus,
                 "--seed=42",
                 "--max-cpus=1");
@@ -314,7 +338,6 @@ class MainTest {
                 CommandLine.ExitCode.OK,
                 execute(
                                 "run",
-                                "--how=pbt",
                                 "--corpus=" + corpus,
                                 "--seed=7",
                                 "--max-cpus=1")
@@ -322,7 +345,6 @@ class MainTest {
 
         var result = execute(
                 "run",
-                "--how=pbt",
                 "--corpus=" + corpus,
                 "--seed=7",
                 "--max-cpus=1");
@@ -340,7 +362,7 @@ class MainTest {
     @Test
     void reportsAnUninitializedCorpus(@TempDir Path directory) {
         var missing = directory.resolve("missing-corpus");
-        var result = execute("run", "--how=pbt", "--corpus=" + missing, "--seed=1");
+        var result = execute("run", "--corpus=" + missing, "--seed=1");
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertEquals("Random seed: 1" + System.lineSeparator(), result.out());
@@ -353,7 +375,7 @@ class MainTest {
         var inputDirectory = corpus.resolve(CorpusPath.INPUT.relativePath());
         Files.write(inputDirectory.resolve("not-a-hash.cbor"), new byte[] {1});
 
-        var result = execute("run", "--how=pbt", "--corpus=" + corpus, "--seed=1");
+        var result = execute("run", "--corpus=" + corpus, "--seed=1");
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertTrue(result.err().contains("invalid corpus entry name"));
@@ -364,7 +386,7 @@ class MainTest {
 
     @Test
     void rejectsArgumentsToRun() {
-        var result = execute("run", "--how=pbt", "spec.tla");
+        var result = execute("run", "spec.tla");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("Unmatched argument"));
@@ -372,7 +394,7 @@ class MainTest {
 
     @Test
     void rejectsInvalidSeed() {
-        var result = execute("run", "--how=pbt", "--seed=not-a-long");
+        var result = execute("run", "--seed=not-a-long");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("Invalid value for option '--seed'"));
@@ -381,7 +403,7 @@ class MainTest {
 
     @Test
     void rejectsNegativeSeed() {
-        var result = execute("run", "--how=pbt", "--seed=-1");
+        var result = execute("run", "--seed=-1");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.err().contains("0.." + Long.MAX_VALUE));
@@ -393,7 +415,6 @@ class MainTest {
 
         var result = execute(
                 "run",
-                "--how=pbt",
                 "--corpus=" + corpus,
                 "--seed=" + Long.MAX_VALUE,
                 "--max-cpus=1");
@@ -413,7 +434,7 @@ class MainTest {
         var corpus = initializeSmallCorpus(directory, 0, 0);
 
         var result = execute(
-                "run", "--how=pbt", "--corpus=" + corpus, "--max-cpus=1");
+                "run", "--corpus=" + corpus, "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().lines().findFirst().orElseThrow().matches("Random seed: \\d+"));
@@ -791,7 +812,7 @@ class MainTest {
         var corpus = directory.resolve("corpus");
         assertEquals(
                 CommandLine.ExitCode.OK,
-                execute("init", "--corpus=" + corpus).exitCode());
+                execute("init", "--how=pbt", "--corpus=" + corpus).exitCode());
         var config = new FuzzTlaConfig(
                 InputKind.EXPRESSION,
                 IrGenerationConfig.defaults(),

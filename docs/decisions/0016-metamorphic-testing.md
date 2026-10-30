@@ -215,6 +215,10 @@ that differ per technique:
 - its encoded name, used by `--how` and in the corpus;
 - `oracle()`: `CONFORMANCE` for `pbt` and `METAMORPHIC` for `mt` (section 4).
 
+*Superseded by [ADR 0025](0025-self-contained-corpora.md) §1 and §4: `fuzztla init
+--how` writes the technique as `[workflow] technique`, `run` has no `--how`, and no run
+writes `.technique`. A legacy `.technique` must agree with the key.*
+
 **Corpus marker.** The first run records its technique in a new corpus file,
 `.technique`. Later runs require `--how` to match, as `.operator-library` requires
 the same library ([fuzzing-workflows.md §1.2][workflows]). `print`, `export-db` and
@@ -397,6 +401,9 @@ Today the set is `CorpusStage.checkerBranches()`, which is every stage with the
   verdicts. With one branch, only the oracle decides;
 - `workflow/CheckerBackends` requires a factory only for configured branches;
 - the occupancy gates and startup recovery do the same.
+
+*Superseded by [ADR 0025](0025-self-contained-corpora.md) §4: `[workflow] checkers`
+alone names the set, and no run writes `.checkers`.*
 
 The first run records the set in a corpus file `.checkers`. Later runs require an
 exact match, as `.operator-library` does: recovery must not wait for verdicts of a
