@@ -11,7 +11,9 @@ the place of a file tells you how far it got and what happened to it.
 
 | Directory | Contents |
 |---|---|
-| `config.toml` | The campaign's [configuration](configuration.md). |
+| `config.toml` | The campaign's [configuration](configuration.md), including its technique. |
+| `tla/` | Copies of the TLA<sup>+</sup> libraries and rule modules the configuration names. |
+| `tools/` | Copies of `apalache.jar` and `tla2tools.jar`, which every run, `print` and `export-db` use. |
 | `00-inputs/` | Generated inputs waiting for the parser. |
 | `00-known-defects/` | Candidates that match a [known-defect signature](known-defect-signatures.md), kept as samples instead of being checked. Created on the first match. |
 | `01parser-pass/`, `-fail/`, `-crash/` | Parser verdicts. SANY must accept every generated module, so a `fail` or `crash` here is a generator bug or a SANY defect. |
@@ -21,6 +23,11 @@ the place of a file tells you how far it got and what happened to it.
 | `03aggregator-fail/` | **Disagreements.** These are the main output of a conformance campaign. |
 | `04quality-pass/`, `04quality-fail/` | Agreeing entries that the quality gate kept or dropped as parents for [mutation](mutation.md). |
 | `.work/` | Temporary files and generator crash artifacts. Not part of the corpus. |
+
+The corpus is self-contained: it replays with its own libraries and tools, whatever
+the repository or the build holds later
+([ADR 0025](../decisions/0025-self-contained-corpora.md)). Edit `config.toml`, `tla/`
+and `tools/` only before the first run; FuzzTLA does not detect a later edit.
 
 Other tools add files at the corpus root: triage CSV files, `corpus.sqlite` from
 [`export-db`](corpus-database.md), and `report.md` from the

@@ -11,7 +11,6 @@ import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
@@ -118,8 +117,8 @@ public final class MetamorphicShrinker {
                     + technique.encodedName());
         }
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
-            var resources = new CheckerBackends.Resources(maximumCpus, scratch, ApalacheDistribution.locate(),
-                    config.libraries().sourceCheckerClasspath());
+            var resources = new CheckerBackends.Resources(maximumCpus, scratch, CorpusTools.apalache(config),
+                    CorpusTools.sourceCheckerClasspath(config));
             var checkers = new ArrayList<Checker>();
             try {
                 for (var stage : config.workflow().enabledCheckers()) {

@@ -18,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LibraryReplayIntegrationTest {
     @Test
-    void runRecordsIdentityAndPrintChecksIt(@TempDir Path directory) throws Exception {
+    /** A corpus replays its library from its configuration; it records no fingerprint (ADR 0025 §4). */
+    void runAndPrintReplayTheCorpusLibrary(@TempDir Path directory) throws Exception {
         var sources = Files.createDirectory(directory.resolve("tla"));
         var source = sources.resolve("Mine.tla");
         Files.writeString(source, "---- MODULE Mine ----\nIdentity(x) == x\n====\n");
@@ -30,7 +31,7 @@ class LibraryReplayIntegrationTest {
                 defaults.pbt(), defaults.mutator(), defaults.libraries());
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(config));
         new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1);
-        assertTrue(corpus.readRecord(CorpusRecord.LIBRARY_MANIFEST).isPresent());
+        assertFalse(Files.exists(directory.resolve("corpus").resolve(".operator-library")));
         corpus.store(InputKind.EXPRESSION, new byte[0]);
         var input = corpus.inputPath(new byte[0]);
         var out = new StringWriter();
@@ -38,8 +39,5 @@ class LibraryReplayIntegrationTest {
         var cli = new CommandLine(new FuzzTlaCommand()).setOut(new PrintWriter(out)).setErr(new PrintWriter(err));
         assertEquals(0, cli.execute("print", "--corpus", corpus.resolve(CorpusPath.ROOT).toString(), input.toString()), err.toString());
         assertTrue(out.toString().contains("FALSE"));
-        Files.writeString(source, "---- MODULE Mine ----\nIdentity(x) == {x}\n====\n");
-        assertNotEquals(0, cli.execute("print", "--corpus", corpus.resolve(CorpusPath.ROOT).toString(), input.toString()));
-        assertTrue(err.toString().contains("library changed"), err.toString());
     }
 }

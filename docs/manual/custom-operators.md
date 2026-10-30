@@ -80,7 +80,8 @@ fuzztla init --corpus my-corpus --library libraries/community-modules.toml
 
 ## The library is fixed per corpus
 
-The first run records the library's sources, the selected operators and the Apalache
-version in `.operator-library`. Later runs, and `print --corpus`, refuse to work with
-a changed library, because the old entries would no longer replay. To change the
-library, initialize a new corpus.
+`init` copies the library's classpath into `<corpus>/tla/`, and the Apalache JAR that
+types it into `<corpus>/tools/`. Every run, and `print --corpus`, uses these copies,
+so a newer library or Apalache in the repository does not reach the corpus. Edit the
+copies only before the first run: the old entries would no longer replay, and
+FuzzTLA does not detect the edit. To change the library, initialize a new corpus.

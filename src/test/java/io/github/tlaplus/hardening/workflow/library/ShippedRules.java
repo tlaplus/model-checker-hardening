@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.library;
 
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
@@ -19,6 +20,6 @@ public final class ShippedRules {
 
     /** The shipped rules, type-checked with Apalache's default settings. */
     public static RewriteLibrary library() throws WorkflowException {
-        return RuleLibraryPreparation.prepare(config(), CheckerProfile.APALACHE.defaults()).library();
+        return RuleLibraryPreparation.prepare(config(), CheckerProfile.APALACHE.defaults(), ApalacheDistribution.locate()).library();
     }
 }

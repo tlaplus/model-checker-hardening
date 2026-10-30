@@ -155,19 +155,12 @@ class LibraryPreparationTest {
         Files.writeString(source, "---- MODULE Mine ----\nOp(x) == x\n====\n");
         var config = config(List.of(sources), "Mine", "Op");
         var initial = LibraryPreparation.prepare(config).manifest();
-        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(config));
-        try (var lock = corpus.acquireExclusiveLock()) { LibraryManifest.verify(corpus, initial, true); }
-        LibraryManifest.verify(corpus, initial, false);
         assertEquals(initial, LibraryPreparation.prepare(config).manifest());
         var relocated = Files.createDirectory(directory.resolve("relocated"));
         Files.copy(source, relocated.resolve("Mine.tla"));
         assertEquals(initial, LibraryPreparation.prepare(config(List.of(relocated), "Mine", "Op"))
                 .manifest());
         Files.writeString(source, "---- MODULE Mine ----\nOp(x) == {x}\n====\n");
-        var changed = LibraryPreparation.prepare(config).manifest();
-        assertThrows(WorkflowException.class, () -> LibraryManifest.verify(corpus, changed, false));
-        assertThrows(WorkflowException.class, () -> LibraryManifest.verify(corpus, "", false));
-        assertThrows(WorkflowException.class, () -> LibraryManifest.verify(
-                CorpusDirectory.initialize(directory.resolve("unrecorded"), TomlConfig.render(config)), initial, false));
+        assertNotEquals(initial, LibraryPreparation.prepare(config).manifest());
     }
 }

@@ -44,7 +44,8 @@ the requirements below: decoding is deterministic, and exhaustion decodes to no
 rewrite. It draws fresh operands through the expression engine. Its rules are the
 operators of a TLA<sup>+</sup> rule module typed by Snowcat
 ([ADR 0017](../decisions/0017-rewrite-rule-library.md)). Their declaration order is
-part of the encoding, and the corpus file `.rewrite-library` pins it. The two existing
+part of the encoding, and each corpus keeps its own copy of the module in `tla/`
+([ADR 0025](../decisions/0025-self-contained-corpora.md)). The two existing
 encodings stay unchanged.
 
 The design has six primary requirements:

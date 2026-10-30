@@ -123,6 +123,20 @@ class TomlConfigTest {
         assertEquals(RuleLibraryConfig.none(), readConfig(directory, defaults).graphGuards());
     }
 
+    /** [tools] names the corpus's tool JARs relative to the file; a missing key runs the staged release. */
+    @Test
+    void readsTheToolJars(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        assertEquals(ToolsConfig.none(), readConfig(directory, defaults).tools());
+        var installed = TomlConfig.render(FuzzTlaConfig.defaults().withTools(ToolsConfig.installed()));
+        assertTrue(installed.contains("\napalache = \"tools/apalache.jar\"\n"), installed);
+        var tools = readConfig(directory, installed).tools();
+        for (var tool : ToolJar.values()) {
+            assertEquals(Optional.of(directory.resolve("tools").resolve(tool.fileName()).toAbsolutePath().normalize()),
+                    tools.jar(tool));
+        }
+    }
+
     /** Names the rule module {@code rules} and weighs two rules, in table {@code [table]} only. */
     private static String withRules(String document, String table) {
         var start = document.indexOf("\n[" + table + "]");

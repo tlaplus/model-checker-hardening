@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -205,7 +206,7 @@ class ParserProcessTest {
         // copies of a LET definition that PrettyWriter nests by moving them in front of an
         // application.
         var config = ShippedRules.config();
-        var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults()).library();
+        var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults(), ApalacheDistribution.locate()).library();
         var decoders = SpecDecoders.metamorphic(IrGenerationConfig.defaults(),
                 new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));
         var random = new Random(0x4e57L);

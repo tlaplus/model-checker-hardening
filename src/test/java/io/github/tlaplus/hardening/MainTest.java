@@ -97,9 +97,16 @@ class MainTest {
         // The temporary corpus lies outside the project, so init names the database absolutely.
         var database = KnownDefectDatabase.SHIPPED.toAbsolutePath().normalize();
         var configFile = corpus.resolve(CorpusPath.CONFIG.relativePath());
+        var config = TomlConfig.read(configFile);
         assertEquals(
                 FuzzTlaConfig.defaults().withKnownDefects(List.of(database)),
-                TomlConfig.read(configFile));
+                config.withTools(ToolsConfig.none()));
+        // The corpus runs its own copies of the tools (ADR 0025 §3).
+        for (var tool : ToolJar.values()) {
+            var jar = corpus.resolve("tools").resolve(tool.fileName());
+            assertEquals(Optional.of(jar.toAbsolutePath().normalize()), config.tools().jar(tool));
+            assertTrue(Files.isRegularFile(jar), jar.toString());
+        }
         assertTrue(Files.readString(configFile).contains("known_defects = [\"" + database + "\"]"));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.INPUT.relativePath())));
         assertTrue(Files.isDirectory(corpus.resolve(CorpusPath.PARSER_PASS.relativePath())));

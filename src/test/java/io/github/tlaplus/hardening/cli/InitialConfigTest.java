@@ -44,7 +44,8 @@ class InitialConfigTest {
         var config = inside.create(Technique.MT);
 
         assertEquals(Technique.MT, config.workflow().technique());
-        assertEquals(Optional.of(new RuleLibraryConfig.RuleModule("Rewrites", List.of(Path.of("..", "libraries", "rewrites")))),
+        // Absolute: init copies the rules into the corpus (ADR 0025 §2).
+        assertEquals(Optional.of(new RuleLibraryConfig.RuleModule("Rewrites", List.of(PROJECT.resolve("libraries/rewrites")))),
                 config.metamorphic().rules().module());
         assertEquals(List.of(SHIPPED, METAMORPHIC), config.workflow().inputs().knownDefects());
         assertEquals(config, inside.forTechnique(config, Technique.MT), "applying the settings twice changes nothing");

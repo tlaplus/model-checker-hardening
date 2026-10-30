@@ -23,6 +23,7 @@ import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
 import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
+import io.github.tlaplus.hardening.workflow.CorpusTools;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
 import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
@@ -51,43 +52,19 @@ public final class SpecDecoders {
     private final OperatorLibrary library;
     private final Manifests manifests;
 
-    /** Separates the guard manifest from the rewrite manifest in a metamorphic corpus's rule record. */
-    private static final String GUARD_SECTION = "graph-guards\n";
-
     /**
-     * The replay identities of the prepared libraries, empty when absent: the custom library, the
-     * rule record the corpus pins, and the edge guards of graph inputs.
+     * The identities of the prepared libraries, empty when absent: the custom library and the edge
+     * guards of graph inputs, which a metamorphic run compares with its base corpus's (ADR 0025 §5).
      */
-    private record Manifests(String library, String rules, String guards) {
+    private record Manifests(String library, String guards) {
         Manifests {
             Objects.requireNonNull(library, "library");
-            Objects.requireNonNull(rules, "rules");
             Objects.requireNonNull(guards, "guards");
-        }
-
-        /** A conformance registry pins its guards alone. */
-        static Manifests conformance(String library, String guards) {
-            return new Manifests(library, guards, guards);
-        }
-
-        /**
-         * A metamorphic registry pins its rewrites, followed by its guards when it has any, so a
-         * corpus without guards pins the rewrites alone.
-         */
-        static Manifests metamorphic(String library, String rewrites, String guards) {
-            return new Manifests(library, guards.isEmpty() ? rewrites : rewrites + GUARD_SECTION + guards, guards);
         }
     }
 
     /** The replay identity of the prepared library, empty when none is configured. */
     public String libraryManifest() { return manifests.library(); }
-
-    /**
-     * The replay identity of the prepared rule modules, which {@code .rewrite-library} pins: the
-     * edge guards of graph inputs, preceded by the rewrites of a metamorphic technique; empty
-     * without either.
-     */
-    public String rewriteManifest() { return manifests.rules(); }
 
     /** The replay identity of the edge guards of graph inputs, empty without them. */
     public String guardManifest() { return manifests.guards(); }
@@ -117,22 +94,24 @@ public final class SpecDecoders {
      */
     public static SpecDecoders prepare(FuzzTlaConfig config, Technique technique) throws WorkflowException {
         try {
+            CorpusTools.require(config);
             var prepared = LibraryPreparation.prepare(config);
             var apalache = config.workflow().checker(CorpusStage.APALACHE);
-            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), apalache);
+            var jar = CorpusTools.apalache(config);
+            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), apalache, jar);
             var guards = guards(guardRules.library());
             return switch (technique) {
                 case PBT, GBT -> of(prepared.generator(), guards,
-                        Manifests.conformance(prepared.manifest(), guardRules.manifest()));
+                        new Manifests(prepared.manifest(), guardRules.manifest()));
                 case MT -> {
-                    var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache);
+                    var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache, jar);
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("technique = \"mt\" needs rewrite rules: set metamorphic.rules");
                     }
                     yield metamorphic(prepared.generator(),
                             new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),
                             guards,
-                            Manifests.metamorphic(prepared.manifest(), rules.manifest(), guardRules.manifest()));
+                            new Manifests(prepared.manifest(), guardRules.manifest()));
                 }
             };
         } catch (IllegalArgumentException exception) {
@@ -143,12 +122,12 @@ public final class SpecDecoders {
 
     /** Returns a complete conformance decoder registry under one generator configuration. */
     public static SpecDecoders of(IrGenerationConfig config) {
-        return of(config, Optional.empty(), Manifests.conformance("", ""));
+        return of(config, Optional.empty(), new Manifests("", ""));
     }
 
     /** Returns a complete conformance decoder registry whose graph inputs conjoin {@code guards}. */
     public static SpecDecoders of(IrGenerationConfig config, EdgeGuards guards) {
-        return of(config, Optional.of(Objects.requireNonNull(guards, "guards")), Manifests.conformance("", ""));
+        return of(config, Optional.of(Objects.requireNonNull(guards, "guards")), new Manifests("", ""));
     }
 
     /** The edge guards of a prepared rule module; none without one. */
@@ -165,7 +144,7 @@ public final class SpecDecoders {
 
     /** Returns a complete metamorphic decoder registry, whose rules {@code rewriter} applies. */
     public static SpecDecoders metamorphic(IrGenerationConfig config, Rewriter rewriter) {
-        return metamorphic(config, rewriter, Optional.empty(), Manifests.metamorphic("", "", ""));
+        return metamorphic(config, rewriter, Optional.empty(), new Manifests("", ""));
     }
 
     private static SpecDecoders of(IrGenerationConfig config, Optional<EdgeGuards> guards, Manifests manifests) {

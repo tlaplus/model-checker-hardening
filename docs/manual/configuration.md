@@ -133,5 +133,5 @@ generation is selected and mutated. They are described in
 The keys apply to `graph` inputs only ([Graph-based testing](graph-based-testing.md)).
 Their data variables and expressions use the `[generator]` keys; `[generator]
 max_steps` does not apply to them. Setting or changing `rules` changes how every
-`graph` input decodes, so a corpus records the rule module in `.rewrite-library` and
-refuses a different one.
+`graph` input decodes, so set it before the first run. `init` copies the module into
+`tla/`.

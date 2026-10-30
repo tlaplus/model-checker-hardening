@@ -5,12 +5,8 @@ package io.github.tlaplus.hardening.corpus;
  * opaque bytes; the workflow decides what a record says and whether a run may proceed.
  */
 public enum CorpusRecord {
-    /** The Apalache distribution, sources and selection of a custom operator library. */
-    LIBRARY_MANIFEST(CorpusPath.LIBRARY_MANIFEST, "library-", "library manifest"),
     /** The fuzzing technique a corpus from before ADR 0025 recorded (ADR 0016 §1). */
-    TECHNIQUE(CorpusPath.TECHNIQUE, "technique-", "technique record"),
-    /** The Apalache distribution, sources, module and weights of the rewrite rules (ADR 0017 §6). */
-    REWRITE_LIBRARY(CorpusPath.REWRITE_LIBRARY, "rules-", "rewrite rule manifest");
+    TECHNIQUE(CorpusPath.TECHNIQUE, "technique-", "technique record");
 
     private final CorpusPath path;
     private final String temporaryPrefix;

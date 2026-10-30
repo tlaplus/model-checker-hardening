@@ -10,7 +10,7 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
-import io.github.tlaplus.hardening.workflow.library.LibraryManifest;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -55,13 +55,14 @@ final class AdoptableBase {
                     + "settings, so adopted entries would not decode to their parents; copy its [generator] and "
                     + "[graph] tables");
         }
-        if (!LibraryManifest.read(corpus).equals(libraryManifest)) {
+        // The base's libraries, rules and tools decide its manifests, as this run's decide this run's.
+        var baseDecoders = SpecDecoders.prepare(baseConfig, technique);
+        if (!baseDecoders.libraryManifest().equals(libraryManifest)) {
             throw new WorkflowException("metamorphic.base_corpus '" + base + "' has another custom operator "
                     + "library, so adopted entries would not decode to their parents; copy its [generator] "
                     + "classpath and custom_operators, and its library sources");
         }
-        // A pbt or gbt corpus pins exactly its edge guards in this record (ADR 0023 §6).
-        if (!CorpusRecords.REWRITE_LIBRARY.read(corpus).equals(guardManifest)) {
+        if (!baseDecoders.guardManifest().equals(guardManifest)) {
             throw new WorkflowException("metamorphic.base_corpus '" + base + "' has other edge guards, so adopted "
                     + "graph entries would not decode to their parents; copy its [graph] rules and weights, and "
                     + "the rule sources");

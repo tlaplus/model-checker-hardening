@@ -185,3 +185,11 @@ max_guards = 2
 # Selection slots per guard rule, overriding the rule's @weight annotation; a rule
 # with neither has weight 1, and 0 disables it.
 weights = {}
+
+[tools]
+# The apalache JAR this corpus runs, relative to this config file (ADR 0025 §3);
+# fuzztla init copies it here. Without it, FuzzTLA's own release runs.
+# apalache = "tools/apalache.jar"
+# The tla2tools JAR this corpus runs, relative to this config file (ADR 0025 §3);
+# fuzztla init copies it here. Without it, FuzzTLA's own release runs.
+# tla2tools = "tools/tla2tools.jar"

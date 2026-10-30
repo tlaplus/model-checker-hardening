@@ -92,14 +92,19 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     /** The example a configuration without a base corpus shows, commented out. */
     static final Path EXAMPLE_BASE_CORPUS = Path.of("../corpus-conf");
 
-    static final ConfigValueType<Optional<Path>> OPTIONAL_PATH = new ConfigValueType<>(
-            (table, path, key) -> {
-                if (!table.isString(key)) {
-                    throw new ConfigException("expected '" + path + "' to be a string");
-                }
-                return Optional.of(Path.of(table.getString(key)));
-            },
-            value -> quote(value.orElse(EXAMPLE_BASE_CORPUS).toString()));
+    static final ConfigValueType<Optional<Path>> OPTIONAL_PATH = optionalPath(EXAMPLE_BASE_CORPUS);
+
+    /** Returns the type of an optional path, which a configuration without it shows as {@code example}. */
+    static ConfigValueType<Optional<Path>> optionalPath(Path example) {
+        return new ConfigValueType<>(
+                (table, path, key) -> {
+                    if (!table.isString(key)) {
+                        throw new ConfigException("expected '" + path + "' to be a string");
+                    }
+                    return Optional.of(Path.of(table.getString(key)));
+                },
+                value -> quote(value.orElse(example).toString()));
+    }
 
     static final ConfigValueType<Map<String, Integer>> RULE_WEIGHTS = new ConfigValueType<>(
             ConfigValueType::readRuleWeights,

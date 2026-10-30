@@ -66,7 +66,8 @@ Probed with Apalache 0.62.2, tla2tools rev 30cc360, and CommunityModules release
    sources and their Java overrides, as users run it.
 7. The replay manifest records each module's linkage. With instance linkage, it
    also records the SHA-256 of every classpath entry, because class files now
-   affect TLC.
+   affect TLC. *Superseded by [ADR 0025](0025-self-contained-corpora.md) §4: no corpus records the manifest; a
+   metamorphic run computes it only to compare its base corpus.*
 8. `fuzztla init --library FILE` reads `[generator] classpath` and
    `custom_operators` from FILE and copies the classpath entries into
    `<corpus>/tla/`. Each corpus thus freezes one library release.

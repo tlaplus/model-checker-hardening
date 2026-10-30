@@ -20,8 +20,8 @@ commit. Rerun it to pick up a newer release.
 FILE, whose paths are relative to FILE. It copies each classpath entry, plus a
 sibling `VERSION`, into `<corpus>/tla/`, and writes the corresponding keys into
 `config.toml`. Every other setting is the default. The corpus therefore keeps the
-release it was initialized with; the replay manifest rejects a changed JAR. To
-move to a newer release, initialize a new corpus.
+release it was initialized with, as it keeps its own TLC and Apalache in `tools/`.
+To move to a newer release, initialize a new corpus.
 
 ## 2. Linkage
 

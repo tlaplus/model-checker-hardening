@@ -395,6 +395,9 @@ final class ConfigSchema {
             "(ADR 0023 §6): each guard is an instance A = B of one of its rules. Setting it",
             "changes how every graph input decodes.");
 
+    private static final ConfigTableBuilder<ToolsConfig> TOOLS = new ConfigTableBuilder<>("tools", FuzzTlaConfig::tools);
+    private static final Map<ToolJar, Key<Optional<Path>>> TOOL_JARS = toolJars();
+
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();
 
@@ -457,7 +460,33 @@ final class ConfigSchema {
         tables.add(MUTATOR.build());
         tables.add(METAMORPHIC.buildOptional());
         tables.add(GRAPH.buildOptional());
+        tables.add(TOOLS.buildOptional());
         return List.copyOf(tables);
+    }
+
+    /** One optional key per tool, so a new tool is a new {@link ToolJar} constant. */
+    private static Map<ToolJar, Key<Optional<Path>>> toolJars() {
+        var keys = new EnumMap<ToolJar, Key<Optional<Path>>>(ToolJar.class);
+        for (var tool : ToolJar.values()) {
+            keys.put(tool, TOOLS.optional(
+                    tool.configKey(), ConfigValueType.optionalPath(ToolsConfig.DIRECTORY.resolve(tool.fileName())),
+                    tools -> tools.jar(tool), new Absent<>(),
+                    "The " + tool.configKey() + " JAR this corpus runs, relative to this config file (ADR 0025 §3);",
+                    "fuzztla init copies it here. Without it, FuzzTLA's own release runs."));
+        }
+        return Map.copyOf(keys);
+    }
+
+    /** Reads the {@code [tools]} table, with the JARs still relative to the config file. */
+    static ToolsConfig readTools(Map<String, TomlTable> tables) throws ConfigException {
+        var jars = new EnumMap<ToolJar, Path>(ToolJar.class);
+        for (var entry : TOOL_JARS.entrySet()) {
+            var jar = entry.getValue().read(tables);
+            if (jar.isPresent()) {
+                jars.put(entry.getKey(), jar.get());
+            }
+        }
+        return new ToolsConfig(jars);
     }
 
     private static Map<CorpusStage, CheckerKeys> checkerKeys() {
