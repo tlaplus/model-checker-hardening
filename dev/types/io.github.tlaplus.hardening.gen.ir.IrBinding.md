@@ -1,6 +1,6 @@
 # `IrBinding`
 
-`io.github.tlaplus.hardening.gen.ir` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/src/main/java/io/github/tlaplus/hardening/gen/ir/IrBinding.java#L25) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.ir` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/src/main/java/io/github/tlaplus/hardening/gen/ir/IrBinding.java#L25) · module [gen](../modules/gen.md)
 
 Where an operator binds names: which of its arguments introduce bound names, and which arguments see them.
 

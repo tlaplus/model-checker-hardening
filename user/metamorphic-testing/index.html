@@ -1366,10 +1366,10 @@ relation can be checked by TLC alone, including on recursive definitions that Ap
 rejects.</p>
 <h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
 <p>Adopting elite entries of an existing conformance corpus gives the richest inputs:</p>
-<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-conf<span class="w">          </span><span class="c1"># conformance generations</span>
-./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-conf<span class="w">     </span><span class="c1"># a pbt corpus: conformance generations</span>
+./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
 <span class="c1"># edit corpus-mt/config.toml as below</span>
-./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
+./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="k">[generator]</span>
 <span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"module"</span><span class="w">               </span><span class="c1"># or "expr", or "graph" with a gbt base corpus</span>
@@ -1378,7 +1378,7 @@ rejects.</p>
 <span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">]</span><span class="w">            </span><span class="c1"># default ["tlc", "apalache"]</span>
 
 <span class="k">[workflow.inputs]</span>
-<span class="c1"># With Apalache among the checkers, also list metamorphic-defects.toml (section 3).</span>
+<span class="c1"># init adds metamorphic-defects.toml when Apalache is among the checkers (section 3).</span>
 <span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">]</span>
 
 <span class="k">[metamorphic]</span>
@@ -1391,9 +1391,10 @@ rejects.</p>
 <span class="n">max_rewrite_growth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
 </code></pre></div>
 <ul>
-<li><strong>The technique is fixed.</strong> The first run records <code>mt</code> in <code>.technique</code>. Later runs
-  must pass <code>--how=mt</code>, and <code>print</code> and <code>export-db</code> read the file. A corpus without it
-  is a <code>pbt</code> corpus.</li>
+<li><strong>The technique is fixed.</strong> <code>init --how=mt</code> writes <code>technique = "mt"</code> under
+  <code>[workflow]</code>. Every <code>run</code> follows it, and <code>print</code>, <code>export-db</code> and <code>shrink</code> read it.
+  <code>init</code> also sets the shipped rules and, with Apalache among the checkers,
+  <code>metamorphic-defects.toml</code>.</li>
 <li><strong>Adopted parents.</strong> A generation takes <code>adopt_ratio</code> of its entries from adopted
   parents: the <code>04quality-pass</code> entries of <code>base_corpus</code>, each combined with random
   rewrite bytes. <code>[mutator] feedback_ratio</code> still sets the share of byte mutants, and
@@ -1418,8 +1419,8 @@ rejects.</p>
   <code>.rewrite-library</code> also records the guards.</li>
 <li><strong>Adopted entries record their parent.</strong> <code>gen.parent</code> is the parent's digest in the
   base corpus, and <code>gen.operators</code> is <code>["adopt"]</code>.</li>
-<li><strong>The checker set is fixed.</strong> The first run records <code>checkers</code> in <code>.checkers</code>, and
-  later runs must use the same list.</li>
+<li><strong>Keep the checker set.</strong> Once the corpus holds entries, keep <code>checkers</code> as it is;
+  FuzzTLA does not detect a change.</li>
 <li><strong>Rule weights.</strong> A rule's weight is the number of selection slots it takes among
   the rules that match a node. The rule module sets a default in the comment before a
   rule, <code>\* @weight: 8;</code>, and <code>weights</code> overrides it. The shipped <code>Rewrites.tla</code>

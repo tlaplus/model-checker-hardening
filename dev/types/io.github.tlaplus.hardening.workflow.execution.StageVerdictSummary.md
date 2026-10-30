@@ -1,6 +1,6 @@
 # `StageVerdictSummary`
 
-`io.github.tlaplus.hardening.workflow.execution` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageVerdictSummary.java#L10) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageVerdictSummary.java#L10) · module [workflow](../modules/workflow.md)
 
 Cumulative verdict counters and summed worker elapsed time for one stage.
 

@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "ad025d7ad6f7113910ce3a79cf6e18839b06eb5a"
+    "commit" : "b96eff75a5bbf8a60b15ad020d6e84735c75a47c"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -99,6 +99,10 @@
     "number" : "0024",
     "title" : "Action coverage in the selection of graph entries",
     "path" : "docs/decisions/0024-graph-action-coverage.md"
+  }, {
+    "number" : "0025",
+    "title" : "Self-contained corpora, chosen at `init`",
+    "path" : "docs/decisions/0025-self-contained-corpora.md"
   } ],
   "modules" : [ {
     "name" : "common",
@@ -463,10 +467,20 @@
     "kind" : "CLASS",
     "role" : "ENTRY_POINT",
     "key" : true,
-    "summary" : "`fuzztla init`: writes the default configuration of a new corpus and installs its libraries.",
+    "summary" : "`fuzztla init`: writes the configuration of a new corpus, which names the technique every run follows (ADR 0025 §1), and installs its libraries.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java",
-    "line" : 32,
-    "adrs" : [ ]
+    "line" : 29,
+    "adrs" : [ "0025" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "packageName" : "io.github.tlaplus.hardening.cli",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, and the settings that follow from the technique.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitialConfig.java",
+    "line" : 22,
+    "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
     "packageName" : "io.github.tlaplus.hardening.cli",
@@ -576,7 +590,7 @@
     "summary" : "`fuzztla run`: reads a corpus configuration and runs `WorkflowRunner` with live progress output.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/RunCommand.java",
     "line" : 31,
-    "adrs" : [ ]
+    "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.RunMetric",
     "packageName" : "io.github.tlaplus.hardening.cli",
@@ -677,6 +691,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/ShrinkCommand.java",
     "line" : 30,
     "adrs" : [ "0016" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.cli.TechniqueConverter",
+    "packageName" : "io.github.tlaplus.hardening.cli",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Reads the `--how` option of `fuzztla init` by the technique's encoded name.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/cli/TechniqueConverter.java",
+    "line" : 8,
+    "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.TerminalAcquisition",
     "packageName" : "io.github.tlaplus.hardening.cli",
@@ -905,7 +929,7 @@
     "key" : true,
     "summary" : "The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java",
-    "line" : 42,
+    "line" : 43,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.ConfigTableBuilder",
@@ -925,7 +949,7 @@
     "key" : false,
     "summary" : "How the value of one configuration key is read from TOML and written back as TOML syntax.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/ConfigValueType.java",
-    "line" : 39,
+    "line" : 40,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
@@ -935,7 +959,7 @@
     "key" : true,
     "summary" : "Complete configuration of input generation and workflow execution.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java",
-    "line" : 24,
+    "line" : 25,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.GeneratorLimitSchema",
@@ -963,7 +987,7 @@
     "kind" : "RECORD",
     "role" : null,
     "key" : false,
-    "summary" : "The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1): what a `--how=mt` run reads besides the generator settings.",
+    "summary" : "The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1): what an `mt` corpus reads besides the generator settings.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/MetamorphicConfig.java",
     "line" : 16,
     "adrs" : [ "0016", "0017" ]
@@ -1023,7 +1047,7 @@
     "kind" : "RECORD",
     "role" : "CONFIG",
     "key" : false,
-    "summary" : "A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `--how=mt` and `[graph]` the tautological edge guards of ADR 0023 §6.",
+    "summary" : "A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `mt` corpora and `[graph]` the tautological edge guards of ADR 0023 §6.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/RuleLibraryConfig.java",
     "line" : 19,
     "adrs" : [ "0017", "0023" ]
@@ -1065,7 +1089,7 @@
     "key" : true,
     "summary" : "Global and per-stage limits for the implemented fuzzing workflow.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/WorkflowConfig.java",
-    "line" : 23,
+    "line" : 25,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.AggregationInput",
@@ -1573,10 +1597,10 @@
     "kind" : "ENUM",
     "role" : null,
     "key" : false,
-    "summary" : "The fuzzing technique a corpus runs (`fuzztla run --how`).",
+    "summary" : "The fuzzing technique a corpus runs: `[workflow] technique`, which `fuzztla init --how` sets (ADR 0025 §1), so every run and every replay decodes and judges its entries the same way.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/Technique.java",
-    "line" : 17,
-    "adrs" : [ ]
+    "line" : 18,
+    "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.TransitionRecovery",
     "packageName" : "io.github.tlaplus.hardening.corpus",
@@ -3015,7 +3039,7 @@
     "key" : false,
     "summary" : "The base corpus of a metamorphic run (ADR 0016 §6).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/AdoptableBase.java",
-    "line" : 23,
+    "line" : 24,
     "adrs" : [ "0016" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
@@ -3033,17 +3057,17 @@
     "kind" : "CLASS",
     "role" : null,
     "key" : false,
-    "summary" : "The corpus records a run repeats on every later run (ADR 0016 §1, §5, ADR 0017 §6): the technique, the checker set and the rewrite rules.",
+    "summary" : "The corpus records that pin how entries replay (ADR 0017 §6), and the technique record of a corpus from before ADR 0025, whose configuration must now repeat it.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/CorpusRecords.java",
-    "line" : 17,
-    "adrs" : [ "0016", "0017" ]
+    "line" : 10,
+    "adrs" : [ "0017", "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.CorpusReplay",
     "packageName" : "io.github.tlaplus.hardening.workflow",
     "kind" : "CLASS",
     "role" : "FACADE",
     "key" : true,
-    "summary" : "Decodes a corpus's entries as they were admitted: with the decoders of the technique the corpus records, and only while the libraries they load match the corpus's manifests.",
+    "summary" : "Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and only while the libraries they load match the corpus's manifests.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/CorpusReplay.java",
     "line" : 17,
     "adrs" : [ ]
@@ -4328,6 +4352,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
+    "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
     "kind" : "DEPENDS"
   }, {
@@ -4364,15 +4392,7 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
-    "to" : "io.github.tlaplus.hardening.workflow.CorpusRecords",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
     "to" : "io.github.tlaplus.hardening.workflow.CorpusReplay",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
-    "to" : "io.github.tlaplus.hardening.workflow.ReplayRecord",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
@@ -4444,7 +4464,7 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
-    "to" : "io.github.tlaplus.hardening.cli.ProjectDirectory",
+    "to" : "io.github.tlaplus.hardening.cli.InitialConfig",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
@@ -4476,8 +4496,8 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
-    "to" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase",
-    "kind" : "DEPENDS"
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
@@ -4485,6 +4505,54 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.cli.ProjectDirectory",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.config.InputStageConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.config.MetamorphicConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.config.RuleLibraryConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.CheckerSet",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLimits",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
@@ -4700,6 +4768,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
+    "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunCommand",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
     "kind" : "DEPENDS"
   }, {
@@ -4713,7 +4785,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
     "to" : "io.github.tlaplus.hardening.corpus.Technique",
-    "kind" : "HAS"
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
@@ -4983,6 +5055,10 @@
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.cli.TechniqueConverter",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "IMPLEMENTS"
+  }, {
     "from" : "io.github.tlaplus.hardening.cli.TerminalAcquisition",
     "to" : "io.github.tlaplus.hardening.cli.TerminalProgressDisplay",
     "kind" : "USES"
@@ -5164,6 +5240,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
     "to" : "io.github.tlaplus.hardening.gen.ExpressionCategory",
     "kind" : "USES"
   }, {
@@ -5225,6 +5305,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.config.ConfigValueType",
     "to" : "io.github.tlaplus.hardening.corpus.ShallowPattern",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ConfigValueType",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.ConfigValueType",
@@ -5290,6 +5374,10 @@
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
     "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "to" : "io.github.tlaplus.hardening.gen.InputKind",
@@ -5512,6 +5600,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.TomlConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.TomlConfig",
     "to" : "io.github.tlaplus.hardening.gen.ExpressionLimits",
     "kind" : "DEPENDS"
   }, {
@@ -5573,6 +5665,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.config.WorkflowConfig",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.AggregationInput",
@@ -9912,6 +10008,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
+    "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
     "kind" : "DEPENDS"
   }, {
@@ -9980,15 +10080,7 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CorpusRecords",
-    "to" : "io.github.tlaplus.hardening.corpus.CheckerSet",
-    "kind" : "USES"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.CorpusRecords",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusRecord",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.CorpusRecords",
-    "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CorpusRecords",
@@ -10002,6 +10094,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.CorpusReplay",
     "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CorpusReplay",
+    "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CorpusReplay",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
@@ -10292,15 +10388,7 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
-    "to" : "io.github.tlaplus.hardening.workflow.CorpusRecords",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
     "to" : "io.github.tlaplus.hardening.workflow.CorpusReplay",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
-    "to" : "io.github.tlaplus.hardening.workflow.ReplayRecord",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
@@ -13218,7 +13306,7 @@
   }, {
     "from" : "config",
     "to" : "corpus",
-    "typePairs" : 12,
+    "typePairs" : 17,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.config.CheckerProfile",
@@ -13306,7 +13394,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 182,
+    "typePairs" : 180,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13314,7 +13402,7 @@
   }, {
     "from" : "workflow",
     "to" : "config",
-    "typePairs" : 58,
+    "typePairs" : 60,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13338,7 +13426,7 @@
   }, {
     "from" : "cli",
     "to" : "gen",
-    "typePairs" : 10,
+    "typePairs" : 12,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
@@ -13349,7 +13437,7 @@
     "typePairs" : 5,
     "allowed" : true,
     "implied" : true,
-    "exampleFrom" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "exampleFrom" : "io.github.tlaplus.hardening.cli.InitialConfig",
     "exampleTo" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase"
   }, {
     "from" : "cli",
@@ -13362,7 +13450,7 @@
   }, {
     "from" : "cli",
     "to" : "corpus",
-    "typePairs" : 51,
+    "typePairs" : 56,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.EnvelopeReport",
@@ -13370,7 +13458,7 @@
   }, {
     "from" : "cli",
     "to" : "config",
-    "typePairs" : 17,
+    "typePairs" : 24,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
@@ -13386,7 +13474,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 36,
+    "typePairs" : 34,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

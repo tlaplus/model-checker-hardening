@@ -44,13 +44,13 @@ classDiagram
 | [**FuzzTlaConfig** ★](../types/io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | record | config | Complete configuration of input generation and workflow execution. |
 | [GeneratorLimitSchema](../types/io.github.tlaplus.hardening.config.GeneratorLimitSchema.md) | class | other | Declares and assembles the expression and module limit keys in the generator table. |
 | [InputStageConfig](../types/io.github.tlaplus.hardening.config.InputStageConfig.md) | record | other | The input stage's occupancy limit and the known-defect databases its admission consults. |
-| [MetamorphicConfig](../types/io.github.tlaplus.hardening.config.MetamorphicConfig.md) | record | other | The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1): what a `--how=mt` run reads besides the generator settings. |
+| [MetamorphicConfig](../types/io.github.tlaplus.hardening.config.MetamorphicConfig.md) | record | other | The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1): what an `mt` corpus reads besides the generator settings. |
 | [MutatorConfig](../types/io.github.tlaplus.hardening.config.MutatorConfig.md) | record | other | Generations, the quality gate's selection, and the mutator's share and operators (ADR 0010). |
 | [OperatorLibraryConfig](../types/io.github.tlaplus.hardening.config.OperatorLibraryConfig.md) | record | other | Source-only library settings. |
 | [ParserStageConfig](../types/io.github.tlaplus.hardening.config.ParserStageConfig.md) | record | other | Capacity and timeout limits for the parser stage. |
 | [PbtConfig](../types/io.github.tlaplus.hardening.config.PbtConfig.md) | record | other | Limits and collection-richness controls for property-based input generation. |
 | [QualityGateConfig](../types/io.github.tlaplus.hardening.config.QualityGateConfig.md) | record | other | What the quality gate keeps of a settled generation (ADR 0010, ADR 0013). |
-| [RuleLibraryConfig](../types/io.github.tlaplus.hardening.config.RuleLibraryConfig.md) | record | config | A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `--how=mt` and `[graph]` the tautological edge guards of ADR 0023 §6. |
+| [RuleLibraryConfig](../types/io.github.tlaplus.hardening.config.RuleLibraryConfig.md) | record | config | A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `mt` corpora and `[graph]` the tautological edge guards of ADR 0023 §6. |
 | [RuleLibrarySchema](../types/io.github.tlaplus.hardening.config.RuleLibrarySchema.md) | class | other | Declares and assembles the `rules` and `weights` keys of a table that names a rule module (ADR 0017 §1), so every such table reads them alike. |
 | [StageLimits](../types/io.github.tlaplus.hardening.config.StageLimits.md) | interface | other | The limits every configured tool stage takes: its result capacity and a per-input time limit. |
 | [**TomlConfig** ★](../types/io.github.tlaplus.hardening.config.TomlConfig.md) | class | codec | Reads and writes the strict `config.toml` format used by a corpus. |
@@ -58,8 +58,8 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0023-graph-based-testing.md)

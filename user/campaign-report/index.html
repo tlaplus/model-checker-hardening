@@ -1352,9 +1352,8 @@ python3<span class="w"> </span>script/report.py<span class="w"> </span>corpus66<
 <code>.report/corpus.sqlite</code>, which takes about 2 minutes for 300,000 entries. The
 rest takes under a minute. The script fails if the database's schema version is
 not the one it reads, or if the triager rejects the corpus.</p>
-<p>The checkers are those the entries record, so a corpus without a <code>.checkers</code>
-file, which FuzzTLA writes only for a non-default checker set, is reported
-correctly.</p>
+<p>The checkers are those the entries record, so the report stays correct even if
+<code>[workflow] checkers</code> was edited after the run.</p>
 <p>The <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/.github/workflows/triage.yml">Corpus triage workflow</a> writes the report
 of its short campaign, checks that every section and embedded image exists, and
 uploads <code>report.md</code> with its images as a workflow artifact.</p>

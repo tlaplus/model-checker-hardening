@@ -525,15 +525,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#workflow-campaign-size-and-checkers" class="md-nav__link">
+  <a href="#workflow-campaign-size-technique-and-checkers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [workflow]: campaign size and checkers
+        [workflow]: campaign size, technique and checkers
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[workflow]: campaign size and checkers">
+    <nav class="md-nav" aria-label="[workflow]: campaign size, technique and checkers">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1341,15 +1341,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#workflow-campaign-size-and-checkers" class="md-nav__link">
+  <a href="#workflow-campaign-size-technique-and-checkers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [workflow]: campaign size and checkers
+        [workflow]: campaign size, technique and checkers
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[workflow]: campaign size and checkers">
+    <nav class="md-nav" aria-label="[workflow]: campaign size, technique and checkers">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1449,9 +1449,12 @@ this page lists every key by table. Paths in the file are relative to the file i
 <p>You may leave out a checker table (<code>[workflow.tlc]</code>, <code>[workflow.tlcn]</code>,
 <code>[workflow.apalache]</code>) or any of its keys, as well as <code>[metamorphic]</code>, <code>[graph]</code>,
 <code>checkers</code> and the <code>max_entries</code> key of a stage table. Anything left out takes the default
-shown below. The other keys are required. Some settings are recorded by the first
-run and cannot change afterwards: <code>checkers</code>, the technique (<code>--how</code>), and the
-operator library. To change those, initialize a new corpus.</p>
+shown below. The other keys are required. Settings that decide how entries decode
+and are judged must not change once the corpus holds entries: <code>technique</code>,
+<code>checkers</code>, the <code>[generator]</code> and <code>[graph]</code> tables, the rules and the libraries.
+FuzzTLA does not detect such an edit
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a> §4). To change them,
+initialize a new corpus.</p>
 <h2 id="generator-what-is-generated"><code>[generator]</code>: what is generated<a class="headerlink" href="#generator-what-is-generated" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1465,7 +1468,7 @@ operator library. To change those, initialize a new corpus.</p>
 <tr>
 <td><code>kind</code></td>
 <td><code>"module"</code></td>
-<td><code>"module"</code> generates whole modules with variables, actions and properties. <code>"expr"</code> generates one expression and wraps it in a fixed single-state module. <code>"graph"</code> generates a module over a control graph, whose verdict the graph predicts; <code>run --how=gbt</code> requires it (<a href="../graph-based-testing/">Graph-based testing</a>).</td>
+<td><code>"module"</code> generates whole modules with variables, actions and properties. <code>"expr"</code> generates one expression and wraps it in a fixed single-state module. <code>"graph"</code> generates a module over a control graph, whose verdict the graph predicts; <code>technique = "gbt"</code> requires it, and <code>init --how=gbt</code> sets it (<a href="../graph-based-testing/">Graph-based testing</a>).</td>
 </tr>
 <tr>
 <td><code>max_type_depth</code></td>
@@ -1582,7 +1585,7 @@ ignored.</p>
 or <code>temporal_forall</code>, to a weight. A form with weight <em>N</em> is chosen <em>N</em> times as often
 as a form of weight one. Unlisted forms have weight one. Custom operators are weighted
 as <code>"Module!Operator"</code>.</p>
-<h2 id="workflow-campaign-size-and-checkers"><code>[workflow]</code>: campaign size and checkers<a class="headerlink" href="#workflow-campaign-size-and-checkers" title="Permanent link">&para;</a></h2>
+<h2 id="workflow-campaign-size-technique-and-checkers"><code>[workflow]</code>: campaign size, technique and checkers<a class="headerlink" href="#workflow-campaign-size-technique-and-checkers" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1598,9 +1601,14 @@ as <code>"Module!Operator"</code>.</p>
 <td>Unique entries after which the campaign stops, across all directories.</td>
 </tr>
 <tr>
+<td><code>technique</code></td>
+<td><code>"pbt"</code></td>
+<td><code>"pbt"</code>, <code>"mt"</code> or <code>"gbt"</code>, written by <code>init --how</code>. Every <code>run</code> follows it. Keep it once the corpus holds entries.</td>
+</tr>
+<tr>
 <td><code>checkers</code></td>
 <td><code>["tlc", "apalache"]</code></td>
-<td>Checkers to run, a subset of <code>tlc</code>, <code>tlcn</code> and <code>apalache</code>. With one checker, nothing is compared. Fixed by the first run.</td>
+<td>Checkers to run, a subset of <code>tlc</code>, <code>tlcn</code> and <code>apalache</code>. With one checker, nothing is compared. Keep it once the corpus holds entries.</td>
 </tr>
 </tbody>
 </table>
@@ -1709,7 +1717,7 @@ generation is selected and mutated. They are described in
 <a href="../mutation/#2-configuration">Generations and mutation</a>.</p>
 <h2 id="metamorphic-rewrites"><code>[metamorphic]</code>: rewrites<a class="headerlink" href="#metamorphic-rewrites" title="Permanent link">&para;</a></h2>
 <p><code>rules</code>, <code>weights</code>, <code>max_rewrites</code>, <code>max_rewrite_depth</code>, <code>max_rewrite_growth</code>,
-<code>base_corpus</code> and <code>adopt_ratio</code> are used only by <code>run --how=mt</code>. They are described in
+<code>base_corpus</code> and <code>adopt_ratio</code> are used only by an <code>mt</code> corpus. They are described in
 <a href="../metamorphic-testing/#1-setting-up-a-corpus">Metamorphic testing</a>.</p>
 <h2 id="graph-control-graphs"><code>[graph]</code>: control graphs<a class="headerlink" href="#graph-control-graphs" title="Permanent link">&para;</a></h2>
 <table>

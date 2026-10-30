@@ -57,4 +57,4 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/docs/decisions/0006-known-defect-signatures.md)
+- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/docs/decisions/0006-known-defect-signatures.md)

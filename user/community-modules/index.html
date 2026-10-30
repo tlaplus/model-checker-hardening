@@ -1315,8 +1315,8 @@ them (including Java overrides), with Apalache's own definitions of the same
 operators.</p>
 <h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>community-modules
-./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--corpus<span class="w"> </span>corpus-cm<span class="w"> </span>--library<span class="w"> </span>libraries/community-modules.toml
-./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-cm
+./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-cm<span class="w"> </span>--library<span class="w"> </span>libraries/community-modules.toml
+./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-cm
 </code></pre></div>
 <p><code>make community-modules</code> downloads the latest <code>CommunityModules.jar</code> release into
 <code>libraries/community-modules/</code>, and writes <code>VERSION</code> with its release tag and

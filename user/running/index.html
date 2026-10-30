@@ -1354,35 +1354,49 @@
 
 
 <h1 id="running-campaigns">Running campaigns<a class="headerlink" href="#running-campaigns" title="Permanent link">&para;</a></h1>
-<div class="highlight"><pre><span></span><code>fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>TECHNIQUE<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--seed<span class="o">=</span>SEED<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span>
+<div class="highlight"><pre><span></span><code>fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>TECHNIQUE<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--library<span class="o">=</span>FILE<span class="o">]</span>
+fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--seed<span class="o">=</span>SEED<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span>
 </code></pre></div>
+<p><code>init</code> chooses the technique once and writes it into the corpus's <code>config.toml</code> as
+<code>[workflow] technique</code>. Every <code>run</code> follows it
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a>).</p>
 <table>
 <thead>
 <tr>
-<th>Option</th>
-<th>Meaning</th>
+<th><code>init --how</code></th>
+<th>Technique</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>--how=pbt</code></td>
+<td><code>pbt</code></td>
 <td>Property-based testing: generate random modules, compare the checkers, and mutate good inputs (<a href="../mutation/">Generations and mutation</a>).</td>
 </tr>
 <tr>
-<td><code>--how=mt</code></td>
-<td>Metamorphic testing: check one checker against equivalent rewrites of its input (<a href="../metamorphic-testing/">Metamorphic testing</a>).</td>
+<td><code>mt</code></td>
+<td>Metamorphic testing: check one checker against equivalent rewrites of its input (<a href="../metamorphic-testing/">Metamorphic testing</a>). <code>init</code> also sets the shipped rewrite rules and, with Apalache, <code>metamorphic-defects.toml</code>.</td>
 </tr>
 <tr>
-<td><code>--how=gbt</code></td>
-<td>Graph-based testing: check each checker against the verdict that a generated control graph predicts (<a href="../graph-based-testing/">Graph-based testing</a>).</td>
+<td><code>gbt</code></td>
+<td>Graph-based testing: check each checker against the verdict that a generated control graph predicts (<a href="../graph-based-testing/">Graph-based testing</a>). <code>init</code> also sets <code>kind = "graph"</code>.</td>
 </tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><code>run</code> option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
 <tr>
 <td><code>--corpus=DIR</code></td>
 <td>The corpus directory. Default: <code>corpus</code>.</td>
 </tr>
 <tr>
 <td><code>--seed=SEED</code></td>
-<td>A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case.</td>
+<td>A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case, followed by the technique.</td>
 </tr>
 <tr>
 <td><code>--max-cpus=N</code></td>
@@ -1404,7 +1418,7 @@ finishes the work in flight and prints a summary. See
 <tbody>
 <tr>
 <td>Compare TLC and Apalache on the standard operators</td>
-<td><code>init</code>, then <code>run --how=pbt</code>. This is the default.</td>
+<td><code>init --how=pbt</code>, then <code>run</code>.</td>
 </tr>
 <tr>
 <td>Compare them on the TLA<sup>+</sup> Community Modules</td>

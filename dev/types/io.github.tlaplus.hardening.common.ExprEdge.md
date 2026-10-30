@@ -1,6 +1,6 @@
 # `ExprEdge`
 
-`io.github.tlaplus.hardening.common` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ad025d7ad6f7113910ce3a79cf6e18839b06eb5a/src/main/java/io/github/tlaplus/hardening/common/ExprEdge.java#L11) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/b96eff75a5bbf8a60b15ad020d6e84735c75a47c/src/main/java/io/github/tlaplus/hardening/common/ExprEdge.java#L11) · module [common](../modules/common.md)
 
 An edge of an expression tree between two constructs: `parent` applied to, or binding, an immediate subexpression that is the construct `child`.
 

@@ -1386,12 +1386,12 @@ and how long it must be. A checker that disagrees has a defect, even when the ot
 checker agrees with it. Optionally, edges carry tautological guards (section 4), which
 a correct checker always evaluates to <code>TRUE</code>.</p>
 <h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--corpus<span class="w"> </span>corpus-gbt
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>gbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-gbt
 <span class="c1"># edit corpus-gbt/config.toml as below</span>
-./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>gbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-gbt
+./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-gbt
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="k">[generator]</span>
-<span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"graph"</span><span class="w">                </span><span class="c1"># required by --how=gbt</span>
+<span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"graph"</span><span class="w">                </span><span class="c1"># written by init --how=gbt, which requires it</span>
 <span class="n">max_variables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
 
 <span class="k">[workflow]</span>
@@ -1412,8 +1412,8 @@ a correct checker always evaluates to <code>TRUE</code>.</p>
 <span class="n">max_guards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
 </code></pre></div>
 <ul>
-<li><strong>The technique is fixed.</strong> The first run records <code>gbt</code> in <code>.technique</code>; later runs
-  must pass <code>--how=gbt</code>. <code>run</code> refuses another <code>kind</code>.</li>
+<li><strong>The technique is fixed.</strong> <code>init --how=gbt</code> writes <code>technique = "gbt"</code> under
+  <code>[workflow]</code>, and every <code>run</code> follows it. <code>run</code> refuses another <code>kind</code>.</li>
 <li><strong>Mutation works as under <code>pbt</code>.</strong> <code>[mutator] feedback_ratio</code> sets the share of
   byte mutants of <code>04quality-pass</code> entries; random inputs fill the rest.</li>
 <li><strong><code>[graph]</code> may be left out.</strong> Its keys then take the defaults above. The data
@@ -1550,7 +1550,7 @@ known-defect signatures cover those cases.</p>
   found only through conformance, or through a guard that reads it.</li>
 <li>Forward skips shorten some paths: in a campaign, counterexamples were 11 to 30
   steps long, and one in four was 20 or more.</li>
-<li><code>--how=mt</code> rewrites a <code>graph</code> entry as a module and ignores its prediction
+<li>An <code>mt</code> corpus rewrites a <code>graph</code> entry as a module and ignores its prediction
   (<a href="../metamorphic-testing/#1-setting-up-a-corpus">Metamorphic testing</a>).</li>
 <li>Graph modules have no temporal property.</li>
 </ul>

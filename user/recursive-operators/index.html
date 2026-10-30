@@ -1342,8 +1342,8 @@ pair of modules:</p>
 </ul>
 <p>The aggregator compares their verdicts.</p>
 <h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--corpus<span class="w"> </span>corpus-rec<span class="w"> </span>--library<span class="w"> </span>libraries/recursion.toml
-./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-rec
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-rec<span class="w"> </span>--library<span class="w"> </span>libraries/recursion.toml
+./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-rec
 </code></pre></div>
 <p>The library ships with fuzztla, so nothing is downloaded. <code>init</code> copies
 <code>libraries/recursion/</code> into <code>&lt;corpus&gt;/tla/recursion/</code>, and the corpus keeps that copy.</p>
