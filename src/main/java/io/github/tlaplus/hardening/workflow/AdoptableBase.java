@@ -39,7 +39,6 @@ public final class AdoptableBase {
                     + "': " + Diagnostics.message(exception), exception);
         }
         var technique = config.workflow().technique();
-        CorpusRecords.TECHNIQUE.requireUnchanged(corpus, technique);
         if (technique == Technique.MT) {
             throw new WorkflowException("the base corpus must be a pbt or gbt corpus, but '" + base
                     + "' runs " + technique.encodedName());

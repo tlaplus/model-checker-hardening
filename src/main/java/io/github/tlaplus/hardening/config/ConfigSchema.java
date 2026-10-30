@@ -277,7 +277,7 @@ final class ConfigSchema {
             "A stage table that omits max_entries inherits this value.");
     static final Key<Technique> TECHNIQUE = WORKFLOW.optional(
             "technique", ConfigValueType.TECHNIQUE, WorkflowConfig::technique,
-            new Constant<>(Technique.UNRECORDED),
+            new Constant<>(Technique.DEFAULT),
             "Fuzzing technique: \"pbt\", \"mt\" for metamorphic testing (ADR 0016) or \"gbt\" for"
                     + " graph-based testing (ADR 0023).",
             "fuzztla init --how sets it; every entry decodes and is judged by it, so keep it (ADR 0025).");

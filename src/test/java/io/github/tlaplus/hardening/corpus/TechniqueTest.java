@@ -18,7 +18,7 @@ class TechniqueTest {
         assertEquals(Oracle.CONFORMANCE, Technique.PBT.oracle());
         assertEquals(Oracle.METAMORPHIC, Technique.MT.oracle());
         assertEquals(Oracle.GRAPH, Technique.GBT.oracle());
-        assertEquals(Technique.PBT, Technique.UNRECORDED);
+        assertEquals(Technique.PBT, Technique.DEFAULT);
         assertEquals(Ranking.DEPTH, Technique.PBT.ranking());
         assertEquals(Ranking.DEPTH, Technique.MT.ranking());
         assertEquals(Ranking.ACTION_COVERAGE, Technique.GBT.ranking());

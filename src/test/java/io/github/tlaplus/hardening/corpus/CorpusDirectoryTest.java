@@ -73,8 +73,7 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.TLCN_SCRATCH, Path.of(".work", "tlcn-tmp")),
                 Map.entry(CorpusPath.APALACHE_SCRATCH, Path.of(".work", "apalache-tmp")),
                 Map.entry(CorpusPath.LOCK, Path.of(".workflow.lock")),
-                Map.entry(CorpusPath.WORKFLOW_STATISTICS, Path.of(".workflow-stats.cbor")),
-                Map.entry(CorpusPath.TECHNIQUE, Path.of(".technique")));
+                Map.entry(CorpusPath.WORKFLOW_STATISTICS, Path.of(".workflow-stats.cbor")));
 
         assertEquals(Set.of(CorpusPath.values()), relativePaths.keySet());
         assertEquals(
