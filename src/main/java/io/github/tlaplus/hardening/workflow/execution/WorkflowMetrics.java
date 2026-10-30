@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.workflow.execution;
 
-import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import java.time.Duration;
+import java.util.EnumMap;
 import java.util.Objects;
 
 /**
@@ -14,19 +16,25 @@ import java.util.Objects;
  */
 public final class WorkflowMetrics {
     private final long previousTotalElapsedNanos;
-    private final StageClocks clocks;
+    private final EnumMap<CorpusStage, ElapsedTimeAccumulator> stageClocks = new EnumMap<>(CorpusStage.class);
     private final GeneratorStatistics generator;
 
     public WorkflowMetrics(CorpusRunStatistics previous, long initialEntries) {
         Objects.requireNonNull(previous, "previous");
         previousTotalElapsedNanos = previous.totalElapsedNanos();
-        clocks = new StageClocks(previous);
+        for (var stage : CorpusStage.values()) {
+            stageClocks.put(stage, new ElapsedTimeAccumulator(Duration.ofNanos(previous.stageElapsedNanos(stage))));
+        }
         generator = new GeneratorStatistics(previous, initialEntries);
     }
 
-    /** Returns the per-stage elapsed-time accumulators. */
-    public StageClocks clocks() {
-        return clocks;
+    /**
+     * Returns the accumulator that times one stage's active jobs. A stage's elapsed time is the sum
+     * of its workers' active job intervals, so concurrent intervals overlap and a stage duration may
+     * exceed the invocation's wall-clock time.
+     */
+    public ElapsedTimeAccumulator stageClock(CorpusStage stage) {
+        return stageClocks.get(Objects.requireNonNull(stage, "stage"));
     }
 
     /** Returns the shared input-generation counters. */
@@ -44,10 +52,12 @@ public final class WorkflowMetrics {
 
     /** Returns the durable aggregate to persist for this invocation. */
     public CorpusRunStatistics snapshot(Duration invocationElapsed) {
+        var stageElapsed = new EnumMap<CorpusStage, Long>(CorpusStage.class);
+        stageClocks.forEach((stage, clock) -> stageElapsed.put(stage, clock.elapsed().toNanos()));
         return new CorpusRunStatistics(
                 totalElapsed(invocationElapsed).toNanos(),
                 generator.elapsed().elapsed().toNanos(),
-                clocks.elapsedNanos(),
+                stageElapsed,
                 generator.snapshot());
     }
 }

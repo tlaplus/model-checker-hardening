@@ -120,7 +120,7 @@ final class StageGraph {
                     stage,
                     new StageCounters(
                             summary(initial, stage, startup.metrics()),
-                            startup.metrics().clocks().of(stage)));
+                            startup.metrics().stageClock(stage)));
         }
         control = new WorkflowControl(queues.values().toArray(WorkQueue<?>[]::new));
         // Built before anything is queued: a generation-ordered queue compares through it.
@@ -285,7 +285,7 @@ final class StageGraph {
     static StageVerdictSummary summary(
             CorpusInventory inventory, CorpusStage stage, WorkflowMetrics metrics) {
         return new StageVerdictSummary(
-                inventory.counts(stage), metrics.clocks().of(stage).elapsed());
+                inventory.counts(stage), metrics.stageClock(stage).elapsed());
     }
 
     private List<WorkflowStage> stages() {

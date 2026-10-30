@@ -84,7 +84,7 @@ final class ExportDbCommand implements Callable<Integer> {
                             config.workflow().technique()));
             var analysis = new CorpusExport.Analysis(replay(config), maximumCpus);
             var summary = CorpusExport.run(options, analysis);
-            spec.commandLine().getOut().print(ExportDbReport.render(summary));
+            spec.commandLine().getOut().print(summary.describe());
             spec.commandLine().getOut().flush();
             return CommandLine.ExitCode.OK;
         } catch (InterruptedException exception) {

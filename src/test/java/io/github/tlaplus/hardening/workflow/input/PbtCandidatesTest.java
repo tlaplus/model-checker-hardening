@@ -8,32 +8,32 @@ import java.util.Arrays;
 import java.util.random.RandomGenerator;
 import org.junit.jupiter.api.Test;
 
-class InputLengthSamplerTest {
+class PbtCandidatesTest {
     @Test
     void zeroMaximumNeedsNoRandomChoice() {
-        assertEquals(0, InputLengthSampler.sample(new StubRandom(), 0));
+        assertEquals(0, PbtCandidates.sampleLength(new StubRandom(), 0));
     }
 
     @Test
     void samplesUniformlyAddressableLogarithmicBuckets() {
-        assertEquals(0, InputLengthSampler.sample(new StubRandom(0, 0), 8));
-        assertEquals(3, InputLengthSampler.sample(new StubRandom(0, 3), 8));
-        assertEquals(4, InputLengthSampler.sample(new StubRandom(1, 0), 8));
-        assertEquals(7, InputLengthSampler.sample(new StubRandom(1, 3), 8));
-        assertEquals(8, InputLengthSampler.sample(new StubRandom(2), 8));
+        assertEquals(0, PbtCandidates.sampleLength(new StubRandom(0, 0), 8));
+        assertEquals(3, PbtCandidates.sampleLength(new StubRandom(0, 3), 8));
+        assertEquals(4, PbtCandidates.sampleLength(new StubRandom(1, 0), 8));
+        assertEquals(7, PbtCandidates.sampleLength(new StubRandom(1, 3), 8));
+        assertEquals(8, PbtCandidates.sampleLength(new StubRandom(2), 8));
     }
 
     @Test
     void truncatesTheFirstBucketAtTheConfiguredMaximum() {
-        assertEquals(0, InputLengthSampler.sample(new StubRandom(0), 2));
-        assertEquals(2, InputLengthSampler.sample(new StubRandom(2), 2));
+        assertEquals(0, PbtCandidates.sampleLength(new StubRandom(0), 2));
+        assertEquals(2, PbtCandidates.sampleLength(new StubRandom(2), 2));
     }
 
     @Test
     void rejectsNegativeMaximum() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> InputLengthSampler.sample(new StubRandom(), -1));
+                () -> PbtCandidates.sampleLength(new StubRandom(), -1));
     }
 
     private static final class StubRandom implements RandomGenerator {
