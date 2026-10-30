@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.library;
 
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -129,7 +130,7 @@ class RuleLibraryPreparationTest {
     }
 
     private static RuleLibraryPreparation.Prepared prepare(RuleLibraryConfig config) throws WorkflowException {
-        return RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults(), ApalacheDistribution.locate());
+        return RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults(), StagedTools.locate(ToolJar.APALACHE));
     }
 
     private static RuleLibraryConfig config(Path classpath, String module, Map<String, Integer> weights) {

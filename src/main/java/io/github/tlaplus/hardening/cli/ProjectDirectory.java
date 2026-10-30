@@ -1,7 +1,8 @@
 package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -24,7 +25,7 @@ final class ProjectDirectory {
             return Optional.of(Path.of(home).toAbsolutePath().normalize());
         }
         try {
-            return Optional.ofNullable(ApalacheDistribution.locate().getParent()).map(Path::getParent);
+            return Optional.ofNullable(StagedTools.locate(ToolJar.APALACHE).getParent()).map(Path::getParent);
         } catch (WorkflowException exception) {
             return Optional.empty();
         }

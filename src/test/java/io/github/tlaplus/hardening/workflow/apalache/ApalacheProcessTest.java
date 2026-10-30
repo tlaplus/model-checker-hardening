@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,7 +37,7 @@ class ApalacheProcessTest {
     void checksTheFixedInitNextAndInvariantConfiguration(@TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
-        var releaseJar = ApalacheDistribution.locate();
+        var releaseJar = StagedTools.locate(ToolJar.APALACHE);
 
         ToolResult pass;
         ToolResult fail;
@@ -90,7 +92,7 @@ class ApalacheProcessTest {
 
         ToolResult result;
         try (var worker = ApalacheProcess.start(
-                ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
+                StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {
             result = worker.check(new ToolInput(
                     ApalacheIrJson.render(FuzzInputModule.create(expression)), 0));
         }

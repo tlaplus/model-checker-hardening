@@ -18,7 +18,7 @@ import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -74,7 +74,7 @@ class GraphModuleCheckersTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), "");
         var counterexamples = 0;
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
-            var resources = new CheckerBackends.Resources(1, scratch, ApalacheDistribution.locate(), List.of());
+            var resources = new CheckerBackends.Resources(1, scratch, StagedTools.locate(ToolJar.APALACHE), List.of());
             for (var stage : CHECKERS) {
                 var backend = CheckerBackends.create(stage, CONFIG, resources);
                 try (var worker = backend.startWorker()) {

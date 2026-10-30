@@ -22,6 +22,17 @@ public final class Diagnostics {
                 : message;
     }
 
+    /** Appends {@code addition} to {@code diagnostic} on a line of its own. */
+    public static String append(String diagnostic, String addition) {
+        if (diagnostic.isBlank()) {
+            return addition;
+        }
+        if (diagnostic.endsWith("\n")) {
+            return diagnostic + addition;
+        }
+        return diagnostic + System.lineSeparator() + addition;
+    }
+
     /** Returns the complete printable stack trace of a failure. */
     public static String stackTrace(Throwable failure) {
         Objects.requireNonNull(failure, "failure");

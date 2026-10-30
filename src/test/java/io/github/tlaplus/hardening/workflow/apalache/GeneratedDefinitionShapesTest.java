@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -49,7 +51,7 @@ class GeneratedDefinitionShapesTest {
         var samples = GeneratedSpecSamples.collect(IrGenerationConfig.defaults(), seed, 4000, 4, shape);
         assertEquals(4, samples.size(), "too few modules with the shape were generated");
         var scratch = Files.createDirectory(directory.resolve("scratch"));
-        try (var worker = ApalacheProcess.start(ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
+        try (var worker = ApalacheProcess.start(StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {
             for (var spec : samples) {
                 var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
                 var result = worker.check(new ToolInput(ApalacheIrJson.render(artifact.module()), artifact.request()));

@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.tlc;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
@@ -10,7 +11,6 @@ import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime;
-import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -102,7 +102,7 @@ public final class TlcWorkerMain {
             var summary =
                     "TLC error code " + errorCode + " mapped to exit status " + exitStatus;
             return TlcOutcomeClassifier.classifyErrorCode(
-                    errorCode, WorkerDiagnostics.append(summary, diagnostics.text()));
+                    errorCode, Diagnostics.append(summary, diagnostics.text()));
         } catch (Exception | StackOverflowError exception) {
             return ToolResult.crash(exception, diagnostics.text());
         }

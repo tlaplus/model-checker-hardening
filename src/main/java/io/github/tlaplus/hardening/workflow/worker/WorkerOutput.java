@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.worker;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.FileTrees;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -48,7 +49,7 @@ final class WorkerOutput implements AutoCloseable {
         result = appendCapture(result, standardOutput, "stdout");
         result = appendCapture(result, standardError, "stderr");
         if (!fatalErrorReports.isBlank()) {
-            result = WorkerDiagnostics.append(result, fatalErrorReports);
+            result = Diagnostics.append(result, fatalErrorReports);
         }
         return result;
     }
@@ -70,7 +71,7 @@ final class WorkerOutput implements AutoCloseable {
         if (captured.isBlank()) {
             return diagnostic;
         }
-        return WorkerDiagnostics.append(
+        return Diagnostics.append(
                 diagnostic,
                 description
                         + " "
@@ -89,7 +90,7 @@ final class WorkerOutput implements AutoCloseable {
                     .toList();
             var result = "";
             for (var report : reports) {
-                result = WorkerDiagnostics.append(
+                result = Diagnostics.append(
                         result,
                         description
                                 + " fatal error report:"

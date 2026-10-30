@@ -1,12 +1,12 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
-import io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics;
 import java.util.List;
 
 /** Maps Apalache tool exit statuses to shared workflow outcomes. */
@@ -38,7 +38,7 @@ final class ApalacheOutcomeClassifier {
             case 150 -> ToolResult.failure(CheckerFailureCode.PARSE, diagnostic);
             default -> new ToolResult(
                     StageOutcome.CRASH,
-                    WorkerDiagnostics.append(
+                    Diagnostics.append(
                             "Apalache exited with status " + exitStatus, diagnostic));
         };
     }

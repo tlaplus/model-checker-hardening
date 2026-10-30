@@ -53,7 +53,7 @@ public record ToolResult(
     /** Keeps captured tool output before the full stack trace of an escaped failure. */
     public static ToolResult crash(Throwable failure, String diagnostic) {
         return new ToolResult(StageOutcome.CRASH,
-                WorkerDiagnostics.append(diagnostic, Diagnostics.stackTrace(failure)));
+                Diagnostics.append(diagnostic, Diagnostics.stackTrace(failure)));
     }
 
     public static ToolResult counterexample(String diagnostic) {
