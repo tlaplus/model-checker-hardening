@@ -1365,26 +1365,27 @@ initial states and transitions satisfy the other. A violation means one of two t
 relation can be checked by TLC alone, including on recursive definitions that Apalache
 rejects.</p>
 <h2 id="1-setting-up-a-corpus">1. Setting up a corpus<a class="headerlink" href="#1-setting-up-a-corpus" title="Permanent link">&para;</a></h2>
-<p>Adopting elite entries of an existing conformance corpus gives the richest inputs:</p>
-<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-conf<span class="w">     </span><span class="c1"># a pbt corpus: conformance generations</span>
-./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
-<span class="c1"># edit corpus-mt/config.toml as below</span>
+<p>Adopting elite entries of a previous <code>pbt</code> or <code>gbt</code> run gives the richest inputs.
+<code>init --base-corpus</code> sets this up in one command:</p>
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--base-corpus<span class="w"> </span>corpus71<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
 ./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>corpus-mt
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><span class="k">[generator]</span>
-<span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"module"</span><span class="w">               </span><span class="c1"># or "expr", or "graph" with a gbt base corpus</span>
-
-<span class="k">[workflow]</span>
-<span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">]</span><span class="w">            </span><span class="c1"># default ["tlc", "apalache"]</span>
-
-<span class="k">[workflow.inputs]</span>
-<span class="c1"># init adds metamorphic-defects.toml when Apalache is among the checkers (section 3).</span>
-<span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">]</span>
-
-<span class="k">[metamorphic]</span>
+<p><code>init --how=mt --base-corpus DIR</code> (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a> §5):
+- refuses an <code>mt</code> base;
+- starts from the base's whole <code>config.toml</code>, so <code>[generator]</code>, <code>[graph]</code>, the
+  checkers, timeouts, workers and known-defect databases match;
+- copies the base's <code>tla/</code> and <code>tools/</code>, so adopted parents decode with the same
+  libraries and tools;
+- sets <code>technique = "mt"</code>, <code>base_corpus</code>, the shipped rules and, with Apalache among
+  the checkers, <code>metamorphic-defects.toml</code>.</p>
+<p>Review the inherited settings before the first run: a 100,000-entry base gives a
+100,000-entry <code>max_entries</code>, and its <code>workers</code> suit the machine it ran on. Without
+<code>--base-corpus</code>, <code>init --how=mt</code> starts from the defaults and generates its own bases.
+The <code>[metamorphic]</code> table then reads:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[metamorphic]</span>
 <span class="n">rules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Rewrites"</span><span class="p">,</span><span class="w"> </span><span class="n">classpath</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tla/rewrites"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w">  </span><span class="c1"># written by init</span>
 <span class="n">weights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">AddSub</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">}</span><span class="w">      </span><span class="c1"># overrides the rule's @weight, else 1; 0 disables a rule</span>
-<span class="n">base_corpus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"../corpus-conf"</span>
+<span class="n">base_corpus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"../corpus71"</span><span class="w">   </span><span class="c1"># written by init --base-corpus</span>
 <span class="n">adopt_ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span>
 <span class="n">max_rewrites</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span>
 <span class="n">max_rewrite_depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
@@ -1407,8 +1408,7 @@ rejects.</p>
   therefore refuses a base corpus whose <code>[generator]</code> or <code>[graph]</code> settings differ, or
   whose custom library or edge guards decode otherwise. It compares the library and
   the guards by the sources and the Apalache JAR each corpus holds, not by their
-  paths. Copy the base corpus's <code>[generator]</code> and <code>[graph]</code> tables, its <code>tla/</code> and its
-  <code>tools/</code>.</li>
+  paths. <code>init --base-corpus</code> copies all of them; keep them as they are.</li>
 <li><strong>Graph entries are rewritten as modules.</strong> With <code>kind = "graph"</code> and a <code>gbt</code> base,
   the rewriter rewrites the module a graph entry decodes to, and the relation is the
   <code>module</code> relation of section 2. The graph's prediction (<code>expected:</code> in

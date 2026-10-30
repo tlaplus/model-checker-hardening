@@ -1354,7 +1354,7 @@
 
 
 <h1 id="running-campaigns">Running campaigns<a class="headerlink" href="#running-campaigns" title="Permanent link">&para;</a></h1>
-<div class="highlight"><pre><span></span><code>fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>TECHNIQUE<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--library<span class="o">=</span>FILE<span class="o">]</span>
+<div class="highlight"><pre><span></span><code>fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>TECHNIQUE<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--library<span class="o">=</span>FILE<span class="w"> </span><span class="p">|</span><span class="w"> </span>--base-corpus<span class="o">=</span>DIR<span class="o">]</span>
 fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--seed<span class="o">=</span>SEED<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span>
 </code></pre></div>
 <p><code>init</code> chooses the technique once and writes it into the corpus's <code>config.toml</code> as
@@ -1374,7 +1374,7 @@ fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</spa
 </tr>
 <tr>
 <td><code>mt</code></td>
-<td>Metamorphic testing: check one checker against equivalent rewrites of its input (<a href="../metamorphic-testing/">Metamorphic testing</a>). <code>init</code> also sets the shipped rewrite rules and, with Apalache, <code>metamorphic-defects.toml</code>.</td>
+<td>Metamorphic testing: check one checker against equivalent rewrites of its input (<a href="../metamorphic-testing/">Metamorphic testing</a>). <code>init</code> also sets the shipped rewrite rules and, with Apalache, <code>metamorphic-defects.toml</code>. With <code>--base-corpus=DIR</code>, the corpus starts from a previous <code>pbt</code> or <code>gbt</code> run and adopts its selected entries.</td>
 </tr>
 <tr>
 <td><code>gbt</code></td>

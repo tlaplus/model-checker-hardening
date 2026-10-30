@@ -1,6 +1,6 @@
 # `FuzzTlaConfig`
 
-`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L26) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L26) · module [config](../modules/config.md)
 
 Complete configuration of input generation and workflow execution.
 
@@ -47,6 +47,7 @@ classDiagram
   class TomlConfig {
     <<codec>>
   }
+  class AdoptableBase
   class CorpusReplay {
     <<facade>>
   }
@@ -83,6 +84,7 @@ classDiagram
   InitialConfig ..> FuzzTlaConfig : uses
   ConfigSchema ..> FuzzTlaConfig : uses
   TomlConfig ..> FuzzTlaConfig : uses
+  AdoptableBase ..> FuzzTlaConfig : uses
   CorpusReplay ..> FuzzTlaConfig : uses
   CorpusTools ..> FuzzTlaConfig : uses
   MetamorphicShrinker ..> FuzzTlaConfig : uses
@@ -93,7 +95,7 @@ classDiagram
   SpecDecoders ..> FuzzTlaConfig : uses
 ```
 
-The diagram draws 22 of 33 relations; the table lists them all.
+The diagram draws 23 of 33 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -111,6 +113,7 @@ The diagram draws 22 of 33 relations; the table lists them all.
 | ← | uses | [InitialConfig](io.github.tlaplus.hardening.cli.InitialConfig.md) | The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, and the settings that follow from the technique. |
 | ← | uses | [ConfigSchema](io.github.tlaplus.hardening.config.ConfigSchema.md) | The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back. |
 | ← | uses | [TomlConfig](io.github.tlaplus.hardening.config.TomlConfig.md) | Reads and writes the strict `config.toml` format used by a corpus. |
+| ← | uses | [AdoptableBase](io.github.tlaplus.hardening.workflow.AdoptableBase.md) | The base corpus of a metamorphic run (ADR 0016 §6). |
 | ← | uses | [CorpusReplay](io.github.tlaplus.hardening.workflow.CorpusReplay.md) | Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and the libraries, rules and tools the corpus holds (ADR 0025). |
 | ← | uses | [CorpusTools](io.github.tlaplus.hardening.workflow.CorpusTools.md) | The tool JARs a corpus runs (ADR 0025 §3): those of its `[tools]` table, or the ones staged with FuzzTLA for a tool the table leaves out. |
 | ← | uses | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
@@ -128,5 +131,4 @@ The diagram draws 22 of 33 relations; the table lists them all.
 | ← | depends | [PrintCommand](io.github.tlaplus.hardening.cli.PrintCommand.md) | `fuzztla print`: decodes a payload or corpus envelope and renders it, with the known defects it matches. |
 | ← | depends | [RunCommand](io.github.tlaplus.hardening.cli.RunCommand.md) | `fuzztla run`: reads a corpus configuration and runs `WorkflowRunner` with live progress output. |
 | ← | depends | [ShrinkCommand](io.github.tlaplus.hardening.cli.ShrinkCommand.md) | `fuzztla shrink`: reduces a metamorphic counterexample with `MetamorphicShrinker` (ADR 0016). |
-| ← | depends | [AdoptableBase](io.github.tlaplus.hardening.workflow.AdoptableBase.md) | The base corpus of a metamorphic run (ADR 0016 §6). |
 | ← | depends | [GenerationLoop](io.github.tlaplus.hardening.workflow.GenerationLoop.md) | Runs the generations of one workflow invocation over a single stage graph (ADR 0010). |

@@ -1,6 +1,6 @@
 # `KnownDefectMatch`
 
-`io.github.tlaplus.hardening.signature` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectMatch.java#L10) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectMatch.java#L10) · module [signature](../modules/signature.md)
 
 A signature that matches a module, and the outermost subexpression it matched first.
 

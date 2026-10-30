@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "4c5cb469fa5cdcada2cd5740bce130b825b35343"
+    "commit" : "4df6a11e5b4bf93609393935c4cbeceec08cce0c"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -469,7 +469,7 @@
     "key" : true,
     "summary" : "`fuzztla init`: writes the configuration of a new corpus, which names the technique every run follows (ADR 0025 §1), and copies its libraries and tool JARs into it (§2, §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java",
-    "line" : 27,
+    "line" : 29,
     "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.InitialConfig",
@@ -3059,8 +3059,8 @@
     "key" : false,
     "summary" : "The base corpus of a metamorphic run (ADR 0016 §6).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/AdoptableBase.java",
-    "line" : 24,
-    "adrs" : [ "0016" ]
+    "line" : 25,
+    "adrs" : [ "0016", "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
     "packageName" : "io.github.tlaplus.hardening.workflow",
@@ -4538,6 +4538,10 @@
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
@@ -10061,7 +10065,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
     "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
-    "kind" : "DEPENDS"
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
     "to" : "io.github.tlaplus.hardening.config.TomlConfig",
@@ -13574,7 +13578,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 34,
+    "typePairs" : 35,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

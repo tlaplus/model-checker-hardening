@@ -1,6 +1,6 @@
 # `AggregationRecovery`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4c5cb469fa5cdcada2cd5740bce130b825b35343/src/main/java/io/github/tlaplus/hardening/corpus/AggregationRecovery.java#L13) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/corpus/AggregationRecovery.java#L13) · module [corpus](../modules/corpus.md)
 
 Recovers aggregate commits and inventories the aggregator's result directories.
 
