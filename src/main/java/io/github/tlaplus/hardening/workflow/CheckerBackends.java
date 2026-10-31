@@ -5,10 +5,12 @@ import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.StageScratchSet;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import java.nio.file.Path;
 import java.util.List;
@@ -27,9 +29,11 @@ final class CheckerBackends {
      * What one invocation provides to the backends it builds. {@code sourceClasspath} precedes the
      * class path of checkers that read TLA+ source.
      */
-    record Resources(int maximumCpus, StageScratchSet scratch, Path apalacheJar, List<Path> sourceClasspath) {
+    record Resources(
+            int maximumCpus, StageScratchSet scratch, Path apalacheJar, List<Path> sourceClasspath, SeedConfig seeds) {
         Resources {
             Preconditions.requirePositive(maximumCpus, "maximumCpus");
+            Objects.requireNonNull(seeds, "seeds");
             Objects.requireNonNull(scratch, "scratch");
             Objects.requireNonNull(apalacheJar, "apalacheJar");
             sourceClasspath = List.copyOf(sourceClasspath);
@@ -70,7 +74,7 @@ final class CheckerBackends {
     private static ToolBackend tlc(CorpusStage stage, CheckerStageConfig config, Resources resources) {
         return new TlcCheckerBackend(
                 stage,
-                config,
+                new TlcSettings(config, resources.seeds()),
                 resources.maximumCpus() / config.workers(),
                 resources.scratch().directory(stage),
                 resources.sourceClasspath());

@@ -7,6 +7,7 @@ import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
@@ -19,6 +20,7 @@ import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -80,7 +82,7 @@ class RelationModuleCheckersTest {
 
     private void assertBoth(StageOutcome expected, SpecArtifact artifact, Orientation orientation) throws Exception {
         var run = Files.createTempDirectory(directory, orientation.name());
-        var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(run.resolve("tlc")), List.of());
+        var tlc = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(SETTINGS, SeedConfig.derive(0)), 1, Files.createDirectory(run.resolve("tlc")), List.of());
         var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(run.resolve("apalache")));
         for (var backend : List.<ToolBackend>of(tlc, apalache)) {

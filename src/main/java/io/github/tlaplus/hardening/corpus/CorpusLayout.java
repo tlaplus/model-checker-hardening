@@ -14,8 +14,10 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -228,6 +230,15 @@ final class CorpusLayout {
                 contents,
                 StandardCopyOption.ATOMIC_MOVE,
                 StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /** Atomically replaces the file at {@code corpusPath} with its contents, if any, followed by {@code suffix}. */
+    void appendAtomically(CorpusPath corpusPath, String description, byte[] suffix)
+            throws IOException, CorpusException {
+        var previous = readIfPresent(corpusPath, description).orElse(new byte[0]);
+        var contents = Arrays.copyOf(previous, previous.length + suffix.length);
+        System.arraycopy(suffix, 0, contents, previous.length, suffix.length);
+        replaceAtomically(resolve(corpusPath), corpusPath.name().toLowerCase(Locale.ROOT) + "-", contents);
     }
 
     /** As {@link #replaceAtomically}, but fails when the destination already exists. */

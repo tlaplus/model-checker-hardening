@@ -75,7 +75,7 @@ final class InitCommand implements Callable<Integer> {
         if (baseCorpus != null && library != null) {
             return usage("--base-corpus names the library already; leave out --library");
         }
-        var initial = new InitialConfig(corpus, InitialConfig.locateProject());
+        var initial = new InitialConfig(corpus, InitialConfig.locateProject(), InitialConfig.randomSeed());
         FuzzTlaConfig config;
         if (baseCorpus == null) {
             config = initial.create(technique);
@@ -117,9 +117,10 @@ final class InitCommand implements Callable<Integer> {
             spec.commandLine()
                     .getOut()
                     .printf(
-                            "fuzztla: initialized %s corpus at '%s'%s%n",
+                            "fuzztla: initialized %s corpus at '%s' with random seed %d%s%n",
                             technique.encodedName(),
                             initialized.resolve(CorpusPath.ROOT),
+                            plan.config().seeds().generator(),
                             baseCorpus == null ? "" : ", adopting from '" + baseCorpus + "'");
             return CommandLine.ExitCode.OK;
         } catch (IOException | CorpusException exception) {

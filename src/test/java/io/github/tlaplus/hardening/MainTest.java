@@ -100,7 +100,11 @@ class MainTest {
         var config = TomlConfig.read(configFile);
         assertEquals(
                 FuzzTlaConfig.defaults().withKnownDefects(List.of(database)),
-                config.withTools(ToolsConfig.none()));
+                config.withTools(ToolsConfig.none()).withSeeds(FuzzTlaConfig.defaults().seeds()));
+        // Every seed follows from the generator seed that init drew and printed (ADR 0026).
+        var seed = java.util.regex.Pattern.compile("with random seed (\\d+)").matcher(result.out());
+        assertTrue(seed.find(), result.out());
+        assertEquals(SeedConfig.derive(Long.parseLong(seed.group(1))), config.seeds());
         // The corpus runs its own copies of the tools (ADR 0025 §3).
         for (var tool : ToolJar.values()) {
             var jar = corpus.resolve("tools").resolve(tool.fileName());
@@ -229,9 +233,10 @@ class MainTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.out().contains("Usage: fuzztla run"));
         assertTrue(result.out().contains("--corpus=DIR"));
-        assertTrue(result.out().contains("--seed=SEED"));
+        assertTrue(result.out().contains("--continue"));
         assertTrue(result.out().contains("--max-cpus=N"));
-        assertTrue(result.out().contains("Nonnegative 64-bit seed"));
+        assertTrue(result.out().contains("not reproducible"));
+        assertFalse(result.out().contains("--seed"), result.out());
         assertFalse(result.out().contains("--how"), result.out());
         assertFalse(result.out().contains("--version"));
         assertEquals("", result.err());
@@ -326,7 +331,6 @@ class MainTest {
         var result = execute(
                 "run",
                 "--corpus=" + corpus,
-                "--seed=42",
                 "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
@@ -389,19 +393,17 @@ class MainTest {
                 execute(
                                 "run",
                                 "--corpus=" + corpus,
-                                "--seed=7",
                                 "--max-cpus=1")
                         .exitCode());
 
         var result = execute(
                 "run",
                 "--corpus=" + corpus,
-                "--seed=7",
+                "--continue",
                 "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertEquals("", result.err());
-        assertTrue(result.out().startsWith("Random seed: 7" + System.lineSeparator()));
+        assertTrue(result.out().startsWith("Random seed: 42" + System.lineSeparator()));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.equals("  Generated inputs: 4")));
         assertTrue(result.out().lines()
@@ -412,10 +414,10 @@ class MainTest {
     @Test
     void reportsAnUninitializedCorpus(@TempDir Path directory) {
         var missing = directory.resolve("missing-corpus");
-        var result = execute("run", "--corpus=" + missing, "--seed=1");
+        var result = execute("run", "--corpus=" + missing);
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
-        assertEquals("Random seed: 1" + System.lineSeparator(), result.out());
+        assertEquals("", result.out());
         assertTrue(result.err().contains("corpus directory does not exist"));
     }
 
@@ -425,7 +427,7 @@ class MainTest {
         var inputDirectory = corpus.resolve(CorpusPath.INPUT.relativePath());
         Files.write(inputDirectory.resolve("not-a-hash.cbor"), new byte[] {1});
 
-        var result = execute("run", "--corpus=" + corpus, "--seed=1");
+        var result = execute("run", "--corpus=" + corpus, "--continue");
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, result.exitCode());
         assertTrue(result.err().contains("invalid corpus entry name"));
@@ -443,52 +445,50 @@ class MainTest {
     }
 
     @Test
-    void rejectsInvalidSeed() {
-        var result = execute("run", "--seed=not-a-long");
+    void takesNoSeedOption() {
+        var result = execute("run", "--seed=1");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
-        assertTrue(result.err().contains("Invalid value for option '--seed'"));
-        assertTrue(result.err().contains("0.." + Long.MAX_VALUE));
+        assertTrue(result.err().contains("Unknown option: '--seed=1'"), result.err());
     }
 
     @Test
-    void rejectsNegativeSeed() {
-        var result = execute("run", "--seed=-1");
+    void refusesToRunACorpusThatWasRunBeforeWithoutContinue(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 2, 16);
+        assertEquals(CommandLine.ExitCode.OK, execute("run", "--corpus=" + corpus, "--max-cpus=1").exitCode());
+
+        var result = execute("run", "--corpus=" + corpus, "--max-cpus=1");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
-        assertTrue(result.err().contains("0.." + Long.MAX_VALUE));
+        assertTrue(result.err().contains("has been run before; pass --continue"), result.err());
+        assertFalse(Files.exists(corpus.resolve(CorpusPath.NOT_REPRODUCIBLE.relativePath())));
     }
 
     @Test
-    void acceptsLargestNonnegativeSeed(@TempDir Path directory) throws Exception {
+    void continuingACorpusMarksItAsNotReproducible(@TempDir Path directory) throws Exception {
+        var corpus = initializeSmallCorpus(directory, 2, 16);
+        assertEquals(CommandLine.ExitCode.OK, execute("run", "--corpus=" + corpus, "--max-cpus=1").exitCode());
+
+        for (var run = 1; run <= 2; run++) {
+            var result = execute("run", "--corpus=" + corpus, "--continue", "--max-cpus=1");
+
+            assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+            assertTrue(result.err().contains("warning: continuing corpus"), result.err());
+            assertTrue(result.err().contains("not reproducible"), result.err());
+            var mark = Files.readAllLines(corpus.resolve(CorpusPath.NOT_REPRODUCIBLE.relativePath()));
+            assertEquals(run, mark.size(), mark.toString());
+        }
+    }
+
+    @Test
+    void continuingAFreshCorpusLeavesItReproducible(@TempDir Path directory) throws Exception {
         var corpus = initializeSmallCorpus(directory, 0, 0);
 
-        var result = execute(
-                "run",
-                "--corpus=" + corpus,
-                "--seed=" + Long.MAX_VALUE,
-                "--max-cpus=1");
+        var result = execute("run", "--corpus=" + corpus, "--continue", "--max-cpus=1");
 
-        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
         assertEquals("", result.err());
-        assertTrue(result.out().startsWith(
-                "Random seed: " + Long.MAX_VALUE + System.lineSeparator()));
-        assertTrue(result.out().lines()
-                .anyMatch(line -> line.equals("  Generated inputs: 0")));
-        assertTrue(result.out().lines()
-                .anyMatch(line -> line.contains("Total elapsed")));
-    }
-
-    @Test
-    void generatesANonnegativeSeedWhenNoneIsGiven(@TempDir Path directory) throws Exception {
-        var corpus = initializeSmallCorpus(directory, 0, 0);
-
-        var result = execute(
-                "run", "--corpus=" + corpus, "--max-cpus=1");
-
-        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.out().lines().findFirst().orElseThrow().matches("Random seed: \\d+"));
-        assertFalse(result.out().contains("random seed"));
+        assertFalse(Files.exists(corpus.resolve(CorpusPath.NOT_REPRODUCIBLE.relativePath())));
     }
 
     @Test
@@ -879,7 +879,8 @@ class MainTest {
                                 new CheckerStageConfig(entries, 10, 512, 1),
                                 CorpusStage.APALACHE,
                                 new CheckerStageConfig(entries, 10, 512, 1))),
-                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
+                new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty())
+                .withSeeds(SeedConfig.derive(42));
         Files.writeString(
                 corpus.resolve(CorpusPath.CONFIG.relativePath()),
                 TomlConfig.render(config),

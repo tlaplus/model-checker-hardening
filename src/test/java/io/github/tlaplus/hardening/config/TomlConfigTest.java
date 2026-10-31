@@ -516,6 +516,28 @@ class TomlConfigTest {
         assertTrue(unexpected.getMessage().contains("unknown root keys: extra"));
     }
 
+    /** Every seed is required, so a corpus never runs with a seed it does not record (ADR 0026). */
+    @Test
+    void readsAndValidatesTheSeeds(@TempDir Path directory) throws Exception {
+        var seeds = new SeedConfig(Long.MAX_VALUE, SeedConfig.TLC_FINGERPRINT_POLYNOMIALS - 1, Long.MIN_VALUE);
+        var path = directory.resolve("seeds.toml");
+        TomlConfig.writeNew(path, FuzzTlaConfig.defaults().withSeeds(seeds));
+        assertEquals(seeds, TomlConfig.read(path).seeds());
+
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+        var missingTable = assertInvalid(directory, rendered.substring(rendered.indexOf("[generator]")));
+        assertTrue(missingTable.getMessage().contains("missing root keys: seeds"), missingTable.getMessage());
+
+        var missingKey = assertInvalid(directory, rendered.replace("tlc_fp = 10\n", ""));
+        assertTrue(missingKey.getMessage().contains("missing seeds keys: tlc_fp"), missingKey.getMessage());
+
+        var negative = assertInvalid(directory, rendered.replace("generator = 0", "generator = -1"));
+        assertTrue(negative.getMessage().contains("seeds.generator"), negative.getMessage());
+
+        var polynomial = assertInvalid(directory, rendered.replace("tlc_fp = 10", "tlc_fp = 131"));
+        assertTrue(polynomial.getMessage().contains("seeds.tlc_fp must lie in 0..130"), polynomial.getMessage());
+    }
+
     @Test
     void rejectsWrongTypesAndOutOfRangeIntegers(@TempDir Path directory) throws Exception {
         var wrongType = assertInvalid(

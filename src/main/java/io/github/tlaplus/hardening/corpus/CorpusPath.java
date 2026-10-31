@@ -44,7 +44,12 @@ public enum CorpusPath {
     TLCN_SCRATCH(".work/tlcn-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     APALACHE_SCRATCH(".work/apalache-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     LOCK(".workflow.lock", Kind.FILE, Presence.LAZY, Contents.NONE),
-    WORKFLOW_STATISTICS(".workflow-stats.cbor", Kind.FILE, Presence.LAZY, Contents.NONE);
+    WORKFLOW_STATISTICS(".workflow-stats.cbor", Kind.FILE, Presence.LAZY, Contents.NONE),
+    /**
+     * Written by a run that continued a corpus that was not fresh (ADR 0026): one UTC instant per
+     * such run. Its presence means that the corpus is not reproducible from its configuration.
+     */
+    NOT_REPRODUCIBLE(".not-reproducible", Kind.FILE, Presence.LAZY, Contents.NONE);
 
     private final Path relativePath;
     private final Kind kind;

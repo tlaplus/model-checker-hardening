@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.cli.FuzzTlaCommand;
 import io.github.tlaplus.hardening.config.*;
 import io.github.tlaplus.hardening.corpus.*;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.workflow.RunMode;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -30,7 +31,7 @@ class LibraryReplayIntegrationTest {
                 new WorkflowConfig(0, InputStageConfig.of(0), new ParserStageConfig(0, 30), checkers),
                 defaults.pbt(), defaults.mutator(), defaults.libraries());
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(config));
-        new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1);
+        new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, RunMode.FRESH, 1);
         assertFalse(Files.exists(directory.resolve("corpus").resolve(".operator-library")));
         corpus.store(InputKind.EXPRESSION, new byte[0]);
         var input = corpus.inputPath(new byte[0]);

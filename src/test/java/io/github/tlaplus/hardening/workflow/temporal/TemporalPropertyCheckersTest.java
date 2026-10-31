@@ -8,6 +8,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
@@ -22,6 +23,7 @@ import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -112,7 +114,7 @@ class TemporalPropertyCheckersTest {
         assertEquals(12, samples.size(), "too few unquarantined modules with a property were generated");
         assertTrue(quarantined[0] > 0, "no generated property matched a temporal signature");
 
-        var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
+        var tlc = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(SETTINGS, SeedConfig.derive(0)), 1, Files.createDirectory(directory.resolve("tlc")), List.of());
         for (var spec : samples) {
             var result = check(tlc, SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty()));
             assertFalse(result.diagnostic().contains("TLC cannot handle the temporal formula"), result.diagnostic());
@@ -126,7 +128,7 @@ class TemporalPropertyCheckersTest {
     private static Results checkBoth(Path directory, GeneratedSpec spec) throws Exception {
         var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
         assertTrue(artifact.request().temporalProperty());
-        var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
+        var tlc = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(SETTINGS, SeedConfig.derive(0)), 1, Files.createDirectory(directory.resolve("tlc")), List.of());
         var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(directory.resolve("apalache")));
         return new Results(check(tlc, artifact), check(apalache, artifact));
