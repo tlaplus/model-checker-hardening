@@ -85,8 +85,9 @@ display names the oldest ungated generation.
 **Implemented architectural extension.** Admission ends with the known-defect
 signatures listed in `[workflow.inputs] known_defects` ([ADR 0006][]). A
 signature is a pattern over the IR of the code the tools evaluate, matching a
-shape that a tool is documented to reject. A matching candidate is not
-admitted to `00-inputs`. It is stored in `00-known-defects` while its primary
+shape that a tool is documented to reject. A candidate that matches an open
+signature is not admitted to `00-inputs`; closed signatures, whose defects are
+fixed, do not take part, so their shapes are checked again for regressions. It is stored in `00-known-defects` while its primary
 signature has fewer than `known_defect_samples` stored entries, and only counted
 otherwise. The check runs after the richness threshold and the request-frame
 limit and draws no randomness, so with no database the admitted stream is

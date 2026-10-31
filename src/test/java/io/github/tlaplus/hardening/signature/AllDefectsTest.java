@@ -72,8 +72,8 @@ class AllDefectsTest {
     private final TlaTypedScopeUncheckedBuilder builder = shapes.builder;
 
     @Test
-    void everyReferenceNamesADocumentInTheRepository() throws Exception {
-        SignatureShapes.assertReferencesExist(DATABASE, KnownDefectDatabase.load(List.of(DATABASE)));
+    void everyReferenceNamesADocumentThatDecidesTheStatus() throws Exception {
+        SignatureShapes.assertReferences(DATABASE, KnownDefectDatabase.load(List.of(DATABASE)));
     }
 
     /** The shipped signatures open the database unchanged, so primary signatures stay the same. */

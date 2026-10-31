@@ -16,8 +16,8 @@ class MetamorphicDefectsTest {
     private final SignatureShapes shapes = new SignatureShapes();
 
     @Test
-    void everyReferenceNamesADocumentInTheRepository() throws Exception {
-        SignatureShapes.assertReferencesExist(
+    void everyReferenceNamesADocumentThatDecidesTheStatus() throws Exception {
+        SignatureShapes.assertReferences(
                 KnownDefectDatabase.METAMORPHIC, KnownDefectDatabase.load(List.of(KnownDefectDatabase.METAMORPHIC)));
     }
 

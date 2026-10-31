@@ -75,6 +75,7 @@ Each is a TOML file with one `[[signature]]` table per signature, which has:
 - `id`: a stable name, unique across all configured databases;
 - `references`: the finding or conformance documents that record the defect;
 - `description`: one sentence saying what the tool does with the shape;
+- `status`: `open` or `closed` (see *Defect status*);
 - `match`: one or more pattern alternatives.
 
 The workflow reads the databases once, when a run starts. An invalid database
@@ -194,7 +195,7 @@ ships:
 
 A shape that rarely fails, such as `Head` of a sequence that is empty only at
 run time, is not a signature. When the referenced defect is fixed, the signature
-is removed or narrowed.
+is closed (see *Defect status*), or narrowed if only some of its shapes are fixed.
 
 The repository ships `signatures/known-defects.toml` with these signatures:
 
@@ -211,6 +212,24 @@ temporal formulas TLC cannot check, referencing
 [TLC temporal formula limits](../../conformance/tlc-temporal-formula-limits.md).
 They were measured on a 1600-module smoke corpus and on corpus20 rather than
 corpus12, which has no temporal properties.
+
+### Defect status
+
+*Revision.* Under the original decision, a signature whose defect was fixed was
+removed. Its shapes then went unchecked by the database's tests, and nothing
+recorded that the fix had been confirmed. A signature now carries `status`:
+
+- `open`: some referenced finding is open, or the signature references a
+  conformance document, which records a lasting difference between the tools.
+  A matching candidate is quarantined.
+- `closed`: every referenced finding has `state: closed` in its front matter.
+  A matching candidate is admitted, so the tools check the shapes of the fixed
+  defect again and a regression is reported as an ordinary failure.
+
+The finding's front matter, which also drives its GitHub issue, is the source of
+truth; the database tests fail when a signature's status disagrees with it.
+`print --known-defects` reports closed matches with their status, so a failing
+admitted entry can be traced to the signature it matches.
 
 ### Measured precision
 
@@ -294,7 +313,8 @@ Other consequences:
   entries would have been quarantined although Apalache did not fail on them.
   This is accepted in exchange for the throughput. Quarantined samples, and
   `print --known-defects`, allow such cases to be audited. The policy above
-  requires revisiting a signature when its defect is fixed.
+  requires closing a signature when its defect is fixed, which returns its
+  shapes to the tools.
 - **Replay.** Matching is deterministic, and quarantined entries keep their
   bytes, so an entry's classification can be reproduced and audited with
   `print --known-defects`.

@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.common.Role;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -18,7 +19,7 @@ import org.tomlj.TomlTable;
 
 /**
  * Reads one database file: a TOML document of {@code [[signature]]} tables with exactly the keys
- * {@code id}, {@code references}, {@code description}, and {@code match}.
+ * {@code id}, {@code references}, {@code description}, {@code status}, and {@code match}.
  *
  * <p>Like {@code config.toml}, the format is strict: a missing or unknown key is an error. Every
  * diagnostic names the file, and the signature and pattern it concerns.
@@ -30,8 +31,9 @@ final class KnownDefectDatabaseReader {
     private static final String ID = "id";
     private static final String REFERENCES = "references";
     private static final String DESCRIPTION = "description";
+    private static final String STATUS = "status";
     private static final String MATCH = "match";
-    private static final Set<String> KEYS = Set.of(ID, REFERENCES, DESCRIPTION, MATCH);
+    private static final Set<String> KEYS = Set.of(ID, REFERENCES, DESCRIPTION, STATUS, MATCH);
 
     private KnownDefectDatabaseReader() {}
 
@@ -95,6 +97,7 @@ final class KnownDefectDatabaseReader {
         var named = location + " ('" + id + "')";
         var references = strings(table, REFERENCES, named);
         var description = string(table, DESCRIPTION, named);
+        var status = status(table, named);
         var sources = strings(table, MATCH, named);
         var alternatives = new ArrayList<IrPattern>(sources.size());
         for (var index = 0; index < sources.size(); index++) {
@@ -106,10 +109,18 @@ final class KnownDefectDatabaseReader {
             }
         }
         try {
-            return new KnownDefect(id, references, description, alternatives);
+            return new KnownDefect(id, references, description, status, alternatives);
         } catch (IllegalArgumentException exception) {
             throw new KnownDefectDatabaseException(location + ": " + exception.getMessage(), exception);
         }
+    }
+
+    private static DefectStatus status(TomlTable table, String location) throws KnownDefectDatabaseException {
+        var spelling = string(table, STATUS, location);
+        return DefectStatus.fromSpelling(spelling).orElseThrow(() -> new KnownDefectDatabaseException(
+                location + ": '" + STATUS + "' must be one of " + Arrays.stream(DefectStatus.values())
+                        .map(DefectStatus::spelling)
+                        .collect(Collectors.joining(", ")) + ", not '" + spelling + "'"));
     }
 
     private static String string(TomlTable table, String key, String location)

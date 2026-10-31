@@ -14,8 +14,8 @@ class ShippedKnownDefectsTest {
     private final SignatureShapes shapes = new SignatureShapes();
 
     @Test
-    void everyReferenceNamesADocumentInTheRepository() throws Exception {
-        SignatureShapes.assertReferencesExist(DATABASE, KnownDefectDatabase.load(List.of(DATABASE)));
+    void everyReferenceNamesADocumentThatDecidesTheStatus() throws Exception {
+        SignatureShapes.assertReferences(DATABASE, KnownDefectDatabase.load(List.of(DATABASE)));
     }
 
     /** Each signature matches the shape its document records, and not the nearest legal one. */

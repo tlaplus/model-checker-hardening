@@ -147,36 +147,42 @@ class IrPatternTest {
                 id = "modulo"
                 references = ["none"]
                 description = "Modulo by a literal zero."
+                status = "open"
                 match = ['(MOD _ 0)']
 
                 [[signature]]
                 id = "label-name"
                 references = ["none"]
                 description = "A label's name is not an expression."
+                status = "open"
                 match = ['"lab"']
 
                 [[signature]]
                 id = "division"
                 references = ["none"]
                 description = "Division by a literal zero."
+                status = "open"
                 match = ['(DIV _ 0)']
 
                 [[signature]]
                 id = "unreferenced-definition"
                 references = ["none"]
                 description = "Only a definition no root reaches has this shape."
+                status = "open"
                 match = ['(MOD 3 0)']
 
                 [[signature]]
                 id = "unreferenced-let"
                 references = ["none"]
                 description = "A LET definition counts even when its body never uses it."
+                status = "open"
                 match = ['Nat']
 
                 [[signature]]
                 id = "strings"
                 references = ["none"]
                 description = "The set of all strings."
+                status = "open"
                 match = ['STRING']
                 """);
         var first = builder.mod(builder.integer(1), builder.integer(0));

@@ -24,9 +24,11 @@ public final class KnownDefect {
     private final String id;
     private final List<String> references;
     private final String description;
+    private final DefectStatus status;
     private final List<IrPattern> alternatives;
 
-    KnownDefect(String id, List<String> references, String description, List<IrPattern> alternatives) {
+    KnownDefect(String id, List<String> references, String description, DefectStatus status,
+            List<IrPattern> alternatives) {
         Objects.requireNonNull(id, "id");
         Preconditions.require(ID.matcher(id).matches(),
                 "signature id '" + id + "' must consist of lowercase letters, digits, and hyphens");
@@ -37,6 +39,7 @@ public final class KnownDefect {
                 !reference.isBlank(), "signature " + id + " has a blank reference"));
         this.description = Objects.requireNonNull(description, "description");
         Preconditions.require(!description.isBlank(), "signature " + id + " has no description");
+        this.status = Objects.requireNonNull(status, "status");
         this.alternatives = List.copyOf(alternatives);
         Preconditions.require(!this.alternatives.isEmpty(), "signature " + id + " has no patterns");
     }
@@ -52,6 +55,10 @@ public final class KnownDefect {
 
     public String description() {
         return description;
+    }
+
+    public DefectStatus status() {
+        return status;
     }
 
     /** Returns the first of the subexpressions, in their order, that some alternative matches. */

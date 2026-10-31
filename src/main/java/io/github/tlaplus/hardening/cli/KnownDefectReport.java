@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /**
  * Renders the known-defect signatures that match one decoded input: each signature's id,
- * description, and references, and the subexpression it matched first, as TLA+.
+ * description, status, and references, and the subexpression it matched first, as TLA+.
  */
 final class KnownDefectReport {
     static final String NO_MATCH = "no known defects";
@@ -25,6 +25,7 @@ final class KnownDefectReport {
             for (var match : matches) {
                 var defect = match.defect();
                 writer.printf("%s: %s%n", defect.id(), defect.description());
+                writer.printf("  status: %s%n", defect.status().spelling());
                 defect.references().forEach(reference -> writer.printf("  reference: %s%n", reference));
                 writer.printf("  matched:%n");
                 EnvelopeReport.expression(match.witness())

@@ -20,6 +20,7 @@ class KnownDefectReportTest {
                 id = "modulo-by-literal-zero"
                 references = ["../conformance/modulo-by-zero-apalache-fails.md"]
                 description = "Mod by zero."
+                status = "open"
                 match = ['(MOD _ 0)']
                 """);
         var builder = new TlaTypedScopeUncheckedBuilder();
@@ -34,6 +35,7 @@ class KnownDefectReportTest {
                 String.join(
                         System.lineSeparator(),
                         "modulo-by-literal-zero: Mod by zero.",
+                        "  status: open",
                         "  reference: ../conformance/modulo-by-zero-apalache-fails.md",
                         "  matched:",
                         "    1 % 0",

@@ -81,7 +81,7 @@ public final class InputAdmission {
         if (!SpecText.withinWorkerProtocolLimit(artifact.module())) {
             return new Decision.ExceedsRequestFrame();
         }
-        var matches = knownDefects.matches(artifact.module(), artifact.entryPoints());
+        var matches = knownDefects.quarantining(artifact.module(), artifact.entryPoints());
         if (!matches.isEmpty()) {
             return new Decision.KnownDefect(
                     matches.stream().map(KnownDefectMatch::defect).map(defect -> defect.id()).toList());
