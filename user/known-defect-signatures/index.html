@@ -1571,12 +1571,14 @@ only later admissions; stored entries are not re-checked.</p>
 <span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"modulo-by-literal-zero"</span>
 <span class="n">references</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../conformance/modulo-by-zero-apalache-fails.md"</span><span class="p">]</span>
 <span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Apalache preprocessing reports Mod by zero for any literal-zero modulus."</span>
+<span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"open"</span>
 <span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s1">'(MOD _ 0)'</span><span class="p">]</span>
 
 <span class="k">[[signature]]</span>
 <span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"zero-power-zero"</span>
 <span class="n">references</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../conformance/zero-power-zero-apalache-fails.md"</span><span class="p">]</span>
 <span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Apalache preprocessing reports 0 ^ 0 as undefined."</span>
+<span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"open"</span>
 <span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s1">'(POW 0 0)'</span><span class="p">]</span>
 </code></pre></div>
 <table>
@@ -1600,12 +1602,16 @@ only later admissions; stored entries are not re-checked.</p>
 <td>One sentence: what the tool does with inputs of this shape.</td>
 </tr>
 <tr>
+<td><code>status</code></td>
+<td><code>open</code> or <code>closed</code>. Only an open signature quarantines; see <a href="#5-what-happens-on-a-match">what happens on a match</a>.</td>
+</tr>
+<tr>
 <td><code>match</code></td>
 <td>Non-empty list of patterns. The signature matches when any of them matches.</td>
 </tr>
 </tbody>
 </table>
-<p>All four keys are required, and unknown keys are errors. Write patterns as TOML
+<p>All five keys are required, and unknown keys are errors. Write patterns as TOML
 literal strings (single quotes), so that <code>"</code> and <code>\</code> inside them need no
 escaping.</p>
 <h2 id="3-pattern-language">3. Pattern language<a class="headerlink" href="#3-pattern-language" title="Permanent link">&para;</a></h2>
@@ -1780,7 +1786,7 @@ cardinality of any set of sequences.</p>
 <p>The report lists each matching signature, its references, and the
    subexpression it matched, rendered as TLA+.
 5. <strong>Document it.</strong> Point <code>references</code> at the finding or conformance document,
-   and write a one-sentence <code>description</code>.</p>
+   write a one-sentence <code>description</code>, and set <code>status = "open"</code>.</p>
 <p>Measure a signature before relying on it. It quarantines every input whose
 evaluated code contains its shape. But whether a tool actually reaches the shape
 can depend on the tool's evaluation order, so some quarantined inputs would have
@@ -1788,18 +1794,26 @@ passed. On a corpus sample, check two things:
 - most entries it matches carry the referenced diagnostic;
 - it catches most entries that carry that diagnostic.</p>
 <p>A shape that rarely fails is not a signature. An example is <code>Head</code> of a sequence
-that is empty only at run time. When the referenced defect is fixed, remove or
-narrow the signature.</p>
+that is empty only at run time.</p>
+<p>When the referenced defects are fixed, set the signature's <code>status</code> to <code>closed</code>.
+A signature is closed exactly when every document it references is a finding
+whose front matter says <code>state: closed</code>. A conformance document records a
+lasting difference between the tools, so a signature that references one stays
+open. The tests of the shipped databases check this rule.</p>
 <h2 id="5-what-happens-on-a-match">5. What happens on a match<a class="headerlink" href="#5-what-happens-on-a-match" title="Permanent link">&para;</a></h2>
 <p>Each check runs after a candidate has passed the richness threshold and the
-request-frame limit. A matching candidate is not admitted to <code>00-inputs</code>:</p>
+request-frame limit. Only open signatures take part. A candidate that matches
+only closed signatures is admitted, so the tools check the shapes of fixed
+defects again and a regression shows up as an ordinary failure.
+<code>print --known-defects</code> reports open and closed matches alike, with their status.</p>
+<p>A candidate that matches an open signature is not admitted to <code>00-inputs</code>:</p>
 <ul>
-<li><strong>Primary signature.</strong> The first matching signature, in database order, is
-  the candidate's primary signature.</li>
+<li><strong>Primary signature.</strong> The first matching open signature, in database order,
+  is the candidate's primary signature.</li>
 <li><strong>Storage.</strong> While fewer than <code>known_defect_samples</code> entries of that primary
   signature are stored, the candidate is written to
   <code>00-known-defects/&lt;sha256&gt;.cbor</code>. Otherwise it is only counted.</li>
-<li><strong>Recorded signatures.</strong> A quarantined entry records every matching
+<li><strong>Recorded signatures.</strong> A quarantined entry records every matching open
   signature, primary first:</li>
 </ul>
 <div class="highlight"><pre><span></span><code>{
@@ -2001,7 +2015,13 @@ candidate whose code matches a defect recorded in <code>findings/</code> or <cod
 so that checking time goes only to candidates that can show new behavior.</p>
 <p>It is a superset of <code>known-defects.toml</code>. Its first 13 signatures are the shipped
 ones, in the same order, with the same ids, descriptions and patterns, so
-primary signatures do not change. Use it <em>instead of</em> <code>known-defects.toml</code>;
+primary signatures do not change. Three of its signatures are closed, because
+their findings are fixed: <code>tlc-double-negation-under-temporal</code>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/TLC/tlc-014.md"><code>tlc-014</code></a>), <code>community-is-injective</code>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/TLC/tlc-016.md"><code>tlc-016</code></a>) and <code>community-anti-function</code>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/TLC/tlc-017.md"><code>tlc-017</code></a>).
+<code>tlc-partial-operator-under-eventuality</code> stays open: <code>tlc-008</code> is fixed, but
+<code>tlc-009</code> and <code>tlc-010</code> are not. Use it <em>instead of</em> <code>known-defects.toml</code>;
 listing both defines every shipped id twice, which is an error:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[workflow.inputs]</span>
 <span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">]</span>

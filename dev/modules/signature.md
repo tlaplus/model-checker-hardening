@@ -40,13 +40,14 @@ classDiagram
 | Type | Kind | Role | Summary |
 |---|---|---|---|
 | [Bindings](../types/io.github.tlaplus.hardening.signature.Bindings.md) | class | other | The metavariables and type variables one pattern alternative has bound so far. |
+| [DefectStatus](../types/io.github.tlaplus.hardening.signature.DefectStatus.md) | enum | other | Whether the defect behind a signature is still present. |
 | [IrExprCounts](../types/io.github.tlaplus.hardening.signature.IrExprCounts.md) | class | other | Counts the size and constructs of the code the tools evaluate, over the walk that signatures match against. |
 | [**IrPattern** ★](../types/io.github.tlaplus.hardening.signature.IrPattern.md) | interface | contract | One pattern over the typed Apalache IR, as parsed by `PatternParser`. |
 | [IrTree](../types/io.github.tlaplus.hardening.signature.IrTree.md) | class | other | The subexpressions a signature is tried against: those the tools evaluate. |
 | [**KnownDefect** ★](../types/io.github.tlaplus.hardening.signature.KnownDefect.md) | class | model | One known-defect signature: a documented tool defect and the IR shapes that trigger it. |
 | [**KnownDefectDatabase** ★](../types/io.github.tlaplus.hardening.signature.KnownDefectDatabase.md) | class | facade | The known-defect signatures of one invocation, in database order. |
 | [KnownDefectDatabaseException](../types/io.github.tlaplus.hardening.signature.KnownDefectDatabaseException.md) | class | other | A known-defect database that cannot be read, or that does not follow the database format. |
-| [**KnownDefectDatabaseReader** ★](../types/io.github.tlaplus.hardening.signature.KnownDefectDatabaseReader.md) | class | codec | Reads one database file: a TOML document of `[[signature]]` tables with exactly the keys `id`, `references`, `description`, and `match`. |
+| [**KnownDefectDatabaseReader** ★](../types/io.github.tlaplus.hardening.signature.KnownDefectDatabaseReader.md) | class | codec | Reads one database file: a TOML document of `[[signature]]` tables with exactly the keys `id`, `references`, `description`, `status`, and `match`. |
 | [**KnownDefectMatch** ★](../types/io.github.tlaplus.hardening.signature.KnownDefectMatch.md) | record | model | A signature that matches a module, and the outermost subexpression it matched first. |
 | [OperatorNames](../types/io.github.tlaplus.hardening.signature.OperatorNames.md) | class | other | The operators a pattern may name, keyed by `TlaOper.name`. |
 | [PatternException](../types/io.github.tlaplus.hardening.signature.PatternException.md) | class | other | A pattern that does not follow the pattern syntax, located by a one-based column. |
@@ -57,4 +58,4 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0006-known-defect-signatures.md)
+- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0006-known-defect-signatures.md)

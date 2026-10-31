@@ -1,6 +1,6 @@
 # `ThrowingRunnable`
 
-`io.github.tlaplus.hardening.common` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/common/ThrowingRunnable.java#L9) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/common/ThrowingRunnable.java#L9) · module [common](../modules/common.md)
 
 An operation that takes no value and may fail with a checked exception.
 

@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "21262d9d0cc07b5ae4c47c4ee511217c9b88b561"
+    "commit" : "6bbf8b66c375696d1798f7b7a061b81573a3f42a"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -467,7 +467,7 @@
     "kind" : "CLASS",
     "role" : null,
     "key" : false,
-    "summary" : "Renders the known-defect signatures that match one decoded input: each signature's id, description, and references, and the subexpression it matched first, as TLA+.",
+    "summary" : "Renders the known-defect signatures that match one decoded input: each signature's id, description, status, and references, and the subexpression it matched first, as TLA+.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/KnownDefectReport.java",
     "line" : 13,
     "adrs" : [ ]
@@ -2872,6 +2872,16 @@
     "line" : 17,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.signature.DefectStatus",
+    "packageName" : "io.github.tlaplus.hardening.signature",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "Whether the defect behind a signature is still present.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/signature/DefectStatus.java",
+    "line" : 13,
+    "adrs" : [ ]
+  }, {
     "name" : "io.github.tlaplus.hardening.signature.IrExprCounts",
     "packageName" : "io.github.tlaplus.hardening.signature",
     "kind" : "CLASS",
@@ -2919,7 +2929,7 @@
     "key" : true,
     "summary" : "The known-defect signatures of one invocation, in database order.",
     "path" : "src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabase.java",
-    "line" : 20,
+    "line" : 21,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.signature.KnownDefectDatabaseException",
@@ -2937,9 +2947,9 @@
     "kind" : "CLASS",
     "role" : "CODEC",
     "key" : true,
-    "summary" : "Reads one database file: a TOML document of `[[signature]]` tables with exactly the keys `id`, `references`, `description`, and `match`.",
+    "summary" : "Reads one database file: a TOML document of `[[signature]]` tables with exactly the keys `id`, `references`, `description`, `status`, and `match`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabaseReader.java",
-    "line" : 26,
+    "line" : 27,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.signature.KnownDefectMatch",
@@ -4445,6 +4455,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
     "to" : "io.github.tlaplus.hardening.cli.EnvelopeReport",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
+    "to" : "io.github.tlaplus.hardening.signature.DefectStatus",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
@@ -9788,8 +9802,16 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.signature.KnownDefect",
+    "to" : "io.github.tlaplus.hardening.signature.DefectStatus",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.signature.KnownDefect",
     "to" : "io.github.tlaplus.hardening.signature.IrPattern",
     "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase",
+    "to" : "io.github.tlaplus.hardening.signature.DefectStatus",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase",
     "to" : "io.github.tlaplus.hardening.signature.IrTree",
@@ -9813,6 +9835,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.signature.KnownDefectDatabaseReader",
     "to" : "io.github.tlaplus.hardening.common.Diagnostics",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.signature.KnownDefectDatabaseReader",
+    "to" : "io.github.tlaplus.hardening.signature.DefectStatus",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.signature.KnownDefectDatabaseReader",
@@ -13186,7 +13212,7 @@
   }, {
     "from" : "cli",
     "to" : "signature",
-    "typePairs" : 5,
+    "typePairs" : 6,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.InitialConfig",

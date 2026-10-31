@@ -1,6 +1,6 @@
 # `RunView`
 
-`io.github.tlaplus.hardening.cli` · record · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/cli/RunView.java#L20) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · record · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/cli/RunView.java#L20) · module [cli](../modules/cli.md)
 
 The statistics shared by live and final reports, without layout or terminal state.
 

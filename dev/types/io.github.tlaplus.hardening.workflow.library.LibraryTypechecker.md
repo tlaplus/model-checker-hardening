@@ -1,6 +1,6 @@
 # `LibraryTypechecker`
 
-`io.github.tlaplus.hardening.workflow.library` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryTypechecker.java#L20) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.library` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryTypechecker.java#L20) · module [workflow](../modules/workflow.md)
 
 Finite, isolated Snowcat invocation producing a typed module rather than a checker verdict.
 

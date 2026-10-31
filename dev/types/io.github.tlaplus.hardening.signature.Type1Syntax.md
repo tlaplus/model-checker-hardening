@@ -1,6 +1,6 @@
 # `Type1Syntax`
 
-`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/signature/Type1Syntax.java#L15) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/signature/Type1Syntax.java#L15) · module [signature](../modules/signature.md)
 
 Parses Apalache's type syntax, the syntax of the `type` fields in its IR JSON.
 
