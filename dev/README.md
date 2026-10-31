@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`4df6a11`](https://github.com/tlaplus/model-checker-hardening/commit/4df6a11e5b4bf93609393935c4cbeceec08cce0c) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`21262d9`](https://github.com/tlaplus/model-checker-hardening/commit/21262d9d0cc07b5ae4c47c4ee511217c9b88b561) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -42,11 +42,11 @@ flowchart TB
 | [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 112 | 28 | common |
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 15 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
-| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 53 | 11 | common, checker, gen, mutation |
+| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 52 | 11 | common, checker, gen, mutation |
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 23 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
-| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 119 | 60 | common, checker, gen, signature, mutation, corpus, config |
-| [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 36 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
+| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 109 | 56 | common, checker, gen, signature, mutation, corpus, config |
+| [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 33 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
 ## Roles
@@ -54,10 +54,10 @@ flowchart TB
 | Role | Meaning | Types |
 |---|---|---|
 | entry point | a command or a process main | 11 |
-| facade | the type other packages call | 18 |
+| facade | the type other packages call | 17 |
 | contract | an interface or base type that other types implement | 11 |
 | process | a loop or orchestrator that owns threads or a lifecycle | 8 |
-| adapter | wraps an external tool, process, or protocol | 11 |
+| adapter | wraps an external tool, process, or protocol | 8 |
 | store | layout, locking, persistence | 5 |
 | codec | a wire or storage format | 9 |
 | policy | a decision rule | 18 |
@@ -65,7 +65,7 @@ flowchart TB
 | config | configuration and its schema | 8 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 253 |
+| other | no `@ArchRole` | 243 |
 
 ## Relations
 

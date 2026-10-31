@@ -31,7 +31,7 @@ flowchart TB
   workflow -->|1| workflow_quality
   workflow -->|4| workflow_tool
   workflow_aggregator -->|7| workflow_execution
-  workflow_apalache -->|3| workflow_tool
+  workflow_apalache -->|2| workflow_tool
   workflow_execution -->|1| workflow
   workflow_input -->|6| workflow_execution
   workflow_quality -->|1| workflow_execution
@@ -46,9 +46,6 @@ flowchart TB
 classDiagram
   class CheckerBackends {
     <<policy>>
-  }
-  class CorpusReplay {
-    <<facade>>
   }
   class GenerationLoop {
     <<process>>
@@ -75,15 +72,12 @@ classDiagram
 |---|---|---|---|
 | [AdoptableBase](../types/io.github.tlaplus.hardening.workflow.AdoptableBase.md) | class | other | The base corpus of a metamorphic run (ADR 0016 §6). |
 | [**CheckerBackends** ★](../types/io.github.tlaplus.hardening.workflow.CheckerBackends.md) | class | policy | How each model-checker stage builds its backend for one invocation. |
-| [CorpusRecords](../types/io.github.tlaplus.hardening.workflow.CorpusRecords.md) | class | other | The one corpus record still read: the technique of a corpus from before ADR 0025, whose configuration must now repeat it. |
-| [**CorpusReplay** ★](../types/io.github.tlaplus.hardening.workflow.CorpusReplay.md) | class | facade | Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and the libraries, rules and tools the corpus holds (ADR 0025). |
 | [CorpusTools](../types/io.github.tlaplus.hardening.workflow.CorpusTools.md) | class | other | The tool JARs a corpus runs (ADR 0025 §3): those of its `[tools]` table, or the ones staged with FuzzTLA for a tool the table leaves out. |
 | [**GenerationLoop** ★](../types/io.github.tlaplus.hardening.workflow.GenerationLoop.md) | class | process | Runs the generations of one workflow invocation over a single stage graph (ADR 0010). |
 | [**GenerationProgress** ★](../types/io.github.tlaplus.hardening.workflow.GenerationProgress.md) | class | model | Where every generation of a run stands, tracked from stage events instead of a corpus rescan (ADR 0010). |
 | [GenerationTargets](../types/io.github.tlaplus.hardening.workflow.GenerationTargets.md) | class | other | Which target ordinals of one generation are already spoken for, and which source fills the rest (ADR 0010, ADR 0016 §6). |
 | [**MetamorphicShrinker** ★](../types/io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | class | facade | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | [OccupancyLimits](../types/io.github.tlaplus.hardening.workflow.OccupancyLimits.md) | class | other | Checks an invocation and a recovered corpus against the configured capacity limits. |
-| [ReplayRecord](../types/io.github.tlaplus.hardening.workflow.ReplayRecord.md) | record | other | A corpus record written before ADR 0025, which no run writes any more: a run may proceed only when the configuration repeats what the record says. |
 | [RunStatisticsOnExit](../types/io.github.tlaplus.hardening.workflow.RunStatisticsOnExit.md) | class | other | Stops the invocation clock and saves its aggregate while the corpus lock is still held. |
 | [**StageGraph** ★](../types/io.github.tlaplus.hardening.workflow.StageGraph.md) | class | process | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |
 | [StagedTools](../types/io.github.tlaplus.hardening.workflow.StagedTools.md) | class | other | Locates the tool JARs the build stages beside FuzzTLA's own JAR, or beside its classes when it runs from the build directory. |
@@ -122,9 +116,6 @@ classDiagram
   class ApalacheOutcomeClassifier {
     <<policy>>
   }
-  class ApalacheProcess {
-    <<adapter>>
-  }
   class ApalacheWorkerMain {
     <<entry point>>
   }
@@ -134,11 +125,9 @@ classDiagram
 |---|---|---|---|
 | [ApalacheArguments](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments.md) | class | other | The Apalache command line for one checked module. |
 | [**ApalacheCheckerBackend** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | class | adapter | Adapts persistent Apalache tool workers to the shared tool stage. |
-| [ApalacheDistribution](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution.md) | class | other | Locates the pinned Apalache release JAR staged beside FuzzTLA's build output. |
 | [ApalacheFailureDetail](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheFailureDetail.md) | class | other | Extracts bounded human-readable context from Apalache diagnostics. |
 | [**ApalacheIrJson** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson.md) | class | codec | Renders an assembled module as the typed Apalache IR JSON that Apalache consumes. |
 | [**ApalacheOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | class | policy | Maps Apalache tool exit statuses to shared workflow outcomes. |
-| [**ApalacheProcess** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheProcess.md) | class | adapter | Starts one persistent isolated Apalache JVM, which serves inputs until a crash retires it. |
 | [ApalacheTraceLength](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheTraceLength.md) | class | other | Reads the length of the counterexample Apalache wrote for one check. |
 | [**ApalacheWorkerMain** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain.md) | class | entry point | Persistent child process that invokes Apalache's `Tool.run` sequentially. |
 
@@ -197,7 +186,6 @@ classDiagram
 | [GeneratorStatistics](../types/io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics.md) | class | other | Cumulative input-generation counters shared by the generator workers. |
 | [GeneratorSummary](../types/io.github.tlaplus.hardening.workflow.execution.GeneratorSummary.md) | record | other | Cumulative generation statistics decorated with invocation-facing replay and timing fields. |
 | [OccupancyGate](../types/io.github.tlaplus.hardening.workflow.execution.OccupancyGate.md) | class | other | Bounds the current occupancy of one stage's result directories across its workers. |
-| [StageClocks](../types/io.github.tlaplus.hardening.workflow.execution.StageClocks.md) | class | other | One elapsed-time accumulator per corpus stage, seeded from the corpus's durable statistics. |
 | [StageCounters](../types/io.github.tlaplus.hardening.workflow.execution.StageCounters.md) | class | other | Verdict counters for one stage, seeded from the corpus and updated by its workers. |
 | [**StageEnvironment** ★](../types/io.github.tlaplus.hardening.workflow.execution.StageEnvironment.md) | record | model | The collaborators every stage of one workflow invocation shares: the corpus it reads and writes, the decoder each stored input kind is regenerated through, the CPU budget it competes for, and the stop state it observes and reports to. |
 | [StageJobLoop](../types/io.github.tlaplus.hardening.workflow.execution.StageJobLoop.md) | class | other | Claims queued items on behalf of one stage worker under the shared CPU budget. |
@@ -254,13 +242,12 @@ classDiagram
 | [**GenerationPlan** ★](../types/io.github.tlaplus.hardening.workflow.input.GenerationPlan.md) | record | model | One contiguous range of target entries the input stage admits: which input kind, for which generation, from which seed, how many entries from each candidate source, and with at most how many workers. |
 | [**InputAdmission** ★](../types/io.github.tlaplus.hardening.workflow.input.InputAdmission.md) | class | policy | Decides whether a decoded candidate enters `00-inputs`, and where a known defect goes. |
 | [InputHandoff](../types/io.github.tlaplus.hardening.workflow.input.InputHandoff.md) | record | other | How the input stage hands entries to the parser: the parser's queue, and the `00-inputs` slots that bound how many entries wait in it. |
-| [InputLengthSampler](../types/io.github.tlaplus.hardening.workflow.input.InputLengthSampler.md) | class | other | Samples bounded lengths from uniformly selected logarithmic size buckets. |
 | [**InputStage** ★](../types/io.github.tlaplus.hardening.workflow.input.InputStage.md) | class | process | Concurrent input stage: admits reserved target ranges from adjacent generations. |
 | [KnownDefectQuarantine](../types/io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine.md) | class | other | Keeps at most a fixed number of quarantined candidates per primary known-defect signature in `00-known-defects`; past the cap, a match is counted by the caller and discarded here. |
 | [**MetamorphicCandidates** ★](../types/io.github.tlaplus.hardening.workflow.input.MetamorphicCandidates.md) | class | policy | Adopts elite conformance entries (ADR 0016 §6): every candidate is the payload of a uniformly drawn parent of a pbt corpus behind the metamorphic header, followed by random rewrite bytes. |
 | [**MutantCandidates** ★](../types/io.github.tlaplus.hardening.workflow.input.MutantCandidates.md) | class | policy | Mutants of the parent pool (ADR 0010): every candidate mutates a uniformly drawn parent, keeps its cohort, and is rejected as a clone when it renders to the parent's module. |
 | [ParentPool](../types/io.github.tlaplus.hardening.workflow.input.ParentPool.md) | class | other | The entries of `04quality-pass` that a generation mutates or adopts: those of the kind the run generates, read once when the generation starts. |
-| [**PbtCandidates** ★](../types/io.github.tlaplus.hardening.workflow.input.PbtCandidates.md) | class | policy | Property-based candidates (ADR 0002): a target draws one richness cohort, and every candidate for it is a uniformly random byte array of a length from `InputLengthSampler`. |
+| [**PbtCandidates** ★](../types/io.github.tlaplus.hardening.workflow.input.PbtCandidates.md) | class | policy | Property-based candidates (ADR 0002): a target draws one richness cohort, and every candidate for it is a uniformly random byte array of a length from `sampleLength`. |
 
 ## `io.github.tlaplus.hardening.workflow.library`
 
@@ -303,9 +290,6 @@ classDiagram
   class ParserBackend {
     <<adapter>>
   }
-  class ParserProcess {
-    <<adapter>>
-  }
   class ParserRouting {
     <<policy>>
   }
@@ -317,7 +301,6 @@ classDiagram
 | Type | Kind | Role | Summary |
 |---|---|---|---|
 | [**ParserBackend** ★](../types/io.github.tlaplus.hardening.workflow.parser.ParserBackend.md) | class | adapter | Runs SANY in persistent isolated JVMs, one per stage worker, each replaced after a crash. |
-| [**ParserProcess** ★](../types/io.github.tlaplus.hardening.workflow.parser.ParserProcess.md) | class | adapter | Starts one persistent isolated SANY JVM; the common process handle owns requests and closing. |
 | [**ParserRouting** ★](../types/io.github.tlaplus.hardening.workflow.parser.ParserRouting.md) | class | policy | Routes parser results. |
 | [**ParserWorkerMain** ★](../types/io.github.tlaplus.hardening.workflow.parser.ParserWorkerMain.md) | class | entry point | Child-process entry point for persistent isolated SANY requests. |
 
@@ -394,9 +377,6 @@ classDiagram
   class TlcOutcomeClassifier {
     <<policy>>
   }
-  class TlcProcess {
-    <<adapter>>
-  }
   class TlcWorkerMain {
     <<entry point>>
   }
@@ -410,7 +390,6 @@ classDiagram
 | [TlcFailureDetail](../types/io.github.tlaplus.hardening.workflow.tlc.TlcFailureDetail.md) | class | other | Extracts bounded human-readable context from TLC diagnostics. |
 | [TlcMessageMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcMessageMetrics.md) | class | other | Follows the messages TLC prints, which say when its initial states are complete and which states its error trace consists of. |
 | [**TlcOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | class | policy | Maps TLC's internal error constants to workflow outcomes. |
-| [**TlcProcess** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcProcess.md) | class | adapter | Runs one TLC request in a fresh isolated JVM. |
 | [TlcStateMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcStateMetrics.md) | class | other | Measures the state graph TLC explores, through the state-writer callbacks TLC makes for every initial state and every generated transition. |
 | [TlcValueShape](../types/io.github.tlaplus.hardening.workflow.tlc.TlcValueShape.md) | class | other | The shape of the values of one state: how many value nodes they hold, their largest collection, and their deepest nesting. |
 | [**TlcWorkerMain** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain.md) | class | entry point | One-shot TLC child process. |
@@ -507,22 +486,21 @@ classDiagram
 | [**ToolWorkerProtocol** ★](../types/io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol.md) | class | codec | Binary framing shared by isolated parser and model-checker workers. |
 | [**ToolWorkerRuntime** ★](../types/io.github.tlaplus.hardening.workflow.worker.ToolWorkerRuntime.md) | class | process | The part of a child worker that is the same for every tool: report an escaped failure by exiting non-zero, announce itself to the parent, serve inputs until the parent stops asking, write each input where the tool reads it, and keep a bounded record of what the tool printed. |
 | [**WorkerChannel** ★](../types/io.github.tlaplus.hardening.workflow.worker.WorkerChannel.md) | class | adapter | The parent's end of one worker's control channel: message framing, and the deadline every read runs under. |
-| [WorkerDiagnostics](../types/io.github.tlaplus.hardening.workflow.worker.WorkerDiagnostics.md) | class | other | Diagnostic formatting shared by isolated tool entry points. |
 | [**WorkerLaunch** ★](../types/io.github.tlaplus.hardening.workflow.worker.WorkerLaunch.md) | class | process | Brings one isolated worker up: private scratch storage, a private loopback listener, the child JVM, and an authenticated control connection. |
 | [WorkerOutput](../types/io.github.tlaplus.hardening.workflow.worker.WorkerOutput.md) | class | other | Everything a child process says outside the control channel, and the scratch tree it says it in. |
 | [WorkerSpec](../types/io.github.tlaplus.hardening.workflow.worker.WorkerSpec.md) | record | other | How to launch one isolated tool worker: where it may write, how long it may take to come up, which class it runs, what goes in front of this JVM's class path, the child JVM it runs in, and what to call it in diagnostics. |
 
 ## Decisions
 
-- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0002-pbt-richness-score.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0008-exploration-metrics.md)
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0021-timeout-diagnostics.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0024-graph-action-coverage.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0002-pbt-richness-score.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0021-timeout-diagnostics.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0024-graph-action-coverage.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/docs/decisions/0025-self-contained-corpora.md)

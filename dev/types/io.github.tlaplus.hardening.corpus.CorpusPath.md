@@ -1,6 +1,6 @@
 # `CorpusPath`
 
-`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/corpus/CorpusPath.java#L6) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/corpus/CorpusPath.java#L6) · module [corpus](../modules/corpus.md)
 
 A fixed path in the on-disk corpus layout.
 
@@ -11,9 +11,6 @@ classDiagram
   }
   class CorpusLayout {
     <<store>>
-  }
-  class CorpusRecord {
-    <<enum>>
   }
   class StoredEntry {
     <<record>>
@@ -26,19 +23,17 @@ classDiagram
     <<model>>
   }
   CorpusLayout --> CorpusPath : has
-  CorpusRecord --> CorpusPath : has
   StoredEntry --> CorpusPath : has
   CorpusDirectory ..> CorpusPath : uses
   CorpusEntries ..> CorpusPath : uses
   CorpusStage ..> CorpusPath : uses
 ```
 
-The diagram draws 6 of 20 relations; the table lists them all.
+The diagram draws 5 of 19 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | ← | has | [CorpusLayout](io.github.tlaplus.hardening.corpus.CorpusLayout.md) | Where one corpus keeps its files, how an entry is named, and how a file is written into it. |
-| ← | has | [CorpusRecord](io.github.tlaplus.hardening.corpus.CorpusRecord.md) | A small corpus file that pins how the corpus's entries replay. |
 | ← | has | [StoredEntry](io.github.tlaplus.hardening.corpus.StoredEntry.md) | An entry file in one of the corpus's entry directories, listed but not read. |
 | ← | uses | [CorpusDirectory](io.github.tlaplus.hardening.corpus.CorpusDirectory.md) | Owns the on-disk layout and integrity checks for one FuzzTLA corpus. |
 | ← | uses | [CorpusEntries](io.github.tlaplus.hardening.corpus.CorpusEntries.md) | Reads corpus entries and states what makes one valid: a decodable CBOR envelope holding an expression, a name that matches its payload digest, a payload the caller's validator accepts, and stage metadata consistent with the directory the entry sits in. |

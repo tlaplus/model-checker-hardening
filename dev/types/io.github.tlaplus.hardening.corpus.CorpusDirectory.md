@@ -1,6 +1,6 @@
 # `CorpusDirectory`
 
-`io.github.tlaplus.hardening.corpus` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/corpus/CorpusDirectory.java#L77) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/corpus/CorpusDirectory.java#L77) · module [corpus](../modules/corpus.md)
 
 Owns the on-disk layout and integrity checks for one FuzzTLA corpus.
 
@@ -47,9 +47,6 @@ classDiagram
   class CorpusPath {
     <<enum>>
   }
-  class CorpusRecord {
-    <<enum>>
-  }
   class CorpusRunStatistics {
     <<record>>
   }
@@ -80,6 +77,9 @@ classDiagram
     <<model>>
   }
   class RunOutput
+  class MetamorphicShrinker {
+    <<facade>>
+  }
   CorpusDirectory --> AggregationTransition : has
   CorpusDirectory --> CheckingPolicy : has
   CorpusDirectory --> CorpusEntryStore : has
@@ -96,7 +96,6 @@ classDiagram
   CorpusDirectory ..> CorpusInventory : uses
   CorpusDirectory ..> CorpusLock : uses
   CorpusDirectory ..> CorpusPath : uses
-  CorpusDirectory ..> CorpusRecord : uses
   CorpusDirectory ..> CorpusRunStatistics : uses
   CorpusDirectory ..> CorpusStage : uses
   CorpusDirectory ..> CorpusVerdict : uses
@@ -110,9 +109,10 @@ classDiagram
   CorpusDirectory ..> InputKind : uses
   RunOutput ..> CorpusDirectory : uses
   StageScratchSet ..> CorpusDirectory : uses
+  MetamorphicShrinker ..> CorpusDirectory : uses
 ```
 
-The diagram draws 30 of 59 relations; the table lists them all.
+The diagram draws 30 of 56 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -132,7 +132,6 @@ The diagram draws 30 of 59 relations; the table lists them all.
 | → | uses | [CorpusInventory](io.github.tlaplus.hardening.corpus.CorpusInventory.md) | Immutable startup inventory used to seed stage queues and capacities. |
 | → | uses | [CorpusLock](io.github.tlaplus.hardening.corpus.CorpusLock.md) | An exclusive corpus lock and its backing file channel, released together. |
 | → | uses | [CorpusPath](io.github.tlaplus.hardening.corpus.CorpusPath.md) | A fixed path in the on-disk corpus layout. |
-| → | uses | [CorpusRecord](io.github.tlaplus.hardening.corpus.CorpusRecord.md) | A small corpus file that pins how the corpus's entries replay. |
 | → | uses | [CorpusRunStatistics](io.github.tlaplus.hardening.corpus.CorpusRunStatistics.md) | Durable cumulative statistics that cannot be recovered cheaply from corpus entries. |
 | → | uses | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
 | → | uses | [CorpusVerdict](io.github.tlaplus.hardening.corpus.CorpusVerdict.md) | A verdict supported by the implemented corpus stages. |
@@ -146,9 +145,7 @@ The diagram draws 30 of 59 relations; the table lists them all.
 | → | uses | [InputKind](io.github.tlaplus.hardening.gen.InputKind.md) | What a generator payload decodes to. |
 | ← | uses | [RunOutput](io.github.tlaplus.hardening.cli.RunOutput.md) | The output of one run: the command's configured writer and an optional live display in front of it. |
 | ← | uses | [StageScratchSet](io.github.tlaplus.hardening.corpus.StageScratchSet.md) | The transient scratch directories of every stage that needs one, created and removed together. |
-| ← | uses | [CorpusReplay](io.github.tlaplus.hardening.workflow.CorpusReplay.md) | Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and the libraries, rules and tools the corpus holds (ADR 0025). |
 | ← | uses | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
-| ← | uses | [ReplayRecord](io.github.tlaplus.hardening.workflow.ReplayRecord.md) | A corpus record written before ADR 0025, which no run writes any more: a run may proceed only when the configuration repeats what the record says. |
 | ← | uses | [StageGraph](io.github.tlaplus.hardening.workflow.StageGraph.md) | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |
 | ← | uses | [WorkflowRunner](io.github.tlaplus.hardening.workflow.WorkflowRunner.md) | Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget. |
 | ← | uses | [CheckerRouting](io.github.tlaplus.hardening.workflow.checker.CheckerRouting.md) | Routes a model checker's results. |

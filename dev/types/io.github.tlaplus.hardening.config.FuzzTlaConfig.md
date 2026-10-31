@@ -1,6 +1,6 @@
 # `FuzzTlaConfig`
 
-`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L26) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L26) · module [config](../modules/config.md)
 
 Complete configuration of input generation and workflow execution.
 
@@ -48,9 +48,6 @@ classDiagram
     <<codec>>
   }
   class AdoptableBase
-  class CorpusReplay {
-    <<facade>>
-  }
   class CorpusTools
   class MetamorphicShrinker {
     <<facade>>
@@ -85,7 +82,6 @@ classDiagram
   ConfigSchema ..> FuzzTlaConfig : uses
   TomlConfig ..> FuzzTlaConfig : uses
   AdoptableBase ..> FuzzTlaConfig : uses
-  CorpusReplay ..> FuzzTlaConfig : uses
   CorpusTools ..> FuzzTlaConfig : uses
   MetamorphicShrinker ..> FuzzTlaConfig : uses
   StageGraph ..> FuzzTlaConfig : uses
@@ -95,7 +91,7 @@ classDiagram
   SpecDecoders ..> FuzzTlaConfig : uses
 ```
 
-The diagram draws 23 of 33 relations; the table lists them all.
+The diagram draws 22 of 32 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -114,7 +110,6 @@ The diagram draws 23 of 33 relations; the table lists them all.
 | ← | uses | [ConfigSchema](io.github.tlaplus.hardening.config.ConfigSchema.md) | The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back. |
 | ← | uses | [TomlConfig](io.github.tlaplus.hardening.config.TomlConfig.md) | Reads and writes the strict `config.toml` format used by a corpus. |
 | ← | uses | [AdoptableBase](io.github.tlaplus.hardening.workflow.AdoptableBase.md) | The base corpus of a metamorphic run (ADR 0016 §6). |
-| ← | uses | [CorpusReplay](io.github.tlaplus.hardening.workflow.CorpusReplay.md) | Decodes a corpus's entries as they were admitted: with the decoders of the configured technique, and the libraries, rules and tools the corpus holds (ADR 0025). |
 | ← | uses | [CorpusTools](io.github.tlaplus.hardening.workflow.CorpusTools.md) | The tool JARs a corpus runs (ADR 0025 §3): those of its `[tools]` table, or the ones staged with FuzzTLA for a tool the table leaves out. |
 | ← | uses | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | ← | uses | [StageGraph](io.github.tlaplus.hardening.workflow.StageGraph.md) | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |

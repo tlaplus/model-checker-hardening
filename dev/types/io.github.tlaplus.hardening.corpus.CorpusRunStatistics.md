@@ -1,6 +1,6 @@
 # `CorpusRunStatistics`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/corpus/CorpusRunStatistics.java#L15) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/corpus/CorpusRunStatistics.java#L15) · module [corpus](../modules/corpus.md)
 
 Durable cumulative statistics that cannot be recovered cheaply from corpus entries.
 
@@ -20,18 +20,16 @@ classDiagram
   }
   class CorpusRunStatisticsCodec
   class GeneratorStatistics
-  class StageClocks
   class WorkflowMetrics
   CorpusRunStatistics --> GeneratorAggregate : has
   CorpusRunStatistics --> CorpusStage : has
   CorpusDirectory ..> CorpusRunStatistics : uses
   CorpusRunStatisticsCodec ..> CorpusRunStatistics : uses
   GeneratorStatistics ..> CorpusRunStatistics : uses
-  StageClocks ..> CorpusRunStatistics : uses
   WorkflowMetrics ..> CorpusRunStatistics : uses
 ```
 
-The diagram draws 7 of 10 relations; the table lists them all.
+The diagram draws 6 of 9 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -40,7 +38,6 @@ The diagram draws 7 of 10 relations; the table lists them all.
 | ← | uses | [CorpusDirectory](io.github.tlaplus.hardening.corpus.CorpusDirectory.md) | Owns the on-disk layout and integrity checks for one FuzzTLA corpus. |
 | ← | uses | [CorpusRunStatisticsCodec](io.github.tlaplus.hardening.corpus.CorpusRunStatisticsCodec.md) | Encodes and decodes the aggregate workflow-statistics CBOR document. |
 | ← | uses | [GeneratorStatistics](io.github.tlaplus.hardening.workflow.execution.GeneratorStatistics.md) | Cumulative input-generation counters shared by the generator workers. |
-| ← | uses | [StageClocks](io.github.tlaplus.hardening.workflow.execution.StageClocks.md) | One elapsed-time accumulator per corpus stage, seeded from the corpus's durable statistics. |
 | ← | uses | [WorkflowMetrics](io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics.md) | The cumulative statistics of one workflow invocation: how long each stage has been busy, what input generation has produced, and the total elapsed time carried over from earlier runs. |
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | ← | depends | [RunStatisticsOnExit](io.github.tlaplus.hardening.workflow.RunStatisticsOnExit.md) | Stops the invocation clock and saves its aggregate while the corpus lock is still held. |

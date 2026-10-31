@@ -1,6 +1,6 @@
 # `ExpressionCategory`
 
-`io.github.tlaplus.hardening.gen` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/gen/ExpressionCategory.java#L4) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/gen/ExpressionCategory.java#L4) · module [gen](../modules/gen.md)
 
 A user-facing category assigned to generated expression forms.
 

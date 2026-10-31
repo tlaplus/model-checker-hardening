@@ -1,6 +1,6 @@
 # `CheckerStageConfig`
 
-`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4df6a11e5b4bf93609393935c4cbeceec08cce0c/src/main/java/io/github/tlaplus/hardening/config/CheckerStageConfig.java#L12) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/21262d9d0cc07b5ae4c47c4ee511217c9b88b561/src/main/java/io/github/tlaplus/hardening/config/CheckerStageConfig.java#L12) · module [config](../modules/config.md)
 
 Capacity and resource limits for one model-checker stage.
 
@@ -30,14 +30,8 @@ classDiagram
   class CheckerBackends {
     <<policy>>
   }
-  class ApalacheProcess {
-    <<adapter>>
-  }
   class RuleLibraryPreparation {
     <<facade>>
-  }
-  class TlcProcess {
-    <<adapter>>
   }
   StageLimits <|.. CheckerStageConfig
   WorkflowConfig --> CheckerStageConfig : has
@@ -46,12 +40,10 @@ classDiagram
   TlcCheckerBackend --> CheckerStageConfig : has
   CheckerProfile ..> CheckerStageConfig : uses
   CheckerBackends ..> CheckerStageConfig : uses
-  ApalacheProcess ..> CheckerStageConfig : uses
   RuleLibraryPreparation ..> CheckerStageConfig : uses
-  TlcProcess ..> CheckerStageConfig : uses
 ```
 
-The diagram draws 10 of 19 relations; the table lists them all.
+The diagram draws 8 of 17 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -62,9 +54,7 @@ The diagram draws 10 of 19 relations; the table lists them all.
 | ← | has | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | ← | uses | [CheckerProfile](io.github.tlaplus.hardening.config.CheckerProfile.md) | What differs between the configured model checkers: the defaults of their resource settings and the documentation of the settings whose meaning follows from the worker lifecycle. |
 | ← | uses | [CheckerBackends](io.github.tlaplus.hardening.workflow.CheckerBackends.md) | How each model-checker stage builds its backend for one invocation. |
-| ← | uses | [ApalacheProcess](io.github.tlaplus.hardening.workflow.apalache.ApalacheProcess.md) | Starts one persistent isolated Apalache JVM, which serves inputs until a crash retires it. |
 | ← | uses | [RuleLibraryPreparation](io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation.md) | Loads a rule module once, before decoding (ADR 0017 §1, §6): the rewrites of a metamorphic run or the edge guards of graph inputs (ADR 0023 §6). |
-| ← | uses | [TlcProcess](io.github.tlaplus.hardening.workflow.tlc.TlcProcess.md) | Runs one TLC request in a fresh isolated JVM. |
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | ← | depends | [ConfigSchema](io.github.tlaplus.hardening.config.ConfigSchema.md) | The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back. |
 | ← | depends | [TomlConfig](io.github.tlaplus.hardening.config.TomlConfig.md) | Reads and writes the strict `config.toml` format used by a corpus. |
