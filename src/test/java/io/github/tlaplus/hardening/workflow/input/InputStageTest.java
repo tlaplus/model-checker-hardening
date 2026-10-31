@@ -351,6 +351,7 @@ class InputStageTest {
                 id = "sequence-from-zero"
                 references = ["none"]
                 description = "A sequence literal that starts with zero."
+                status = "open"
                 match = ['(TUPLE 0 ...)']
                 """);
         var calls = new AtomicInteger();

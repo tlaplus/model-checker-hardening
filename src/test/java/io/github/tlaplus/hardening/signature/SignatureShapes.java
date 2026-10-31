@@ -1,15 +1,19 @@
 package io.github.tlaplus.hardening.signature;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.TlaModules;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -22,6 +26,10 @@ import org.apalache_mc.tla.jir.TlaTypes;
  * it must not match.
  */
 final class SignatureShapes {
+    private static final Path FINDINGS = Path.of("findings");
+    private static final Pattern FRONT_MATTER_STATE =
+            Pattern.compile("---\n(?:[^\n]*\n)*?state: (open|closed)\n(?:[^\n]*\n)*?---\n");
+
     final TlaTypedScopeUncheckedBuilder builder = new TlaTypedScopeUncheckedBuilder();
 
     /** The cases of {@code signatures/known-defects.toml}, keyed by signature id. */
@@ -99,13 +107,36 @@ final class SignatureShapes {
     }
 
     /** Asserts that every reference of the database names a file, relative to the database. */
-    static void assertReferencesExist(Path file, KnownDefectDatabase database) {
+    /**
+     * Checks that every reference names a document in the repository, and that a signature is
+     * closed exactly when every document it references is a finding whose front matter says
+     * {@code state: closed}. A conformance document records a lasting difference, so it is open.
+     */
+    static void assertReferences(Path file, KnownDefectDatabase database) throws IOException {
         for (var signature : database.signatures()) {
+            var states = new ArrayList<DefectStatus>();
             for (var reference : signature.references()) {
+                var document = file.getParent().resolve(reference);
                 assertTrue(
-                        Files.isRegularFile(file.getParent().resolve(reference)),
+                        Files.isRegularFile(document),
                         signature.id() + " references a missing document: " + reference);
+                states.add(findingState(document));
             }
+            var expected = states.stream().allMatch(state -> state == DefectStatus.CLOSED)
+                    ? DefectStatus.CLOSED
+                    : DefectStatus.OPEN;
+            assertEquals(expected, signature.status(),
+                    signature.id() + " must be " + expected.spelling() + " for the states of " + signature.references());
         }
+    }
+
+    /** The {@code state} of a finding's front matter; a conformance document counts as open. */
+    private static DefectStatus findingState(Path document) throws IOException {
+        if (!document.normalize().startsWith(FINDINGS)) {
+            return DefectStatus.OPEN;
+        }
+        var matcher = FRONT_MATTER_STATE.matcher(Files.readString(document));
+        assertTrue(matcher.lookingAt(), document + " has no state in its front matter");
+        return DefectStatus.fromSpelling(matcher.group(1)).orElseThrow();
     }
 }

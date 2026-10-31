@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * The known-defect signatures of one invocation, in database order.
@@ -83,14 +84,29 @@ public final class KnownDefectDatabase {
      * @throws IllegalArgumentException if the module does not define a root
      */
     public List<KnownDefectMatch> matches(TlaModule module, List<String> roots) {
+        return matches(module, roots, signature -> true);
+    }
+
+    /**
+     * Returns the matches that keep the module out of the corpus: those of the signatures whose
+     * {@link DefectStatus} quarantines, in database order.
+     *
+     * @throws IllegalArgumentException if the module does not define a root
+     */
+    public List<KnownDefectMatch> quarantining(TlaModule module, List<String> roots) {
+        return matches(module, roots, signature -> signature.status().quarantines());
+    }
+
+    private List<KnownDefectMatch> matches(TlaModule module, List<String> roots, Predicate<KnownDefect> tried) {
         Objects.requireNonNull(module, "module");
         Objects.requireNonNull(roots, "roots");
-        if (signatures.isEmpty()) {
+        var candidates = signatures.stream().filter(tried).toList();
+        if (candidates.isEmpty()) {
             return List.of();
         }
         var subexpressions = IrTree.evaluatedSubexpressions(module, roots);
         var result = new ArrayList<KnownDefectMatch>();
-        for (var signature : signatures) {
+        for (var signature : candidates) {
             signature.firstMatch(subexpressions)
                     .ifPresent(witness -> result.add(new KnownDefectMatch(signature, witness)));
         }

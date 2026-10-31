@@ -18,6 +18,7 @@ class KnownDefectDatabaseTest {
             id = "modulo-by-literal-zero"
             references = ["../conformance/modulo-by-zero-apalache-fails.md"]
             description = "Mod by zero."
+            status = "open"
             match = ['(MOD _ 0)', '(MOD _ (: 0 "Int"))']
             """;
 
@@ -30,6 +31,7 @@ class KnownDefectDatabaseTest {
         assertEquals("modulo-by-literal-zero", signature.id());
         assertEquals(List.of("../conformance/modulo-by-zero-apalache-fails.md"), signature.references());
         assertEquals("Mod by zero.", signature.description());
+        assertEquals(DefectStatus.OPEN, signature.status());
         assertEquals(List.of(), KnownDefectDatabaseReader.parse("", "empty.toml"));
     }
 
@@ -52,6 +54,11 @@ class KnownDefectDatabaseTest {
         assertInvalid(
                 VALID.replace("[\"../conformance/modulo-by-zero-apalache-fails.md\"]", "\"x\""),
                 "expected 'references' to be an array");
+        assertInvalid(
+                VALID.replace("status = \"open\"\n", ""), "test.toml: signature 1: missing keys: status");
+        assertInvalid(
+                VALID.replace("status = \"open\"", "status = \"fixed\""),
+                "signature 1 ('modulo-by-literal-zero'): 'status' must be one of open, closed, not 'fixed'");
         assertInvalid("signature = 1\n", "expected [[signature]] tables");
         assertInvalid("[[signature\n", "invalid TOML");
     }
@@ -86,6 +93,35 @@ class KnownDefectDatabaseTest {
 
         assertTrue(KnownDefectDatabase.load(List.of()).isEmpty());
         assertEquals(List.of(), KnownDefectDatabase.empty().matches(module, List.of("Op")));
+    }
+
+    /** A closed signature still matches, but only an open one keeps the module out of the corpus. */
+    @Test
+    void onlyOpenSignaturesQuarantine(@TempDir Path directory) throws Exception {
+        var database = Files.writeString(directory.resolve("known-defects.toml"), VALID + """
+
+                [[signature]]
+                id = "fixed-division-by-literal-zero"
+                references = ["none"]
+                description = "Div by zero, since fixed."
+                status = "closed"
+                match = ['(DIV _ 0)']
+                """);
+        var builder = new TlaTypedScopeUncheckedBuilder();
+        var division = TlaModules.create(
+                "M", List.of(builder.decl("Op", builder.div(builder.integer(1), builder.integer(0)))));
+        var both = TlaModules.create("M", List.of(builder.decl("Op", builder.plus(
+                builder.div(builder.integer(1), builder.integer(0)),
+                builder.mod(builder.integer(1), builder.integer(0))))));
+        var loaded = KnownDefectDatabase.load(List.of(database));
+
+        assertEquals(List.of("fixed-division-by-literal-zero"), ids(loaded.matches(division, List.of("Op"))));
+        assertEquals(List.of(), loaded.quarantining(division, List.of("Op")));
+        assertEquals(List.of("modulo-by-literal-zero"), ids(loaded.quarantining(both, List.of("Op"))));
+    }
+
+    private static List<String> ids(List<KnownDefectMatch> matches) {
+        return matches.stream().map(match -> match.defect().id()).toList();
     }
 
     private static void assertInvalid(String source, String message) {

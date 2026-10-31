@@ -52,6 +52,7 @@ SIGNATURES = """
 id = "modulo-by-literal-zero"
 references = []
 description = "Mod by zero."
+status = "open"
 match = ['(MOD _ 0)']
 """
 

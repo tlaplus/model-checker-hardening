@@ -19,4 +19,5 @@
 id = "metamorphic-choose"
 references = ["../conformance/choose-multiple-witnesses.md"]
 description = "Apalache may pick different witnesses for the two copies of a CHOOSE with several witnesses, and so reports a counterexample to the relation of two identical sides."
+status = "open"
 match = ['(CHOOSE3 _ _ _)', '(CHOOSE2 _ _)']

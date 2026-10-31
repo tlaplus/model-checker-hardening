@@ -650,6 +650,7 @@ class MainTest {
                 id = "false-literal"
                 references = ["none"]
                 description = "The literal FALSE."
+                status = "open"
                 match = ['FALSE']
                 """);
 
@@ -664,6 +665,7 @@ class MainTest {
                 String.join(
                         System.lineSeparator(),
                         "false-literal: The literal FALSE.",
+                        "  status: open",
                         "  reference: none",
                         "  matched:",
                         "    FALSE",

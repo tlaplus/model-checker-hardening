@@ -49,12 +49,14 @@ A database is a TOML file with one `[[signature]]` table per signature:
 id = "modulo-by-literal-zero"
 references = ["../conformance/modulo-by-zero-apalache-fails.md"]
 description = "Apalache preprocessing reports Mod by zero for any literal-zero modulus."
+status = "open"
 match = ['(MOD _ 0)']
 
 [[signature]]
 id = "zero-power-zero"
 references = ["../conformance/zero-power-zero-apalache-fails.md"]
 description = "Apalache preprocessing reports 0 ^ 0 as undefined."
+status = "open"
 match = ['(POW 0 0)']
 ```
 
@@ -63,9 +65,10 @@ match = ['(POW 0 0)']
 | `id` | Lowercase letters, digits and hyphens. Unique across all configured databases. Recorded in quarantined entries and in statistics, so keep it stable. |
 | `references` | Non-empty list of the finding or conformance documents that record the defect, relative to the database file. |
 | `description` | One sentence: what the tool does with inputs of this shape. |
+| `status` | `open` or `closed`. Only an open signature quarantines; see [what happens on a match](#5-what-happens-on-a-match). |
 | `match` | Non-empty list of patterns. The signature matches when any of them matches. |
 
-All four keys are required, and unknown keys are errors. Write patterns as TOML
+All five keys are required, and unknown keys are errors. Write patterns as TOML
 literal strings (single quotes), so that `"` and `\` inside them need no
 escaping.
 
@@ -199,7 +202,7 @@ cardinality of any set of sequences.
    The report lists each matching signature, its references, and the
    subexpression it matched, rendered as TLA+.
 5. **Document it.** Point `references` at the finding or conformance document,
-   and write a one-sentence `description`.
+   write a one-sentence `description`, and set `status = "open"`.
 
 Measure a signature before relying on it. It quarantines every input whose
 evaluated code contains its shape. But whether a tool actually reaches the shape
@@ -209,20 +212,30 @@ passed. On a corpus sample, check two things:
 - it catches most entries that carry that diagnostic.
 
 A shape that rarely fails is not a signature. An example is `Head` of a sequence
-that is empty only at run time. When the referenced defect is fixed, remove or
-narrow the signature.
+that is empty only at run time.
+
+When the referenced defects are fixed, set the signature's `status` to `closed`.
+A signature is closed exactly when every document it references is a finding
+whose front matter says `state: closed`. A conformance document records a
+lasting difference between the tools, so a signature that references one stays
+open. The tests of the shipped databases check this rule.
 
 ## 5. What happens on a match
 
 Each check runs after a candidate has passed the richness threshold and the
-request-frame limit. A matching candidate is not admitted to `00-inputs`:
+request-frame limit. Only open signatures take part. A candidate that matches
+only closed signatures is admitted, so the tools check the shapes of fixed
+defects again and a regression shows up as an ordinary failure.
+`print --known-defects` reports open and closed matches alike, with their status.
 
-- **Primary signature.** The first matching signature, in database order, is
-  the candidate's primary signature.
+A candidate that matches an open signature is not admitted to `00-inputs`:
+
+- **Primary signature.** The first matching open signature, in database order,
+  is the candidate's primary signature.
 - **Storage.** While fewer than `known_defect_samples` entries of that primary
   signature are stored, the candidate is written to
   `00-known-defects/<sha256>.cbor`. Otherwise it is only counted.
-- **Recorded signatures.** A quarantined entry records every matching
+- **Recorded signatures.** A quarantined entry records every matching open
   signature, primary first:
 
   ```cbor
@@ -338,7 +351,13 @@ so that checking time goes only to candidates that can show new behavior.
 
 It is a superset of `known-defects.toml`. Its first 13 signatures are the shipped
 ones, in the same order, with the same ids, descriptions and patterns, so
-primary signatures do not change. Use it *instead of* `known-defects.toml`;
+primary signatures do not change. Three of its signatures are closed, because
+their findings are fixed: `tlc-double-negation-under-temporal`
+([`tlc-014`](../../findings/TLC/tlc-014.md)), `community-is-injective`
+([`tlc-016`](../../findings/TLC/tlc-016.md)) and `community-anti-function`
+([`tlc-017`](../../findings/TLC/tlc-017.md)).
+`tlc-partial-operator-under-eventuality` stays open: `tlc-008` is fixed, but
+`tlc-009` and `tlc-010` are not. Use it *instead of* `known-defects.toml`;
 listing both defines every shipped id twice, which is an error:
 
 ```toml

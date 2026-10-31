@@ -131,7 +131,7 @@ class GraphModuleCheckersTest {
                 continue;
             }
             var artifact = SpecArtifact.fromGeneratedGraph(graph, OperatorLibrary.empty());
-            if (!knownDefects.matches(artifact.module(), artifact.entryPoints()).isEmpty()) {
+            if (!knownDefects.quarantining(artifact.module(), artifact.entryPoints()).isEmpty()) {
                 continue;
             }
             var distance = graph.targetDistance();
