@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "6bbf8b66c375696d1798f7b7a061b81573a3f42a"
+    "commit" : "5b16596dd480095d323ac67ff0f85eb85227b4b5"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -103,6 +103,10 @@
     "number" : "0025",
     "title" : "Self-contained corpora, chosen at `init`",
     "path" : "docs/decisions/0025-self-contained-corpora.md"
+  }, {
+    "number" : "0026",
+    "title" : "Reproducible runs: seeds chosen at `init`, `run --continue`",
+    "path" : "docs/decisions/0026-reproducible-runs.md"
   } ],
   "modules" : [ {
     "name" : "common",
@@ -457,10 +461,10 @@
     "kind" : "CLASS",
     "role" : null,
     "key" : false,
-    "summary" : "The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, and the settings that follow from the technique.",
+    "summary" : "The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, the settings that follow from the technique, and fresh seeds (ADR 0026).",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitialConfig.java",
-    "line" : 22,
-    "adrs" : [ "0025" ]
+    "line" : 24,
+    "adrs" : [ "0025", "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
     "packageName" : "io.github.tlaplus.hardening.cli",
@@ -559,8 +563,8 @@
     "key" : true,
     "summary" : "`fuzztla run`: reads a corpus configuration and runs `WorkflowRunner` with live progress output.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/RunCommand.java",
-    "line" : 31,
-    "adrs" : [ "0025" ]
+    "line" : 32,
+    "adrs" : [ "0025", "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.RunMetric",
     "packageName" : "io.github.tlaplus.hardening.cli",
@@ -579,7 +583,7 @@
     "key" : false,
     "summary" : "The output of one run: the command's configured writer and an optional live display in front of it.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/RunOutput.java",
-    "line" : 19,
+    "line" : 20,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.RunPalette",
@@ -929,7 +933,7 @@
     "key" : true,
     "summary" : "Complete configuration of input generation and workflow execution.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java",
-    "line" : 26,
+    "line" : 27,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.GeneratorLimitSchema",
@@ -1031,6 +1035,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/config/RuleLibrarySchema.java",
     "line" : 12,
     "adrs" : [ "0017" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "packageName" : "io.github.tlaplus.hardening.config",
+    "kind" : "RECORD",
+    "role" : "CONFIG",
+    "key" : false,
+    "summary" : "The `[seeds]` table (ADR 0026): every random seed a run uses.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/config/SeedConfig.java",
+    "line" : 17,
+    "adrs" : [ "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.StageLimits",
     "packageName" : "io.github.tlaplus.hardening.config",
@@ -1169,7 +1183,7 @@
     "key" : true,
     "summary" : "Owns the on-disk layout and integrity checks for one FuzzTLA corpus.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/CorpusDirectory.java",
-    "line" : 77,
+    "line" : 81,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.CorpusEntries",
@@ -1279,7 +1293,7 @@
     "key" : true,
     "summary" : "Where one corpus keeps its files, how an entry is named, and how a file is written into it.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/CorpusLayout.java",
-    "line" : 33,
+    "line" : 35,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.CorpusLock",
@@ -3039,7 +3053,7 @@
     "key" : true,
     "summary" : "How each model-checker stage builds its backend for one invocation.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/CheckerBackends.java",
-    "line" : 23,
+    "line" : 25,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.CorpusTools",
@@ -3101,6 +3115,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/OccupancyLimits.java",
     "line" : 10,
     "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.RunMode",
+    "packageName" : "io.github.tlaplus.hardening.workflow",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "Whether a run may extend a corpus that an earlier run has written (ADR 0026).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/RunMode.java",
+    "line" : 7,
+    "adrs" : [ "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.RunStatisticsOnExit",
     "packageName" : "io.github.tlaplus.hardening.workflow",
@@ -3789,7 +3813,7 @@
     "key" : true,
     "summary" : "Adapts fresh isolated TLC invocations to the shared tool stage.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcCheckerBackend.java",
-    "line" : 28,
+    "line" : 27,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
@@ -3841,6 +3865,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcOutcomeClassifier.java",
     "line" : 12,
     "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcSettings",
+    "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "What one TLC stage launches its JVMs with: the stage's limits and the TLC seeds of ` [seeds]` (ADR 0026), which every TLC stage shares.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcSettings.java",
+    "line" : 11,
+    "adrs" : [ "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcStateMetrics",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
@@ -4374,6 +4408,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.config.TomlConfig",
     "kind" : "DEPENDS"
   }, {
@@ -4424,6 +4462,10 @@
     "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
     "to" : "io.github.tlaplus.hardening.config.RuleLibraryConfig",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
     "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
@@ -4646,6 +4688,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunCommand",
     "to" : "io.github.tlaplus.hardening.config.TomlConfig",
     "kind" : "DEPENDS"
   }, {
@@ -4667,6 +4713,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
     "to" : "io.github.tlaplus.hardening.corpus.Technique",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunCommand",
+    "to" : "io.github.tlaplus.hardening.workflow.RunMode",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
@@ -4728,6 +4778,10 @@
     "from" : "io.github.tlaplus.hardening.cli.RunOutput",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusException",
     "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunOutput",
+    "to" : "io.github.tlaplus.hardening.workflow.RunMode",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunOutput",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
@@ -5106,6 +5160,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
     "to" : "io.github.tlaplus.hardening.config.ToolJar",
     "kind" : "USES"
   }, {
@@ -5259,6 +5317,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "to" : "io.github.tlaplus.hardening.config.RuleLibraryConfig",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
@@ -5425,6 +5487,10 @@
     "to" : "io.github.tlaplus.hardening.config.RuleLibraryConfig",
     "kind" : "HAS"
   }, {
+    "from" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.config.TomlConfig",
     "to" : "io.github.tlaplus.hardening.config.CheckerStageConfig",
     "kind" : "DEPENDS"
@@ -5479,6 +5545,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.config.TomlConfig",
     "to" : "io.github.tlaplus.hardening.config.RuleLibrarySchema",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.TomlConfig",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.TomlConfig",
@@ -9958,6 +10028,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
     "kind" : "USES"
   }, {
@@ -9971,6 +10045,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcSettings",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
@@ -10202,6 +10280,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
     "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
     "kind" : "DEPENDS"
   }, {
@@ -10367,6 +10449,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.StageGraph",
     "to" : "io.github.tlaplus.hardening.config.PbtConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.StageGraph",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.StageGraph",
@@ -10586,10 +10672,6 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
-    "to" : "io.github.tlaplus.hardening.common.Preconditions",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "kind" : "USES"
   }, {
@@ -10599,6 +10681,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.config.MetamorphicConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
@@ -10700,6 +10786,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.workflow.OccupancyLimits",
     "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
+    "to" : "io.github.tlaplus.hardening.workflow.RunMode",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.workflow.RunStatisticsOnExit",
@@ -12351,7 +12441,11 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.config.CheckerStageConfig",
-    "kind" : "HAS"
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
@@ -12364,6 +12458,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcFailureDetail",
     "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcSettings",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain",
@@ -12452,6 +12550,14 @@
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier",
     "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcSettings",
+    "to" : "io.github.tlaplus.hardening.config.CheckerStageConfig",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcSettings",
+    "to" : "io.github.tlaplus.hardening.config.SeedConfig",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcStateMetrics",
     "to" : "io.github.tlaplus.hardening.checker.ExplorationCount",
@@ -13060,7 +13166,7 @@
   }, {
     "from" : "config",
     "to" : "common",
-    "typePairs" : 9,
+    "typePairs" : 10,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.config.CheckerStageConfig",
@@ -13132,7 +13238,7 @@
   }, {
     "from" : "workflow",
     "to" : "common",
-    "typePairs" : 73,
+    "typePairs" : 72,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13180,7 +13286,7 @@
   }, {
     "from" : "workflow",
     "to" : "config",
-    "typePairs" : 64,
+    "typePairs" : 71,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13236,7 +13342,7 @@
   }, {
     "from" : "cli",
     "to" : "config",
-    "typePairs" : 26,
+    "typePairs" : 29,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
@@ -13252,7 +13358,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 32,
+    "typePairs" : 34,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

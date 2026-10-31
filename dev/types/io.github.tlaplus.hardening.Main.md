@@ -1,6 +1,6 @@
 # `Main`
 
-`io.github.tlaplus.hardening` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/Main.java#L12) · module [root](../modules/root.md)
+`io.github.tlaplus.hardening` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/Main.java#L12) · module [root](../modules/root.md)
 
 The process entry point of `fuzztla`: runs `FuzzTlaCommand` and exits with its status.
 

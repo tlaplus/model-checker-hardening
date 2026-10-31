@@ -78,6 +78,7 @@ classDiagram
 | [GenerationTargets](../types/io.github.tlaplus.hardening.workflow.GenerationTargets.md) | class | other | Which target ordinals of one generation are already spoken for, and which source fills the rest (ADR 0010, ADR 0016 §6). |
 | [**MetamorphicShrinker** ★](../types/io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | class | facade | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | [OccupancyLimits](../types/io.github.tlaplus.hardening.workflow.OccupancyLimits.md) | class | other | Checks an invocation and a recovered corpus against the configured capacity limits. |
+| [RunMode](../types/io.github.tlaplus.hardening.workflow.RunMode.md) | enum | other | Whether a run may extend a corpus that an earlier run has written (ADR 0026). |
 | [RunStatisticsOnExit](../types/io.github.tlaplus.hardening.workflow.RunStatisticsOnExit.md) | class | other | Stops the invocation clock and saves its aggregate while the corpus lock is still held. |
 | [**StageGraph** ★](../types/io.github.tlaplus.hardening.workflow.StageGraph.md) | class | process | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |
 | [StagedTools](../types/io.github.tlaplus.hardening.workflow.StagedTools.md) | class | other | Locates the tool JARs the build stages beside FuzzTLA's own JAR, or beside its classes when it runs from the build directory. |
@@ -390,6 +391,7 @@ classDiagram
 | [TlcFailureDetail](../types/io.github.tlaplus.hardening.workflow.tlc.TlcFailureDetail.md) | class | other | Extracts bounded human-readable context from TLC diagnostics. |
 | [TlcMessageMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcMessageMetrics.md) | class | other | Follows the messages TLC prints, which say when its initial states are complete and which states its error trace consists of. |
 | [**TlcOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | class | policy | Maps TLC's internal error constants to workflow outcomes. |
+| [TlcSettings](../types/io.github.tlaplus.hardening.workflow.tlc.TlcSettings.md) | record | other | What one TLC stage launches its JVMs with: the stage's limits and the TLC seeds of ` [seeds]` (ADR 0026), which every TLC stage shares. |
 | [TlcStateMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcStateMetrics.md) | class | other | Measures the state graph TLC explores, through the state-writer callbacks TLC makes for every initial state and every generated transition. |
 | [TlcValueShape](../types/io.github.tlaplus.hardening.workflow.tlc.TlcValueShape.md) | class | other | The shape of the values of one state: how many value nodes they hold, their largest collection, and their deepest nesting. |
 | [**TlcWorkerMain** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain.md) | class | entry point | One-shot TLC child process. |
@@ -492,15 +494,16 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0002-pbt-richness-score.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0008-exploration-metrics.md)
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0021-timeout-diagnostics.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0024-graph-action-coverage.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0002-pbt-richness-score.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0021-timeout-diagnostics.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0024-graph-action-coverage.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0026-reproducible-runs.md)

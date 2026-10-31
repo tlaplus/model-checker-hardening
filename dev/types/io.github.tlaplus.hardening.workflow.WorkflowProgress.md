@@ -1,6 +1,6 @@
 # `WorkflowProgress`
 
-`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowProgress.java#L19) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowProgress.java#L19) · module [workflow](../modules/workflow.md)
 
 Best-effort snapshot of cumulative corpus statistics and current pending work.
 

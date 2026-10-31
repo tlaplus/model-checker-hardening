@@ -1355,11 +1355,15 @@
 
 <h1 id="running-campaigns">Running campaigns<a class="headerlink" href="#running-campaigns" title="Permanent link">&para;</a></h1>
 <div class="highlight"><pre><span></span><code>fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>TECHNIQUE<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--library<span class="o">=</span>FILE<span class="w"> </span><span class="p">|</span><span class="w"> </span>--base-corpus<span class="o">=</span>DIR<span class="o">]</span>
-fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--seed<span class="o">=</span>SEED<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span>
+fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--continue<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span>
 </code></pre></div>
 <p><code>init</code> chooses the technique once and writes it into the corpus's <code>config.toml</code> as
 <code>[workflow] technique</code>. Every <code>run</code> follows it
-(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a>).</p>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a>). <code>init</code> also draws the
+corpus's random seeds and writes them as <code>[seeds]</code>, so a run of a fresh corpus is
+determined by its configuration
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0026-reproducible-runs.md">ADR 0026</a>). To choose the seeds, edit
+<code>[seeds]</code> before the first run.</p>
 <table>
 <thead>
 <tr>
@@ -1395,8 +1399,8 @@ fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</spa
 <td>The corpus directory. Default: <code>corpus</code>.</td>
 </tr>
 <tr>
-<td><code>--seed=SEED</code></td>
-<td>A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case, followed by the technique.</td>
+<td><code>--continue</code></td>
+<td>Extend a corpus that an earlier run has written. Without it, <code>run</code> refuses such a corpus. See <a href="#stopping-and-resuming">Stopping and resuming</a>.</td>
 </tr>
 <tr>
 <td><code>--max-cpus=N</code></td>
@@ -1447,10 +1451,16 @@ finishes the work in flight and prints a summary. See
 </tbody>
 </table>
 <h2 id="stopping-and-resuming">Stopping and resuming<a class="headerlink" href="#stopping-and-resuming" title="Permanent link">&para;</a></h2>
-<p>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> to stop. The run stops its workers and saves the corpus. The next
-<code>run</code> on the same corpus validates it, finishes moves that were interrupted, and
-continues where the last run stopped. The counters in the summary add up over all
-runs of a corpus.</p>
+<p>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> to stop. The run stops its workers and saves the corpus. A later
+<code>run --continue</code> on the same corpus validates it, finishes moves that were interrupted,
+and continues where the last run stopped. The counters in the summary add up over all
+runs of a corpus. Raising <code>max_entries</code> to grow a finished corpus also needs
+<code>--continue</code>.</p>
+<p><code>run</code> without <code>--continue</code> accepts only a fresh corpus: one without entries and without
+<code>.workflow-stats.cbor</code>. On any other corpus it stops and names <code>--continue</code>. A continued
+run depends on where the earlier runs stopped, so <code>run --continue</code> prints a warning and
+appends its start time to <code>.not-reproducible</code> in the corpus. The
+<a href="../campaign-report/">campaign report</a> shows how many runs continued the corpus.</p>
 <p>Only one process uses a corpus at a time. <code>run</code> and <code>export-db</code> take a lock on it.</p>
 <h2 id="cpu-use">CPU use<a class="headerlink" href="#cpu-use" title="Permanent link">&para;</a></h2>
 <p><code>--max-cpus</code> limits the jobs that run at the same time across all stages. A TLC job
@@ -1469,9 +1479,11 @@ redirected to a file, only the final summary is printed.</p>
 settings determine the module, and <code>fuzztla print</code> regenerates it
 (<a href="../inspecting/">Inspecting a corpus</a>).</p>
 <p>A whole run is reproducible only approximately. Each generator worker has its own
-random stream derived from <code>--seed</code>, so the same seed, configuration, starting corpus
-and <code>--max-cpus</code> produce the same candidate inputs. Which candidates become entries,
-however, depends on timing between workers.</p>
+random stream derived from <code>[seeds] generator</code>, and every TLC check uses
+<code>[seeds] tlc_fp</code> and <code>tlc_seed</code>, so two fresh corpora with the same configuration and
+<code>--max-cpus</code> draw the same candidate inputs and check them alike. Which candidates
+become entries, however, depends on timing between workers. A corpus with a
+<code>.not-reproducible</code> file was continued, so its configuration does not determine it.</p>
 <h2 id="comparing-tlc-with-itself">Comparing TLC with itself<a class="headerlink" href="#comparing-tlc-with-itself" title="Permanent link">&para;</a></h2>
 <p>With <code>checkers = ["tlc", "tlcn"]</code> in <code>[workflow]</code>, every input is checked by TLC with
 one worker and by TLC with <code>workflow.tlcn.workers</code> workers. The two must report the

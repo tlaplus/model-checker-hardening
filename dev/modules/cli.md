@@ -55,7 +55,7 @@ classDiagram
 | [HumanDuration](../types/io.github.tlaplus.hardening.cli.HumanDuration.md) | class | other | Formats nonnegative durations as compact day, hour, minute, and second parts. |
 | [HumanNumber](../types/io.github.tlaplus.hardening.cli.HumanNumber.md) | class | other | Locale-independent numeric fields; compact counts occupy at most five columns. |
 | [**InitCommand** ★](../types/io.github.tlaplus.hardening.cli.InitCommand.md) | class | entry point | `fuzztla init`: writes the configuration of a new corpus, which names the technique every run follows (ADR 0025 §1), and copies its libraries and tool JARs into it (§2, §3). |
-| [InitialConfig](../types/io.github.tlaplus.hardening.cli.InitialConfig.md) | class | other | The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, and the settings that follow from the technique. |
+| [InitialConfig](../types/io.github.tlaplus.hardening.cli.InitialConfig.md) | class | other | The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, the settings that follow from the technique, and fresh seeds (ADR 0026). |
 | [KnownDefectReport](../types/io.github.tlaplus.hardening.cli.KnownDefectReport.md) | class | other | Renders the known-defect signatures that match one decoded input: each signature's id, description, status, and references, and the subexpression it matched first, as TLA+. |
 | [Precision](../types/io.github.tlaplus.hardening.cli.Precision.md) | enum | other | How a reported value is rendered: exactly for scrollback, or bounded for live screens. |
 | [**PrintCommand** ★](../types/io.github.tlaplus.hardening.cli.PrintCommand.md) | class | entry point | `fuzztla print`: decodes a payload or corpus envelope and renders it, with the known defects it matches. |
@@ -82,7 +82,8 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0009-corpus-database.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0020: Campaign report](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0020-campaign-report.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0009-corpus-database.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0020: Campaign report](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0020-campaign-report.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0026-reproducible-runs.md)

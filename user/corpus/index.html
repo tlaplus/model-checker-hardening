@@ -1356,6 +1356,8 @@ the place of a file tells you how far it got and what happened to it.</p>
 the repository or the build holds later
 (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a>). Edit <code>config.toml</code>, <code>tla/</code>
 and <code>tools/</code> only before the first run; FuzzTLA does not detect a later edit.</p>
+<p>A run that continues a corpus that is not fresh appends its start time to
+<code>.not-reproducible</code> (<a href="../running/#stopping-and-resuming">Running campaigns</a>).</p>
 <p>Other tools add files at the corpus root: triage CSV files, <code>corpus.sqlite</code> from
 <a href="../corpus-database/"><code>export-db</code></a>, and <code>report.md</code> from the
 <a href="../campaign-report/">campaign report</a>.</p>

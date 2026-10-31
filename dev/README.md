@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`6bbf8b6`](https://github.com/tlaplus/model-checker-hardening/commit/6bbf8b66c375696d1798f7b7a061b81573a3f42a) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`5b16596`](https://github.com/tlaplus/model-checker-hardening/commit/5b16596dd480095d323ac67ff0f85eb85227b4b5) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -43,9 +43,9 @@ flowchart TB
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 16 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
 | [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 52 | 11 | common, checker, gen, mutation |
-| [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 23 | 5 | common, gen, mutation, corpus |
+| [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 24 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
-| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 109 | 56 | common, checker, gen, signature, mutation, corpus, config |
+| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 111 | 56 | common, checker, gen, signature, mutation, corpus, config |
 | [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 33 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
@@ -62,10 +62,10 @@ flowchart TB
 | codec | a wire or storage format | 9 |
 | policy | a decision rule | 18 |
 | model | a domain value or enum | 32 |
-| config | configuration and its schema | 8 |
+| config | configuration and its schema | 9 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 244 |
+| other | no `@ArchRole` | 246 |
 
 ## Relations
 

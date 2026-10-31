@@ -486,6 +486,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#seeds-random-seeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [seeds]: random seeds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#generator-what-is-generated" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1302,6 +1313,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#seeds-random-seeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [seeds]: random seeds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#generator-what-is-generated" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1455,6 +1477,34 @@ and are judged must not change once the corpus holds entries: <code>technique</c
 FuzzTLA does not detect such an edit
 (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0025-self-contained-corpora.md">ADR 0025</a> §4). To change them,
 initialize a new corpus.</p>
+<h2 id="seeds-random-seeds"><code>[seeds]</code>: random seeds<a class="headerlink" href="#seeds-random-seeds" title="Permanent link">&para;</a></h2>
+<p><code>fuzztla init</code> draws the generator seed and derives the TLC seeds from it. The table is
+required. Change it only before the first run
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0026-reproducible-runs.md">ADR 0026</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>generator</code></td>
+<td>Nonnegative base of every generator worker's random stream.</td>
+</tr>
+<tr>
+<td><code>tlc_fp</code></td>
+<td>TLC's <code>-fp</code>: the fingerprint polynomial, <code>0</code> to <code>130</code>, of every TLC stage.</td>
+</tr>
+<tr>
+<td><code>tlc_seed</code></td>
+<td>TLC's <code>-seed</code>, for operators that draw random values, of every TLC stage.</td>
+</tr>
+</tbody>
+</table>
+<p>A corpus initialized before the table existed needs one, for example
+<code>generator = 1</code>, <code>tlc_fp = 0</code> and <code>tlc_seed = 0</code>.</p>
 <h2 id="generator-what-is-generated"><code>[generator]</code>: what is generated<a class="headerlink" href="#generator-what-is-generated" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

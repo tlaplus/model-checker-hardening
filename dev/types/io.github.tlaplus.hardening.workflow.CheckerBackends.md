@@ -1,6 +1,6 @@
 # `CheckerBackends`
 
-`io.github.tlaplus.hardening.workflow` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/workflow/CheckerBackends.java#L23) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/workflow/CheckerBackends.java#L25) · module [workflow](../modules/workflow.md)
 
 How each model-checker stage builds its backend for one invocation.
 
@@ -12,6 +12,9 @@ classDiagram
   class CheckerStageConfig {
     <<record>>
   }
+  class SeedConfig {
+    <<config>>
+  }
   class CorpusStage {
     <<model>>
   }
@@ -20,21 +23,24 @@ classDiagram
     <<contract>>
   }
   CheckerBackends ..> CheckerStageConfig : uses
+  CheckerBackends ..> SeedConfig : uses
   CheckerBackends ..> CorpusStage : uses
   CheckerBackends ..> StageScratchSet : uses
   CheckerBackends ..> ToolBackend : uses
 ```
 
-The diagram draws 4 of 9 relations; the table lists them all.
+The diagram draws 5 of 11 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | uses | [CheckerStageConfig](io.github.tlaplus.hardening.config.CheckerStageConfig.md) | Capacity and resource limits for one model-checker stage. |
+| → | uses | [SeedConfig](io.github.tlaplus.hardening.config.SeedConfig.md) | The `[seeds]` table (ADR 0026): every random seed a run uses. |
 | → | uses | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
 | → | uses | [StageScratchSet](io.github.tlaplus.hardening.corpus.StageScratchSet.md) | The transient scratch directories of every stage that needs one, created and removed together. |
 | → | uses | [ToolBackend](io.github.tlaplus.hardening.workflow.tool.ToolBackend.md) | Tool-specific behavior injected into the shared `ToolStage`. |
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | → | depends | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
 | → | depends | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
+| → | depends | [TlcSettings](io.github.tlaplus.hardening.workflow.tlc.TlcSettings.md) | What one TLC stage launches its JVMs with: the stage's limits and the TLC seeds of ` [seeds]` (ADR 0026), which every TLC stage shares. |
 | ← | depends | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | ← | depends | [StageGraph](io.github.tlaplus.hardening.workflow.StageGraph.md) | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |

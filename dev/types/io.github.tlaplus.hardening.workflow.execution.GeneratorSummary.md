@@ -1,6 +1,6 @@
 # `GeneratorSummary`
 
-`io.github.tlaplus.hardening.workflow.execution` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/workflow/execution/GeneratorSummary.java#L9) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/workflow/execution/GeneratorSummary.java#L9) · module [workflow](../modules/workflow.md)
 
 Cumulative generation statistics decorated with invocation-facing replay and timing fields.
 

@@ -1393,7 +1393,8 @@ triage class, the documented defects reproduced, the <code>NEW</code> and <code>
 entries to investigate, and candidates filtered by known-defect signatures.</p>
 <p><strong>1. Campaign.</strong></p>
 <ul>
-<li>Setup: technique, checkers, versions, and selected configuration values.</li>
+<li>Setup: technique, checkers, versions, the <code>[seeds]</code>, the number of runs that
+  continued the corpus (<code>.not-reproducible</code>), and selected configuration values.</li>
 <li>Time: wall-clock span and sessions. A pause of more than 15 minutes between
   stage records starts a new session. Run and worker time come from
   <code>.workflow-stats.cbor</code>.</li>

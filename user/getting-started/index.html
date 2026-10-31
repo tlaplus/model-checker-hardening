@@ -1333,13 +1333,14 @@ disturb a running campaign.</p>
 <div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>my-corpus
 </code></pre></div>
 <p><code>--how=pbt</code> selects property-based testing, which generates fresh random inputs and
-mutates good ones. <code>init</code> writes <code>my-corpus/config.toml</code> with defaults and creates the stage directories.
+mutates good ones. <code>init</code> writes <code>my-corpus/config.toml</code> with defaults and random
+seeds, and creates the stage directories.
 The default campaign stops at 1,000 entries. For a quick trial, lower <code>max_entries</code> in
 the <code>[workflow]</code> table and <code>generation_size</code> in the <code>[mutator]</code> table to <code>20</code> each.
 Then run:</p>
 <div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>run<span class="w"> </span>--corpus<span class="w"> </span>my-corpus
 </code></pre></div>
-<p><code>run</code> follows the technique in <code>config.toml</code>. In a terminal, it shows a live flow diagram of the stages and
+<p><code>run</code> follows the technique and the seeds in <code>config.toml</code>. In a terminal, it shows a live flow diagram of the stages and
 their counters. A new value is bold for one second, with an arrow showing its
 direction. When the run ends, it prints a summary:</p>
 <div class="highlight"><pre><span></span><code>Random seed: 42
@@ -1371,9 +1372,11 @@ counts entries on which TLC and Apalache disagree. Most disagreements in a fresh
 corpus are already documented differences. For example, TLC reports <code>Head(&lt;&lt;&gt;&gt;)</code> as
 an error, while Apalache leaves its value unconstrained. Triage, below, separates
 these from new ones.</p>
-<p>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> to stop a run. Run the same command again to continue: counts
-accumulate across runs, and interrupted work is recovered at startup. To grow a
-finished corpus, raise <code>max_entries</code> and run again.</p>
+<p>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> to stop a run. Run the same command with <code>--continue</code> to continue:
+counts accumulate across runs, and interrupted work is recovered at startup. To grow a
+finished corpus, raise <code>max_entries</code> and run with <code>--continue</code>. A continued corpus is
+marked as not reproducible from its configuration
+(<a href="../running/#stopping-and-resuming">Running campaigns</a>).</p>
 <h2 id="look-at-the-results">Look at the results<a class="headerlink" href="#look-at-the-results" title="Permanent link">&para;</a></h2>
 <p>Disagreements are in <code>my-corpus/03aggregator-fail/</code>, and checker crashes are in
 <code>my-corpus/02tlc-crash/</code> and <code>my-corpus/02apa-crash/</code>. Each entry is a CBOR file named

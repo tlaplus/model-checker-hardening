@@ -1,6 +1,6 @@
 # `RunOutput`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6bbf8b66c375696d1798f7b7a061b81573a3f42a/src/main/java/io/github/tlaplus/hardening/cli/RunOutput.java#L19) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/cli/RunOutput.java#L20) · module [cli](../modules/cli.md)
 
 The output of one run: the command's configured writer and an optional live display in front of it.
 
@@ -16,6 +16,9 @@ classDiagram
   class CorpusDirectory {
     <<facade>>
   }
+  class RunMode {
+    <<enum>>
+  }
   class WorkflowRunSummary {
     <<record>>
   }
@@ -25,17 +28,19 @@ classDiagram
   RunOutput --> TerminalProgressDisplay : has
   RunOutput ..> TerminalAcquisition : uses
   RunOutput ..> CorpusDirectory : uses
+  RunOutput ..> RunMode : uses
   RunOutput ..> WorkflowRunSummary : uses
   RunOutput ..> WorkflowRunner : uses
 ```
 
-The diagram draws 5 of 11 relations; the table lists them all.
+The diagram draws 6 of 12 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [TerminalProgressDisplay](io.github.tlaplus.hardening.cli.TerminalProgressDisplay.md) | Terminal mechanics of live progress: snapshots, change highlighting, resizing, and screen restoration. |
 | → | uses | [TerminalAcquisition](io.github.tlaplus.hardening.cli.TerminalAcquisition.md) | Acquires a live progress display for one run. |
 | → | uses | [CorpusDirectory](io.github.tlaplus.hardening.corpus.CorpusDirectory.md) | Owns the on-disk layout and integrity checks for one FuzzTLA corpus. |
+| → | uses | [RunMode](io.github.tlaplus.hardening.workflow.RunMode.md) | Whether a run may extend a corpus that an earlier run has written (ADR 0026). |
 | → | uses | [WorkflowRunSummary](io.github.tlaplus.hardening.workflow.WorkflowRunSummary.md) | Cumulative corpus statistics and stopping reason after one complete workflow invocation. |
 | → | uses | [WorkflowRunner](io.github.tlaplus.hardening.workflow.WorkflowRunner.md) | Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget. |
 | → | depends | [RunPalette](io.github.tlaplus.hardening.cli.RunPalette.md) | Capability-aware styles on the terminal's own palette and default background. |
