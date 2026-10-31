@@ -29,6 +29,9 @@ the repository or the build holds later
 ([ADR 0025](../decisions/0025-self-contained-corpora.md)). Edit `config.toml`, `tla/`
 and `tools/` only before the first run; FuzzTLA does not detect a later edit.
 
+A run that continues a corpus that is not fresh appends its start time to
+`.not-reproducible` ([Running campaigns](running.md#stopping-and-resuming)).
+
 Other tools add files at the corpus root: triage CSV files, `corpus.sqlite` from
 [`export-db`](corpus-database.md), and `report.md` from the
 [campaign report](campaign-report.md).

@@ -2,12 +2,16 @@
 
 ```sh
 fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE | --base-corpus=DIR]
-fuzztla run [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
+fuzztla run [--corpus=DIR] [--continue] [--max-cpus=N]
 ```
 
 `init` chooses the technique once and writes it into the corpus's `config.toml` as
 `[workflow] technique`. Every `run` follows it
-([ADR 0025](../decisions/0025-self-contained-corpora.md)).
+([ADR 0025](../decisions/0025-self-contained-corpora.md)). `init` also draws the
+corpus's random seeds and writes them as `[seeds]`, so a run of a fresh corpus is
+determined by its configuration
+([ADR 0026](../decisions/0026-reproducible-runs.md)). To choose the seeds, edit
+`[seeds]` before the first run.
 
 | `init --how` | Technique |
 |---|---|
@@ -18,7 +22,7 @@ fuzztla run [--corpus=DIR] [--seed=SEED] [--max-cpus=N]
 | `run` option | Meaning |
 |---|---|
 | `--corpus=DIR` | The corpus directory. Default: `corpus`. |
-| `--seed=SEED` | A nonnegative seed. A random seed is used when it is omitted. The seed is printed first in either case, followed by the technique. |
+| `--continue` | Extend a corpus that an earlier run has written. Without it, `run` refuses such a corpus. See [Stopping and resuming](#stopping-and-resuming). |
 | `--max-cpus=N` | Maximum number of jobs that run at the same time. Default: all processors. |
 
 A run admits inputs until the corpus holds `workflow.max_entries` entries, then
@@ -39,10 +43,17 @@ finishes the work in flight and prints a summary. See
 
 ## Stopping and resuming
 
-Press ++ctrl+c++ to stop. The run stops its workers and saves the corpus. The next
-`run` on the same corpus validates it, finishes moves that were interrupted, and
-continues where the last run stopped. The counters in the summary add up over all
-runs of a corpus.
+Press ++ctrl+c++ to stop. The run stops its workers and saves the corpus. A later
+`run --continue` on the same corpus validates it, finishes moves that were interrupted,
+and continues where the last run stopped. The counters in the summary add up over all
+runs of a corpus. Raising `max_entries` to grow a finished corpus also needs
+`--continue`.
+
+`run` without `--continue` accepts only a fresh corpus: one without entries and without
+`.workflow-stats.cbor`. On any other corpus it stops and names `--continue`. A continued
+run depends on where the earlier runs stopped, so `run --continue` prints a warning and
+appends its start time to `.not-reproducible` in the corpus. The
+[campaign report](campaign-report.md) shows how many runs continued the corpus.
 
 Only one process uses a corpus at a time. `run` and `export-db` take a lock on it.
 
@@ -69,9 +80,11 @@ settings determine the module, and `fuzztla print` regenerates it
 ([Inspecting a corpus](inspecting.md)).
 
 A whole run is reproducible only approximately. Each generator worker has its own
-random stream derived from `--seed`, so the same seed, configuration, starting corpus
-and `--max-cpus` produce the same candidate inputs. Which candidates become entries,
-however, depends on timing between workers.
+random stream derived from `[seeds] generator`, and every TLC check uses
+`[seeds] tlc_fp` and `tlc_seed`, so two fresh corpora with the same configuration and
+`--max-cpus` draw the same candidate inputs and check them alike. Which candidates
+become entries, however, depends on timing between workers. A corpus with a
+`.not-reproducible` file was continued, so its configuration does not determine it.
 
 ## Comparing TLC with itself
 

@@ -34,7 +34,9 @@ one collection-richness cohort uniformly and retains that cohort until it admits
 unique input. Workers claim target entries dynamically, and each target draws its
 cohort and candidates from its own stream, seeded by the generation seed and the
 target's ordinal, so which worker fills a target does not change what it admits
-([ADR 0010][]). This policy belongs to the workflow; the IR decoders remain
+([ADR 0010][]). Each generation seed derives from the corpus's `[seeds] generator`,
+which `init` draws, and `run` extends a corpus that is not fresh only with `--continue`
+([ADR 0026](../decisions/0026-reproducible-runs.md)). This policy belongs to the workflow; the IR decoders remain
 deterministic mappings from bytes to IR. The richness score covers the
 expressions an input decoded to, each counted once, rather than the assembled
 module: the module also holds the fixed skeleton, and the expression wrapper

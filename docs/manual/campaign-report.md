@@ -53,7 +53,8 @@ entries to investigate, and candidates filtered by known-defect signatures.
 
 **1. Campaign.**
 
-- Setup: technique, checkers, versions, and selected configuration values.
+- Setup: technique, checkers, versions, the `[seeds]`, the number of runs that
+  continued the corpus (`.not-reproducible`), and selected configuration values.
 - Time: wall-clock span and sessions. A pause of more than 15 minutes between
   stage records starts a new session. Run and worker time come from
   `.workflow-stats.cbor`.

@@ -33,7 +33,8 @@ Create a corpus, the directory that holds the campaign:
 ```
 
 `--how=pbt` selects property-based testing, which generates fresh random inputs and
-mutates good ones. `init` writes `my-corpus/config.toml` with defaults and creates the stage directories.
+mutates good ones. `init` writes `my-corpus/config.toml` with defaults and random
+seeds, and creates the stage directories.
 The default campaign stops at 1,000 entries. For a quick trial, lower `max_entries` in
 the `[workflow]` table and `generation_size` in the `[mutator]` table to `20` each.
 Then run:
@@ -42,7 +43,7 @@ Then run:
 ./bin/fuzztla run --corpus my-corpus
 ```
 
-`run` follows the technique in `config.toml`. In a terminal, it shows a live flow diagram of the stages and
+`run` follows the technique and the seeds in `config.toml`. In a terminal, it shows a live flow diagram of the stages and
 their counters. A new value is bold for one second, with an arrow showing its
 direction. When the run ends, it prints a summary:
 
@@ -78,9 +79,11 @@ corpus are already documented differences. For example, TLC reports `Head(<<>>)`
 an error, while Apalache leaves its value unconstrained. Triage, below, separates
 these from new ones.
 
-Press ++ctrl+c++ to stop a run. Run the same command again to continue: counts
-accumulate across runs, and interrupted work is recovered at startup. To grow a
-finished corpus, raise `max_entries` and run again.
+Press ++ctrl+c++ to stop a run. Run the same command with `--continue` to continue:
+counts accumulate across runs, and interrupted work is recovered at startup. To grow a
+finished corpus, raise `max_entries` and run with `--continue`. A continued corpus is
+marked as not reproducible from its configuration
+([Running campaigns](running.md#stopping-and-resuming)).
 
 ## Look at the results
 
