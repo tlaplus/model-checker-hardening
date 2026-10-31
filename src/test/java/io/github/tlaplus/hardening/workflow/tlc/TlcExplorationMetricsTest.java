@@ -216,7 +216,7 @@ class TlcExplorationMetricsTest {
 
     private ToolResult check(String source, CheckRequest request) throws Exception {
         var scratch = Files.createTempDirectory(directory, "scratch");
-        return TlcProcess.check(scratch, List.of(), new ToolInput(source, request), CONFIG, TIMEOUT);
+        return TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source, request), CONFIG, TIMEOUT);
     }
 
     private static ExplorationMetrics metrics(ToolResult result) {

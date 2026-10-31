@@ -9,7 +9,8 @@ import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
@@ -67,7 +68,7 @@ class ActionInvariantCheckersTest {
 
     private static Results checkBoth(Path directory, TlaModule module) throws Exception {
         var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
-        var apalache = new ApalacheCheckerBackend(SETTINGS, ApalacheDistribution.locate(),
+        var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(directory.resolve("apalache")));
         return new Results(check(tlc, SpecText::render, module), check(apalache, ApalacheIrJson::render, module));
     }

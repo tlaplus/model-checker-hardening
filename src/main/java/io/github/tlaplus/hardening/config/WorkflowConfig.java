@@ -55,7 +55,7 @@ public record WorkflowConfig(
             InputStageConfig inputs,
             ParserStageConfig parser,
             Map<CorpusStage, CheckerStageConfig> checkers) {
-        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT, Technique.UNRECORDED);
+        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT, Technique.DEFAULT);
     }
 
     /** Returns this configuration with the given input stage. */

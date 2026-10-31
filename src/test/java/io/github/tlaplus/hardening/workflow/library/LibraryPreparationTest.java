@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.workflow.library;
 
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.config.*;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.gen.library.InstanceAlias;
@@ -126,7 +128,7 @@ class LibraryPreparationTest {
         }
         var snapshot = Files.createDirectory(directory.resolve("snapshot"));
         LibrarySources.snapshot(List.of(jar), snapshot,
-                io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution.locate());
+                StagedTools.locate(ToolJar.APALACHE));
         assertEquals("tla2sany/StandardModules/Mine.tla", Files.readString(snapshot.resolve("Mine.tla")));
         assertFalse(Files.exists(snapshot.resolve("Integers.tla")));
         assertFalse(Files.exists(snapshot.resolve("__rewire_sequences_in_apalache.tla")));

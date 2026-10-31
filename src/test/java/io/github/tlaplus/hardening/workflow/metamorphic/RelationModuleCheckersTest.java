@@ -14,7 +14,8 @@ import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
@@ -80,7 +81,7 @@ class RelationModuleCheckersTest {
     private void assertBoth(StageOutcome expected, SpecArtifact artifact, Orientation orientation) throws Exception {
         var run = Files.createTempDirectory(directory, orientation.name());
         var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(run.resolve("tlc")), List.of());
-        var apalache = new ApalacheCheckerBackend(SETTINGS, ApalacheDistribution.locate(),
+        var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(run.resolve("apalache")));
         for (var backend : List.<ToolBackend>of(tlc, apalache)) {
             try (var worker = backend.startWorker()) {

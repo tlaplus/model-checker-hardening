@@ -86,7 +86,7 @@ class WorkerLaunchLifecycleTest {
                 var result = ToolResult.crash(failure, captured);
                 assertEquals(StageOutcome.CRASH, result.outcome());
                 assertTrue(result.failureCode().isEmpty());
-                assertEquals(WorkerDiagnostics.append(captured, Diagnostics.stackTrace(failure)), result.diagnostic());
+                assertEquals(Diagnostics.append(captured, Diagnostics.stackTrace(failure)), result.diagnostic());
             }
         }
     }

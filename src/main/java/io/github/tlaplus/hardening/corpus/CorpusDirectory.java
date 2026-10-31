@@ -143,17 +143,6 @@ public final class CorpusDirectory {
                 resolve(CorpusPath.WORKFLOW_STATISTICS), "workflow-stats-", encoded);
     }
 
-    /** Reads an opaque replay record; its interpretation belongs to the workflow. */
-    public synchronized Optional<byte[]> readRecord(CorpusRecord record)
-            throws IOException, CorpusException {
-        return layout.readIfPresent(record.path(), record.description());
-    }
-
-    /** Writes an opaque replay record atomically. The caller must hold the corpus lock. */
-    public synchronized void writeRecord(CorpusRecord record, byte[] bytes) throws IOException {
-        layout.replaceAtomically(resolve(record.path()), record.temporaryPrefix(), bytes);
-    }
-
     /** Whether any stage directory contains an input; does not decode or recover entries. */
     public synchronized boolean hasStoredInputs() throws IOException {
         for (var path : CorpusPath.values()) {

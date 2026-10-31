@@ -6,9 +6,17 @@ import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
+import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
+import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
+import io.github.tlaplus.hardening.workflow.worker.ToolResult;
+import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -54,11 +62,35 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public ToolWorker startWorker() {
-        return source -> TlcProcess.check(scratchDirectory, classpath, source, config, config.timeout());
+        return source -> check(scratchDirectory, classpath, source, config, config.timeout());
     }
 
     @Override
     public Optional<String> failureDetail(String diagnostic) {
         return TlcFailureDetail.extract(diagnostic);
+    }
+
+    /** Runs one TLC request in a fresh isolated JVM. */
+    static ToolResult check(
+            Path scratchDirectory,
+            List<Path> classpath,
+            ToolInput source,
+            CheckerStageConfig config,
+            Duration timeout)
+            throws WorkflowException, InterruptedException {
+        try (var worker = IsolatedWorkerProcess.start(new WorkerSpec(
+                scratchDirectory,
+                timeout,
+                TlcWorkerMain.class,
+                classpath,
+                new ChildJvm(
+                        config.workers(),
+                        ChildJvm.Compilation.QUICK,
+                        JavaLaunch.boundedHeap(
+                                config.maximumHeapMegabytes(),
+                                "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers())),
+                "TLC worker"))) {
+            return worker.request(source, timeout);
+        }
     }
 }

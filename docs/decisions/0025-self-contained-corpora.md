@@ -20,8 +20,9 @@ Implementation settled these details:
   `workflow.library.LibraryInstall` plans the copies of a whole configuration.
 - The TLC classpath keeps the library first and puts `tla2tools` after it, so a
   library's TLC overrides still win, as before.
-- A legacy `.technique` is still read, through `ReplayRecord.requireUnchanged`. Delete
-  it once old corpora are gone.
+- A legacy `.technique` was at first still read, through `ReplayRecord.requireUnchanged`;
+  that read was removed with `ReplayRecord` (`144d0f31`). A leftover `.technique` file is
+  ignored.
 
 ## Context
 

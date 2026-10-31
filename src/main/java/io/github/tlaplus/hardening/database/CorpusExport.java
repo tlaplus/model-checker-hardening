@@ -93,7 +93,14 @@ public final class CorpusExport {
      * @param vanished entry files that disappeared between listing and reading, without the lock
      */
     public record Summary(
-            Path output, long entries, long unreadable, long replayFailures, long vanished) {}
+            Path output, long entries, long unreadable, long replayFailures, long vanished) {
+        /** Reports the export in one line. */
+        public String describe() {
+            return String.format(
+                    "exported %d entries (%d unreadable, %d replay failures, %d vanished) to %s%n",
+                    entries, unreadable, replayFailures, vanished, output);
+        }
+    }
 
     private CorpusExport() {}
 

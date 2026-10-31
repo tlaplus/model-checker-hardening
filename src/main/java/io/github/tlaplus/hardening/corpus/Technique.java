@@ -29,8 +29,8 @@ public enum Technique {
      */
     GBT("gbt", Oracle.GRAPH, EnumSet.of(InputKind.GRAPH), Ranking.ACTION_COVERAGE);
 
-    /** The technique of a corpus that records none, which every corpus did before ADR 0016. */
-    public static final Technique UNRECORDED = PBT;
+    /** The technique of a configuration that names none. */
+    public static final Technique DEFAULT = PBT;
 
     private final String encodedName;
     private final Oracle oracle;

@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,7 +33,7 @@ class MetamorphicDecodersTest {
     @BeforeAll
     static void prepareTheShippedRules() throws Exception {
         var config = ShippedRules.config();
-        var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults(), ApalacheDistribution.locate()).library();
+        var rules = RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults(), StagedTools.locate(ToolJar.APALACHE)).library();
         decoders = SpecDecoders.metamorphic(
                 IrGenerationConfig.defaults(), new Rewriter(rules, IrGenerationConfig.defaults(), RewriteLimits.defaults()));
     }

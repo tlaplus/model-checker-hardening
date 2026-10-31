@@ -17,7 +17,8 @@ import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
-import io.github.tlaplus.hardening.workflow.apalache.ApalacheDistribution;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
@@ -126,7 +127,7 @@ class TemporalPropertyCheckersTest {
         var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
         assertTrue(artifact.request().temporalProperty());
         var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
-        var apalache = new ApalacheCheckerBackend(SETTINGS, ApalacheDistribution.locate(),
+        var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(directory.resolve("apalache")));
         return new Results(check(tlc, artifact), check(apalache, artifact));
     }

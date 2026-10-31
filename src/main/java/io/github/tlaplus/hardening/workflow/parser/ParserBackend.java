@@ -10,7 +10,11 @@ import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
+import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
+import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
+import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
@@ -50,6 +54,14 @@ public final class ParserBackend implements ToolBackend {
     @Override
     public ToolWorker startWorker() throws WorkflowException, InterruptedException {
         return new ProcessToolWorker(
-                ParserProcess.start(scratchDirectory, classpath, config.timeout()), config.timeout());
+                startProcess(scratchDirectory, classpath, config.timeout()), config.timeout());
+    }
+
+    /** Starts one persistent isolated SANY JVM; the process handle owns requests and closing. */
+    static IsolatedWorkerProcess startProcess(Path scratchDirectory, List<Path> classpath, Duration timeout)
+            throws WorkflowException, InterruptedException {
+        return IsolatedWorkerProcess.start(new WorkerSpec(
+                scratchDirectory, timeout, ParserWorkerMain.class, classpath, ChildJvm.singleProcessor(),
+                "parser worker"));
     }
 }

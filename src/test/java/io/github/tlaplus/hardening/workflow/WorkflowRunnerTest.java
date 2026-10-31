@@ -28,7 +28,6 @@ import io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusInputCodec;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
-import io.github.tlaplus.hardening.corpus.CorpusRecord;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
@@ -44,7 +43,6 @@ import io.github.tlaplus.hardening.mutation.MutationOperator;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -89,14 +87,7 @@ class WorkflowRunnerTest {
         assertTrue(inventory.processedEntries(CorpusStage.TLC) > 0);
         assertEquals(0, inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE),
                 "a valid rule violated the metamorphic relation");
-        assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty(), "the configuration names the technique");
         assertFalse(Files.exists(directory.resolve("corpus").resolve(".rewrite-library")), "no fingerprint (ADR 0025 §4)");
-        // A corpus from before ADR 0025 records its technique, which the configuration must repeat.
-        corpus.writeRecord(CorpusRecord.TECHNIQUE, Technique.MT.encodedName().getBytes(StandardCharsets.UTF_8));
-        new WorkflowRunner(config.withTechnique(Technique.MT)).run(corpus, 42, 1);
-        var refused = assertThrows(WorkflowException.class,
-                () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, 42, 1));
-        assertTrue(refused.getMessage().contains("this corpus holds mt entries, but its config.toml sets technique = \"pbt\""), refused.getMessage());
     }
 
     /**
@@ -259,7 +250,6 @@ class WorkflowRunnerTest {
         assertTrue(inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE) > 0,
                 "no graph reached its target");
         assertEquals(0, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.FAIL));
-        assertTrue(corpus.readRecord(CorpusRecord.TECHNIQUE).isEmpty());
     }
 
     /** A technique runs only on the kinds it generates: gbt only on graphs. */

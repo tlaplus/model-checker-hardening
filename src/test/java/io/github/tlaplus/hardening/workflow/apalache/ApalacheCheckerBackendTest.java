@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,7 +28,7 @@ import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class ApalacheProcessTest {
+class ApalacheCheckerBackendTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final CheckerStageConfig CONFIG =
             new CheckerStageConfig(10, 30, 512, 1);
@@ -35,12 +37,12 @@ class ApalacheProcessTest {
     void checksTheFixedInitNextAndInvariantConfiguration(@TempDir Path directory)
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
-        var releaseJar = ApalacheDistribution.locate();
+        var releaseJar = StagedTools.locate(ToolJar.APALACHE);
 
         ToolResult pass;
         ToolResult fail;
         ToolResult secondPass;
-        try (var worker = ApalacheProcess.start(releaseJar, scratch, CONFIG, TIMEOUT)) {
+        try (var worker = ApalacheCheckerBackend.start(releaseJar, scratch, CONFIG, TIMEOUT)) {
             pass = worker.check(new ToolInput(specification(true), 0));
             fail = worker.check(new ToolInput(specification(false), 0));
             secondPass = worker.check(new ToolInput(specification(true), 0));
@@ -89,8 +91,8 @@ class ApalacheProcessTest {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
         ToolResult result;
-        try (var worker = ApalacheProcess.start(
-                ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
+        try (var worker = ApalacheCheckerBackend.start(
+                StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {
             result = worker.check(new ToolInput(
                     ApalacheIrJson.render(FuzzInputModule.create(expression)), 0));
         }

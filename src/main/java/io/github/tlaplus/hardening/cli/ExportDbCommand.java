@@ -12,7 +12,7 @@ import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.database.CorpusDatabaseException;
 import io.github.tlaplus.hardening.database.CorpusExport;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
-import io.github.tlaplus.hardening.workflow.CorpusReplay;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
 import java.io.IOException;
@@ -82,9 +82,9 @@ final class ExportDbCommand implements Callable<Integer> {
                     !noLock,
                     new CorpusExport.Provenance(new FuzzTlaCommand.VersionProvider().getVersion()[0], exportedAt,
                             config.workflow().technique()));
-            var analysis = new CorpusExport.Analysis(replay(directory, config), maximumCpus);
+            var analysis = new CorpusExport.Analysis(replay(config), maximumCpus);
             var summary = CorpusExport.run(options, analysis);
-            spec.commandLine().getOut().print(ExportDbReport.render(summary));
+            spec.commandLine().getOut().print(summary.describe());
             spec.commandLine().getOut().flush();
             return CommandLine.ExitCode.OK;
         } catch (InterruptedException exception) {
@@ -102,9 +102,8 @@ final class ExportDbCommand implements Callable<Integer> {
     }
 
     /** Replays inputs under the corpus's own generator settings and operator library. */
-    private static InputAnalysis replay(CorpusDirectory directory, FuzzTlaConfig config)
-            throws IOException, CorpusException, WorkflowException {
-        var decoders = CorpusReplay.decoders(directory, config);
+    private static InputAnalysis replay(FuzzTlaConfig config) throws WorkflowException {
+        var decoders = SpecDecoders.prepare(config, config.workflow().technique());
         return new EvaluatedExprs(decoders)::analyze;
     }
 }

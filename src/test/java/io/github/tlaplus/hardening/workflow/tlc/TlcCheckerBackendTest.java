@@ -18,7 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import tlc2.output.EC;
 
-class TlcProcessTest {
+class TlcCheckerBackendTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 10, 256, 1);
 
@@ -31,8 +31,8 @@ class TlcProcessTest {
         var config = new CheckerStageConfig(CONFIG.maximumEntries(), CONFIG.timeoutSeconds(),
                 CONFIG.maximumHeapMegabytes(), workers);
 
-        var pass = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), config, TIMEOUT);
-        var fail = TlcProcess.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), config, TIMEOUT);
+        var pass = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), config, TIMEOUT);
+        var fail = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), config, TIMEOUT);
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
@@ -96,7 +96,7 @@ class TlcProcessTest {
             throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var result = TlcProcess.check(scratch, List.of(),
+        var result = TlcCheckerBackend.check(scratch, List.of(),
                 new ToolInput(expressionSource("161520805147"), 0),
                 CONFIG,
                 TIMEOUT);
@@ -126,7 +126,7 @@ class TlcProcessTest {
             @TempDir Path directory) throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var result = TlcProcess.check(scratch, List.of(), new ToolInput(expressionSource("Head(<<>>)"), 0), CONFIG, TIMEOUT);
+        var result = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(expressionSource("Head(<<>>)"), 0), CONFIG, TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
         assertEquals(

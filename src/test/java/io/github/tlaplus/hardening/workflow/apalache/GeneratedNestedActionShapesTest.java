@@ -1,5 +1,7 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.config.ToolJar;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.appliesAny;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.actionOperators;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.containsOperator;
@@ -84,8 +86,8 @@ class GeneratedNestedActionShapesTest {
     private void assertNoCrashes(Path directory, List<GeneratedSpec> samples) throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
         var results = new ArrayList<ToolResult>();
-        try (var worker = ApalacheProcess.start(
-                ApalacheDistribution.locate(), scratch, CONFIG, TIMEOUT)) {
+        try (var worker = ApalacheCheckerBackend.start(
+                StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {
             for (var spec : samples) {
                 var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
                 results.add(worker.check(new ToolInput(

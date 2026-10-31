@@ -17,8 +17,6 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabaseException;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
-import io.github.tlaplus.hardening.corpus.Technique;
-import io.github.tlaplus.hardening.workflow.CorpusReplay;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -87,14 +85,11 @@ final class PrintCommand implements Callable<Integer> {
         }
 
         final FuzzTlaConfig config;
-        final CorpusDirectory corpusDirectory;
         if (corpus == null) {
             config = FuzzTlaConfig.defaults();
-            corpusDirectory = null;
         } else {
             try {
-                corpusDirectory = CorpusDirectory.openExisting(corpus);
-                config = TomlConfig.read(corpusDirectory.resolve(CorpusPath.CONFIG));
+                config = TomlConfig.read(CorpusDirectory.openExisting(corpus).resolve(CorpusPath.CONFIG));
             } catch (IOException | ConfigException | CorpusException exception) {
                 CommandDiagnostic.print(spec.commandLine().getErr(), "cannot read corpus", corpus, exception);
                 return CommandLine.ExitCode.SOFTWARE;
@@ -124,10 +119,8 @@ final class PrintCommand implements Callable<Integer> {
             return CommandLine.ExitCode.SOFTWARE;
         }
         try (var shutdown = RunShutdownHook.install()) {
-            // Without a corpus there is no record to replay, so the input decodes as a pbt entry.
-            var decoders = corpusDirectory != null
-                    ? CorpusReplay.decoders(corpusDirectory, config)
-                    : SpecDecoders.prepare(config, Technique.PBT);
+            // Without a corpus, the default configuration decodes the input as a pbt entry.
+            var decoders = SpecDecoders.prepare(config, config.workflow().technique());
             var artifact = decoders.decode(corpusInput);
             if (!knownDefects.isEmpty()) {
                 print(KnownDefectReport.render(
@@ -139,7 +132,7 @@ final class PrintCommand implements Callable<Integer> {
             // once here rather than in each branch.
             print(envelope == null ? rendered : EnvelopeReport.render(envelope, rendered));
             return CommandLine.ExitCode.OK;
-        } catch (IOException | CorpusException | WorkflowException | RuntimeException | StackOverflowError exception) {
+        } catch (WorkflowException | RuntimeException | StackOverflowError exception) {
             CommandDiagnostic.print(
                     spec.commandLine().getErr(), "cannot generate a specification from", input, exception);
             return CommandLine.ExitCode.SOFTWARE;

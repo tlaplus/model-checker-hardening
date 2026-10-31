@@ -34,9 +34,8 @@ Everything that holds per-stage data is keyed by it:
 - `CorpusRunStatistics` maps each stage to its cumulative elapsed nanoseconds, and
   stores them under `elapsedNs.stages` keyed by metadata name. A stage the reader
   does not know is ignored; a stage the document omits contributes zero.
-- `StageClocks` holds one elapsed-time accumulator per stage, and
-  `GeneratorStatistics` holds the generator's counters and clock. `WorkflowMetrics`
-  composes the two.
+- `WorkflowMetrics` holds one elapsed-time accumulator per stage, beside
+  `GeneratorStatistics`, which holds the generator's counters and clock.
 - `WorkflowProgress` and `WorkflowRunSummary` map each stage to what it produced
   and, for progress, to its current backlog. `RunTable` renders whatever the maps
   contain.

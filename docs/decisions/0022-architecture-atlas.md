@@ -51,7 +51,7 @@ Two source-retention annotations in `common`, the leaf package:
   | `FACADE` | the type other packages call | `CorpusDirectory`, `IrGenerators` |
   | `CONTRACT` | an interface or base type that other types implement | `ToolBackend`, `CandidateSource` |
   | `PROCESS` | a loop or orchestrator that owns threads or a lifecycle | `StageGraph`, `GenerationLoop` |
-  | `ADAPTER` | wraps an external tool, process, or protocol | `TlcProcess`, `WorkerChannel` |
+  | `ADAPTER` | wraps an external tool, process, or protocol | `TlcCheckerBackend`, `WorkerChannel` |
   | `STORE` | layout, locking, persistence | `CorpusEntryStore`, `CorpusLayout` |
   | `CODEC` | a wire or storage format | `CorpusEnvelopeCodec` |
   | `POLICY` | a decision rule | `TlcOutcomeClassifier`, `CheckingPolicy` |
