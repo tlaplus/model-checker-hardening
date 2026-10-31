@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.cli;
 
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
+import io.github.tlaplus.hardening.workflow.RunMode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
@@ -30,12 +31,12 @@ final class RunOutput implements AutoCloseable {
     }
 
     /** Runs the workflow, subscribing to progress only when a live display shows it. */
-    WorkflowRunSummary run(WorkflowRunner runner, CorpusDirectory corpus, long seed, int maximumCpus)
+    WorkflowRunSummary run(WorkflowRunner runner, CorpusDirectory corpus, RunMode mode, int maximumCpus)
             throws IOException, CorpusException, WorkflowException {
         if (display.isPresent()) {
-            return runner.run(corpus, seed, maximumCpus, display.get()::update);
+            return runner.run(corpus, mode, maximumCpus, display.get()::update);
         }
-        return runner.run(corpus, seed, maximumCpus);
+        return runner.run(corpus, mode, maximumCpus);
     }
 
     void finish(Path corpus, WorkflowRunSummary summary) {

@@ -20,6 +20,8 @@ SCHEMA_VERSION = 10
 REPOSITORY = Path(__file__).resolve().parents[2]
 STATS_FILE = ".workflow-stats.cbor"
 CONFIG_FILE = "config.toml"
+# One line per run that continued the corpus after it was no longer fresh (ADR 0026).
+NOT_REPRODUCIBLE_FILE = ".not-reproducible"
 
 
 @dataclass(frozen=True)
@@ -140,6 +142,7 @@ class CorpusSettings:
     config: dict[str, Any]
     checkers: tuple[str, ...]
     signatures: dict[str, Signature] = field(default_factory=dict)
+    continued_runs: int = 0
 
     @property
     def config_path(self) -> Path:
@@ -159,7 +162,19 @@ def load_settings(corpus: Path) -> CorpusSettings:
         config=config,
         checkers=tuple(checkers),
         signatures=_load_signatures(corpus, config),
+        continued_runs=_continued_runs(corpus),
     )
+
+
+def _continued_runs(corpus: Path) -> int:
+    """The runs that continued the corpus, which `.not-reproducible` lists one per line."""
+    path = corpus / NOT_REPRODUCIBLE_FILE
+    try:
+        return len(path.read_text(encoding="utf-8").splitlines())
+    except FileNotFoundError:
+        return 0
+    except OSError as error:
+        raise ReportError(f"cannot read {path}: {error}") from error
 
 
 def _load_signatures(corpus: Path, config: dict[str, Any]) -> dict[str, Signature]:

@@ -8,11 +8,11 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.workflow.RunMode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.security.SecureRandom;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
@@ -26,7 +26,8 @@ import picocli.CommandLine;
 /**
  * {@code fuzztla run}: reads a corpus configuration and runs {@code WorkflowRunner} with live
  * progress output. The configuration names the technique, which {@code fuzztla init --how} chose
- * (ADR 0025 §1).
+ * (ADR 0025 §1), and the seeds (ADR 0026). Only {@code --continue} extends a corpus that is not
+ * fresh.
  */
 @ArchRole(Role.ENTRY_POINT)
 @Key
@@ -46,12 +47,10 @@ final class RunCommand implements Callable<Integer> {
     private Path corpus;
 
     @Option(
-            names = "--seed",
-            converter = SeedConverter.class,
-            paramLabel = "SEED",
-            description =
-                    "Nonnegative 64-bit seed used as the base for deterministic generator-worker streams.")
-    private Long seed;
+            names = "--continue",
+            description = "Extend a corpus that an earlier run has written, and mark it as not"
+                    + " reproducible from its configuration.")
+    private boolean continueRun;
 
     @Option(
             names = "--max-cpus",
@@ -75,18 +74,30 @@ final class RunCommand implements Callable<Integer> {
 
     /** Runs generation, parsing, the checkers, aggregation and the quality gate as one workflow. */
     private int execute() {
+        var out = spec.commandLine().getOut();
         try {
-            var effectiveSeed = seed == null ? randomSeed() : seed;
-            spec.commandLine().getOut().printf("Random seed: %d%n", effectiveSeed);
-            spec.commandLine().getOut().flush();
             var directory = CorpusDirectory.openExisting(corpus);
             var config = TomlConfig.read(directory.resolve(CorpusPath.CONFIG));
-            spec.commandLine().getOut().printf("Technique: %s%n", config.workflow().technique().encodedName());
-            spec.commandLine().getOut().flush();
+            out.printf("Random seed: %d%n", config.seeds().generator());
+            out.printf("Technique: %s%n", config.workflow().technique().encodedName());
+            out.flush();
+            var mode = continueRun ? RunMode.CONTINUE : RunMode.FRESH;
+            if (!directory.isFresh()) {
+                if (mode == RunMode.FRESH) {
+                    spec.commandLine().getErr().printf(
+                            "fuzztla: corpus '%s' has been run before; pass --continue to extend it,"
+                                    + " which marks it as not reproducible%n", corpus);
+                    return CommandLine.ExitCode.USAGE;
+                }
+                spec.commandLine().getErr().printf(
+                        "fuzztla: warning: continuing corpus '%s', which is now marked as not reproducible (%s)%n",
+                        corpus, CorpusPath.NOT_REPRODUCIBLE.relativePath());
+                spec.commandLine().getErr().flush();
+            }
             // Closing the output restores the terminal before a diagnostic is printed.
-            try (var output = RunOutput.open(spec.commandLine().getOut(), parent.terminals(),
+            try (var output = RunOutput.open(out, parent.terminals(),
                     config.mutator().feedbackRatio() > 0)) {
-                var summary = output.run(new WorkflowRunner(config), directory, effectiveSeed, maximumCpus);
+                var summary = output.run(new WorkflowRunner(config), directory, mode, maximumCpus);
                 output.finish(directory.resolve(CorpusPath.ROOT), summary);
             }
             return CommandLine.ExitCode.OK;
@@ -96,27 +107,6 @@ final class RunCommand implements Callable<Integer> {
         } catch (RuntimeException | StackOverflowError exception) {
             CommandDiagnostic.print(spec.commandLine().getErr(), "workflow failed in", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
-        }
-    }
-
-    /** Draws an unpredictable seed while clearing the sign bit. */
-    private static long randomSeed() {
-        return new SecureRandom().nextLong() & Long.MAX_VALUE;
-    }
-
-    public static final class SeedConverter implements ITypeConverter<Long> {
-        @Override
-        public Long convert(String value) {
-            try {
-                var result = Long.parseLong(value);
-                if (result < 0) {
-                    throw new NumberFormatException();
-                }
-                return result;
-            } catch (NumberFormatException exception) {
-                throw new TypeConversionException(
-                        "expected an integer in the range 0.." + Long.MAX_VALUE);
-            }
         }
     }
 

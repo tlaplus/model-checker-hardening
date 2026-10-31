@@ -3,8 +3,10 @@ package io.github.tlaplus.hardening.cli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.config.ToolsConfig;
 import io.github.tlaplus.hardening.corpus.CheckerSet;
@@ -21,8 +23,9 @@ class InitialConfigTest {
     private static final Path PROJECT = Path.of("/work/fuzztla");
     private static final Path SHIPPED = Path.of("..", "signatures", "known-defects.toml");
     private static final Path METAMORPHIC = Path.of("..", "signatures", "metamorphic-defects.toml");
+    private static final long SEED = 42;
 
-    private final InitialConfig inside = new InitialConfig(PROJECT.resolve("corpus"), Optional.of(PROJECT));
+    private final InitialConfig inside = new InitialConfig(PROJECT.resolve("corpus"), Optional.of(PROJECT), SEED);
 
     @Test
     void aPbtCorpusNamesTheShippedDatabaseRelativeToItself() {
@@ -92,8 +95,25 @@ class InitialConfigTest {
     }
 
     @Test
+    void everyCorpusGetsTheSeedsThatFollowFromItsGeneratorSeed() {
+        for (var technique : Technique.values()) {
+            assertEquals(SeedConfig.derive(SEED), inside.create(technique).seeds(), technique.encodedName());
+        }
+    }
+
+    /** An mt corpus that adopts from a base draws its own seeds rather than the base's. */
+    @Test
+    void anAdoptingCorpusDoesNotInheritTheSeedsOfItsBase() {
+        var base = FuzzTlaConfig.defaults().withSeeds(SeedConfig.derive(7));
+
+        var config = inside.inherit(base, PROJECT.resolve("base"));
+
+        assertEquals(SeedConfig.derive(SEED), config.seeds());
+    }
+
+    @Test
     void aCorpusOutsideTheProjectNamesProjectFilesAbsolutely() {
-        var outside = new InitialConfig(Path.of("/elsewhere/corpus"), Optional.of(PROJECT));
+        var outside = new InitialConfig(Path.of("/elsewhere/corpus"), Optional.of(PROJECT), SEED);
 
         assertEquals(List.of(PROJECT.resolve("signatures/known-defects.toml")),
                 outside.create(Technique.PBT).workflow().inputs().knownDefects());
@@ -101,7 +121,7 @@ class InitialConfigTest {
 
     @Test
     void withoutTheProjectNothingShippedIsNamed() {
-        var config = new InitialConfig(PROJECT.resolve("corpus"), Optional.empty()).create(Technique.MT);
+        var config = new InitialConfig(PROJECT.resolve("corpus"), Optional.empty(), SEED).create(Technique.MT);
 
         assertEquals(List.of(), config.workflow().inputs().knownDefects());
         assertTrue(config.metamorphic().rules().isEmpty());

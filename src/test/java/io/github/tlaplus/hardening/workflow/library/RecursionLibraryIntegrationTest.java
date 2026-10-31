@@ -3,12 +3,14 @@ package io.github.tlaplus.hardening.workflow.library;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.OperatorLibraryConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Files;
@@ -62,7 +64,7 @@ class RecursionLibraryIntegrationTest {
         // TLC overflows while evaluating all assumptions as one conjunction on CI-sized stacks.
         // Each assertion is independent, so check it in isolation and report its operator on error.
         var assertions = text.lines().filter(line -> line.startsWith("ASSUME ")).toList();
-        var backend = new TlcCheckerBackend(CorpusStage.TLC, new CheckerStageConfig(10, 120, 1024, 1), 1, directory,
+        var backend = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(new CheckerStageConfig(10, 120, 1024, 1), SeedConfig.derive(0)), 1, directory,
                 libraries.classpath().stream().map(Path::toAbsolutePath).toList());
         try (var worker = backend.startWorker()) {
             for (var assertion : assertions) {

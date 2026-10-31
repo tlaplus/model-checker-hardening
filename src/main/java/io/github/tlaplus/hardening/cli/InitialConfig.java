@@ -3,11 +3,13 @@ package io.github.tlaplus.hardening.cli;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -15,7 +17,7 @@ import java.util.Optional;
 
 /**
  * The configuration {@code fuzztla init} writes (ADR 0025 §1): the defaults, the shipped
- * known-defect database, and the settings that follow from the technique. A path is written
+ * known-defect database, the settings that follow from the technique, and fresh seeds (ADR 0026). A path is written
  * relative to the corpus when both lie in the project, so the corpus keeps working when the
  * project moves, and absolutely otherwise, since a corpus elsewhere does not move with it.
  */
@@ -26,14 +28,22 @@ final class InitialConfig {
 
     private final Path corpus;
     private final Optional<Path> project;
+    private final SeedConfig seeds;
 
     /**
      * @param corpus the corpus directory
      * @param project the project directory that ships the signature databases and rules, if found
+     * @param generatorSeed the generator seed, from which the other seeds follow (ADR 0026)
      */
-    InitialConfig(Path corpus, Optional<Path> project) {
+    InitialConfig(Path corpus, Optional<Path> project, long generatorSeed) {
         this.corpus = Objects.requireNonNull(corpus, "corpus").toAbsolutePath().normalize();
         this.project = Objects.requireNonNull(project, "project").map(path -> path.toAbsolutePath().normalize());
+        this.seeds = SeedConfig.derive(generatorSeed);
+    }
+
+    /** Draws an unpredictable generator seed, clearing the sign bit. */
+    static long randomSeed() {
+        return new SecureRandom().nextLong() & Long.MAX_VALUE;
     }
 
     /** Whether the project, and so the shipped databases and rules, was found. */
@@ -54,7 +64,8 @@ final class InitialConfig {
      * Returns the configuration of an {@code mt} corpus that adopts from {@code baseCorpus} (ADR
      * 0025 §5): the base's whole configuration {@code base}, whose paths are absolute, with the
      * {@code mt} settings and {@code base_corpus}. The libraries, rules and tools it names stay
-     * absolute, since init copies them into the corpus.
+     * absolute, since init copies them into the corpus. The seeds are this corpus's own, not the
+     * base's.
      */
     FuzzTlaConfig inherit(FuzzTlaConfig base, Path baseCorpus) {
         var adoption = base.metamorphic().adoption();
@@ -66,11 +77,13 @@ final class InitialConfig {
     }
 
     /**
-     * Returns {@code config} running {@code technique}: a kind the technique generates and, for
-     * {@code mt}, the shipped rewrite rules and, with Apalache, the metamorphic signatures.
+     * Returns {@code config} running {@code technique} with this corpus's seeds: a kind the
+     * technique generates and, for {@code mt}, the shipped rewrite rules and, with Apalache, the
+     * metamorphic signatures.
      */
     FuzzTlaConfig forTechnique(FuzzTlaConfig config, Technique technique) {
-        var result = config.withTechnique(technique).withGeneratedKind(technique.kindFor(config.generatedKind()));
+        var result = config.withTechnique(technique).withGeneratedKind(technique.kindFor(config.generatedKind()))
+                .withSeeds(seeds);
         if (technique != Technique.MT || project.isEmpty()) {
             return result;
         }

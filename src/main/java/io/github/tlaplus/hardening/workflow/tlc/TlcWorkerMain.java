@@ -27,6 +27,9 @@ import util.ToolIO;
 @Key
 public final class TlcWorkerMain {
     static final String WORKERS_PROPERTY = "fuzztla.tlc.workers";
+    /** TLC's {@code -fp} and {@code -seed}; both are required, so TLC never draws its own (ADR 0026). */
+    static final String FINGERPRINT_PROPERTY = "fuzztla.tlc.fp";
+    static final String SEED_PROPERTY = "fuzztla.tlc.seed";
 
     private TlcWorkerMain() {}
 
@@ -65,6 +68,8 @@ public final class TlcWorkerMain {
             var arguments = new String[] {
                 "-workers", Integer.toString(workers),
                 "-deadlock",
+                "-fp", requiredProperty(FINGERPRINT_PROPERTY),
+                "-seed", requiredProperty(SEED_PROPERTY),
                 "-noGenerateSpecTE",
                 "-metadir", metadata.toString(),
                 "-config", configBase,
@@ -92,6 +97,15 @@ public final class TlcWorkerMain {
                         return metrics.attach(check(tlc, diagnostics));
                     });
         }
+    }
+
+    /** Returns a system property the launching stage must set. */
+    private static String requiredProperty(String name) throws IOException {
+        var value = System.getProperty(name);
+        if (value == null) {
+            throw new IOException("the TLC worker was launched without -D" + name);
+        }
+        return value;
     }
 
     /** Checks the written specification and classifies whatever TLC reports. */

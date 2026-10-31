@@ -4,7 +4,6 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.Role;
-import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
@@ -29,16 +28,16 @@ import java.util.Optional;
 @Key
 public final class TlcCheckerBackend implements ToolBackend {
     private final CorpusStage stage;
-    private final CheckerStageConfig config;
+    private final TlcSettings settings;
     private final int workerCount;
     private final Path scratchDirectory;
     private final List<Path> classpath;
 
     /** {@code classpath} precedes TLC's own, so it can supply modules and their Java overrides. */
     public TlcCheckerBackend(
-            CorpusStage stage, CheckerStageConfig config, int workerCount, Path scratchDirectory, List<Path> classpath) {
+            CorpusStage stage, TlcSettings settings, int workerCount, Path scratchDirectory, List<Path> classpath) {
         this.stage = Objects.requireNonNull(stage, "stage");
-        this.config = Objects.requireNonNull(config, "config");
+        this.settings = Objects.requireNonNull(settings, "settings");
         Preconditions.requirePositive(workerCount, "workerCount");
         this.workerCount = workerCount;
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
@@ -57,12 +56,12 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public int cpuPermits() {
-        return config.workers();
+        return settings.stage().workers();
     }
 
     @Override
     public ToolWorker startWorker() {
-        return source -> check(scratchDirectory, classpath, source, config, config.timeout());
+        return source -> check(scratchDirectory, classpath, source, settings, settings.stage().timeout());
     }
 
     @Override
@@ -75,9 +74,11 @@ public final class TlcCheckerBackend implements ToolBackend {
             Path scratchDirectory,
             List<Path> classpath,
             ToolInput source,
-            CheckerStageConfig config,
+            TlcSettings settings,
             Duration timeout)
             throws WorkflowException, InterruptedException {
+        var config = settings.stage();
+        var seeds = settings.seeds();
         try (var worker = IsolatedWorkerProcess.start(new WorkerSpec(
                 scratchDirectory,
                 timeout,
@@ -88,7 +89,9 @@ public final class TlcCheckerBackend implements ToolBackend {
                         ChildJvm.Compilation.QUICK,
                         JavaLaunch.boundedHeap(
                                 config.maximumHeapMegabytes(),
-                                "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers())),
+                                "-D" + TlcWorkerMain.WORKERS_PROPERTY + "=" + config.workers(),
+                                "-D" + TlcWorkerMain.FINGERPRINT_PROPERTY + "=" + seeds.tlcFingerprint(),
+                                "-D" + TlcWorkerMain.SEED_PROPERTY + "=" + seeds.tlcSeed())),
                 "TLC worker"))) {
             return worker.request(source, timeout);
         }

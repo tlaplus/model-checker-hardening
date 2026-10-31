@@ -13,6 +13,21 @@ FuzzTLA does not detect such an edit
 ([ADR 0025](../decisions/0025-self-contained-corpora.md) §4). To change them,
 initialize a new corpus.
 
+## `[seeds]`: random seeds
+
+`fuzztla init` draws the generator seed and derives the TLC seeds from it. The table is
+required. Change it only before the first run
+([ADR 0026](../decisions/0026-reproducible-runs.md)).
+
+| Key | Meaning |
+|---|---|
+| `generator` | Nonnegative base of every generator worker's random stream. |
+| `tlc_fp` | TLC's `-fp`: the fingerprint polynomial, `0` to `130`, of every TLC stage. |
+| `tlc_seed` | TLC's `-seed`, for operators that draw random values, of every TLC stage. |
+
+A corpus initialized before the table existed needs one, for example
+`generator = 1`, `tlc_fp = 0` and `tlc_seed = 0`.
+
 ## `[generator]`: what is generated
 
 | Key | Default | Meaning |

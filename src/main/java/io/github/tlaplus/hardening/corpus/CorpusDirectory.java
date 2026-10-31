@@ -8,8 +8,10 @@ import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.InputKind;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +56,8 @@ import java.util.Optional;
  *       generator.
  *   <li>Acquire {@link #acquireExclusiveLock()} and hold the returned {@link CorpusLock} for the
  *       remainder of the run.
+ *   <li>Call {@link #isFresh()}; a run that continues a corpus that is not fresh calls {@link
+ *       #markNotReproducible(Instant)}.
  *   <li>Call {@link #recoverAndValidate(CorpusEntryValidator)} to finish interrupted transitions,
  *       validate every entry, and obtain the initial {@link CorpusInventory}.
  *   <li>Call {@link #readRunStatistics()}, create the stage scratch directories, and run the
@@ -141,6 +145,17 @@ public final class CorpusDirectory {
                 Objects.requireNonNull(statistics, "statistics"));
         layout.replaceAtomically(
                 resolve(CorpusPath.WORKFLOW_STATISTICS), "workflow-stats-", encoded);
+    }
+
+    /** Whether no run has left an entry or workflow statistics in this corpus (ADR 0026). */
+    public synchronized boolean isFresh() throws IOException {
+        return Files.notExists(resolve(CorpusPath.WORKFLOW_STATISTICS), NO_FOLLOW_LINKS) && !hasStoredInputs();
+    }
+
+    /** Appends {@code started} to {@link CorpusPath#NOT_REPRODUCIBLE}. The caller must hold the lock. */
+    public synchronized void markNotReproducible(Instant started) throws IOException, CorpusException {
+        var line = Objects.requireNonNull(started, "started") + "\n";
+        layout.appendAtomically(CorpusPath.NOT_REPRODUCIBLE, "not-reproducible mark", line.getBytes(StandardCharsets.UTF_8));
     }
 
     /** Whether any stage directory contains an input; does not decode or recover entries. */

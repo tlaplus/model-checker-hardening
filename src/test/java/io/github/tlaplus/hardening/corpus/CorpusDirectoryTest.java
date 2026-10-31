@@ -73,7 +73,8 @@ class CorpusDirectoryTest {
                 Map.entry(CorpusPath.TLCN_SCRATCH, Path.of(".work", "tlcn-tmp")),
                 Map.entry(CorpusPath.APALACHE_SCRATCH, Path.of(".work", "apalache-tmp")),
                 Map.entry(CorpusPath.LOCK, Path.of(".workflow.lock")),
-                Map.entry(CorpusPath.WORKFLOW_STATISTICS, Path.of(".workflow-stats.cbor")));
+                Map.entry(CorpusPath.WORKFLOW_STATISTICS, Path.of(".workflow-stats.cbor")),
+                Map.entry(CorpusPath.NOT_REPRODUCIBLE, Path.of(".not-reproducible")));
 
         assertEquals(Set.of(CorpusPath.values()), relativePaths.keySet());
         assertEquals(
@@ -124,6 +125,32 @@ class CorpusDirectoryTest {
                 generation,
                 CorpusEnvelopeCodec.decodeEnvelope(encoded).generation().orElseThrow());
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
+    }
+
+    /** A corpus is fresh until a run leaves an entry or statistics in it (ADR 0026). */
+    @Test
+    void isFreshUntilARunLeavesEntriesOrStatistics(@TempDir Path directory) throws Exception {
+        var stored = CorpusDirectory.initialize(directory.resolve("stored"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        assertTrue(stored.isFresh());
+        stored.store(InputKind.EXPRESSION, new byte[] {1}, GenerationMetadata.generated(0, 1, 1.0));
+        assertFalse(stored.isFresh());
+
+        var counted = CorpusDirectory.initialize(directory.resolve("counted"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        counted.writeRunStatistics(CorpusRunStatistics.empty());
+        assertFalse(counted.isFresh());
+    }
+
+    @Test
+    void marksAContinuedCorpusOnceForEveryContinuedRun(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var mark = corpus.resolve(CorpusPath.NOT_REPRODUCIBLE);
+        assertFalse(Files.exists(mark));
+
+        corpus.markNotReproducible(Instant.ofEpochSecond(1));
+        corpus.markNotReproducible(Instant.ofEpochSecond(2));
+
+        assertEquals(List.of("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z"), Files.readAllLines(mark));
+        CorpusDirectory.openExisting(directory.resolve("corpus"));
     }
 
     @Test

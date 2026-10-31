@@ -398,6 +398,19 @@ final class ConfigSchema {
     private static final ConfigTableBuilder<ToolsConfig> TOOLS = new ConfigTableBuilder<>("tools", FuzzTlaConfig::tools);
     private static final Map<ToolJar, Key<Optional<Path>>> TOOL_JARS = toolJars();
 
+    private static final ConfigTableBuilder<SeedConfig> SEEDS = new ConfigTableBuilder<>("seeds", FuzzTlaConfig::seeds);
+    static final Key<Long> GENERATOR_SEED = SEEDS.key(
+            "generator", ConfigValueType.LONG, SeedConfig::generator,
+            "Nonnegative seed of every generator worker's random stream (ADR 0026). fuzztla init",
+            "draws the three seeds of this table; change them only before the first run.");
+    static final Key<Integer> TLC_FINGERPRINT = SEEDS.integer(
+            "tlc_fp", SeedConfig::tlcFingerprint,
+            "TLC's -fp, its fingerprint polynomial, 0.." + (SeedConfig.TLC_FINGERPRINT_POLYNOMIALS - 1)
+                    + ", for every TLC stage.");
+    static final Key<Long> TLC_SEED = SEEDS.key(
+            "tlc_seed", ConfigValueType.LONG, SeedConfig::tlcSeed,
+            "TLC's -seed, for operators that draw random values, for every TLC stage.");
+
     /** Every table of the document, in the order a configuration file declares them. */
     static final List<Table> TABLES = tables();
 
@@ -454,7 +467,9 @@ final class ConfigSchema {
     }
 
     private static List<Table> tables() {
-        var tables = new ArrayList<>(List.of(GENERATOR.build(), WORKFLOW.build(), INPUTS.build(), PARSER.build()));
+        // The seeds come first: they are the one table init draws afresh for every corpus.
+        var tables = new ArrayList<>(
+                List.of(SEEDS.build(), GENERATOR.build(), WORKFLOW.build(), INPUTS.build(), PARSER.build()));
         CorpusStage.checkerBranches().forEach(stage -> tables.add(CHECKER_TABLES.get(stage)));
         tables.add(PBT.build());
         tables.add(MUTATOR.build());

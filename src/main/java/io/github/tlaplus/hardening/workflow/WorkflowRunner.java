@@ -3,7 +3,6 @@ package io.github.tlaplus.hardening.workflow;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Key;
-import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
@@ -26,6 +25,7 @@ import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -79,9 +79,10 @@ public final class WorkflowRunner {
         limits = new OccupancyLimits(config.workflow(), checking.checkers());
     }
 
-    public WorkflowRunSummary run(CorpusDirectory corpus, long seed, int maximumCpus)
+    /** Runs the workflow with the generator seed of {@code [seeds]}; see {@link RunMode}. */
+    public WorkflowRunSummary run(CorpusDirectory corpus, RunMode mode, int maximumCpus)
             throws IOException, CorpusException, WorkflowException {
-        return runInternal(corpus, seed, maximumCpus, null);
+        return runInternal(corpus, mode, maximumCpus, null);
     }
 
     /**
@@ -91,33 +92,34 @@ public final class WorkflowRunner {
      */
     public WorkflowRunSummary run(
             CorpusDirectory corpus,
-            long seed,
+            RunMode mode,
             int maximumCpus,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
         return runInternal(
                 corpus,
-                seed,
+                mode,
                 maximumCpus,
                 Objects.requireNonNull(progressListener, "progressListener"));
     }
 
     private WorkflowRunSummary runInternal(
             CorpusDirectory corpus,
-            long seed,
+            RunMode mode,
             int maximumCpus,
             Consumer<WorkflowProgress> progressListener)
             throws IOException, CorpusException, WorkflowException {
         var invocationElapsed = new ElapsedTimeAccumulator();
         invocationElapsed.start();
         Objects.requireNonNull(corpus, "corpus");
-        Preconditions.requireNonnegative(seed, "seed");
+        Objects.requireNonNull(mode, "mode");
         limits.requireCpus(maximumCpus);
-        var invocation = new StageGraph.Invocation(
-                corpus, technique, seed, maximumCpus, CorpusTools.apalache(setup.config()));
+        var invocation = new StageGraph.Invocation(corpus, technique, setup.config().seeds().generator(), maximumCpus,
+                CorpusTools.apalache(setup.config()));
         requireAdoptableBase();
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
+            requireRunnable(corpus, mode);
             var initial = corpus.recoverAndValidate(entryValidator(), checking);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
@@ -132,6 +134,22 @@ public final class WorkflowRunner {
             }
             return result.summary(statistics.totalElapsed());
         }
+    }
+
+    /**
+     * Refuses a fresh-only run of a corpus that an earlier run has written, and marks a continued
+     * one as not reproducible (ADR 0026). The caller holds the corpus lock.
+     */
+    private static void requireRunnable(CorpusDirectory corpus, RunMode mode)
+            throws IOException, CorpusException, WorkflowException {
+        if (corpus.isFresh()) {
+            return;
+        }
+        if (mode == RunMode.FRESH) {
+            throw new WorkflowException(
+                    "the corpus has been run before; only a continued run may extend it, which marks it not reproducible");
+        }
+        corpus.markNotReproducible(Instant.now());
     }
 
     /** Requires the base corpus of an adoption to decode its entries as this run would. */

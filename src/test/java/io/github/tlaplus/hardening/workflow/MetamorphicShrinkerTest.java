@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.InputKind;
@@ -20,6 +21,7 @@ import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
 import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -82,7 +84,7 @@ class MetamorphicShrinkerTest {
         }
         assertTrue(input != null, "no one-byte base decodes to an integer");
 
-        var backend = new TlcCheckerBackend(CorpusStage.TLC, new CheckerStageConfig(10, 60, 512, 1), 1,
+        var backend = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(new CheckerStageConfig(10, 60, 512, 1), SeedConfig.derive(0)), 1,
                 Files.createDirectory(directory.resolve("tlc")), List.of());
         try (var worker = backend.startWorker()) {
             var violation = MetamorphicShrinker.violation(

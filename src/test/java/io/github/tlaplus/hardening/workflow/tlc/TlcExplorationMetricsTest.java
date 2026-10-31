@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -216,7 +217,7 @@ class TlcExplorationMetricsTest {
 
     private ToolResult check(String source, CheckRequest request) throws Exception {
         var scratch = Files.createTempDirectory(directory, "scratch");
-        return TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source, request), CONFIG, TIMEOUT);
+        return TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source, request), new TlcSettings(CONFIG, SeedConfig.derive(0)), TIMEOUT);
     }
 
     private static ExplorationMetrics metrics(ToolResult result) {

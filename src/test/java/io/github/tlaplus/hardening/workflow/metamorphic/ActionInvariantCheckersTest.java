@@ -7,6 +7,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.StagedTools;
@@ -15,6 +16,7 @@ import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
+import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -67,7 +69,7 @@ class ActionInvariantCheckersTest {
     private record Results(ToolResult tlc, ToolResult apalache) {}
 
     private static Results checkBoth(Path directory, TlaModule module) throws Exception {
-        var tlc = new TlcCheckerBackend(CorpusStage.TLC, SETTINGS, 1, Files.createDirectory(directory.resolve("tlc")), List.of());
+        var tlc = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(SETTINGS, SeedConfig.derive(0)), 1, Files.createDirectory(directory.resolve("tlc")), List.of());
         var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(directory.resolve("apalache")));
         return new Results(check(tlc, SpecText::render, module), check(apalache, ApalacheIrJson::render, module));

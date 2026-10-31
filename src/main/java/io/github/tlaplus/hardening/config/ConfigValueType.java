@@ -58,6 +58,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<Integer> INTEGER =
             new ConfigValueType<>(ConfigValueType::readInt, String::valueOf);
 
+    static final ConfigValueType<Long> LONG =
+            new ConfigValueType<>(ConfigValueType::readLong, String::valueOf);
+
     static final ConfigValueType<IntegerLiteralMode> INTEGER_LITERAL_MODE =
             name(IntegerLiteralMode.class, IntegerLiteralMode::configName, "integer literal mode");
 
@@ -130,16 +133,21 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     /** Reads one TOML integer and narrows it only when it fits in a Java {@code int}. */
     private static int readInt(TomlTable table, String path, String key) throws ConfigException {
-        var literalKey = java.util.List.of(key);
-        if (!table.isLong(literalKey)) {
-            throw new ConfigException("expected '" + path + "' to be an integer");
-        }
         try {
-            return Math.toIntExact(table.getLong(literalKey));
+            return Math.toIntExact(readLong(table, path, key));
         } catch (ArithmeticException exception) {
             throw new ConfigException(
                     "'" + path + "' is outside the supported integer range", exception);
         }
+    }
+
+    /** Reads one TOML integer, which TOML bounds to a signed 64-bit value. */
+    private static long readLong(TomlTable table, String path, String key) throws ConfigException {
+        var literalKey = java.util.List.of(key);
+        if (!table.isLong(literalKey)) {
+            throw new ConfigException("expected '" + path + "' to be an integer");
+        }
+        return table.getLong(literalKey);
     }
 
     /** Reads a number, accepting an integer where a fractional value is allowed. */

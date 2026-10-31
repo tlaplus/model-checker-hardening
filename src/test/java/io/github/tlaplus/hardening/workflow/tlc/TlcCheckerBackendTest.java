@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Files;
@@ -31,12 +32,17 @@ class TlcCheckerBackendTest {
         var config = new CheckerStageConfig(CONFIG.maximumEntries(), CONFIG.timeoutSeconds(),
                 CONFIG.maximumHeapMegabytes(), workers);
 
-        var pass = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), config, TIMEOUT);
-        var fail = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), config, TIMEOUT);
+        var seeds = SeedConfig.derive(0);
+        var settings = new TlcSettings(config, seeds);
+        var pass = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source("exprValue = FALSE"), 0), settings, TIMEOUT);
+        var fail = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(source("exprValue # FALSE"), 0), settings, TIMEOUT);
 
         assertEquals(StageOutcome.PASS, pass.outcome(), pass.diagnostic());
         assertTrue(pass.failureCode().isEmpty());
         assertTrue(fail.diagnostic().contains("with " + workers + " worker"), fail.diagnostic());
+        // TLC draws neither its fingerprint polynomial nor its seed (ADR 0026).
+        assertTrue(fail.diagnostic().contains("with fp " + seeds.tlcFingerprint() + " and seed " + seeds.tlcSeed()),
+                fail.diagnostic());
         assertEquals(StageOutcome.COUNTEREXAMPLE, fail.outcome());
         assertTrue(fail.failureCode().isEmpty());
         assertTrue(fail.diagnostic().toLowerCase().contains("violat"), fail.diagnostic());
@@ -98,7 +104,7 @@ class TlcCheckerBackendTest {
 
         var result = TlcCheckerBackend.check(scratch, List.of(),
                 new ToolInput(expressionSource("161520805147"), 0),
-                CONFIG,
+                new TlcSettings(CONFIG, SeedConfig.derive(0)),
                 TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
@@ -126,7 +132,7 @@ class TlcCheckerBackendTest {
             @TempDir Path directory) throws Exception {
         var scratch = Files.createDirectory(directory.resolve("scratch"));
 
-        var result = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(expressionSource("Head(<<>>)"), 0), CONFIG, TIMEOUT);
+        var result = TlcCheckerBackend.check(scratch, List.of(), new ToolInput(expressionSource("Head(<<>>)"), 0), new TlcSettings(CONFIG, SeedConfig.derive(0)), TIMEOUT);
 
         assertEquals(StageOutcome.FAIL, result.outcome(), result.diagnostic());
         assertEquals(

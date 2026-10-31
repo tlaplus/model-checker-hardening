@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import at.forsyte.apalache.tla.lir.OperEx;
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.Generator;
@@ -74,7 +75,8 @@ class GraphModuleCheckersTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), "");
         var counterexamples = 0;
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
-            var resources = new CheckerBackends.Resources(1, scratch, StagedTools.locate(ToolJar.APALACHE), List.of());
+            var resources = new CheckerBackends.Resources(1, scratch, StagedTools.locate(ToolJar.APALACHE), List.of(),
+                    SeedConfig.derive(0));
             for (var stage : CHECKERS) {
                 var backend = CheckerBackends.create(stage, CONFIG, resources);
                 try (var worker = backend.startWorker()) {

@@ -1,3 +1,12 @@
+[seeds]
+# Nonnegative seed of every generator worker's random stream (ADR 0026). fuzztla init
+# draws the three seeds of this table; change them only before the first run.
+generator = 0
+# TLC's -fp, its fingerprint polynomial, 0..130, for every TLC stage.
+tlc_fp = 10
+# TLC's -seed, for operators that draw random values, for every TLC stage.
+tlc_seed = 7960286522194355700
+
 [generator]
 # What this run generates: "expr" for one expression wrapped in a single-state module, "module" for a whole module, or "graph" for a
 # module over a control graph (ADR 0023), which technique = "gbt" requires.

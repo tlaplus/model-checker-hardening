@@ -194,8 +194,10 @@ public final class TomlConfig {
                 .relativeTo(directory);
         var graphGuards = ConfigSchema.GUARD_RULES.read(tables).relativeTo(directory);
         var tools = ConfigSchema.readTools(tables).relativeTo(directory);
+        var seeds = new SeedConfig(ConfigSchema.GENERATOR_SEED.read(tables), ConfigSchema.TLC_FINGERPRINT.read(tables),
+                ConfigSchema.TLC_SEED.read(tables));
         return new FuzzTlaConfig(generatedKind, generationConfig, workflowConfig, pbtConfig, mutatorConfig, libraries,
-                metamorphic, graphGuards, tools);
+                metamorphic, graphGuards, tools, seeds);
     }
 
     /** Reads one checker table, naming the stage in every diagnostic. */
