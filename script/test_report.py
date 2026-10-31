@@ -25,6 +25,11 @@ NO_DATA = "*No data for this plot in this corpus.*"
 H_SELECTED, H_AGREEING, H_STATES, H_CRASH, H_KNOWN = (c * 64 for c in "12345")
 
 CONFIG = """
+[seeds]
+generator = 42
+tlc_fp = 10
+tlc_seed = -7
+
 [generator]
 kind = "module"
 max_nodes = 64
@@ -357,6 +362,8 @@ class ReportTest(unittest.TestCase):
             self.assertIn("4 of the 6 pairs of the 4 constructs seen (66.7%)", text)
             self.assertIn("| `AND` + `EQ` | 1, 2 | 2 | 50% |", text)
             self.assertIn("No input contains `EQ` + `MOD`, `MOD` + `PLUS`.", text)
+            self.assertIn("| seeds | generator `42`, tlc_fp `10`, tlc_seed `-7` |", text)
+            self.assertIn("| continued runs | none: every run started from a fresh corpus |", text)
             # No triage CSV is written to the corpus.
             self.assertEqual(list(fixture.corpus.glob("*-triage.csv")), [])
 
@@ -374,6 +381,17 @@ class ReportTest(unittest.TestCase):
             self.assertIn(NO_DATA, text)
             self.assertNotIn("workflow.tlcn.workers", text)
             self.assertNotIn("workflow.apalache.workers", text)
+
+    def test_a_continued_corpus_is_reported_as_not_reproducible(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture(Path(directory))
+            (fixture.corpus / ".not-reproducible").write_text("2026-10-19T12:00:00Z\n2026-10-19T13:00:00Z\n")
+
+            status, errors = run_report(fixture)
+
+            self.assertEqual(status, 0, errors)
+            text = (fixture.corpus / "report.md").read_text()
+            self.assertIn("| continued runs | 2, so the corpus is not reproducible (`.not-reproducible`) |", text)
 
     def test_reports_a_missing_corpus(self) -> None:
         with tempfile.TemporaryDirectory() as directory, \

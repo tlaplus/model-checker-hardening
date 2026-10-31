@@ -8,10 +8,14 @@ from . import fmt
 from .findings_section import LISTED_LABELS
 from .inputs import ReportInputs
 from .queries import AGGREGATOR_FAIL_DIRECTORY
+from .sources import NOT_REPRODUCIBLE_FILE, CorpusSettings
 from .stages import Outcome, Stage
 from .style import VERDICTS
 from .triage import LabelClass
 
+
+# The keys of the [seeds] table, in the order the setup table shows them (ADR 0026).
+SEED_KEYS = ("generator", "tlc_fp", "tlc_seed")
 
 # Configuration values the setup table shows, as dotted paths into config.toml.
 CONFIG_KEYS = (
@@ -112,6 +116,7 @@ def setup(inputs: ReportInputs) -> list[str]:
         rows.append(("TLC", f"tla2tools {provenance.tla2tools_version or 'unknown'}"))
     if Stage.APALACHE.value in checkers:
         rows.append(("Apalache", provenance.apalache_version or "unknown"))
+    rows.extend(_reproducibility(inputs.settings))
     unused = {
         f"workflow.{stage.workflow_table}."
         for stage in Stage
@@ -131,6 +136,18 @@ def setup(inputs: ReportInputs) -> list[str]:
         "generated this report, which need not be those of the run.",
         f"Selected configuration values; the full file is [`config.toml`]({inputs.config_copy}).",
         fmt.table(("key", "value"), config),
+    ]
+
+
+def _reproducibility(settings: CorpusSettings) -> list[tuple[str, str]]:
+    """The seeds of the corpus, and whether a run continued it after it was no longer fresh."""
+    seeds = settings.config.get("seeds", {})
+    recorded = ", ".join(f"{key} `{seeds[key]}`" for key in SEED_KEYS if key in seeds)
+    continued = settings.continued_runs
+    return [
+        ("seeds", recorded or "not recorded"),
+        ("continued runs", f"{continued}, so the corpus is not reproducible (`{NOT_REPRODUCIBLE_FILE}`)"
+         if continued else "none: every run started from a fresh corpus"),
     ]
 
 
