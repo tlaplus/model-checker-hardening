@@ -15,6 +15,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ToolWorkerProtocolTest {
@@ -39,7 +40,7 @@ class ToolWorkerProtocolTest {
     /** A graph module's request names pc beside the step counter (ADR 0024 §1). */
     @Test
     void roundTripsRequestsWithTheirControlVariables() throws Exception {
-        var graph = new CheckRequest(12, false).withControlVariables(java.util.Set.of("step", "pc"));
+        var graph = new CheckRequest(12, false).withControlVariables(Set.of("step", "pc"));
         for (var request : new CheckRequest[] {CheckRequest.invariant(0), new CheckRequest(5, true, true), graph}) {
             var frame = new ByteArrayOutputStream();
             ToolWorkerProtocol.writeRequest(new DataOutputStream(frame), "---- MODULE M ----\n====".getBytes(), request);

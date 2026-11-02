@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Lookups over one atlas model that the page renderers share. */
 final class ModelIndex {
@@ -68,7 +69,7 @@ final class ModelIndex {
     List<String> adrsOf(ModuleNode module) {
         var fromPackages = packagesOf(module).stream().flatMap(p -> p.adrs().stream());
         var fromTypes = typesOf(module).stream().flatMap(t -> t.adrs().stream());
-        return java.util.stream.Stream.concat(fromPackages, fromTypes).distinct().sorted().toList();
+        return Stream.concat(fromPackages, fromTypes).distinct().sorted().toList();
     }
 
     private static <T> Map<String, T> byKey(List<T> values, Function<T, String> key) {

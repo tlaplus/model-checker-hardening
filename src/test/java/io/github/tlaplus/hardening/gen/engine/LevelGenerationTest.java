@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.oper.TlaOper;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -16,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
 
@@ -58,11 +62,11 @@ class LevelGenerationTest {
     }
 
     /** Reports whether an application of {@code operator} in the expression has a temporal operand. */
-    private static boolean containsTemporalUnder(TlaEx expression, at.forsyte.apalache.tla.lir.oper.TlaOper operator) {
-        var found = new java.util.concurrent.atomic.AtomicBoolean();
-        org.apalache_mc.tla.jir.TlaExpressions.forEach(expression, node -> {
-            if (node instanceof at.forsyte.apalache.tla.lir.OperEx application && application.oper() == operator
-                    && org.apalache_mc.tla.jir.TlaExpressions.arguments(application).stream()
+    private static boolean containsTemporalUnder(TlaEx expression, TlaOper operator) {
+        var found = new AtomicBoolean();
+        TlaExpressions.forEach(expression, node -> {
+            if (node instanceof OperEx application && application.oper() == operator
+                    && TlaExpressions.arguments(application).stream()
                             .anyMatch(argument -> level(argument) == IrLevel.TEMPORAL)) {
                 found.set(true);
             }

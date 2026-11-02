@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.engine.IrGeneratorEngine;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Set;
@@ -85,7 +86,7 @@ class IrGeneratorsTest {
         }
 
         var full = new byte[8192];
-        java.util.Arrays.fill(full, (byte) 0xff);
+        Arrays.fill(full, (byte) 0xff);
         var bounded = IrGenerationConfig.defaults()
                 .withExpressionLimits(new ExpressionLimits(3, 12, 256, new CollectionLimits(8, 0, 4, 64), 32, new IntegerLimits(16, 0, 4, IntegerLiteralMode.WIDE)));
         assertBuildsOrRejects(bounded, full);

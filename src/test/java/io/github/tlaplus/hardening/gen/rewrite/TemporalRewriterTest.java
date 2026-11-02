@@ -5,14 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apalache_mc.tla.jir.TlaDeclarations;
+import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
@@ -42,17 +47,17 @@ class TemporalRewriterTest {
     void aLevelRaisingRuleSkipsAValuePosition() {
         var spec = spec(List.of(), B.eql(POSITIVE, B.bool(true)));
         var ones = new byte[64];
-        java.util.Arrays.fill(ones, (byte) 1);
+        Arrays.fill(ones, (byte) 1);
         var rewrite = rewriter(temporal(eventuallyWeaken())).rewriteSpec(spec, new Draw(ones));
         var formula = rewrite.rewritten().property().orElseThrow().formula();
         // Only the root is a temporal position; the rewrites stack there and nowhere else.
         assertTrue(rewrite.appliedRules().stream().allMatch("EventuallyWeaken"::equals));
         assertFalse(rewrite.appliedRules().isEmpty());
-        var operands = new java.util.ArrayList<TlaEx>();
-        org.apalache_mc.tla.jir.TlaExpressions.forEach(formula, node -> {
-            if (node instanceof at.forsyte.apalache.tla.lir.OperEx application
-                    && application.oper() == org.apalache_mc.tla.jir.TlaOperators.EQ) {
-                operands.addAll(org.apalache_mc.tla.jir.TlaExpressions.arguments(application));
+        var operands = new ArrayList<TlaEx>();
+        TlaExpressions.forEach(formula, node -> {
+            if (node instanceof OperEx application
+                    && application.oper() == TlaOperators.EQ) {
+                operands.addAll(TlaExpressions.arguments(application));
             }
         });
         assertTrue(operands.stream().allMatch(operand -> operand.equals(POSITIVE) || operand.equals(B.bool(true))),
@@ -75,16 +80,16 @@ class TemporalRewriterTest {
     void theSubscriptedActionOfATemporalFormulaStaysWhole() {
         var spec = spec(List.of(), B.eventually(B.noStutter(INCREMENT, B.tuple(X))));
         var ones = new byte[256];
-        java.util.Arrays.fill(ones, (byte) 1);
+        Arrays.fill(ones, (byte) 1);
         var rewrite = new Rewriter(library(orFalse()), temporal(alwaysTwice()), IrGenerationConfig.defaults(),
                 RewriteLimits.defaults()).rewriteSpec(spec, new Draw(ones));
         var formula = rewrite.rewritten().property().orElseThrow().formula();
-        org.apalache_mc.tla.jir.TlaExpressions.forEach(formula, node -> {
-            if (node instanceof at.forsyte.apalache.tla.lir.OperEx application
-                    && application.oper() == org.apalache_mc.tla.jir.TlaOperators.EVENTUALLY) {
-                var operand = org.apalache_mc.tla.jir.TlaExpressions.arguments(application).getFirst();
-                assertFalse(operand instanceof at.forsyte.apalache.tla.lir.OperEx inner
-                                && inner.oper() == org.apalache_mc.tla.jir.TlaOperators.OR
+        TlaExpressions.forEach(formula, node -> {
+            if (node instanceof OperEx application
+                    && application.oper() == TlaOperators.EVENTUALLY) {
+                var operand = TlaExpressions.arguments(application).getFirst();
+                assertFalse(operand instanceof OperEx inner
+                                && inner.oper() == TlaOperators.OR
                                 && FormulaLevels.isAction(inner),
                         "an action under <> must be <<A>>_v: " + formula);
             }
@@ -110,7 +115,7 @@ class TemporalRewriterTest {
         var plain = new Rewriter(library(doubleNeg()), IrGenerationConfig.defaults(), RewriteLimits.defaults());
         assertFalse(plain.rewritesProperties());
         var ones = new byte[256];
-        java.util.Arrays.fill(ones, (byte) 1);
+        Arrays.fill(ones, (byte) 1);
         var rewrite = plain.rewriteSpec(spec, new Draw(ones));
         assertEquals(spec.property(), rewrite.rewritten().property());
         var withTemporal = new Rewriter(library(doubleNeg()), temporal(eventuallyWeaken()),

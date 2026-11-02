@@ -21,6 +21,7 @@ import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
 import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
@@ -30,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -250,7 +252,7 @@ class ParserBackendTest {
                 ShippedRules.config(), RuleFamily.REWRITES, CheckerProfile.APALACHE.defaults(), apalache).library();
         var temporal = RuleLibraryPreparation.prepare(ShippedRules.temporalConfig(), RuleFamily.TEMPORAL_REWRITES,
                 CheckerProfile.APALACHE.defaults(), apalache).library();
-        var temporalNames = new java.util.HashSet<String>();
+        var temporalNames = new HashSet<String>();
         temporal.rules().forEach(rule -> temporalNames.add(rule.name()));
         var decoders = SpecDecoders.metamorphic(config, new Rewriter(rules, temporal, config, RewriteLimits.defaults()));
         var random = new Random(0x7e3aL);
@@ -263,7 +265,7 @@ class ParserBackendTest {
                 var rewrite = new byte[256];
                 random.nextBytes(base);
                 random.nextBytes(rewrite);
-                final io.github.tlaplus.hardening.workflow.spec.SpecArtifact artifact;
+                final SpecArtifact artifact;
                 try {
                     artifact = decoders.decode(new CorpusInput(InputKind.MODULE, MetamorphicPayload.encode(base, rewrite)));
                 } catch (InputRejectedException rejected) {

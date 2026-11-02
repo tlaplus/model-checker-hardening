@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -17,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class ModuleSectionTest {
     /** A configuration without the temporal category, in which the property section is absent. */
     private static final IrGenerationConfig WITHOUT_TEMPORAL =
-            IrGenerationConfig.defaults().ignoring(io.github.tlaplus.hardening.gen.ExpressionCategory.TEMPORAL);
+            IrGenerationConfig.defaults().ignoring(ExpressionCategory.TEMPORAL);
 
     @Test
     void layoutOrderAndWeightsAreTheStoredByteEncoding() {

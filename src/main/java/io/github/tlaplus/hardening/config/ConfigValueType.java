@@ -150,7 +150,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
 
     /** Reads one TOML integer, which TOML bounds to a signed 64-bit value. */
     private static long readLong(TomlTable table, String path, String key) throws ConfigException {
-        var literalKey = java.util.List.of(key);
+        var literalKey = List.of(key);
         if (!table.isLong(literalKey)) {
             throw new ConfigException("expected '" + path + "' to be an integer");
         }

@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
@@ -218,7 +219,7 @@ public final class OperatorLibrary {
     public SourceLink linkSource(TlaModule module, List<TlaEx> generated) {
         var used = usedNames(generated);
         var aliases = aliases(export -> used.contains(export.name()));
-        var aliased = aliases.stream().map(InstanceAlias::name).collect(java.util.stream.Collectors.toSet());
+        var aliased = aliases.stream().map(InstanceAlias::name).collect(Collectors.toSet());
         return new SourceLink(prepend(module, declarationsFor(generated, aliased)), aliases);
     }
 

@@ -10,6 +10,8 @@ import io.github.tlaplus.hardening.corpus.*;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import java.sql.DriverManager;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -102,7 +104,7 @@ class MainTest {
                 FuzzTlaConfig.defaults().withKnownDefects(List.of(database)),
                 config.withTools(ToolsConfig.none()).withSeeds(FuzzTlaConfig.defaults().seeds()));
         // Every seed follows from the generator seed that init drew and printed (ADR 0026).
-        var seed = java.util.regex.Pattern.compile("with random seed (\\d+)").matcher(result.out());
+        var seed = Pattern.compile("with random seed (\\d+)").matcher(result.out());
         assertTrue(seed.find(), result.out());
         assertEquals(SeedConfig.derive(Long.parseLong(seed.group(1))), config.seeds());
         // The corpus runs its own copies of the tools (ADR 0025 §3).
@@ -189,7 +191,7 @@ class MainTest {
                         + output
                         + System.lineSeparator(),
                 result.out());
-        try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + output);
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + output);
                 var rows = connection.createStatement().executeQuery(
                         "SELECT e.evaluatedNodes, e.replayError, count(o.name) FROM entry e"
                                 + " LEFT JOIN expr o ON o.entryId = e.id GROUP BY e.id")) {
@@ -345,7 +347,7 @@ class MainTest {
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.equals("  Generated inputs: 8")));
         var entryCount = 0;
-        for (var resultDirectory : java.util.List.of(
+        for (var resultDirectory : List.of(
                 CorpusPath.AGGREGATOR_PASS,
                 CorpusPath.AGGREGATOR_FAIL,
                 CorpusPath.QUALITY_PASS,
@@ -621,7 +623,7 @@ class MainTest {
                 input,
                 CorpusInputCodec.encode(
                         new CorpusInput(InputKind.EXPRESSION, new byte[0]),
-                        GenerationMetadata.generated(0, 6, 12.5).withKnownDefects(java.util.List.of("string-set"))));
+                        GenerationMetadata.generated(0, 6, 12.5).withKnownDefects(List.of("string-set"))));
 
         var result = execute("print", "--envelope", input.toString());
 

@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -74,7 +75,7 @@ class GeneratedNestedActionShapesTest {
         var samples = GeneratedSpecSamples.collect(config, 0xA9701CL, 6000, 6, spec -> {
             var names = actionOperators(spec).stream()
                     .map(operator -> operator.declaration().name())
-                    .collect(java.util.stream.Collectors.toSet());
+                    .collect(Collectors.toSet());
             return !names.isEmpty() && appliesAny(spec.nextAction(), names);
         });
         assertTrue(

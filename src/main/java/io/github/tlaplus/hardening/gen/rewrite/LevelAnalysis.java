@@ -9,6 +9,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 
@@ -57,7 +58,7 @@ final class LevelAnalysis {
         var booleans = parameters.stream()
                 .filter(RuleContract::carriesFormulas)
                 .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         var outside = new HashSet<String>();
         collectOutsideFormulas(replacement, true, booleans, outside);
         var result = new HashSet<>(booleans);

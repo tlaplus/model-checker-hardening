@@ -4,11 +4,14 @@ import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /** Materializes an ordered module search path as one source-only snapshot for SANY. */
@@ -26,7 +29,7 @@ final class LibrarySources {
     static void snapshot(List<Path> classpath, Path directory, Path distribution) throws IOException {
         var snapshot = new LibrarySources(directory, standardModules(distribution));
         for (var path : classpath) {
-            if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException();
+            if (Thread.currentThread().isInterrupted()) throw new InterruptedIOException();
             if (Files.isDirectory(path)) snapshot.directory(path);
             else if (Files.isRegularFile(path)) snapshot.archive(path);
             else throw new IOException("TLA+ classpath entry does not exist: " + path);
@@ -35,7 +38,7 @@ final class LibrarySources {
 
     private static Set<String> standardModules(Path distribution) throws IOException {
         try (var zip = new ZipFile(distribution.toFile())) {
-            return zip.stream().map(java.util.zip.ZipEntry::getName)
+            return zip.stream().map(ZipEntry::getName)
                     .filter(name -> name.startsWith(StandardModuleResources.PREFIX) && name.endsWith(".tla"))
                     .map(name -> name.substring(StandardModuleResources.PREFIX.length()))
                     .collect(Collectors.toUnmodifiableSet());
@@ -55,9 +58,9 @@ final class LibrarySources {
     private void archive(Path source) throws IOException {
         try (var zip = new ZipFile(source.toFile())) {
             // SANY's classpath lookup tries StandardModules resources before root resources.
-            var order = java.util.Comparator.comparing(
-                    (java.util.zip.ZipEntry entry) -> !entry.getName().startsWith(StandardModuleResources.PREFIX))
-                    .thenComparing(java.util.zip.ZipEntry::getName);
+            var order = Comparator.comparing(
+                    (ZipEntry entry) -> !entry.getName().startsWith(StandardModuleResources.PREFIX))
+                    .thenComparing(ZipEntry::getName);
             for (var entry : zip.stream().sorted(order).toList()) {
                 var name = entry.getName();
                 if (name.startsWith(StandardModuleResources.PREFIX)) name = name.substring(StandardModuleResources.PREFIX.length());

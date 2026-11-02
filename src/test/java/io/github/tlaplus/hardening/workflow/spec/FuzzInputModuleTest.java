@@ -8,13 +8,28 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.OperEx;
+import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
+import io.github.tlaplus.hardening.gen.TemporalProperty;
+import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
+import io.github.tlaplus.hardening.gen.rewrite.Orientation;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.regex.Pattern;
+import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
+import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
 
 class FuzzInputModuleTest {
@@ -78,19 +93,19 @@ class FuzzInputModuleTest {
 
         assertEquals(
                 "((step < 5 /\\ var0' = FALSE /\\ step' = step + 1)) \\/ UNCHANGED (<<var0, step>>)",
-                io.github.tlaplus.hardening.gen.TlaIrTestSupport.print(next.body()));
+                TlaIrTestSupport.print(next.body()));
     }
 
     @Test
     void placesActionOperatorsAfterAuxiliaryOperatorsAndBeforeTheEntryPoints() {
-        var random = new java.util.Random(0xF1F0L);
+        var random = new Random(0xF1F0L);
         for (var sample = 0; sample < 2000; sample++) {
             var input = new byte[400 + random.nextInt(800)];
             random.nextBytes(input);
-            final io.github.tlaplus.hardening.gen.GeneratedSpec spec;
+            final GeneratedSpec spec;
             try {
                 spec = IrGenerators.specs(IrGenerationConfig.defaults()).generate(input);
-            } catch (io.github.tlaplus.hardening.gen.InputRejectedException rejected) {
+            } catch (InputRejectedException rejected) {
                 continue;
             }
             if (actionOperators(spec).isEmpty()) {
@@ -115,9 +130,9 @@ class FuzzInputModuleTest {
      */
     @Test
     void aTemporalRelationDefinesBothSidesProperties() {
-        var b = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder();
-        var x = b.name("var0", org.apalache_mc.tla.jir.TlaTypes.INT);
-        var step = b.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, org.apalache_mc.tla.jir.TlaTypes.INT);
+        var b = new TlaTypedScopeUncheckedBuilder();
+        var x = b.name("var0", TlaTypes.INT);
+        var step = b.name(GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
         var positive = b.gt(x, b.integer(0));
         var increment = b.primeEq(x, b.plus(x, b.integer(1)));
         var fairness = b.weakFair(b.tuple(x), increment);
@@ -125,12 +140,12 @@ class FuzzInputModuleTest {
         var rewritten = spec(b, x, step, increment, fairness, b.and(b.always(positive), b.eventually(b.always(positive))));
 
         var omitted = definitions(FuzzInputModule.create(original, rewritten,
-                io.github.tlaplus.hardening.gen.rewrite.Orientation.EXPLORE_ORIGINAL, PropertyRelation.OMITTED));
+                Orientation.EXPLORE_ORIGINAL, PropertyRelation.OMITTED));
         assertEquals("TRUE", omitted.get(FuzzInputModule.PROP));
         assertFalse(omitted.containsKey(FuzzInputModule.SPEC_C));
 
         var explored = definitions(FuzzInputModule.create(original, rewritten,
-                io.github.tlaplus.hardening.gen.rewrite.Orientation.EXPLORE_REWRITE, PropertyRelation.SEPARATE_RUNS));
+                Orientation.EXPLORE_REWRITE, PropertyRelation.SEPARATE_RUNS));
         assertEquals("[](var0 > 0) /\\ <>([](var0 > 0))", explored.get(FuzzInputModule.PROP), "Prop is the rewrite's");
         assertEquals("[](var0 > 0)", explored.get(FuzzInputModule.PROP_C), "PropC is the original's");
         assertEquals("WF_(<<var0>>)((var0' = var0 + 1))", explored.get(FuzzInputModule.FAIRNESS_C));
@@ -138,35 +153,35 @@ class FuzzInputModuleTest {
         assertEquals("ActionC \\/ UNCHANGED (<<var0, step>>)", explored.get(FuzzInputModule.NEXT_C));
         assertEquals("InitC /\\ []([NextC]_(<<var0, step>>)) /\\ FairnessC", explored.get(FuzzInputModule.SPEC_C));
 
-        var withoutProperty = new io.github.tlaplus.hardening.gen.GeneratedSpec(original.variables(), List.of(),
-                original.initPredicate(), original.nextAction(), original.invariant(), java.util.Optional.empty(), 3);
+        var withoutProperty = new GeneratedSpec(original.variables(), List.of(),
+                original.initPredicate(), original.nextAction(), original.invariant(), Optional.empty(), 3);
         assertFalse(definitions(FuzzInputModule.create(withoutProperty, withoutProperty,
-                io.github.tlaplus.hardening.gen.rewrite.Orientation.EXPLORE_ORIGINAL, PropertyRelation.SEPARATE_RUNS))
+                Orientation.EXPLORE_ORIGINAL, PropertyRelation.SEPARATE_RUNS))
                 .containsKey(FuzzInputModule.SPEC_C), "a base without a property has nothing to check apart");
     }
 
-    private static io.github.tlaplus.hardening.gen.GeneratedSpec spec(
-            org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder b, at.forsyte.apalache.tla.lir.TlaEx x,
-            at.forsyte.apalache.tla.lir.TlaEx step, at.forsyte.apalache.tla.lir.TlaEx increment,
-            at.forsyte.apalache.tla.lir.TlaEx fairness, at.forsyte.apalache.tla.lir.TlaEx formula) {
-        return new io.github.tlaplus.hardening.gen.GeneratedSpec(
-                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", org.apalache_mc.tla.jir.TlaTypes.INT),
-                        org.apalache_mc.tla.jir.TlaDeclarations.variable(
-                                io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, org.apalache_mc.tla.jir.TlaTypes.INT)),
+    private static GeneratedSpec spec(
+            TlaTypedScopeUncheckedBuilder b, TlaEx x,
+            TlaEx step, TlaEx increment,
+            TlaEx fairness, TlaEx formula) {
+        return new GeneratedSpec(
+                List.of(TlaDeclarations.variable("var0", TlaTypes.INT),
+                        TlaDeclarations.variable(
+                                GeneratedSpec.STEP_VARIABLE, TlaTypes.INT)),
                 List.of(), b.and(b.eql(x, b.integer(0)), b.eql(step, b.integer(0))),
                 b.and(increment, b.primeEq(step, b.plus(step, b.integer(1)))), b.bool(true),
-                java.util.Optional.of(new io.github.tlaplus.hardening.gen.TemporalProperty(List.of(fairness), formula)), 3);
+                Optional.of(new TemporalProperty(List.of(fairness), formula)), 3);
     }
 
     /** Prints every operator definition of {@code module}, by name. */
-    private java.util.Map<String, String> definitions(at.forsyte.apalache.tla.lir.TlaModule module) {
-        var printed = new java.util.HashMap<String, String>();
+    private Map<String, String> definitions(TlaModule module) {
+        var printed = new HashMap<String, String>();
         operators(module).forEach(operator -> printed.put(
-                operator.name(), io.github.tlaplus.hardening.gen.TlaIrTestSupport.print(operator.body())));
+                operator.name(), TlaIrTestSupport.print(operator.body())));
         return printed;
     }
 
-    private int lastIndexWithPrefix(java.util.List<String> names, String prefix) {
+    private int lastIndexWithPrefix(List<String> names, String prefix) {
         var index = -1;
         for (var position = 0; position < names.size(); position++) {
             if (names.get(position).startsWith(prefix)) {
@@ -177,7 +192,7 @@ class FuzzInputModuleTest {
     }
 
     private void assertEntryPointOrder(
-            java.util.List<TlaOperDecl> entryPoints) {
+            List<TlaOperDecl> entryPoints) {
         assertEquals(
                 List.of(FuzzInputModule.INIT, FuzzInputModule.NEXT, FuzzInputModule.INV,
                         FuzzInputModule.FAIRNESS, FuzzInputModule.SPEC, FuzzInputModule.PROP,
@@ -185,13 +200,13 @@ class FuzzInputModuleTest {
                 entryPoints.stream().map(TlaOperDecl::name).toList());
     }
 
-    private at.forsyte.apalache.tla.lir.TlaEx equalityRightHandSide(
+    private TlaEx equalityRightHandSide(
             TlaOperDecl declaration) {
         var equality = (OperEx) declaration.body();
         return TlaExpressions.arguments(equality).get(1);
     }
 
-    private List<TlaOperDecl> operators(at.forsyte.apalache.tla.lir.TlaModule module) {
+    private List<TlaOperDecl> operators(TlaModule module) {
         return TlaModules.declarations(module).stream()
                 .filter(TlaOperDecl.class::isInstance)
                 .map(TlaOperDecl.class::cast)
@@ -199,6 +214,6 @@ class FuzzInputModuleTest {
     }
 
     private int occurrences(String text, String fragment) {
-        return text.split(java.util.regex.Pattern.quote(fragment), -1).length - 1;
+        return text.split(Pattern.quote(fragment), -1).length - 1;
     }
 }

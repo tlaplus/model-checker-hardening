@@ -9,12 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.rewrite.RuleParameter.Kind;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 class RewriteLibraryTest {
     @Test
@@ -176,7 +178,7 @@ class RewriteLibraryTest {
                 () -> library(rule("Twice", B.eql(pair, twice), B.param("x", ELEMENT), B.param("y", other))));
     }
 
-    private static void assertRejected(String message, org.junit.jupiter.api.function.Executable executable) {
+    private static void assertRejected(String message, Executable executable) {
         var failure = assertThrows(IllegalArgumentException.class, executable);
         assertTrue(failure.getMessage().contains(message), failure.getMessage());
     }
@@ -186,7 +188,7 @@ class RewriteLibraryTest {
     }
 
     private static Map<String, Kind> kinds(RewriteLibrary library, String name) {
-        var result = new java.util.HashMap<String, Kind>();
+        var result = new HashMap<String, Kind>();
         find(library, name).parameters().forEach(parameter -> result.put(parameter.name(), parameter.kind()));
         return result;
     }

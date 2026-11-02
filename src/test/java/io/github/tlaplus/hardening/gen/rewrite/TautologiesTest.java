@@ -18,6 +18,7 @@ import io.github.tlaplus.hardening.gen.engine.OperandGenerator;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -129,7 +130,7 @@ class TautologiesTest {
             for (var guard : guards) {
                 assertTrue(guard instanceof OperEx relation
                         && (relation.oper() == TlaOperators.EQ || relation.oper() == TlaOperators.EQUIV));
-                assertTrue(java.util.Collections.disjoint(control, IrNames.free(guard)), TlaIrTestSupport.print(guard));
+                assertTrue(Collections.disjoint(control, IrNames.free(guard)), TlaIrTestSupport.print(guard));
             }
             count += guards.size();
         }

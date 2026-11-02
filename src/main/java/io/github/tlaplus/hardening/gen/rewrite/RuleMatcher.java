@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypeSubstitution;
 import org.apalache_mc.tla.jir.TlaTypeUnifier;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -152,7 +153,7 @@ public final class RuleMatcher {
         if (expression instanceof NameEx) {
             return true;
         }
-        return expression instanceof OperEx tuple && tuple.oper() == org.apalache_mc.tla.jir.TlaOperators.TUPLE
+        return expression instanceof OperEx tuple && tuple.oper() == TlaOperators.TUPLE
                 && TlaExpressions.arguments(tuple).stream().allMatch(RuleMatcher::isVariables);
     }
 

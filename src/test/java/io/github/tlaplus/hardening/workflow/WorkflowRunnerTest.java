@@ -45,6 +45,7 @@ import io.github.tlaplus.hardening.mutation.MutationOperator;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -54,6 +55,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -125,7 +127,7 @@ class WorkflowRunnerTest {
         var tlcOnly = expressions.withWorkflow(expressions.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
         // The base corpus is a pbt corpus with the same generator whose quality gate kept three expressions.
         var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(tlcOnly));
-        var random = new java.util.Random(11);
+        var random = new Random(11);
         var parents = new HashSet<String>();
         for (var parent = 0; parent < 3; parent++) {
             var payload = new byte[32];
@@ -168,7 +170,7 @@ class WorkflowRunnerTest {
         var graphs = graphConfig(config(8, 3, 8, 512));
         var base = CorpusDirectory.initialize(directory.resolve("base"), TomlConfig.render(graphs.withTechnique(Technique.GBT)));
         var conformance = SpecDecoders.of(graphs.generator());
-        var random = new java.util.Random(13);
+        var random = new Random(13);
         var parents = new HashSet<String>();
         while (parents.size() < 3) {
             var payload = new byte[64];
@@ -437,7 +439,7 @@ class WorkflowRunnerTest {
                 () -> new WorkflowRunner(config.withTechnique(Technique.PBT)).run(corpus, RunMode.FRESH, 1, _ -> {
                     try {
                         Files.createDirectory(statisticsPath);
-                    } catch (java.nio.file.FileAlreadyExistsException ignored) {
+                    } catch (FileAlreadyExistsException ignored) {
                         // The initial progress callback already installed the obstruction.
                     } catch (IOException exception) {
                         throw new AssertionError(exception);

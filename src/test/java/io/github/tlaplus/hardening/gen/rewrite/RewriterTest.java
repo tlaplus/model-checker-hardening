@@ -10,13 +10,21 @@ import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperT1;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
+import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.GeneratedOperator;
+import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
+import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -69,13 +77,13 @@ class RewriterTest {
         assertEquals(List.of("UnionSelf"), rewrite.appliedRules());
         var copies = TlaExpressions.arguments((OperEx) rewrite.rewritten());
         assertEquals(defined, copies.get(0));
-        var names = new java.util.ArrayList<String>();
+        var names = new ArrayList<String>();
         TlaExpressions.forEach(rewrite.rewritten(), node -> {
             if (node instanceof LetInEx let) {
                 TlaExpressions.localDeclarations(let).forEach(declaration -> names.add(declaration.name()));
             }
         });
-        assertEquals(2, java.util.Set.copyOf(names).size(), names.toString());
+        assertEquals(2, Set.copyOf(names).size(), names.toString());
     }
 
     /** TLA+ has no IF or equality of operators, so a rule of every type skips an operator argument. */
@@ -151,7 +159,7 @@ class RewriterTest {
     @Test
     void theLimitsBoundStackingAndRewritesPerBody() {
         var ones = new byte[64];
-        java.util.Arrays.fill(ones, (byte) 1);
+        Arrays.fill(ones, (byte) 1);
         var shallow = new Rewriter(library(plusZero()), IrGenerationConfig.defaults(), new RewriteLimits(16, 1, 2))
                 .rewriteExpression(B.integer(7), new Draw(ones));
         // 7 becomes 7 + 0 once; the copy of 7 continues its stack, while the new 0 may become 0 + 0.
@@ -167,7 +175,7 @@ class RewriterTest {
 
     @Test
     void theIndexSelectsAmongTheWeightedSlotsOfTheApplicableRules() {
-        var rules = new at.forsyte.apalache.tla.lir.TlaOperDecl[] {plusZero(), addSub()};
+        var rules = new TlaOperDecl[] {plusZero(), addSub()};
         var library = RewriteLibrary.fromModule(module(rules), names(rules), Map.of("AddSub", 2));
         assertEquals(List.of("PlusZero"), rewrite(library, 0, 1, 0, 0).appliedRules());
         var addSub = rewrite(library, 0, 1, 0, 1, 0);
@@ -209,16 +217,16 @@ class RewriterTest {
     @Test
     void rewritesTheBodiesOfAModuleInOrder() {
         var x = B.name("var0", TlaTypes.INT);
-        var step = B.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
+        var step = B.name(GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
         var op = B.decl("Op1", B.integer(1));
-        var spec = new io.github.tlaplus.hardening.gen.GeneratedSpec(
-                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", TlaTypes.INT),
-                        org.apalache_mc.tla.jir.TlaDeclarations.variable("step", TlaTypes.INT)),
-                List.<io.github.tlaplus.hardening.gen.GeneratedOperator>of(
-                        new io.github.tlaplus.hardening.gen.GeneratedOperator.Auxiliary(op)),
+        var spec = new GeneratedSpec(
+                List.of(TlaDeclarations.variable("var0", TlaTypes.INT),
+                        TlaDeclarations.variable("step", TlaTypes.INT)),
+                List.<GeneratedOperator>of(
+                        new GeneratedOperator.Auxiliary(op)),
                 B.and(B.eql(x, B.integer(0)), B.eql(step, B.integer(0))),
                 B.and(B.primeEq(B.name("var0", TlaTypes.INT), B.integer(2)), B.primeEq(step, B.integer(1))),
-                B.bool(true), java.util.Optional.empty(), 3);
+                B.bool(true), Optional.empty(), 3);
         // Orientation, then one rewrite at the root of Op1's body; every later marker is even.
         var rewrite = rewriter(library(plusZero())).rewriteSpec(spec, new Draw(new byte[] {0, 1, 0, 0}));
         assertEquals(List.of("PlusZero"), rewrite.appliedRules());
@@ -231,7 +239,7 @@ class RewriterTest {
     @Test
     void aBodyGrowsAtMostByTheGrowthFactor() {
         var ones = new byte[256];
-        java.util.Arrays.fill(ones, (byte) 1);
+        Arrays.fill(ones, (byte) 1);
         var set = B.enumSet(B.integer(1), B.integer(2), B.integer(3));
         var rewrite = new Rewriter(library(unionSelf()), IrGenerationConfig.defaults(), new RewriteLimits(64, 4, 2))
                 .rewriteExpression(set, new Draw(ones));
@@ -247,17 +255,17 @@ class RewriterTest {
     void aRewriteKeepsTheAssignmentsOfInit() {
         var sets = TlaTypes.set(TlaTypes.INT);
         var x = B.name("var0", sets);
-        var step = B.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
+        var step = B.name(GeneratedSpec.STEP_VARIABLE, TlaTypes.INT);
         var init = B.and(B.in(x, B.enumSet(B.enumSet(B.integer(1)), B.enumSet(B.integer(2)))),
                 B.eql(step, B.integer(0)));
-        var spec = new io.github.tlaplus.hardening.gen.GeneratedSpec(
-                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", sets),
-                        org.apalache_mc.tla.jir.TlaDeclarations.variable("step", TlaTypes.INT)),
+        var spec = new GeneratedSpec(
+                List.of(TlaDeclarations.variable("var0", sets),
+                        TlaDeclarations.variable("step", TlaTypes.INT)),
                 List.of(), init,
                 B.and(B.primeEq(B.name("var0", sets), B.name("var0", sets)), B.primeEq(step, B.integer(1))),
-                B.bool(true), java.util.Optional.empty(), 3);
+                B.bool(true), Optional.empty(), 3);
         var ones = new byte[256];
-        java.util.Arrays.fill(ones, (byte) 1);
+        Arrays.fill(ones, (byte) 1);
         var rewritten = rewriter(library(unionSelf(), doubleNeg())).rewriteSpec(spec, new Draw(ones)).rewritten();
         var conjuncts = TlaExpressions.arguments((OperEx) rewritten.initPredicate());
         assertEquals(TlaOperators.SET_IN, ((OperEx) conjuncts.get(0)).oper(), rewritten.initPredicate().toString());

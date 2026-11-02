@@ -21,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -116,7 +117,7 @@ final class RuleContract {
         var higherOrder = parameters.stream()
                 .filter(parameter -> parameter.kind() == RuleParameter.Kind.HIGHER_ORDER)
                 .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         requireMillerPatterns(name, pattern, higherOrder, Set.of());
         requireApplied(name, replacement, higherOrder);
         var signature = new HashSet<Integer>(TlaTypes.usedVariables(TlaTypes.typeOf(pattern)));
@@ -139,7 +140,7 @@ final class RuleContract {
         return parameters.stream()
                 .filter(parameter -> parameter.kind() != RuleParameter.Kind.FRESH)
                 .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
     }
 
     /**

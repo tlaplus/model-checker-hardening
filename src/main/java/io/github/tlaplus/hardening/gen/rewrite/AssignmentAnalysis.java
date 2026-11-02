@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jir.TlaExpressions;
 
 /**
@@ -31,7 +32,7 @@ final class AssignmentAnalysis {
         var booleans = parameters.stream()
                 .filter(RuleContract::carriesFormulas)
                 .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         // A formula that assigned in the pattern must still assign, once; one that did not must not
         // start to, or a guard such as an IF condition would become an assignment. Each branch of
         // the replacement must hold the formulas of a branch of the pattern, for Apalache.

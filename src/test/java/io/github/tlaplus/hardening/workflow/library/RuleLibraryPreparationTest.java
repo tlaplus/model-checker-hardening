@@ -15,6 +15,7 @@ import io.github.tlaplus.hardening.gen.rewrite.RuleParameter;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,7 +52,7 @@ class RuleLibraryPreparationTest {
                 "FilterViaLambda", "ExistsViaLambda", "FunBeta", "RecordProj", "TupleProj", "SeqHead",
                 "FunApplyCtor", "FunApplyConst", "ChooseSingleton", "CaseTrue"),
                 rules.stream().map(RewriteRule::name).toList());
-        var weights = new java.util.HashMap<String, Integer>();
+        var weights = new HashMap<String, Integer>();
         rules.forEach(rule -> weights.put(rule.name(), rule.weight()));
         assertEquals(3, weights.get("AddSub"), "the configuration overrides the default weight");
         assertEquals(1, weights.get("AndTrue"));
@@ -81,7 +82,7 @@ class RuleLibraryPreparationTest {
                 "AlwaysWithEventually", "AlwaysAndIdem", "AlwaysOrIdem", "EventuallyAndIdem", "EventuallyOrIdem",
                 "AlwaysOrBreak", "EventuallyWeaken"),
                 rules.stream().map(RewriteRule::name).toList());
-        var byName = new java.util.HashMap<String, RewriteRule>();
+        var byName = new HashMap<String, RewriteRule>();
         rules.forEach(rule -> byName.put(rule.name(), rule));
         assertEquals(1, byName.get("AlwaysTwice").weight());
         assertEquals(2, byName.get("AlwaysAndSplit").weight());

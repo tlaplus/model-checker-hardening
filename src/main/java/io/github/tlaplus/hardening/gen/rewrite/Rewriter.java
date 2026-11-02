@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.gen.rewrite;
 
 import at.forsyte.apalache.tla.lir.LetInEx;
+import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
@@ -18,6 +19,7 @@ import io.github.tlaplus.hardening.gen.ir.IrAlpha;
 import io.github.tlaplus.hardening.gen.ir.IrBinding;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -160,7 +162,7 @@ public final class Rewriter {
                 declared++;
             }
         }
-        var initialized = new java.util.HashSet<String>();
+        var initialized = new HashSet<String>();
         spec.variables().forEach(variable -> initialized.add(variable.name()));
         // Init assigns the unprimed variables, so they keep their assigning positions there.
         var init = walk.body(spec.initPredicate(), scopes.auxiliaries(), initialized);
@@ -369,7 +371,7 @@ public final class Rewriter {
             var rule = match.rule();
             var total = new int[1];
             TlaExpressions.forEach(rule.replacement(), node -> {
-                var parameter = node instanceof at.forsyte.apalache.tla.lir.NameEx name
+                var parameter = node instanceof NameEx name
                         ? rule.parameter(name.name()) : Optional.<RuleParameter>empty();
                 total[0] += parameter.map(value -> value.kind() == RuleParameter.Kind.FRESH
                         ? 1 : size(match.bindings().get(value.name()))).orElse(1);
