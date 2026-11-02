@@ -2,9 +2,29 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Accepted; phase 1 of section 7 is implemented
 
 **Date:** 2026-11-02
+
+**Implementation.** Phase 1 is implemented on the branch `igor/mt-temporal-rules`. It
+settled these details:
+- `gen.rewrite.RuleFamily` names the two kinds of rule module, and `RuleLevels` records,
+  per rule, its formula parameters and whether it raises the level.
+- **A rule raises the level** when its pattern applies no temporal operator and its
+  replacement applies one, as `EventuallyWeaken` does. `LeadsToDef` does not.
+- **Assignment preservation counts occurrences per action.** The action position of
+  `[A]_v`, `<<A>>_v`, `WF_v(A)`, `SF_v(A)` or `ENABLED A` starts an action of its own. In
+  each action, a parameter that a match binds to a primed subterm must occur at most
+  once, in an assigning position. Counted over the whole rule instead, `WFDef`, which
+  copies `A` into two actions, would never apply. `Rewrites.tla` has no action position,
+  so its rules are analyzed as before.
+- **When the matcher decides whether a binding assigns, it skips the actions of
+  `[][A]_v`, `<><<A>>_v`, `WF` and `SF`,** which assign only within themselves. It still
+  counts the primes under `ENABLED`, which generated guards contain. Existing corpora
+  therefore decode unchanged.
+- `run`, `print`, `export-db` and `shrink` load the temporal module when they prepare
+  the decoders, and they refuse the settings of section 5. The rewriter uses the rules
+  from phase 2 on.
 
 ## Context
 
@@ -237,8 +257,8 @@ ADR 0017's format applies with these changes:
 - **Level preservation** ([ADR 0017][adr-0017] §5.2) changes in two ways:
   - `WF` and `SF` in A count as action-level, so B may expand them with `ENABLED` and
     `<<A>>_v`.
-  - B may apply a temporal operator that A does not apply only at a *temporal
-    position*. That is a node of the property or of a fairness condition that the walk
+  - A rule whose B applies a temporal operator while A applies none applies only at a
+    *temporal position*. That is a node of the property or of a fairness condition that the walk
     reaches through formula operators only: the Boolean connectives, `IF` and `CASE`
     branches, `LET` bodies, quantifier bodies and temporal operators. This is where the
     generator draws at `LevelContext.TEMPORAL`.
