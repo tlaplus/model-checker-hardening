@@ -346,9 +346,15 @@ final class ConfigSchema {
             "Also keep an entry that adds an operator-edge coverage feature (ADR 0013).");
 
     static final RuleLibrarySchema REWRITE_RULES = new RuleLibrarySchema(
-            METAMORPHIC.project(MetamorphicConfig::rules), "rewrite rule",
+            METAMORPHIC.project(MetamorphicConfig::rules), "", ConfigValueType.EXAMPLE_RULES, "rewrite rule",
             "Rule module of technique = \"mt\", relative to this config file (ADR 0017): every top-level",
             "definition F(p1, ..., pn) == A = B of the module is a rewrite rule.");
+    static final RuleLibrarySchema TEMPORAL_REWRITE_RULES = new RuleLibrarySchema(
+            METAMORPHIC.project(MetamorphicConfig::temporalRules), "temporal_", ConfigValueType.EXAMPLE_TEMPORAL_RULES,
+            "temporal rewrite rule",
+            "Temporal rule module, relative to this config file (ADR 0027): its rules A <=> B rewrite",
+            "properties and fairness, which TLC then checks in runs of their own. Needs kind = \"module\"",
+            "and checkers without apalache; without it, properties are not rewritten or checked.");
     private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
     static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
             "max_rewrites", RewriteLimits::maximumRewrites, RewriteLimits.defaults().maximumRewrites(),
@@ -390,7 +396,7 @@ final class ConfigSchema {
             "Maximum tautological guards of one edge, drawn from the rule module that rules",
             "names (ADR 0023 §6). Without rules, edges have no guards.");
     static final RuleLibrarySchema GUARD_RULES = new RuleLibrarySchema(
-            GRAPH.project(FuzzTlaConfig::graphGuards), "guard rule",
+            GRAPH.project(FuzzTlaConfig::graphGuards), "", ConfigValueType.EXAMPLE_RULES, "guard rule",
             "Rule module of the edge guards of graph inputs, relative to this config file",
             "(ADR 0023 §6): each guard is an instance A = B of one of its rules. Setting it",
             "changes how every graph input decodes.");

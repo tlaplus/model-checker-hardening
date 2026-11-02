@@ -131,7 +131,9 @@ generation is selected and mutated. They are described in
 
 `rules`, `weights`, `max_rewrites`, `max_rewrite_depth`, `max_rewrite_growth`,
 `base_corpus` and `adopt_ratio` are used only by an `mt` corpus. They are described in
-[Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus).
+[Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus). `temporal_rules` and
+`temporal_weights` name the temporal rule module, described in
+[Metamorphic testing](metamorphic-testing.md#7-temporal-properties-in-progress).
 
 ## `[graph]`: control graphs
 

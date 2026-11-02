@@ -83,7 +83,7 @@ class RewriteLibraryTest {
         assertRejected("the replacement applies PRIME, but the pattern is not an action",
                 () -> library(rule("Raise", B.eql(bool("P"), B.and(bool("P"), B.primeEq(integer("x"), integer("x")))),
                         B.param("P", TlaTypes.BOOL), B.param("x", TlaTypes.INT))));
-        assertRejected("temporal rules are not supported yet",
+        assertRejected("a temporal rule belongs in metamorphic.temporal_rules",
                 () -> library(rule("Always", B.equiv(B.always(bool("F")), B.always(B.always(bool("F")))),
                         B.param("F", TlaTypes.BOOL))));
     }

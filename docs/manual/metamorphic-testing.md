@@ -1,7 +1,7 @@
 # Metamorphic testing
 
-Temporal properties are not rewritten yet. Section 7 describes the proposed temporal
-mode ([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)).
+Temporal properties are not rewritten yet. Section 7 describes the temporal mode in
+progress ([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)).
 
 A metamorphic campaign checks one model checker against itself. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
@@ -281,10 +281,13 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
 - **TLC-only corpora.** A corpus with `checkers = ["tlc"]` compares no checkers, so
   its entries are not conformance tests.
 
-## 7. Temporal properties (proposed)
+## 7. Temporal properties (in progress)
 
-*Not implemented yet.* [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)
-proposes this mode for TLC. Corpora without it are unaffected.
+*Partly implemented.* [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)
+describes this mode for TLC. Corpora without it are unaffected. So far, `run` loads and
+checks `temporal_rules` and refuses the settings below, and
+`libraries/rewrites/TemporalRewrites.tla` ships the rules. Properties are not rewritten
+or checked yet, and `init --temporal` does not exist yet: set the keys by hand.
 
 **Enabling.** `fuzztla init --how=mt --temporal` adds a second rule module and checks
 with TLC alone:

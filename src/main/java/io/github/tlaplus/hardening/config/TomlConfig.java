@@ -188,6 +188,7 @@ public final class TomlConfig {
                 .relativeTo(directory);
         var metamorphic = new MetamorphicConfig(
                 ConfigSchema.REWRITE_RULES.read(tables),
+                ConfigSchema.TEMPORAL_REWRITE_RULES.read(tables),
                 new RewriteLimits(ConfigSchema.MAXIMUM_REWRITES.read(tables), ConfigSchema.MAXIMUM_REWRITE_DEPTH.read(tables),
                         ConfigSchema.MAXIMUM_REWRITE_GROWTH.read(tables)),
                 new MetamorphicConfig.Adoption(ConfigSchema.BASE_CORPUS.read(tables), ConfigSchema.ADOPT_RATIO.read(tables)))

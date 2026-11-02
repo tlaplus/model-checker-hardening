@@ -24,6 +24,7 @@ import org.apalache_mc.tla.jir.TlaOperators;
  * @param weight the number of selection slots the rule takes when it applies; 0 disables it
  * @param unlabelled the parameters the replacement places where a label of their binding is
  *     invalid, see {@link LabelPlacement}
+ * @param levels what the rule's levels require of a match (ADR 0027 §1)
  */
 @ArchRole(Role.MODEL)
 @Key
@@ -33,7 +34,8 @@ public record RewriteRule(
         OperEx formula,
         List<RuleParameter> parameters,
         AssignmentFacts assignments,
-        Set<String> unlabelled) {
+        Set<String> unlabelled,
+        RuleLevels levels) {
     public RewriteRule {
         Objects.requireNonNull(name, "name");
         Preconditions.requireNonnegative(weight, "weight");
@@ -43,6 +45,7 @@ public record RewriteRule(
         parameters = List.copyOf(Objects.requireNonNull(parameters, "parameters"));
         Objects.requireNonNull(assignments, "assignments");
         unlabelled = Set.copyOf(Objects.requireNonNull(unlabelled, "unlabelled"));
+        Objects.requireNonNull(levels, "levels");
     }
 
     /** Returns A, the side the rewriter matches. */

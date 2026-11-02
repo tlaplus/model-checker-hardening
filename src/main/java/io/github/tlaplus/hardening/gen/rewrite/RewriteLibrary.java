@@ -63,15 +63,29 @@ public final class RewriteLibrary {
     }
 
     /**
-     * Reads the rules named {@code ruleNames} from a typed module; every other definition of the
-     * module is a helper a replacement may apply.
+     * Reads the rules named {@code ruleNames} from a typed module of {@link RuleFamily#REWRITES};
+     * every other definition of the module is a helper a replacement may apply.
      *
      * @param weights rule weights by name; a rule without one has {@link #DEFAULT_WEIGHT}
      * @throws IllegalArgumentException if a rule breaks the rule contract, a weight names no rule
      *     or is out of range, or no rule has a positive weight
      */
     public static RewriteLibrary fromModule(TlaModule module, Set<String> ruleNames, Map<String, Integer> weights) {
+        return fromModule(module, ruleNames, weights, RuleFamily.REWRITES);
+    }
+
+    /**
+     * Reads the rules named {@code ruleNames} from a typed module of {@code family}; every other
+     * definition of the module is a helper a replacement may apply.
+     *
+     * @param weights rule weights by name; a rule without one has {@link #DEFAULT_WEIGHT}
+     * @throws IllegalArgumentException if a rule breaks the rule contract of its family, a weight
+     *     names no rule or is out of range, or no rule has a positive weight
+     */
+    public static RewriteLibrary fromModule(
+            TlaModule module, Set<String> ruleNames, Map<String, Integer> weights, RuleFamily family) {
         Objects.requireNonNull(module, "module");
+        Objects.requireNonNull(family, "family");
         Objects.requireNonNull(ruleNames, "ruleNames");
         Objects.requireNonNull(weights, "weights");
         var definitions = new LinkedHashMap<String, TlaOperDecl>();
@@ -100,13 +114,34 @@ public final class RewriteLibrary {
         for (var definition : definitions.values()) {
             if (ruleNames.contains(definition.name())) {
                 rules.add(RuleContract.rule(
-                        definition, helpers, weights.getOrDefault(definition.name(), DEFAULT_WEIGHT)));
+                        definition, helpers, weights.getOrDefault(definition.name(), DEFAULT_WEIGHT), family));
             }
         }
         if (!rules.isEmpty() && rules.stream().mapToInt(RewriteRule::weight).sum() == 0) {
             throw new IllegalArgumentException("at least one rewrite rule needs a positive weight");
         }
         return new RewriteLibrary(rules);
+    }
+
+    /**
+     * Returns the rules of this library followed by those of {@code later}, as the property and
+     * fairness of a metamorphic pair apply the rewrite rules and then the temporal ones (ADR 0027
+     * §2). Applied rules are recorded by name, so the names must be distinct.
+     *
+     * @throws IllegalArgumentException if both libraries define a rule of one name
+     */
+    public RewriteLibrary followedBy(RewriteLibrary later) {
+        Objects.requireNonNull(later, "later");
+        var names = new HashSet<String>();
+        rules.forEach(rule -> names.add(rule.name()));
+        for (var rule : later.rules) {
+            if (names.contains(rule.name())) {
+                throw new IllegalArgumentException("rewrite rule " + rule.name() + " is defined in both rule modules");
+            }
+        }
+        var combined = new ArrayList<>(rules);
+        combined.addAll(later.rules);
+        return new RewriteLibrary(combined);
     }
 
     /** Returns every rule, in declaration order. */

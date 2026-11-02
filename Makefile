@@ -39,11 +39,12 @@ architecture:
 user-manual:
 	$(MKDOCS) build --strict
 
-# Proves every rewrite rule (ADR 0017 §7). Variants resolves from Apalache's standard modules.
+# Proves every rewrite rule (ADR 0017 §7) and every temporal rewrite rule (ADR 0027 §1).
+# Variants resolves from Apalache's standard modules.
 proofs:
 	@mkdir -p target/tlapm
 	$(TLAPM) --cache-dir target/tlapm -I src/main/resources/tla2sany/StandardModules \
-		libraries/rewrites/RewritesProofs.tla
+		libraries/rewrites/RewritesProofs.tla libraries/rewrites/TemporalRewritesProofs.tla
 
 # Downloads the latest CommunityModules.jar release and records its tag and commit in VERSION.
 # Phony, so every run fetches the latest release; a corpus keeps the copy made by

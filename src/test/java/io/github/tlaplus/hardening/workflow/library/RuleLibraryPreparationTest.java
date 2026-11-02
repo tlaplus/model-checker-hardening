@@ -1,8 +1,10 @@
 package io.github.tlaplus.hardening.workflow.library;
 
+import io.github.tlaplus.hardening.gen.rewrite.RuleFamily;
 import io.github.tlaplus.hardening.workflow.StagedTools;
 import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,6 +18,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -67,6 +70,36 @@ class RuleLibraryPreparationTest {
                 prepared.manifest());
         assertTrue(prepared.manifest().endsWith("\nweight FilterViaLambda 8\nweight ExistsViaLambda 8\nweight FunBeta 8\n"),
                 prepared.manifest());
+    }
+
+    @Test
+    void preparesTheShippedTemporalRulesInDeclarationOrder() throws Exception {
+        var rules = prepare(ShippedRules.temporalConfig(), RuleFamily.TEMPORAL_REWRITES).library().rules();
+        assertEquals(List.of("AlwaysTwice", "EventuallyTwice", "AlwaysAndSplit", "EventuallyOrSplit",
+                "AlwaysAsNotEventually", "EventuallyAsNotAlways", "AlwaysUnfold", "EventuallyUnfold", "InfOftenIdem",
+                "EventuallyAlwaysIdem", "LeadsToDef", "BoxActionUnchanged", "DiamondActionChanged", "WFDef", "SFDef",
+                "AlwaysWithEventually", "AlwaysAndIdem", "AlwaysOrIdem", "EventuallyAndIdem", "EventuallyOrIdem",
+                "AlwaysOrBreak", "EventuallyWeaken"),
+                rules.stream().map(RewriteRule::name).toList());
+        var byName = new java.util.HashMap<String, RewriteRule>();
+        rules.forEach(rule -> byName.put(rule.name(), rule));
+        assertEquals(1, byName.get("AlwaysTwice").weight());
+        assertEquals(2, byName.get("AlwaysAndSplit").weight());
+        assertEquals(8, byName.get("WFDef").weight());
+        assertEquals(8, byName.get("AlwaysOrIdem").weight());
+        assertEquals(Set.of("F"), byName.get("AlwaysUnfold").levels().formulaParameters());
+        assertEquals(Set.of(), byName.get("WFDef").levels().formulaParameters(), "A is an action, v a subscript");
+        assertEquals(Set.of(), byName.get("BoxActionUnchanged").levels().formulaParameters());
+        assertTrue(byName.get("EventuallyWeaken").levels().raisesLevel());
+        assertTrue(byName.get("AlwaysOrBreak").levels().raisesLevel());
+        assertFalse(byName.get("LeadsToDef").levels().raisesLevel());
+    }
+
+    @Test
+    void aRewriteRuleModuleCannotHoldTheTemporalRules() {
+        var failure = assertThrows(WorkflowException.class, () -> prepare(ShippedRules.temporalConfig()));
+        assertTrue(failure.getMessage().contains("rewrite rule AlwaysTwice: a temporal rule belongs in"),
+                failure.getMessage());
     }
 
     @Test
@@ -130,7 +163,13 @@ class RuleLibraryPreparationTest {
     }
 
     private static RuleLibraryPreparation.Prepared prepare(RuleLibraryConfig config) throws WorkflowException {
-        return RuleLibraryPreparation.prepare(config, CheckerProfile.APALACHE.defaults(), StagedTools.locate(ToolJar.APALACHE));
+        return prepare(config, RuleFamily.REWRITES);
+    }
+
+    private static RuleLibraryPreparation.Prepared prepare(RuleLibraryConfig config, RuleFamily family)
+            throws WorkflowException {
+        return RuleLibraryPreparation.prepare(
+                config, family, CheckerProfile.APALACHE.defaults(), StagedTools.locate(ToolJar.APALACHE));
     }
 
     private static RuleLibraryConfig config(Path classpath, String module, Map<String, Integer> weights) {

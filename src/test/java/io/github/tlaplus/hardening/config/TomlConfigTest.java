@@ -110,6 +110,23 @@ class TomlConfigTest {
         assertEquals(MetamorphicConfig.defaults(), readConfig(directory, withoutTable).metamorphic());
     }
 
+    /** The temporal rule module (ADR 0027 §1) is read like the rewrite rules, under prefixed keys. */
+    @Test
+    void readsTheTemporalRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        var document = defaults
+                .replace("# temporal_rules = { module = \"TemporalRewrites\", classpath = [\"../libraries/rewrites\"] }",
+                        "temporal_rules = { module = \"TemporalRewrites\", classpath = [\"rules\"] }")
+                .replace("temporal_weights = {}", "temporal_weights = { WFDef = 4 }");
+        var metamorphic = readConfig(directory, document).metamorphic();
+        assertEquals(new RuleLibraryConfig(Optional.of(new RuleLibraryConfig.RuleModule(
+                        "TemporalRewrites", List.of(directory.resolve("rules").toAbsolutePath().normalize()))),
+                        Map.of("WFDef", 4)),
+                metamorphic.temporalRules());
+        assertEquals(RuleLibraryConfig.none(), metamorphic.rules(), "the two rule modules are independent");
+        assertEquals(RuleLibraryConfig.none(), readConfig(directory, defaults).metamorphic().temporalRules());
+    }
+
     /** [graph] names the rule module of the edge guards as [metamorphic] names its rewrites. */
     @Test
     void readsTheGuardRuleModuleAndItsWeights(@TempDir Path directory) throws Exception {
@@ -145,7 +162,7 @@ class TomlConfigTest {
         var section = document.substring(start, end)
                 .replace("# rules = { module = \"Rewrites\", classpath = [\"../libraries/rewrites\"] }",
                         "rules = { module = \"Rewrites\", classpath = [\"rules\"] }")
-                .replace("weights = {}", "weights = { AddSub = 3, DoubleNeg = 0 }");
+                .replace("\nweights = {}", "\nweights = { AddSub = 3, DoubleNeg = 0 }");
         return document.substring(0, start) + section + document.substring(end);
     }
 

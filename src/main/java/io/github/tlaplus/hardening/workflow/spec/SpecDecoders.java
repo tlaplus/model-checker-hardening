@@ -22,6 +22,7 @@ import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
+import io.github.tlaplus.hardening.gen.rewrite.RuleFamily;
 import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.workflow.CorpusTools;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
@@ -98,16 +99,19 @@ public final class SpecDecoders {
             var prepared = LibraryPreparation.prepare(config);
             var apalache = config.workflow().checker(CorpusStage.APALACHE);
             var jar = CorpusTools.apalache(config);
-            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), apalache, jar);
+            var guardRules = RuleLibraryPreparation.prepare(config.graphGuards(), RuleFamily.REWRITES, apalache, jar);
             var guards = guards(guardRules.library());
             return switch (technique) {
                 case PBT, GBT -> of(prepared.generator(), guards,
                         new Manifests(prepared.manifest(), guardRules.manifest()));
                 case MT -> {
-                    var rules = RuleLibraryPreparation.prepare(config.metamorphic().rules(), apalache, jar);
+                    var rules = RuleLibraryPreparation.prepare(
+                            config.metamorphic().rules(), RuleFamily.REWRITES, apalache, jar);
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("technique = \"mt\" needs rewrite rules: set metamorphic.rules");
                     }
+                    // The rewriter applies the temporal rules from ADR 0027 phase 2 on.
+                    temporalRules(config, rules.library());
                     yield metamorphic(prepared.generator(),
                             new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),
                             guards,
@@ -128,6 +132,33 @@ public final class SpecDecoders {
     /** Returns a complete conformance decoder registry whose graph inputs conjoin {@code guards}. */
     public static SpecDecoders of(IrGenerationConfig config, EdgeGuards guards) {
         return of(config, Optional.of(Objects.requireNonNull(guards, "guards")), new Manifests("", ""));
+    }
+
+    /**
+     * Loads the temporal rules of {@code config}, if it names any, and checks that the corpus can
+     * use them (ADR 0027 §1, §5): TLC alone checks the rewritten properties, since Apalache
+     * supports no fairness, and only a module has a property. They follow {@code rules}, so their
+     * names must be distinct.
+     */
+    private static RewriteLibrary temporalRules(FuzzTlaConfig config, RewriteLibrary rules) throws WorkflowException {
+        var temporal = config.metamorphic().temporalRules();
+        if (temporal.isEmpty()) {
+            return RewriteLibrary.empty();
+        }
+        if (config.workflow().enabledCheckers().contains(CorpusStage.APALACHE)) {
+            throw new WorkflowException(
+                    "metamorphic.temporal_rules needs checkers without apalache, which supports no fairness");
+        }
+        if (config.generatedKind() != InputKind.MODULE) {
+            throw new WorkflowException("metamorphic.temporal_rules needs kind = \"module\": only a module has a property");
+        }
+        var prepared = RuleLibraryPreparation.prepare(temporal, RuleFamily.TEMPORAL_REWRITES,
+                config.workflow().checker(CorpusStage.APALACHE), CorpusTools.apalache(config)).library();
+        try {
+            return rules.followedBy(prepared);
+        } catch (IllegalArgumentException exception) {
+            throw new WorkflowException("metamorphic.temporal_rules: " + exception.getMessage(), exception);
+        }
     }
 
     /** The edge guards of a prepared rule module; none without one. */

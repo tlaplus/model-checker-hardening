@@ -6,14 +6,17 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The {@code [metamorphic]} table (ADR 0016 §7, ADR 0017 §1): what an {@code mt} corpus reads
- * besides the generator settings. Another technique ignores it.
+ * The {@code [metamorphic]} table (ADR 0016 §7, ADR 0017 §1, ADR 0027 §1): what an {@code mt}
+ * corpus reads besides the generator settings. Another technique ignores it.
  *
  * @param rules the rule module and its weights; an omitted rule has weight 1
+ * @param temporalRules the temporal rule module and its weights, none when the corpus does not
+ *     rewrite properties
  * @param limits the rewrites of one body and the rewrites stacked on one node
  * @param adoption the pbt corpus whose {@code 04quality-pass} entries are adopted, and their share
  */
-public record MetamorphicConfig(RuleLibraryConfig rules, RewriteLimits limits, Adoption adoption) {
+public record MetamorphicConfig(
+        RuleLibraryConfig rules, RuleLibraryConfig temporalRules, RewriteLimits limits, Adoption adoption) {
     /**
      * Where adopted parents come from (ADR 0016 §6).
      *
@@ -39,16 +42,35 @@ public record MetamorphicConfig(RuleLibraryConfig rules, RewriteLimits limits, A
 
     public MetamorphicConfig {
         Objects.requireNonNull(rules, "rules");
+        Objects.requireNonNull(temporalRules, "temporalRules");
         Objects.requireNonNull(limits, "limits");
         Objects.requireNonNull(adoption, "adoption");
     }
 
     public static MetamorphicConfig defaults() {
-        return new MetamorphicConfig(RuleLibraryConfig.none(), RewriteLimits.defaults(), Adoption.defaults());
+        return new MetamorphicConfig(
+                RuleLibraryConfig.none(), RuleLibraryConfig.none(), RewriteLimits.defaults(), Adoption.defaults());
     }
 
-    /** Resolves the rule classpath relative to the directory of the configuration file. */
+    public MetamorphicConfig withRules(RuleLibraryConfig replacement) {
+        return new MetamorphicConfig(replacement, temporalRules, limits, adoption);
+    }
+
+    public MetamorphicConfig withTemporalRules(RuleLibraryConfig replacement) {
+        return new MetamorphicConfig(rules, replacement, limits, adoption);
+    }
+
+    public MetamorphicConfig withLimits(RewriteLimits replacement) {
+        return new MetamorphicConfig(rules, temporalRules, replacement, adoption);
+    }
+
+    public MetamorphicConfig withAdoption(Adoption replacement) {
+        return new MetamorphicConfig(rules, temporalRules, limits, replacement);
+    }
+
+    /** Resolves the rule classpaths relative to the directory of the configuration file. */
     MetamorphicConfig relativeTo(Path directory) {
-        return new MetamorphicConfig(rules.relativeTo(directory), limits, adoption.relativeTo(directory));
+        return new MetamorphicConfig(rules.relativeTo(directory), temporalRules.relativeTo(directory), limits,
+                adoption.relativeTo(directory));
     }
 }

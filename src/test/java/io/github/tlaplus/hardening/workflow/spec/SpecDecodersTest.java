@@ -9,6 +9,8 @@ import at.forsyte.apalache.tla.lir.OperEx;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
@@ -94,7 +96,7 @@ class SpecDecodersTest {
             assertTrue(guards(decoders.decode(entry)) > 0, SpecText.render(decoders.decode(entry)));
         }
         var metamorphic = guarded.withMetamorphic(new MetamorphicConfig(
-                RuleLibraryConfig.none(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
+                RuleLibraryConfig.none(), RuleLibraryConfig.none(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
         var refused = assertThrows(WorkflowException.class, () -> SpecDecoders.prepare(metamorphic, Technique.MT));
         assertTrue(refused.getMessage().contains("set metamorphic.rules"), refused.getMessage());
     }
@@ -107,7 +109,7 @@ class SpecDecodersTest {
     void metamorphicGraphBasesDecodeWithTheGuardsOfAGbtCorpus() throws Exception {
         var guarded = FuzzTlaConfig.defaults().withGraphGuards(ShippedRules.config());
         var metamorphic = guarded.withMetamorphic(new MetamorphicConfig(
-                ShippedRules.config(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
+                ShippedRules.config(), RuleLibraryConfig.none(), RewriteLimits.defaults(), MetamorphicConfig.Adoption.defaults()));
         var gbt = SpecDecoders.prepare(guarded, Technique.GBT);
         var mt = SpecDecoders.prepare(metamorphic, Technique.MT);
         assertEquals(gbt.guardManifest(), mt.guardManifest());
@@ -132,6 +134,24 @@ class SpecDecodersTest {
             compared++;
         }
         assertEquals(5, compared);
+    }
+
+    /** TLC alone checks rewritten properties, and only a module has one (ADR 0027 §5). */
+    @Test
+    void temporalRulesNeedAModuleCheckedWithoutApalache() throws Exception {
+        var metamorphic = MetamorphicConfig.defaults()
+                .withRules(ShippedRules.config())
+                .withTemporalRules(ShippedRules.temporalConfig());
+        var defaults = FuzzTlaConfig.defaults().withMetamorphic(metamorphic);
+        assertEquals(InputKind.MODULE, defaults.generatedKind());
+        var tlcOnly = defaults.withWorkflow(defaults.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
+        SpecDecoders.prepare(tlcOnly, Technique.MT);
+
+        var withApalache = assertThrows(WorkflowException.class, () -> SpecDecoders.prepare(defaults, Technique.MT));
+        assertTrue(withApalache.getMessage().contains("needs checkers without apalache"), withApalache.getMessage());
+        var expressions = assertThrows(WorkflowException.class,
+                () -> SpecDecoders.prepare(tlcOnly.withGeneratedKind(InputKind.EXPRESSION), Technique.MT));
+        assertTrue(expressions.getMessage().contains("needs kind = \"module\""), expressions.getMessage());
     }
 
     @Test

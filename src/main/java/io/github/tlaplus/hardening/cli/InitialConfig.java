@@ -71,7 +71,7 @@ final class InitialConfig {
         var adoption = base.metamorphic().adoption();
         var config = base
                 .withKnownDefects(base.workflow().inputs().knownDefects().stream().map(this::path).toList())
-                .withMetamorphic(new MetamorphicConfig(base.metamorphic().rules(), base.metamorphic().limits(),
+                .withMetamorphic(base.metamorphic().withAdoption(
                         new MetamorphicConfig.Adoption(Optional.of(path(baseCorpus)), adoption.ratio())));
         return forTechnique(config, Technique.MT);
     }
@@ -91,9 +91,8 @@ final class InitialConfig {
         if (metamorphic.rules().isEmpty()) {
             // Absolute, since init copies the rules into the corpus (ADR 0025 §2).
             var classpath = SHIPPED_RULES.classpath().stream().map(project.orElseThrow()::resolve).toList();
-            result = result.withMetamorphic(new MetamorphicConfig(
-                    RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(SHIPPED_RULES.module(), classpath)),
-                    metamorphic.limits(), metamorphic.adoption()));
+            result = result.withMetamorphic(metamorphic.withRules(
+                    RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule(SHIPPED_RULES.module(), classpath))));
         }
         var signatures = shipped(KnownDefectDatabase.METAMORPHIC);
         var databases = result.workflow().inputs().knownDefects();
