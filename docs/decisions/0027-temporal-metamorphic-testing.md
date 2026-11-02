@@ -138,12 +138,12 @@ entries, run E and both property runs together took 2.9 times as long as run E a
 - **The implication is rejected far more often:** 11 identity pairs against 1, and that
   one is the base property itself.
 
-**P2: seed rules.** Section 6 lists the 21 seed rules.
+**P2: seed rules.** Section 6 lists the 22 seed rules.
 - **SANY** parses the rule module.
 - **Snowcat** (`typecheck --infer-poly=true`) types every rule. A formula parameter is
   typed `Bool`. The subscript `v` of `WF_v(A)`, `[A]_v` and `<<A>>_v` gets a type
   variable, so it matches a tuple of any shape.
-- **TLAPM** proves every rule by `PTL`: 42 obligations. This includes the definitions of
+- **TLAPM** proves every rule by `PTL`: 44 obligations. This includes the definitions of
   `WF` and `SF` in terms of `ENABLED`, under the hypotheses `ACTION A, STATE v`.
 - **TLC** gives the same verdict for `WF_vars(A)` in `Spec` as for its two expansions,
   on a three-state counter with the property `<>(x = 2)`.
@@ -156,6 +156,8 @@ entries, run E and both property runs together took 2.9 times as long as run E a
   property violation. TLC rejects `[][x' >= x]_x \/ [][x' >= x]_x` with "Temporal formulas
   containing actions must be of forms <>[]A or []<>A". The known-defect signatures
   quarantine this shape ([temporal properties][temporal-manual] §5).
+- **`<>F`, `<>F /\ <>F` and `<>F \/ <>F` agree** on the counter, all three through the
+  liveness checker: `<>(x = 2)` holds and `<>(x = 3)` is violated.
 - **SANY rejects a formula parameter bound to an action.** In `[][A]_x`, the operand
   of `[]` is the action `[A]_x`. `AlwaysUnfold` would turn it into `[A]_x /\ [][A]_x`,
   which SANY rejects: "\land has both temporal formula and action as arguments".
@@ -340,7 +342,7 @@ is, not ignore `temporal`.
 
 ### 6. Seed rules
 
-`TemporalRewrites.tla` ships 21 rules, all proven (P2). `F` and `G` are formula
+`TemporalRewrites.tla` ships 22 rules, all proven (P2). `F` and `G` are formula
 parameters, `A` an action parameter, `v` a subscript.
 
 | Rule | A | B |
@@ -361,7 +363,8 @@ parameters, `A` an action parameter, `v` a subscript.
 | `WFDef` | `WF_v(A)` | `[]<>~ENABLED <<A>>_v \/ []<><<A>>_v` |
 | `SFDef` | `SF_v(A)` | `<>[]~ENABLED <<A>>_v \/ []<><<A>>_v` |
 | `AlwaysWithEventually` | `[]F` | `[]F /\ <>F` |
-| `EventuallyIdem` | `<>F` | `<>F /\ <>F` |
+| `EventuallyAndIdem` | `<>F` | `<>F /\ <>F` |
+| `EventuallyOrIdem` | `<>F` | `<>F \/ <>F` |
 | `AlwaysAndIdem` | `[]F` | `[]F /\ []F` |
 | `AlwaysOrIdem` | `[]F` | `[]F \/ []F` |
 | `AlwaysOrBreak` | `F` | `[]F \/ (F /\ <>~F)` |
@@ -372,8 +375,9 @@ parameters, `A` an action parameter, `v` a subscript.
   (P4); these two rules make TLC build a tableau for them.
 - **`AlwaysWithEventually`** moves a property that TLC would check as an invariant onto
   its liveness checker (P2), and so does **`AlwaysOrIdem`**. **`AlwaysAndIdem`** gives
-  TLC two invariants to split out of one property. **`EventuallyIdem`** repeats an
-  eventuality, which `EventuallyTwice` nests instead.
+  TLC two invariants to split out of one property. **`EventuallyAndIdem`** and
+  **`EventuallyOrIdem`** repeat an eventuality in the tableau, which `EventuallyTwice`
+  nests instead.
 - **`WFDef` and `SFDef`** replace a fairness operator, which TLC handles specially, by
   its definition, which TLC checks as a general temporal formula.
 - **Default weights** follow ADR 0017's tiers: 8 for the rules that change how TLC
