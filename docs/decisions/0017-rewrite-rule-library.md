@@ -2,7 +2,9 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Implemented, except temporal rules and TLC-only recursive rules
+**Status:** Implemented, except temporal rules and TLC-only recursive rules. Temporal
+rules are proposed in [ADR 0027](0027-temporal-metamorphic-testing.md), in a module of
+their own.
 
 **Date:** 2026-09-24
 
@@ -270,6 +272,9 @@ among the rules that match a node.
   kinds. A match whose unification fails does not apply.
 - **Level.** A matched parameter binds to a subterm of any level. The rule's validity
   (section 5) does not depend on the level.
+
+  *For temporal rules, [ADR 0027](0027-temporal-metamorphic-testing.md) §1 restricts a
+  formula parameter to state predicates and temporal formulas.*
 - **Selection.** The rules applicable at a node are those that match it and pass the
   contract checks, in declaration order. The two-byte index of [ADR 0016][adr-0016]
   selects among their weighted slots.
@@ -328,6 +333,10 @@ checks items 2–4.
    `<<A>>_v`, `\cdot`) or `ENABLED` only if A uses one, so a rule may trade
    `UNCHANGED x` for `x' = x` but cannot raise a state-level pattern. B uses a temporal
    operator only if A does.
+
+   *[ADR 0027](0027-temporal-metamorphic-testing.md) §1 relaxes both clauses for
+   temporal rules: `WF` and `SF` count as action-level, and B may raise the level at a
+   temporal position.*
 3. **Assignment-preserving.** TLC treats `x' = e` as an assignment only in certain
    positions: under `/\` and `\/`, in an `IF` branch, in an `\E` body, and in a `LET`
    body. TLC evaluates conjuncts from left to right, so their order matters as well.
