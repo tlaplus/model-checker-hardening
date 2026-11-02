@@ -144,6 +144,7 @@ generation is selected and mutated. They are described in
 | `max_extra_successors` | `2` | Maximum successors of one node besides its spine successor: back edges, self-loops and forward skips of at most two nodes. |
 | `max_steps` | `max_graph_nodes` | Cap on the step bound. Each input draws its own bound between half its node count and its node count minus one. |
 | `max_guards` | `2` | Maximum tautological guards of one edge, when `rules` is set. |
+| `properties` | `false` | Give each graph module a temporal property and fairness over its edges, which gbt does not check but `mt --temporal` over the corpus does. Changes how every graph input decodes. |
 | `rules` | absent | Rule module of the edge guards, as `{ module = "Rewrites", classpath = ["../libraries/rewrites"] }`. Absent, edges have no guards. |
 | `weights` | `{}` | Selection slots per guard rule, overriding its `@weight` annotation; 0 disables a rule. |
 

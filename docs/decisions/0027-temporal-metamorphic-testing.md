@@ -401,11 +401,13 @@ backend.
 `run` refuses `temporal_rules` when:
 - `[workflow] checkers` lists `apalache`, which supports no fairness and would check
   neither property run; or
-- `[generator] kind` is not `module`. Expressions and graph modules have no property.
+- `[generator] kind` is not `module`, or `graph` with `[graph] properties = true`
+  (section 8). Expressions, and graph modules without that key, have no property.
 
 `fuzztla init --how=mt --temporal` writes the shipped `temporal_rules` and
-`checkers = ["tlc"]`. With `--base-corpus`, the base must generate properties, that
-is, not ignore `temporal`.
+`checkers = ["tlc"]`. With `--base-corpus`, the base must generate properties: a
+`module` base that does not ignore `temporal`, or a `graph` base with
+`[graph] properties = true`.
 
 ### 6. Seed rules
 
@@ -461,6 +463,46 @@ parameters, `A` an action parameter, `v` a subscript.
 3. The property runs and the fold of section 4, `print` showing the three
    configurations, and `init --temporal`.
 
+### 8. Graph bases
+
+*Amendment, implemented on the branch `igor/mt-temporal-gbt`.* ADR 0023 §2 generates
+graph modules without a property, so a `gbt` corpus could not be the base of
+`mt --temporal`. The new key `[graph] properties`, `false` by default, makes the graph
+decoder generate a property for each graph module:
+- **Byte layout.** The property has a `GraphSection` of its own, `PROPERTY` of weight 3,
+  after the guards. With the key off, its weight is 0, so every existing graph input
+  decodes as before. The key is a component of `GraphLimits`, so `AdoptableBase` compares
+  it between an `mt` corpus and its base.
+- **Shape.** A Boolean marker, then a terminated list of fairness conditions, then a
+  formula drawn as for a module, in the scope of the auxiliary operators and every
+  variable, `pc` and `step` included.
+  - Each fairness condition is a Boolean marker for `WF` or `SF` and a two-byte index
+    that selects an edge. The condition is the fairness of a copy of that edge's
+    disjunct of `Next`, with every variable as its subscript.
+  - The conditions come before the formula because they take four bytes each. Drawn
+    after it, as for a module, 300 random inputs gave 13 conditions.
+- **gbt does not check the property.** ADR 0023's oracle predicts only `Inv`, so a
+  graph entry asks for the invariant alone (`CheckKind.INVARIANT`). TLC ignores the
+  fairness without a `PROPERTY`, and Apalache is not asked about it. A test runs graphs
+  with properties through TLC and Apalache and finds the predicted outcomes.
+- **Signatures still match the property,** since graph entries keep their entry points.
+  With `known-defects.toml`, 28 of 301 graph modules with a property were quarantined,
+  mostly by TLC's temporal-shape signatures.
+- **`mt --temporal` over such a base** rewrites the graph module as any module, and
+  TLC runs the property runs of section 4.
+
+Smoke runs with FuzzTLA on this branch (TLC `dc6a944`), TLC only:
+- **`gbt` with `[graph] properties = true`:** 1,500 entries. The graph oracle accepted
+  every one, and 75 passed the quality gate.
+- **`mt --temporal` over that corpus:** 600 entries in 5 min 48 s, of which 62 received
+  a temporal rewrite. No counterexample.
+  - The TLC median was 1.5 s with a temporal rewrite and 1.0 s without.
+  - 7 of the 18 crashes came from the property run `Spec |= Prop`. Each was an evaluation
+    error inside the temporal check, which TLC reports with error 1000: the open defect of
+    [`tlc-009`](../../findings/TLC/tlc-009.md) and
+    [`tlc-010`](../../findings/TLC/tlc-010.md). `all-defects.toml` quarantines it as
+    `tlc-partial-operator-under-eventuality`; `known-defects.toml` does not.
+
 ## Alternatives considered
 
 - **ADR 0016's implication**, `(PropE => PropC) /\ (PropC => PropE)` under `FairnessE`.
@@ -501,12 +543,15 @@ parameters, `A` an action parameter, `v` a subscript.
 - **Deviations.** This ADR replaces:
   - [ADR 0016][adr-0016] §3, "Temporal properties", and §8 phase 4;
   - [ADR 0017][adr-0017]'s exclusion of temporal rules, its seed rule `AlwaysTwice`, and,
-    for temporal rules, the level bullet of §4 and the temporal clause of §5.2.
+    for temporal rules, the level bullet of §4 and the temporal clause of §5.2;
+  - [ADR 0023][adr-0023] §2, "No temporal property", for graph modules with
+    `[graph] properties` (section 8).
 
   Those ADRs carry a note pointing here.
 
 [adr-0016]: 0016-metamorphic-testing.md
 [adr-0017]: 0017-rewrite-rule-library.md
 [adr-0019]: 0019-state-count-agreement.md
+[adr-0023]: 0023-graph-based-testing.md
 [generators]: ../architecture/ir-generators.md
 [temporal-manual]: ../manual/temporal-properties.md

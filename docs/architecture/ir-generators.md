@@ -1150,8 +1150,9 @@ three draws:
 A target with dist(k) > B is unreachable, so roughly half the inputs predict a pass.
 The bound is the input's own: `GeneratedSpec.stepBound` and every step guard use B,
 not `[generator] max_steps`. The rest of the payload is split by `GraphSection`, with
-weights `1, 2, 2, 2, 8, 4`; the last section has weight 0 when the decoder has no guard
-rules, so the other slices are those of an unguarded decoder:
+weights `1, 2, 2, 2, 8, 4, 3`. The last two sections are optional and have weight 0
+when the decoder does not use them, so the other slices are those of a decoder without
+them:
 
 1. **Variables** and 2. **auxiliary operators**, as for a module (section 9.1);
    `pc : Int` and `step` are appended to the data variables.
@@ -1168,6 +1169,14 @@ rules, so the other slices are those of an unguarded decoder:
    each edge, a terminated list of at most `maximumGuards` guards, each reading at most
    8 bytes (section 12.2). A short section guards the edges leaving node 0 first, where
    every path to the target starts; N equal slices would give it all to the last node.
+7. **Property**, only with `[graph] properties`
+   ([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md) §8): a Boolean
+   marker, a terminated list of at most `maximumFairnessConditions` fairness
+   conditions, and a formula drawn as for a module (section 9.4), over the auxiliary
+   operators and every variable, `pc` included. Each condition is a Boolean marker for
+   `WF` or `SF` and a two-byte index over the edges, and constrains a copy of that
+   edge's disjunct of `Next`. It is drawn last, so the names drawn before it are those
+   of a decoder without it. gbt checks the invariant alone.
 
 Both per-node sections are read from node 0 on. An equal split gives each of N slices
 ⌊L/N⌋ bytes and the last the remainder, so a short section, the common case among

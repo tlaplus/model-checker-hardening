@@ -308,11 +308,17 @@ temporal_weights = { WFDef = 4 }    # as weights, for the temporal rules
 - **The checkers lose Apalache.** Both TLC stages, `tlc` and `tlcn`, stay. Without
   Apalache, `metamorphic-defects.toml`, which quarantines `CHOOSE` for Apalache, is left
   out.
-- **The base must generate modules with properties.** `init` refuses a base whose `kind`
-  is not `module`, and warns if it ignores `temporal`
+- **The base must generate modules with properties:** a `module` base, or a `graph` base
+  with `[graph] properties = true`
+  ([Graph-based testing](graph-based-testing.md#1-setting-up-a-corpus)). `init` refuses
+  any other base, and warns if the base ignores `temporal`
   ([Temporal properties](temporal-properties.md)).
-- **`run` refuses `temporal_rules`** with Apalache among the checkers, or with a `kind`
-  other than `module`.
+- **`run` refuses `temporal_rules`** with Apalache among the checkers, or with a base
+  `init` would refuse.
+- **TLC crashes on some properties.** An evaluation error inside `<>` or `~>` makes TLC
+  exit with error 1000, an open TLC defect. `all-defects.toml` quarantines it as
+  `tlc-partial-operator-under-eventuality`; with `known-defects.toml`, expect such
+  crashes in the property runs ([Known-defect signatures](known-defect-signatures.md)).
 
 **What is rewritten.** Besides the bodies of section 2, the rewriter walks each fairness
 condition and then the property, before the other bodies, since a rewrite payload is

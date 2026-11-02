@@ -39,6 +39,7 @@ max_extra_successors = 2
 # max_steps = 32              # cap on each input's own step bound
 rules = { module = "Rewrites", classpath = ["../libraries/rewrites"] }  # edge guards, section 4
 max_guards = 2
+properties = false            # a property for mt --temporal to adopt, below
 ```
 
 - **The technique is fixed.** `init --how=gbt` writes `technique = "gbt"` under
@@ -51,6 +52,13 @@ max_guards = 2
 - **Give Apalache some margin.** Apalache unrolls one step per transition, and a
   spine is checked to a bound of 10 to 31 steps. In a first campaign it took 2 s at
   the median and 45 s at most; 1 entry in 300 exceeded the default 30 s.
+- **A property for `mt --temporal`.** `properties = true` gives each graph module a
+  temporal property and up to `[generator] max_fairness` fairness conditions, each the
+  `WF` or `SF` of one of its edges. The formula may read `pc` and every variable. gbt
+  checks the invariant alone, so the prediction is unchanged. An `mt --temporal`
+  corpus over this one rewrites and checks the property
+  ([Metamorphic testing](metamorphic-testing.md#7-temporal-properties)). The key
+  changes how every graph input decodes, so set it before the first run.
 - **Use the full defect database.** A node action runs every time its node is
   visited, so TLC fails on a partial term, such as a function applied outside its
   domain, more often than in a `pbt` corpus. With `all-defects.toml`, TLC failed on
@@ -180,7 +188,7 @@ known-defect signatures cover those cases.
 - An `mt` corpus rewrites a `graph` entry as a module and ignores its prediction.
   `init --how=mt --base-corpus corpus-gbt` starts one over this corpus
   ([Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus)).
-- Graph modules have no temporal property.
+- gbt does not check a graph module's property, even with `properties = true`.
 
 ## 7. Selection of parents
 
