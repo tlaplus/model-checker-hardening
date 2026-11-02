@@ -109,6 +109,63 @@ class FuzzInputModuleTest {
         throw new AssertionError("no generated module declared an action operator");
     }
 
+    /**
+     * With temporal rules, the relation defines the explored side's property and fairness in Prop
+     * and Fairness, and the checked side's specification and property beside them (ADR 0027 §3).
+     */
+    @Test
+    void aTemporalRelationDefinesBothSidesProperties() {
+        var b = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder();
+        var x = b.name("var0", org.apalache_mc.tla.jir.TlaTypes.INT);
+        var step = b.name(io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, org.apalache_mc.tla.jir.TlaTypes.INT);
+        var positive = b.gt(x, b.integer(0));
+        var increment = b.primeEq(x, b.plus(x, b.integer(1)));
+        var fairness = b.weakFair(b.tuple(x), increment);
+        var original = spec(b, x, step, increment, fairness, b.always(positive));
+        var rewritten = spec(b, x, step, increment, fairness, b.and(b.always(positive), b.eventually(b.always(positive))));
+
+        var omitted = definitions(FuzzInputModule.create(original, rewritten,
+                io.github.tlaplus.hardening.gen.rewrite.Orientation.EXPLORE_ORIGINAL, PropertyRelation.OMITTED));
+        assertEquals("TRUE", omitted.get(FuzzInputModule.PROP));
+        assertFalse(omitted.containsKey(FuzzInputModule.SPEC_C));
+
+        var explored = definitions(FuzzInputModule.create(original, rewritten,
+                io.github.tlaplus.hardening.gen.rewrite.Orientation.EXPLORE_REWRITE, PropertyRelation.SEPARATE_RUNS));
+        assertEquals("[](var0 > 0) /\\ <>([](var0 > 0))", explored.get(FuzzInputModule.PROP), "Prop is the rewrite's");
+        assertEquals("[](var0 > 0)", explored.get(FuzzInputModule.PROP_C), "PropC is the original's");
+        assertEquals("WF_(<<var0>>)((var0' = var0 + 1))", explored.get(FuzzInputModule.FAIRNESS_C));
+        assertEquals(explored.get(FuzzInputModule.FAIRNESS_C), explored.get(FuzzInputModule.FAIRNESS));
+        assertEquals("ActionC \\/ UNCHANGED (<<var0, step>>)", explored.get(FuzzInputModule.NEXT_C));
+        assertEquals("InitC /\\ []([NextC]_(<<var0, step>>)) /\\ FairnessC", explored.get(FuzzInputModule.SPEC_C));
+
+        var withoutProperty = new io.github.tlaplus.hardening.gen.GeneratedSpec(original.variables(), List.of(),
+                original.initPredicate(), original.nextAction(), original.invariant(), java.util.Optional.empty(), 3);
+        assertFalse(definitions(FuzzInputModule.create(withoutProperty, withoutProperty,
+                io.github.tlaplus.hardening.gen.rewrite.Orientation.EXPLORE_ORIGINAL, PropertyRelation.SEPARATE_RUNS))
+                .containsKey(FuzzInputModule.SPEC_C), "a base without a property has nothing to check apart");
+    }
+
+    private static io.github.tlaplus.hardening.gen.GeneratedSpec spec(
+            org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder b, at.forsyte.apalache.tla.lir.TlaEx x,
+            at.forsyte.apalache.tla.lir.TlaEx step, at.forsyte.apalache.tla.lir.TlaEx increment,
+            at.forsyte.apalache.tla.lir.TlaEx fairness, at.forsyte.apalache.tla.lir.TlaEx formula) {
+        return new io.github.tlaplus.hardening.gen.GeneratedSpec(
+                List.of(org.apalache_mc.tla.jir.TlaDeclarations.variable("var0", org.apalache_mc.tla.jir.TlaTypes.INT),
+                        org.apalache_mc.tla.jir.TlaDeclarations.variable(
+                                io.github.tlaplus.hardening.gen.GeneratedSpec.STEP_VARIABLE, org.apalache_mc.tla.jir.TlaTypes.INT)),
+                List.of(), b.and(b.eql(x, b.integer(0)), b.eql(step, b.integer(0))),
+                b.and(increment, b.primeEq(step, b.plus(step, b.integer(1)))), b.bool(true),
+                java.util.Optional.of(new io.github.tlaplus.hardening.gen.TemporalProperty(List.of(fairness), formula)), 3);
+    }
+
+    /** Prints every operator definition of {@code module}, by name. */
+    private java.util.Map<String, String> definitions(at.forsyte.apalache.tla.lir.TlaModule module) {
+        var printed = new java.util.HashMap<String, String>();
+        operators(module).forEach(operator -> printed.put(
+                operator.name(), io.github.tlaplus.hardening.gen.TlaIrTestSupport.print(operator.body())));
+        return printed;
+    }
+
     private int lastIndexWithPrefix(java.util.List<String> names, String prefix) {
         var index = -1;
         for (var position = 0; position < names.size(); position++) {

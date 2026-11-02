@@ -236,6 +236,54 @@ class ParserBackendTest {
     }
 
     /**
+     * Temporal rules rewrite properties and fairness (ADR 0027 §2), and the relation module defines
+     * both sides' specifications (§3), so SANY must accept every such module: a formula parameter
+     * bound to an action, a level-raising rule at a value position, or a temporal formula moved
+     * under = would each be a level error.
+     */
+    @Test
+    void everyTemporallyRewrittenModuleParses(@TempDir Path directory) throws Exception {
+        var config = IrGenerationConfig.defaults()
+                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC));
+        var apalache = StagedTools.locate(ToolJar.APALACHE);
+        var rules = RuleLibraryPreparation.prepare(
+                ShippedRules.config(), RuleFamily.REWRITES, CheckerProfile.APALACHE.defaults(), apalache).library();
+        var temporal = RuleLibraryPreparation.prepare(ShippedRules.temporalConfig(), RuleFamily.TEMPORAL_REWRITES,
+                CheckerProfile.APALACHE.defaults(), apalache).library();
+        var temporalNames = new java.util.HashSet<String>();
+        temporal.rules().forEach(rule -> temporalNames.add(rule.name()));
+        var decoders = SpecDecoders.metamorphic(config, new Rewriter(rules, temporal, config, RewriteLimits.defaults()));
+        var random = new Random(0x7e3aL);
+        var scratch = Files.createDirectory(directory.resolve("scratch"));
+        var withProperty = 0;
+        var temporalRewrites = 0;
+        try (var worker = ParserBackend.startProcess(scratch, List.of(), STARTUP_TIMEOUT)) {
+            for (var sample = 0; sample < 400; sample++) {
+                var base = new byte[64 + random.nextInt(448)];
+                var rewrite = new byte[256];
+                random.nextBytes(base);
+                random.nextBytes(rewrite);
+                final io.github.tlaplus.hardening.workflow.spec.SpecArtifact artifact;
+                try {
+                    artifact = decoders.decode(new CorpusInput(InputKind.MODULE, MetamorphicPayload.encode(base, rewrite)));
+                } catch (InputRejectedException rejected) {
+                    continue;
+                }
+                if (artifact.entryPoints().contains(FuzzInputModule.PROP_C)) {
+                    withProperty++;
+                }
+                temporalRewrites += (int) artifact.rewrite().orElseThrow().appliedRules().stream()
+                        .filter(temporalNames::contains).count();
+                var source = SpecText.render(artifact);
+                var result = worker.request(new ToolInput(source, 0), STARTUP_TIMEOUT);
+                assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic() + "\n" + source);
+            }
+        }
+        assertTrue(withProperty > 50, "too few relation modules had a property: " + withProperty);
+        assertTrue(temporalRewrites > 100, "too few temporal rules applied: " + temporalRewrites);
+    }
+
+    /**
      * A guard instantiates both sides of a rule, so SANY must accept every guarded graph module
      * (ADR 0023 §6): the labels a guard's operands copy across A and B, and those it puts under a
      * binder of the rule, are what this checks.
