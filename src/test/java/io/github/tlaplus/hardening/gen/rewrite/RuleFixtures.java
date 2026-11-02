@@ -153,6 +153,57 @@ final class RuleFixtures {
         return B.name(name, TlaTypes.set(OTHER));
     }
 
+    /** The parameters of the temporal rules (ADR 0027 §1): formulas F and G, an action A, a subscript v. */
+    static final TlaEx FORMULA_F = bool("F");
+    static final TlaEx FORMULA_G = bool("G");
+    static final TlaEx ACTION_A = bool("A");
+    static final TlaEx SUBSCRIPT_V = B.name("v", ELEMENT);
+
+    static TlaOperDecl alwaysTwice() {
+        return rule("AlwaysTwice", B.equiv(B.always(FORMULA_F), B.always(B.always(FORMULA_F))),
+                B.param("F", TlaTypes.BOOL));
+    }
+
+    static TlaOperDecl alwaysUnfold() {
+        return rule("AlwaysUnfold", B.equiv(B.always(FORMULA_F), B.and(FORMULA_F, B.always(FORMULA_F))),
+                B.param("F", TlaTypes.BOOL));
+    }
+
+    static TlaOperDecl eventuallyWeaken() {
+        return rule("EventuallyWeaken", B.equiv(FORMULA_F, B.and(FORMULA_F, B.eventually(FORMULA_F))),
+                B.param("F", TlaTypes.BOOL));
+    }
+
+    static TlaOperDecl leadsToDef() {
+        return rule("LeadsToDef",
+                B.equiv(B.leadsTo(FORMULA_F, FORMULA_G), B.always(B.implies(FORMULA_F, B.eventually(FORMULA_G)))),
+                B.param("F", TlaTypes.BOOL), B.param("G", TlaTypes.BOOL));
+    }
+
+    static TlaOperDecl wfDef() {
+        var disabled = B.always(B.eventually(B.not(B.enabled(B.noStutter(ACTION_A, SUBSCRIPT_V)))));
+        var taken = B.always(B.eventually(B.noStutter(ACTION_A, SUBSCRIPT_V)));
+        return rule("WFDef", B.equiv(B.weakFair(SUBSCRIPT_V, ACTION_A), B.or(disabled, taken)),
+                B.param("A", TlaTypes.BOOL), B.param("v", ELEMENT));
+    }
+
+    static TlaOperDecl boxActionUnchanged() {
+        return rule("BoxActionUnchanged", B.equiv(B.always(B.stutter(ACTION_A, SUBSCRIPT_V)),
+                        B.always(B.stutter(B.or(ACTION_A, B.unchanged(SUBSCRIPT_V)), SUBSCRIPT_V))),
+                B.param("A", TlaTypes.BOOL), B.param("v", ELEMENT));
+    }
+
+    /** {@code EquivAsEq} of Rewrites.tla, which puts its operands under {@code =}. */
+    static TlaOperDecl equivAsEq() {
+        return rule("EquivAsEq", B.eql(B.equiv(bool("P"), bool("Q")), B.eql(bool("P"), bool("Q"))),
+                B.param("P", TlaTypes.BOOL), B.param("Q", TlaTypes.BOOL));
+    }
+
+    /** A temporal rule module of the given rules, each at the default weight. */
+    static RewriteLibrary temporal(TlaOperDecl... rules) {
+        return RewriteLibrary.fromModule(module(rules), names(rules), Map.of(), RuleFamily.TEMPORAL_REWRITES);
+    }
+
     static TlaOperDecl rule(String name, TlaEx body, TypedParameter... parameters) {
         return B.decl(name, body, parameters);
     }
