@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "f155219d1aadc24f25dc2ccc477c57ea6b4e38a8"
+    "commit" : "7d4f60afbf46c7ec2fc12dec60b7747fc5defc4c"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -387,7 +387,7 @@
     "key" : false,
     "summary" : "Renders a decoded input independently of picocli command wiring.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/DecodedInputRenderer.java",
-    "line" : 22,
+    "line" : 24,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.EnvelopeReport",
@@ -457,7 +457,7 @@
     "key" : true,
     "summary" : "`fuzztla init`: writes the configuration of a new corpus, which names the technique every run follows (ADR 0025 §1), and copies its libraries and tool JARs into it (§2, §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java",
-    "line" : 29,
+    "line" : 31,
     "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.InitialConfig",
@@ -467,7 +467,7 @@
     "key" : false,
     "summary" : "The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, the settings that follow from the technique, and fresh seeds (ADR 0026).",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitialConfig.java",
-    "line" : 24,
+    "line" : 25,
     "adrs" : [ "0025", "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.KnownDefectReport",
@@ -3277,7 +3277,7 @@
     "key" : false,
     "summary" : "The Apalache command line for one checked module.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheArguments.java",
-    "line" : 9,
+    "line" : 10,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend",
@@ -3817,7 +3817,7 @@
     "key" : true,
     "summary" : "Assembles the module checked by the parser and model-checker stages.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/FuzzInputModule.java",
-    "line" : 37,
+    "line" : 38,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation",
@@ -3847,7 +3847,7 @@
     "key" : false,
     "summary" : "How the relation module of a metamorphic pair of modules treats their properties and fairness.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/PropertyRelation.java",
-    "line" : 8,
+    "line" : 9,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
@@ -3857,7 +3857,7 @@
     "key" : true,
     "summary" : "One assembled module, what its checkers are asked about it, and what its decoder produced.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java",
-    "line" : 39,
+    "line" : 40,
     "adrs" : [ "0014" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
@@ -3880,6 +3880,16 @@
     "line" : 16,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Folds the relation run of a metamorphic module and its two property runs into the one outcome of the TLC stage (ADR 0027 §4).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/PropertyRunsVerdict.java",
+    "line" : 26,
+    "adrs" : [ "0027" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
     "kind" : "CLASS",
@@ -3887,8 +3897,8 @@
     "key" : true,
     "summary" : "Adapts fresh isolated TLC invocations to the shared tool stage.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcCheckerBackend.java",
-    "line" : 27,
-    "adrs" : [ ]
+    "line" : 29,
+    "adrs" : [ "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
@@ -3897,7 +3907,7 @@
     "key" : true,
     "summary" : "The TLC configuration file for one checked module.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcConfiguration.java",
-    "line" : 10,
+    "line" : 13,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics",
@@ -4050,6 +4060,16 @@
     "line" : 10,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "packageName" : "io.github.tlaplus.hardening.workflow.worker",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "What one checker invocation checks in an assembled module: which side's specification it explores, and whether it checks the invariant, the action invariant of a metamorphic module and a temporal property.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/CheckKind.java",
+    "line" : 14,
+    "adrs" : [ "0027" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
     "packageName" : "io.github.tlaplus.hardening.workflow.worker",
     "kind" : "RECORD",
@@ -4057,8 +4077,8 @@
     "key" : false,
     "summary" : "What a checker is asked about one assembled module.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/CheckRequest.java",
-    "line" : 25,
-    "adrs" : [ "0016", "0024" ]
+    "line" : 22,
+    "adrs" : [ "0024" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.ChildJvm",
     "packageName" : "io.github.tlaplus.hardening.workflow.worker",
@@ -4301,6 +4321,18 @@
     "to" : "io.github.tlaplus.hardening.workflow.spec.SpecText",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.cli.EnvelopeReport",
     "to" : "io.github.tlaplus.hardening.checker.CheckerFailure",
     "kind" : "DEPENDS"
@@ -4504,6 +4536,18 @@
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.gen.ExpressionCategory",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.gen.IrGenerationConfig",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -11106,6 +11150,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments",
     "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
     "kind" : "USES"
   }, {
@@ -12377,6 +12425,10 @@
     "to" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation",
     "to" : "io.github.tlaplus.hardening.common.Diagnostics",
     "kind" : "DEPENDS"
@@ -12453,6 +12505,10 @@
     "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "HAS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
     "kind" : "USES"
@@ -12484,6 +12540,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
@@ -12637,6 +12697,26 @@
     "to" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -12658,6 +12738,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcFailureDetail",
     "kind" : "DEPENDS"
   }, {
@@ -12676,6 +12760,14 @@
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.workflow.tool.ToolWorker",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend",
     "to" : "io.github.tlaplus.hardening.workflow.worker.ChildJvm",
@@ -12703,6 +12795,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
     "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
@@ -13049,6 +13145,10 @@
     "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "HAS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.worker.ChildJvm",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -13175,6 +13275,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol",
@@ -13512,7 +13616,7 @@
   }, {
     "from" : "cli",
     "to" : "gen",
-    "typePairs" : 8,
+    "typePairs" : 11,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
@@ -13560,7 +13664,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 34,
+    "typePairs" : 37,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

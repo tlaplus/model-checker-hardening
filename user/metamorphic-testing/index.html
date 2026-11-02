@@ -779,10 +779,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-temporal-properties-in-progress" class="md-nav__link">
+  <a href="#7-temporal-properties" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Temporal properties (in progress)
+        7. Temporal properties
       
     </span>
   </a>
@@ -1334,10 +1334,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-temporal-properties-in-progress" class="md-nav__link">
+  <a href="#7-temporal-properties" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Temporal properties (in progress)
+        7. Temporal properties
       
     </span>
   </a>
@@ -1376,8 +1376,8 @@
 
 
 <h1 id="metamorphic-testing">Metamorphic testing<a class="headerlink" href="#metamorphic-testing" title="Permanent link">&para;</a></h1>
-<p>Temporal properties are not rewritten yet. Section 7 describes the temporal mode in
-progress (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>).</p>
+<p>Temporal properties are rewritten and checked by TLC in a mode of their own (section 7,
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>).</p>
 <p>A metamorphic campaign checks one model checker against itself. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
 <code>x</code> rewritten as <code>x + y - y</code>. The checker explores one of the two and checks that its
@@ -1545,7 +1545,7 @@ chooses the explored side E and the checked side C:</p>
 <tr>
 <td><code>Prop</code></td>
 <td>none</td>
-<td><code>TRUE</code>; the property is not checked (section 7)</td>
+<td><code>TRUE</code>; with temporal rules, <code>PropE</code> (section 7)</td>
 </tr>
 </tbody>
 </table>
@@ -1733,17 +1733,15 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
 <li><strong>TLC-only corpora.</strong> A corpus with <code>checkers = ["tlc"]</code> compares no checkers, so
   its entries are not conformance tests.</li>
 </ul>
-<h2 id="7-temporal-properties-in-progress">7. Temporal properties (in progress)<a class="headerlink" href="#7-temporal-properties-in-progress" title="Permanent link">&para;</a></h2>
-<p><em>Partly implemented.</em> <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>
-describes this mode for TLC. Corpora without it are unaffected. So far:
-- <code>libraries/rewrites/TemporalRewrites.tla</code> ships the rules;
-- <code>run</code> loads <code>temporal_rules</code> and refuses the settings below;
-- the rewriter rewrites fairness and properties;
-- <code>fuzztla print --spec</code> shows <code>SpecC</code>, <code>PropC</code> and <code>FairnessC</code> in the relation module.</p>
-<p>TLC does not check the properties yet, and <code>init --temporal</code> does not exist yet: set the
-keys by hand.</p>
+<h2 id="7-temporal-properties">7. Temporal properties<a class="headerlink" href="#7-temporal-properties" title="Permanent link">&para;</a></h2>
+<p>This mode tests TLC on rewritten properties and fairness
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>). Corpora without it are
+unaffected.</p>
 <p><strong>Enabling.</strong> <code>fuzztla init --how=mt --temporal</code> adds a second rule module and checks
 with TLC alone:</p>
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--temporal<span class="w"> </span>--base-corpus<span class="w"> </span>corpus71<span class="w"> </span>--corpus<span class="w"> </span>corpus-mtt
+</code></pre></div>
+<p>It writes:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>
 <span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">]</span><span class="w">                  </span><span class="c1"># Apalache supports no fairness</span>
 
@@ -1751,13 +1749,20 @@ with TLC alone:</p>
 <span class="n">temporal_rules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"TemporalRewrites"</span><span class="p">,</span><span class="w"> </span><span class="n">classpath</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tla/rewrites"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
 <span class="n">temporal_weights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">WFDef</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1"># as weights, for the temporal rules</span>
 </code></pre></div>
-<p><code>run</code> refuses <code>temporal_rules</code> with Apalache among the checkers, or with a <code>kind</code> other
-than <code>module</code>. The base corpus must generate properties, so it must not ignore
-<code>temporal</code> (<a href="../temporal-properties/">Temporal properties</a>).</p>
+<ul>
+<li><strong>The checkers lose Apalache.</strong> Both TLC stages, <code>tlc</code> and <code>tlcn</code>, stay. Without
+  Apalache, <code>metamorphic-defects.toml</code>, which quarantines <code>CHOOSE</code> for Apalache, is left
+  out.</li>
+<li><strong>The base must generate modules with properties.</strong> <code>init</code> refuses a base whose <code>kind</code>
+  is not <code>module</code>, and warns if it ignores <code>temporal</code>
+  (<a href="../temporal-properties/">Temporal properties</a>).</li>
+<li><strong><code>run</code> refuses <code>temporal_rules</code></strong> with Apalache among the checkers, or with a <code>kind</code>
+  other than <code>module</code>.</li>
+</ul>
 <p><strong>What is rewritten.</strong> Besides the bodies of section 2, the rewriter walks each fairness
-condition and then the property, before the other bodies, since a rewrite payload is short. There it applies the base rules and the temporal rules,
-such as <code>[]F</code> to <code>[][]F</code>, <code>F ~&gt; G</code> to <code>[](F =&gt; &lt;&gt;G)</code>, and <code>WF_v(A)</code> to its definition
-in terms of <code>ENABLED</code>.</p>
+condition and then the property, before the other bodies, since a rewrite payload is
+short. There it applies the base rules and the temporal rules, such as <code>[]F</code> to <code>[][]F</code>,
+<code>F ~&gt; G</code> to <code>[](F =&gt; &lt;&gt;G)</code>, and <code>WF_v(A)</code> to its definition in terms of <code>ENABLED</code>.</p>
 <p><strong>What TLC checks.</strong> An entry whose base has a property is checked in up to three TLC
 runs of one relation module. <code>SpecX == InitX /\ [][NextX]_vars /\ FairnessX</code> is side
 X's specification.</p>
@@ -1765,20 +1770,24 @@ X's specification.</p>
 <thead>
 <tr>
 <th>Run</th>
+<th>TLC configuration</th>
 <th>Checks</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>relation</td>
-<td><code>Inv</code> and <code>StepProperty</code>, as in section 2</td>
+<td><code>SPECIFICATION Spec</code>, <code>INVARIANT Inv</code>, <code>PROPERTY StepProperty</code></td>
+<td>the relation of section 2</td>
 </tr>
 <tr>
-<td>P_E</td>
+<td><code>Spec \|= Prop</code></td>
+<td><code>SPECIFICATION Spec</code>, <code>PROPERTY Prop</code></td>
 <td><code>SpecE ⊨ PropE</code></td>
 </tr>
 <tr>
-<td>P_C</td>
+<td><code>SpecC \|= PropC</code></td>
+<td><code>SPECIFICATION SpecC</code>, <code>PROPERTY PropC</code></td>
 <td><code>SpecC ⊨ PropC</code></td>
 </tr>
 </tbody>
@@ -1786,9 +1795,19 @@ X's specification.</p>
 <p>The two property runs must reach the same verdict: both pass, or both report a
 counterexample. Whether the base property holds does not matter. The TLC stage reports
 one outcome:
-- a counterexample if the relation run reports one, or if the property verdicts differ
-  ("property verdicts differ");
-- otherwise the outcome of the first run that did not pass, or pass.</p>
+- a counterexample if the relation run reports one; the property runs do not start;
+- a counterexample whose diagnostic starts with "property verdicts differ" if both
+  property runs decide and disagree, followed by each run's output;
+- otherwise the outcome of the relation run if it did not pass, then that of the first
+  property run that did not decide, under the heading "in the property run …";
+- otherwise pass.</p>
+<p><code>SpecC |= PropC</code> starts only once <code>Spec |= Prop</code> decided. <code>fuzztla print</code> lists the three
+configurations under <code>tlc runs:</code>, after the applied rules. The exploration metrics and the
+quality gate use the relation run.</p>
+<p><strong>Triage.</strong> For "property verdicts differ", check each property under its own
+specification in TLC, as in section 4. If TLC agrees with itself after both are
+simplified, a rule is unsound; otherwise reduce the module to a finding. <code>shrink</code> clears
+rewrite markers as for any entry.</p>
 <p><strong>Cost.</strong> An entry with a property costs up to three TLC runs instead of one.</p>
 <p><strong>Writing temporal rules.</strong> Temporal rules live in <code>TemporalRewrites.tla</code>, next to
 <code>Rewrites.tla</code>.

@@ -1,6 +1,6 @@
 # `VerdictTally`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/corpus/VerdictTally.java#L7) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7d4f60afbf46c7ec2fc12dec60b7747fc5defc4c/src/main/java/io/github/tlaplus/hardening/corpus/VerdictTally.java#L7) · module [corpus](../modules/corpus.md)
 
 A mutable per-verdict count, built up while scanning a corpus and read as `StageEntryCounts`.
 
