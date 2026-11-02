@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Accepted; phases 1 and 2 of section 7 are implemented
+**Status:** Implemented
 
 **Date:** 2026-11-02
 
@@ -45,6 +45,31 @@ decisions and settled further details:
 - A test decodes 400 random payloads with both rule modules, and SANY accepts every
   relation module.
 - TLC does not check `Prop` or `PropC` yet: that is phase 3.
+
+Phase 3 is implemented on the branch `igor/mt-temporal-runs`. It settled these details:
+- **`CheckRequest` names a `CheckKind`** in place of its two Booleans. Each kind says
+  which side's specification an invocation explores and whether it checks the invariant,
+  the action invariant and the property. `RELATION_AND_PROPERTIES` is followed by
+  `EXPLORED_PROPERTY` and `CHECKED_PROPERTY`. The worker protocol sends the kind's
+  protocol code, which a test pins.
+- `tlc.PropertyRunsVerdict` is the fold of section 4, with one test per row.
+  `TlcCheckerBackend` starts each property run in a fresh JVM under the stage's timeout,
+  only when the fold needs its outcome.
+- A property run's outcome names the run, as "in the property run SpecC |= PropC", above
+  TLC's output, and different verdicts start with "property verdicts differ". The
+  triager reads TLC's first `Error:` line, which is unchanged.
+- `fuzztla print` lists the configuration of each TLC run under `tlc runs:`.
+- `init --temporal` keeps both TLC stages, `tlc` and `tlcn`, and drops Apalache and
+  `metamorphic-defects.toml`, which quarantines `CHOOSE` only for Apalache.
+- **Smoke runs** (`init --how=mt --temporal` over the probe's `pbt` corpus, `max_entries`
+  600, TLC only):
+  - 600 entries in 5 min 11 s, of which 52 received a temporal rewrite;
+  - the TLC stage reported 359 passes, 238 fails, 3 crashes and no counterexample;
+  - the median TLC time was 2.0 s with a temporal rewrite and 1.0 s without.
+
+  The fails are the base's partial terms, as without temporal rules, and TLC's known
+  restrictions, such as "The property of PropC is equal to FALSE". With an added unsound
+  rule `F <=> []F` at weight 64, 4 of 300 entries were counterexamples.
 
 ## Context
 

@@ -364,7 +364,7 @@ This workflow specializes the general workflow as follows:
 ### 1.4. Metamorphic testing of TLC and Apalache
 
 **Implemented architectural extension** ([ADR 0016][]; [manual][metamorphic manual]).
-Temporal properties are not rewritten yet; [ADR 0027][] proposes how.
+Temporal properties are rewritten and checked by TLC in a mode of their own ([ADR 0027][]).
 
 In this workflow, the goal is to collect a metamorphic test suite. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>. One checker
@@ -411,10 +411,10 @@ and the aggregator's policy differ:
   - the action invariant `Step == [ActionC]_vars`, which checks `ActionE ⇒ ActionC`
     on every transition. TLC checks it as `PROPERTY [][Step]_vars`, and Apalache as
     `--inv=Inv,Step`;
-  - the property and fairness are left out. *Proposed* ([ADR 0027][]): with a temporal
-    rule module, TLC also checks `SpecE ⊨ PropE` and `SpecC ⊨ PropC` in two runs of
-    their own, with `SpecX == InitX /\ [][NextX]_vars /\ FairnessX`, and the stage
-    requires equal verdicts.
+  - without a temporal rule module, the property and fairness are left out. With one
+    ([ADR 0027][]), the rewriter also rewrites them, and TLC checks `SpecE ⊨ PropE` and
+    `SpecC ⊨ PropC` in two runs of their own, with
+    `SpecX == InitX /\ [][NextX]_vars /\ FairnessX`. The stage requires equal verdicts.
 
   Deadlock detection stays off. For `expr`, `Init == v = exprE`,
   `Next == UNCHANGED v` and `Inv == v = exprC`.

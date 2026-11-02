@@ -10,6 +10,8 @@ import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
+import io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration;
+import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Objects;
@@ -32,7 +34,7 @@ final class DecodedInputRenderer {
         Objects.requireNonNull(artifact, "artifact");
         Objects.requireNonNull(mode, "mode");
         return switch (mode) {
-            case DEFAULT -> artifact.rewrite().map(DecodedInputRenderer::rewrite)
+            case DEFAULT -> artifact.rewrite().map(rewrite -> rewrite(rewrite, artifact.request()))
                     .or(() -> artifact.graph().map(graph -> graph(graph, SpecText.render(artifact))))
                     .orElseGet(() -> artifact.standaloneExpression()
                             .map(EnvelopeReport::expression)
@@ -45,15 +47,24 @@ final class DecodedInputRenderer {
     /**
      * Renders a metamorphic pair (ADR 0016 §8): which side the checkers explore, the rules applied
      * in order, and both sides. An expression side is rendered as an expression, a module side as
-     * the conformance module it would be on its own.
+     * the conformance module it would be on its own. When TLC checks the properties in runs of
+     * their own, the configuration of each TLC run follows the rules (ADR 0027 §4).
      */
-    static String rewrite(Rewrite<?> rewrite) {
+    static String rewrite(Rewrite<?> rewrite, CheckRequest request) {
         Objects.requireNonNull(rewrite, "rewrite");
+        Objects.requireNonNull(request, "request");
         var output = new StringWriter();
         try (var writer = new PrintWriter(output)) {
             writer.printf("explored: %s%n",
                     rewrite.orientation() == Orientation.EXPLORE_ORIGINAL ? "original" : "rewrite");
             writer.printf("rules: %s%n", String.join(", ", rewrite.appliedRules()));
+            if (request.kind().hasPropertyRuns()) {
+                writer.printf("tlc runs:%n");
+                var runs = TlcConfiguration.texts(request);
+                for (var index = 0; index < runs.size(); index++) {
+                    writer.printf("  %d. %s%n", index + 1, String.join(", ", runs.get(index).strip().split("\n")));
+                }
+            }
             writer.printf("original:%n%s%n", side(rewrite.original()).stripTrailing());
             writer.printf("rewrite:%n%s%n", side(rewrite.rewritten()).stripTrailing());
         }

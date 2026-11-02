@@ -11,6 +11,7 @@ import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -103,6 +104,22 @@ public final class FuzzInputModule {
 
     /** The checked side's property. */
     public static final String PROP_C = "PropC";
+
+    /** Returns the specification that a checker invocation of {@code side} explores. */
+    public static String specification(CheckKind.Side side) {
+        return switch (Objects.requireNonNull(side, "side")) {
+            case EXPLORED -> SPEC;
+            case CHECKED -> SPEC_C;
+        };
+    }
+
+    /** Returns the temporal property that a checker invocation of {@code side} checks. */
+    public static String property(CheckKind.Side side) {
+        return switch (Objects.requireNonNull(side, "side")) {
+            case EXPLORED -> PROP;
+            case CHECKED -> PROP_C;
+        };
+    }
 
     /**
      * The entry points of a metamorphic module whose properties TLC checks in runs of their own

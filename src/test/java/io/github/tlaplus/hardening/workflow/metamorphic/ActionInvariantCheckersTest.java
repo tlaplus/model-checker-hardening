@@ -18,6 +18,7 @@ import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -44,7 +45,7 @@ class ActionInvariantCheckersTest {
     private static final TlaTypedScopeUncheckedBuilder BUILDER = new TlaTypedScopeUncheckedBuilder();
     private static final CheckerStageConfig SETTINGS = new CheckerStageConfig(10, 60, 1024, 1);
     private static final int STEPS = 3;
-    private static final CheckRequest REQUEST = new CheckRequest(STEPS, false, true);
+    private static final CheckRequest REQUEST = new CheckRequest(STEPS, CheckKind.RELATION);
     private static final TlaVarDecl X = TlaDeclarations.variable("x", TlaTypes.INT);
     private static final TlaVarDecl STEP = TlaDeclarations.variable("step", TlaTypes.INT);
 

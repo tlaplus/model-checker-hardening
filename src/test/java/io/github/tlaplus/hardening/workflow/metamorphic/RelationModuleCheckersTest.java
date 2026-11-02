@@ -56,7 +56,7 @@ class RelationModuleCheckersTest {
         var names = TlaModules.declarations(artifact.module()).stream().map(TlaDecl::name).toList();
         assertTrue(names.containsAll(List.of("Op1", "Op1_2", "InitE", "InitC", "InvE", "InvC", "ActionE", "ActionC",
                 FuzzInputModule.STEP, FuzzInputModule.STEP_PROPERTY)), names.toString());
-        assertTrue(artifact.request().actionInvariant());
+        assertTrue(artifact.request().kind().actionInvariant());
         assertEquals(FuzzInputModule.RELATION_ENTRY_POINTS, artifact.entryPoints());
     }
 

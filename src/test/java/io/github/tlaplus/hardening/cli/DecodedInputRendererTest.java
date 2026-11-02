@@ -11,6 +11,8 @@ import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
+import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.util.List;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
@@ -51,7 +53,8 @@ class DecodedInputRendererTest {
         var original = builder.plus(builder.integer(1), builder.integer(2));
         var rewritten = builder.plus(builder.plus(builder.integer(1), builder.integer(2)), builder.integer(0));
         var report = DecodedInputRenderer.rewrite(
-                new Rewrite<>(original, rewritten, Orientation.EXPLORE_REWRITE, List.of("PlusZero")));
+                new Rewrite<>(original, rewritten, Orientation.EXPLORE_REWRITE, List.of("PlusZero")),
+                CheckRequest.invariant(0));
         assertEquals(String.join(System.lineSeparator(),
                 "explored: rewrite",
                 "rules: PlusZero",
@@ -60,6 +63,23 @@ class DecodedInputRendererTest {
                 "rewrite:",
                 "(1 + 2) + 0",
                 ""), report);
+    }
+
+    /** With property runs, the report names each TLC run's configuration (ADR 0027 §4). */
+    @Test
+    void rendersEachTlcRunOfATemporalRelation() {
+        var builder = new TlaTypedScopeUncheckedBuilder();
+        var original = builder.plus(builder.integer(1), builder.integer(2));
+        var report = DecodedInputRenderer.rewrite(
+                new Rewrite<>(original, original, Orientation.EXPLORE_ORIGINAL, List.of("EventuallyWeaken")),
+                new CheckRequest(3, CheckKind.RELATION_AND_PROPERTIES));
+        assertTrue(report.contains(String.join(System.lineSeparator(),
+                "rules: EventuallyWeaken",
+                "tlc runs:",
+                "  1. SPECIFICATION Spec, INVARIANT Inv, PROPERTY StepProperty",
+                "  2. SPECIFICATION Spec, PROPERTY Prop",
+                "  3. SPECIFICATION SpecC, PROPERTY PropC",
+                "original:")), report);
     }
 
     private static SpecArtifact decode(int boundByte) {

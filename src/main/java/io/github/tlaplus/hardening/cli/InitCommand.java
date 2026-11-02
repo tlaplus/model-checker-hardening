@@ -10,6 +10,8 @@ import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
 import io.github.tlaplus.hardening.corpus.Technique;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.workflow.AdoptableBase;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryInstall;
@@ -65,6 +67,12 @@ final class InitCommand implements Callable<Integer> {
                     + " the corpus starts from its configuration, libraries and tools.")
     private Path baseCorpus;
 
+    @Option(
+            names = "--temporal",
+            description = "With --how=mt, also rewrite properties and fairness with the shipped temporal rules"
+                    + " and check them with TLC alone (ADR 0027); the corpus generates modules.")
+    private boolean temporal;
+
     @Spec private CommandSpec spec;
 
     @Override
@@ -74,6 +82,9 @@ final class InitCommand implements Callable<Integer> {
         }
         if (baseCorpus != null && library != null) {
             return usage("--base-corpus names the library already; leave out --library");
+        }
+        if (temporal && technique != Technique.MT) {
+            return usage("--temporal requires --how=mt");
         }
         var initial = new InitialConfig(corpus, InitialConfig.locateProject(), InitialConfig.randomSeed());
         FuzzTlaConfig config;
@@ -94,6 +105,20 @@ final class InitCommand implements Callable<Integer> {
                 spec.commandLine().getErr().printf(
                         "fuzztla: shipped rewrite rules not found; set [metamorphic] rules%n");
             }
+            if (temporal) {
+                return usage("--temporal needs the shipped temporal rules, which were not found");
+            }
+        }
+        if (temporal) {
+            if (config.generatedKind() != InputKind.MODULE) {
+                return usage("--temporal needs kind = \"module\": only a module has a property, and the base"
+                        + " generates " + config.generatedKind().encodedName());
+            }
+            if (config.generator().ignoredCategories().contains(ExpressionCategory.TEMPORAL)) {
+                spec.commandLine().getErr().printf(
+                        "fuzztla: the generator ignores temporal, so no module has a property to rewrite%n");
+            }
+            config = initial.withTemporalRules(config);
         }
         if (library != null) {
             try {
