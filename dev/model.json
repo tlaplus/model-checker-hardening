@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "5b16596dd480095d323ac67ff0f85eb85227b4b5"
+    "commit" : "2c6aced743b4276ca683c29709daab946d1b9536"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -107,6 +107,10 @@
     "number" : "0026",
     "title" : "Reproducible runs: seeds chosen at `init`, `run --continue`",
     "path" : "docs/decisions/0026-reproducible-runs.md"
+  }, {
+    "number" : "0027",
+    "title" : "Metamorphic testing of temporal properties",
+    "path" : "docs/decisions/0027-temporal-metamorphic-testing.md"
   } ],
   "modules" : [ {
     "name" : "common",

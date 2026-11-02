@@ -1,6 +1,6 @@
 # `EnvelopeReport`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/cli/EnvelopeReport.java#L20) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/cli/EnvelopeReport.java#L20) · module [cli](../modules/cli.md)
 
 Renders a decoded corpus envelope and its expression as plain text.
 

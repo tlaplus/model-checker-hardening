@@ -1,6 +1,6 @@
 # `Bindings`
 
-`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/signature/Bindings.java#L17) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/signature/Bindings.java#L17) · module [signature](../modules/signature.md)
 
 The metavariables and type variables one pattern alternative has bound so far.
 

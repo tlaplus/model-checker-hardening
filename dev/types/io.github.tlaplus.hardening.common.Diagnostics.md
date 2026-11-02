@@ -1,6 +1,6 @@
 # `Diagnostics`
 
-`io.github.tlaplus.hardening.common` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/common/Diagnostics.java#L8) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/common/Diagnostics.java#L8) · module [common](../modules/common.md)
 
 Human-readable diagnostic formatting for failures.
 

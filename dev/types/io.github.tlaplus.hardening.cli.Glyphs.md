@@ -1,6 +1,6 @@
 # `Glyphs`
 
-`io.github.tlaplus.hardening.cli` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/cli/Glyphs.java#L10) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/cli/Glyphs.java#L10) · module [cli](../modules/cli.md)
 
 Characters for the live diagram and change markers.
 

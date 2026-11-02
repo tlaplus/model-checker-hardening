@@ -1,6 +1,6 @@
 # `ProcessToolWorker`
 
-`io.github.tlaplus.hardening.workflow.tool` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/5b16596dd480095d323ac67ff0f85eb85227b4b5/src/main/java/io/github/tlaplus/hardening/workflow/tool/ProcessToolWorker.java#L14) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tool` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/workflow/tool/ProcessToolWorker.java#L14) · module [workflow](../modules/workflow.md)
 
 A tool worker served by one isolated child process until a crash verdict retires it.
 
