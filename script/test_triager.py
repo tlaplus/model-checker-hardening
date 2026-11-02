@@ -1528,6 +1528,59 @@ class AggregatorDirectoryTest(unittest.TestCase):
                 triager.classify_aggregator_directory(corpus)
 
 
+class FailDirectoryTest(unittest.TestCase):
+    """A checker fail stays out of the aggregator when another checker crashed."""
+
+    SUBSEQ = "The third argument of SubSeq must be in the domain of its first argument:"
+
+    def write_fail(
+        self, corpus: Path, fail_kind: triager.FailKind, entry_hash: str, stage: dict[str, object]
+    ) -> None:
+        directory = corpus / fail_kind.value
+        directory.mkdir(exist_ok=True)
+        (directory / f"{entry_hash}.cbor").write_bytes(cbor2.dumps(
+            {"stages": {"parser": {"verdict": "pass"}, fail_kind.checker.value: stage}}))
+
+    def test_classifies_entries_by_the_signatures_of_their_tool(self) -> None:
+        """corpus76 fe65a9df: TLC crashed, TLC-n failed on SubSeq."""
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus = Path(temporary)
+            self.write_fail(corpus, triager.FailKind.TLCN, HASH_A,
+                            {"verdict": "fail", "code": 75, "detail": self.SUBSEQ})
+            self.write_fail(corpus, triager.FailKind.TLCN, HASH_B,
+                            {"verdict": "fail", "code": 75, "detail": "unknown"})
+            self.assertEqual(
+                [(HASH_A, "subseq-outside-domain.md"), (HASH_B, triager.NEW_FINDING)],
+                triager.classify_fail_directory(corpus, triager.FailKind.TLCN))
+
+    def test_signatures_of_another_tool_do_not_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus = Path(temporary)
+            self.write_fail(corpus, triager.FailKind.APALACHE, HASH_A,
+                            {"verdict": "fail", "code": 75, "detail": self.SUBSEQ})
+            self.assertEqual(
+                [(HASH_A, triager.NEW_FINDING)],
+                triager.classify_fail_directory(corpus, triager.FailKind.APALACHE))
+
+    def test_rejects_an_entry_that_does_not_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus = Path(temporary)
+            self.write_fail(corpus, triager.FailKind.TLC, HASH_A, {"verdict": "pass"})
+            with self.assertRaisesRegex(triager.TriageError, "does not fail"):
+                triager.classify_fail_directory(corpus, triager.FailKind.TLC)
+
+    def test_triage_writes_a_report_per_fail_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus = Path(temporary)
+            (corpus / triager.AGGREGATOR_DIRECTORY).mkdir()
+            self.write_fail(corpus, triager.FailKind.TLCN, HASH_A,
+                            {"verdict": "fail", "code": 75, "detail": self.SUBSEQ})
+            reports = triager.triage(corpus, Path(__file__).resolve().parent.parent)
+            self.assertEqual(
+                ["02tlcn-fail-triage.csv", triager.AGGREGATOR_REPORT],
+                [report.name for report in reports])
+
+
 class ReportTest(unittest.TestCase):
     def test_writes_csv_atomically(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

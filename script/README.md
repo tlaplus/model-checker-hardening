@@ -1,6 +1,6 @@
 # Scripts
 
-- [`triager.py`](triager.py) labels crashes and disagreements of a corpus with
+- [`triager.py`](triager.py) labels crashes, checker failures and disagreements of a corpus with
   finding and conformance documents (see the repository README).
 - [`report.py`](report.py) writes a campaign report of a corpus to
   `<corpus>/report.md`, with plots under `<corpus>/.report`; its modules are in
