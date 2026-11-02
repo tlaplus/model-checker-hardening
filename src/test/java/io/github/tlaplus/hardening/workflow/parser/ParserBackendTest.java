@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.parser;
 
+import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.rewrite.RuleFamily;
 import io.github.tlaplus.hardening.workflow.StagedTools;
 import io.github.tlaplus.hardening.config.ToolJar;
@@ -37,6 +38,8 @@ import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class ParserBackendTest {
     private static final Duration STARTUP_TIMEOUT = Duration.ofSeconds(10);
@@ -243,10 +246,13 @@ class ParserBackendTest {
      * bound to an action, a level-raising rule at a value position, or a temporal formula moved
      * under = would each be a level error.
      */
-    @Test
-    void everyTemporallyRewrittenModuleParses(@TempDir Path directory) throws Exception {
+    @ParameterizedTest
+    @EnumSource(value = InputKind.class, names = {"MODULE", "GRAPH"})
+    void everyTemporallyRewrittenModuleParses(InputKind kind, @TempDir Path directory) throws Exception {
+        // A graph base has a property with [graph] properties (ADR 0027 §8).
         var config = IrGenerationConfig.defaults()
-                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC));
+                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC))
+                .withGraphLimits(GraphLimits.defaults().withProperties(true));
         var apalache = StagedTools.locate(ToolJar.APALACHE);
         var rules = RuleLibraryPreparation.prepare(
                 ShippedRules.config(), RuleFamily.REWRITES, CheckerProfile.APALACHE.defaults(), apalache).library();
@@ -267,7 +273,7 @@ class ParserBackendTest {
                 random.nextBytes(rewrite);
                 final SpecArtifact artifact;
                 try {
-                    artifact = decoders.decode(new CorpusInput(InputKind.MODULE, MetamorphicPayload.encode(base, rewrite)));
+                    artifact = decoders.decode(new CorpusInput(kind, MetamorphicPayload.encode(base, rewrite)));
                 } catch (InputRejectedException rejected) {
                     continue;
                 }

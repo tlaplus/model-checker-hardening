@@ -145,6 +145,12 @@ public record FuzzTlaConfig(
                 tools, seeds);
     }
 
+    /** Returns this configuration with the given generator settings. */
+    public FuzzTlaConfig withGenerator(IrGenerationConfig replacement) {
+        return new FuzzTlaConfig(generatedKind, replacement, workflow, pbt, mutator, libraries, metamorphic,
+                graphGuards, tools, seeds);
+    }
+
     /** Returns this configuration running the given technique. */
     public FuzzTlaConfig withTechnique(Technique technique) {
         return withWorkflow(workflow.withTechnique(technique));
