@@ -1,6 +1,7 @@
 # Metamorphic testing
 
-Temporal properties are not supported yet (section 6).
+Temporal properties are not rewritten yet. Section 7 describes the proposed temporal
+mode ([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)).
 
 A metamorphic campaign checks one model checker against itself. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
@@ -115,7 +116,7 @@ The relation module combines them:
 | `Next` | `UNCHANGED v` | `ActionE \/ UNCHANGED vars` |
 | `Inv` | `v = exprC` | `(step = 0 => InitC) /\ (InvE <=> InvC)` |
 | `Step` | none | `[ActionC]_vars`, an action invariant |
-| `Prop` | none | `(PropE => PropC) /\ (PropC => PropE)` when the base has a property |
+| `Prop` | none | `TRUE`; the property is not checked (section 7) |
 
 - **One copy of the variables.** M2 shares M1's variables. Only its operators are
   renamed.
@@ -198,7 +199,6 @@ DoubleNeg(P) == P = ~~P
 UnionSelf(S) == S = S \union S
 UnchangedPrime(x) == (UNCHANGED x) = (x' = x)
 ForallNotExists(S, P(_)) == (\A e \in S : P(e)) = ~(\E e \in S : ~P(e))
-AlwaysTwice(F) == []F <=> [][]F
 =============================================================================
 ```
 
@@ -211,7 +211,8 @@ AlwaysTwice(F) == []F <=> [][]F
   ([Graph-based testing](graph-based-testing.md#4-tautological-guards)). Only rules
   without an action-level operator, a higher-order parameter or a helper serve as
   guards.
-- **Use `<=>` for temporal formulas.** SANY rejects `=` between them.
+- **Keep temporal rules out.** The loader rejects them here; section 7 proposes a
+  module of their own.
 - **Annotate when Snowcat asks.** Snowcat cannot tell a tuple from a sequence, or a
   record from a function, by their use alone. Add `\* @type: (<<a, b>>) => Bool;` above
   such a rule.
@@ -274,16 +275,72 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
   transitions satisfy C. A rewrite that only adds initial states or successors is
   detected only by entries that explore M2. In ADR 0016's probe, one direction
   detected 108 of 301 perturbations, and both directions together detected 111.
-- **Temporal properties are not rewritten yet.** The first implementation leaves a
-  module's property and fairness out of the relation and loads no temporal rule.
-  Once they are added, TLC will reject some temporal relations: formulas that negate
-  `[][A]_v` fail with "Temporal formulas containing actions must be of forms <>[]A or
-  []<>A".
+- **Temporal properties are not rewritten yet.** The relation leaves a module's
+  property and fairness out, and the loader rejects temporal rules. Section 7
+  describes the proposed temporal mode.
 - **TLC-only corpora.** A corpus with `checkers = ["tlc"]` compares no checkers, so
   its entries are not conformance tests.
+
+## 7. Temporal properties (proposed)
+
+*Not implemented yet.* [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)
+proposes this mode for TLC. Corpora without it are unaffected.
+
+**Enabling.** `fuzztla init --how=mt --temporal` adds a second rule module and checks
+with TLC alone:
+
+```toml
+[workflow]
+checkers = ["tlc"]                  # Apalache supports no fairness
+
+[metamorphic]
+temporal_rules = { module = "TemporalRewrites", classpath = ["tla/rewrites"] }
+temporal_weights = { WFDef = 4 }    # as weights, for the temporal rules
+```
+
+`run` refuses `temporal_rules` with Apalache among the checkers, or with a `kind` other
+than `module`. The base corpus must generate properties, so it must not ignore
+`temporal` ([Temporal properties](temporal-properties.md)).
+
+**What is rewritten.** Besides the bodies of section 2, the rewriter walks each fairness
+condition and then the property. There it applies the base rules and the temporal rules,
+such as `[]F` to `[][]F`, `F ~> G` to `[](F => <>G)`, and `WF_v(A)` to its definition
+in terms of `ENABLED`.
+
+**What TLC checks.** An entry whose base has a property is checked in up to three TLC
+runs of one relation module. `SpecX == InitX /\ [][NextX]_vars /\ FairnessX` is side
+X's specification.
+
+| Run | Checks |
+| --- | --- |
+| relation | `Inv` and `StepProperty`, as in section 2 |
+| P_E | `SpecE ⊨ PropE` |
+| P_C | `SpecC ⊨ PropC` |
+
+The two property runs must reach the same verdict: both pass, or both report a
+counterexample. Whether the base property holds does not matter. The TLC stage reports
+one outcome:
+- a counterexample if the relation run reports one, or if the property verdicts differ
+  ("property verdicts differ");
+- otherwise the outcome of the first run that did not pass, or pass.
+
+**Cost.** An entry with a property costs up to three TLC runs instead of one.
+
+**Writing temporal rules.** Temporal rules live in `TemporalRewrites.tla`, next to
+`Rewrites.tla`.
+- **Shape.** Write `A <=> B`.
+- **Parameter levels.** A parameter in the action position of `[A]_v`, `<<A>>_v`,
+  `WF_v(A)`, `SF_v(A)` or `ENABLED A` matches an action. Any other Boolean parameter
+  matches only a state predicate or a temporal formula.
+- **Raising the level.** A rule may introduce a temporal operator that A lacks, as
+  `F <=> (F /\ <>F)` does. Such a rule applies only where the property admits a
+  temporal formula.
+- **Proofs.** Prove each rule in `TemporalRewritesProofs.tla` by `PTL`, under
+  `ASSUME TEMPORAL F`, `ACTION A` or `STATE v`.
 
 ## Background
 
 [ADR 0016](../decisions/0016-metamorphic-testing.md) records the design and the
-probes behind it, and [ADR 0017](../decisions/0017-rewrite-rule-library.md) the rule
-format. The rule catalog will be specified in a later ADR.
+probes behind it, [ADR 0017](../decisions/0017-rewrite-rule-library.md) the rule
+format, and [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md) the proposed
+temporal mode. The rule catalog will be specified in a later ADR.

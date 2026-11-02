@@ -364,7 +364,7 @@ This workflow specializes the general workflow as follows:
 ### 1.4. Metamorphic testing of TLC and Apalache
 
 **Implemented architectural extension** ([ADR 0016][]; [manual][metamorphic manual]).
-Temporal properties are not rewritten yet.
+Temporal properties are not rewritten yet; [ADR 0027][] proposes how.
 
 In this workflow, the goal is to collect a metamorphic test suite. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>. One checker
@@ -411,8 +411,10 @@ and the aggregator's policy differ:
   - the action invariant `Step == [ActionC]_vars`, which checks `ActionE ⇒ ActionC`
     on every transition. TLC checks it as `PROPERTY [][Step]_vars`, and Apalache as
     `--inv=Inv,Step`;
-  - for a module with a property, `Prop == (PropE => PropC) /\ (PropC => PropE)`
-    under the fairness conditions `FairnessE`.
+  - the property and fairness are left out. *Proposed* ([ADR 0027][]): with a temporal
+    rule module, TLC also checks `SpecE ⊨ PropE` and `SpecC ⊨ PropC` in two runs of
+    their own, with `SpecX == InitX /\ [][NextX]_vars /\ FairnessX`, and the stage
+    requires equal verdicts.
 
   Deadlock detection stays off. For `expr`, `Init == v = exprE`,
   `Next == UNCHANGED v` and `Inv == v = exprC`.
@@ -804,6 +806,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0023]: ../decisions/0023-graph-based-testing.md
 [ADR 0024]: ../decisions/0024-graph-action-coverage.md
 [ADR 0025]: ../decisions/0025-self-contained-corpora.md
+[ADR 0027]: ../decisions/0027-temporal-metamorphic-testing.md
 [graph manual]: ../manual/graph-based-testing.md
 [metamorphic manual]: ../manual/metamorphic-testing.md
 [adr-0018]: ../decisions/0018-parallel-tlc-stage.md

@@ -2,7 +2,8 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Implemented, except the temporal relation of phase 4
+**Status:** Implemented, except the temporal relation of phase 4, which
+[ADR 0027](0027-temporal-metamorphic-testing.md) replaces
 
 **Date:** 2026-09-24
 
@@ -375,6 +376,10 @@ behaviors are examined, not whether a violation is a defect. The checked side's
 fairness conditions are not compared; a fairness rewrite takes effect only in entries
 that explore its side.
 
+*Superseded by [ADR 0027](0027-temporal-metamorphic-testing.md) §3 and §4: TLC checks
+`SpecE ⊨ PropE` and `SpecC ⊨ PropC` in two runs of their own and compares the
+verdicts, so `FairnessC` is checked too.*
+
 ### 4. Oracle
 
 `corpus.AggregationInput` passes an entry when every checker verdict is equal. The
@@ -468,7 +473,7 @@ A top-level `[metamorphic]` table, read only under `--how=mt`:
 2. The configurable checker set and the action-invariant entry point.
 3. `module` under `--how=mt`: the relation, the adoption source and the `[metamorphic]`
    table.
-4. The temporal relation.
+4. The temporal relation, replaced by [ADR 0027](0027-temporal-metamorphic-testing.md).
 5. Triage:
    - `fuzztla print` shows M1, M2, the orientation and the applied rules by replay;
    - a shrinker first checks the base related to itself, since a payload without
