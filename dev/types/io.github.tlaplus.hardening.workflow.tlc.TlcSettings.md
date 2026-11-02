@@ -1,10 +1,10 @@
 # `TlcSettings`
 
-`io.github.tlaplus.hardening.workflow.tlc` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcSettings.java#L11) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcSettings.java#L11) · module [workflow](../modules/workflow.md)
 
 What one TLC stage launches its JVMs with: the stage's limits and the TLC seeds of ` [seeds]` (ADR 0026), which every TLC stage shares.
 
-**Decisions:** [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0026-reproducible-runs.md)
+**Decisions:** [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0026-reproducible-runs.md)
 
 ```mermaid
 classDiagram

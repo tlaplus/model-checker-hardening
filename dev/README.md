@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`2010568`](https://github.com/tlaplus/model-checker-hardening/commit/2010568d15d7d61fb6db265b00c968ea0aa49f9e) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`f155219`](https://github.com/tlaplus/model-checker-hardening/commit/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -39,13 +39,13 @@ flowchart TB
 |---|---|---|---|---|
 | [common](modules/common.md) | Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, and the architecture annotations and layering of ADR 0022. | 16 | 5 |  |
 | [checker](modules/checker.md) | Checker-independent results of a model-checker run: stable failure codes (ADR 0003) and exploration metrics (ADR 0008). | 5 | 3 | common |
-| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 115 | 28 | common |
+| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 118 | 28 | common |
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 16 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
 | [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 52 | 11 | common, checker, gen, mutation |
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 24 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
-| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 111 | 56 | common, checker, gen, signature, mutation, corpus, config |
+| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 112 | 56 | common, checker, gen, signature, mutation, corpus, config |
 | [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 33 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
@@ -65,7 +65,7 @@ flowchart TB
 | config | configuration and its schema | 9 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 249 |
+| other | no `@ArchRole` | 253 |
 
 ## Relations
 

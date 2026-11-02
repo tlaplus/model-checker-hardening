@@ -1,10 +1,10 @@
 # `GraphLimits`
 
-`io.github.tlaplus.hardening.gen` · record · config · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/gen/GraphLimits.java#L19) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · config · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/gen/GraphLimits.java#L19) · module [gen](../modules/gen.md)
 
 Bounds on the control graph of one graph input (ADR 0023 §3).
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

@@ -1,6 +1,6 @@
 # `GeneratedOperator`
 
-`io.github.tlaplus.hardening.gen` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/gen/GeneratedOperator.java#L7) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/gen/GeneratedOperator.java#L7) · module [gen](../modules/gen.md)
 
 A generated definition, stored once in module declaration order.
 
@@ -21,7 +21,7 @@ classDiagram
   ModulePrelude ..> GeneratedOperator : uses
 ```
 
-The diagram draws 3 of 8 relations; the table lists them all.
+The diagram draws 3 of 9 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -31,5 +31,6 @@ The diagram draws 3 of 8 relations; the table lists them all.
 | → | depends | [GeneratedActionOperator](io.github.tlaplus.hardening.gen.GeneratedActionOperator.md) | One generated action operator: a definition the next-state action may apply. |
 | ← | depends | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | depends | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |
+| ← | depends | [ModuleScopes](io.github.tlaplus.hardening.gen.rewrite.ModuleScopes.md) | The names the bodies of a generated module see, as the generator drew them (ADR 0016 §2): the state variables besides `step`, `step` itself, and the auxiliary operators in declaration order. |
 | ← | depends | [Rewriter](io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | ← | depends | [FuzzInputModule](io.github.tlaplus.hardening.workflow.spec.FuzzInputModule.md) | Assembles the module checked by the parser and model-checker stages. |

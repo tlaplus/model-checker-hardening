@@ -1,6 +1,6 @@
 # `StageLimits`
 
-`io.github.tlaplus.hardening.config` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/config/StageLimits.java#L6) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/config/StageLimits.java#L6) · module [config](../modules/config.md)
 
 The limits every configured tool stage takes: its result capacity and a per-input time limit.
 

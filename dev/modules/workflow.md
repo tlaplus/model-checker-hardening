@@ -359,6 +359,7 @@ classDiagram
 | [**FuzzInputModule** ★](../types/io.github.tlaplus.hardening.workflow.spec.FuzzInputModule.md) | class | facade | Assembles the module checked by the parser and model-checker stages. |
 | [GeneratedInputPreparation](../types/io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation.md) | class | other | Regenerates and renders one tool input while preserving generator-crash artifacts. |
 | [GraphOutcomes](../types/io.github.tlaplus.hardening.workflow.spec.GraphOutcomes.md) | class | adapter | Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise. |
+| [PropertyRelation](../types/io.github.tlaplus.hardening.workflow.spec.PropertyRelation.md) | enum | other | How the relation module of a metamorphic pair of modules treats their properties and fairness. |
 | [**SpecArtifact** ★](../types/io.github.tlaplus.hardening.workflow.spec.SpecArtifact.md) | class | model | One assembled module, what its checkers are asked about it, and what its decoder produced. |
 | [**SpecDecoders** ★](../types/io.github.tlaplus.hardening.workflow.spec.SpecDecoders.md) | class | facade | Immutable registry of the decoders that turn stored payloads into checkable modules. |
 | [**SpecText** ★](../types/io.github.tlaplus.hardening.workflow.spec.SpecText.md) | class | codec | Renders an assembled module as the TLA+ source that the parser and TLC consume. |
@@ -494,17 +495,17 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0002-pbt-richness-score.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0008-exploration-metrics.md)
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0021-timeout-diagnostics.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0024-graph-action-coverage.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0025-self-contained-corpora.md)
-- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0026-reproducible-runs.md)
-- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0027-temporal-metamorphic-testing.md)
+- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0002-pbt-richness-score.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0021-timeout-diagnostics.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0024-graph-action-coverage.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0026-reproducible-runs.md)
+- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0027-temporal-metamorphic-testing.md)

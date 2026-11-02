@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "2010568d15d7d61fb6db265b00c968ea0aa49f9e"
+    "commit" : "f155219d1aadc24f25dc2ccc477c57ea6b4e38a8"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -1907,7 +1907,7 @@
     "key" : true,
     "summary" : "Settings for generated TLA+ expressions and modules.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/IrGenerationConfig.java",
-    "line" : 28,
+    "line" : 29,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.IrGenerators",
@@ -1967,7 +1967,7 @@
     "key" : false,
     "summary" : "Recursive, complete action shapes.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/ActionShapeGenFactory.java",
-    "line" : 11,
+    "line" : 12,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.ApplicativeExprGenFactory",
@@ -2517,7 +2517,7 @@
     "key" : false,
     "summary" : "Divides the remaining bytes of a cursor into contiguous slices of proportional length.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/WeightedSlices.java",
-    "line" : 17,
+    "line" : 18,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.graph.GeneratedGraph",
@@ -2667,7 +2667,7 @@
     "key" : true,
     "summary" : "Immutable prepared library.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/library/OperatorLibrary.java",
-    "line" : 19,
+    "line" : 20,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.library.SourceLink",
@@ -2679,6 +2679,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/library/SourceLink.java",
     "line" : 12,
     "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentAnalysis",
+    "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Computes the `AssignmentFacts` of a rule (ADR 0017 §5.3): where its Boolean parameters stand in TLC's assignment positions, on each side and in each action (ADR 0027 §1).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/AssignmentAnalysis.java",
+    "line" : 24,
+    "adrs" : [ "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -2720,6 +2730,16 @@
     "line" : 28,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
+    "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Computes the `RuleLevels` of a rule as its loader checks it (ADR 0027 §1).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/LevelAnalysis.java",
+    "line" : 17,
+    "adrs" : [ "0027" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
     "kind" : "CLASS",
@@ -2728,6 +2748,16 @@
     "summary" : "The layout of a metamorphic input (ADR 0016 §1):",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/MetamorphicPayload.java",
     "line" : 19,
+    "adrs" : [ "0016" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.rewrite.ModuleScopes",
+    "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "The names the bodies of a generated module see, as the generator drew them (ADR 0016 §2): the state variables besides `step`, `step` itself, and the auxiliary operators in declaration order.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/ModuleScopes.java",
+    "line" : 16,
     "adrs" : [ "0016" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.Orientation",
@@ -2777,8 +2807,8 @@
     "key" : false,
     "summary" : "Where the rewriter may apply a rule.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewritePositions.java",
-    "line" : 37,
-    "adrs" : [ ]
+    "line" : 40,
+    "adrs" : [ "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -2797,8 +2827,8 @@
     "key" : true,
     "summary" : "Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/Rewriter.java",
-    "line" : 56,
-    "adrs" : [ "0016" ]
+    "line" : 65,
+    "adrs" : [ "0016", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -2807,7 +2837,7 @@
     "key" : false,
     "summary" : "Reads one rule definition and checks the parts of the rule contract that the loader can decide (ADR 0017 §2, §3, §5, ADR 0027 §1): the shape `A = B` or `A <=> B`, the parameter classes, level preservation and closedness.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleContract.java",
-    "line" : 35,
+    "line" : 36,
     "adrs" : [ "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
@@ -2835,9 +2865,9 @@
     "kind" : "RECORD",
     "role" : null,
     "key" : false,
-    "summary" : "What the levels of a temporal rule require of a match (ADR 0027 §1).",
+    "summary" : "What the levels of a rule require of a match (ADR 0027 §1).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleLevels.java",
-    "line" : 16,
+    "line" : 19,
     "adrs" : [ "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatch",
@@ -2857,7 +2887,7 @@
     "key" : true,
     "summary" : "Matches a rule's pattern at one node (ADR 0017 §4).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java",
-    "line" : 59,
+    "line" : 60,
     "adrs" : [ "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleOperands",
@@ -3657,7 +3687,7 @@
     "key" : false,
     "summary" : "Materializes an ordered module search path as one source-only snapshot for SANY.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/library/LibrarySources.java",
-    "line" : 15,
+    "line" : 18,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.library.LibraryTypechecker",
@@ -3809,6 +3839,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/GraphOutcomes.java",
     "line" : 18,
     "adrs" : [ "0023" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
+    "packageName" : "io.github.tlaplus.hardening.workflow.spec",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "How the relation module of a metamorphic pair of modules treats their properties and fairness.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/PropertyRelation.java",
+    "line" : 8,
+    "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "packageName" : "io.github.tlaplus.hardening.workflow.spec",
@@ -9549,6 +9589,22 @@
     "to" : "io.github.tlaplus.hardening.gen.library.InstanceAlias",
     "kind" : "HAS"
   }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleParameter",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.LabelPlacement",
     "to" : "io.github.tlaplus.hardening.gen.ir.IrBinding",
     "kind" : "DEPENDS"
@@ -9565,9 +9621,41 @@
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleLevels",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleParameter",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload",
     "to" : "io.github.tlaplus.hardening.gen.Draw",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.ModuleScopes",
+    "to" : "io.github.tlaplus.hardening.gen.GeneratedOperator",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.ModuleScopes",
+    "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.ModuleScopes",
+    "to" : "io.github.tlaplus.hardening.gen.engine.OperandGenerator",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewrite",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Orientation",
@@ -9595,6 +9683,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RewritePositions",
     "to" : "io.github.tlaplus.hardening.gen.ir.IrBinding",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RewritePositions",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
@@ -9642,6 +9734,10 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
+    "to" : "io.github.tlaplus.hardening.gen.TemporalProperty",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
     "to" : "io.github.tlaplus.hardening.gen.engine.OperandGenerator",
     "kind" : "USES"
   }, {
@@ -9655,6 +9751,14 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
     "to" : "io.github.tlaplus.hardening.gen.ir.IrNames",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.ModuleScopes",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
@@ -9686,6 +9790,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleLevels",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatch",
     "kind" : "DEPENDS"
   }, {
@@ -9710,6 +9818,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentAnalysis",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts",
     "kind" : "DEPENDS"
   }, {
@@ -9723,6 +9835,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.LetSpecialization",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.LevelAnalysis",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
@@ -12247,7 +12363,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "to" : "io.github.tlaplus.hardening.gen.TemporalProperty",
-    "kind" : "DEPENDS"
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "to" : "io.github.tlaplus.hardening.gen.ir.IrNames",
@@ -12255,6 +12371,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Orientation",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation",
@@ -12325,6 +12445,14 @@
     "to" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "kind" : "HAS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
+    "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.gen.GeneratedSpec",
     "kind" : "USES"
@@ -12352,6 +12480,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
@@ -12475,6 +12607,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "to" : "io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
@@ -13320,7 +13456,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 68,
+    "typePairs" : 69,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

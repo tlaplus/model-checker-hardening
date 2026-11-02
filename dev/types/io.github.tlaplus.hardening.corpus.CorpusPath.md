@@ -1,6 +1,6 @@
 # `CorpusPath`
 
-`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/corpus/CorpusPath.java#L6) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/corpus/CorpusPath.java#L6) · module [corpus](../modules/corpus.md)
 
 A fixed path in the on-disk corpus layout.
 

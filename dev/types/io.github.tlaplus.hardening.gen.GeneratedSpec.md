@@ -1,6 +1,6 @@
 # `GeneratedSpec`
 
-`io.github.tlaplus.hardening.gen` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/gen/GeneratedSpec.java#L44) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/gen/GeneratedSpec.java#L44) · module [gen](../modules/gen.md)
 
 The declarations one generated module consists of.
 
@@ -24,11 +24,17 @@ classDiagram
   class IrSpecGeneratorEngine {
     <<facade>>
   }
+  class ModuleScopes {
+    <<record>>
+  }
   class Rewriter {
     <<facade>>
   }
   class FuzzInputModule {
     <<facade>>
+  }
+  class PropertyRelation {
+    <<enum>>
   }
   class SpecArtifact {
     <<model>>
@@ -38,12 +44,14 @@ classDiagram
   GeneratedGraph --> GeneratedSpec : has
   IrGenerators ..> GeneratedSpec : uses
   IrSpecGeneratorEngine ..> GeneratedSpec : uses
+  ModuleScopes ..> GeneratedSpec : uses
   Rewriter ..> GeneratedSpec : uses
   FuzzInputModule ..> GeneratedSpec : uses
+  PropertyRelation ..> GeneratedSpec : uses
   SpecArtifact ..> GeneratedSpec : uses
 ```
 
-The diagram draws 8 of 16 relations; the table lists them all.
+The diagram draws 10 of 18 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -52,8 +60,10 @@ The diagram draws 8 of 16 relations; the table lists them all.
 | ← | has | [GeneratedGraph](io.github.tlaplus.hardening.gen.graph.GeneratedGraph.md) | A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names. |
 | ← | uses | [IrGenerators](io.github.tlaplus.hardening.gen.IrGenerators.md) | Factory methods for deterministic generators of type-checked Apalache IR expressions. |
 | ← | uses | [IrSpecGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine.md) | Reusable coordinator for generating the declarations of one TLA+ module. |
+| ← | uses | [ModuleScopes](io.github.tlaplus.hardening.gen.rewrite.ModuleScopes.md) | The names the bodies of a generated module see, as the generator drew them (ADR 0016 §2): the state variables besides `step`, `step` itself, and the auxiliary operators in declaration order. |
 | ← | uses | [Rewriter](io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | ← | uses | [FuzzInputModule](io.github.tlaplus.hardening.workflow.spec.FuzzInputModule.md) | Assembles the module checked by the parser and model-checker stages. |
+| ← | uses | [PropertyRelation](io.github.tlaplus.hardening.workflow.spec.PropertyRelation.md) | How the relation module of a metamorphic pair of modules treats their properties and fairness. |
 | ← | uses | [SpecArtifact](io.github.tlaplus.hardening.workflow.spec.SpecArtifact.md) | One assembled module, what its checkers are asked about it, and what its decoder produced. |
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | → | depends | [ActionEffect](io.github.tlaplus.hardening.gen.ActionEffect.md) | Nonempty, duplicate-free effect in variable declaration order, with set-style identity. |

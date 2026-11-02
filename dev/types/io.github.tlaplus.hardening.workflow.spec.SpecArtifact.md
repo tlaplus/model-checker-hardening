@@ -1,10 +1,10 @@
 # `SpecArtifact`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L39) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L39) · module [workflow](../modules/workflow.md)
 
 One assembled module, what its checkers are asked about it, and what its decoder produced.
 
-**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0014-per-checker-library-linking.md)
+**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/f155219d1aadc24f25dc2ccc477c57ea6b4e38a8/docs/decisions/0014-per-checker-library-linking.md)
 
 ```mermaid
 classDiagram
@@ -36,6 +36,9 @@ classDiagram
   class Rewrite {
     <<model>>
   }
+  class PropertyRelation {
+    <<enum>>
+  }
   class DecodedInputRenderer
   class ApalacheCheckerBackend {
     <<adapter>>
@@ -65,6 +68,7 @@ classDiagram
   SpecArtifact ..> GeneratedGraph : uses
   SpecArtifact ..> OperatorLibrary : uses
   SpecArtifact ..> Rewrite : uses
+  SpecArtifact ..> PropertyRelation : uses
   DecodedInputRenderer ..> SpecArtifact : uses
   ApalacheCheckerBackend ..> SpecArtifact : uses
   CandidateSource ..> SpecArtifact : uses
@@ -75,7 +79,7 @@ classDiagram
   ToolBackend ..> SpecArtifact : uses
 ```
 
-The diagram draws 17 of 25 relations; the table lists them all.
+The diagram draws 18 of 26 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -88,6 +92,7 @@ The diagram draws 17 of 25 relations; the table lists them all.
 | → | uses | [GeneratedGraph](io.github.tlaplus.hardening.gen.graph.GeneratedGraph.md) | A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names. |
 | → | uses | [OperatorLibrary](io.github.tlaplus.hardening.gen.library.OperatorLibrary.md) | Immutable prepared library. |
 | → | uses | [Rewrite](io.github.tlaplus.hardening.gen.rewrite.Rewrite.md) | A decoded metamorphic pair: the base the payload's base part decodes to, its rewrite, the orientation, and the rules applied in order. |
+| → | uses | [PropertyRelation](io.github.tlaplus.hardening.workflow.spec.PropertyRelation.md) | How the relation module of a metamorphic pair of modules treats their properties and fairness. |
 | ← | uses | [DecodedInputRenderer](io.github.tlaplus.hardening.cli.DecodedInputRenderer.md) | Renders a decoded input independently of picocli command wiring. |
 | ← | uses | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
 | ← | uses | [CandidateSource](io.github.tlaplus.hardening.workflow.input.CandidateSource.md) | Where the candidates for a target entry of the input stage come from: property-based generation or mutation of a selected parent (ADR 0010). |
