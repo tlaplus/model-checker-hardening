@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "7d4f60afbf46c7ec2fc12dec60b7747fc5defc4c"
+    "commit" : "0434b0d13c245aeb0f8ca5e7f7b4f69467daa2da"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -457,7 +457,7 @@
     "key" : true,
     "summary" : "`fuzztla init`: writes the configuration of a new corpus, which names the technique every run follows (ADR 0025 §1), and copies its libraries and tool JARs into it (§2, §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java",
-    "line" : 31,
+    "line" : 32,
     "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.InitialConfig",
@@ -1857,7 +1857,7 @@
     "key" : false,
     "summary" : "Bounds on the control graph of one graph input (ADR 0023 §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/GraphLimits.java",
-    "line" : 19,
+    "line" : 21,
     "adrs" : [ "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.InputKind",
@@ -2137,7 +2137,7 @@
     "key" : false,
     "summary" : "The independent parts of a graph input after its header, each decoded from its own contiguous range of bytes (ADR 0023 §3), as `ModuleSection` does for a module input.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/GraphSection.java",
-    "line" : 17,
+    "line" : 19,
     "adrs" : [ "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.ImportedTypes",
@@ -2207,7 +2207,7 @@
     "key" : true,
     "summary" : "Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/IrGraphGeneratorEngine.java",
-    "line" : 58,
+    "line" : 59,
     "adrs" : [ "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine",
@@ -2347,7 +2347,7 @@
     "key" : false,
     "summary" : "Module-level temporal property: the property formula and its fairness conditions.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/PropertyGenFactory.java",
-    "line" : 16,
+    "line" : 19,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.RecordType",
@@ -4559,6 +4559,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
@@ -8630,6 +8634,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
+    "to" : "io.github.tlaplus.hardening.gen.engine.PropertyGenFactory",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
     "to" : "io.github.tlaplus.hardening.gen.engine.ScopedName",
     "kind" : "DEPENDS"
   }, {
@@ -12598,6 +12606,10 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "to" : "io.github.tlaplus.hardening.gen.GraphLimits",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "to" : "io.github.tlaplus.hardening.gen.InputKind",
     "kind" : "HAS"
   }, {
@@ -13560,7 +13572,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 69,
+    "typePairs" : 70,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13664,7 +13676,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 37,
+    "typePairs" : 38,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

@@ -1753,11 +1753,17 @@ with TLC alone:</p>
 <li><strong>The checkers lose Apalache.</strong> Both TLC stages, <code>tlc</code> and <code>tlcn</code>, stay. Without
   Apalache, <code>metamorphic-defects.toml</code>, which quarantines <code>CHOOSE</code> for Apalache, is left
   out.</li>
-<li><strong>The base must generate modules with properties.</strong> <code>init</code> refuses a base whose <code>kind</code>
-  is not <code>module</code>, and warns if it ignores <code>temporal</code>
+<li><strong>The base must generate modules with properties:</strong> a <code>module</code> base, or a <code>graph</code> base
+  with <code>[graph] properties = true</code>
+  (<a href="../graph-based-testing/#1-setting-up-a-corpus">Graph-based testing</a>). <code>init</code> refuses
+  any other base, and warns if the base ignores <code>temporal</code>
   (<a href="../temporal-properties/">Temporal properties</a>).</li>
-<li><strong><code>run</code> refuses <code>temporal_rules</code></strong> with Apalache among the checkers, or with a <code>kind</code>
-  other than <code>module</code>.</li>
+<li><strong><code>run</code> refuses <code>temporal_rules</code></strong> with Apalache among the checkers, or with a base
+  <code>init</code> would refuse.</li>
+<li><strong>TLC crashes on some properties.</strong> An evaluation error inside <code>&lt;&gt;</code> or <code>~&gt;</code> makes TLC
+  exit with error 1000, an open TLC defect. <code>all-defects.toml</code> quarantines it as
+  <code>tlc-partial-operator-under-eventuality</code>; with <code>known-defects.toml</code>, expect such
+  crashes in the property runs (<a href="../known-defect-signatures/">Known-defect signatures</a>).</li>
 </ul>
 <p><strong>What is rewritten.</strong> Besides the bodies of section 2, the rewriter walks each fairness
 condition and then the property, before the other bodies, since a rewrite payload is

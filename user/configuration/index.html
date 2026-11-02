@@ -1807,6 +1807,11 @@ generation is selected and mutated. They are described in
 <td>Maximum tautological guards of one edge, when <code>rules</code> is set.</td>
 </tr>
 <tr>
+<td><code>properties</code></td>
+<td><code>false</code></td>
+<td>Give each graph module a temporal property and fairness over its edges, which gbt does not check but <code>mt --temporal</code> over the corpus does. Changes how every graph input decodes.</td>
+</tr>
+<tr>
 <td><code>rules</code></td>
 <td>absent</td>
 <td>Rule module of the edge guards, as <code>{ module = "Rewrites", classpath = ["../libraries/rewrites"] }</code>. Absent, edges have no guards.</td>

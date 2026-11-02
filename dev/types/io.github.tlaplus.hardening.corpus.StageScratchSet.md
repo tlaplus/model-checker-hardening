@@ -1,6 +1,6 @@
 # `StageScratchSet`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7d4f60afbf46c7ec2fc12dec60b7747fc5defc4c/src/main/java/io/github/tlaplus/hardening/corpus/StageScratchSet.java#L15) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/0434b0d13c245aeb0f8ca5e7f7b4f69467daa2da/src/main/java/io/github/tlaplus/hardening/corpus/StageScratchSet.java#L15) · module [corpus](../modules/corpus.md)
 
 The transient scratch directories of every stage that needs one, created and removed together.
 

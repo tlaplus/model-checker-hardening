@@ -1,10 +1,10 @@
 # `EdgeGuards`
 
-`io.github.tlaplus.hardening.gen.engine` · interface · contract · [source](https://github.com/tlaplus/model-checker-hardening/blob/7d4f60afbf46c7ec2fc12dec60b7747fc5defc4c/src/main/java/io/github/tlaplus/hardening/gen/engine/EdgeGuards.java#L16) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · interface · contract · [source](https://github.com/tlaplus/model-checker-hardening/blob/0434b0d13c245aeb0f8ca5e7f7b4f69467daa2da/src/main/java/io/github/tlaplus/hardening/gen/engine/EdgeGuards.java#L16) · module [gen](../modules/gen.md)
 
 Draws the tautological guards that a graph module conjoins to its edges (ADR 0023 §6).
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/7d4f60afbf46c7ec2fc12dec60b7747fc5defc4c/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/0434b0d13c245aeb0f8ca5e7f7b4f69467daa2da/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram
