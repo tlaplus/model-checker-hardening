@@ -127,7 +127,7 @@ class TemporalPropertyCheckersTest {
 
     private static Results checkBoth(Path directory, GeneratedSpec spec) throws Exception {
         var artifact = SpecArtifact.fromGeneratedSpec(spec, OperatorLibrary.empty());
-        assertTrue(artifact.request().temporalProperty());
+        assertTrue(artifact.request().kind().property());
         var tlc = new TlcCheckerBackend(CorpusStage.TLC, new TlcSettings(SETTINGS, SeedConfig.derive(0)), 1, Files.createDirectory(directory.resolve("tlc")), List.of());
         var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE),
                 Files.createDirectory(directory.resolve("apalache")));

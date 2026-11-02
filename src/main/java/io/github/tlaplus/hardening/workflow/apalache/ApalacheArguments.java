@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -27,15 +28,19 @@ final class ApalacheArguments {
      * action-level operator as an action invariant and checks it on every transition.
      */
     static String[] check(Path jobDirectory, Path specification, CheckRequest request) {
+        var kind = request.kind();
+        if (kind.side() != CheckKind.Side.EXPLORED || !kind.invariant()) {
+            throw new IllegalArgumentException("Apalache checks no property run (ADR 0027 §5): " + kind);
+        }
         var arguments = new ArrayList<String>();
         arguments.add("--out-dir=" + outputDirectory(jobDirectory));
         arguments.add("check");
         arguments.add("--init=" + FuzzInputModule.INIT);
         arguments.add("--next=" + FuzzInputModule.NEXT);
-        arguments.add("--inv=" + (request.actionInvariant()
+        arguments.add("--inv=" + (kind.actionInvariant()
                 ? FuzzInputModule.INV + "," + FuzzInputModule.STEP
                 : FuzzInputModule.INV));
-        if (request.temporalProperty()) {
+        if (kind.property()) {
             arguments.add("--temporal=" + FuzzInputModule.LIVENESS);
         }
         arguments.add("--length=" + request.unrollingLength());

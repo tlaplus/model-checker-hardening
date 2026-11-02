@@ -14,6 +14,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -37,11 +41,27 @@ class ToolWorkerProtocolTest {
         }
     }
 
+    /** A request kind travels as its protocol code, which parent and worker must read alike. */
+    @Test
+    void theRequestKindsKeepTheirProtocolCodes() {
+        var codes = new LinkedHashMap<CheckKind, Integer>();
+        for (var kind : CheckKind.values()) {
+            codes.put(kind, kind.protocolCode());
+        }
+        assertEquals(Map.of(CheckKind.INVARIANT, 0, CheckKind.INVARIANT_AND_PROPERTY, 1, CheckKind.RELATION, 2,
+                CheckKind.RELATION_AND_PROPERTIES, 3, CheckKind.EXPLORED_PROPERTY, 4, CheckKind.CHECKED_PROPERTY, 5),
+                codes);
+    }
+
     /** A graph module's request names pc beside the step counter (ADR 0024 §1). */
     @Test
     void roundTripsRequestsWithTheirControlVariables() throws Exception {
-        var graph = new CheckRequest(12, false).withControlVariables(Set.of("step", "pc"));
-        for (var request : new CheckRequest[] {CheckRequest.invariant(0), new CheckRequest(5, true, true), graph}) {
+        var graph = new CheckRequest(12, CheckKind.INVARIANT).withControlVariables(Set.of("step", "pc"));
+        var requests = new ArrayList<CheckRequest>(List.of(CheckRequest.invariant(0), graph));
+        for (var kind : CheckKind.values()) {
+            requests.add(new CheckRequest(5, kind));
+        }
+        for (var request : requests) {
             var frame = new ByteArrayOutputStream();
             ToolWorkerProtocol.writeRequest(new DataOutputStream(frame), "---- MODULE M ----\n====".getBytes(), request);
             var input = ToolWorkerProtocol.readRequest(new DataInputStream(new ByteArrayInputStream(frame.toByteArray())));

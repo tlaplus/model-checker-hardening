@@ -22,7 +22,9 @@ import java.util.Optional;
 
 /**
  * Adapts fresh isolated TLC invocations to the shared tool stage. Every TLC stage runs this
- * backend; the stages differ only in their settings, such as the number of TLC workers.
+ * backend; the stages differ only in their settings, such as the number of TLC workers. A
+ * metamorphic module whose properties TLC checks apart takes up to three invocations, which {@link
+ * PropertyRunsVerdict} folds into one result (ADR 0027 §4).
  */
 @ArchRole(Role.ADAPTER)
 @Key
@@ -61,7 +63,15 @@ public final class TlcCheckerBackend implements ToolBackend {
 
     @Override
     public ToolWorker startWorker() {
-        return source -> check(scratchDirectory, classpath, source, settings, settings.stage().timeout());
+        return source -> {
+            var relation = check(scratchDirectory, classpath, source, settings, settings.stage().timeout());
+            if (!source.request().kind().hasPropertyRuns()) {
+                return relation;
+            }
+            // Each property run checks the same module in a fresh JVM, under the stage's timeout.
+            return PropertyRunsVerdict.fold(relation, kind -> check(scratchDirectory, classpath,
+                    new ToolInput(source.text(), source.request().withKind(kind)), settings, settings.stage().timeout()));
+        };
     }
 
     @Override

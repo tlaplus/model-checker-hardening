@@ -133,7 +133,7 @@ generation is selected and mutated. They are described in
 `base_corpus` and `adopt_ratio` are used only by an `mt` corpus. They are described in
 [Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus). `temporal_rules` and
 `temporal_weights` name the temporal rule module, described in
-[Metamorphic testing](metamorphic-testing.md#7-temporal-properties-in-progress).
+[Metamorphic testing](metamorphic-testing.md#7-temporal-properties).
 
 ## `[graph]`: control graphs
 

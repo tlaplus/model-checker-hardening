@@ -58,6 +58,26 @@ class InitialConfigTest {
         assertEquals(config, inside.forTechnique(config, Technique.MT), "applying the settings twice changes nothing");
     }
 
+    /**
+     * --temporal adds the shipped temporal rules and checks with TLC alone, which also drops the
+     * signatures that quarantine CHOOSE for Apalache (ADR 0027 §5).
+     */
+    @Test
+    void aTemporalCorpusChecksWithTlcAloneAndTheShippedTemporalRules() {
+        var config = inside.withTemporalRules(inside.create(Technique.MT));
+
+        assertEquals(Optional.of(new RuleLibraryConfig.RuleModule(
+                        "TemporalRewrites", List.of(PROJECT.resolve("libraries/rewrites")))),
+                config.metamorphic().temporalRules().module());
+        assertEquals(CheckerSet.of(CorpusStage.TLC), config.workflow().enabledCheckers());
+        assertEquals(List.of(SHIPPED), config.workflow().inputs().knownDefects());
+        var parallel = inside.create(Technique.MT);
+        parallel = parallel.withWorkflow(parallel.workflow().withEnabledCheckers(
+                CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN, CorpusStage.APALACHE)));
+        assertEquals(CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN),
+                inside.withTemporalRules(parallel).workflow().enabledCheckers(), "both TLC stages stay");
+    }
+
     @Test
     void anMtCorpusWithoutApalacheListsNoMetamorphicSignatures() {
         var pbt = inside.create(Technique.PBT);

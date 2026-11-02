@@ -69,23 +69,21 @@ public final class ToolWorkerProtocol {
         if (transitions < 0) {
             throw new IOException("invalid worker request exploration length: " + transitions);
         }
-        var temporalProperty = input.readBoolean();
-        var actionInvariant = input.readBoolean();
+        var kind = CheckKind.fromProtocolCode(input.readUnsignedByte());
         var controlVariables = readControlVariables(input);
         var bytes = input.readNBytes(byteCount);
         if (bytes.length != byteCount) {
             throw new IOException("truncated worker request");
         }
         return new ToolInput(new String(bytes, StandardCharsets.UTF_8),
-                new CheckRequest(transitions, temporalProperty, actionInvariant, controlVariables));
+                new CheckRequest(transitions, kind, controlVariables));
     }
 
     /** Writes one request frame, which {@link #readRequest} reads. */
     static void writeRequest(DataOutputStream output, byte[] source, CheckRequest request) throws IOException {
         output.writeInt(source.length);
         output.writeInt(request.transitions());
-        output.writeBoolean(request.temporalProperty());
-        output.writeBoolean(request.actionInvariant());
+        output.writeByte(request.kind().protocolCode());
         writeControlVariables(output, request.controlVariables());
         output.write(source);
         output.flush();

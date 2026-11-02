@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.config.SeedConfig;
+import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
@@ -25,6 +26,10 @@ final class InitialConfig {
     /** The rule module {@code --how=mt} rewrites with, and its directory in the project. */
     static final RuleLibraryConfig.RuleModule SHIPPED_RULES =
             new RuleLibraryConfig.RuleModule("Rewrites", List.of(Path.of("libraries", "rewrites")));
+
+    /** The temporal rule module {@code --temporal} adds (ADR 0027 §5), beside the rewrite rules. */
+    static final RuleLibraryConfig.RuleModule SHIPPED_TEMPORAL_RULES =
+            new RuleLibraryConfig.RuleModule("TemporalRewrites", List.of(Path.of("libraries", "rewrites")));
 
     private final Path corpus;
     private final Optional<Path> project;
@@ -103,6 +108,31 @@ final class InitialConfig {
             result = result.withKnownDefects(extended);
         }
         return result;
+    }
+
+    /**
+     * Returns {@code config}, an {@code mt} corpus's, rewriting and checking temporal properties
+     * too (ADR 0027 §5): with the shipped temporal rules, and with the checkers but Apalache, which
+     * supports no fairness. Without Apalache, the metamorphic signatures, which quarantine {@code
+     * CHOOSE} for Apalache, are not needed either.
+     *
+     * @throws IllegalStateException if the project, which ships the rules, was not found
+     */
+    FuzzTlaConfig withTemporalRules(FuzzTlaConfig config) {
+        var root = project.orElseThrow(() -> new IllegalStateException("the shipped temporal rules were not found"));
+        // Absolute, since init copies the rules into the corpus (ADR 0025 §2).
+        var classpath = SHIPPED_TEMPORAL_RULES.classpath().stream().map(root::resolve).toList();
+        var result = config.withMetamorphic(config.metamorphic().withTemporalRules(RuleLibraryConfig.of(
+                new RuleLibraryConfig.RuleModule(SHIPPED_TEMPORAL_RULES.module(), classpath))));
+        var checkers = result.workflow().enabledCheckers().stages().stream()
+                .filter(stage -> stage != CorpusStage.APALACHE)
+                .toArray(CorpusStage[]::new);
+        result = result.withWorkflow(result.workflow().withEnabledCheckers(
+                checkers.length == 0 ? CheckerSet.of(CorpusStage.TLC) : CheckerSet.of(checkers)));
+        var signatures = shipped(KnownDefectDatabase.METAMORPHIC);
+        return result.withKnownDefects(result.workflow().inputs().knownDefects().stream()
+                .filter(database -> !sameFile(database, signatures))
+                .toList());
     }
 
     /** Names a file of the project as this corpus's configuration should. */

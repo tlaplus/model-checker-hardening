@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.SeedConfig;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
@@ -87,7 +88,7 @@ class TlcExplorationMetricsTest {
                 Liveness == Fairness => Prop
                 ====
                 """;
-        var graph = check(source, new CheckRequest(3, false).withControlVariables(Set.of("step", "pc")));
+        var graph = check(source, new CheckRequest(3, CheckKind.INVARIANT).withControlVariables(Set.of("step", "pc")));
         assertEquals(StageOutcome.PASS, graph.outcome(), graph.diagnostic());
         assertCounts(metrics(graph), Map.of(
                 ExplorationCount.DISTINCT_STATES, 3L,
@@ -96,7 +97,7 @@ class TlcExplorationMetricsTest {
                 ExplorationCount.PROJECTED_DEPTH, 2L,
                 ExplorationCount.DATA_ACTIONS, 1L));
 
-        var stepOnly = check(source, new CheckRequest(3, false));
+        var stepOnly = check(source, new CheckRequest(3, CheckKind.INVARIANT));
         assertCounts(metrics(stepOnly), Map.of(
                 ExplorationCount.PROJECTED_STATES, 3L,
                 ExplorationCount.DATA_ACTIONS, 2L));
@@ -213,7 +214,7 @@ class TlcExplorationMetricsTest {
     }
 
     private ToolResult check(String source, boolean temporalProperty) throws Exception {
-        return check(source, new CheckRequest(3, temporalProperty));
+        return check(source, new CheckRequest(3, temporalProperty ? CheckKind.INVARIANT_AND_PROPERTY : CheckKind.INVARIANT));
     }
 
     private ToolResult check(String source, CheckRequest request) throws Exception {

@@ -134,15 +134,15 @@ class IsolatedWorkerProcessTest {
         ToolResult withoutProperty;
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, EchoRequestWorker.class, DESCRIPTION))) {
-            withProperty = worker.request(new ToolInput("text", new CheckRequest(5, true, true)), TIMEOUT);
+            withProperty = worker.request(new ToolInput("text", new CheckRequest(5, CheckKind.RELATION_AND_PROPERTIES)), TIMEOUT);
         }
         try (var worker = IsolatedWorkerProcess.start(
                 new WorkerSpec(scratch, TIMEOUT, EchoRequestWorker.class, DESCRIPTION))) {
             withoutProperty = worker.request(new ToolInput("text", 3), TIMEOUT);
         }
 
-        assertEquals("5 true true text", withProperty.diagnostic());
-        assertEquals("3 false false text", withoutProperty.diagnostic());
+        assertEquals("5 RELATION_AND_PROPERTIES text", withProperty.diagnostic());
+        assertEquals("3 INVARIANT text", withoutProperty.diagnostic());
         assertScratchIsEmpty(scratch);
     }
 
@@ -167,8 +167,8 @@ class IsolatedWorkerProcessTest {
     @Test
     void aTemporalPropertyNeedsOneMoreUnrolledTransitionThanTheInvariant() {
         assertEquals(5, CheckRequest.invariant(5).unrollingLength());
-        assertEquals(6, new CheckRequest(5, true).unrollingLength());
-        assertEquals(1, new CheckRequest(0, true).unrollingLength());
+        assertEquals(6, new CheckRequest(5, CheckKind.INVARIANT_AND_PROPERTY).unrollingLength());
+        assertEquals(1, new CheckRequest(0, CheckKind.INVARIANT_AND_PROPERTY).unrollingLength());
     }
 
     @Test
@@ -276,8 +276,7 @@ class IsolatedWorkerProcessTest {
                 var input = ToolWorkerProtocol.readRequest(connection.input());
                 var request = input.request();
                 ToolWorkerProtocol.writeResult(connection.output(), new ToolResult(StageOutcome.PASS,
-                        request.transitions() + " " + request.temporalProperty() + " "
-                                + request.actionInvariant() + " " + input.text()));
+                        request.transitions() + " " + request.kind() + " " + input.text()));
             }
         }
     }

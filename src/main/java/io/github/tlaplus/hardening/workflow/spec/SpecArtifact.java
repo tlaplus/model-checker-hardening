@@ -10,6 +10,7 @@ import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.util.ArrayList;
 import java.util.List;
@@ -95,8 +96,8 @@ public final class SpecArtifact {
     /**
      * Assembles the implication relation of a metamorphic pair of modules (ADR 0016 §3), which the
      * checkers also check against its action invariant. {@code relation} decides whether the
-     * relation module also defines both sides' properties (ADR 0027 §3); TLC does not check them
-     * yet.
+     * relation module also defines both sides' properties (ADR 0027 §3), which TLC then checks in
+     * runs of their own (§4).
      */
     public static SpecArtifact fromSpecRewrite(
             Rewrite<GeneratedSpec> rewrite, OperatorLibrary library, PropertyRelation relation) {
@@ -106,15 +107,16 @@ public final class SpecArtifact {
         var generated = new ArrayList<>(original.generated());
         generated.addAll(rewritten.generated());
         var module = FuzzInputModule.create(original, rewritten, rewrite.orientation(), relation);
-        return new SpecArtifact(new Parts(module, new CheckRequest(original.stepBound(), false, true),
-                relation.forBase(original).entryPoints(), generated, new Origin(null, rewrite, null)), library);
+        var effective = relation.forBase(original);
+        return new SpecArtifact(new Parts(module, new CheckRequest(original.stepBound(), effective.checkKind()),
+                effective.entryPoints(), generated, new Origin(null, rewrite, null)), library);
     }
 
     /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
     public static SpecArtifact fromGeneratedSpec(GeneratedSpec spec, OperatorLibrary library) {
         Objects.requireNonNull(spec, "spec");
         return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
-                new CheckRequest(spec.stepBound(), spec.property().isPresent()), FuzzInputModule.ENTRY_POINTS,
+                new CheckRequest(spec.stepBound(), conformanceKind(spec)), FuzzInputModule.ENTRY_POINTS,
                 spec.generated(), Origin.MODULE), library);
     }
 
@@ -126,9 +128,14 @@ public final class SpecArtifact {
         Objects.requireNonNull(graph, "graph");
         var spec = graph.spec();
         return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
-                new CheckRequest(spec.stepBound(), spec.property().isPresent())
+                new CheckRequest(spec.stepBound(), conformanceKind(spec))
                         .withControlVariables(GeneratedGraph.CONTROL_VARIABLES),
                 FuzzInputModule.ENTRY_POINTS, spec.generated(), new Origin(null, null, graph)), library);
+    }
+
+    /** A generated module is checked against its invariant and, if it has one, its property. */
+    private static CheckKind conformanceKind(GeneratedSpec spec) {
+        return spec.property().isPresent() ? CheckKind.INVARIANT_AND_PROPERTY : CheckKind.INVARIANT;
     }
 
     public TlaModule module() {

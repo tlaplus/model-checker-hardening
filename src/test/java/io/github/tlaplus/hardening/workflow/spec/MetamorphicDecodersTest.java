@@ -84,7 +84,7 @@ class MetamorphicDecodersTest {
                 var artifact = decoders.decode(input);
                 var pair = artifact.rewrite().orElseThrow();
                 assertTrue(!pair.isIdentity());
-                assertTrue(artifact.request().actionInvariant());
+                assertTrue(artifact.request().kind().actionInvariant());
                 assertTrue(artifact.graph().isEmpty());
                 assertEquals(moduleText(graph.spec()), moduleText((GeneratedSpec) pair.original()));
                 var identity = decoders.decodeUnrewritten(input).rewrite().orElseThrow();

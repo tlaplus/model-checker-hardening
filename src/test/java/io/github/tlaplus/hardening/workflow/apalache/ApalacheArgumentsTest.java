@@ -2,6 +2,7 @@ package io.github.tlaplus.hardening.workflow.apalache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.nio.file.Path;
 import java.util.List;
@@ -24,7 +25,7 @@ class ApalacheArgumentsTest {
         assertEquals(
                 List.of("--out-dir=" + JOB.resolve("out"), "check", "--init=Init", "--next=Next", "--inv=Inv",
                         "--temporal=Liveness", "--length=6", "--no-deadlock", SPECIFICATION.toString()),
-                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, true))));
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, CheckKind.INVARIANT_AND_PROPERTY))));
     }
 
     @Test
@@ -32,6 +33,6 @@ class ApalacheArgumentsTest {
         assertEquals(
                 List.of("--out-dir=" + JOB.resolve("out"), "check", "--init=Init", "--next=Next",
                         "--inv=Inv,Step", "--length=5", "--no-deadlock", SPECIFICATION.toString()),
-                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, false, true))));
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, CheckKind.RELATION))));
     }
 }

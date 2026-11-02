@@ -1,7 +1,7 @@
 # Metamorphic testing
 
-Temporal properties are not rewritten yet. Section 7 describes the temporal mode in
-progress ([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)).
+Temporal properties are rewritten and checked by TLC in a mode of their own (section 7,
+[ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)).
 
 A metamorphic campaign checks one model checker against itself. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
@@ -116,7 +116,7 @@ The relation module combines them:
 | `Next` | `UNCHANGED v` | `ActionE \/ UNCHANGED vars` |
 | `Inv` | `v = exprC` | `(step = 0 => InitC) /\ (InvE <=> InvC)` |
 | `Step` | none | `[ActionC]_vars`, an action invariant |
-| `Prop` | none | `TRUE`; the property is not checked (section 7) |
+| `Prop` | none | `TRUE`; with temporal rules, `PropE` (section 7) |
 
 - **One copy of the variables.** M2 shares M1's variables. Only its operators are
   renamed.
@@ -281,20 +281,20 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
 - **TLC-only corpora.** A corpus with `checkers = ["tlc"]` compares no checkers, so
   its entries are not conformance tests.
 
-## 7. Temporal properties (in progress)
+## 7. Temporal properties
 
-*Partly implemented.* [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)
-describes this mode for TLC. Corpora without it are unaffected. So far:
-- `libraries/rewrites/TemporalRewrites.tla` ships the rules;
-- `run` loads `temporal_rules` and refuses the settings below;
-- the rewriter rewrites fairness and properties;
-- `fuzztla print --spec` shows `SpecC`, `PropC` and `FairnessC` in the relation module.
-
-TLC does not check the properties yet, and `init --temporal` does not exist yet: set the
-keys by hand.
+This mode tests TLC on rewritten properties and fairness
+([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)). Corpora without it are
+unaffected.
 
 **Enabling.** `fuzztla init --how=mt --temporal` adds a second rule module and checks
 with TLC alone:
+
+```sh
+./bin/fuzztla init --how=mt --temporal --base-corpus corpus71 --corpus corpus-mtt
+```
+
+It writes:
 
 ```toml
 [workflow]
@@ -305,31 +305,48 @@ temporal_rules = { module = "TemporalRewrites", classpath = ["tla/rewrites"] }
 temporal_weights = { WFDef = 4 }    # as weights, for the temporal rules
 ```
 
-`run` refuses `temporal_rules` with Apalache among the checkers, or with a `kind` other
-than `module`. The base corpus must generate properties, so it must not ignore
-`temporal` ([Temporal properties](temporal-properties.md)).
+- **The checkers lose Apalache.** Both TLC stages, `tlc` and `tlcn`, stay. Without
+  Apalache, `metamorphic-defects.toml`, which quarantines `CHOOSE` for Apalache, is left
+  out.
+- **The base must generate modules with properties.** `init` refuses a base whose `kind`
+  is not `module`, and warns if it ignores `temporal`
+  ([Temporal properties](temporal-properties.md)).
+- **`run` refuses `temporal_rules`** with Apalache among the checkers, or with a `kind`
+  other than `module`.
 
 **What is rewritten.** Besides the bodies of section 2, the rewriter walks each fairness
-condition and then the property, before the other bodies, since a rewrite payload is short. There it applies the base rules and the temporal rules,
-such as `[]F` to `[][]F`, `F ~> G` to `[](F => <>G)`, and `WF_v(A)` to its definition
-in terms of `ENABLED`.
+condition and then the property, before the other bodies, since a rewrite payload is
+short. There it applies the base rules and the temporal rules, such as `[]F` to `[][]F`,
+`F ~> G` to `[](F => <>G)`, and `WF_v(A)` to its definition in terms of `ENABLED`.
 
 **What TLC checks.** An entry whose base has a property is checked in up to three TLC
 runs of one relation module. `SpecX == InitX /\ [][NextX]_vars /\ FairnessX` is side
 X's specification.
 
-| Run | Checks |
-| --- | --- |
-| relation | `Inv` and `StepProperty`, as in section 2 |
-| P_E | `SpecE ⊨ PropE` |
-| P_C | `SpecC ⊨ PropC` |
+| Run | TLC configuration | Checks |
+| --- | --- | --- |
+| relation | `SPECIFICATION Spec`, `INVARIANT Inv`, `PROPERTY StepProperty` | the relation of section 2 |
+| `Spec \|= Prop` | `SPECIFICATION Spec`, `PROPERTY Prop` | `SpecE ⊨ PropE` |
+| `SpecC \|= PropC` | `SPECIFICATION SpecC`, `PROPERTY PropC` | `SpecC ⊨ PropC` |
 
 The two property runs must reach the same verdict: both pass, or both report a
 counterexample. Whether the base property holds does not matter. The TLC stage reports
 one outcome:
-- a counterexample if the relation run reports one, or if the property verdicts differ
-  ("property verdicts differ");
-- otherwise the outcome of the first run that did not pass, or pass.
+- a counterexample if the relation run reports one; the property runs do not start;
+- a counterexample whose diagnostic starts with "property verdicts differ" if both
+  property runs decide and disagree, followed by each run's output;
+- otherwise the outcome of the relation run if it did not pass, then that of the first
+  property run that did not decide, under the heading "in the property run …";
+- otherwise pass.
+
+`SpecC |= PropC` starts only once `Spec |= Prop` decided. `fuzztla print` lists the three
+configurations under `tlc runs:`, after the applied rules. The exploration metrics and the
+quality gate use the relation run.
+
+**Triage.** For "property verdicts differ", check each property under its own
+specification in TLC, as in section 4. If TLC agrees with itself after both are
+simplified, a rule is unsound; otherwise reduce the module to a finding. `shrink` clears
+rewrite markers as for any entry.
 
 **Cost.** An entry with a property costs up to three TLC runs instead of one.
 
