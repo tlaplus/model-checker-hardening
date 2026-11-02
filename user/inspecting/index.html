@@ -1370,8 +1370,14 @@ one CSV file per directory into the corpus root:</p>
 <ul>
 <li><code>01parser-crash-triage.csv</code></li>
 <li><code>02tlc-crash-triage.csv</code>, <code>02tlcn-crash-triage.csv</code>, <code>02apa-crash-triage.csv</code></li>
+<li><code>02tlc-fail-triage.csv</code>, <code>02tlcn-fail-triage.csv</code>, <code>02apa-fail-triage.csv</code></li>
 <li><code>03aggregator-fail-triage.csv</code></li>
 </ul>
+<p>The aggregator collects a checker's <code>fail</code> once every checker has a result for the
+input. An entry stays in <code>02&lt;checker&gt;-fail</code> while another checker is still running,
+or for good after another checker crashed on it. The triager labels the failure with
+the conformance report that explains it as a deviation, whatever the other checkers
+returned.</p>
 <p>Each row has two columns, <code>entry_hash</code> and <code>issue</code>. <code>issue</code> is one of:</p>
 <table>
 <thead>
