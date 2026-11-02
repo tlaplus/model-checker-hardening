@@ -159,6 +159,13 @@ feature_coverage = true
 # Selection slots per rewrite rule, overriding the rule's @weight annotation; a rule
 # with neither has weight 1, and 0 disables it.
 weights = {}
+# Temporal rule module, relative to this config file (ADR 0027): its rules A <=> B rewrite
+# properties and fairness, which TLC then checks in runs of their own. Needs kind = "module"
+# and checkers without apalache; without it, properties are not rewritten or checked.
+# temporal_rules = { module = "TemporalRewrites", classpath = ["../libraries/rewrites"] }
+# Selection slots per temporal rewrite rule, overriding the rule's @weight annotation; a rule
+# with neither has weight 1, and 0 disables it.
+temporal_weights = {}
 # Rewrites applied to one body of a base (Init, Next, Inv, an operator or an expression).
 max_rewrites = 16
 # Rewrites stacked on one node.

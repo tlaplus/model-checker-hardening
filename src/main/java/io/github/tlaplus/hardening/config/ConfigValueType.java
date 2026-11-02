@@ -22,6 +22,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -88,9 +89,15 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final RuleLibraryConfig.RuleModule EXAMPLE_RULES =
             new RuleLibraryConfig.RuleModule("Rewrites", List.of(Path.of("../libraries/rewrites")));
 
-    static final ConfigValueType<Optional<RuleLibraryConfig.RuleModule>> RULE_MODULE = new ConfigValueType<>(
-            ConfigValueType::readRuleModule,
-            rules -> formatRuleModule(rules.orElse(EXAMPLE_RULES)));
+    /** The example a configuration without a temporal rule module shows, commented out. */
+    static final RuleLibraryConfig.RuleModule EXAMPLE_TEMPORAL_RULES =
+            new RuleLibraryConfig.RuleModule("TemporalRewrites", List.of(Path.of("../libraries/rewrites")));
+
+    /** Returns the type of an optional rule module, which a configuration without it shows as {@code example}. */
+    static ConfigValueType<Optional<RuleLibraryConfig.RuleModule>> ruleModule(RuleLibraryConfig.RuleModule example) {
+        Objects.requireNonNull(example, "example");
+        return new ConfigValueType<>(ConfigValueType::readRuleModule, rules -> formatRuleModule(rules.orElse(example)));
+    }
 
     /** The example a configuration without a base corpus shows, commented out. */
     static final Path EXAMPLE_BASE_CORPUS = Path.of("../corpus-conf");

@@ -74,8 +74,8 @@ public final class LibraryInstall {
         var metamorphic = config.metamorphic();
         var installed = config
                 .withLibraries(new OperatorLibraryConfig(classpath.install(libraries.classpath()), libraries.modules()))
-                .withMetamorphic(new MetamorphicConfig(
-                        classpath.install(metamorphic.rules()), metamorphic.limits(), metamorphic.adoption()))
+                .withMetamorphic(metamorphic.withRules(classpath.install(metamorphic.rules()))
+                        .withTemporalRules(classpath.install(metamorphic.temporalRules())))
                 .withGraphGuards(classpath.install(config.graphGuards()))
                 .withTools(ToolsConfig.installed());
         var tools = new LinkedHashMap<Path, Path>();

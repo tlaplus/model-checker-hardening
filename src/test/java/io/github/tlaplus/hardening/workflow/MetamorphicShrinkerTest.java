@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow;
 
+import io.github.tlaplus.hardening.gen.rewrite.RuleFamily;
 import io.github.tlaplus.hardening.config.ToolJar;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,9 +64,8 @@ class MetamorphicShrinkerTest {
         var rules = Files.createDirectory(directory.resolve("rules"));
         Files.writeString(rules.resolve("Wrong.tla"),
                 "---- MODULE Wrong ----\nEXTENDS Integers\nPlusOne(x) == x = x + 1\n====\n");
-        var library = RuleLibraryPreparation.prepare(
-                RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule("Wrong", List.of(rules))),
-                CheckerProfile.APALACHE.defaults(), StagedTools.locate(ToolJar.APALACHE)).library();
+        var library = RuleLibraryPreparation.prepare(RuleLibraryConfig.of(new RuleLibraryConfig.RuleModule("Wrong", List.of(rules))),
+                RuleFamily.REWRITES, CheckerProfile.APALACHE.defaults(), StagedTools.locate(ToolJar.APALACHE)).library();
         var decoders = SpecDecoders.metamorphic(IrGenerationConfig.defaults(),
                 new Rewriter(library, IrGenerationConfig.defaults(), RewriteLimits.defaults()));
         // Orientation, then two stacked rewrites at the root: marker, index, marker, index.

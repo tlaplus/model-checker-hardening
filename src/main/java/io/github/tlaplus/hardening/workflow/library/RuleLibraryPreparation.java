@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.common.TemporaryDirectory;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
+import io.github.tlaplus.hardening.gen.rewrite.RuleFamily;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,9 +21,10 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Loads a rule module once, before decoding (ADR 0017 §1, §6): the rewrites of a metamorphic run
- * or the edge guards of graph inputs (ADR 0023 §6). SANY names its rules and reads their weight
- * annotations, Snowcat types them, and {@link RewriteLibrary} checks the rule contract.
+ * Loads a rule module once, before decoding (ADR 0017 §1, §6): the rewrites of a metamorphic run,
+ * its temporal rewrites (ADR 0027 §1), or the edge guards of graph inputs (ADR 0023 §6). SANY names
+ * its rules and reads their weight annotations, Snowcat types them, and {@link RewriteLibrary}
+ * checks the rule contract of their family.
  */
 @ArchRole(Role.FACADE)
 @Key
@@ -39,8 +41,9 @@ public final class RuleLibraryPreparation {
      * Typechecks with the Apalache settings of the run and the corpus's Apalache JAR, as custom
      * operator libraries are.
      */
-    public static Prepared prepare(RuleLibraryConfig config, CheckerStageConfig apalache, Path jar)
+    public static Prepared prepare(RuleLibraryConfig config, RuleFamily family, CheckerStageConfig apalache, Path jar)
             throws WorkflowException {
+        Objects.requireNonNull(family, "family");
         Objects.requireNonNull(jar, "jar");
         if (config.module().isEmpty()) {
             return new Prepared(RewriteLibrary.empty(), "");
@@ -60,7 +63,7 @@ public final class RuleLibraryPreparation {
             var weights = weights(definitions, config.weights());
             var manifest = manifest(sources, jar, rules.module(), weights);
             var typed = new LibraryTypechecker(jar, scratch, apalache).check(source, Set.of(rules.module()), names);
-            return new Prepared(RewriteLibrary.fromModule(typed, names, weights), manifest);
+            return new Prepared(RewriteLibrary.fromModule(typed, names, weights, family), manifest);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new WorkflowException("rule library preparation interrupted", exception);

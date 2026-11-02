@@ -47,18 +47,21 @@ class LibraryInstallTest {
     }
 
     /**
-     * The rewrite rules and the edge guards are copied like an operator library, once when they
-     * share a directory, and every tool JAR is copied from the staged release (ADR 0025 §2, §3).
+     * The rewrite rules, the temporal rules and the edge guards are copied like an operator
+     * library, once when they share a directory, and every tool JAR is copied from the staged
+     * release (ADR 0025 §2, §3, ADR 0027 §5).
      */
     @Test
     void copiesTheRuleModulesAndTheToolsIntoTheCorpus(@TempDir Path directory) throws Exception {
         var rules = Files.createDirectories(directory.resolve("rewrites"));
         Files.writeString(rules.resolve("Rewrites.tla"), "rules");
+        Files.writeString(rules.resolve("TemporalRewrites.tla"), "temporal rules");
         var module = Optional.of(new RuleLibraryConfig.RuleModule("Rewrites", List.of(rules)));
-        var defaults = FuzzTlaConfig.defaults();
-        var config = defaults
-                .withMetamorphic(new MetamorphicConfig(new RuleLibraryConfig(module, Map.of("AddSub", 3)),
-                        defaults.metamorphic().limits(), defaults.metamorphic().adoption()))
+        var temporal = Optional.of(new RuleLibraryConfig.RuleModule("TemporalRewrites", List.of(rules)));
+        var config = FuzzTlaConfig.defaults()
+                .withMetamorphic(MetamorphicConfig.defaults()
+                        .withRules(new RuleLibraryConfig(module, Map.of("AddSub", 3)))
+                        .withTemporalRules(new RuleLibraryConfig(temporal, Map.of("WFDef", 4))))
                 .withGraphGuards(new RuleLibraryConfig(module, Map.of()));
 
         var plan = LibraryInstall.plan(config);
@@ -68,7 +71,11 @@ class LibraryInstallTest {
         var installed = new RuleLibraryConfig.RuleModule("Rewrites", List.of(Path.of("tla/rewrites")));
         assertEquals(new RuleLibraryConfig(Optional.of(installed), Map.of("AddSub", 3)), plan.config().metamorphic().rules());
         assertEquals(new RuleLibraryConfig(Optional.of(installed), Map.of()), plan.config().graphGuards());
+        assertEquals(new RuleLibraryConfig(Optional.of(new RuleLibraryConfig.RuleModule("TemporalRewrites",
+                        List.of(Path.of("tla/rewrites")))), Map.of("WFDef", 4)),
+                plan.config().metamorphic().temporalRules());
         assertEquals("rules", Files.readString(corpus.resolve("tla/rewrites/Rewrites.tla")));
+        assertEquals("temporal rules", Files.readString(corpus.resolve("tla/rewrites/TemporalRewrites.tla")));
         assertEquals(ToolsConfig.installed(), plan.config().tools());
         for (var tool : ToolJar.values()) {
             assertEquals(Files.size(StagedTools.locate(tool)), Files.size(corpus.resolve("tools").resolve(tool.fileName())));
