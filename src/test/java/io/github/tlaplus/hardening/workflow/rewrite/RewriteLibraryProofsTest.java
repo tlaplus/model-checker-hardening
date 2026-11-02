@@ -7,22 +7,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Keeps the shipped rewrite rules proven: every rule has a theorem in RewritesProofs.tla. CI has
- * no TLAPM here, so {@code make proofs} checks the theorems themselves.
+ * Keeps the shipped rule modules proven: every rule of a module {@code M} has a theorem in
+ * {@code MProofs.tla}. CI has no TLAPM here, so {@code make proofs} checks the theorems themselves.
  */
 class RewriteLibraryProofsTest {
     private static final Path LIBRARY = Path.of("libraries/rewrites");
-    private static final Path RULES = LIBRARY.resolve("Rewrites.tla");
-    private static final Path PROOFS = LIBRARY.resolve("RewritesProofs.tla");
     private static final Pattern RULE = Pattern.compile("^([A-Z]\\w*)\\(.*==");
 
-    @Test
-    void theProofsCoverEveryRule() throws Exception {
-        var proofs = Files.readString(PROOFS);
-        var rules = Files.readAllLines(RULES).stream()
+    @ParameterizedTest
+    @ValueSource(strings = {"Rewrites", "TemporalRewrites"})
+    void theProofsCoverEveryRule(String module) throws Exception {
+        var proofsPath = LIBRARY.resolve(module + "Proofs.tla");
+        var proofs = Files.readString(proofsPath);
+        var rules = Files.readAllLines(LIBRARY.resolve(module + ".tla")).stream()
                 .map(RULE::matcher)
                 .filter(Matcher::find)
                 .map(matcher -> matcher.group(1))
@@ -31,7 +32,7 @@ class RewriteLibraryProofsTest {
         for (var rule : rules) {
             // The theorem's statement, up to its proof, must conclude the rule itself.
             var theorem = Pattern.compile("THEOREM " + rule + "Valid ==[^\\n]*(\\n  [^\\n]*)*?PROVE\\s+" + rule + "\\(");
-            assertTrue(theorem.matcher(proofs).find(), "THEOREM " + rule + "Valid is missing from " + PROOFS);
+            assertTrue(theorem.matcher(proofs).find(), "THEOREM " + rule + "Valid is missing from " + proofsPath);
         }
     }
 }
