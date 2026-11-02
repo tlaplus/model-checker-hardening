@@ -7,11 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.apalache_mc.tla.jir.TlaOperators;
 import org.junit.jupiter.api.Test;
 
@@ -327,7 +329,7 @@ class IrSpecGeneratorsTest {
         }
 
         var saturated = new byte[8192];
-        java.util.Arrays.fill(saturated, (byte) 0xff);
+        Arrays.fill(saturated, (byte) 0xff);
         assertBuildsOrRejects(saturated);
     }
 
@@ -355,7 +357,7 @@ class IrSpecGeneratorsTest {
     }
 
     /** Runs a check over a spread of generated modules, skipping the inputs that reject. */
-    private void forEachGeneratedSpec(java.util.function.Consumer<GeneratedSpec> check) {
+    private void forEachGeneratedSpec(Consumer<GeneratedSpec> check) {
         var random = new Random(0x0dd1eL);
         var checked = 0;
         for (var sample = 0; sample < 600; sample++) {

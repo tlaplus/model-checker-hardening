@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apalache_mc.tla.jir.ExpressionPair;
 import org.apalache_mc.tla.jir.NamedType;
@@ -355,7 +356,7 @@ class AllDefectsTest {
     /** The {@code match} list of every signature of a database, as written. */
     private static List<List<Object>> patterns(Path database) throws IOException {
         var signatures = Toml.parse(database).getArray("signature");
-        return java.util.stream.IntStream.range(0, signatures.size())
+        return IntStream.range(0, signatures.size())
                 .mapToObj(i -> signatures.getTable(i).getArray("match").toList())
                 .toList();
     }

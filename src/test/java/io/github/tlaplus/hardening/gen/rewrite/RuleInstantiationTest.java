@@ -11,6 +11,7 @@ import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.UnaryOperator;
 import org.apalache_mc.tla.jir.TlaOperators;
@@ -48,7 +49,7 @@ class RuleInstantiationTest {
                         B.not(B.forall(B.name("e", ELEMENT), elements("S"), B.bool(false)))),
                 B.param("S", TlaTypes.set(ELEMENT)));
         var result = RuleInstantiation.instantiateFormula(checked(some), Map.of("S", T), integerSets(), numbered());
-        assertEquals(java.util.Set.of("e_1"), IrNames.bound(result));
+        assertEquals(Set.of("e_1"), IrNames.bound(result));
         assertFalse(IrNames.free(result).contains("e"));
     }
 

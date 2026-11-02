@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.lang.model.element.PackageElement;
@@ -106,7 +107,7 @@ final class ModelBuilder {
         try (var lines = Files.lines(file)) {
             return lines.findFirst()
                     .map(TITLE::matcher)
-                    .filter(java.util.regex.Matcher::matches)
+                    .filter(Matcher::matches)
                     .map(m -> m.group(1).strip())
                     .orElse(file.getFileName().toString());
         }

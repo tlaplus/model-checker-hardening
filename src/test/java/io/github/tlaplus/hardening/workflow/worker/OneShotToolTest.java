@@ -5,6 +5,7 @@ import java.nio.file.*;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -51,7 +52,7 @@ class OneShotToolTest {
             try {
                 boolean ready = false;
                 while (!ready) {
-                    var event = watcher.poll(10, java.util.concurrent.TimeUnit.SECONDS);
+                    var event = watcher.poll(10, TimeUnit.SECONDS);
                     assertNotNull(event, "child did not start");
                     ready = event.pollEvents().stream().anyMatch(change -> change.context().toString().equals("ready"));
                     event.reset();

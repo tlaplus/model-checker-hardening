@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.SplittableRandom;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class MutationOperatorTest {
@@ -33,7 +34,7 @@ class MutationOperatorTest {
         assertEquals(List.of(MutationOperator.ADOPT), Arrays.stream(MutationOperator.values())
                 .filter(operator -> !operator.isByteEdit()).toList());
         assertEquals(0, MutationOperator.ADOPT.defaultWeight());
-        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+        Assertions.assertThrows(UnsupportedOperationException.class,
                 () -> MutationOperator.ADOPT.apply(new byte[] {1}, NO_DONOR, new SplittableRandom(1)));
     }
 

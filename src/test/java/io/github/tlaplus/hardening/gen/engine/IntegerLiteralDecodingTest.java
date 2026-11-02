@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.ExpressionLimits;
 import io.github.tlaplus.hardening.gen.IntegerLimits;
 import io.github.tlaplus.hardening.gen.IntegerLiteralMode;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -49,9 +51,9 @@ class IntegerLiteralDecodingTest {
         assertEquals(List.of("-1", "0", "1", "2", "15", "16", "255", "256", "32767", "32768", "65536",
                         "46340", "46341", "1073741824", "2147483647", "-2147483648", "2147483648",
                         "-2147483649", "9223372036854775807"),
-                java.util.Arrays.stream(BoundaryInteger.values()).map(value -> value.value().toString()).toList());
+                Arrays.stream(BoundaryInteger.values()).map(value -> value.value().toString()).toList());
         var tlcRange = BigInteger.valueOf(Integer.MAX_VALUE);
-        assertTrue(java.util.Arrays.stream(BoundaryInteger.values()).limit(16)
+        assertTrue(Arrays.stream(BoundaryInteger.values()).limit(16)
                 .allMatch(value -> value.value().abs().compareTo(tlcRange.add(BigInteger.ONE)) <= 0));
     }
 
@@ -74,7 +76,7 @@ class IntegerLiteralDecodingTest {
     private static IrGenerationConfig config(IntegerLiteralMode mode) {
         var defaults = IrGenerationConfig.defaults();
         var limits = defaults.expressions();
-        return defaults.withExpressionLimits(new io.github.tlaplus.hardening.gen.ExpressionLimits(
+        return defaults.withExpressionLimits(new ExpressionLimits(
                 limits.maximumTypeDepth(), limits.maximumExpressionDepth(), limits.maximumNodes(),
                 limits.collections(), limits.maximumStringBytes(), new IntegerLimits(16, 1, 4, mode)));
     }

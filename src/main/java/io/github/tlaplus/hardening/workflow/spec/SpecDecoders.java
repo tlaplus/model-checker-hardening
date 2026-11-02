@@ -110,10 +110,9 @@ public final class SpecDecoders {
                     if (rules.library().isEmpty()) {
                         throw new WorkflowException("technique = \"mt\" needs rewrite rules: set metamorphic.rules");
                     }
-                    // The rewriter applies the temporal rules from ADR 0027 phase 2 on.
-                    temporalRules(config, rules.library());
                     yield metamorphic(prepared.generator(),
-                            new Rewriter(rules.library(), prepared.generator(), config.metamorphic().limits()),
+                            new Rewriter(rules.library(), temporalRules(config, rules.library()), prepared.generator(),
+                                    config.metamorphic().limits()),
                             guards,
                             new Manifests(prepared.manifest(), guardRules.manifest()));
                 }
@@ -135,8 +134,8 @@ public final class SpecDecoders {
     }
 
     /**
-     * Loads the temporal rules of {@code config}, if it names any, and checks that the corpus can
-     * use them (ADR 0027 §1, §5): TLC alone checks the rewritten properties, since Apalache
+     * Loads the temporal rules of {@code config}, empty if it names none, and checks that the corpus
+     * can use them (ADR 0027 §1, §5): TLC alone checks the rewritten properties, since Apalache
      * supports no fairness, and only a module has a property. They follow {@code rules}, so their
      * names must be distinct.
      */
@@ -155,7 +154,8 @@ public final class SpecDecoders {
         var prepared = RuleLibraryPreparation.prepare(temporal, RuleFamily.TEMPORAL_REWRITES,
                 config.workflow().checker(CorpusStage.APALACHE), CorpusTools.apalache(config)).library();
         try {
-            return rules.followedBy(prepared);
+            rules.followedBy(prepared);
+            return prepared;
         } catch (IllegalArgumentException exception) {
             throw new WorkflowException("metamorphic.temporal_rules: " + exception.getMessage(), exception);
         }
@@ -215,7 +215,8 @@ public final class SpecDecoders {
         Function<Rewrite<TlaEx>, SpecArtifact> expressionRelation =
                 rewrite -> SpecArtifact.fromExpressionRewrite(rewrite, config.library());
         Function<Rewrite<GeneratedSpec>, SpecArtifact> specRelation =
-                rewrite -> SpecArtifact.fromSpecRewrite(rewrite, config.library());
+                rewrite -> SpecArtifact.fromSpecRewrite(rewrite, config.library(),
+                        rewriter.rewritesProperties() ? PropertyRelation.SEPARATE_RUNS : PropertyRelation.OMITTED);
         var decoders = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         decoders.put(InputKind.EXPRESSION, rewriting(expressions, rewriter::rewriteExpression, expressionRelation));
         decoders.put(InputKind.MODULE, rewriting(specs, rewriter::rewriteSpec, specRelation));

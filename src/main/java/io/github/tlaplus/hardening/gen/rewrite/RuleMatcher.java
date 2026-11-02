@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.apalache_mc.tla.jir.TlaExpressions;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypeSubstitution;
 import org.apalache_mc.tla.jir.TlaTypeUnifier;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -89,10 +90,23 @@ public final class RuleMatcher {
                 : Optional.empty();
     }
 
-    /** Whether no formula parameter of a temporal rule is bound to an action, which SANY rejects. */
+    /**
+     * Whether the bindings fit the levels of the replacement (ADR 0027 §1): no formula parameter of
+     * a temporal rule is bound to an action, and a temporal formula is bound only to a parameter
+     * the replacement holds in formula positions. SANY rejects every other result.
+     */
     private static boolean admitsLevels(RuleMatch match) {
-        return match.rule().levels().formulaParameters().stream()
-                .noneMatch(parameter -> FormulaLevels.isAction(match.bindings().get(parameter)));
+        var levels = match.rule().levels();
+        for (var binding : match.bindings().entrySet()) {
+            var parameter = binding.getKey();
+            if (levels.formulaParameters().contains(parameter) && FormulaLevels.isAction(binding.getValue())) {
+                return false;
+            }
+            if (FormulaLevels.isTemporal(binding.getValue()) && !levels.formulaPositions().contains(parameter)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Whether no label of a binding would land where SANY rejects it (see {@link LabelPlacement}). */
@@ -139,7 +153,7 @@ public final class RuleMatcher {
         if (expression instanceof NameEx) {
             return true;
         }
-        return expression instanceof OperEx tuple && tuple.oper() == org.apalache_mc.tla.jir.TlaOperators.TUPLE
+        return expression instanceof OperEx tuple && tuple.oper() == TlaOperators.TUPLE
                 && TlaExpressions.arguments(tuple).stream().allMatch(RuleMatcher::isVariables);
     }
 

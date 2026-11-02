@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -86,7 +87,7 @@ class TlcExplorationMetricsTest {
                 Liveness == Fairness => Prop
                 ====
                 """;
-        var graph = check(source, new CheckRequest(3, false).withControlVariables(java.util.Set.of("step", "pc")));
+        var graph = check(source, new CheckRequest(3, false).withControlVariables(Set.of("step", "pc")));
         assertEquals(StageOutcome.PASS, graph.outcome(), graph.diagnostic());
         assertCounts(metrics(graph), Map.of(
                 ExplorationCount.DISTINCT_STATES, 3L,

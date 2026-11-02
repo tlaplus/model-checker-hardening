@@ -22,7 +22,10 @@ import io.github.tlaplus.hardening.workflow.worker.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
@@ -42,7 +45,7 @@ class CustomLibraryIntegrationTest {
         var integer = BUILDER.integer(1);
         var bool = BUILDER.bool(true);
         var recordType = TlaTypes.rowRecord(new NamedType("value", TlaTypes.INT));
-        var record = BUILDER.record(new org.apalache_mc.tla.jir.NamedExpression<>("value", integer));
+        var record = BUILDER.record(new NamedExpression<>("value", integer));
         var expression = BUILDER.tuple(
                 call(library, new OperatorId("PolyOps", "Wrapped"), TlaTypes.INT, integer),
                 call(library, new OperatorId("PolyOps", "Wrapped"), TlaTypes.BOOL, bool),
@@ -82,7 +85,7 @@ class CustomLibraryIntegrationTest {
         var state = TlaDeclarations.variable("state", TlaTypes.BOOL);
         var spec = new GeneratedSpec(List.of(state), List.of(),
                 BUILDER.eql(BUILDER.varDeclAsNameEx(state), BUILDER.bool(true)),
-                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, java.util.Optional.empty(), 0);
+                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, Optional.empty(), 0);
         var artifact = SpecArtifact.fromGeneratedSpec(spec, library);
         var source = SpecText.render(artifact);
         assertTrue(source.contains(OperatorLibrary.instanceName("DiffOpsApalache") + " == INSTANCE DiffOpsTLC"), source);
@@ -100,7 +103,7 @@ class CustomLibraryIntegrationTest {
         var state = TlaDeclarations.variable("state", TlaTypes.BOOL);
         var spec = new GeneratedSpec(List.of(state), List.of(),
                 BUILDER.eql(BUILDER.varDeclAsNameEx(state), BUILDER.bool(true)),
-                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, java.util.Optional.empty(), 0);
+                BUILDER.unchanged(BUILDER.varDeclAsNameEx(state)), invariant, Optional.empty(), 0);
         assertAllTools(SpecArtifact.fromGeneratedSpec(spec, library), directory, List.of());
     }
 
@@ -127,7 +130,7 @@ class CustomLibraryIntegrationTest {
     }
 
     private static TlaEx call(OperatorLibrary library, OperatorId id, TlaType1 result, TlaEx... args) {
-        var types = java.util.Arrays.stream(args)
+        var types = Arrays.stream(args)
                 .map(TlaTypes::typeOf)
                 .toArray(TlaType1[]::new);
         return BUILDER.operApply(BUILDER.name(library.get(id).name(),

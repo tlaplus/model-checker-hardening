@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.gen.Draw;
 import io.github.tlaplus.hardening.gen.Generator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** Recursive, complete action shapes. Visibility is an immutable, explicit dependency. */
 final class ActionShapeGenFactory extends AbstractExprGenFactory {
@@ -26,7 +27,7 @@ final class ActionShapeGenFactory extends AbstractExprGenFactory {
             if (variables.isEmpty()) {
                 throw new IllegalArgumentException("an action shape requires variables");
             }
-            java.util.Objects.requireNonNull(requirement, "requirement");
+            Objects.requireNonNull(requirement, "requirement");
         }
 
         Request descend(List<ScopedName> subset, AssignmentRequirement assignment) {

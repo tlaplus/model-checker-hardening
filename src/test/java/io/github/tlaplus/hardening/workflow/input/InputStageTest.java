@@ -18,6 +18,7 @@ import io.github.tlaplus.hardening.corpus.CorpusRunStatistics;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.GenerationMetadata;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
+import java.util.HashSet;
 import java.util.List;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.InputKind;
@@ -461,7 +462,7 @@ class InputStageTest {
 
     @Test
     void derivesStableDistinctGenerationSeeds() {
-        var seeds = new java.util.HashSet<Long>();
+        var seeds = new HashSet<Long>();
         for (var generation = 0; generation < 16; generation++) {
             var seed = InputStage.generationSeed(1234, generation);
             assertEquals(seed, InputStage.generationSeed(1234, generation));
@@ -474,7 +475,7 @@ class InputStageTest {
 
     @Test
     void derivesStableDistinctTargetSeeds() {
-        var seeds = new java.util.HashSet<Long>();
+        var seeds = new HashSet<Long>();
         for (var target = 0; target < 1000; target++) {
             var seed = InputStage.derivedSeed(1234, target);
             assertEquals(seed, InputStage.derivedSeed(1234, target));

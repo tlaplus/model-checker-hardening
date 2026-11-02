@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -468,7 +469,7 @@ class CorpusDirectoryTest {
                         CorpusVerdict.PASS, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
         corpus.fanOutParserPass(parserPass);
 
-        var branchPaths = new java.util.HashSet<Path>();
+        var branchPaths = new HashSet<Path>();
         for (var checker : CorpusStage.checkerBranches()) {
             var branchInput =
                     corpus.checkerInputPath(checker).resolve(parserPass.getFileName());

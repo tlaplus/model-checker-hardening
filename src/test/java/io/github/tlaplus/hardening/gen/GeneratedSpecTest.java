@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -48,6 +49,6 @@ class GeneratedSpecTest {
         var predicate = builder.bool(true);
         return new GeneratedSpec(List.of(TlaDeclarations.variable("x",
                         TlaTypes.typeOf(predicate))),
-                operators, predicate, predicate, predicate, java.util.Optional.empty(), 0);
+                operators, predicate, predicate, predicate, Optional.empty(), 0);
     }
 }

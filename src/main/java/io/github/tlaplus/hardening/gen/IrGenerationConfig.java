@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -98,7 +99,7 @@ public record IrGenerationConfig(
             }
         }
         weights.keySet().stream().filter(CustomExpressionKind.class::isInstance)
-                .sorted(java.util.Comparator.comparing(ExpressionKind::configName))
+                .sorted(Comparator.comparing(ExpressionKind::configName))
                 .forEach(kind -> copy.put(kind, weights.get(kind)));
         return Collections.unmodifiableMap(copy);
     }

@@ -18,6 +18,7 @@ import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.StagedTools;
 import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.spec.PropertyRelation;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend;
 import io.github.tlaplus.hardening.workflow.tlc.TlcSettings;
@@ -95,7 +96,8 @@ class RelationModuleCheckersTest {
 
     private static SpecArtifact relation(GeneratedSpec original, GeneratedSpec rewritten, Orientation orientation) {
         return SpecArtifact.fromSpecRewrite(
-                new Rewrite<>(original, rewritten, orientation, List.of("Test")), OperatorLibrary.empty());
+                new Rewrite<>(original, rewritten, orientation, List.of("Test")), OperatorLibrary.empty(),
+                PropertyRelation.OMITTED);
     }
 
     /**

@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -107,7 +108,7 @@ class OperatorLibraryConfigTest {
     void linkageNamesArePartOfTheConfigurationAndManifestFormat() {
         // Stored in config.toml and in .operator-library; renaming one breaks existing corpora.
         assertEquals(List.of("inline", "instance", "diff"),
-                java.util.Arrays.stream(LibraryLinkage.values()).map(LibraryLinkage::encodedName).toList());
+                Arrays.stream(LibraryLinkage.values()).map(LibraryLinkage::encodedName).toList());
     }
 
     @Test

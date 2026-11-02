@@ -31,7 +31,10 @@ import org.apalache_mc.tla.jir.TlaTypes;
  *       the checkers treat differently;
  *   <li>an operator, such as a lambda argument of a fold or the name an application applies, is
  *       not a value: TLA+ has no {@code IF} or equality of operators, so a rule that admits every
- *       type would produce a module SANY rejects. The body of a lambda is a value again.
+ *       type would produce a module SANY rejects. The body of a lambda is a value again;
+ *   <li>the {@code [A]_v} of {@code [][A]_v} and the {@code <<A>>_v} of {@code <><<A>>_v} are
+ *       syntax of the temporal formula: {@code <>(<<A>>_v \/ FALSE)} is no formula. Their action
+ *       and subscript are rewritten as usual (ADR 0027 §1).
  * </ul>
  */
 final class RewritePositions {
@@ -71,6 +74,16 @@ final class RewritePositions {
             return !(function instanceof TupT1) && !(function instanceof RecRowT1);
         }
         return true;
+    }
+
+    /**
+     * Whether a rule may apply at argument {@code index} of {@code application} itself, which the
+     * walk visits: not at the subscripted action of {@code [][A]_v} or {@code <><<A>>_v}, whose own
+     * arguments it still visits.
+     */
+    static boolean rewritesArgument(OperEx application, int index) {
+        return !(index == 0 && (application.oper() == GLOBALLY || application.oper() == EVENTUALLY)
+                && FormulaLevels.isTemporalAction(application));
     }
 
     /**

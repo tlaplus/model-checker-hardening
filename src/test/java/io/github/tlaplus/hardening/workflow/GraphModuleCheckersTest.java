@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.regex.Pattern;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -48,8 +49,8 @@ class GraphModuleCheckersTest {
      * standard-module operator, such as {@code x % 0} in Next, under a TLC_MODULE_* constant
      * that exits 255, which the workflow records as a crash. Deep spines reach such errors often.
      */
-    private static final java.util.regex.Pattern KNOWN_TLC_CRASH =
-            java.util.regex.Pattern.compile("TLC error code 21(69|7\\d|8\\d) mapped to exit status 255");
+    private static final Pattern KNOWN_TLC_CRASH =
+            Pattern.compile("TLC error code 21(69|7\\d|8\\d) mapped to exit status 255");
     /** The shortest distance of a sampled reachable target, so the checkers unroll deep spines. */
     private static final int DEEP = 10;
 

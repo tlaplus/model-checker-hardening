@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Accepted; phase 1 of section 7 is implemented
+**Status:** Accepted; phases 1 and 2 of section 7 are implemented
 
 **Date:** 2026-11-02
 
@@ -23,8 +23,28 @@ settled these details:
   counts the primes under `ENABLED`, which generated guards contain. Existing corpora
   therefore decode unchanged.
 - `run`, `print`, `export-db` and `shrink` load the temporal module when they prepare
-  the decoders, and they refuse the settings of section 5. The rewriter uses the rules
-  from phase 2 on.
+  the decoders, and they refuse the settings of section 5.
+
+Phase 2 is implemented on the branch `igor/mt-temporal-relation`. It changed two
+decisions and settled further details:
+- **The property is rewritten first, not after the invariant (section 2).** With the
+  order of section 2, no temporal rule applied in 400 random relation modules, even with
+  512 rewrite bytes. The other bodies read a marker at almost every node, so they used up
+  the payload first. An adopted candidate, the main source of an `mt` corpus, has at most
+  64 rewrite bytes (`MetamorphicCandidates.MAXIMUM_REWRITE_BYTES`).
+- **`AlwaysOrBreak` and `EventuallyWeaken` weigh 8, not 1 (section 6).** At a node of a
+  property, they compete with every generic base rule, such as `P /\ TRUE`. Over 400
+  random relation modules with 256 rewrite bytes, 184 had a property. At weight 1, 31 of
+  them received a temporal rewrite; at weight 8, 75.
+- **The `[A]_v` of `[][A]_v` and the `<<A>>_v` of `<><<A>>_v` are not rewritten as a
+  whole;** their action and subscript are. `OrFalse` turned `<><<A>>_v` into
+  `<>(<<A>>_v \/ FALSE)`, which SANY rejects.
+- `workflow.spec.PropertyRelation` says whether a relation module leaves the property out
+  or defines both sides', and with which entry points. `SpecC` and `PropC` are entry
+  points, so known-defect signatures match the checked side too.
+- A test decodes 400 random payloads with both rule modules, and SANY accepts every
+  relation module.
+- TLC does not check `Prop` or `PropC` yet: that is phase 3.
 
 ## Context
 
@@ -275,8 +295,10 @@ The shipped module is `libraries/rewrites/TemporalRewrites.tla`. It sits next to
 
 ### 2. Rewritten bodies
 
-With `temporal_rules`, `Rewriter.rewriteSpec` walks two more kinds of body after the
-invariant: each fairness condition in order, then the property formula. Each body:
+With `temporal_rules`, `Rewriter.rewriteSpec` walks two more kinds of body, before the
+operator definitions: each fairness condition in order, then the property formula. They
+come first because a rewrite payload is short, and the other bodies would read all of it
+(see the implementation note). Each body:
 - has its own budget of rewrites ([ADR 0016][adr-0016] §2);
 - sees the invariant's scope;
 - draws fresh operands at the `STATE` level.
@@ -284,8 +306,8 @@ invariant: each fairness condition in order, then the property formula. Each bod
 In these bodies, the rules are the base rules followed by the temporal rules, in
 declaration order, and one two-byte index selects among their weighted slots. Temporal
 rules never apply in `Init`, the next-state action, the invariant or the operator
-definitions. A corpus without `temporal_rules` stops reading after the invariant, as
-it does today.
+definitions. A corpus without `temporal_rules` walks the bodies it walked before, in the
+same order.
 
 ### 3. Relation module
 
@@ -402,7 +424,8 @@ parameters, `A` an action parameter, `v` a subscript.
   its definition, which TLC checks as a general temporal formula.
 - **Default weights** follow ADR 0017's tiers: 8 for the rules that change how TLC
   checks a formula (`LeadsToDef`, `WFDef`, `SFDef`, the dualities,
-  `AlwaysWithEventually` and `AlwaysOrIdem`), 2 for the splits, 1 for the rest.
+  `AlwaysWithEventually`, `AlwaysOrIdem`, `AlwaysOrBreak` and `EventuallyWeaken`), 2 for
+  the splits, 1 for the rest.
 
 ### 7. Implementation phases
 

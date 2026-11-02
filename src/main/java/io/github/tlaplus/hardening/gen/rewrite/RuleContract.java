@@ -21,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -44,9 +45,6 @@ final class RuleContract {
      * {@code ENABLED} and {@code <<A>>_v}, so its replacement may apply them.
      */
     private static final Set<TlaOper> FAIRNESS = FormulaLevels.operators(WEAK_FAIRNESS, STRONG_FAIRNESS);
-
-    /** The single branch of an expression that holds no parameter in an assignment position. */
-    private static final Set<Set<String>> NO_PARAMETERS = Set.of(Set.of());
 
     private RuleContract() {}
 
@@ -119,63 +117,18 @@ final class RuleContract {
         var higherOrder = parameters.stream()
                 .filter(parameter -> parameter.kind() == RuleParameter.Kind.HIGHER_ORDER)
                 .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         requireMillerPatterns(name, pattern, higherOrder, Set.of());
         requireApplied(name, replacement, higherOrder);
         var signature = new HashSet<Integer>(TlaTypes.usedVariables(TlaTypes.typeOf(pattern)));
         parameters.forEach(parameter -> signature.addAll(TlaTypes.usedVariables(parameter.type())));
         replacement = LetSpecialization.specialize(name, replacement, signature);
         return new RewriteRule(name, weight, TlaExpressions.withArguments(relation, List.of(pattern, replacement)), parameters,
-                assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)),
-                family.temporal() ? levels(name, pattern, replacement, parameters) : RuleLevels.NONE);
+                AssignmentAnalysis.of(pattern, replacement, parameters),
+                LabelPlacement.unlabelled(replacement, bound(parameters)),
+                LevelAnalysis.of(name, pattern, replacement, parameters, family));
     }
 
-    /**
-     * Classifies the Boolean matched parameters of a temporal rule by their positions in the
-     * pattern (ADR 0027 §1): one in an action position matches an action, every other one a state
-     * predicate or a temporal formula. A parameter in both kinds of position is rejected.
-     */
-    private static RuleLevels levels(String rule, TlaEx pattern, TlaEx replacement, List<RuleParameter> parameters) {
-        var actions = new HashSet<String>();
-        var formulas = new HashSet<String>();
-        classify(pattern, false, actions, formulas);
-        var formulaParameters = new HashSet<String>();
-        for (var parameter : parameters) {
-            if (parameter.kind() != RuleParameter.Kind.MATCHED || !parameter.type().equals(TlaTypes.BOOL)) {
-                continue;
-            }
-            if (actions.contains(parameter.name()) && formulas.contains(parameter.name())) {
-                throw rejected(rule, "the parameter " + parameter.name()
-                        + " occurs in the pattern both as an action and as a formula");
-            }
-            if (!actions.contains(parameter.name())) {
-                formulaParameters.add(parameter.name());
-            }
-        }
-        var raises = operators(pattern, FormulaLevels.TEMPORAL).isEmpty()
-                && !operators(replacement, FormulaLevels.TEMPORAL).isEmpty();
-        return new RuleLevels(formulaParameters, raises);
-    }
-
-    /** Collects the names {@code expression} reads in action positions and elsewhere. */
-    private static void classify(TlaEx expression, boolean action, Set<String> actions, Set<String> formulas) {
-        switch (expression) {
-            case NameEx name -> (action ? actions : formulas).add(name.name());
-            case LetInEx let -> {
-                TlaExpressions.localDeclarations(let)
-                        .forEach(declaration -> classify(declaration.body(), action, actions, formulas));
-                classify(let.body(), action, actions, formulas);
-            }
-            case OperEx application -> {
-                var arguments = TlaExpressions.arguments(application);
-                for (var index = 0; index < arguments.size(); index++) {
-                    classify(arguments.get(index), action || FormulaLevels.isActionPosition(application.oper(), index),
-                            actions, formulas);
-                }
-            }
-            default -> {}
-        }
-    }
 
     /** Whether the rule's formula applies no action-level operator, so its instances are state predicates. */
     static boolean isStateLevel(RewriteRule rule) {
@@ -187,7 +140,7 @@ final class RuleContract {
         return parameters.stream()
                 .filter(parameter -> parameter.kind() != RuleParameter.Kind.FRESH)
                 .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -258,134 +211,6 @@ final class RuleContract {
         }
     }
 
-    /** Precomputes where the Boolean matched parameters end up in the replacement (ADR 0017 §5.3). */
-    private static AssignmentFacts assignments(TlaEx pattern, TlaEx replacement, List<RuleParameter> parameters) {
-        var booleans = parameters.stream()
-                .filter(RuleContract::carriesFormulas)
-                .map(RuleParameter::name)
-                .collect(java.util.stream.Collectors.toSet());
-        // A formula that assigned in the pattern must still assign, once; one that did not must not
-        // start to, or a guard such as an IF condition would become an assignment. Each branch of
-        // the replacement must hold the formulas of a branch of the pattern, for Apalache.
-        var preserved = assigningOnce(replacement, booleans);
-        preserved.retainAll(assigningOnce(pattern, booleans));
-        return new AssignmentFacts(preserved, side(pattern, booleans), side(replacement, booleans),
-                operands(replacement, PRIME), operands(replacement, UNCHANGED));
-    }
-
-    private static AssignmentFacts.Side side(TlaEx expression, Set<String> parameters) {
-        return new AssignmentFacts.Side(firstOccurrences(expression, parameters), branches(expression, parameters));
-    }
-
-    /**
-     * Returns, for each branch through the disjunctions and {@code IF} branches of {@code expression},
-     * the parameters it holds in an assignment position. A conjunction, an {@code \E} body, a label
-     * and a {@code LET} body hold one branch of each of their assigning arguments.
-     */
-    private static Set<Set<String>> branches(TlaEx expression, Set<String> parameters) {
-        return switch (expression) {
-            case NameEx name -> parameters.contains(name.name()) ? Set.of(Set.of(name.name())) : NO_PARAMETERS;
-            case LetInEx let -> branches(let.body(), parameters);
-            case OperEx application -> {
-                var operator = application.oper();
-                var alternatives = operator == OR || operator == IF_THEN_ELSE;
-                var arguments = TlaExpressions.arguments(application);
-                Set<Set<String>> result = alternatives ? new HashSet<>() : NO_PARAMETERS;
-                for (var index = 0; index < arguments.size(); index++) {
-                    if (keepsAssignments(operator, index)) {
-                        var argument = branches(arguments.get(index), parameters);
-                        result = alternatives ? union(result, argument) : product(result, argument);
-                    }
-                }
-                yield result;
-            }
-            default -> NO_PARAMETERS;
-        };
-    }
-
-    private static Set<Set<String>> union(Set<Set<String>> left, Set<Set<String>> right) {
-        var result = new HashSet<>(left);
-        result.addAll(right);
-        return result;
-    }
-
-    /** Returns every union of one branch of {@code left} with one branch of {@code right}. */
-    private static Set<Set<String>> product(Set<Set<String>> left, Set<Set<String>> right) {
-        var result = new HashSet<Set<String>>();
-        for (var first : left) {
-            for (var second : right) {
-                var branch = new HashSet<>(first);
-                branch.addAll(second);
-                result.add(branch);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Returns the parameters that occur in {@code expression} only in assigning positions, at most
-     * once in each action. The action of {@code [A]_v}, {@code <<A>>_v}, fairness or {@code ENABLED}
-     * is an action of its own, which TLC evaluates apart from the formula around it; a rule without
-     * one has one action, so its parameters occur exactly once.
-     */
-    private static Set<String> assigningOnce(TlaEx expression, Set<String> parameters) {
-        var occurrences = new HashMap<String, List<Occurrence>>();
-        collectOccurrences(expression, new Occurrence(0, true), new int[] {0}, parameters, occurrences);
-        var once = new HashSet<String>();
-        occurrences.forEach((parameter, positions) -> {
-            var actions = positions.stream().map(Occurrence::action).distinct().count();
-            if (actions == positions.size() && positions.stream().allMatch(Occurrence::assigning)) {
-                once.add(parameter);
-            }
-        });
-        return once;
-    }
-
-    /** Where a parameter occurs: in which action, and whether TLC would assign an equation there. */
-    private record Occurrence(int action, boolean assigning) {}
-
-    /** Returns the parameters {@code operator} applies to directly in {@code expression}. */
-    private static Set<String> operands(TlaEx expression, TlaOper operator) {
-        var result = new HashSet<String>();
-        TlaExpressions.forEach(expression, node -> {
-            if (node instanceof OperEx application && application.oper() == operator
-                    && TlaExpressions.arguments(application).getFirst() instanceof NameEx name) {
-                result.add(name.name());
-            }
-        });
-        return result;
-    }
-
-    /**
-     * Records, for each occurrence of a parameter, its action and whether TLC would treat an
-     * equation there as an assignment. An action position starts a new action, numbered by {@code
-     * actions}, where TLC assigns again.
-     */
-    private static void collectOccurrences(TlaEx expression, Occurrence where, int[] actions, Set<String> parameters,
-            Map<String, List<Occurrence>> occurrences) {
-        switch (expression) {
-            case NameEx name -> {
-                if (parameters.contains(name.name())) {
-                    occurrences.computeIfAbsent(name.name(), ignored -> new ArrayList<>()).add(where);
-                }
-            }
-            case LetInEx let -> {
-                TlaExpressions.localDeclarations(let).forEach(declaration -> collectOccurrences(
-                        declaration.body(), new Occurrence(where.action(), false), actions, parameters, occurrences));
-                collectOccurrences(let.body(), where, actions, parameters, occurrences);
-            }
-            case OperEx application -> {
-                var arguments = TlaExpressions.arguments(application);
-                for (var index = 0; index < arguments.size(); index++) {
-                    var operand = FormulaLevels.isActionPosition(application.oper(), index)
-                            ? new Occurrence(++actions[0], true)
-                            : new Occurrence(where.action(), where.assigning() && keepsAssignments(application.oper(), index));
-                    collectOccurrences(arguments.get(index), operand, actions, parameters, occurrences);
-                }
-            }
-            default -> {}
-        }
-    }
 
     /**
      * Whether a match can bind the parameter to a formula that assigns: a Boolean matched parameter,
@@ -399,36 +224,6 @@ final class RuleContract {
         };
     }
 
-    /** Whether TLC treats an equation in argument {@code index} of {@code operator} as an assignment. */
-    private static boolean keepsAssignments(TlaOper operator, int index) {
-        if (operator == AND || operator == OR) {
-            return true;
-        }
-        if (operator == OPER_APP) {
-            // The applied parameter stands for its application, where the lambda body lands.
-            return index == 0;
-        }
-        if (operator == IF_THEN_ELSE) {
-            return index > 0;
-        }
-        if (operator == EXISTS3) {
-            return index == 2;
-        }
-        if (operator == EXISTS2) {
-            return index == 1;
-        }
-        return operator == LABEL && index == 0;
-    }
-
-    private static List<String> firstOccurrences(TlaEx expression, Set<String> parameters) {
-        var order = new LinkedHashSet<String>();
-        TlaExpressions.forEach(expression, node -> {
-            if (node instanceof NameEx name && parameters.contains(name.name())) {
-                order.add(name.name());
-            }
-        });
-        return List.copyOf(order);
-    }
 
     /** Returns the operators of {@code filter} that {@code expression} applies, in first-occurrence order. */
     private static List<TlaOper> operators(TlaEx expression, Set<TlaOper> filter) {

@@ -26,6 +26,13 @@ final class FormulaLevels {
     /** Operators that make a formula an action outside an action position. */
     static final Set<TlaOper> ACTION = operators(PRIME, UNCHANGED, COMPOSE, STUTTER, NO_STUTTER);
 
+    /** Operators that pass a formula on through every operand. */
+    private static final Set<TlaOper> CONNECTIVES =
+            operators(NOT, AND, OR, IMPLIES, EQUIV, GLOBALLY, EVENTUALLY, LEADS_TO);
+
+    /** Quantifiers, whose last operand is their body. */
+    private static final Set<TlaOper> QUANTIFIERS = operators(FORALL3, EXISTS3, FORALL2, EXISTS2);
+
     private FormulaLevels() {}
 
     /**
@@ -37,6 +44,43 @@ final class FormulaLevels {
             return index == 0;
         }
         return (operator == WEAK_FAIRNESS || operator == STRONG_FAIRNESS) && index == 1;
+    }
+
+    /**
+     * Whether argument {@code index} of {@code operator}, of {@code arity} arguments, passes a
+     * temporal formula on, as the generator's {@code sameLevel} operands do: the Boolean
+     * connectives, the branches of {@code IF}, the arms of {@code CASE}, labels, the bodies of
+     * {@code \A} and {@code \E}, and the operands of {@code []}, {@code <>} and {@code ~>}. The
+     * body of a {@code LET} passes one on too, but it is no operator argument.
+     */
+    static boolean passesFormula(TlaOper operator, int index, int arity) {
+        if (CONNECTIVES.contains(operator)) {
+            return true;
+        }
+        if (operator == IF_THEN_ELSE) {
+            return index > 0;
+        }
+        if (operator == CASE) {
+            return index % 2 == 1;
+        }
+        if (operator == CASE_OTHER) {
+            return index % 2 == 0;
+        }
+        if (operator == LABEL) {
+            return index == 0;
+        }
+        return QUANTIFIERS.contains(operator) && index == arity - 1;
+    }
+
+    /** Whether {@code expression} applies a temporal operator. */
+    static boolean isTemporal(TlaEx expression) {
+        var found = new boolean[1];
+        TlaExpressions.forEach(expression, node -> {
+            if (node instanceof OperEx application && TEMPORAL.contains(application.oper())) {
+                found[0] = true;
+            }
+        });
+        return found[0];
     }
 
     /**

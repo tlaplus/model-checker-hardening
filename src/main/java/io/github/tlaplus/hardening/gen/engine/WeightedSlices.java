@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.gen.engine;
 import io.github.tlaplus.hardening.common.Preconditions;
 import io.github.tlaplus.hardening.gen.Draw;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -73,6 +74,6 @@ final class WeightedSlices {
     /** Returns {@code count} slices of equal weight. */
     static List<Draw> equal(Draw draw, int count) {
         Preconditions.requireNonnegative(count, "count");
-        return split(draw, java.util.Collections.nCopies(count, 1));
+        return split(draw, Collections.nCopies(count, 1));
     }
 }

@@ -9,11 +9,13 @@ import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import io.github.tlaplus.hardening.gen.library.ModuleLink;
 import io.github.tlaplus.hardening.gen.library.OperatorId;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,7 +46,7 @@ class LibraryPreparationTest {
         var library = prepared.generator().library();
         var export = library.get(new OperatorId("SequencesExt", "FlattenSeq"));
         assertEquals(ModuleLink.of("SequencesExt", LibraryLinkage.INSTANCE), export.link());
-        var call = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
+        var call = new TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
         var body = library.declarationsFor(List.of(call)).toString();
         assertTrue(body.contains("ApaFoldSeqLeft"), body);
         assertTrue(prepared.manifest().contains("operator SequencesExt!FlattenSeq instance\n"), prepared.manifest());
@@ -62,7 +64,7 @@ class LibraryPreparationTest {
         var library = prepared.generator().library();
         var export = library.get(new OperatorId("DiffOpsApalache", "Sum"));
         assertEquals(new ModuleLink(LibraryLinkage.DIFF, "DiffOpsTLC"), export.link());
-        var call = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
+        var call = new TlaTypedScopeUncheckedBuilder().name(export.name(), export.signature());
         var body = library.declarationsFor(List.of(call)).toString();
         assertTrue(body.contains("ApaFoldSet"), body);
         assertTrue(prepared.manifest().contains("operator DiffOpsApalache!Sum diff DiffOpsTLC\n"), prepared.manifest());
@@ -122,7 +124,7 @@ class LibraryPreparationTest {
             for (var name : List.of("Mine.tla", "tla2sany/StandardModules/Mine.tla",
                     "Integers.tla", "__rewire_sequences_in_apalache.tla")) {
                 zip.putNextEntry(new ZipEntry(name));
-                zip.write(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                zip.write(name.getBytes(StandardCharsets.UTF_8));
                 zip.closeEntry();
             }
         }

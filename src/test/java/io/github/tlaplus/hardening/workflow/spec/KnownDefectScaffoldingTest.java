@@ -42,7 +42,7 @@ class KnownDefectScaffoldingTest {
                 TlaDeclarations.variable(GeneratedSpec.STEP_VARIABLE, TlaTypes.INT));
         var spec = new GeneratedSpec(variables, List.of(), truth, truth, truth, Optional.empty(), 0);
         for (var orientation : Orientation.values()) {
-            var relation = FuzzInputModule.create(spec, spec, orientation);
+            var relation = FuzzInputModule.create(spec, spec, orientation, PropertyRelation.OMITTED);
             assertEquals(List.of(), ids(relation, FuzzInputModule.RELATION_ENTRY_POINTS), orientation.name());
         }
     }

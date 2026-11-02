@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.config.*;
 import io.github.tlaplus.hardening.gen.*;
 import io.github.tlaplus.hardening.gen.library.*;
 import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
+import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import java.nio.file.Path;
@@ -12,6 +13,7 @@ import java.util.*;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
+import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -196,7 +198,7 @@ class CustomOperatorsTest {
 
     @Test
     void customWeightsAreIncludedInTheFixedWidthSlotBound() {
-        var builder = new org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder();
+        var builder = new TlaTypedScopeUncheckedBuilder();
         var declarations = new ArrayList<TlaDecl>();
         var selected = new ArrayList<OperatorId>();
         var weights = new LinkedHashMap<ExpressionKind, Integer>();
@@ -215,7 +217,7 @@ class CustomOperatorsTest {
     @Test
     void outputsLinkOnlyUsedDefinitionsAndDoNotScoreTheirBodies() {
         var expression = call("Wrapped", PrimitiveType.INT);
-        var artifact = io.github.tlaplus.hardening.workflow.spec.SpecArtifact.fromExpression(
+        var artifact = SpecArtifact.fromExpression(
                 expression, config.library());
         assertEquals(List.of(expression), artifact.generated());
         assertInstanceOf(LetInEx.class, artifact.standaloneExpression().orElseThrow());
@@ -223,7 +225,7 @@ class CustomOperatorsTest {
         assertEquals(10, TlaModules.declarations(artifact.module()).size());
         var source = SpecText.render(artifact.module());
         assertFalse(source.contains("EXTENDS PolyOps"));
-        assertEquals(source, SpecText.render(io.github.tlaplus.hardening.workflow.spec.SpecArtifact
+        assertEquals(source, SpecText.render(SpecArtifact
                 .fromExpression(expression, config.library()).module()));
     }
 

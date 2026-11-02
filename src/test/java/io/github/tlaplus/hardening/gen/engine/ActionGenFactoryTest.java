@@ -6,16 +6,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.Draw;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** Fixed vectors pin both the action IR and the cursor protocol, independently of expressions. */
 class ActionGenFactoryTest {
     /** The vectors pin the action layout without post-assignment guards, which spend no marker then. */
     private final GenerationContext context = new GenerationContext(
-            IrGenerationConfig.defaults().ignoring(io.github.tlaplus.hardening.gen.ExpressionCategory.ACTION));
+            IrGenerationConfig.defaults().ignoring(ExpressionCategory.ACTION));
     private final IrTypeGenFactory types = new IrTypeGenFactory(context);
     private final List<ScopedName> variables = List.of(
             ScopedName.stateVariable("x", PrimitiveType.BOOL),
@@ -128,7 +131,7 @@ class ActionGenFactoryTest {
     @Test
     void postAssignmentGuardsFollowTheStepUpdateAndSpendMarkersOnlyWithTheActionCategory() {
         var actionContext = new GenerationContext(
-                IrGenerationConfig.defaults().withIgnoredCategories(java.util.Set.of()));
+                IrGenerationConfig.defaults().withIgnoredCategories(Set.of()));
         var actionTypes = new IrTypeGenFactory(actionContext);
         var actionFactory = new ActionGenFactory(actionContext, actionTypes,
                 new IrExprGenFactory(actionContext, actionTypes), variables,
@@ -171,7 +174,7 @@ class ActionGenFactoryTest {
 
     @Test
     void anExactLeafNeverDrawsAMembership() {
-        var random = new java.util.Random(23);
+        var random = new Random(23);
         for (var attempt = 0; attempt < 200; attempt++) {
             var input = new byte[random.nextInt(1, 64)];
             random.nextBytes(input);

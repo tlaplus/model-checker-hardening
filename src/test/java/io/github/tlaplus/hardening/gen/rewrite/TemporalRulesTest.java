@@ -16,11 +16,6 @@ import org.junit.jupiter.api.Test;
 
 /** The rule contract and matching of temporal rules (ADR 0027 §1). */
 class TemporalRulesTest {
-    private static final TlaEx F = bool("F");
-    private static final TlaEx G = bool("G");
-    private static final TlaEx A = bool("A");
-    private static final TlaEx V = B.name("v", ELEMENT);
-
     private static final TlaEx X = integer("x");
     private static final TlaEx SUBSCRIPT = B.tuple(integer("x"));
     private static final TlaEx INCREMENT = B.primeEq(integer("x"), B.plus(integer("x"), B.integer(1)));
@@ -33,7 +28,8 @@ class TemporalRulesTest {
 
     @Test
     void aTemporalRuleIsAnEquivalence() {
-        var equation = rule("AlwaysTwiceEq", B.eql(B.always(F), B.always(B.always(F))), B.param("F", TlaTypes.BOOL));
+        var equation = rule("AlwaysTwiceEq", B.eql(B.always(FORMULA_F), B.always(B.always(FORMULA_F))),
+                B.param("F", TlaTypes.BOOL));
         var failure = assertThrows(IllegalArgumentException.class, () -> temporal(equation));
         assertTrue(failure.getMessage().contains("the body of a temporal rule must be A <=> B"), failure.getMessage());
     }
@@ -41,17 +37,20 @@ class TemporalRulesTest {
     @Test
     void classifiesFormulaAndActionParameters() {
         var library = temporal(alwaysUnfold(), wfDef(), eventuallyWeaken(), leadsToDef());
-        assertEquals(new RuleLevels(Set.of("F"), false), levels(library, "AlwaysUnfold"));
-        assertEquals(new RuleLevels(Set.of(), false), levels(library, "WFDef"), "A is an action and v no formula");
-        assertEquals(new RuleLevels(Set.of("F"), true), levels(library, "EventuallyWeaken"));
-        assertEquals(new RuleLevels(Set.of("F", "G"), false), levels(library, "LeadsToDef"),
+        assertEquals(new RuleLevels(Set.of("F"), false, Set.of("F")), levels(library, "AlwaysUnfold"));
+        assertEquals(new RuleLevels(Set.of(), false, Set.of()), levels(library, "WFDef"),
+                "A is an action, held only as the action of <<A>>_v, and v no formula");
+        assertEquals(new RuleLevels(Set.of("F"), true, Set.of("F")), levels(library, "EventuallyWeaken"));
+        assertEquals(new RuleLevels(Set.of("F", "G"), false, Set.of("F", "G")), levels(library, "LeadsToDef"),
                 "a temporal pattern does not raise the level, whatever operators the replacement uses");
-        assertEquals(RuleLevels.NONE, library(doubleNeg()).rules().getFirst().levels());
+        assertEquals(new RuleLevels(Set.of(), false, Set.of("P")), library(doubleNeg()).rules().getFirst().levels(),
+                "a rewrite rule binds actions, and ~~P holds P where a temporal formula may stand");
     }
 
     @Test
     void rejectsAParameterThatIsBothAnActionAndAFormula() {
-        var mixed = rule("Mixed", B.equiv(B.and(B.weakFair(V, A), A), B.and(A, B.weakFair(V, A))),
+        var mixed = rule("Mixed", B.equiv(B.and(B.weakFair(SUBSCRIPT_V, ACTION_A), ACTION_A),
+                        B.and(ACTION_A, B.weakFair(SUBSCRIPT_V, ACTION_A))),
                 B.param("A", TlaTypes.BOOL), B.param("v", ELEMENT));
         var failure = assertThrows(IllegalArgumentException.class, () -> temporal(mixed));
         assertTrue(failure.getMessage().contains("both as an action and as a formula"), failure.getMessage());
@@ -91,7 +90,8 @@ class TemporalRulesTest {
     void theTemporalRulesFollowTheRewriteRules() {
         var combined = library(plusZero()).followedBy(temporal(alwaysTwice()));
         assertEquals(List.of("PlusZero", "AlwaysTwice"), ruleNames(combined.rules()));
-        var duplicate = rule("PlusZero", B.equiv(B.always(F), B.always(B.always(F))), B.param("F", TlaTypes.BOOL));
+        var duplicate = rule("PlusZero", B.equiv(B.always(FORMULA_F), B.always(B.always(FORMULA_F))),
+                B.param("F", TlaTypes.BOOL));
         var failure = assertThrows(IllegalArgumentException.class,
                 () -> library(plusZero()).followedBy(temporal(duplicate)));
         assertTrue(failure.getMessage().contains("PlusZero is defined in both rule modules"), failure.getMessage());
@@ -101,40 +101,6 @@ class TemporalRulesTest {
     void graphGuardsExcludeTemporalRules() {
         assertFalse(RuleContract.isStateLevel(checked(alwaysTwice())));
         assertTrue(RuleContract.isStateLevel(checked(doubleNeg())));
-    }
-
-    private static TlaOperDecl alwaysTwice() {
-        return rule("AlwaysTwice", B.equiv(B.always(F), B.always(B.always(F))), B.param("F", TlaTypes.BOOL));
-    }
-
-    private static TlaOperDecl alwaysUnfold() {
-        return rule("AlwaysUnfold", B.equiv(B.always(F), B.and(F, B.always(F))), B.param("F", TlaTypes.BOOL));
-    }
-
-    private static TlaOperDecl eventuallyWeaken() {
-        return rule("EventuallyWeaken", B.equiv(F, B.and(F, B.eventually(F))), B.param("F", TlaTypes.BOOL));
-    }
-
-    private static TlaOperDecl leadsToDef() {
-        return rule("LeadsToDef", B.equiv(B.leadsTo(F, G), B.always(B.implies(F, B.eventually(G)))),
-                B.param("F", TlaTypes.BOOL), B.param("G", TlaTypes.BOOL));
-    }
-
-    private static TlaOperDecl wfDef() {
-        var angle = B.noStutter(A, V);
-        return rule("WFDef", B.equiv(B.weakFair(V, A),
-                        B.or(B.always(B.eventually(B.not(B.enabled(angle)))), B.always(B.eventually(B.noStutter(A, V))))),
-                B.param("A", TlaTypes.BOOL), B.param("v", ELEMENT));
-    }
-
-    private static TlaOperDecl boxActionUnchanged() {
-        return rule("BoxActionUnchanged",
-                B.equiv(B.always(B.stutter(A, V)), B.always(B.stutter(B.or(A, B.unchanged(V)), V))),
-                B.param("A", TlaTypes.BOOL), B.param("v", ELEMENT));
-    }
-
-    private static RewriteLibrary temporal(TlaOperDecl... rules) {
-        return RewriteLibrary.fromModule(module(rules), names(rules), Map.of(), RuleFamily.TEMPORAL_REWRITES);
     }
 
     private static RewriteRule checked(TlaOperDecl definition) {

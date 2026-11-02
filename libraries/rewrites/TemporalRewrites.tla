@@ -78,8 +78,11 @@ EventuallyAndIdem(F) == <>F <=> (<>F /\ <>F)
 
 EventuallyOrIdem(F) == <>F <=> (<>F \/ <>F)
 
-\* Raising the level of a formula, at temporal positions only
+\* Raising the level of a formula, at temporal positions only. Most generated
+\* properties are state predicates, which TLC checks without a tableau.
+\* @weight: 8;
 AlwaysOrBreak(F) == F <=> ([]F \/ (F /\ <>~F))
 
+\* @weight: 8;
 EventuallyWeaken(F) == F <=> (F /\ <>F)
 =============================================================================

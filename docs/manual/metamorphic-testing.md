@@ -284,10 +284,14 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
 ## 7. Temporal properties (in progress)
 
 *Partly implemented.* [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)
-describes this mode for TLC. Corpora without it are unaffected. So far, `run` loads and
-checks `temporal_rules` and refuses the settings below, and
-`libraries/rewrites/TemporalRewrites.tla` ships the rules. Properties are not rewritten
-or checked yet, and `init --temporal` does not exist yet: set the keys by hand.
+describes this mode for TLC. Corpora without it are unaffected. So far:
+- `libraries/rewrites/TemporalRewrites.tla` ships the rules;
+- `run` loads `temporal_rules` and refuses the settings below;
+- the rewriter rewrites fairness and properties;
+- `fuzztla print --spec` shows `SpecC`, `PropC` and `FairnessC` in the relation module.
+
+TLC does not check the properties yet, and `init --temporal` does not exist yet: set the
+keys by hand.
 
 **Enabling.** `fuzztla init --how=mt --temporal` adds a second rule module and checks
 with TLC alone:
@@ -306,7 +310,7 @@ than `module`. The base corpus must generate properties, so it must not ignore
 `temporal` ([Temporal properties](temporal-properties.md)).
 
 **What is rewritten.** Besides the bodies of section 2, the rewriter walks each fairness
-condition and then the property. There it applies the base rules and the temporal rules,
+condition and then the property, before the other bodies, since a rewrite payload is short. There it applies the base rules and the temporal rules,
 such as `[]F` to `[][]F`, `F ~> G` to `[](F => <>G)`, and `WF_v(A)` to its definition
 in terms of `ENABLED`.
 

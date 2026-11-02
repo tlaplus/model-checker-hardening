@@ -59,6 +59,11 @@ literals get one named constant. Prefer encodings that fail at compile time over
 hand-maintained arithmetic (for example CBOR definite-length map sizes) — if such
 arithmetic is unavoidable, cover it with a round-trip test.
 
+**Import classes.** Name a class by its simple name and import it, in tests as in
+main code: no `io.github.tlaplus.hardening.gen.GeneratedSpec` or `java.util.Arrays`
+inline. Qualify a name only where two imported classes share it. Package names in
+strings and comments are data and stay as they are.
+
 **Pin implicit contracts with tests.** Where declaration order, catalog order, or
 enum ordinals are part of a stored format or wire encoding, a comment is not
 enough; add a test that fails on reorder.

@@ -16,6 +16,7 @@ import io.github.tlaplus.hardening.gen.engine.EdgeGuards;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.graph.TransitionGraph;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -386,7 +387,7 @@ class IrGraphGeneratorsTest {
             assertBuilds(IrGenerationConfig.defaults(), input);
         }
         var saturated = new byte[8192];
-        java.util.Arrays.fill(saturated, (byte) 0xff);
+        Arrays.fill(saturated, (byte) 0xff);
         assertBuilds(IrGenerationConfig.defaults(), saturated);
     }
 

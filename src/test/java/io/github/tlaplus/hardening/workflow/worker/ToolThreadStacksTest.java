@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.workflow.worker.ToolThreadStacks.Sample;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
@@ -72,7 +73,7 @@ class ToolThreadStacksTest {
 
     @Test
     void samplesTheThreadsOfThisJvmButNotTheCaller() throws Exception {
-        var started = new java.util.concurrent.CountDownLatch(1);
+        var started = new CountDownLatch(1);
         var spinner = Thread.ofPlatform().name("deliberate spinner").daemon().start(() -> {
             started.countDown();
             while (!Thread.currentThread().isInterrupted()) {
