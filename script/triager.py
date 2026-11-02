@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classify corpus crashes and aggregator failures by conservative signatures."""
+"""Classify corpus crashes, checker failures and aggregator failures by conservative signatures."""
 
 from __future__ import annotations
 
@@ -63,6 +63,29 @@ class CrashKind(Enum):
         member = object.__new__(cls)
         member._value_ = directory
         member.tool = tool
+        return member
+
+    @property
+    def report_name(self) -> str:
+        return f"{self.value}-triage.csv"
+
+
+class FailKind(Enum):
+    """A checker's fail directory.
+
+    The aggregator collects a fail once every checker has a result, so an entry
+    stays here only while another checker is pending or after it crashed on the
+    same input. The failing checker's diagnostic is classified like a deviation.
+    """
+
+    TLC = ("02tlc-fail", Checker.TLC)
+    TLCN = ("02tlcn-fail", Checker.TLCN)
+    APALACHE = ("02apa-fail", Checker.APALACHE)
+
+    def __new__(cls, directory: str, checker: Checker) -> FailKind:
+        member = object.__new__(cls)
+        member._value_ = directory
+        member.checker = checker
         return member
 
     @property
@@ -755,6 +778,16 @@ def classify_aggregator(
     return first_match(matches, f"{AGGREGATOR_DIRECTORY}/{entry_hash}", "issues")
 
 
+def classify_fail(fail_kind: FailKind, result: CheckerResult, entry_hash: str) -> str:
+    """Labels a checker failure with the first deviation document of its tool."""
+    matches = [
+        signature.issue_file
+        for signature in AGGREGATOR_SIGNATURES
+        if signature.failed_tool is fail_kind.checker.tool and signature.explains(result)
+    ]
+    return first_match(matches, f"{fail_kind.value}/{entry_hash}", "issues")
+
+
 def first_match(matches: Sequence[str], location: str, description: str) -> str:
     """Return the first match in catalog order, warning when several documents match.
 
@@ -789,27 +822,27 @@ def read_diagnostic(path: Path) -> str:
 
 
 def decode_cbor(path: Path) -> Any:
-    require_regular_file(path, "aggregator entry")
+    require_regular_file(path, "corpus entry")
     if cbor2 is None:
         raise TriageError(
-            "aggregator triage requires cbor2; install script/requirements.txt"
+            "reading corpus entries requires cbor2; install script/requirements.txt"
         )
     try:
         with path.open("rb") as source:
             decoder = cbor2.CBORDecoder(source)
             document = decoder.decode()
             if source.read(1):
-                raise TriageError(f"aggregator entry has trailing CBOR data: {path}")
+                raise TriageError(f"corpus entry has trailing CBOR data: {path}")
             return document
     except TriageError:
         raise
     except CBOR_READ_ERRORS as error:
-        raise TriageError(f"cannot decode aggregator entry {path}: {error}") from error
+        raise TriageError(f"cannot decode corpus entry {path}: {error}") from error
 
 
 def require_map(value: Any, field: str, path: Path) -> dict[Any, Any]:
     if not isinstance(value, dict):
-        raise TriageError(f"aggregator entry field '{field}' must be a map: {path}")
+        raise TriageError(f"corpus entry field '{field}' must be a map: {path}")
     return value
 
 
@@ -822,25 +855,25 @@ def read_checker_result(
     verdict = metadata.get("verdict")
     if verdict not in VALID_VERDICTS:
         raise TriageError(
-            f"aggregator entry has invalid stages.{checker.value}.verdict: {path}"
+            f"corpus entry has invalid stages.{checker.value}.verdict: {path}"
         )
     code = metadata.get("code")
     if code is not None and (isinstance(code, bool) or not isinstance(code, int)):
         raise TriageError(
-            f"aggregator entry field 'stages.{checker.value}.code' must be an integer: {path}"
+            f"corpus entry field 'stages.{checker.value}.code' must be an integer: {path}"
         )
     detail = metadata.get("detail")
     if detail is not None and not isinstance(detail, str):
         raise TriageError(
-            f"aggregator entry field 'stages.{checker.value}.detail' must be text: {path}"
+            f"corpus entry field 'stages.{checker.value}.detail' must be text: {path}"
         )
     if verdict == "fail" and code is None:
         raise TriageError(
-            f"aggregator entry failed stage '{checker.value}' has no code: {path}"
+            f"corpus entry failed stage '{checker.value}' has no code: {path}"
         )
     if verdict != "fail" and (code is not None or detail is not None):
         raise TriageError(
-            f"aggregator entry non-failed stage '{checker.value}' has failure metadata: {path}"
+            f"corpus entry non-failed stage '{checker.value}' has failure metadata: {path}"
         )
     return CheckerResult(
         verdict, code, detail, read_reachable_states(metadata, checker, path)
@@ -859,7 +892,7 @@ def read_reachable_states(
     count = metrics.get("distinctStates")
     if count is not None and (isinstance(count, bool) or not isinstance(count, int)):
         raise TriageError(
-            f"aggregator entry field 'stages.{checker.value}.metrics.distinctStates' "
+            f"corpus entry field 'stages.{checker.value}.metrics.distinctStates' "
             f"must be an integer: {path}"
         )
     return count
@@ -889,26 +922,51 @@ def read_aggregator_results(path: Path) -> dict[Checker, CheckerResult]:
     return results
 
 
-def classify_aggregator_directory(corpus: Path) -> list[tuple[str, str]]:
-    directory = corpus / AGGREGATOR_DIRECTORY
+def read_fail_result(path: Path, checker: Checker) -> CheckerResult:
+    document = require_map(decode_cbor(path), "document", path)
+    stages = require_map(document.get("stages"), "stages", path)
+    result = read_checker_result(stages, checker, path)
+    if result.verdict != "fail":
+        raise TriageError(f"entry in {checker.value} fail directory does not fail: {path}")
+    return result
+
+
+def list_entries(directory: Path, description: str) -> dict[str, Path]:
+    """The CBOR entries of a directory that holds nothing else, by hash."""
     if directory.is_symlink() or not directory.is_dir():
-        raise TriageError(f"aggregator directory does not exist: {directory}")
+        raise TriageError(f"{description} directory does not exist: {directory}")
     try:
         children = list(directory.iterdir())
     except OSError as error:
-        raise TriageError(f"cannot list aggregator directory {directory}: {error}") from error
+        raise TriageError(f"cannot list {description} directory {directory}: {error}") from error
 
-    rows = []
+    entries = {}
     for path in children:
         entry_match = ENTRY_NAME.fullmatch(path.name)
         if entry_match is None:
-            raise TriageError(f"unexpected file in aggregator directory: {path}")
-        require_regular_file(path, "aggregator entry")
-        entry_hash = entry_match.group("hash")
-        rows.append(
-            (entry_hash, classify_aggregator(read_aggregator_results(path), entry_hash))
+            raise TriageError(f"unexpected file in {description} directory: {path}")
+        require_regular_file(path, f"{description} entry")
+        entries[entry_match.group("hash")] = path
+    return entries
+
+
+def classify_aggregator_directory(corpus: Path) -> list[tuple[str, str]]:
+    entries = list_entries(corpus / AGGREGATOR_DIRECTORY, "aggregator")
+    return [
+        (entry_hash, classify_aggregator(read_aggregator_results(path), entry_hash))
+        for entry_hash, path in sorted(entries.items())
+    ]
+
+
+def classify_fail_directory(corpus: Path, fail_kind: FailKind) -> list[tuple[str, str]]:
+    entries = list_entries(corpus / fail_kind.value, f"{fail_kind.checker.value} fail")
+    return [
+        (
+            entry_hash,
+            classify_fail(fail_kind, read_fail_result(path, fail_kind.checker), entry_hash),
         )
-    return sorted(rows)
+        for entry_hash, path in sorted(entries.items())
+    ]
 
 
 def classify_directory(corpus: Path, crash_kind: CrashKind) -> list[tuple[str, str]]:
@@ -996,23 +1054,32 @@ def write_report(path: Path, rows: Sequence[tuple[str, str]]) -> None:
                 pass
 
 
+def has_directory(corpus: Path, name: str) -> bool:
+    return (corpus / name).exists() or (corpus / name).is_symlink()
+
+
 def triage(corpus: Path, repository_root: Path) -> list[Path]:
     if corpus.is_symlink() or not corpus.is_dir():
         raise TriageError(f"corpus directory does not exist: {corpus}")
 
     validate_signature_catalog(repository_root)
-    # A corpus created before a checker existed has no crash directory for it.
-    reports = {
+    # A corpus created before a checker existed has no directories for it.
+    reports: dict[CrashKind | FailKind, list[tuple[str, str]]] = {
         crash_kind: classify_directory(corpus, crash_kind)
         for crash_kind in CrashKind
-        if (corpus / crash_kind.value).exists() or (corpus / crash_kind.value).is_symlink()
+        if has_directory(corpus, crash_kind.value)
     }
+    reports.update(
+        (fail_kind, classify_fail_directory(corpus, fail_kind))
+        for fail_kind in FailKind
+        if has_directory(corpus, fail_kind.value)
+    )
     aggregator_rows = classify_aggregator_directory(corpus)
 
     report_paths = []
-    for crash_kind in reports:
-        report_path = corpus / crash_kind.report_name
-        write_report(report_path, reports[crash_kind])
+    for kind, rows in reports.items():
+        report_path = corpus / kind.report_name
+        write_report(report_path, rows)
         report_paths.append(report_path)
     aggregator_report = corpus / AGGREGATOR_REPORT
     write_report(aggregator_report, aggregator_rows)
@@ -1022,7 +1089,7 @@ def triage(corpus: Path, repository_root: Path) -> list[Path]:
 
 def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Classify corpus crashes and conformance aggregator failures."
+        description="Classify corpus crashes, checker failures and aggregator failures."
     )
     parser.add_argument("corpus", type=Path, help="initialized FuzzTLA corpus directory")
     return parser.parse_args(arguments)

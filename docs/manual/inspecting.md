@@ -77,7 +77,14 @@ one CSV file per directory into the corpus root:
 
 - `01parser-crash-triage.csv`
 - `02tlc-crash-triage.csv`, `02tlcn-crash-triage.csv`, `02apa-crash-triage.csv`
+- `02tlc-fail-triage.csv`, `02tlcn-fail-triage.csv`, `02apa-fail-triage.csv`
 - `03aggregator-fail-triage.csv`
+
+The aggregator collects a checker's `fail` once every checker has a result for the
+input. An entry stays in `02<checker>-fail` while another checker is still running,
+or for good after another checker crashed on it. The triager labels the failure with
+the conformance report that explains it as a deviation, whatever the other checkers
+returned.
 
 Each row has two columns, `entry_hash` and `issue`. `issue` is one of:
 
