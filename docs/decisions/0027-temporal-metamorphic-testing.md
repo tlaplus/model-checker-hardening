@@ -138,15 +138,18 @@ entries, run E and both property runs together took 2.9 times as long as run E a
 - **The implication is rejected far more often:** 11 identity pairs against 1, and that
   one is the base property itself.
 
-**P2: seed rules.** Section 6 lists the 17 seed rules.
+**P2: seed rules.** Section 6 lists the 19 seed rules.
 - **SANY** parses the rule module.
 - **Snowcat** (`typecheck --infer-poly=true`) types every rule. A formula parameter is
   typed `Bool`. The subscript `v` of `WF_v(A)`, `[A]_v` and `<<A>>_v` gets a type
   variable, so it matches a tuple of any shape.
-- **TLAPM** proves every rule by `PTL`: 34 obligations. This includes the definitions of
+- **TLAPM** proves every rule by `PTL`: 38 obligations. This includes the definitions of
   `WF` and `SF` in terms of `ENABLED`, under the hypotheses `ACTION A, STATE v`.
 - **TLC** gives the same verdict for `WF_vars(A)` in `Spec` as for its two expansions,
   on a three-state counter with the property `<>(x = 2)`.
+- **TLC takes another path for `[]F /\ <>F`.** On the same counter, TLC checks
+  `PROPERTY [](x >= 0)` as an invariant and starts no liveness check. It checks
+  `[](x >= 0) /\ <>(x >= 0)` with its liveness checker, and reaches the same verdict.
 - **SANY rejects a formula parameter bound to an action.** In `[][A]_x`, the operand
   of `[]` is the action `[A]_x`. `AlwaysUnfold` would turn it into `[A]_x /\ [][A]_x`,
   which SANY rejects: "\land has both temporal formula and action as arguments".
@@ -216,6 +219,13 @@ ADR 0017's format applies with these changes:
   formula. Such a subterm applies a prime, `UNCHANGED`, `[A]_v` or `<<A>>_v` only inside
   an action position of its own. Binding an action, such as the `[A]_v` operand of
   `[][A]_v`, yields formulas that SANY rejects (P2).
+- **Base rules on temporal formulas.** Base rules apply in the property too (section 2),
+  and a Boolean parameter of a base rule may bind to a temporal formula. A
+  propositional law holds for temporal formulas as well. However, SANY rejects a
+  temporal operand of `=`, of a tuple, of a set and of `CHOOSE`
+  ([ir-generators.md §7.1][generators]). The matcher therefore binds a Boolean
+  parameter to a temporal formula only if B keeps every occurrence of it in formula
+  positions. This rules out `EquivAsEq`, `(P <=> Q) = (P = Q)`.
 - **Level preservation** ([ADR 0017][adr-0017] §5.2) changes in two ways:
   - `WF` and `SF` in A count as action-level, so B may expand them with `ENABLED` and
     `<<A>>_v`.
@@ -324,7 +334,7 @@ is, not ignore `temporal`.
 
 ### 6. Seed rules
 
-`TemporalRewrites.tla` ships 17 rules, all proven (P2). `F` and `G` are formula
+`TemporalRewrites.tla` ships 19 rules, all proven (P2). `F` and `G` are formula
 parameters, `A` an action parameter, `v` a subscript.
 
 | Rule | A | B |
@@ -344,16 +354,22 @@ parameters, `A` an action parameter, `v` a subscript.
 | `DiamondActionChanged` | `<><<A>>_v` | `<><<A /\ ~UNCHANGED v>>_v` |
 | `WFDef` | `WF_v(A)` | `[]<>~ENABLED <<A>>_v \/ []<><<A>>_v` |
 | `SFDef` | `SF_v(A)` | `<>[]~ENABLED <<A>>_v \/ []<><<A>>_v` |
+| `AlwaysWithEventually` | `[]F` | `[]F /\ <>F` |
+| `EventuallyIdem` | `<>F` | `<>F /\ <>F` |
 | `AlwaysOrBreak` | `F` | `[]F \/ (F /\ <>~F)` |
 | `EventuallyWeaken` | `F` | `F /\ <>F` |
 
 - **`AlwaysOrBreak` and `EventuallyWeaken`** raise the level. They apply only at
   temporal positions (section 1). Most generated properties are state predicates
   (P4); these two rules make TLC build a tableau for them.
+- **`AlwaysWithEventually`** moves a property that TLC would check as an invariant onto
+  its liveness checker (P2). **`EventuallyIdem`** repeats an eventuality, which
+  `EventuallyTwice` nests instead.
 - **`WFDef` and `SFDef`** replace a fairness operator, which TLC handles specially, by
   its definition, which TLC checks as a general temporal formula.
-- **Default weights** follow ADR 0017's tiers: 8 for the definitions (`LeadsToDef`,
-  `WFDef`, `SFDef`) and the dualities, 2 for the splits, 1 for the rest.
+- **Default weights** follow ADR 0017's tiers: 8 for the rules that change how TLC
+  checks a formula (`LeadsToDef`, `WFDef`, `SFDef`, the dualities and
+  `AlwaysWithEventually`), 2 for the splits, 1 for the rest.
 
 ### 7. Implementation phases
 
@@ -411,4 +427,5 @@ parameters, `A` an action parameter, `v` a subscript.
 [adr-0016]: 0016-metamorphic-testing.md
 [adr-0017]: 0017-rewrite-rule-library.md
 [adr-0019]: 0019-state-count-agreement.md
+[generators]: ../architecture/ir-generators.md
 [temporal-manual]: ../manual/temporal-properties.md
