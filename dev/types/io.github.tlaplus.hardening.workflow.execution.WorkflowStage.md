@@ -1,6 +1,6 @@
 # `WorkflowStage`
 
-`io.github.tlaplus.hardening.workflow.execution` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowStage.java#L8) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowStage.java#L8) · module [workflow](../modules/workflow.md)
 
 An independently scheduled workflow stage that owns its worker threads.
 

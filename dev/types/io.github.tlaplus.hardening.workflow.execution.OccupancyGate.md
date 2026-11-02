@@ -1,6 +1,6 @@
 # `OccupancyGate`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/workflow/execution/OccupancyGate.java#L10) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/workflow/execution/OccupancyGate.java#L10) · module [workflow](../modules/workflow.md)
 
 Bounds the current occupancy of one stage's result directories across its workers.
 

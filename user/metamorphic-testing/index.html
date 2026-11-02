@@ -779,10 +779,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-temporal-properties-proposed" class="md-nav__link">
+  <a href="#7-temporal-properties-in-progress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Temporal properties (proposed)
+        7. Temporal properties (in progress)
       
     </span>
   </a>
@@ -1334,10 +1334,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-temporal-properties-proposed" class="md-nav__link">
+  <a href="#7-temporal-properties-in-progress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Temporal properties (proposed)
+        7. Temporal properties (in progress)
       
     </span>
   </a>
@@ -1376,8 +1376,8 @@
 
 
 <h1 id="metamorphic-testing">Metamorphic testing<a class="headerlink" href="#metamorphic-testing" title="Permanent link">&para;</a></h1>
-<p>Temporal properties are not rewritten yet. Section 7 describes the proposed temporal
-mode (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>).</p>
+<p>Temporal properties are not rewritten yet. Section 7 describes the temporal mode in
+progress (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>).</p>
 <p>A metamorphic campaign checks one model checker against itself. Each input pairs a
 generated module M1 with a rewrite M2 that is equivalent in TLA<sup>+</sup>, for example
 <code>x</code> rewritten as <code>x + y - y</code>. The checker explores one of the two and checks that its
@@ -1733,9 +1733,12 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
 <li><strong>TLC-only corpora.</strong> A corpus with <code>checkers = ["tlc"]</code> compares no checkers, so
   its entries are not conformance tests.</li>
 </ul>
-<h2 id="7-temporal-properties-proposed">7. Temporal properties (proposed)<a class="headerlink" href="#7-temporal-properties-proposed" title="Permanent link">&para;</a></h2>
-<p><em>Not implemented yet.</em> <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>
-proposes this mode for TLC. Corpora without it are unaffected.</p>
+<h2 id="7-temporal-properties-in-progress">7. Temporal properties (in progress)<a class="headerlink" href="#7-temporal-properties-in-progress" title="Permanent link">&para;</a></h2>
+<p><em>Partly implemented.</em> <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>
+describes this mode for TLC. Corpora without it are unaffected. So far, <code>run</code> loads and
+checks <code>temporal_rules</code> and refuses the settings below, and
+<code>libraries/rewrites/TemporalRewrites.tla</code> ships the rules. Properties are not rewritten
+or checked yet, and <code>init --temporal</code> does not exist yet: set the keys by hand.</p>
 <p><strong>Enabling.</strong> <code>fuzztla init --how=mt --temporal</code> adds a second rule module and checks
 with TLC alone:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>

@@ -1,10 +1,10 @@
 # `GenerationPlan`
 
-`io.github.tlaplus.hardening.workflow.input` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/src/main/java/io/github/tlaplus/hardening/workflow/input/GenerationPlan.java#L27) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/src/main/java/io/github/tlaplus/hardening/workflow/input/GenerationPlan.java#L27) · module [workflow](../modules/workflow.md)
 
 One contiguous range of target entries the input stage admits: which input kind, for which generation, from which seed, how many entries from each candidate source, and with at most how many workers.
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram

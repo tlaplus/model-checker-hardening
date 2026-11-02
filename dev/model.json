@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "2c6aced743b4276ca683c29709daab946d1b9536"
+    "commit" : "2010568d15d7d61fb6db265b00c968ea0aa49f9e"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -927,7 +927,7 @@
     "key" : false,
     "summary" : "How the value of one configuration key is read from TOML and written back as TOML syntax.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/ConfigValueType.java",
-    "line" : 40,
+    "line" : 41,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
@@ -965,10 +965,10 @@
     "kind" : "RECORD",
     "role" : null,
     "key" : false,
-    "summary" : "The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1): what an `mt` corpus reads besides the generator settings.",
+    "summary" : "The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1, ADR 0027 §1): what an `mt` corpus reads besides the generator settings.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/MetamorphicConfig.java",
-    "line" : 16,
-    "adrs" : [ "0016", "0017" ]
+    "line" : 18,
+    "adrs" : [ "0016", "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.MutatorConfig",
     "packageName" : "io.github.tlaplus.hardening.config",
@@ -1037,8 +1037,8 @@
     "key" : false,
     "summary" : "Declares and assembles the `rules` and `weights` keys of a table that names a rule module (ADR 0017 §1), so every such table reads them alike.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/RuleLibrarySchema.java",
-    "line" : 12,
-    "adrs" : [ "0017" ]
+    "line" : 14,
+    "adrs" : [ "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.SeedConfig",
     "packageName" : "io.github.tlaplus.hardening.config",
@@ -2690,6 +2690,16 @@
     "line" : 25,
     "adrs" : [ "0017" ]
   }, {
+    "name" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
+    "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "The levels of formulas, as SANY checks them, that rules depend on (ADR 0017 §5.2, ADR 0027 §1, ir-generators.md §7.1).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/FormulaLevels.java",
+    "line" : 21,
+    "adrs" : [ "0017", "0027" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.LabelPlacement",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
     "kind" : "CLASS",
@@ -2777,7 +2787,7 @@
     "key" : true,
     "summary" : "One rewrite rule `F(p1, ..., pn) == A = B` or `A <=> B` of a rule module (ADR 0017 §2): the rewriter replaces an instance of `pattern` (A) with the same instance of ` replacement` (B).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewriteRule.java",
-    "line" : 28,
+    "line" : 29,
     "adrs" : [ "0017", "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
@@ -2795,10 +2805,20 @@
     "kind" : "CLASS",
     "role" : null,
     "key" : false,
-    "summary" : "Reads one rule definition and checks the parts of the rule contract that the loader can decide (ADR 0017 §2, §3, §5): the shape `A = B` or `A <=> B`, the parameter classes, level preservation and closedness.",
+    "summary" : "Reads one rule definition and checks the parts of the rule contract that the loader can decide (ADR 0017 §2, §3, §5, ADR 0027 §1): the shape `A = B` or `A <=> B`, the parameter classes, level preservation and closedness.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleContract.java",
-    "line" : 34,
-    "adrs" : [ "0017" ]
+    "line" : 35,
+    "adrs" : [ "0017", "0027" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
+    "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "Which rules a rule module may hold, and where they apply (ADR 0017, ADR 0027 §1).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleFamily.java",
+    "line" : 4,
+    "adrs" : [ "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleInstantiation",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -2809,6 +2829,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleInstantiation.java",
     "line" : 19,
     "adrs" : [ "0017", "0023" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleLevels",
+    "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "What the levels of a temporal rule require of a match (ADR 0027 §1).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleLevels.java",
+    "line" : 16,
+    "adrs" : [ "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatch",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -2827,8 +2857,8 @@
     "key" : true,
     "summary" : "Matches a rule's pattern at one node (ADR 0017 §4).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java",
-    "line" : 55,
-    "adrs" : [ "0017" ]
+    "line" : 59,
+    "adrs" : [ "0017", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleOperands",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -3645,10 +3675,10 @@
     "kind" : "CLASS",
     "role" : "FACADE",
     "key" : true,
-    "summary" : "Loads a rule module once, before decoding (ADR 0017 §1, §6): the rewrites of a metamorphic run or the edge guards of graph inputs (ADR 0023 §6).",
+    "summary" : "Loads a rule module once, before decoding (ADR 0017 §1, §6): the rewrites of a metamorphic run, its temporal rewrites (ADR 0027 §1), or the edge guards of graph inputs (ADR 0023 §6).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/library/RuleLibraryPreparation.java",
-    "line" : 27,
-    "adrs" : [ "0017", "0023" ]
+    "line" : 29,
+    "adrs" : [ "0017", "0023", "0027" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.library.RuleModuleDefinitions",
     "packageName" : "io.github.tlaplus.hardening.workflow.library",
@@ -3797,7 +3827,7 @@
     "key" : true,
     "summary" : "Immutable registry of the decoders that turn stored payloads into checkable modules.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecDecoders.java",
-    "line" : 46,
+    "line" : 47,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.SpecText",
@@ -4489,10 +4519,6 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
     "to" : "io.github.tlaplus.hardening.gen.InputKind",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
-    "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLimits",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitialConfig",
@@ -9559,6 +9585,10 @@
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLimits",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -9573,6 +9603,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleLevels",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
@@ -9680,6 +9714,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.LabelPlacement",
     "kind" : "DEPENDS"
   }, {
@@ -9690,6 +9728,14 @@
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleLevels",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleParameter",
@@ -9740,11 +9786,19 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatcher",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.FormulaLevels",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatcher",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteRule",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatcher",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatcher",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleLevels",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.RuleMatcher",
@@ -11672,10 +11726,6 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
-    "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLimits",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
     "to" : "io.github.tlaplus.hardening.workflow.CorpusTools",
     "kind" : "DEPENDS"
   }, {
@@ -11857,6 +11907,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.library.RuleLibraryPreparation",
@@ -12324,6 +12378,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "to" : "io.github.tlaplus.hardening.corpus.CheckerSet",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusInput",
     "kind" : "USES"
   }, {
@@ -12394,6 +12452,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Rewriter",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleFamily",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Tautologies",
@@ -13258,7 +13320,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 67,
+    "typePairs" : 68,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13282,7 +13344,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 168,
+    "typePairs" : 169,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13314,7 +13376,7 @@
   }, {
     "from" : "cli",
     "to" : "gen",
-    "typePairs" : 9,
+    "typePairs" : 8,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

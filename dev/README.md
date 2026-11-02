@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`2c6aced`](https://github.com/tlaplus/model-checker-hardening/commit/2c6aced743b4276ca683c29709daab946d1b9536) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`2010568`](https://github.com/tlaplus/model-checker-hardening/commit/2010568d15d7d61fb6db265b00c968ea0aa49f9e) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -39,7 +39,7 @@ flowchart TB
 |---|---|---|---|---|
 | [common](modules/common.md) | Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, and the architecture annotations and layering of ADR 0022. | 16 | 5 |  |
 | [checker](modules/checker.md) | Checker-independent results of a model-checker run: stable failure codes (ADR 0003) and exploration metrics (ADR 0008). | 5 | 3 | common |
-| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 112 | 28 | common |
+| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 115 | 28 | common |
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 16 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
 | [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 52 | 11 | common, checker, gen, mutation |
@@ -65,7 +65,7 @@ flowchart TB
 | config | configuration and its schema | 9 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 246 |
+| other | no `@ArchRole` | 249 |
 
 ## Relations
 

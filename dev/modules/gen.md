@@ -283,6 +283,7 @@ classDiagram
 | Type | Kind | Role | Summary |
 |---|---|---|---|
 | [AssignmentFacts](../types/io.github.tlaplus.hardening.gen.rewrite.AssignmentFacts.md) | record | other | What a rule does to the checkers' assignments (ADR 0017 §5.3). |
+| [FormulaLevels](../types/io.github.tlaplus.hardening.gen.rewrite.FormulaLevels.md) | class | other | The levels of formulas, as SANY checks them, that rules depend on (ADR 0017 §5.2, ADR 0027 §1, ir-generators.md §7.1). |
 | [LabelPlacement](../types/io.github.tlaplus.hardening.gen.rewrite.LabelPlacement.md) | class | other | Where a rule's replacement may not carry a label of the node it rewrites. |
 | [LetSpecialization](../types/io.github.tlaplus.hardening.gen.rewrite.LetSpecialization.md) | class | other | Specializes every LET definition of a rule's replacement to the types at which the replacement applies it. |
 | [**MetamorphicPayload** ★](../types/io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload.md) | class | codec | The layout of a metamorphic input (ADR 0016 §1): |
@@ -293,8 +294,10 @@ classDiagram
 | [RewritePositions](../types/io.github.tlaplus.hardening.gen.rewrite.RewritePositions.md) | class | other | Where the rewriter may apply a rule. |
 | [**RewriteRule** ★](../types/io.github.tlaplus.hardening.gen.rewrite.RewriteRule.md) | record | model | One rewrite rule `F(p1, ..., pn) == A = B` or `A &lt;=&gt; B` of a rule module (ADR 0017 §2): the rewriter replaces an instance of `pattern` (A) with the same instance of ` replacement` (B). |
 | [**Rewriter** ★](../types/io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | class | facade | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
-| [RuleContract](../types/io.github.tlaplus.hardening.gen.rewrite.RuleContract.md) | class | other | Reads one rule definition and checks the parts of the rule contract that the loader can decide (ADR 0017 §2, §3, §5): the shape `A = B` or `A &lt;=&gt; B`, the parameter classes, level preservation and closedness. |
+| [RuleContract](../types/io.github.tlaplus.hardening.gen.rewrite.RuleContract.md) | class | other | Reads one rule definition and checks the parts of the rule contract that the loader can decide (ADR 0017 §2, §3, §5, ADR 0027 §1): the shape `A = B` or `A &lt;=&gt; B`, the parameter classes, level preservation and closedness. |
+| [RuleFamily](../types/io.github.tlaplus.hardening.gen.rewrite.RuleFamily.md) | enum | other | Which rules a rule module may hold, and where they apply (ADR 0017, ADR 0027 §1). |
 | [RuleInstantiation](../types/io.github.tlaplus.hardening.gen.rewrite.RuleInstantiation.md) | class | other | Builds the instance of a rule (ADR 0017 §4): the rule's replacement for a match, or its whole formula for an edge guard (ADR 0023 §6). |
+| [RuleLevels](../types/io.github.tlaplus.hardening.gen.rewrite.RuleLevels.md) | record | other | What the levels of a temporal rule require of a match (ADR 0027 §1). |
 | [RuleMatch](../types/io.github.tlaplus.hardening.gen.rewrite.RuleMatch.md) | record | other | A rule's pattern matched at one node. |
 | [**RuleMatcher** ★](../types/io.github.tlaplus.hardening.gen.rewrite.RuleMatcher.md) | class | policy | Matches a rule's pattern at one node (ADR 0017 §4). |
 | [RuleOperands](../types/io.github.tlaplus.hardening.gen.rewrite.RuleOperands.md) | class | other | Draws what instantiating a rule needs beyond a match (ADR 0017 §3): a concrete type for every type variable the match leaves open, then a value for each drawn parameter at its type. |
@@ -303,11 +306,12 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0007-levels-and-temporal-properties.md)
-- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0011-collection-base-size.md)
-- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0012-integer-literals.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/2c6aced743b4276ca683c29709daab946d1b9536/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0007-levels-and-temporal-properties.md)
+- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0011-collection-base-size.md)
+- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0012-integer-literals.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/2010568d15d7d61fb6db265b00c968ea0aa49f9e/docs/decisions/0027-temporal-metamorphic-testing.md)
