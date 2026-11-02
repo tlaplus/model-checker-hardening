@@ -12,6 +12,7 @@ import io.github.tlaplus.hardening.gen.GeneratedActionOperator;
 import io.github.tlaplus.hardening.gen.GeneratedOperator;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.engine.OperandGenerator;
 import io.github.tlaplus.hardening.gen.ir.IrAlpha;
 import io.github.tlaplus.hardening.gen.ir.IrBinding;
@@ -52,6 +53,12 @@ import org.apalache_mc.tla.jir.TlaTypes;
  *
  * <p>Matching is byte-free. A fresh parameter, and any type variable the match leaves open, is
  * drawn from the rewrite payload through {@link OperandGenerator}.
+ *
+ * <p>With temporal rules (ADR 0027 §2), the walk first rewrites each fairness condition and then the
+ * property formula, with the rules followed by the temporal rules. A rule that raises the level
+ * applies there only at a temporal position, reached from the body's root through operands that
+ * pass a temporal formula on. Without temporal rules, the walk reads exactly the bytes it read
+ * before they existed.
  */
 @ArchRole(Role.FACADE)
 @Key
@@ -60,13 +67,33 @@ public final class Rewriter {
     static final int SELECTION_BYTES = 2;
 
     private final RewriteLibrary library;
+    /** The rules of the property and the fairness conditions; absent without temporal rules. */
+    private final Optional<RewriteLibrary> propertyLibrary;
     private final IrGenerationConfig generation;
     private final RewriteLimits limits;
 
+    /** Returns a rewriter that leaves properties and fairness as they are. */
     public Rewriter(RewriteLibrary library, IrGenerationConfig generation, RewriteLimits limits) {
+        this(library, RewriteLibrary.empty(), generation, limits);
+    }
+
+    /**
+     * Returns a rewriter that also rewrites properties and fairness with {@code library} followed by
+     * {@code temporal}, unless {@code temporal} is empty (ADR 0027 §2).
+     *
+     * @throws IllegalArgumentException if both libraries define a rule of one name
+     */
+    public Rewriter(RewriteLibrary library, RewriteLibrary temporal, IrGenerationConfig generation, RewriteLimits limits) {
         this.library = Objects.requireNonNull(library, "library");
+        Objects.requireNonNull(temporal, "temporal");
+        this.propertyLibrary = temporal.isEmpty() ? Optional.empty() : Optional.of(library.followedBy(temporal));
         this.generation = Objects.requireNonNull(generation, "generation");
         this.limits = Objects.requireNonNull(limits, "limits");
+    }
+
+    /** Whether this rewriter rewrites the property and fairness of a module (ADR 0027 §2). */
+    public boolean rewritesProperties() {
+        return propertyLibrary.isPresent();
     }
 
     /** Rewrites one expression, the single body of an {@code expr} input. */
@@ -86,8 +113,11 @@ public final class Rewriter {
      * next-state action and the invariant, each under its own budget of rewrites. Every body sees
      * the scope the generator drew it in: an auxiliary operator its parameters and the operators
      * before it, an action operator also the variables, {@code Init} only the auxiliary operators,
-     * the next-state action the variables but not {@code step}, and the invariant everything. The
-     * property is left as it is: temporal formulas are not rewritten yet.
+     * the next-state action the variables but not {@code step}, and the invariant everything.
+     *
+     * <p>With temporal rules, each fairness condition and then the property formula come first, in
+     * the scope of the invariant: a rewrite payload is short, and the bodies before it would read
+     * all of its bytes (ADR 0027 §2). Without temporal rules, the property is left as it is.
      */
     public Rewrite<GeneratedSpec> rewriteSpec(GeneratedSpec spec, Draw draw) {
         Objects.requireNonNull(spec, "spec");
@@ -98,23 +128,25 @@ public final class Rewriter {
         spec.generated().forEach(body -> names.addAll(IrNames.used(body)));
         var walk = new Walk(draw, new OperandGenerator(generation, names));
 
-        var variables = new ArrayList<OperandGenerator.Name>();
-        OperandGenerator.Name step = null;
-        for (var variable : spec.variables()) {
-            var name = new OperandGenerator.Name(variable.name(), TlaTypes.typeOf(variable), OperandGenerator.Kind.STATE_VARIABLE);
-            if (variable.name().equals(GeneratedSpec.STEP_VARIABLE)) {
-                step = name;
-            } else {
-                variables.add(name);
+        var scopes = ModuleScopes.of(spec);
+        var property = spec.property();
+        if (propertyLibrary.isPresent() && property.isPresent()) {
+            var fairness = new ArrayList<TlaEx>();
+            for (var condition : property.get().fairness()) {
+                fairness.add(walk.formula(condition, scopes.state(), propertyLibrary.get()));
             }
+            var formula = walk.formula(property.get().formula(), scopes.state(), propertyLibrary.get());
+            property = Optional.of(new TemporalProperty(fairness, formula));
         }
-        var auxiliaries = new ArrayList<OperandGenerator.Name>();
+
         var operators = new ArrayList<GeneratedOperator>();
+        var declared = 0;
         for (var operator : spec.operators()) {
             var declaration = operator.declaration();
-            var scope = new ArrayList<>(auxiliaries);
+            // An operator sees the auxiliary operators declared before it.
+            var scope = new ArrayList<>(scopes.auxiliaries().subList(0, declared));
             if (operator instanceof GeneratedActionOperator) {
-                scope.addAll(variables);
+                scope.addAll(scopes.variables());
             }
             TlaDeclarations.parameters(declaration).forEach(parameter -> scope.add(
                     new OperandGenerator.Name(parameter.name(), parameter.type(), OperandGenerator.Kind.DEFINITION)));
@@ -125,21 +157,16 @@ public final class Rewriter {
                 case GeneratedActionOperator action -> new GeneratedActionOperator(rewritten, action.effect());
             });
             if (operator instanceof GeneratedOperator.Auxiliary) {
-                auxiliaries.add(new OperandGenerator.Name(
-                        declaration.name(), TlaTypes.typeOf(declaration), OperandGenerator.Kind.DEFINITION));
+                declared++;
             }
         }
-        var actionScope = new ArrayList<>(auxiliaries);
-        actionScope.addAll(variables);
-        var stateScope = new ArrayList<>(actionScope);
-        stateScope.add(Objects.requireNonNull(step, "step"));
         var initialized = new java.util.HashSet<String>();
         spec.variables().forEach(variable -> initialized.add(variable.name()));
         // Init assigns the unprimed variables, so they keep their assigning positions there.
-        var init = walk.body(spec.initPredicate(), auxiliaries, initialized);
-        var next = walk.body(spec.nextAction(), actionScope);
-        var invariant = walk.body(spec.invariant(), stateScope);
-        var rewritten = new GeneratedSpec(spec.variables(), operators, init, next, invariant, spec.property(), spec.stepBound());
+        var init = walk.body(spec.initPredicate(), scopes.auxiliaries(), initialized);
+        var next = walk.body(spec.nextAction(), scopes.action());
+        var invariant = walk.body(spec.invariant(), scopes.state());
+        var rewritten = new GeneratedSpec(spec.variables(), operators, init, next, invariant, property, spec.stepBound());
         return new Rewrite<>(spec, rewritten, orientation, walk.applied);
     }
 
@@ -148,6 +175,8 @@ public final class Rewriter {
         private final Draw draw;
         private final OperandGenerator operands;
         private final List<String> applied = new ArrayList<>();
+        /** The rules of the current body. */
+        private RewriteLibrary rules = library;
         private int rewrites;
         private int bodySize;
         private int sizeLimit;
@@ -170,20 +199,35 @@ public final class Rewriter {
          * variables TLC assigns in it, which are those of {@code Init}.
          */
         TlaEx body(TlaEx expression, List<OperandGenerator.Name> scope, Set<String> assigned) {
+            return body(expression, scope, assigned, library, false);
+        }
+
+        /**
+         * Rewrites a fairness condition or the property formula with {@code formulaRules}; its root
+         * is a temporal position (ADR 0027 §2).
+         */
+        TlaEx formula(TlaEx expression, List<OperandGenerator.Name> scope, RewriteLibrary formulaRules) {
+            return body(expression, scope, Set.of(), formulaRules, true);
+        }
+
+        private TlaEx body(TlaEx expression, List<OperandGenerator.Name> scope, Set<String> assigned,
+                RewriteLibrary bodyRules, boolean temporal) {
             this.assigned = assigned;
+            this.rules = bodyRules;
             rewrites = 0;
             bodySize = size(expression);
             sizeLimit = bodySize * limits.maximumGrowth() + freshSize();
-            return visit(expression, scope, null);
+            return visit(expression, scope, null, temporal);
         }
 
-        private TlaEx visit(TlaEx node, List<OperandGenerator.Name> scope, Stack stack) {
+        /** Visits {@code node}; {@code temporal} tells whether a temporal formula may stand there. */
+        private TlaEx visit(TlaEx node, List<OperandGenerator.Name> scope, Stack stack, boolean temporal) {
             var continued = stack != null && IrAlpha.equivalent(node, stack.origin());
             var stacked = continued ? stack.depth() : 0;
             var current = node;
             for (; stacked < limits.maximumRewriteDepth()
                     && rewrites < limits.maximumRewrites() && RewritePositions.rewritable(current, assigned); stacked++) {
-                var options = applicable(current);
+                var options = applicable(current, temporal);
                 var slots = options.stream().mapToInt(RuleOperands.Plan::weight).sum();
                 if (slots == 0 || !draw.drawBoolean()) {
                     break;
@@ -196,18 +240,19 @@ public final class Rewriter {
                 applied.add(chosen.rule().name());
             }
             var below = current != node ? new Stack(continued ? stack.origin() : node, stacked) : stack;
-            return descend(current, scope, below);
+            return descend(current, scope, below, temporal);
         }
 
-        private TlaEx descend(TlaEx node, List<OperandGenerator.Name> scope, Stack stack) {
+        private TlaEx descend(TlaEx node, List<OperandGenerator.Name> scope, Stack stack, boolean temporal) {
             return switch (node) {
-                case OperEx application -> descendApplication(application, scope, stack);
-                case LetInEx let -> descendLet(let, scope, stack);
+                case OperEx application -> descendApplication(application, scope, stack, temporal);
+                case LetInEx let -> descendLet(let, scope, stack, temporal);
                 default -> node;
             };
         }
 
-        private TlaEx descendApplication(OperEx application, List<OperandGenerator.Name> scope, Stack stack) {
+        private TlaEx descendApplication(
+                OperEx application, List<OperandGenerator.Name> scope, Stack stack, boolean temporal) {
             var arguments = TlaExpressions.arguments(application);
             var binding = IrBinding.of(application.oper());
             var inner = new ArrayList<>(scope);
@@ -221,8 +266,10 @@ public final class Rewriter {
                 var argument = arguments.get(index);
                 var argumentScope = labelled ? newLabelScope(scope)
                         : binding.scopes(index, arguments.size()) ? inner : scope;
+                var argumentTemporal = temporal
+                        && FormulaLevels.passesFormula(application.oper(), index, arguments.size());
                 var visited = RewritePositions.visits(application, index)
-                        ? visitArgument(application, index, argumentScope, stack)
+                        ? visitArgument(application, index, argumentScope, stack, argumentTemporal)
                         : argument;
                 changed |= visited != argument;
                 rebuilt.add(visited);
@@ -230,14 +277,18 @@ public final class Rewriter {
             return changed ? TlaExpressions.withArguments(application, rebuilt) : application;
         }
 
-        private TlaEx visitArgument(OperEx application, int index, List<OperandGenerator.Name> scope, Stack stack) {
+        private TlaEx visitArgument(
+                OperEx application, int index, List<OperandGenerator.Name> scope, Stack stack, boolean temporal) {
             var argument = TlaExpressions.arguments(application).get(index);
+            if (!RewritePositions.rewritesArgument(application, index)) {
+                return descend(argument, scope, stack, temporal);
+            }
             if (!RewritePositions.isExceptReplacement(application, index)) {
-                return visit(argument, scope, stack);
+                return visit(argument, scope, stack, temporal);
             }
             exceptReplacements++;
             try {
-                return visit(argument, scope, stack);
+                return visit(argument, scope, stack, temporal);
             } finally {
                 exceptReplacements--;
             }
@@ -248,7 +299,7 @@ public final class Rewriter {
          * a later one, since LET definitions are not recursive, and it starts a new label scope: a
          * binder enclosing the LET stays visible there but is no parameter of a label in it.
          */
-        private TlaEx descendLet(LetInEx let, List<OperandGenerator.Name> scope, Stack stack) {
+        private TlaEx descendLet(LetInEx let, List<OperandGenerator.Name> scope, Stack stack, boolean temporal) {
             var declarations = TlaExpressions.localDeclarations(let);
             var inner = new ArrayList<>(scope);
             var preceding = newLabelScope(scope);
@@ -258,7 +309,7 @@ public final class Rewriter {
                 var parameters = new ArrayList<>(preceding);
                 TlaDeclarations.parameters(declaration).forEach(parameter -> parameters.add(new OperandGenerator.Name(
                         parameter.name(), parameter.type(), OperandGenerator.Kind.DEFINITION)));
-                var body = visit(declaration.body(), parameters, stack);
+                var body = visit(declaration.body(), parameters, stack, false);
                 changed |= body != declaration.body();
                 rebuilt.add(body == declaration.body() ? declaration : TlaDeclarations.withBody(declaration, body));
                 var defined = new OperandGenerator.Name(
@@ -266,7 +317,7 @@ public final class Rewriter {
                 preceding.add(defined);
                 inner.add(defined);
             }
-            var body = visit(let.body(), inner, stack);
+            var body = visit(let.body(), inner, stack, temporal);
             if (!changed && body == let.body()) {
                 return let;
             }
@@ -287,11 +338,14 @@ public final class Rewriter {
             return demoted;
         }
 
-        /** Returns the rules that match at {@code node}, whose open type variables fit the limits. */
-        private List<RuleOperands.Plan> applicable(TlaEx node) {
+        /**
+         * Returns the rules that match at {@code node}, whose open type variables fit the limits; a
+         * rule that raises the level applies only at a temporal position.
+         */
+        private List<RuleOperands.Plan> applicable(TlaEx node, boolean temporal) {
             var options = new ArrayList<RuleOperands.Plan>();
-            for (var rule : library.candidates(node)) {
-                if (rule.weight() == 0) {
+            for (var rule : rules.candidates(node)) {
+                if (rule.weight() == 0 || rule.levels().raisesLevel() && !temporal) {
                     continue;
                 }
                 RuleMatcher.match(rule, node, assigned).ifPresent(match -> {

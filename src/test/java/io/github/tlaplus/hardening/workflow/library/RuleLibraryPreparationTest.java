@@ -87,6 +87,7 @@ class RuleLibraryPreparationTest {
         assertEquals(2, byName.get("AlwaysAndSplit").weight());
         assertEquals(8, byName.get("WFDef").weight());
         assertEquals(8, byName.get("AlwaysOrIdem").weight());
+        assertEquals(8, byName.get("EventuallyWeaken").weight(), "most generated properties are state predicates");
         assertEquals(Set.of("F"), byName.get("AlwaysUnfold").levels().formulaParameters());
         assertEquals(Set.of(), byName.get("WFDef").levels().formulaParameters(), "A is an action, v a subscript");
         assertEquals(Set.of(), byName.get("BoxActionUnchanged").levels().formulaParameters());
