@@ -4,6 +4,7 @@ import static org.apalache_mc.tla.jir.TlaOperators.OPER_APP;
 import static org.apalache_mc.tla.jir.TlaOperators.PRIME;
 import static org.apalache_mc.tla.jir.TlaOperators.UNCHANGED;
 
+import at.forsyte.apalache.tla.lir.LetInEx;
 import at.forsyte.apalache.tla.lir.NameEx;
 import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaEx;
@@ -51,6 +52,9 @@ import org.apalache_mc.tla.jir.TypedParameter;
  * UNCHANGED that is neither a name nor a tuple of names. {@code <<a, b>>' = <<a, b>>} is valid TLA+
  * but assigns nothing in TLC. A match is also refused when the replacement would put a label of a
  * binding under a binder of its own or into an {@code EXCEPT} replacement, where SANY rejects it.
+ *
+ * <p>A temporal rule binds a formula parameter only to a state predicate or a temporal formula,
+ * never to an action, such as the {@code [A]_v} of {@code [][A]_v} (ADR 0027 §1).
  */
 @ArchRole(Role.POLICY)
 @Key
@@ -80,7 +84,15 @@ public final class RuleMatcher {
             return Optional.empty();
         }
         var match = new RuleMatch(rule, state.bindings, state.types.orElse(TlaTypeSubstitution.empty()));
-        return admitsAssignments(match, node, assigned) && admitsLabels(match) ? Optional.of(match) : Optional.empty();
+        return admitsLevels(match) && admitsAssignments(match, node, assigned) && admitsLabels(match)
+                ? Optional.of(match)
+                : Optional.empty();
+    }
+
+    /** Whether no formula parameter of a temporal rule is bound to an action, which SANY rejects. */
+    private static boolean admitsLevels(RuleMatch match) {
+        return match.rule().levels().formulaParameters().stream()
+                .noneMatch(parameter -> FormulaLevels.isAction(match.bindings().get(parameter)));
     }
 
     /** Whether no label of a binding would land where SANY rejects it (see {@link LabelPlacement}). */
@@ -131,16 +143,21 @@ public final class RuleMatcher {
                 && TlaExpressions.arguments(tuple).stream().allMatch(RuleMatcher::isVariables);
     }
 
-    /** Whether {@code expression} may hold an assignment: it primes a name, or reads an assigned one. */
+    /**
+     * Whether {@code expression} may hold an assignment: it primes a name, or reads an assigned one.
+     * The action of {@code [][A]_v}, {@code <><<A>>_v} or fairness assigns only within itself, so
+     * it does not count; a binding to that action itself does.
+     */
     private static boolean assigns(TlaEx expression, Set<String> assigned) {
-        var found = new boolean[1];
-        TlaExpressions.forEach(expression, node -> {
-            if (node instanceof OperEx application && (application.oper() == PRIME || application.oper() == UNCHANGED)
-                    || node instanceof NameEx name && assigned.contains(name.name())) {
-                found[0] = true;
-            }
-        });
-        return found[0];
+        return switch (expression) {
+            case NameEx name -> assigned.contains(name.name());
+            case LetInEx let -> assigns(let.body(), assigned) || TlaExpressions.localDeclarations(let).stream()
+                    .anyMatch(declaration -> assigns(declaration.body(), assigned));
+            case OperEx application when FormulaLevels.isTemporalAction(application) -> false;
+            case OperEx application -> application.oper() == PRIME || application.oper() == UNCHANGED
+                    || TlaExpressions.arguments(application).stream().anyMatch(argument -> assigns(argument, assigned));
+            default -> false;
+        };
     }
 
     /** The bindings and type substitution a match accumulates. */

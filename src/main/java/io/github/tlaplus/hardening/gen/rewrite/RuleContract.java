@@ -27,26 +27,34 @@ import org.apalache_mc.tla.jir.TlaTypes;
 
 /**
  * Reads one rule definition and checks the parts of the rule contract that the loader can decide
- * (ADR 0017 §2, §3, §5): the shape {@code A = B} or {@code A <=> B}, the parameter classes, level
- * preservation and closedness. It also precomputes what the rule does to the checkers' assignments.
- * Validity in TLA+ is the author's obligation, which the rule module's self-test checks.
+ * (ADR 0017 §2, §3, §5, ADR 0027 §1): the shape {@code A = B} or {@code A <=> B}, the parameter
+ * classes, level preservation and closedness. It also precomputes what the rule does to the
+ * checkers' assignments and what its levels require of a match. Validity in TLA+ is the author's
+ * obligation, which the rule module's proofs discharge.
  */
 final class RuleContract {
     /**
      * Operators of action level, and ENABLED, which Apalache does not support: a replacement uses
      * one only if its pattern does.
      */
-    private static final Set<TlaOper> ACTION = identitySet(PRIME, UNCHANGED, ENABLED, COMPOSE, STUTTER, NO_STUTTER);
-    private static final Set<TlaOper> TEMPORAL = identitySet(GLOBALLY, EVENTUALLY, LEADS_TO, GUARANTEES,
-            WEAK_FAIRNESS, STRONG_FAIRNESS, TEMPORAL_EXISTS, TEMPORAL_FORALL);
+    private static final Set<TlaOper> ACTION = FormulaLevels.with(FormulaLevels.ACTION, ENABLED);
+
+    /**
+     * Fairness, which a pattern may apply in place of an action-level operator: it is defined by
+     * {@code ENABLED} and {@code <<A>>_v}, so its replacement may apply them.
+     */
+    private static final Set<TlaOper> FAIRNESS = FormulaLevels.operators(WEAK_FAIRNESS, STRONG_FAIRNESS);
 
     /** The single branch of an expression that holds no parameter in an assignment position. */
     private static final Set<Set<String>> NO_PARAMETERS = Set.of(Set.of());
 
     private RuleContract() {}
 
-    /** Returns the checked rule, or rejects the definition with a message that names the rule. */
-    static RewriteRule rule(TlaOperDecl definition, Set<String> helpers, int weight) {
+    /**
+     * Returns the checked rule of {@code family}, or rejects the definition with a message that
+     * names the rule.
+     */
+    static RewriteRule rule(TlaOperDecl definition, Set<String> helpers, int weight, RuleFamily family) {
         var name = definition.name();
         if (definition.isRecursive()) {
             throw rejected(name, "a rule cannot be recursive");
@@ -54,10 +62,15 @@ final class RuleContract {
         if (!(definition.body() instanceof OperEx relation) || (relation.oper() != EQ && relation.oper() != EQUIV)) {
             throw rejected(name, "the body must be A = B or A <=> B");
         }
+        if (family.temporal() && relation.oper() != EQUIV) {
+            throw rejected(name, "the body of a temporal rule must be A <=> B");
+        }
         var pattern = TlaExpressions.arguments(relation).get(0);
         var replacement = TlaExpressions.arguments(relation).get(1);
-        if (!operators(pattern, TEMPORAL).isEmpty()) {
-            throw rejected(name, "temporal rules are not supported yet");
+        var temporal = !operators(pattern, FormulaLevels.TEMPORAL).isEmpty()
+                || !operators(replacement, FormulaLevels.TEMPORAL).isEmpty();
+        if (temporal && !family.temporal()) {
+            throw rejected(name, "a temporal rule belongs in metamorphic.temporal_rules (ADR 0027)");
         }
         var declared = TlaDeclarations.parameters(definition);
         var parameterNames = new LinkedHashSet<String>();
@@ -75,15 +88,13 @@ final class RuleContract {
                 throw rejected(name, "the replacement reads " + read + ", which is neither a parameter nor a helper");
             }
         }
-        // A rule may trade one action-level operator for another, as UNCHANGED x for x' = x, but
-        // must not raise a state-level pattern to an action.
+        // A rule may trade one action-level operator for another, as UNCHANGED x for x' = x, or
+        // expand fairness by ENABLED and <<A>>_v, but must not raise a state-level pattern to an
+        // action.
         var raising = operators(replacement, ACTION);
-        if (!raising.isEmpty() && operators(pattern, ACTION).isEmpty()) {
+        if (!raising.isEmpty() && operators(pattern, ACTION).isEmpty() && operators(pattern, FAIRNESS).isEmpty()) {
             throw rejected(name, "the replacement applies " + raising.getFirst().name()
                     + ", but the pattern is not an action");
-        }
-        if (!operators(replacement, TEMPORAL).isEmpty()) {
-            throw rejected(name, "temporal rules are not supported yet");
         }
 
         var parameters = new ArrayList<RuleParameter>();
@@ -115,12 +126,60 @@ final class RuleContract {
         parameters.forEach(parameter -> signature.addAll(TlaTypes.usedVariables(parameter.type())));
         replacement = LetSpecialization.specialize(name, replacement, signature);
         return new RewriteRule(name, weight, TlaExpressions.withArguments(relation, List.of(pattern, replacement)), parameters,
-                assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)));
+                assignments(pattern, replacement, parameters), LabelPlacement.unlabelled(replacement, bound(parameters)),
+                family.temporal() ? levels(name, pattern, replacement, parameters) : RuleLevels.NONE);
+    }
+
+    /**
+     * Classifies the Boolean matched parameters of a temporal rule by their positions in the
+     * pattern (ADR 0027 §1): one in an action position matches an action, every other one a state
+     * predicate or a temporal formula. A parameter in both kinds of position is rejected.
+     */
+    private static RuleLevels levels(String rule, TlaEx pattern, TlaEx replacement, List<RuleParameter> parameters) {
+        var actions = new HashSet<String>();
+        var formulas = new HashSet<String>();
+        classify(pattern, false, actions, formulas);
+        var formulaParameters = new HashSet<String>();
+        for (var parameter : parameters) {
+            if (parameter.kind() != RuleParameter.Kind.MATCHED || !parameter.type().equals(TlaTypes.BOOL)) {
+                continue;
+            }
+            if (actions.contains(parameter.name()) && formulas.contains(parameter.name())) {
+                throw rejected(rule, "the parameter " + parameter.name()
+                        + " occurs in the pattern both as an action and as a formula");
+            }
+            if (!actions.contains(parameter.name())) {
+                formulaParameters.add(parameter.name());
+            }
+        }
+        var raises = operators(pattern, FormulaLevels.TEMPORAL).isEmpty()
+                && !operators(replacement, FormulaLevels.TEMPORAL).isEmpty();
+        return new RuleLevels(formulaParameters, raises);
+    }
+
+    /** Collects the names {@code expression} reads in action positions and elsewhere. */
+    private static void classify(TlaEx expression, boolean action, Set<String> actions, Set<String> formulas) {
+        switch (expression) {
+            case NameEx name -> (action ? actions : formulas).add(name.name());
+            case LetInEx let -> {
+                TlaExpressions.localDeclarations(let)
+                        .forEach(declaration -> classify(declaration.body(), action, actions, formulas));
+                classify(let.body(), action, actions, formulas);
+            }
+            case OperEx application -> {
+                var arguments = TlaExpressions.arguments(application);
+                for (var index = 0; index < arguments.size(); index++) {
+                    classify(arguments.get(index), action || FormulaLevels.isActionPosition(application.oper(), index),
+                            actions, formulas);
+                }
+            }
+            default -> {}
+        }
     }
 
     /** Whether the rule's formula applies no action-level operator, so its instances are state predicates. */
     static boolean isStateLevel(RewriteRule rule) {
-        return operators(rule.formula(), ACTION).isEmpty();
+        return operators(rule.formula(), ACTION).isEmpty() && operators(rule.formula(), FormulaLevels.TEMPORAL).isEmpty();
     }
 
     /** Returns the parameters a match binds to subterms of the node: every one but the fresh ones. */
@@ -263,18 +322,27 @@ final class RuleContract {
         return result;
     }
 
-    /** Returns the parameters that occur exactly once in {@code expression}, in an assigning position. */
+    /**
+     * Returns the parameters that occur in {@code expression} only in assigning positions, at most
+     * once in each action. The action of {@code [A]_v}, {@code <<A>>_v}, fairness or {@code ENABLED}
+     * is an action of its own, which TLC evaluates apart from the formula around it; a rule without
+     * one has one action, so its parameters occur exactly once.
+     */
     private static Set<String> assigningOnce(TlaEx expression, Set<String> parameters) {
-        var occurrences = new HashMap<String, List<Boolean>>();
-        collectOccurrences(expression, true, parameters, occurrences);
+        var occurrences = new HashMap<String, List<Occurrence>>();
+        collectOccurrences(expression, new Occurrence(0, true), new int[] {0}, parameters, occurrences);
         var once = new HashSet<String>();
         occurrences.forEach((parameter, positions) -> {
-            if (positions.size() == 1 && positions.getFirst()) {
+            var actions = positions.stream().map(Occurrence::action).distinct().count();
+            if (actions == positions.size() && positions.stream().allMatch(Occurrence::assigning)) {
                 once.add(parameter);
             }
         });
         return once;
     }
+
+    /** Where a parameter occurs: in which action, and whether TLC would assign an equation there. */
+    private record Occurrence(int action, boolean assigning) {}
 
     /** Returns the parameters {@code operator} applies to directly in {@code expression}. */
     private static Set<String> operands(TlaEx expression, TlaOper operator) {
@@ -288,25 +356,31 @@ final class RuleContract {
         return result;
     }
 
-    /** Records, for each occurrence of a parameter, whether TLC would treat an equation there as an assignment. */
-    private static void collectOccurrences(
-            TlaEx expression, boolean assigning, Set<String> parameters, Map<String, List<Boolean>> occurrences) {
+    /**
+     * Records, for each occurrence of a parameter, its action and whether TLC would treat an
+     * equation there as an assignment. An action position starts a new action, numbered by {@code
+     * actions}, where TLC assigns again.
+     */
+    private static void collectOccurrences(TlaEx expression, Occurrence where, int[] actions, Set<String> parameters,
+            Map<String, List<Occurrence>> occurrences) {
         switch (expression) {
             case NameEx name -> {
                 if (parameters.contains(name.name())) {
-                    occurrences.computeIfAbsent(name.name(), ignored -> new ArrayList<>()).add(assigning);
+                    occurrences.computeIfAbsent(name.name(), ignored -> new ArrayList<>()).add(where);
                 }
             }
             case LetInEx let -> {
-                TlaExpressions.localDeclarations(let)
-                        .forEach(declaration -> collectOccurrences(declaration.body(), false, parameters, occurrences));
-                collectOccurrences(let.body(), assigning, parameters, occurrences);
+                TlaExpressions.localDeclarations(let).forEach(declaration -> collectOccurrences(
+                        declaration.body(), new Occurrence(where.action(), false), actions, parameters, occurrences));
+                collectOccurrences(let.body(), where, actions, parameters, occurrences);
             }
             case OperEx application -> {
                 var arguments = TlaExpressions.arguments(application);
                 for (var index = 0; index < arguments.size(); index++) {
-                    collectOccurrences(arguments.get(index), assigning && keepsAssignments(application.oper(), index),
-                            parameters, occurrences);
+                    var operand = FormulaLevels.isActionPosition(application.oper(), index)
+                            ? new Occurrence(++actions[0], true)
+                            : new Occurrence(where.action(), where.assigning() && keepsAssignments(application.oper(), index));
+                    collectOccurrences(arguments.get(index), operand, actions, parameters, occurrences);
                 }
             }
             default -> {}
@@ -370,11 +444,5 @@ final class RuleContract {
 
     static IllegalArgumentException rejected(String rule, String reason) {
         return new IllegalArgumentException("rewrite rule " + rule + ": " + reason);
-    }
-
-    private static Set<TlaOper> identitySet(TlaOper... operators) {
-        var set = Collections.newSetFromMap(new IdentityHashMap<TlaOper, Boolean>());
-        set.addAll(List.of(operators));
-        return Collections.unmodifiableSet(set);
     }
 }
