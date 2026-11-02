@@ -175,9 +175,9 @@ class TomlConfigTest {
                 .replace("max_extra_successors = 2", "max_extra_successors = 1")
                 .replace("max_guards = 2", "max_guards = 3");
         // max_steps is commented out, so it inherits max_graph_nodes.
-        assertEquals(new GraphLimits(2, 40, 1, 40, 3), readConfig(directory, document).generator().graphs());
+        assertEquals(new GraphLimits(2, 40, 1, 40, 3, false), readConfig(directory, document).generator().graphs());
         var capped = document.replace("# max_steps = 32", "max_steps = 12");
-        assertEquals(new GraphLimits(2, 40, 1, 12, 3), readConfig(directory, capped).generator().graphs());
+        assertEquals(new GraphLimits(2, 40, 1, 12, 3, false), readConfig(directory, capped).generator().graphs());
         var withoutTable = TomlConfig.render(FuzzTlaConfig.defaults());
         withoutTable = withoutTable.substring(0, withoutTable.indexOf("\n[graph]"));
         assertEquals(GraphLimits.defaults(), readConfig(directory, withoutTable).generator().graphs());

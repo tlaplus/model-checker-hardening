@@ -395,6 +395,11 @@ final class ConfigSchema {
             "max_guards", GraphLimits::maximumGuards, GraphLimits.DEFAULT_MAXIMUM_GUARDS,
             "Maximum tautological guards of one edge, drawn from the rule module that rules",
             "names (ADR 0023 §6). Without rules, edges have no guards.");
+    static final Key<Boolean> GRAPH_PROPERTIES = GRAPH_LIMITS.optional(
+            "properties", ConfigValueType.BOOLEAN, GraphLimits::properties, new Constant<>(GraphLimits.DEFAULT_PROPERTIES),
+            "Also give each graph module a temporal property and fairness conditions over its edges",
+            "(ADR 0027 §8). gbt does not check them; an mt corpus over it with temporal_rules does.",
+            "Setting it changes how every graph input decodes.");
     static final RuleLibrarySchema GUARD_RULES = new RuleLibrarySchema(
             GRAPH.project(FuzzTlaConfig::graphGuards), "", ConfigValueType.EXAMPLE_RULES, "guard rule",
             "Rule module of the edge guards of graph inputs, relative to this config file",

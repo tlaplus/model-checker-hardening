@@ -15,15 +15,18 @@ import io.github.tlaplus.hardening.common.Role;
  * @param maximumSteps cap on the step bound an input draws
  * @param maximumGuards maximum tautological guards of one edge, when the decoder has a rule library
  *     (ADR 0023 §6)
+ * @param properties whether a graph module also has a temporal property and fairness conditions
+ *     over its edges, which gbt does not check but an mt corpus over it rewrites (ADR 0027 §8)
  */
 @ArchRole(Role.CONFIG)
-public record GraphLimits(
-        int minimumNodes, int maximumNodes, int maximumExtraSuccessors, int maximumSteps, int maximumGuards) {
+public record GraphLimits(int minimumNodes, int maximumNodes, int maximumExtraSuccessors, int maximumSteps,
+        int maximumGuards, boolean properties) {
     public static final int DEFAULT_MINIMUM_NODES = 20;
     public static final int DEFAULT_MAXIMUM_NODES = 32;
     public static final int DEFAULT_MAXIMUM_EXTRA_SUCCESSORS = 2;
     public static final int DEFAULT_MAXIMUM_STEPS = DEFAULT_MAXIMUM_NODES;
     public static final int DEFAULT_MAXIMUM_GUARDS = 2;
+    public static final boolean DEFAULT_PROPERTIES = false;
 
     public GraphLimits {
         Preconditions.requirePositive(minimumNodes, "minimumNodes");
@@ -35,6 +38,12 @@ public record GraphLimits(
 
     public static GraphLimits defaults() {
         return new GraphLimits(DEFAULT_MINIMUM_NODES, DEFAULT_MAXIMUM_NODES, DEFAULT_MAXIMUM_EXTRA_SUCCESSORS,
-                DEFAULT_MAXIMUM_STEPS, DEFAULT_MAXIMUM_GUARDS);
+                DEFAULT_MAXIMUM_STEPS, DEFAULT_MAXIMUM_GUARDS, DEFAULT_PROPERTIES);
+    }
+
+    /** Returns these limits with properties generated or not. */
+    public GraphLimits withProperties(boolean replacement) {
+        return new GraphLimits(minimumNodes, maximumNodes, maximumExtraSuccessors, maximumSteps, maximumGuards,
+                replacement);
     }
 }
