@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.Generator;
 import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
+import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentForm;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.AssignmentRequirement;
 import io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory.Request;
@@ -114,7 +115,7 @@ public final class IrGraphGeneratorEngine {
         var nodeCount = header.nodes();
         // Every disjunct is guarded by the entry's own bound, which ActionGenFactory reads.
         var config = this.config.withModuleLimits(this.config.modules().withMaximumSteps(header.bound()));
-        var sections = GraphSection.split(draw, guards.isPresent());
+        var sections = GraphSection.split(draw, new GraphSection.Options(guards.isPresent(), limits.properties()));
         var context = new GenerationContext(config);
         var types = new IrTypeGenFactory(context);
         var expressions = new IrExprGenFactory(context, types);
@@ -154,10 +155,20 @@ public final class IrGraphGeneratorEngine {
         var edgeGuards = guards.isEmpty() ? noGuards(graph) : drawGuards(config, sections.get(GraphSection.GUARDS),
                 graph, namesInUse(declared.declarations(), operators, init), actionScope);
 
-        var next = nextAction(actions, shapes, pc, graph, edgeGuards);
+        var edgeActions = edgeActions(actions, shapes, pc, graph, edgeGuards);
+        var next = context.builder().or(BuilderArrays.expressions(edgeActions));
         var invariant = context.builder().neql(shapes.nameOf(pc), context.builder().integer(header.target()));
+        // The property comes last, so every name drawn before it is the same with or without it.
+        var property = Optional.<TemporalProperty>empty();
+        if (limits.properties()) {
+            var scope = propertyScope(operatorNames, declared);
+            var subscript = context.builder().tuple(BuilderArrays.expressions(scope.subList(operatorNames.size(),
+                    scope.size()).stream().map(shapes::nameOf).toList()));
+            property = sections.get(GraphSection.PROPERTY).draw(context.withBindings(scope,
+                    new PropertyGenFactory(context, types, expressions).edgeProperty(edgeActions, subscript, depth)));
+        }
         var spec = new GeneratedSpec(declared.declarations(), operators, init, next, invariant,
-                Optional.empty(), header.bound());
+                property, header.bound());
         return new GeneratedGraph(spec, graph, header.target());
     }
 
@@ -217,12 +228,21 @@ public final class IrGraphGeneratorEngine {
         return result;
     }
 
+    /** The scope of a graph module's property: the auxiliary operators and every variable. */
+    private static List<ScopedName> propertyScope(List<ScopedName> operatorNames, ModulePrelude.Variables declared) {
+        var scope = new ArrayList<ScopedName>(operatorNames);
+        scope.addAll(declared.data());
+        scope.addAll(declared.controls());
+        scope.add(declared.step());
+        return scope;
+    }
+
     /**
      * One bounded step per edge (u, v), in edge order: {@code pc = u /\ g1 /\ ... /\ gk /\ Node<u> /\ pc' = v},
-     * where the g are the edge's guards.
+     * where the g are the edge's guards. Their disjunction is the next-state action.
      */
-    private static TlaEx nextAction(ActionGenFactory actions, ActionShapeGenFactory shapes, ScopedName pc,
-                                    TransitionGraph graph, List<List<TlaEx>> guards) {
+    private static List<TlaEx> edgeActions(ActionGenFactory actions, ActionShapeGenFactory shapes, ScopedName pc,
+                                           TransitionGraph graph, List<List<TlaEx>> guards) {
         var builder = shapes.builder();
         var nodeType = new OperatorType(List.of(), PrimitiveType.BOOL).toTlaType();
         var edges = new ArrayList<TlaEx>();
@@ -236,7 +256,7 @@ public final class IrGraphGeneratorEngine {
             conjuncts.add(builder.primeEq(shapes.nameOf(pc), builder.integer(edge.target())));
             edges.add(actions.boundedStep(conjuncts, List.of()));
         }
-        return builder.or(BuilderArrays.expressions(edges));
+        return edges;
     }
 
     /**

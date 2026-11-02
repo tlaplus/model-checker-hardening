@@ -128,8 +128,8 @@ public final class SpecArtifact {
         Objects.requireNonNull(graph, "graph");
         var spec = graph.spec();
         return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
-                new CheckRequest(spec.stepBound(), conformanceKind(spec))
-                        .withControlVariables(GeneratedGraph.CONTROL_VARIABLES),
+                // The graph predicts the invariant alone; a property is for mt to adopt (ADR 0027 §8).
+                CheckRequest.invariant(spec.stepBound()).withControlVariables(GeneratedGraph.CONTROL_VARIABLES),
                 FuzzInputModule.ENTRY_POINTS, spec.generated(), new Origin(null, null, graph)), library);
     }
 

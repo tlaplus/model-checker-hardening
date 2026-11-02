@@ -10,7 +10,9 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.SeedConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.Generator;
+import io.github.tlaplus.hardening.gen.GraphLimits;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
@@ -21,13 +23,16 @@ import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
 import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
+import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolInput;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.junit.jupiter.api.Test;
@@ -56,7 +61,8 @@ class GraphModuleCheckersTest {
 
     @Test
     void theCheckersReportTheOutcomeTheGraphPredicts(@TempDir Path directory) throws Exception {
-        assertPredicted(samples(IrGenerators.graphs(IrGenerationConfig.defaults()), 4, 3), directory);
+        assertPredicted(samples(IrGenerators.graphs(IrGenerationConfig.defaults()), 4, 3, FuzzInputModule.ENTRY_POINTS),
+                directory);
     }
 
     /**
@@ -65,16 +71,35 @@ class GraphModuleCheckersTest {
      */
     @Test
     void guardedEdgesLeaveTheOutcomeAsTheGraphPredicts(@TempDir Path directory) throws Exception {
-        var samples = samples(IrGenerators.graphs(IrGenerationConfig.defaults(), new Tautologies(ShippedRules.library())), 4, 3);
+        var samples = samples(
+                IrGenerators.graphs(IrGenerationConfig.defaults(), new Tautologies(ShippedRules.library())), 4, 3,
+                FuzzInputModule.ENTRY_POINTS);
         // An edge conjoins step < B, pc = u, Node<u>, pc' = v and the step update besides its guards.
         assertTrue(samples.stream().flatMap(graph -> TlaIrTestSupport.disjuncts(graph.spec().nextAction()).stream())
                 .anyMatch(edge -> TlaExpressions.arguments((OperEx) edge).size() > 5), "no sample has a guard");
         assertPredicted(samples, directory);
     }
 
+    /**
+     * A property generated for mt to adopt leaves the prediction unchanged: gbt checks the invariant
+     * alone (ADR 0027 §8). The samples leave out what a recorded defect would decide in the
+     * definitions gbt evaluates; the property, which gbt does not check, may trip Apalache's limits
+     * on fairness and ENABLED.
+     */
+    @Test
+    void aPropertyLeavesTheOutcomeAsTheGraphPredicts(@TempDir Path directory) throws Exception {
+        var config = IrGenerationConfig.defaults()
+                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC))
+                .withGraphLimits(GraphLimits.defaults().withProperties(true));
+        var samples = samples(IrGenerators.graphs(config), 4, 3,
+                List.of(FuzzInputModule.INIT, FuzzInputModule.NEXT, FuzzInputModule.INV));
+        assertTrue(samples.stream().anyMatch(graph -> graph.spec().property().isPresent()), "no sample has a property");
+        assertPredicted(samples, directory);
+    }
+
     private static void assertPredicted(List<GeneratedGraph> samples, Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), "");
-        var counterexamples = 0;
+        var counterexamples = new EnumMap<CorpusStage, Integer>(CorpusStage.class);
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
             var resources = new CheckerBackends.Resources(1, scratch, StagedTools.locate(ToolJar.APALACHE), List.of(),
                     SeedConfig.derive(0));
@@ -100,7 +125,7 @@ class GraphModuleCheckersTest {
                         if (distance.isEmpty()) {
                             continue;
                         }
-                        counterexamples++;
+                        counterexamples.merge(stage, 1, Integer::sum);
                         var length = result.metrics().orElseThrow(() -> new AssertionError("no metrics: " + context))
                                 .count(ExplorationCount.TRACE_LENGTH);
                         assertTrue(length.isPresent(), "no trace length: " + context);
@@ -113,12 +138,14 @@ class GraphModuleCheckersTest {
                 }
             }
         }
-        assertTrue(counterexamples >= CHECKERS.size(), "too few counterexamples were checked: " + counterexamples);
+        for (var stage : CHECKERS) {
+            assertTrue(counterexamples.getOrDefault(stage, 0) > 0, "no counterexample was checked: " + counterexamples);
+        }
     }
 
     /** Decodes graphs until it has {@code reachable} targets at least {@link #DEEP} steps away and {@code unreachable} missed ones. */
-    private static List<GeneratedGraph> samples(Generator<GeneratedGraph> generator, int reachable, int unreachable)
-            throws Exception {
+    private static List<GeneratedGraph> samples(Generator<GeneratedGraph> generator, int reachable, int unreachable,
+            List<String> entryPoints) throws Exception {
         // As admission does, leave out the inputs that a recorded defect would decide.
         var knownDefects = KnownDefectDatabase.load(List.of(Path.of("signatures/all-defects.toml")));
         var random = new Random(0x67b7L);
@@ -134,7 +161,7 @@ class GraphModuleCheckersTest {
                 continue;
             }
             var artifact = SpecArtifact.fromGeneratedGraph(graph, OperatorLibrary.empty());
-            if (!knownDefects.quarantining(artifact.module(), artifact.entryPoints()).isEmpty()) {
+            if (!knownDefects.quarantining(artifact.module(), entryPoints).isEmpty()) {
                 continue;
             }
             var distance = graph.targetDistance();

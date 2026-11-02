@@ -15,6 +15,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.TlaIrTestSupport;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
@@ -22,6 +23,7 @@ import io.github.tlaplus.hardening.gen.rewrite.MetamorphicPayload;
 import io.github.tlaplus.hardening.gen.rewrite.RewriteLimits;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.ShippedRules;
+import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -134,6 +136,43 @@ class SpecDecodersTest {
             compared++;
         }
         assertEquals(5, compared);
+    }
+
+    /**
+     * A graph base may have a property with [graph] properties, which mt then rewrites while gbt
+     * checks the invariant alone (ADR 0027 §8).
+     */
+    @Test
+    void temporalRulesNeedAGraphBaseWithProperties() throws Exception {
+        var metamorphic = MetamorphicConfig.defaults()
+                .withRules(ShippedRules.config())
+                .withTemporalRules(ShippedRules.temporalConfig());
+        var defaults = FuzzTlaConfig.defaults().withMetamorphic(metamorphic).withGeneratedKind(InputKind.GRAPH);
+        var tlcOnly = defaults.withWorkflow(defaults.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
+        var refused = assertThrows(WorkflowException.class, () -> SpecDecoders.prepare(tlcOnly, Technique.MT));
+        assertTrue(refused.getMessage().contains("graph.properties = true"), refused.getMessage());
+
+        var properties = tlcOnly.withGenerator(tlcOnly.generator()
+                .withGraphLimits(tlcOnly.generator().graphs().withProperties(true)));
+        SpecDecoders.prepare(properties, Technique.MT);
+        var gbt = SpecDecoders.of(properties.generator());
+        var random = new Random(0x9b7eL);
+        var withProperty = 0;
+        for (var sample = 0; sample < 60; sample++) {
+            var input = new byte[256];
+            random.nextBytes(input);
+            final SpecArtifact artifact;
+            try {
+                artifact = gbt.decode(new CorpusInput(InputKind.GRAPH, input));
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            assertEquals(CheckKind.INVARIANT, artifact.request().kind(), "gbt checks the invariant alone");
+            if (artifact.graph().orElseThrow().spec().property().isPresent()) {
+                withProperty++;
+            }
+        }
+        assertTrue(withProperty > 10, "too few graphs had a property: " + withProperty);
     }
 
     /** TLC alone checks rewritten properties, and only a module has one (ADR 0027 §5). */

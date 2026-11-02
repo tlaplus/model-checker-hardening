@@ -186,6 +186,11 @@ B = 1 it would be `pass`.
   the prediction to one direction.
 - **No temporal property** in either stage.
 
+  *Amended by [ADR 0027](0027-temporal-metamorphic-testing.md) §8: with
+  `[graph] properties = true`, a graph module also has a property and fairness
+  conditions over its edges, for an `mt --temporal` corpus to adopt. gbt still checks
+  the invariant alone.*
+
 The decoder returns a `gen.graph.GeneratedGraph`: the `GeneratedSpec` above, the
 `TransitionGraph` (N, the successor lists, the distances) and k. The two invariants of
 `GeneratedSpec` hold: `Init` constrains every variable, and every edge disjunct accounts

@@ -15,6 +15,7 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.engine.EdgeGuards;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.graph.TransitionGraph;
+import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -217,7 +218,7 @@ class IrGraphGeneratorsTest {
 
     @Test
     void theStepCapCutsOffTheUpperHalfOfTheSpine() {
-        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 5, 2));
+        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 5, 2, false));
         var random = new Random(0xb0d);
         for (var sample = 0; sample < 200; sample++) {
             var input = new byte[random.nextInt(8, 256)];
@@ -231,8 +232,8 @@ class IrGraphGeneratorsTest {
 
     @Test
     void graphLimitsBoundNodesAndExtraSuccessors() {
-        var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 1, 3, 32, 2));
-        var spineOnly = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(4, 40, 0, 40, 2));
+        var single = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(1, 1, 3, 32, 2, false));
+        var spineOnly = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(4, 40, 0, 40, 2, false));
         var random = new Random(0x11);
         for (var sample = 0; sample < 200; sample++) {
             var input = new byte[random.nextInt(256)];
@@ -353,7 +354,7 @@ class IrGraphGeneratorsTest {
     /** With max_guards = 0 the guard section still takes its share, but no edge has a guard. */
     @Test
     void noEdgeHasAGuardUnderAZeroMaximum() {
-        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 32, 0));
+        var config = IrGenerationConfig.defaults().withGraphLimits(new GraphLimits(20, 32, 2, 32, 0, false));
         var random = new Random(0x0a);
         for (var sample = 0; sample < 50; sample++) {
             var input = new byte[16 + random.nextInt(496)];
@@ -406,6 +407,53 @@ class IrGraphGeneratorsTest {
             }
         }
         assertBuilds(IrGenerationConfig.defaults().withIgnoredCategories(Set.of()), new byte[0]);
+    }
+
+    /**
+     * With {@code [graph] properties}, a graph module has a property whose fairness conditions are
+     * the weak or strong fairness of one of its edges, and whose formula may read pc (ADR 0027 §8).
+     */
+    @Test
+    void withPropertiesAGraphHasAPropertyWithFairnessOverItsEdges() {
+        var config = IrGenerationConfig.defaults()
+                .withIgnoredCategories(Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC))
+                .withGraphLimits(GraphLimits.defaults().withProperties(true));
+        var random = new Random(0x7a0eL);
+        var withProperty = 0;
+        var conditions = 0;
+        var readingPc = 0;
+        for (var sample = 0; sample < 300; sample++) {
+            var input = new byte[64 + random.nextInt(448)];
+            random.nextBytes(input);
+            final GeneratedGraph graph;
+            try {
+                graph = IrGenerators.graphs(config).generate(input);
+            } catch (InputRejectedException rejected) {
+                continue;
+            }
+            var property = graph.spec().property();
+            if (property.isEmpty()) {
+                continue;
+            }
+            withProperty++;
+            var edges = new HashSet<String>();
+            disjuncts(graph.spec().nextAction()).forEach(edge -> edges.add(normalized(edge)));
+            for (var condition : property.get().fairness()) {
+                var fairness = (OperEx) condition;
+                assertTrue(fairness.oper() == TlaOperators.WEAK_FAIRNESS || fairness.oper() == TlaOperators.STRONG_FAIRNESS,
+                        print(condition));
+                assertTrue(edges.contains(normalized(TlaExpressions.arguments(fairness).get(1))),
+                        "the fairness of no edge: " + print(condition));
+                conditions++;
+            }
+            if (IrNames.used(property.get().formula()).contains(PC)) {
+                readingPc++;
+            }
+            graph.spec().generated().forEach(TlaIrTestSupport::assertLabelParameters);
+        }
+        assertTrue(withProperty > 100, "too few properties: " + withProperty);
+        assertTrue(conditions > 50, "too few fairness conditions: " + conditions);
+        assertTrue(readingPc > 10, "too few formulas read pc: " + readingPc);
     }
 
     /** Runs a check over a spread of generated graphs, skipping the inputs that reject. */

@@ -148,8 +148,9 @@ public final class SpecDecoders {
             throw new WorkflowException(
                     "metamorphic.temporal_rules needs checkers without apalache, which supports no fairness");
         }
-        if (config.generatedKind() != InputKind.MODULE) {
-            throw new WorkflowException("metamorphic.temporal_rules needs kind = \"module\": only a module has a property");
+        if (!hasProperties(config)) {
+            throw new WorkflowException("metamorphic.temporal_rules needs kind = \"module\", or kind = \"graph\" with"
+                    + " graph.properties = true: only these modules have a property");
         }
         var prepared = RuleLibraryPreparation.prepare(temporal, RuleFamily.TEMPORAL_REWRITES,
                 config.workflow().checker(CorpusStage.APALACHE), CorpusTools.apalache(config)).library();
@@ -159,6 +160,18 @@ public final class SpecDecoders {
         } catch (IllegalArgumentException exception) {
             throw new WorkflowException("metamorphic.temporal_rules: " + exception.getMessage(), exception);
         }
+    }
+
+    /**
+     * Whether the modules {@code config} generates may have a temporal property: a module input, or
+     * a graph input with {@code [graph] properties} (ADR 0027 §8).
+     */
+    public static boolean hasProperties(FuzzTlaConfig config) {
+        return switch (config.generatedKind()) {
+            case MODULE -> true;
+            case GRAPH -> config.generator().graphs().properties();
+            case EXPRESSION -> false;
+        };
     }
 
     /** The edge guards of a prepared rule module; none without one. */

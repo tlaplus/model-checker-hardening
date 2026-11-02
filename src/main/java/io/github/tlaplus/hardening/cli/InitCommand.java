@@ -15,6 +15,7 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.workflow.AdoptableBase;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryInstall;
+import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -110,9 +111,10 @@ final class InitCommand implements Callable<Integer> {
             }
         }
         if (temporal) {
-            if (config.generatedKind() != InputKind.MODULE) {
-                return usage("--temporal needs kind = \"module\": only a module has a property, and the base"
-                        + " generates " + config.generatedKind().encodedName());
+            if (!SpecDecoders.hasProperties(config)) {
+                return usage("--temporal needs kind = \"module\", or kind = \"graph\" with [graph] properties = true:"
+                        + " only these have a property, and the base generates " + config.generatedKind().encodedName()
+                        + (config.generatedKind() == InputKind.GRAPH ? " without properties" : ""));
             }
             if (config.generator().ignoredCategories().contains(ExpressionCategory.TEMPORAL)) {
                 spec.commandLine().getErr().printf(
