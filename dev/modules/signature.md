@@ -53,9 +53,11 @@ classDiagram
 | [PatternException](../types/io.github.tlaplus.hardening.signature.PatternException.md) | class | other | A pattern that does not follow the pattern syntax, located by a one-based column. |
 | [**PatternParser** ★](../types/io.github.tlaplus.hardening.signature.PatternParser.md) | class | codec | Parses the S-expression pattern syntax that the known-defect manual specifies: |
 | [PredefinedSet](../types/io.github.tlaplus.hardening.signature.PredefinedSet.md) | enum | other | The predefined sets a pattern names by their TLA+ spelling. |
+| [TemporalShapes](../types/io.github.tlaplus.hardening.signature.TemporalShapes.md) | class | other | Counts the temporal shapes of a module's properties (ADR 0028 §2). |
 | [Type1Syntax](../types/io.github.tlaplus.hardening.signature.Type1Syntax.md) | class | other | Parses Apalache's type syntax, the syntax of the `type` fields in its IR JSON. |
 | [TypePattern](../types/io.github.tlaplus.hardening.signature.TypePattern.md) | record | other | A type in Apalache's syntax whose type variables are wildcards. |
 
 ## Decisions
 
-- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/docs/decisions/0006-known-defect-signatures.md)
+- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/docs/decisions/0006-known-defect-signatures.md)
+- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/docs/decisions/0028-temporal-property-quality.md)

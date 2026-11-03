@@ -1,6 +1,6 @@
 # `InputAnalysis`
 
-`io.github.tlaplus.hardening.corpus` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/corpus/InputAnalysis.java#L11) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/corpus/InputAnalysis.java#L11) · module [corpus](../modules/corpus.md)
 
 Counts the evaluated nodes, expression constructs and construct edges of one stored input, and names the rewrite rules it applied, typically by replaying it through the generator.
 
@@ -9,6 +9,7 @@ classDiagram
   class InputAnalysis {
     <<interface>>
   }
+  class EntryReplays
   class QualityGate {
     <<policy>>
   }
@@ -24,6 +25,7 @@ classDiagram
   class ReplayOutcome {
     <<interface>>
   }
+  EntryReplays --> InputAnalysis : has
   QualityGate --> InputAnalysis : has
   InputAnalysis ..> CorpusInput : uses
   InputAnalysis ..> ReplayedInput : uses
@@ -31,10 +33,11 @@ classDiagram
   ReplayOutcome ..> InputAnalysis : uses
 ```
 
-The diagram draws 5 of 8 relations; the table lists them all.
+The diagram draws 6 of 9 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
+| ← | has | [EntryReplays](io.github.tlaplus.hardening.workflow.quality.EntryReplays.md) | What one run of the quality gate learns by replaying its entries: their coverage features (ADR 0013) and the number of distinct temporal shapes of their properties (ADR 0028). |
 | ← | has | [QualityGate](io.github.tlaplus.hardening.workflow.quality.QualityGate.md) | Selects the parents of the next generation from one settled generation (ADR 0010, ADR 0013). |
 | → | uses | [CorpusInput](io.github.tlaplus.hardening.corpus.CorpusInput.md) | The required fields of one encoded corpus input. |
 | → | uses | [ReplayedInput](io.github.tlaplus.hardening.corpus.ReplayedInput.md) | What replaying one stored input shows beyond its envelope. |

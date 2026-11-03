@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "7b97336d8ec341ec48f89de4a368b6a488a145ac"
+    "commit" : "efb80f561357d9a62d3b24e493bb2f450ab6410c"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -781,8 +781,8 @@
     "key" : false,
     "summary" : "An edge of an expression tree between two constructs: `parent` applied to, or binding, an immediate subexpression that is the construct `child`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/common/ExprEdge.java",
-    "line" : 11,
-    "adrs" : [ ]
+    "line" : 12,
+    "adrs" : [ "0028" ]
   }, {
     "name" : "io.github.tlaplus.hardening.common.FileTrees",
     "packageName" : "io.github.tlaplus.hardening.common",
@@ -1481,8 +1481,18 @@
     "key" : false,
     "summary" : "How the quality gate ranks the admissible entries of a generation, best first: the components of its key, compared lexicographically, higher first.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/Ranking.java",
-    "line" : 16,
+    "line" : 15,
     "adrs" : [ "0013" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.corpus.RankingInput",
+    "packageName" : "io.github.tlaplus.hardening.corpus",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "What a `Ranking` reads of one entry: TLC's exploration metrics and the counts that replaying the input yields.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/corpus/RankingInput.java",
+    "line" : 15,
+    "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
     "packageName" : "io.github.tlaplus.hardening.corpus",
@@ -1491,7 +1501,7 @@
     "key" : false,
     "summary" : "What replaying one stored input shows beyond its envelope.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/ReplayedInput.java",
-    "line" : 13,
+    "line" : 20,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.ShallowPattern",
@@ -3084,6 +3094,16 @@
     "line" : 15,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.signature.TemporalShapes",
+    "packageName" : "io.github.tlaplus.hardening.signature",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Counts the temporal shapes of a module's properties (ADR 0028 §2).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/signature/TemporalShapes.java",
+    "line" : 35,
+    "adrs" : [ "0028" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.signature.Type1Syntax",
     "packageName" : "io.github.tlaplus.hardening.signature",
     "kind" : "CLASS",
@@ -3759,10 +3779,20 @@
     "kind" : "INTERFACE",
     "role" : null,
     "key" : false,
-    "summary" : "One operator-coverage feature of an entry's evaluated code (ADR 0013): a construct or an edge between constructs, with the hit-count bucket of its occurrences.",
+    "summary" : "One coverage feature of an entry, with the hit-count bucket of its occurrences: a construct or an edge between constructs of its evaluated code (ADR 0013), or a temporal shape of its property (ADR 0028 §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/CoverageFeature.java",
-    "line" : 13,
-    "adrs" : [ "0013" ]
+    "line" : 14,
+    "adrs" : [ "0013", "0028" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.quality.EntryReplays",
+    "packageName" : "io.github.tlaplus.hardening.workflow.quality",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "What one run of the quality gate learns by replaying its entries: their coverage features (ADR 0013) and the number of distinct temporal shapes of their properties (ADR 0028).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/EntryReplays.java",
+    "line" : 16,
+    "adrs" : [ "0013", "0028" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.quality.QualityCell",
     "packageName" : "io.github.tlaplus.hardening.workflow.quality",
@@ -3781,7 +3811,7 @@
     "key" : true,
     "summary" : "Selects the parents of the next generation from one settled generation (ADR 0010, ADR 0013).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityGate.java",
-    "line" : 50,
+    "line" : 51,
     "adrs" : [ "0010", "0013" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
@@ -3811,7 +3841,7 @@
     "key" : false,
     "summary" : "Replays a stored input and counts the expression constructs of the code the checkers evaluate: the definitions reachable from `SpecArtifact.entryPoints`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/EvaluatedExprs.java",
-    "line" : 18,
+    "line" : 19,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
@@ -6667,10 +6697,26 @@
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.Ranking",
     "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "to" : "io.github.tlaplus.hardening.corpus.RankingInput",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.RankingInput",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.RankingInput",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
     "to" : "io.github.tlaplus.hardening.common.ExprCounts",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
+    "to" : "io.github.tlaplus.hardening.common.ExprEdge",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.ShallowPattern",
@@ -10189,6 +10235,14 @@
     "to" : "io.github.tlaplus.hardening.signature.TypePattern",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.signature.TemporalShapes",
+    "to" : "io.github.tlaplus.hardening.common.ExprEdge",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.signature.TemporalShapes",
+    "to" : "io.github.tlaplus.hardening.signature.IrTree",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.signature.Type1Syntax",
     "to" : "io.github.tlaplus.hardening.common.Diagnostics",
     "kind" : "DEPENDS"
@@ -12243,14 +12297,30 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.CoverageFeature",
     "to" : "io.github.tlaplus.hardening.common.ExprCounts",
-    "kind" : "USES"
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.CoverageFeature",
     "to" : "io.github.tlaplus.hardening.common.ExprEdge",
     "kind" : "USES"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.quality.QualityCell",
-    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "from" : "io.github.tlaplus.hardening.workflow.quality.CoverageFeature",
+    "to" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.EntryReplays",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusInput",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.EntryReplays",
+    "to" : "io.github.tlaplus.hardening.corpus.InputAnalysis",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.EntryReplays",
+    "to" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.EntryReplays",
+    "to" : "io.github.tlaplus.hardening.workflow.quality.CoverageFeature",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityCell",
@@ -12261,16 +12331,16 @@
     "to" : "io.github.tlaplus.hardening.corpus.Ranking",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.QualityCell",
+    "to" : "io.github.tlaplus.hardening.corpus.RankingInput",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.common.Diagnostics",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
-    "to" : "io.github.tlaplus.hardening.common.ExprCounts",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
@@ -12322,7 +12392,7 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
-    "to" : "io.github.tlaplus.hardening.corpus.ReplayedInput",
+    "to" : "io.github.tlaplus.hardening.corpus.RankingInput",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
@@ -12355,7 +12425,11 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.workflow.quality.CoverageFeature",
-    "kind" : "DEPENDS"
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
+    "to" : "io.github.tlaplus.hardening.workflow.quality.EntryReplays",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.workflow.quality.QualityCell",
@@ -12370,11 +12444,11 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
-    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
-    "to" : "io.github.tlaplus.hardening.corpus.Ranking",
+    "to" : "io.github.tlaplus.hardening.corpus.RankingInput",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.SelectionArchive",
@@ -12407,6 +12481,14 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs",
     "to" : "io.github.tlaplus.hardening.signature.IrExprCounts",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs",
+    "to" : "io.github.tlaplus.hardening.signature.TemporalShapes",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs",
@@ -13444,7 +13526,7 @@
   }, {
     "from" : "signature",
     "to" : "common",
-    "typePairs" : 5,
+    "typePairs" : 6,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.signature.IrExprCounts",
@@ -13460,7 +13542,7 @@
   }, {
     "from" : "corpus",
     "to" : "common",
-    "typePairs" : 31,
+    "typePairs" : 33,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.corpus.AggregationInput",
@@ -13468,7 +13550,7 @@
   }, {
     "from" : "corpus",
     "to" : "checker",
-    "typePairs" : 22,
+    "typePairs" : 23,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec",
@@ -13564,7 +13646,7 @@
   }, {
     "from" : "workflow",
     "to" : "common",
-    "typePairs" : 72,
+    "typePairs" : 71,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13572,7 +13654,7 @@
   }, {
     "from" : "workflow",
     "to" : "checker",
-    "typePairs" : 22,
+    "typePairs" : 20,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheFailureDetail",
@@ -13588,7 +13670,7 @@
   }, {
     "from" : "workflow",
     "to" : "signature",
-    "typePairs" : 7,
+    "typePairs" : 8,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.StageGraph",
@@ -13604,7 +13686,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 169,
+    "typePairs" : 175,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

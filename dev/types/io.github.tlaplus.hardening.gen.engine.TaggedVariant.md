@@ -1,6 +1,6 @@
 # `TaggedVariant`
 
-`io.github.tlaplus.hardening.gen.engine` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/gen/engine/IrType.java#L179) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/gen/engine/IrType.java#L179) · module [gen](../modules/gen.md)
 
 A variant type with one of its tags selected, such as the tag whose payload a read extracts.
 

@@ -1,6 +1,6 @@
 # `CorpusInput`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/corpus/CorpusInput.java#L8) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/corpus/CorpusInput.java#L8) · module [corpus](../modules/corpus.md)
 
 The required fields of one encoded corpus input.
 
@@ -41,6 +41,7 @@ classDiagram
   class ParserRouting {
     <<policy>>
   }
+  class EntryReplays
   class EvaluatedExprs
   class GeneratedInputPreparation
   class GraphOutcomes {
@@ -64,6 +65,7 @@ classDiagram
   MetamorphicShrinker ..> CorpusInput : uses
   CheckerRouting ..> CorpusInput : uses
   ParserRouting ..> CorpusInput : uses
+  EntryReplays ..> CorpusInput : uses
   EvaluatedExprs ..> CorpusInput : uses
   GeneratedInputPreparation ..> CorpusInput : uses
   GraphOutcomes ..> CorpusInput : uses
@@ -71,7 +73,7 @@ classDiagram
   StageRouting ..> CorpusInput : uses
 ```
 
-The diagram draws 17 of 33 relations; the table lists them all.
+The diagram draws 18 of 34 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -87,6 +89,7 @@ The diagram draws 17 of 33 relations; the table lists them all.
 | ← | uses | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | ← | uses | [CheckerRouting](io.github.tlaplus.hardening.workflow.checker.CheckerRouting.md) | Routes a model checker's results. |
 | ← | uses | [ParserRouting](io.github.tlaplus.hardening.workflow.parser.ParserRouting.md) | Routes parser results. |
+| ← | uses | [EntryReplays](io.github.tlaplus.hardening.workflow.quality.EntryReplays.md) | What one run of the quality gate learns by replaying its entries: their coverage features (ADR 0013) and the number of distinct temporal shapes of their properties (ADR 0028). |
 | ← | uses | [EvaluatedExprs](io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs.md) | Replays a stored input and counts the expression constructs of the code the checkers evaluate: the definitions reachable from `SpecArtifact.entryPoints`. |
 | ← | uses | [GeneratedInputPreparation](io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation.md) | Regenerates and renders one tool input while preserving generator-crash artifacts. |
 | ← | uses | [GraphOutcomes](io.github.tlaplus.hardening.workflow.spec.GraphOutcomes.md) | Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise. |

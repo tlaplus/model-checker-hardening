@@ -1,10 +1,10 @@
 # `ExpectedOutcomes`
 
-`io.github.tlaplus.hardening.corpus` · interface · contract · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/corpus/ExpectedOutcomes.java#L16) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · interface · contract · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/corpus/ExpectedOutcomes.java#L16) · module [corpus](../modules/corpus.md)
 
 Predicts the outcome of one stored input, typically by replaying it through the generator (ADR 0023 §5).
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

@@ -1457,11 +1457,12 @@ and <code>feedback_ratio</code> against your corpus with the queries in section 
 <li>TLC recorded exploration metrics;</li>
 <li>it matches none of <code>shallow_patterns</code>.</li>
 </ul>
-<p>The gate ranks admissible entries by TLC's exploration metrics, compared in
-this order, higher first:</p>
+<p>The gate ranks admissible entries by TLC's exploration metrics and the temporal
+shapes of their property, compared in this order, higher first:</p>
 <ol>
 <li><code>projectedDepth</code>;</li>
 <li><code>projectedStates</code>, by power of two;</li>
+<li>the number of distinct temporal shapes, by power of two (below);</li>
 <li><code>actionsDiscovering</code>;</li>
 <li><code>maxStateNodes</code>, by power of two;</li>
 <li><code>maxCardinality</code>, by power of two;</li>
@@ -1470,16 +1471,17 @@ this order, higher first:</p>
 <p>Ties go to the shorter input. A <code>gbt</code> corpus ranks by action coverage instead
 (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0024-graph-action-coverage.md">ADR 0024</a>): <code>dataActions</code> by power of
 two, <code>projectedStates</code> by power of two, <code>projectedDepth</code>, then the last three as
-above. Its metrics project out <code>pc</code> as well as <code>step</code>, so they measure the data a
+above, without temporal shapes, since <code>gbt</code> does not check properties. Its metrics project out <code>pc</code> as well as <code>step</code>, so they measure the data a
 graph entry computes rather than the length of its walks.</p>
 <p>The gate walks the admissible entries in this order and keeps an entry while it
 has kept fewer than <code>ceil(select_fraction × agreeing entries of the generation)</code>
 and either of these holds:</p>
 <ul>
 <li><strong>Behaviour.</strong> The entry's <em>cell</em> holds fewer than <code>cell_capacity</code> kept
-  entries. The cell is the TLC verdict together with the six metrics of the
-  corpus's ranking, each compared as in the ranking (states, nodes and
-  cardinality by power of two, and, under action coverage, <code>dataActions</code> too).</li>
+  entries. The cell is the TLC verdict together with the components of the
+  corpus's ranking, each compared as in the ranking (states, temporal shapes,
+  nodes and cardinality by power of two, and, under action coverage,
+  <code>dataActions</code> too).</li>
 <li><strong>Coverage.</strong> <code>feature_coverage</code> is enabled and the entry has a <em>feature</em> that no kept
   entry has.</li>
 </ul>
@@ -1494,11 +1496,21 @@ features are:</p>
 <ul>
 <li>a construct and how often it occurs;</li>
 <li>an <em>edge</em>, meaning a construct and a construct that is its immediate
-  argument (<code>SET_IN → FUN_APP</code>, for example), and how often it occurs.</li>
+  argument (<code>SET_IN → FUN_APP</code>, for example), and how often it occurs;</li>
+<li>a <em>temporal shape</em> of the property, and how often it occurs.</li>
 </ul>
+<p>A temporal shape is a temporal operator (<code>[]</code>, <code>&lt;&gt;</code>, <code>~&gt;</code>, <code>WF_v</code>, <code>SF_v</code>,
+<code>[A]_v</code>, <code>&lt;&lt;A&gt;&gt;_v</code> or <code>ENABLED</code>) whose operand reads a state variable, together
+with the nearest enclosing temporal operator that reads one, or <code>PROPERTY</code> at the
+top. <code>[](&lt;&gt;(x &gt; 0))</code> has the shapes <code>PROPERTY → GLOBALLY</code> and
+<code>GLOBALLY → EVENTUALLY</code>; <code>[](&lt;&gt;TRUE)</code> has none. The shapes come from <code>Prop</code> and
+<code>Fairness</code>, and in a metamorphic module also from <code>PropC</code> and <code>FairnessC</code>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0028-temporal-property-quality.md">ADR 0028</a>).</p>
 <p>Counts are bucketed as in AFL: 1, 2, 3, 4–7, 8–15, 16–31, 32–127, 128 or more.
-The gate computes features by replaying the input through the generator, as
-<code>fuzztla export-db</code> does. An input that fails to replay has no features.</p>
+The gate computes features and temporal shapes by replaying the input through
+the generator, as <code>fuzztla export-db</code> does. A <code>pbt</code> or <code>mt</code> corpus replays every
+admissible entry and the pool in each generation, since the ranking reads the
+shapes. An input that fails to replay has no features and no shapes.</p>
 <p>An <code>expr</code> corpus is always shallow: its module has no transitions. To exercise
 mutation on one, set <code>shallow_patterns = []</code>.</p>
 <h2 id="4-mutation-operators">4. Mutation operators<a class="headerlink" href="#4-mutation-operators" title="Permanent link">&para;</a></h2>

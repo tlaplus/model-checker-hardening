@@ -1,6 +1,6 @@
 # `ProgressChanges`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/cli/ProgressChanges.java#L8) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/cli/ProgressChanges.java#L8) · module [cli](../modules/cli.md)
 
 Tracks changes and their direction for one refresh interval, using a caller-supplied monotonic clock.
 
