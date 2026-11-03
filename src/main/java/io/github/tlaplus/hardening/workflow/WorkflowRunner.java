@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.corpus.CheckingPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusEntryValidator;
+import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
@@ -24,6 +25,7 @@ import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
 import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
@@ -183,7 +185,8 @@ public final class WorkflowRunner {
                         progressListener)) {
             var stopReason = generations.run();
             phase.set(WorkflowProgress.Phase.FINALIZING);
-            var result = invocation.corpus().recoverAndValidate(entryValidator());
+            // This run decoded every entry it admitted, so the final pass need not decode them again.
+            var result = invocation.corpus().recoverAndValidate(WorkflowRunner::requireGeneration);
             var finalSummaries = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
             for (var stage : CorpusStage.values()) {
                 finalSummaries.put(stage, StageGraph.summary(result, stage, metrics));
@@ -222,9 +225,7 @@ public final class WorkflowRunner {
      */
     private CorpusEntryValidator entryValidator() {
         return (entry, envelope) -> {
-            if (envelope.generation().filter(metadata -> metadata.generation().isPresent()).isEmpty()) {
-                throw new CorpusException("corpus entry records no generation: " + entry);
-            }
+            requireGeneration(entry, envelope);
             try {
                 setup.decoders().decode(envelope.corpusInput());
             } catch (InputRejectedException exception) {
@@ -236,6 +237,13 @@ public final class WorkflowRunner {
                         exception);
             }
         };
+    }
+
+    /** Requires an entry to record the generation that admitted it (ADR 0010). */
+    private static void requireGeneration(Path entry, CorpusEnvelope envelope) throws CorpusException {
+        if (envelope.generation().filter(metadata -> metadata.generation().isPresent()).isEmpty()) {
+            throw new CorpusException("corpus entry records no generation: " + entry);
+        }
     }
 
     private record StageRunResult(

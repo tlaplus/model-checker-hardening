@@ -81,7 +81,9 @@ than one before its latest stops the run: the loop admits at most one generation
 ahead, so nothing older can have been left open. A generation that is merely
 short of `generation_size` does not, since raising `generation_size` between runs
 makes every finished generation look short. A final validation runs after the
-workers stop. The progress
+workers stop. It checks each entry's digest, envelope and generation but does not
+decode the payload again: the run decoded every entry it admitted, and startup
+validation already decoded the rest. The progress
 display names the oldest ungated generation.
 
 **Implemented architectural extension.** Admission ends with the known-defect
