@@ -1,11 +1,13 @@
 package io.github.tlaplus.hardening.workflow.quality;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.ExplorationCount;
 import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.corpus.Ranking;
+import io.github.tlaplus.hardening.corpus.RankingInput;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -14,26 +16,29 @@ class QualityKeyTest {
     void pinsTheComponentOrderOfAdr0010() {
         assertEquals(
                 List.of(
-                        ExplorationCount.PROJECTED_DEPTH,
-                        ExplorationCount.PROJECTED_STATES,
-                        ExplorationCount.ACTIONS_DISCOVERING,
-                        ExplorationCount.MAX_STATE_NODES,
-                        ExplorationCount.MAX_CARDINALITY,
-                        ExplorationCount.MAX_NESTING),
-                Ranking.DEPTH.components().stream().map(Ranking.Component::count).toList());
+                        exploration(ExplorationCount.PROJECTED_DEPTH),
+                        exploration(ExplorationCount.PROJECTED_STATES),
+                        Ranking.Measure.Replayed.TEMPORAL_SHAPES,
+                        exploration(ExplorationCount.ACTIONS_DISCOVERING),
+                        exploration(ExplorationCount.MAX_STATE_NODES),
+                        exploration(ExplorationCount.MAX_CARDINALITY),
+                        exploration(ExplorationCount.MAX_NESTING)),
+                Ranking.DEPTH.components().stream().map(Ranking.Component::measure).toList());
+        assertTrue(Ranking.DEPTH.replays());
     }
 
     @Test
     void pinsTheComponentOrderOfAdr0024() {
         assertEquals(
                 List.of(
-                        ExplorationCount.DATA_ACTIONS,
-                        ExplorationCount.PROJECTED_STATES,
-                        ExplorationCount.PROJECTED_DEPTH,
-                        ExplorationCount.MAX_STATE_NODES,
-                        ExplorationCount.MAX_CARDINALITY,
-                        ExplorationCount.MAX_NESTING),
-                Ranking.ACTION_COVERAGE.components().stream().map(Ranking.Component::count).toList());
+                        exploration(ExplorationCount.DATA_ACTIONS),
+                        exploration(ExplorationCount.PROJECTED_STATES),
+                        exploration(ExplorationCount.PROJECTED_DEPTH),
+                        exploration(ExplorationCount.MAX_STATE_NODES),
+                        exploration(ExplorationCount.MAX_CARDINALITY),
+                        exploration(ExplorationCount.MAX_NESTING)),
+                Ranking.ACTION_COVERAGE.components().stream().map(Ranking.Component::measure).toList());
+        assertFalse(Ranking.ACTION_COVERAGE.replays());
         assertEquals(Ranking.Scale.LOG2, Ranking.ACTION_COVERAGE.components().getFirst().scale());
     }
 
@@ -77,6 +82,23 @@ class QualityKeyTest {
         assertTrue(QualityKey.bestFirst(Ranking.DEPTH).compare(moreActions, moreStates) < 0);
     }
 
+    /** ADR 0028 §3: temporal shapes decide after the explored states, before discovering actions. */
+    @Test
+    void ranksTemporalShapesAfterStatesAndBeforeActions() {
+        var depth = Ranking.DEPTH;
+        var richProperty = ranked(metrics(2, 5, 1), 2, 10, "b");
+        var moreActions = ranked(metrics(2, 5, 3), 0, 10, "a");
+        assertTrue(QualityKey.bestFirst(depth).compare(richProperty, moreActions) < 0);
+        var deeper = ranked(metrics(3, 5, 1), 0, 10, "c");
+        assertTrue(QualityKey.bestFirst(depth).compare(deeper, richProperty) < 0, "depth still comes first");
+        // 6 and 3 shapes share bucket 2, so more discovering actions win.
+        var sixShapes = ranked(metrics(2, 5, 1), 6, 10, "d");
+        var threeShapesMoreActions = ranked(metrics(2, 5, 3), 3, 10, "e");
+        assertTrue(QualityKey.bestFirst(depth).compare(threeShapesMoreActions, sixShapes) < 0);
+        assertTrue(QualityKey.bestFirst(Ranking.ACTION_COVERAGE).compare(moreActions, richProperty) < 0,
+                "action coverage ignores the shapes");
+    }
+
     @Test
     void breaksTiesByShorterInputThenDigestAndTreatsAnAbsentCountAsZero() {
         var shorter = ranked(metrics(1, 1, 1), 4, "z");
@@ -98,7 +120,16 @@ class QualityKeyTest {
     }
 
     private static QualityKey.Ranked ranked(ExplorationMetrics metrics, int inputBytes, String digest) {
-        return new QualityKey.Ranked(metrics, inputBytes, digest);
+        return ranked(metrics, 0, inputBytes, digest);
+    }
+
+    private static QualityKey.Ranked ranked(
+            ExplorationMetrics metrics, long temporalShapes, int inputBytes, String digest) {
+        return new QualityKey.Ranked(new RankingInput(metrics, temporalShapes), inputBytes, digest);
+    }
+
+    private static Ranking.Measure exploration(ExplorationCount count) {
+        return new Ranking.Measure.Exploration(count);
     }
 
     private static ExplorationMetrics metrics(long depth, long states, long actions) {

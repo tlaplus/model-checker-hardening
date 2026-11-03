@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.InputAnalysis;
 import io.github.tlaplus.hardening.corpus.Ranking;
+import io.github.tlaplus.hardening.corpus.RankingInput;
 import io.github.tlaplus.hardening.corpus.StageMetadata;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.corpus.StoredEntry;
@@ -57,8 +58,8 @@ public final class QualityGate {
     private final Ranking ranking;
 
     /**
-     * @param analysis replays an input into the counts its coverage features derive from; called
-     *     only when cells are bounded and feature coverage is enabled
+     * @param analysis replays an input into its coverage features and temporal shapes; called only
+     *     when the archive uses coverage features or the ranking reads temporal shapes
      * @param ranking how the gate ranks the entries and forms their cells: the ranking of the
      *     corpus's technique
      */
@@ -80,18 +81,19 @@ public final class QualityGate {
         counters.elapsed().start();
         try {
             var archive = new SelectionArchive(config);
+            var replays = new EntryReplays(analysis, archive.usesCoverage(), ranking.replays());
             var passed = new ArrayList<Candidate>();
             for (var entry : entries(CorpusStage.QUALITY, CorpusVerdict.PASS)) {
                 var recorded = generationOf(entry);
                 if (recorded < generation) {
-                    archive.keep(entry.cell(ranking), features(archive, entry));
+                    archive.keep(entry.cell(ranking, replays), entry.features(replays));
                 } else if (recorded == generation) {
                     passed.add(entry);
                 }
             }
             var failed = inGeneration(entries(CorpusStage.QUALITY, CorpusVerdict.FAIL), generation).size();
             var limit = selected(pending.size() + passed.size() + failed);
-            var kept = select(archive, passed, pending, limit);
+            var kept = select(archive, replays, passed, pending, limit);
             for (var entry : kept) {
                 complete(entry, CorpusVerdict.PASS);
             }
@@ -111,11 +113,11 @@ public final class QualityGate {
      * pending entries to keep. The committed passes are a prefix of the passes, so once {@code
      * limit} entries are kept, none remains.
      */
-    private List<Candidate> select(
-            SelectionArchive archive, List<Candidate> committed, List<Candidate> pending, long limit) {
+    private List<Candidate> select(SelectionArchive archive, EntryReplays replays,
+            List<Candidate> committed, List<Candidate> pending, long limit) {
         var committedSet = Set.copyOf(committed);
         var ranked = Stream.concat(committed.stream(), pending.stream().filter(this::admissible))
-                .sorted(Comparator.comparing(Candidate::ranked, QualityKey.bestFirst(ranking)))
+                .sorted(Comparator.comparing(entry -> entry.ranked(replays), QualityKey.bestFirst(ranking)))
                 .toList();
         var kept = new ArrayList<Candidate>();
         var keptCount = 0L;
@@ -123,9 +125,9 @@ public final class QualityGate {
             if (keptCount >= limit) {
                 break;
             }
-            var features = features(archive, entry);
+            var features = entry.features(replays);
             var isCommitted = committedSet.contains(entry);
-            var cell = entry.cell(ranking);
+            var cell = entry.cell(ranking, replays);
             if (isCommitted || archive.admits(cell, features)) {
                 archive.keep(cell, features);
                 keptCount++;
@@ -150,21 +152,6 @@ public final class QualityGate {
         return tlc.verdict() != CorpusVerdict.FAIL
                 && tlc.metrics().isPresent()
                 && config.shallowPatterns().stream().noneMatch(pattern -> pattern.matches(tlc.record()));
-    }
-
-    /**
-     * Returns the coverage features of an entry when the archive uses them, and none otherwise. An
-     * input that fails to replay has none.
-     */
-    private Set<CoverageFeature> features(SelectionArchive archive, Candidate candidate) {
-        if (!archive.usesCoverage()) {
-            return Set.of();
-        }
-        try {
-            return CoverageFeature.of(analysis.analyze(candidate.envelope().corpusInput()).counts());
-        } catch (RuntimeException | StackOverflowError failure) {
-            return Set.of();
-        }
     }
 
     private void complete(Candidate candidate, CorpusVerdict verdict) throws IOException, CorpusException {
@@ -227,12 +214,21 @@ public final class QualityGate {
             return envelope.stage(CorpusStage.TLC).orElseThrow();
         }
 
-        QualityCell cell(Ranking ranking) {
-            return QualityCell.of(tlc().verdict(), tlc().metrics().orElseThrow(), ranking);
+        QualityCell cell(Ranking ranking, EntryReplays replays) {
+            return QualityCell.of(tlc().verdict(), rankingInput(replays), ranking);
         }
 
-        QualityKey.Ranked ranked() {
-            return new QualityKey.Ranked(tlc().metrics().orElseThrow(), inputBytes, stored.digest());
+        QualityKey.Ranked ranked(EntryReplays replays) {
+            return new QualityKey.Ranked(rankingInput(replays), inputBytes, stored.digest());
+        }
+
+        Set<CoverageFeature> features(EntryReplays replays) {
+            return replays.features(stored.digest(), envelope.corpusInput());
+        }
+
+        private RankingInput rankingInput(EntryReplays replays) {
+            return new RankingInput(
+                    tlc().metrics().orElseThrow(), replays.temporalShapes(stored.digest(), envelope.corpusInput()));
         }
     }
 }

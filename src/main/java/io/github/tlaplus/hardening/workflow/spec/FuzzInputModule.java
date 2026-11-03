@@ -105,6 +105,12 @@ public final class FuzzInputModule {
     /** The checked side's property. */
     public static final String PROP_C = "PropC";
 
+    /**
+     * The property and fairness definitions of both sides, whose temporal shapes the quality gate
+     * rewards (ADR 0028). A module without property runs defines only the explored side's.
+     */
+    public static final List<String> PROPERTY_DEFINITIONS = List.of(PROP, FAIRNESS, PROP_C, FAIRNESS_C);
+
     /** Returns the specification that a checker invocation of {@code side} explores. */
     public static String specification(CheckKind.Side side) {
         return switch (Objects.requireNonNull(side, "side")) {

@@ -1,14 +1,15 @@
 package io.github.tlaplus.hardening.workflow.quality;
 
-import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.common.ExprEdge;
+import io.github.tlaplus.hardening.corpus.ReplayedInput;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * One operator-coverage feature of an entry's evaluated code (ADR 0013): a construct or an edge
- * between constructs, with the hit-count bucket of its occurrences.
+ * One coverage feature of an entry, with the hit-count bucket of its occurrences: a construct or an
+ * edge between constructs of its evaluated code (ADR 0013), or a temporal shape of its property
+ * (ADR 0028 §3).
  */
 sealed interface CoverageFeature {
     record Construct(String name, int bucket) implements CoverageFeature {
@@ -23,11 +24,21 @@ sealed interface CoverageFeature {
         }
     }
 
-    /** Returns the features of the counted code. */
-    static Set<CoverageFeature> of(ExprCounts counts) {
+    /** A temporal shape: an edge between temporal operators that read the state. */
+    record TemporalShape(ExprEdge shape, int bucket) implements CoverageFeature {
+        public TemporalShape {
+            Objects.requireNonNull(shape, "shape");
+        }
+    }
+
+    /** Returns the features of a replayed input. */
+    static Set<CoverageFeature> of(ReplayedInput replayed) {
         var features = new HashSet<CoverageFeature>();
+        var counts = replayed.counts();
         counts.exprs().forEach((name, occurrences) -> features.add(new Construct(name, bucket(occurrences))));
         counts.edges().forEach((edge, occurrences) -> features.add(new Edge(edge, bucket(occurrences))));
+        replayed.temporalShapes().forEach((shape, occurrences) ->
+                features.add(new TemporalShape(shape, bucket(occurrences))));
         return Set.copyOf(features);
     }
 
