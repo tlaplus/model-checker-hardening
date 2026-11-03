@@ -1,6 +1,6 @@
 # `WeightedSlices`
 
-`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4feb6f8e880d1e15ce9ef20c65ab53a237bd330d/src/main/java/io/github/tlaplus/hardening/gen/engine/WeightedSlices.java#L18) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/gen/engine/WeightedSlices.java#L18) · module [gen](../modules/gen.md)
 
 Divides the remaining bytes of a cursor into contiguous slices of proportional length.
 

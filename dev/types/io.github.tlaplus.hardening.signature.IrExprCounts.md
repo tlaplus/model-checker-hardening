@@ -1,6 +1,6 @@
 # `IrExprCounts`
 
-`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4feb6f8e880d1e15ce9ef20c65ab53a237bd330d/src/main/java/io/github/tlaplus/hardening/signature/IrExprCounts.java#L27) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/7b97336d8ec341ec48f89de4a368b6a488a145ac/src/main/java/io/github/tlaplus/hardening/signature/IrExprCounts.java#L27) · module [signature](../modules/signature.md)
 
 Counts the size and constructs of the code the tools evaluate, over the walk that signatures match against.
 

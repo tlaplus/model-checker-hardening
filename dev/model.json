@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "4feb6f8e880d1e15ce9ef20c65ab53a237bd330d"
+    "commit" : "7b97336d8ec341ec48f89de4a368b6a488a145ac"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -1911,7 +1911,7 @@
     "key" : true,
     "summary" : "Settings for generated TLA+ expressions and modules.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/IrGenerationConfig.java",
-    "line" : 29,
+    "line" : 30,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.IrGenerators",
@@ -7324,6 +7324,10 @@
     "from" : "io.github.tlaplus.hardening.gen.IrGenerationConfig",
     "to" : "io.github.tlaplus.hardening.gen.ModuleLimits",
     "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.IrGenerationConfig",
+    "to" : "io.github.tlaplus.hardening.gen.engine.BooleanExpressionKind",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.IrGenerationConfig",
     "to" : "io.github.tlaplus.hardening.gen.engine.CustomExpressionKind",
