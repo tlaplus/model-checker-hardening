@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.tlaplus.hardening.gen.engine.BooleanExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.SetExpressionKind;
@@ -24,7 +25,10 @@ class IrGenerationConfigTest {
                         new ExpressionLimits(3, 32, 128, new CollectionLimits(8, 3, 4, 64), 32, new IntegerLimits(16, 1, 4, IntegerLiteralMode.BOUNDARY)),
                         new ModuleLimits(3, 2, new ActionLimits(2, 3, 2, 3), 5, 2),
                         Set.of(ExpressionCategory.UNBOUND, ExpressionCategory.EXOTIC),
-                        Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16), OperatorLibrary.empty()),
+                        Map.of(GeneralExpressionKind.NAME, 8, SetExpressionKind.ENUM_SET, 16,
+                                BooleanExpressionKind.ALWAYS, 16, BooleanExpressionKind.EVENTUALLY, 16,
+                                BooleanExpressionKind.LEADS_TO, 16),
+                        OperatorLibrary.empty()),
                 IrGenerationConfig.defaults());
     }
 

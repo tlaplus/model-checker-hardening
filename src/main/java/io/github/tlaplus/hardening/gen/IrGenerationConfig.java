@@ -3,6 +3,7 @@ package io.github.tlaplus.hardening.gen;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
+import io.github.tlaplus.hardening.gen.engine.BooleanExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.ExpressionKind;
 import io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind;
@@ -53,10 +54,17 @@ public record IrGenerationConfig(
      * 1168 per 20000 admitted inputs, while the same sweep over the name weight barely moved it.
      * A weighted terminal measured slightly worse than none, because it crowds out the literals
      * that would otherwise be the other side of a comparison.
+     *
+     * <p>The temporal forms {@code []}, {@code <>} and {@code ~>} apply only at the temporal level,
+     * so their weights change property formulas alone. At 16, the share of decoded module inputs
+     * whose property applies a temporal operator to the state rose from 11.8% to 25.9% (ADR 0028).
      */
     private static final Map<ExpressionKind, Integer> DEFAULT_FORM_WEIGHTS = Map.of(
             GeneralExpressionKind.NAME, 8,
-            SetExpressionKind.ENUM_SET, 16);
+            SetExpressionKind.ENUM_SET, 16,
+            BooleanExpressionKind.ALWAYS, 16,
+            BooleanExpressionKind.EVENTUALLY, 16,
+            BooleanExpressionKind.LEADS_TO, 16);
 
     public IrGenerationConfig {
         Objects.requireNonNull(expressions, "expressions");

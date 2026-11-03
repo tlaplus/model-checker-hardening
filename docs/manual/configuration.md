@@ -50,7 +50,7 @@ A corpus initialized before the table existed needs one, for example
 | `max_steps` | `5` | Steps from an initial state. A step counter guards `Next`, so the state space is finite. |
 | `max_fairness` | `2` | Maximum weak and strong fairness conditions ([Actions and temporal properties](temporal-properties.md)). |
 | `ignore` | `["unbound", "exotic"]` | Categories of expressions not to generate (below). |
-| `weights` | `{ name = 8, enum_set = 16 }` | Relative frequency of expression forms (below). |
+| `weights` | `{ name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }` | Relative frequency of expression forms (below). |
 | `classpath`, `custom_operators` | `[]` | Operator libraries to generate calls to ([Custom operators](custom-operators.md)). |
 
 ### Excluding categories
