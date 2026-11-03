@@ -1,7 +1,6 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.checker.ExplorationCount;
-import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Role;
 import java.util.List;
@@ -15,10 +14,14 @@ import java.util.function.LongUnaryOperator;
  */
 @ArchRole(Role.POLICY)
 public enum Ranking {
-    /** Depth of state change first (ADR 0010). */
+    /**
+     * Depth of state change first (ADR 0010), then the data valuations, then the temporal shapes of
+     * the property (ADR 0028 §3).
+     */
     DEPTH(List.of(
             new Component(ExplorationCount.PROJECTED_DEPTH, Scale.LINEAR),
             new Component(ExplorationCount.PROJECTED_STATES, Scale.LOG2),
+            new Component(Measure.Replayed.TEMPORAL_SHAPES, Scale.LOG2),
             new Component(ExplorationCount.ACTIONS_DISCOVERING, Scale.LINEAR),
             new Component(ExplorationCount.MAX_STATE_NODES, Scale.LOG2),
             new Component(ExplorationCount.MAX_CARDINALITY, Scale.LOG2),
@@ -53,15 +56,57 @@ public enum Ranking {
         }
     }
 
-    /** One component of the key: a count and how it is compared. A count not measured is 0. */
-    public record Component(ExplorationCount count, Scale scale) {
+    /** What one component of the key counts. */
+    public sealed interface Measure {
+        long count(RankingInput input);
+
+        /** Whether the count comes from replaying the input rather than from TLC's metrics. */
+        default boolean replayed() {
+            return false;
+        }
+
+        /** One of TLC's exploration metrics. A count TLC did not measure is 0. */
+        record Exploration(ExplorationCount count) implements Measure {
+            public Exploration {
+                Objects.requireNonNull(count, "count");
+            }
+
+            @Override
+            public long count(RankingInput input) {
+                return input.metrics().count(count).orElse(0);
+            }
+        }
+
+        /** A count that replaying the input yields. */
+        enum Replayed implements Measure {
+            /** The distinct temporal shapes of the property (ADR 0028 §2). */
+            TEMPORAL_SHAPES;
+
+            @Override
+            public long count(RankingInput input) {
+                return input.temporalShapes();
+            }
+
+            @Override
+            public boolean replayed() {
+                return true;
+            }
+        }
+    }
+
+    /** One component of the key: a count and how it is compared. */
+    public record Component(Measure measure, Scale scale) {
         public Component {
-            Objects.requireNonNull(count, "count");
+            Objects.requireNonNull(measure, "measure");
             Objects.requireNonNull(scale, "scale");
         }
 
-        public long value(ExplorationMetrics metrics) {
-            return scale.bucket(metrics.count(count).orElse(0));
+        Component(ExplorationCount count, Scale scale) {
+            this(new Measure.Exploration(count), scale);
+        }
+
+        public long value(RankingInput input) {
+            return scale.bucket(measure.count(input));
         }
     }
 
@@ -76,9 +121,14 @@ public enum Ranking {
         return components;
     }
 
+    /** Returns whether a component counts something that only replaying the input yields. */
+    public boolean replays() {
+        return components.stream().anyMatch(component -> component.measure().replayed());
+    }
+
     /** Returns the value of every component of the key, in comparison order. */
-    public List<Long> values(ExplorationMetrics metrics) {
-        Objects.requireNonNull(metrics, "metrics");
-        return components.stream().map(component -> component.value(metrics)).toList();
+    public List<Long> values(RankingInput input) {
+        Objects.requireNonNull(input, "input");
+        return components.stream().map(component -> component.value(input)).toList();
     }
 }

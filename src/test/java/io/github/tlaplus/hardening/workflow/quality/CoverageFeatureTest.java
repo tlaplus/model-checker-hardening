@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.tlaplus.hardening.common.ExprCounts;
 import io.github.tlaplus.hardening.common.ExprEdge;
+import io.github.tlaplus.hardening.corpus.ReplayedInput;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -22,17 +24,19 @@ class CoverageFeatureTest {
     }
 
     @Test
-    void hasOneFeaturePerConstructAndPerEdge() {
+    void hasOneFeaturePerConstructEdgeAndTemporalShape() {
         var counts = new ExprCounts(
                 7,
                 new TreeMap<>(Map.of("EQ", 1L, "TlaInt", 5L)),
                 new TreeMap<>(Map.of(new ExprEdge("EQ", "TlaInt"), 2L)));
+        var shapes = new TreeMap<>(Map.of(new ExprEdge("GLOBALLY", "EVENTUALLY"), 1L));
 
         assertEquals(
                 Set.of(
                         new CoverageFeature.Construct("EQ", 1),
                         new CoverageFeature.Construct("TlaInt", 4),
-                        new CoverageFeature.Edge(new ExprEdge("EQ", "TlaInt"), 2)),
-                CoverageFeature.of(counts));
+                        new CoverageFeature.Edge(new ExprEdge("EQ", "TlaInt"), 2),
+                        new CoverageFeature.TemporalShape(new ExprEdge("GLOBALLY", "EVENTUALLY"), 1)),
+                CoverageFeature.of(new ReplayedInput(counts, shapes, List.of())));
     }
 }

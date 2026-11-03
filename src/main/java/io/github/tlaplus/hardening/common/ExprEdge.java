@@ -6,7 +6,8 @@ import java.util.Objects;
 /**
  * An edge of an expression tree between two constructs: {@code parent} applied to, or binding, an
  * immediate subexpression that is the construct {@code child}. Both are construct names as in
- * {@link ExprCounts#exprs()}.
+ * {@link ExprCounts#exprs()}. A temporal shape (ADR 0028) is also an edge, between temporal
+ * operators, whose {@code parent} may instead be {@code PROPERTY}, the top of a property.
  */
 public record ExprEdge(String parent, String child) implements Comparable<ExprEdge> {
     private static final Comparator<ExprEdge> ORDER =

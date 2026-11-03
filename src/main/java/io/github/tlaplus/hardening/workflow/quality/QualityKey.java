@@ -1,10 +1,10 @@
 package io.github.tlaplus.hardening.workflow.quality;
 
-import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.Ranking;
+import io.github.tlaplus.hardening.corpus.RankingInput;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -19,10 +19,10 @@ import java.util.Objects;
 @ArchRole(Role.POLICY)
 @Key
 final class QualityKey {
-    /** What the key ranks: an entry's TLC metrics, its input length and its digest. */
-    record Ranked(ExplorationMetrics metrics, int inputBytes, String digest) {
+    /** What the key ranks: what the ranking reads of an entry, its input length and its digest. */
+    record Ranked(RankingInput input, int inputBytes, String digest) {
         Ranked {
-            Objects.requireNonNull(metrics, "metrics");
+            Objects.requireNonNull(input, "input");
             Objects.requireNonNull(digest, "digest");
         }
     }
@@ -35,7 +35,7 @@ final class QualityKey {
         Comparator<Ranked> order = (left, right) -> 0;
         for (var component : ranking.components()) {
             order = order.thenComparing(Comparator.comparingLong(
-                    (Ranked ranked) -> component.value(ranked.metrics())).reversed());
+                    (Ranked ranked) -> component.value(ranked.input())).reversed());
         }
         return order.thenComparingInt(Ranked::inputBytes).thenComparing(Ranked::digest);
     }

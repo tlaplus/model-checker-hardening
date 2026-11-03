@@ -127,6 +127,10 @@ gate ranks the admissible entries by the key
  bucket(maxStateNodes), bucket(maxCardinality), maxNesting)
 ```
 
+*Amended by [ADR 0028](0028-temporal-property-quality.md) §3: for `pbt` and `mt`
+corpora, the number of distinct temporal shapes of the property, by power of two,
+follows `bucket(projectedStates)`.*
+
 compared lexicographically, higher first, ties broken by smaller `inputBytes`
 and then by digest, so the order is total. It keeps the best
 `k = ceil(select_fraction × |input|)` admissible entries in `04quality-pass`.

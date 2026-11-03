@@ -68,6 +68,10 @@ its bucket:
 `[mutator] cell_capacity` bounds how many pool entries one cell holds. `0`
 disables the bound, which is the behaviour of ADR 0010.
 
+*Amended by [ADR 0028](0028-temporal-property-quality.md) §3: for `pbt` and `mt`
+corpora, the cell also holds the bucket of the number of distinct temporal shapes,
+and an entry has a third kind of feature, `(temporal shape, bucket(n))`.*
+
 ### Operator-edge coverage
 
 The *constructs* of an entry are those of the corpus database's `expr` table:
