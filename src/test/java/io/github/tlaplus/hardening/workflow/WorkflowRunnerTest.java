@@ -62,6 +62,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -389,6 +390,30 @@ class WorkflowRunnerTest {
         assertEquals(second.totalElapsed().toNanos(), saved.totalElapsedNanos());
         assertEquals(second.stage(CorpusStage.PARSER).elapsed().toNanos(), saved.stageElapsedNanos(CorpusStage.PARSER));
         assertTrue(Files.isRegularFile(corpus.resolve(CorpusPath.WORKFLOW_STATISTICS)));
+    }
+
+    @Test
+    void finalValidationDoesNotDecodeEntriesAgain(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var config = config(1, 1, 1, 0);
+        var expression = new TlaTypedScopeUncheckedBuilder()
+                .name("missing", TlaTypes.BOOL);
+        var decodes = new AtomicInteger();
+        Generator<TlaEx> counting = _ -> {
+            decodes.incrementAndGet();
+            return expression;
+        };
+        var input = new byte[] {1};
+        corpus.store(InputKind.EXPRESSION, input, ADMITTED);
+        corpus.completeParser(
+                corpus.inputPath(input),
+                new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
+
+        var summary = runner(config, counting).run(corpus, RunMode.CONTINUE, 1);
+
+        // The corpus is full and settled, so only startup validation decodes the entry.
+        assertEquals(1, summary.corpus().totalEntries());
+        assertEquals(1, decodes.get());
     }
 
     @Test
