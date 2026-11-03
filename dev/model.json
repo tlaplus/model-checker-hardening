@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "dffbe46e47e389e21aea3743d4657df794d7bbc7"
+    "commit" : "42db61d5d40ed26cac733c168205f8f2a65d2211"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -3257,7 +3257,7 @@
     "key" : true,
     "summary" : "Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunner.java",
-    "line" : 43,
+    "line" : 45,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage",

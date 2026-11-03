@@ -1,6 +1,6 @@
 # `ExplorationCount`
 
-`io.github.tlaplus.hardening.checker` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dffbe46e47e389e21aea3743d4657df794d7bbc7/src/main/java/io/github/tlaplus/hardening/checker/ExplorationCount.java#L9) · module [checker](../modules/checker.md)
+`io.github.tlaplus.hardening.checker` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/42db61d5d40ed26cac733c168205f8f2a65d2211/src/main/java/io/github/tlaplus/hardening/checker/ExplorationCount.java#L9) · module [checker](../modules/checker.md)
 
 A counted exploration metric.
 

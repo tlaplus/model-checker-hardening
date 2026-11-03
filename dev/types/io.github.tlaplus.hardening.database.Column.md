@@ -1,6 +1,6 @@
 # `Column`
 
-`io.github.tlaplus.hardening.database` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dffbe46e47e389e21aea3743d4657df794d7bbc7/src/main/java/io/github/tlaplus/hardening/database/Column.java#L6) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/42db61d5d40ed26cac733c168205f8f2a65d2211/src/main/java/io/github/tlaplus/hardening/database/Column.java#L6) · module [database](../modules/database.md)
 
 A column of a database table.
 
