@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.IrGenerators;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
@@ -70,7 +71,9 @@ class GeneratedNestedActionShapesTest {
             throws Exception {
         // One state variable makes every action operator's effect the whole state, so the shape's
         // CALL kind can apply one wherever it is drawn.
+        // The shape is in Next; a temporal property would hit apalache-temporal-001 instead.
         var config = IrGenerationConfig.defaults()
+                .ignoring(ExpressionCategory.TEMPORAL)
                 .withModuleLimits(new ModuleLimits(1, 0, new ActionLimits(3, 3, 0, 3), 5, 2));
         var samples = GeneratedSpecSamples.collect(config, 0xA9701CL, 6000, 6, spec -> {
             var names = actionOperators(spec).stream()
