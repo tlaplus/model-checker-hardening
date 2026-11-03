@@ -1,6 +1,6 @@
 # `GeneratorLimitSchema`
 
-`io.github.tlaplus.hardening.config` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/42db61d5d40ed26cac733c168205f8f2a65d2211/src/main/java/io/github/tlaplus/hardening/config/GeneratorLimitSchema.java#L14) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4feb6f8e880d1e15ce9ef20c65ab53a237bd330d/src/main/java/io/github/tlaplus/hardening/config/GeneratorLimitSchema.java#L14) · module [config](../modules/config.md)
 
 Declares and assembles the expression and module limit keys in the generator table.
 

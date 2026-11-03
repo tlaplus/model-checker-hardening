@@ -1,6 +1,6 @@
 # `ToolInput`
 
-`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/42db61d5d40ed26cac733c168205f8f2a65d2211/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolInput.java#L18) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4feb6f8e880d1e15ce9ef20c65ab53a237bd330d/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolInput.java#L18) · module [workflow](../modules/workflow.md)
 
 One rendered specification and what the receiving checker is asked about it.
 

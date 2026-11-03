@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "42db61d5d40ed26cac733c168205f8f2a65d2211"
+    "commit" : "4feb6f8e880d1e15ce9ef20c65ab53a237bd330d"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -111,6 +111,10 @@
     "number" : "0027",
     "title" : "Metamorphic testing of temporal properties",
     "path" : "docs/decisions/0027-temporal-metamorphic-testing.md"
+  }, {
+    "number" : "0028",
+    "title" : "Temporal properties that read the state",
+    "path" : "docs/decisions/0028-temporal-property-quality.md"
   } ],
   "modules" : [ {
     "name" : "common",
