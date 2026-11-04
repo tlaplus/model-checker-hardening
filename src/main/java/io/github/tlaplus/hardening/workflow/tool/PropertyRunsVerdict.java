@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.workflow.tlc;
+package io.github.tlaplus.hardening.workflow.tool;
 
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
@@ -9,8 +9,8 @@ import java.util.Objects;
 
 /**
  * Folds the relation run of a metamorphic module and its two property runs into the one outcome
- * of the TLC stage (ADR 0027 §4). If the rules are sound, {@code SpecE ⊨ PropE} and {@code SpecC ⊨
- * PropC} reach the same verdict, whether the base property holds or not:
+ * of a checker stage (ADR 0027 §4, ADR 0029 §1). If the rules are sound, {@code SpecE ⊨ PropE}
+ * and {@code SpecC ⊨ PropC} reach the same verdict, whether the base property holds or not:
  *
  * <ul>
  *   <li>a counterexample of the relation run is the outcome, and no property run starts;
@@ -23,16 +23,16 @@ import java.util.Objects;
  * <p>The checked side runs only once the explored side decided. Exploration metrics are always the
  * relation run's, which explores the module the quality gate ranks.
  */
-final class PropertyRunsVerdict {
+public final class PropertyRunsVerdict {
     /** Starts one property run of the module. */
     @FunctionalInterface
-    interface PropertyRun {
+    public interface PropertyRun {
         ToolResult run(CheckKind kind) throws WorkflowException, InterruptedException;
     }
 
     private PropertyRunsVerdict() {}
 
-    static ToolResult fold(ToolResult relation, PropertyRun runs) throws WorkflowException, InterruptedException {
+    public static ToolResult fold(ToolResult relation, PropertyRun runs) throws WorkflowException, InterruptedException {
         Objects.requireNonNull(relation, "relation");
         Objects.requireNonNull(runs, "runs");
         if (relation.outcome() == StageOutcome.COUNTEREXAMPLE) {
@@ -87,6 +87,7 @@ final class PropertyRunsVerdict {
 
     /** Names a property run by the entry points it checks, as {@code SpecC |= PropC}. */
     private static String run(CheckKind kind) {
-        return FuzzInputModule.specification(kind.side()) + " |= " + FuzzInputModule.property(kind.side());
+        var side = FuzzInputModule.entryPoints(kind.side());
+        return side.specification() + " |= " + side.property();
     }
 }

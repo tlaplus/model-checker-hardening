@@ -41,12 +41,12 @@ public final class TlcConfiguration {
     static String text(CheckRequest request) {
         var kind = request.kind();
         var text = new StringBuilder()
-                .append("SPECIFICATION ").append(FuzzInputModule.specification(kind.side())).append('\n');
+                .append("SPECIFICATION ").append(FuzzInputModule.entryPoints(kind.side()).specification()).append('\n');
         if (kind.invariant()) {
             text.append("INVARIANT ").append(FuzzInputModule.INV).append('\n');
         }
         if (kind.property()) {
-            text.append("PROPERTY ").append(FuzzInputModule.property(kind.side())).append('\n');
+            text.append("PROPERTY ").append(FuzzInputModule.entryPoints(kind.side()).property()).append('\n');
         }
         if (kind.actionInvariant()) {
             text.append("PROPERTY ").append(FuzzInputModule.STEP_PROPERTY).append('\n');

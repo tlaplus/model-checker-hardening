@@ -1,4 +1,4 @@
-package io.github.tlaplus.hardening.workflow.tlc;
+package io.github.tlaplus.hardening.workflow.tool;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
