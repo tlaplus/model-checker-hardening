@@ -670,6 +670,18 @@ status = "open"
 match = ['(GLOBALLY (STUTTER (& (~ (OPER_APP Next)) (~ (OPER_APP Step)) (~ (OPER_APP NextC))) _))']
 
 [[signature]]
+id = "apalache-eventually-in-conjunction"
+references = ["../findings/apalache-temporal/apalache-temporal-006.md"]
+description = "Apalache reports counterexamples to valid properties, and misses violations at the lasso length, when a conjunction with an <> operand occurs under a temporal operator."
+status = "open"
+match = [
+  '(GLOBALLY (.. (& (AND ...) (.. (EVENTUALLY _)))))',
+  '(EVENTUALLY (.. (& (AND ...) (.. (EVENTUALLY _)))))',
+  '(LEADS_TO (.. (& (AND ...) (.. (EVENTUALLY _)))) _)',
+  '(LEADS_TO _ (.. (& (AND ...) (.. (EVENTUALLY _)))))',
+]
+
+[[signature]]
 id = "apalache-unchanged-after-assignment"
 references = ["../findings/apalache-assignments/apalache-assignments-001.md"]
 description = "Apalache rejects UNCHANGED, [A]_v or <<A>>_v used as a guard after the variable is assigned."

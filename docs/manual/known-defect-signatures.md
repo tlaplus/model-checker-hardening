@@ -409,6 +409,10 @@ The remaining signatures match fixed shapes:
   relation's `[][NextC]_vars` in `SpecC`. The workflow checks `Prop` under `Fairness => Prop`, where
   Apalache needs one more step than the lasso to report a violation of `[][A]_v`
   ([`apalache-temporal-005`](../../findings/apalache-temporal/apalache-temporal-005.md)).
+- `apalache-eventually-in-conjunction`: a conjunction with an `<>` operand under
+  `[]`, `<>` or `~>`. Apalache reports counterexamples to valid properties of this
+  shape, and misses violations at the lasso length
+  ([`apalache-temporal-006`](../../findings/apalache-temporal/apalache-temporal-006.md)).
 - `fold-concatenation`: every application of the recursion library's
   `SeqReverse` or `SeqFlatten`, and every `ApaFoldSet` or `ApaFoldSeqLeft` whose
   combinator contains `\o`. Apalache can exhaust a 1 GB heap on such a fold over
