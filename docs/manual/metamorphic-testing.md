@@ -283,38 +283,48 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
 
 ## 7. Temporal properties
 
-This mode tests TLC on rewritten properties and fairness
-([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md)). Corpora without it are
-unaffected.
+This mode tests TLC and Apalache on rewritten properties and fairness
+([ADR 0027](../decisions/0027-temporal-metamorphic-testing.md),
+[ADR 0029](../decisions/0029-apalache-temporal-metamorphic-testing.md)). Corpora without
+it are unaffected.
 
-**Enabling.** `fuzztla init --how=mt --temporal` adds a second rule module and checks
-with TLC alone:
+**Enabling.** `fuzztla init --how=mt --temporal` adds a second rule module and keeps the
+checkers:
 
 ```sh
 ./bin/fuzztla init --how=mt --temporal --base-corpus corpus71 --corpus corpus-mtt
 ```
 
-It writes:
+With Apalache among the checkers, it writes:
 
 ```toml
-[workflow]
-checkers = ["tlc"]                  # Apalache supports no fairness
-
 [metamorphic]
 temporal_rules = { module = "TemporalRewrites", classpath = ["tla/rewrites"] }
-temporal_weights = { WFDef = 4 }    # as weights, for the temporal rules
+temporal_weights = { WFDef = 0, SFDef = 0 }   # rules that introduce ENABLED
+
+[workflow.inputs]
+known_defects = ["../signatures/all-defects.toml",
+                 "../signatures/metamorphic-defects.toml",
+                 "../signatures/temporal-apalache-defects.toml"]
 ```
 
-- **The checkers lose Apalache.** Both TLC stages, `tlc` and `tlcn`, stay. Without
-  Apalache, `metamorphic-defects.toml`, which quarantines `CHOOSE` for Apalache, is left
-  out.
+- **With Apalache,** `temporal-apalache-defects.toml` quarantines every module with
+  `ENABLED`, `WF` or `SF`, which Apalache does not support. TLC then checks no fairness
+  in this corpus either; for that, run a corpus with `checkers = ["tlc", "tlcn"]`.
+- **Without Apalache,** `metamorphic-defects.toml`, which quarantines `CHOOSE` for
+  Apalache, is left out, and every temporal rule keeps its weight.
 - **The base must generate modules with properties:** a `module` base, or a `graph` base
   with `[graph] properties = true`
   ([Graph-based testing](graph-based-testing.md#1-setting-up-a-corpus)). `init` refuses
   any other base, and warns if the base ignores `temporal`
-  ([Temporal properties](temporal-properties.md)).
-- **`run` refuses `temporal_rules`** with Apalache among the checkers, or with a base
-  `init` would refuse.
+  ([Temporal properties](temporal-properties.md)). `run` refuses `temporal_rules` with a
+  base `init` would refuse.
+- **Apalache finds little yet.** Apalache gives wrong verdicts on a conjunction with an
+  `<>` operand under a temporal operator
+  ([`apalache-temporal-006`](../../findings/apalache-temporal/apalache-temporal-006.md)),
+  which `AlwaysOrBreak` and `EventuallyWeaken` create. `all-defects.toml` quarantines
+  it, together with TLC's temporal shapes; in ADR 0029's probe, no entry with a
+  temporal rewrite was left for the checkers.
 - **TLC crashes on some properties.** An evaluation error inside `<>` or `~>` makes TLC
   exit with error 1000, an open TLC defect. `all-defects.toml` quarantines it as
   `tlc-partial-operator-under-eventuality`; with `known-defects.toml`, expect such
@@ -349,9 +359,23 @@ one outcome:
 configurations under `tlc runs:`, after the applied rules. The exploration metrics and the
 quality gate use the relation run.
 
+**What Apalache checks.** Apalache runs the same three checks in its worker, one after
+another, and folds them in the same way. It checks each side's property from that side's
+`Init` and `Next`, without fairness, one transition past the step bound `n`:
+
+| Run | Apalache options |
+| --- | --- |
+| relation | `--init=Init --next=Next --inv=Inv,Step --length=n` |
+| `Spec \|= Prop` | `--init=Init --next=Next --temporal=Prop --length=n+1` |
+| `SpecC \|= PropC` | `--init=InitC --next=NextC --temporal=PropC --length=n+1` |
+
+One input may take three times the stage's `timeout_sec`. `fuzztla print` lists the
+options under `apalache runs:`.
+
 **Triage.** For "property verdicts differ", check each property under its own
-specification in TLC, as in section 4. If TLC agrees with itself after both are
-simplified, a rule is unsound; otherwise reduce the module to a finding. `shrink` clears
+specification in the checker that reported it, as in section 4. If the checker agrees
+with itself after both are simplified, a rule is unsound; otherwise reduce the module to
+a finding. `shrink` clears
 rewrite markers as for any entry.
 
 **Cost.** An entry with a property costs up to three TLC runs instead of one.
@@ -372,5 +396,6 @@ rewrite markers as for any entry.
 
 [ADR 0016](../decisions/0016-metamorphic-testing.md) records the design and the
 probes behind it, [ADR 0017](../decisions/0017-rewrite-rule-library.md) the rule
-format, and [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md) the proposed
-temporal mode. The rule catalog will be specified in a later ADR.
+format, [ADR 0027](../decisions/0027-temporal-metamorphic-testing.md) the temporal mode,
+and [ADR 0029](../decisions/0029-apalache-temporal-metamorphic-testing.md) its Apalache
+runs. The rule catalog will be specified in a later ADR.
