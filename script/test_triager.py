@@ -103,6 +103,8 @@ class AggregatorClassificationTest(unittest.TestCase):
     def test_classifies_tlc_constant_property_restrictions(self) -> None:
         cases = (
             ("The property of Prop is equal to FALSE", 150),
+            # The checked side's property run of a temporal relation (ADR 0027 §4).
+            ("The property of PropC is equal to FALSE", 150),
             ("The spec is trivially false because FALSE is false.", 150),
             # corpus22 4660e132: TLC names a bound variable of the property.
             ("The spec is trivially false because q36 is false.", 150),
