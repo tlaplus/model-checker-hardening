@@ -1,0 +1,30 @@
+# Known-defect signatures of temporal metamorphic testing with Apalache.
+#
+# List this database next to all-defects.toml and metamorphic-defects.toml in a metamorphic
+# corpus that rewrites temporal properties (temporal_rules) and checks with Apalache
+# (ADR 0029 §3):
+#
+#   known_defects = ["../signatures/all-defects.toml", "../signatures/metamorphic-defects.toml",
+#                    "../signatures/temporal-apalache-defects.toml"]
+#
+# Apalache does not support ENABLED, WF or SF. A property run checks each side's property from
+# its Init and Next, without fairness, so these signatures keep such modules out of the corpus.
+# They would quarantine valid inputs of a conformance corpus, where Apalache reports the
+# limitation as a fail, so all-defects.toml does not contain them.
+#
+# docs/manual/known-defect-signatures.md describes the format. References are relative to this
+# file.
+
+[[signature]]
+id = "temporal-apalache-enabled"
+references = ["../conformance/enabled-apalache-unsupported.md"]
+description = "Apalache does not support ENABLED."
+status = "open"
+match = ['(ENABLED _)']
+
+[[signature]]
+id = "temporal-apalache-fairness"
+references = ["../conformance/fairness-apalache-unsupported.md"]
+description = "Apalache does not support weak or strong fairness."
+status = "open"
+match = ['(WEAK_FAIRNESS _ _)', '(STRONG_FAIRNESS _ _)']

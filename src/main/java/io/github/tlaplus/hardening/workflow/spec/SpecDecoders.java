@@ -135,18 +135,13 @@ public final class SpecDecoders {
 
     /**
      * Loads the temporal rules of {@code config}, empty if it names none, and checks that the corpus
-     * can use them (ADR 0027 §1, §5): TLC alone checks the rewritten properties, since Apalache
-     * supports no fairness, and only a module has a property. They follow {@code rules}, so their
-     * names must be distinct.
+     * can use them (ADR 0027 §1, §5): only a module has a property. Apalache checks the rewritten
+     * properties too (ADR 0029 §2). They follow {@code rules}, so their names must be distinct.
      */
     private static RewriteLibrary temporalRules(FuzzTlaConfig config, RewriteLibrary rules) throws WorkflowException {
         var temporal = config.metamorphic().temporalRules();
         if (temporal.isEmpty()) {
             return RewriteLibrary.empty();
-        }
-        if (config.workflow().enabledCheckers().contains(CorpusStage.APALACHE)) {
-            throw new WorkflowException(
-                    "metamorphic.temporal_rules needs checkers without apalache, which supports no fairness");
         }
         if (!hasProperties(config)) {
             throw new WorkflowException("metamorphic.temporal_rules needs kind = \"module\", or kind = \"graph\" with"
