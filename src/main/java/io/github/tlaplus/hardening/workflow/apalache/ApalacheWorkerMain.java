@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.common.FileTrees;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.tool.PropertyRunsVerdict;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
@@ -22,7 +23,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import scala.Console$;
 
-/** Persistent child process that invokes Apalache's {@code Tool.run} sequentially. */
+/**
+ * Persistent child process that invokes Apalache's {@code Tool.run} sequentially. A request whose
+ * kind has property runs is checked by up to three invocations, folded into one result (ADR 0029
+ * §1).
+ */
 @ArchRole(Role.ENTRY_POINT)
 @Key
 public final class ApalacheWorkerMain {
@@ -56,13 +61,14 @@ public final class ApalacheWorkerMain {
                                     Files.createTempDirectory(workerDirectory, "job-");
                             var specification = jobDirectory.resolve(SPECIFICATION_FILE);
                             ToolWorkerRuntime.writeInput(specification, source);
-                            var result =
-                                    check(
-                                            toolRun,
-                                            jobDirectory,
-                                            specification,
-                                            source.request(),
-                                            processError);
+                            var request = source.request();
+                            var result = check(toolRun, jobDirectory, specification, request, processError);
+                            if (request.kind().hasPropertyRuns()) {
+                                // Each property run writes below a directory of its own (ADR 0029 §1).
+                                result = PropertyRunsVerdict.fold(result, kind -> check(toolRun,
+                                        jobDirectory.resolve(kind.name()), specification,
+                                        request.withKind(kind), processError));
+                            }
 
                             // Tool.run resets Logback at the beginning of every invocation.
                             // Once the current invocation returns, files retained by the

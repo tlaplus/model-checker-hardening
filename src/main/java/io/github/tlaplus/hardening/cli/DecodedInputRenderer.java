@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
@@ -14,6 +15,7 @@ import io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -48,7 +50,8 @@ final class DecodedInputRenderer {
      * Renders a metamorphic pair (ADR 0016 §8): which side the checkers explore, the rules applied
      * in order, and both sides. An expression side is rendered as an expression, a module side as
      * the conformance module it would be on its own. When TLC checks the properties in runs of
-     * their own, the configuration of each TLC run follows the rules (ADR 0027 §4).
+     * their own, the configuration of each TLC and Apalache run follows the rules (ADR 0027 §4, ADR
+     * 0029 §1).
      */
     static String rewrite(Rewrite<?> rewrite, CheckRequest request) {
         Objects.requireNonNull(rewrite, "rewrite");
@@ -59,16 +62,23 @@ final class DecodedInputRenderer {
                     rewrite.orientation() == Orientation.EXPLORE_ORIGINAL ? "original" : "rewrite");
             writer.printf("rules: %s%n", String.join(", ", rewrite.appliedRules()));
             if (request.kind().hasPropertyRuns()) {
-                writer.printf("tlc runs:%n");
-                var runs = TlcConfiguration.texts(request);
-                for (var index = 0; index < runs.size(); index++) {
-                    writer.printf("  %d. %s%n", index + 1, String.join(", ", runs.get(index).strip().split("\n")));
-                }
+                runs(writer, "tlc", TlcConfiguration.texts(request).stream()
+                        .map(text -> String.join(", ", text.strip().split("\n")))
+                        .toList());
+                runs(writer, "apalache", ApalacheArguments.texts(request));
             }
             writer.printf("original:%n%s%n", side(rewrite.original()).stripTrailing());
             writer.printf("rewrite:%n%s%n", side(rewrite.rewritten()).stripTrailing());
         }
         return output.toString();
+    }
+
+    /** Prints the invocations of one checker, numbered in the order they run. */
+    private static void runs(PrintWriter writer, String checker, List<String> invocations) {
+        writer.printf("%s runs:%n", checker);
+        for (var index = 0; index < invocations.size(); index++) {
+            writer.printf("  %d. %s%n", index + 1, invocations.get(index));
+        }
     }
 
     private static String side(Object side) {

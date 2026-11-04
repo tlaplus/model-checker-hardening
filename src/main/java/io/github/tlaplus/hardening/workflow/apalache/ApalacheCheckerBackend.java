@@ -7,12 +7,13 @@ import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
-import io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker;
 import io.github.tlaplus.hardening.workflow.tool.ToolBackend;
 import io.github.tlaplus.hardening.workflow.tool.ToolWorker;
 import io.github.tlaplus.hardening.workflow.worker.ChildJvm;
 import io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess;
 import io.github.tlaplus.hardening.workflow.worker.JavaLaunch;
+import io.github.tlaplus.hardening.workflow.worker.ToolInput;
+import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.WorkerSpec;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -21,7 +22,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
-/** Adapts persistent Apalache tool workers to the shared tool stage. */
+/**
+ * Adapts persistent Apalache tool workers to the shared tool stage. The worker runs the property
+ * runs of a metamorphic module itself (ADR 0029 §1), so a request may take up to three invocations
+ * and gets the stage's timeout for each.
+ */
 @ArchRole(Role.ADAPTER)
 @Key
 public final class ApalacheCheckerBackend implements ToolBackend {
@@ -83,6 +88,17 @@ public final class ApalacheCheckerBackend implements ToolBackend {
                         ChildJvm.Compilation.TIERED,
                         JavaLaunch.boundedHeap(config.maximumHeapMegabytes(), "-XX:-UsePerfData")),
                 "Apalache worker"));
-        return new ProcessToolWorker(process, timeout);
+        return new ToolWorker() {
+            @Override
+            public ToolResult check(ToolInput input) throws WorkflowException, InterruptedException {
+                // A request with property runs takes up to three invocations (ADR 0029 §1).
+                return process.request(input, timeout.multipliedBy(input.request().kind().invocations()));
+            }
+
+            @Override
+            public void close() {
+                process.close();
+            }
+        };
     }
 }

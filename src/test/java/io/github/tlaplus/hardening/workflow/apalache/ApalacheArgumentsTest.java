@@ -35,4 +35,29 @@ class ApalacheArgumentsTest {
                         "--inv=Inv,Step", "--length=5", "--no-deadlock", SPECIFICATION.toString()),
                 List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, CheckKind.RELATION))));
     }
+
+    /** The property runs follow in the same worker (ADR 0029 §1), so the relation is asked as before. */
+    @Test
+    void checksTheRelationBeforeThePropertyRunsAsTheRelation() {
+        assertEquals(
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, CheckKind.RELATION))),
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION,
+                        new CheckRequest(5, CheckKind.RELATION_AND_PROPERTIES))));
+    }
+
+    @Test
+    void checksTheExploredPropertyDirectlyFromInitAndNext() {
+        assertEquals(
+                List.of("--out-dir=" + JOB.resolve("out"), "check", "--init=Init", "--next=Next",
+                        "--temporal=Prop", "--length=6", "--no-deadlock", SPECIFICATION.toString()),
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, CheckKind.EXPLORED_PROPERTY))));
+    }
+
+    @Test
+    void checksTheCheckedPropertyFromTheCheckedSide() {
+        assertEquals(
+                List.of("--out-dir=" + JOB.resolve("out"), "check", "--init=InitC", "--next=NextC",
+                        "--temporal=PropC", "--length=6", "--no-deadlock", SPECIFICATION.toString()),
+                List.of(ApalacheArguments.check(JOB, SPECIFICATION, new CheckRequest(5, CheckKind.CHECKED_PROPERTY))));
+    }
 }
