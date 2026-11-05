@@ -24,6 +24,13 @@ and `CHOOSE` expressions. The shape was not reduced: the
 simpler properties `\A q \in {FALSE} : q` and `\A q \in {1} : FALSE` produce
 `The property of Prop is equal to FALSE` instead.
 
+In a temporal metamorphic corpus ([ADR 0027](../docs/decisions/0027-temporal-metamorphic-testing.md)),
+the property run of the checked side reports `The property of PropC is equal to FALSE`
+(code 150). A smoke corpus that checked with TLC and Apalache
+([ADR 0029](../docs/decisions/0029-apalache-temporal-metamorphic-testing.md)) had 7
+such deviations among 195, each with an Apalache pass. Observed with FuzzTLA
+`e7ca0f06`, TLC `309e489` and Apalache 0.62.3 (build `3eb15b2`).
+
 Apalache has no such restriction. It checks `Liveness == Fairness => Prop` like
 any other property: it reports a counterexample when an initial state exists, or
 a violation of the invariant, and passes when the initial predicate is

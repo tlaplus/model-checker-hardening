@@ -2,7 +2,8 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Implemented
+**Status:** Implemented. [ADR 0029](0029-apalache-temporal-metamorphic-testing.md)
+replaces the refusal of Apalache in section 5.
 
 **Date:** 2026-11-02
 
@@ -398,6 +399,9 @@ backend.
 
 ### 5. Configuration and `init`
 
+*Amended by [ADR 0029](0029-apalache-temporal-metamorphic-testing.md) §2: `run` accepts
+Apalache, and `init --temporal` keeps the checkers.*
+
 `run` refuses `temporal_rules` when:
 - `[workflow] checkers` lists `apalache`, which supports no fairness and would check
   neither property run; or
@@ -527,7 +531,7 @@ Smoke runs with FuzzTLA on this branch (TLC `dc6a944`), TLC only:
 - **Cost.** An entry with a property costs up to three fresh TLC JVMs instead of one.
   In P1, each run took about a second, mostly JVM startup, and three runs took 2.9
   times as long as one. Only corpora with `temporal_rules` pay this.
-- **Only TLC is tested.** Apalache's temporal encoding needs a relation without
+- **Only TLC is tested** (replaced by [ADR 0029](0029-apalache-temporal-metamorphic-testing.md)). Apalache's temporal encoding needs a relation without
   fairness, which this ADR does not propose.
 - **The generator limits detection.** Most generated properties are state predicates
   (P4), and fairness rarely matters in step-bounded modules. No textual perturbation

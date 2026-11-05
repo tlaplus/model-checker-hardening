@@ -37,6 +37,13 @@ public final class KnownDefectDatabase {
      */
     public static final Path METAMORPHIC = Path.of("signatures", "metamorphic-defects.toml");
 
+    /**
+     * Signatures of the temporal operators Apalache does not support, {@code ENABLED}, {@code WF}
+     * and {@code SF}, relative to the project directory. A metamorphic corpus that rewrites temporal
+     * properties and checks with Apalache lists it next to {@link #METAMORPHIC} (ADR 0029 §3).
+     */
+    public static final Path TEMPORAL_APALACHE = Path.of("signatures", "temporal-apalache-defects.toml");
+
     private static final KnownDefectDatabase EMPTY = new KnownDefectDatabase(List.of());
 
     private final List<KnownDefect> signatures;

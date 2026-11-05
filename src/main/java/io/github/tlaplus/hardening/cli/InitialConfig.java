@@ -4,7 +4,6 @@ import io.github.tlaplus.hardening.config.FuzzTlaConfig;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.config.RuleLibraryConfig;
 import io.github.tlaplus.hardening.config.SeedConfig;
-import io.github.tlaplus.hardening.corpus.CheckerSet;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
@@ -13,6 +12,7 @@ import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -30,6 +30,12 @@ final class InitialConfig {
     /** The temporal rule module {@code --temporal} adds (ADR 0027 §5), beside the rewrite rules. */
     static final RuleLibraryConfig.RuleModule SHIPPED_TEMPORAL_RULES =
             new RuleLibraryConfig.RuleModule("TemporalRewrites", List.of(Path.of("libraries", "rewrites")));
+
+    /**
+     * The temporal rule weights with Apalache among the checkers (ADR 0029 §3): the rules that
+     * expand {@code WF} and {@code SF} by {@code ENABLED}, which Apalache does not support, are off.
+     */
+    static final Map<String, Integer> APALACHE_TEMPORAL_WEIGHTS = Map.of("WFDef", 0, "SFDef", 0);
 
     private final Path corpus;
     private final Optional<Path> project;
@@ -112,9 +118,10 @@ final class InitialConfig {
 
     /**
      * Returns {@code config}, an {@code mt} corpus's, rewriting and checking temporal properties
-     * too (ADR 0027 §5): with the shipped temporal rules, and with the checkers but Apalache, which
-     * supports no fairness. Without Apalache, the metamorphic signatures, which quarantine {@code
-     * CHOOSE} for Apalache, are not needed either.
+     * too (ADR 0027 §5, ADR 0029 §2, §3): with the shipped temporal rules and the same checkers.
+     * Without Apalache, the metamorphic signatures, which quarantine {@code CHOOSE} for Apalache,
+     * are not needed. With Apalache, the temporal Apalache signatures quarantine fairness and
+     * {@code ENABLED}, and {@code WFDef} and {@code SFDef}, which introduce {@code ENABLED}, are off.
      *
      * @throws IllegalStateException if the project, which ships the rules, was not found
      */
@@ -122,17 +129,22 @@ final class InitialConfig {
         var root = project.orElseThrow(() -> new IllegalStateException("the shipped temporal rules were not found"));
         // Absolute, since init copies the rules into the corpus (ADR 0025 §2).
         var classpath = SHIPPED_TEMPORAL_RULES.classpath().stream().map(root::resolve).toList();
-        var result = config.withMetamorphic(config.metamorphic().withTemporalRules(RuleLibraryConfig.of(
-                new RuleLibraryConfig.RuleModule(SHIPPED_TEMPORAL_RULES.module(), classpath))));
-        var checkers = result.workflow().enabledCheckers().stages().stream()
-                .filter(stage -> stage != CorpusStage.APALACHE)
-                .toArray(CorpusStage[]::new);
-        result = result.withWorkflow(result.workflow().withEnabledCheckers(
-                checkers.length == 0 ? CheckerSet.of(CorpusStage.TLC) : CheckerSet.of(checkers)));
-        var signatures = shipped(KnownDefectDatabase.METAMORPHIC);
-        return result.withKnownDefects(result.workflow().inputs().knownDefects().stream()
-                .filter(database -> !sameFile(database, signatures))
-                .toList());
+        var apalache = config.workflow().enabledCheckers().contains(CorpusStage.APALACHE);
+        var weights = apalache ? APALACHE_TEMPORAL_WEIGHTS : Map.<String, Integer>of();
+        var result = config.withMetamorphic(config.metamorphic().withTemporalRules(new RuleLibraryConfig(
+                Optional.of(new RuleLibraryConfig.RuleModule(SHIPPED_TEMPORAL_RULES.module(), classpath)), weights)));
+        var metamorphic = shipped(KnownDefectDatabase.METAMORPHIC);
+        var databases = new ArrayList<>(result.workflow().inputs().knownDefects());
+        if (!apalache) {
+            databases.removeIf(database -> sameFile(database, metamorphic));
+            return result.withKnownDefects(databases);
+        }
+        for (var required : List.of(metamorphic, shipped(KnownDefectDatabase.TEMPORAL_APALACHE))) {
+            if (databases.stream().noneMatch(database -> sameFile(database, required))) {
+                databases.add(required);
+            }
+        }
+        return result.withKnownDefects(databases);
     }
 
     /** Names a file of the project as this corpus's configuration should. */

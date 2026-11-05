@@ -111,19 +111,18 @@ public final class FuzzInputModule {
      */
     public static final List<String> PROPERTY_DEFINITIONS = List.of(PROP, FAIRNESS, PROP_C, FAIRNESS_C);
 
-    /** Returns the specification that a checker invocation of {@code side} explores. */
-    public static String specification(CheckKind.Side side) {
-        return switch (Objects.requireNonNull(side, "side")) {
-            case EXPLORED -> SPEC;
-            case CHECKED -> SPEC_C;
-        };
-    }
+    /**
+     * The definitions that a checker invocation of one side reads: TLC explores {@code
+     * specification}, and Apalache {@code init} and {@code next} (ADR 0029 §1). Both check {@code
+     * property}.
+     */
+    public record SideEntryPoints(String init, String next, String specification, String property) {}
 
-    /** Returns the temporal property that a checker invocation of {@code side} checks. */
-    public static String property(CheckKind.Side side) {
+    /** Returns the definitions that a checker invocation of {@code side} reads. */
+    public static SideEntryPoints entryPoints(CheckKind.Side side) {
         return switch (Objects.requireNonNull(side, "side")) {
-            case EXPLORED -> PROP;
-            case CHECKED -> PROP_C;
+            case EXPLORED -> new SideEntryPoints(INIT, NEXT, SPEC, PROP);
+            case CHECKED -> new SideEntryPoints(INIT_C, NEXT_C, SPEC_C, PROP_C);
         };
     }
 

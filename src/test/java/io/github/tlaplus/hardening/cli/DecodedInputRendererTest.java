@@ -65,9 +65,9 @@ class DecodedInputRendererTest {
                 ""), report);
     }
 
-    /** With property runs, the report names each TLC run's configuration (ADR 0027 §4). */
+    /** With property runs, the report names each TLC and Apalache run (ADR 0027 §4, ADR 0029 §1). */
     @Test
-    void rendersEachTlcRunOfATemporalRelation() {
+    void rendersEachCheckerRunOfATemporalRelation() {
         var builder = new TlaTypedScopeUncheckedBuilder();
         var original = builder.plus(builder.integer(1), builder.integer(2));
         var report = DecodedInputRenderer.rewrite(
@@ -79,6 +79,10 @@ class DecodedInputRendererTest {
                 "  1. SPECIFICATION Spec, INVARIANT Inv, PROPERTY StepProperty",
                 "  2. SPECIFICATION Spec, PROPERTY Prop",
                 "  3. SPECIFICATION SpecC, PROPERTY PropC",
+                "apalache runs:",
+                "  1. check --init=Init --next=Next --inv=Inv,Step --length=3 --no-deadlock",
+                "  2. check --init=Init --next=Next --temporal=Prop --length=4 --no-deadlock",
+                "  3. check --init=InitC --next=NextC --temporal=PropC --length=4 --no-deadlock",
                 "original:")), report);
     }
 

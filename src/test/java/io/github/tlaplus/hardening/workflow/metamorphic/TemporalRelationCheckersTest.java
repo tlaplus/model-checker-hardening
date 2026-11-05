@@ -7,12 +7,15 @@ import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.SeedConfig;
+import io.github.tlaplus.hardening.config.ToolJar;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.workflow.StagedTools;
+import io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.spec.PropertyRelation;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
@@ -33,8 +36,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Runs a temporal relation (ADR 0027 §4) through the real TLC worker: each side's property is
- * checked under that side's specification, and different verdicts are a counterexample.
+ * Runs a temporal relation (ADR 0027 §4) through the real TLC and Apalache workers (ADR 0029 §1):
+ * each side's property is checked under that side's specification, and different verdicts are a
+ * counterexample.
  *
  * <p>{@code var0} counts from 0 to 3 under weak fairness, so {@code <>(var0 = 3)} holds; without
  * the fairness, the module may stutter forever and the property is violated.
@@ -79,6 +83,35 @@ class TemporalRelationCheckersTest {
             var result = check(relation(module(true, reaches()), module(false, reaches()), orientation));
             assertEquals(StageOutcome.COUNTEREXAMPLE, result.outcome(), orientation + "\n" + result.diagnostic());
             assertTrue(result.diagnostic().startsWith("property verdicts differ"), result.diagnostic());
+        }
+    }
+
+    /** Apalache runs the property runs in its worker (ADR 0029 §1); the module has no fairness. */
+    @Test
+    void anEquivalentPropertyPassesInApalacheInBothOrientations() throws Exception {
+        var bounded = B.always(B.le(x(), B.integer(STEPS)));
+        for (var orientation : Orientation.values()) {
+            var result = checkWithApalache(relation(module(false, bounded), module(false, B.always(bounded)), orientation));
+            assertEquals(StageOutcome.PASS, result.outcome(), orientation + "\n" + result.diagnostic());
+        }
+    }
+
+    /** An unsound rewrite, [](var0 <= 3) to [](var0 <= 2), changes the verdict in Apalache. */
+    @Test
+    void aStrengthenedPropertyIsACounterexampleInApalache() throws Exception {
+        var holds = B.always(B.le(x(), B.integer(STEPS)));
+        var violated = B.always(B.le(x(), B.integer(STEPS - 1)));
+        var result = checkWithApalache(relation(module(false, holds), module(false, violated),
+                Orientation.EXPLORE_ORIGINAL));
+        assertEquals(StageOutcome.COUNTEREXAMPLE, result.outcome(), result.diagnostic());
+        assertTrue(result.diagnostic().startsWith("property verdicts differ"), result.diagnostic());
+    }
+
+    private ToolResult checkWithApalache(SpecArtifact artifact) throws Exception {
+        var run = Files.createTempDirectory(directory, "apalache");
+        var apalache = new ApalacheCheckerBackend(SETTINGS, StagedTools.locate(ToolJar.APALACHE), run);
+        try (var worker = apalache.startWorker()) {
+            return worker.check(new ToolInput(apalache.renderer().apply(artifact), artifact.request()));
         }
     }
 

@@ -8,8 +8,10 @@ import java.util.List;
  * explores, and whether it checks the invariant, the action invariant of a metamorphic module and a
  * temporal property. The tool adapters name the module's entry points accordingly.
  *
- * <p>A metamorphic module whose properties TLC checks apart (ADR 0027 §4) is checked by three TLC
- * invocations: {@link #RELATION_AND_PROPERTIES}, then its {@link #PROPERTY_RUNS}.
+ * <p>A metamorphic module whose properties are checked apart (ADR 0027 §4) is checked by up to three
+ * invocations of each checker: {@link #RELATION_AND_PROPERTIES}, then its {@link #PROPERTY_RUNS}.
+ * TLC starts each in a fresh JVM; Apalache runs all three in its persistent worker, as one request
+ * (ADR 0029 §1).
  */
 public enum CheckKind {
     /** The invariant, as for an expression or a module without a property. */
@@ -18,7 +20,7 @@ public enum CheckKind {
     INVARIANT_AND_PROPERTY(1, Side.EXPLORED, true, false, true),
     /** The relation of a metamorphic module: its invariant and its action invariant (ADR 0016 §3). */
     RELATION(2, Side.EXPLORED, true, true, false),
-    /** The relation, which TLC follows with the {@link #PROPERTY_RUNS} (ADR 0027 §4). */
+    /** The relation, which the checker follows with the {@link #PROPERTY_RUNS} (ADR 0027 §4). */
     RELATION_AND_PROPERTIES(3, Side.EXPLORED, true, true, false),
     /** {@code SpecE ⊨ PropE}: the explored side's property only. */
     EXPLORED_PROPERTY(4, Side.EXPLORED, false, false, true),
@@ -70,9 +72,14 @@ public enum CheckKind {
         return property;
     }
 
-    /** Whether TLC follows this invocation with the {@link #PROPERTY_RUNS}. */
+    /** Whether the checker follows this invocation with the {@link #PROPERTY_RUNS}. */
     public boolean hasPropertyRuns() {
         return this == RELATION_AND_PROPERTIES;
+    }
+
+    /** Returns the number of checker invocations a request of this kind takes at most. */
+    public int invocations() {
+        return hasPropertyRuns() ? 1 + PROPERTY_RUNS.size() : 1;
     }
 
     int protocolCode() {

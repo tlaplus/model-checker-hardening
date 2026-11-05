@@ -23,6 +23,7 @@ class InitialConfigTest {
     private static final Path PROJECT = Path.of("/work/fuzztla");
     private static final Path SHIPPED = Path.of("..", "signatures", "known-defects.toml");
     private static final Path METAMORPHIC = Path.of("..", "signatures", "metamorphic-defects.toml");
+    private static final Path TEMPORAL_APALACHE = Path.of("..", "signatures", "temporal-apalache-defects.toml");
     private static final long SEED = 42;
 
     private final InitialConfig inside = new InitialConfig(PROJECT.resolve("corpus"), Optional.of(PROJECT), SEED);
@@ -59,23 +60,34 @@ class InitialConfigTest {
     }
 
     /**
-     * --temporal adds the shipped temporal rules and checks with TLC alone, which also drops the
-     * signatures that quarantine CHOOSE for Apalache (ADR 0027 §5).
+     * --temporal adds the shipped temporal rules and keeps the checkers (ADR 0029 §2). With Apalache,
+     * it lists the temporal Apalache signatures and turns off WFDef and SFDef (ADR 0029 §3).
      */
     @Test
-    void aTemporalCorpusChecksWithTlcAloneAndTheShippedTemporalRules() {
-        var config = inside.withTemporalRules(inside.create(Technique.MT));
+    void aTemporalCorpusWithApalacheQuarantinesWhatApalacheDoesNotSupport() {
+        var mt = inside.create(Technique.MT);
+        var config = inside.withTemporalRules(mt);
 
         assertEquals(Optional.of(new RuleLibraryConfig.RuleModule(
                         "TemporalRewrites", List.of(PROJECT.resolve("libraries/rewrites")))),
                 config.metamorphic().temporalRules().module());
-        assertEquals(CheckerSet.of(CorpusStage.TLC), config.workflow().enabledCheckers());
+        assertEquals(mt.workflow().enabledCheckers(), config.workflow().enabledCheckers());
+        assertTrue(config.workflow().enabledCheckers().contains(CorpusStage.APALACHE));
+        assertEquals(Map.of("WFDef", 0, "SFDef", 0), config.metamorphic().temporalRules().weights());
+        assertEquals(List.of(SHIPPED, METAMORPHIC, TEMPORAL_APALACHE), config.workflow().inputs().knownDefects());
+        assertEquals(config, inside.withTemporalRules(config), "applying the settings twice changes nothing");
+    }
+
+    /** Without Apalache, --temporal drops the signatures that quarantine CHOOSE for Apalache (ADR 0027 §5). */
+    @Test
+    void aTemporalCorpusWithoutApalacheKeepsBothTlcStagesAndTheTemporalWeights() {
+        var mt = inside.create(Technique.MT);
+        var tlc = mt.withWorkflow(mt.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN)));
+        var config = inside.withTemporalRules(tlc);
+
+        assertEquals(CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN), config.workflow().enabledCheckers());
+        assertEquals(Map.of(), config.metamorphic().temporalRules().weights());
         assertEquals(List.of(SHIPPED), config.workflow().inputs().knownDefects());
-        var parallel = inside.create(Technique.MT);
-        parallel = parallel.withWorkflow(parallel.workflow().withEnabledCheckers(
-                CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN, CorpusStage.APALACHE)));
-        assertEquals(CheckerSet.of(CorpusStage.TLC, CorpusStage.TLCN),
-                inside.withTemporalRules(parallel).workflow().enabledCheckers(), "both TLC stages stay");
     }
 
     @Test

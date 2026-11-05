@@ -602,7 +602,7 @@ AGGREGATOR_SIGNATURES = (
     failure("constant-false-invariant.md", Tool.TLC,
             r"^The invariant of Inv is equal to FALSE$", code=150),
     failure("constant-property-tlc-rejects.md", Tool.TLC,
-            r"^The property of Prop is equal to FALSE$",
+            r"^The property of PropC? is equal to FALSE$",
             r"^The spec is trivially false because \w+ is false\.$", code=150),
     failure("constant-property-tlc-rejects.md", Tool.TLC,
             r"^Temporal formula is a tautology \(its negation is unsatisfiable\)\.$"),

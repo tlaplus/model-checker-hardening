@@ -175,9 +175,9 @@ class SpecDecodersTest {
         assertTrue(withProperty > 10, "too few graphs had a property: " + withProperty);
     }
 
-    /** TLC alone checks rewritten properties, and only a module has one (ADR 0027 §5). */
+    /** Only a module has a property (ADR 0027 §5); Apalache checks it too (ADR 0029 §2). */
     @Test
-    void temporalRulesNeedAModuleCheckedWithoutApalache() throws Exception {
+    void temporalRulesNeedAModule() throws Exception {
         var metamorphic = MetamorphicConfig.defaults()
                 .withRules(ShippedRules.config())
                 .withTemporalRules(ShippedRules.temporalConfig());
@@ -186,8 +186,8 @@ class SpecDecodersTest {
         var tlcOnly = defaults.withWorkflow(defaults.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)));
         SpecDecoders.prepare(tlcOnly, Technique.MT);
 
-        var withApalache = assertThrows(WorkflowException.class, () -> SpecDecoders.prepare(defaults, Technique.MT));
-        assertTrue(withApalache.getMessage().contains("needs checkers without apalache"), withApalache.getMessage());
+        assertTrue(defaults.workflow().enabledCheckers().contains(CorpusStage.APALACHE));
+        SpecDecoders.prepare(defaults, Technique.MT);
         var expressions = assertThrows(WorkflowException.class,
                 () -> SpecDecoders.prepare(tlcOnly.withGeneratedKind(InputKind.EXPRESSION), Technique.MT));
         assertTrue(expressions.getMessage().contains("needs kind = \"module\""), expressions.getMessage());
