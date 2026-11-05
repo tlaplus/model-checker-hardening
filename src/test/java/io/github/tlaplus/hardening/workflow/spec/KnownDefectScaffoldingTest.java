@@ -47,6 +47,25 @@ class KnownDefectScaffoldingTest {
         }
     }
 
+    /**
+     * A temporal relation (ADR 0027 §3) also adds {@code SpecC == InitC /\ [][NextC]_vars /\
+     * FairnessC} and {@code PropC}. The property {@code <>x} matches no signature itself.
+     */
+    @Test
+    void noSignatureMatchesTheScaffoldingOfATemporalRelation() throws Exception {
+        var variables = List.of(
+                TlaDeclarations.variable("x", TlaTypes.BOOL),
+                TlaDeclarations.variable(GeneratedSpec.STEP_VARIABLE, TlaTypes.INT));
+        var eventually = builder.eventually(builder.name("x", TlaTypes.BOOL));
+        var spec = new GeneratedSpec(variables, List.of(), truth, truth, truth,
+                Optional.of(new TemporalProperty(List.of(), eventually)), 0);
+        for (var orientation : Orientation.values()) {
+            var relation = FuzzInputModule.create(spec, spec, orientation, PropertyRelation.SEPARATE_RUNS);
+            assertEquals(List.of(), ids(relation, FuzzInputModule.TEMPORAL_RELATION_ENTRY_POINTS),
+                    orientation.name());
+        }
+    }
+
     /** The action-bound signature still matches {@code [][A]_v} once it is in {@code Prop}. */
     @Test
     void anActionPropertyInPropIsStillMatched() throws Exception {

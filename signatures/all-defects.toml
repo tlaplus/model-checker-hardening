@@ -664,10 +664,10 @@ match = ['(AND (AND _))']
 id = "apalache-always-action-bound"
 references = ["../findings/apalache-temporal/apalache-temporal-005.md"]
 description = "Apalache needs one more step than the lasso to report a [][A]_v violation under a Boolean connective, such as the workflow's Fairness => Prop."
-# Spec's [][Next]_vars, which every input has, and a metamorphic relation's StepProperty,
-# [][Step]_vars, are excluded.
+# Spec's [][Next]_vars, which every input has, a metamorphic relation's StepProperty,
+# [][Step]_vars, and a temporal relation's SpecC, [][NextC]_vars, are excluded.
 status = "open"
-match = ['(GLOBALLY (STUTTER (& (~ (OPER_APP Next)) (~ (OPER_APP Step))) _))']
+match = ['(GLOBALLY (STUTTER (& (~ (OPER_APP Next)) (~ (OPER_APP Step)) (~ (OPER_APP NextC))) _))']
 
 [[signature]]
 id = "apalache-unchanged-after-assignment"

@@ -160,7 +160,8 @@ cardinality of any set of sequences.
 - **Scaffolding.** Every input has the same `Spec == Init /\ [][Next]_vars /\
   Fairness` and `Liveness == Fairness => Prop`, and every `module` input of a
   [metamorphic](metamorphic-testing.md) corpus has
-  `StepProperty == [][Step]_vars`. A pattern that matches them, such as
+  `StepProperty == [][Step]_vars`; with temporal rules, also
+  `SpecC == InitC /\ [][NextC]_vars /\ FairnessC`. A pattern that matches them, such as
   `(GLOBALLY (STUTTER ...))`, matches every input; exclude them with `(~ p)`.
   `KnownDefectScaffoldingTest` fails on such a signature.
 - **Alternatives.** The alternatives in `match` are independent. Bindings do
@@ -404,7 +405,8 @@ The remaining signatures match fixed shapes:
   `ApaFoldSeqLeft` and can exhaust the heap from about nine elements
   ([`apalache-performance-002`](../../findings/apalache-performance/apalache-performance-002.md)).
 - `apalache-always-action-bound`: every `[][A]_v` other than `Spec`'s
-  `[][Next]_vars` and a metamorphic relation's `[][Step]_vars`. The workflow checks `Prop` under `Fairness => Prop`, where
+  `[][Next]_vars`, a metamorphic relation's `[][Step]_vars`, and a temporal
+  relation's `[][NextC]_vars` in `SpecC`. The workflow checks `Prop` under `Fairness => Prop`, where
   Apalache needs one more step than the lasso to report a violation of `[][A]_v`
   ([`apalache-temporal-005`](../../findings/apalache-temporal/apalache-temporal-005.md)).
 - `fold-concatenation`: every application of the recursion library's
