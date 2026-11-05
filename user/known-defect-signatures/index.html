@@ -2069,6 +2069,10 @@ listing both defines every shipped id twice, which is an error:</p>
   relation's <code>[][NextC]_vars</code> in <code>SpecC</code>. The workflow checks <code>Prop</code> under <code>Fairness =&gt; Prop</code>, where
   Apalache needs one more step than the lasso to report a violation of <code>[][A]_v</code>
   (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-temporal/apalache-temporal-005.md"><code>apalache-temporal-005</code></a>).
+- <code>apalache-eventually-in-conjunction</code>: a conjunction with an <code>&lt;&gt;</code> operand under
+  <code>[]</code>, <code>&lt;&gt;</code> or <code>~&gt;</code>. Apalache reports counterexamples to valid properties of this
+  shape, and misses violations at the lasso length
+  (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-temporal/apalache-temporal-006.md"><code>apalache-temporal-006</code></a>).
 - <code>fold-concatenation</code>: every application of the recursion library's
   <code>SeqReverse</code> or <code>SeqFlatten</code>, and every <code>ApaFoldSet</code> or <code>ApaFoldSeqLeft</code> whose
   combinator contains <code>\o</code>. Apalache can exhaust a 1 GB heap on such a fold over

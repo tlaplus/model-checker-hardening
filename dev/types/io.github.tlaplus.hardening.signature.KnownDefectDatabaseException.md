@@ -1,6 +1,6 @@
 # `KnownDefectDatabaseException`
 
-`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabaseException.java#L4) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/signature/KnownDefectDatabaseException.java#L4) · module [signature](../modules/signature.md)
 
 A known-defect database that cannot be read, or that does not follow the database format.
 

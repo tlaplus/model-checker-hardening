@@ -1,10 +1,10 @@
 # `CorpusExport`
 
-`io.github.tlaplus.hardening.database` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/database/CorpusExport.java#L37) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/database/CorpusExport.java#L37) · module [database](../modules/database.md)
 
 Exports a corpus to a new SQLite database, as ADR 0009 defines it.
 
-**Decisions:** [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/docs/decisions/0009-corpus-database.md)
+**Decisions:** [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/docs/decisions/0009-corpus-database.md)
 
 ```mermaid
 classDiagram

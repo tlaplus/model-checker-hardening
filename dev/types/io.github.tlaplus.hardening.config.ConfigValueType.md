@@ -1,6 +1,6 @@
 # `ConfigValueType`
 
-`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/config/ConfigValueType.java#L41) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/config/ConfigValueType.java#L41) · module [config](../modules/config.md)
 
 How the value of one configuration key is read from TOML and written back as TOML syntax.
 

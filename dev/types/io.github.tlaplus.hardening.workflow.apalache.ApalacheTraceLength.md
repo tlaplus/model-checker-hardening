@@ -1,6 +1,6 @@
 # `ApalacheTraceLength`
 
-`io.github.tlaplus.hardening.workflow.apalache` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheTraceLength.java#L18) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.apalache` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheTraceLength.java#L18) · module [workflow](../modules/workflow.md)
 
 Reads the length of the counterexample Apalache wrote for one check.
 

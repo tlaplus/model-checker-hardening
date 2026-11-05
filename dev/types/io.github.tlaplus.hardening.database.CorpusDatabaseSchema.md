@@ -1,6 +1,6 @@
 # `CorpusDatabaseSchema`
 
-`io.github.tlaplus.hardening.database` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/database/CorpusDatabaseSchema.java#L27) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/database/CorpusDatabaseSchema.java#L27) · module [database](../modules/database.md)
 
 The schema of the corpus database, as the corpus-database manual documents it.
 

@@ -1,6 +1,6 @@
 # `KnownDefect`
 
-`io.github.tlaplus.hardening.signature` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/signature/KnownDefect.java#L19) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/signature/KnownDefect.java#L19) · module [signature](../modules/signature.md)
 
 One known-defect signature: a documented tool defect and the IR shapes that trigger it.
 

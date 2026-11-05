@@ -1,6 +1,6 @@
 # `ProgressLayout`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/cli/ProgressLayout.java#L15) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/cli/ProgressLayout.java#L15) · module [cli](../modules/cli.md)
 
 Pure, size-bounded flow and table layouts for the same statistics and styles.
 

@@ -1,6 +1,6 @@
 # `ToolResult`
 
-`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolResult.java#L19) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/5f3ceabe8cfdcce8028f7410969626c3e92335df/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolResult.java#L19) · module [workflow](../modules/workflow.md)
 
 One request result returned by an isolated tool worker.
 
@@ -21,7 +21,6 @@ classDiagram
   class ApalacheOutcomeClassifier {
     <<policy>>
   }
-  class PropertyRunsVerdict
   class TlcCheckerBackend {
     <<adapter>>
   }
@@ -32,6 +31,7 @@ classDiagram
   class ProcessToolWorker {
     <<adapter>>
   }
+  class PropertyRunsVerdict
   class ToolWorker {
     <<contract>>
   }
@@ -51,11 +51,11 @@ classDiagram
   ToolResult --> ExplorationMetrics : has
   ToolResult --> StageOutcome : has
   ApalacheOutcomeClassifier ..> ToolResult : uses
-  PropertyRunsVerdict ..> ToolResult : uses
   TlcCheckerBackend ..> ToolResult : uses
   TlcExplorationMetrics ..> ToolResult : uses
   TlcOutcomeClassifier ..> ToolResult : uses
   ProcessToolWorker ..> ToolResult : uses
+  PropertyRunsVerdict ..> ToolResult : uses
   ToolWorker ..> ToolResult : uses
   IsolatedWorkerProcess ..> ToolResult : uses
   ToolWorkerProtocol ..> ToolResult : uses
@@ -63,7 +63,7 @@ classDiagram
   WorkerChannel ..> ToolResult : uses
 ```
 
-The diagram draws 14 of 22 relations; the table lists them all.
+The diagram draws 14 of 23 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -71,11 +71,11 @@ The diagram draws 14 of 22 relations; the table lists them all.
 | → | has | [ExplorationMetrics](io.github.tlaplus.hardening.checker.ExplorationMetrics.md) | What a model checker explored to reach its verdict, as ADR 0008 defines it. |
 | → | has | [StageOutcome](io.github.tlaplus.hardening.workflow.worker.StageOutcome.md) | Common result of processing one input in a checking stage. |
 | ← | uses | [ApalacheOutcomeClassifier](io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | Maps Apalache tool exit statuses to shared workflow outcomes. |
-| ← | uses | [PropertyRunsVerdict](io.github.tlaplus.hardening.workflow.tlc.PropertyRunsVerdict.md) | Folds the relation run of a metamorphic module and its two property runs into the one outcome of the TLC stage (ADR 0027 §4). |
 | ← | uses | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | ← | uses | [TlcExplorationMetrics](io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics.md) | Measures one TLC run and attaches the result to its classified outcome (ADR 0008). |
 | ← | uses | [TlcOutcomeClassifier](io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | Maps TLC's internal error constants to workflow outcomes. |
 | ← | uses | [ProcessToolWorker](io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker.md) | A tool worker served by one isolated child process until a crash verdict retires it. |
+| ← | uses | [PropertyRunsVerdict](io.github.tlaplus.hardening.workflow.tool.PropertyRunsVerdict.md) | Folds the relation run of a metamorphic module and its two property runs into the one outcome of a checker stage (ADR 0027 §4, ADR 0029 §1). |
 | ← | uses | [ToolWorker](io.github.tlaplus.hardening.workflow.tool.ToolWorker.md) | Worker-local tool state used for one or more sequential inputs. |
 | ← | uses | [IsolatedWorkerProcess](io.github.tlaplus.hardening.workflow.worker.IsolatedWorkerProcess.md) | Parent-side supervisor for one isolated Java tool worker. |
 | ← | uses | [ToolWorkerProtocol](io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol.md) | Binary framing shared by isolated parser and model-checker workers. |
@@ -84,6 +84,7 @@ The diagram draws 14 of 22 relations; the table lists them all.
 | → | depends | [Diagnostics](io.github.tlaplus.hardening.common.Diagnostics.md) | Human-readable diagnostic formatting for failures. |
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | ← | depends | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
+| ← | depends | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
 | ← | depends | [ApalacheWorkerMain](io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain.md) | Persistent child process that invokes Apalache's `Tool.run` sequentially. |
 | ← | depends | [LibrarySourceProbe](io.github.tlaplus.hardening.workflow.library.LibrarySourceProbe.md) | Parses every source alias of a prepared library once, with the classpath the parser and TLC workers receive (ADR 0015). |
 | ← | depends | [ParserWorkerMain](io.github.tlaplus.hardening.workflow.parser.ParserWorkerMain.md) | Child-process entry point for persistent isolated SANY requests. |

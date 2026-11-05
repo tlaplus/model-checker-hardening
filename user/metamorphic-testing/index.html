@@ -1734,32 +1734,42 @@ you write the proof, a quick TLC check over small domains can catch a wrong rule
   its entries are not conformance tests.</li>
 </ul>
 <h2 id="7-temporal-properties">7. Temporal properties<a class="headerlink" href="#7-temporal-properties" title="Permanent link">&para;</a></h2>
-<p>This mode tests TLC on rewritten properties and fairness
-(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>). Corpora without it are
-unaffected.</p>
-<p><strong>Enabling.</strong> <code>fuzztla init --how=mt --temporal</code> adds a second rule module and checks
-with TLC alone:</p>
+<p>This mode tests TLC and Apalache on rewritten properties and fairness
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a>,
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0029-apalache-temporal-metamorphic-testing.md">ADR 0029</a>). Corpora without
+it are unaffected.</p>
+<p><strong>Enabling.</strong> <code>fuzztla init --how=mt --temporal</code> adds a second rule module and keeps the
+checkers:</p>
 <div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>mt<span class="w"> </span>--temporal<span class="w"> </span>--base-corpus<span class="w"> </span>corpus71<span class="w"> </span>--corpus<span class="w"> </span>corpus-mtt
 </code></pre></div>
-<p>It writes:</p>
-<div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>
-<span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">]</span><span class="w">                  </span><span class="c1"># Apalache supports no fairness</span>
-
-<span class="k">[metamorphic]</span>
+<p>With Apalache among the checkers, it writes:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[metamorphic]</span>
 <span class="n">temporal_rules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"TemporalRewrites"</span><span class="p">,</span><span class="w"> </span><span class="n">classpath</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tla/rewrites"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
-<span class="n">temporal_weights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">WFDef</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1"># as weights, for the temporal rules</span>
+<span class="n">temporal_weights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">WFDef</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">SFDef</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">}</span><span class="w">   </span><span class="c1"># rules that introduce ENABLED</span>
+
+<span class="k">[workflow.inputs]</span>
+<span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">,</span>
+<span class="w">                 </span><span class="s2">"../signatures/metamorphic-defects.toml"</span><span class="p">,</span>
+<span class="w">                 </span><span class="s2">"../signatures/temporal-apalache-defects.toml"</span><span class="p">]</span>
 </code></pre></div>
 <ul>
-<li><strong>The checkers lose Apalache.</strong> Both TLC stages, <code>tlc</code> and <code>tlcn</code>, stay. Without
-  Apalache, <code>metamorphic-defects.toml</code>, which quarantines <code>CHOOSE</code> for Apalache, is left
-  out.</li>
+<li><strong>With Apalache,</strong> <code>temporal-apalache-defects.toml</code> quarantines every module with
+  <code>ENABLED</code>, <code>WF</code> or <code>SF</code>, which Apalache does not support. TLC then checks no fairness
+  in this corpus either; for that, run a corpus with <code>checkers = ["tlc", "tlcn"]</code>.</li>
+<li><strong>Without Apalache,</strong> <code>metamorphic-defects.toml</code>, which quarantines <code>CHOOSE</code> for
+  Apalache, is left out, and every temporal rule keeps its weight.</li>
 <li><strong>The base must generate modules with properties:</strong> a <code>module</code> base, or a <code>graph</code> base
   with <code>[graph] properties = true</code>
   (<a href="../graph-based-testing/#1-setting-up-a-corpus">Graph-based testing</a>). <code>init</code> refuses
   any other base, and warns if the base ignores <code>temporal</code>
-  (<a href="../temporal-properties/">Temporal properties</a>).</li>
-<li><strong><code>run</code> refuses <code>temporal_rules</code></strong> with Apalache among the checkers, or with a base
-  <code>init</code> would refuse.</li>
+  (<a href="../temporal-properties/">Temporal properties</a>). <code>run</code> refuses <code>temporal_rules</code> with a
+  base <code>init</code> would refuse.</li>
+<li><strong>Apalache finds little yet.</strong> Apalache gives wrong verdicts on a conjunction with an
+  <code>&lt;&gt;</code> operand under a temporal operator
+  (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-temporal/apalache-temporal-006.md"><code>apalache-temporal-006</code></a>),
+  which <code>AlwaysOrBreak</code> and <code>EventuallyWeaken</code> create. <code>all-defects.toml</code> quarantines
+  it, together with TLC's temporal shapes; in ADR 0029's probe, no entry with a
+  temporal rewrite was left for the checkers.</li>
 <li><strong>TLC crashes on some properties.</strong> An evaluation error inside <code>&lt;&gt;</code> or <code>~&gt;</code> makes TLC
   exit with error 1000, an open TLC defect. <code>all-defects.toml</code> quarantines it as
   <code>tlc-partial-operator-under-eventuality</code>; with <code>known-defects.toml</code>, expect such
@@ -1810,9 +1820,37 @@ one outcome:
 <p><code>SpecC |= PropC</code> starts only once <code>Spec |= Prop</code> decided. <code>fuzztla print</code> lists the three
 configurations under <code>tlc runs:</code>, after the applied rules. The exploration metrics and the
 quality gate use the relation run.</p>
+<p><strong>What Apalache checks.</strong> Apalache runs the same three checks in its worker, one after
+another, and folds them in the same way. It checks each side's property from that side's
+<code>Init</code> and <code>Next</code>, without fairness, one transition past the step bound <code>n</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Apalache options</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>relation</td>
+<td><code>--init=Init --next=Next --inv=Inv,Step --length=n</code></td>
+</tr>
+<tr>
+<td><code>Spec \|= Prop</code></td>
+<td><code>--init=Init --next=Next --temporal=Prop --length=n+1</code></td>
+</tr>
+<tr>
+<td><code>SpecC \|= PropC</code></td>
+<td><code>--init=InitC --next=NextC --temporal=PropC --length=n+1</code></td>
+</tr>
+</tbody>
+</table>
+<p>One input may take three times the stage's <code>timeout_sec</code>. <code>fuzztla print</code> lists the
+options under <code>apalache runs:</code>.</p>
 <p><strong>Triage.</strong> For "property verdicts differ", check each property under its own
-specification in TLC, as in section 4. If TLC agrees with itself after both are
-simplified, a rule is unsound; otherwise reduce the module to a finding. <code>shrink</code> clears
+specification in the checker that reported it, as in section 4. If the checker agrees
+with itself after both are simplified, a rule is unsound; otherwise reduce the module to
+a finding. <code>shrink</code> clears
 rewrite markers as for any entry.</p>
 <p><strong>Cost.</strong> An entry with a property costs up to three TLC runs instead of one.</p>
 <p><strong>Writing temporal rules.</strong> Temporal rules live in <code>TemporalRewrites.tla</code>, next to
@@ -1829,8 +1867,9 @@ rewrite markers as for any entry.</p>
 <h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0016-metamorphic-testing.md">ADR 0016</a> records the design and the
 probes behind it, <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0017-rewrite-rule-library.md">ADR 0017</a> the rule
-format, and <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a> the proposed
-temporal mode. The rule catalog will be specified in a later ADR.</p>
+format, <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0027-temporal-metamorphic-testing.md">ADR 0027</a> the temporal mode,
+and <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0029-apalache-temporal-metamorphic-testing.md">ADR 0029</a> its Apalache
+runs. The rule catalog will be specified in a later ADR.</p>
 
 
 
