@@ -404,6 +404,7 @@ class CorpusExportTest {
                     payload.length(),
                     new TreeMap<>(Map.of("EQ", 1L, "SET_ENUM", (long) payload.length())),
                     new TreeMap<>(Map.of(new ExprEdge("EQ", "SET_ENUM"), (long) payload.length()))),
+                    new TreeMap<>(),
                     payload.equals("aggregated") ? List.of("PlusZero", "AddSub") : List.of());
         };
     }

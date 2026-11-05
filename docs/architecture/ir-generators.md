@@ -542,15 +542,21 @@ value for the four action-specific limits. TOML keys and defaults are unchanged:
 Selection weights default to one, except:
 
 ```toml
-weights = { name = 8, enum_set = 16 }
+weights = { name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }
 ```
 
-These come from sweeping each weight against how often an admitted input contains
+The `name` and `enum_set` weights come from sweeping each weight against how often an admitted input contains
 a membership test on a fold parameter against a non-empty set literal. The set
 literal dominates: raising its weight from 1 to 16 took that shape from 148 to
 1168 per 20000 admitted inputs, while the same sweep over the name weight barely
 moved it. A weighted terminal measured slightly worse than none, because it
 crowds out the literals that would otherwise be the other side of a comparison.
+
+`always`, `eventually` and `leads_to` apply only at the temporal level, so their
+weights change property formulas and nothing else. Sweeping them together against
+the share of decoded module inputs whose property applies a temporal operator to the
+state gave 11.8% at weight 1 and 25.9% at 16, while known-defect quarantine rose from
+28.1% to 29.7% ([ADR 0028](../decisions/0028-temporal-property-quality.md)).
 
 ## 7. Names and lexical scope
 

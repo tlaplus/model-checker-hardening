@@ -494,8 +494,10 @@ class InputStageTest {
         var parallel = CorpusDirectory.initialize(directory.resolve("parallel"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var pbt = new PbtConfig(32, 10, 2.0, 1.5);
 
-        runPlan(single, decoders(ACCEPT), pbt, plan(99, 40, 1, pbt), 1);
-        runPlan(parallel, decoders(ACCEPT), pbt, plan(99, 40, 4, pbt), 4);
+        // Two targets that draw the same bytes race for them, so the seed must draw none twice.
+        var sequential = runPlan(single, decoders(ACCEPT), pbt, plan(100, 40, 1, pbt), 1);
+        assertEquals(0, sequential.summary(SEED).aggregate().duplicates());
+        runPlan(parallel, decoders(ACCEPT), pbt, plan(100, 40, 4, pbt), 4);
 
         var singleEntries = readEntries(single);
         var parallelEntries = readEntries(parallel);

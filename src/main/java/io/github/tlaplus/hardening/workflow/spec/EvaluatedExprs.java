@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInput;
 import io.github.tlaplus.hardening.corpus.ReplayedInput;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
 import io.github.tlaplus.hardening.signature.IrExprCounts;
+import io.github.tlaplus.hardening.signature.TemporalShapes;
 import java.util.List;
 import java.util.Objects;
 
@@ -33,11 +34,15 @@ public final class EvaluatedExprs {
         return counts(decoders.decode(input));
     }
 
-    /** Returns the construct counts and, for a metamorphic input, the rewrite rules it applied. */
+    /**
+     * Returns the construct counts, the temporal shapes of the properties and, for a metamorphic
+     * input, the rewrite rules it applied.
+     */
     public ReplayedInput analyze(CorpusInput input) {
         Objects.requireNonNull(input, "input");
         var artifact = decoders.decode(input);
         return new ReplayedInput(counts(artifact),
+                TemporalShapes.of(artifact.module(), FuzzInputModule.PROPERTY_DEFINITIONS),
                 artifact.rewrite().map(Rewrite::appliedRules).orElse(List.of()));
     }
 

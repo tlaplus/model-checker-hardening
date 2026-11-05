@@ -30,6 +30,7 @@ import io.github.tlaplus.hardening.corpus.ShallowPattern;
 import io.github.tlaplus.hardening.corpus.StageResult;
 import io.github.tlaplus.hardening.corpus.StoredEntry;
 import io.github.tlaplus.hardening.gen.InputKind;
+import io.github.tlaplus.hardening.signature.TemporalShapes;
 import io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator;
 import io.github.tlaplus.hardening.workflow.execution.StageCounters;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
@@ -198,11 +199,37 @@ class QualityGateTest {
         var best = aggregated(corpus, 1, 0, CorpusVerdict.PASS, explored(3, 4));
         aggregated(corpus, 3, 0, CorpusVerdict.PASS, explored(2, 4));
 
-        gate(corpus, new QualityGateConfig(0.5, Set.of(), 0, true), input -> {
+        // The action-coverage ranking reads no temporal shapes, so nothing needs a replay.
+        new QualityGate(corpus, new QualityGateConfig(0.5, Set.of(), 0, true), input -> {
             throw new AssertionError("no replay without a cell bound");
-        }, counters()).run(0);
+        }, counters(), Ranking.ACTION_COVERAGE).run(0);
 
         assertEquals(Set.of(best), digests(corpus, CorpusVerdict.PASS));
+    }
+
+    /** ADR 0028 §3: of two entries that explore alike, the one with temporal shapes ranks first. */
+    @Test
+    void ranksAnEntryWithTemporalShapesFirst(@TempDir Path directory) throws Exception {
+        var corpus = corpus(directory);
+        aggregated(corpus, ranked(1, 1), 0, CorpusVerdict.PASS, explored(2, 4));
+        var temporal = aggregated(corpus, ranked(6, 2), 0, CorpusVerdict.PASS, explored(2, 4));
+
+        gate(corpus, config(0.5), counters()).run(0);
+
+        assertEquals(Set.of(temporal), digests(corpus, CorpusVerdict.PASS));
+    }
+
+    @Test
+    void keepsAnEntryOfAFullCellThatAddsATemporalShape(@TempDir Path directory) throws Exception {
+        var corpus = corpus(directory);
+        // Codes 6 to 8 have one temporal shape each, so they share a cell; code 7's is another one.
+        var first = aggregated(corpus, ranked(6, 1), 0, CorpusVerdict.PASS, explored(2, 4));
+        var newShape = aggregated(corpus, ranked(7, 2), 0, CorpusVerdict.PASS, explored(2, 4));
+        aggregated(corpus, ranked(8, 3), 0, CorpusVerdict.PASS, explored(2, 4));
+
+        gate(corpus, cells(1, true), counters()).run(0);
+
+        assertEquals(Set.of(first, newShape), digests(corpus, CorpusVerdict.PASS));
     }
 
     @Test
@@ -261,7 +288,8 @@ class QualityGateTest {
     /**
      * A stand-in for replay, by the input's first byte, its code: codes 1 and 2 are one equality of
      * two integers, codes 3 and 4 add a set enumeration under the equality, and code 5 is code 1's
-     * code four times over.
+     * code four times over. Codes 6 to 8 are code 1 with a property: {@code []P} for codes 6 and 8,
+     * {@code <>P} for code 7.
      */
     private static ReplayedInput analyze(CorpusInput input) {
         var id = input.input()[0];
@@ -272,7 +300,11 @@ class QualityGateTest {
             exprs.put("SET_ENUM", 1L);
             edges.put(new ExprEdge("EQ", "SET_ENUM"), 1L);
         }
-        return new ReplayedInput(new ExprCounts(3 * times, exprs, edges), List.of());
+        var shapes = new TreeMap<ExprEdge, Long>();
+        if (id >= 6 && id <= 8) {
+            shapes.put(new ExprEdge(TemporalShapes.PROPERTY, id == 7 ? "EVENTUALLY" : "GLOBALLY"), 1L);
+        }
+        return new ReplayedInput(new ExprCounts(3 * times, exprs, edges), shapes, List.of());
     }
 
     private static CorpusDirectory corpus(Path directory) throws Exception {

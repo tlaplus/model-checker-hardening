@@ -106,6 +106,12 @@ public final class FuzzInputModule {
     public static final String PROP_C = "PropC";
 
     /**
+     * The property and fairness definitions of both sides, whose temporal shapes the quality gate
+     * rewards (ADR 0028). A module without property runs defines only the explored side's.
+     */
+    public static final List<String> PROPERTY_DEFINITIONS = List.of(PROP, FAIRNESS, PROP_C, FAIRNESS_C);
+
+    /**
      * The definitions that a checker invocation of one side reads: TLC explores {@code
      * specification}, and Apalache {@code init} and {@code next} (ADR 0029 §1). Both check {@code
      * property}.

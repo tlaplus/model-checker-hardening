@@ -2,9 +2,15 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-11-03
+
+**Implementation.** `signature.TemporalShapes` computes the shapes of section 2, and
+`workflow.spec.EvaluatedExprs` adds them to every replay. `Ranking.Component` counts a
+`Ranking.Measure`: one of TLC's exploration metrics, or `TEMPORAL_SHAPES`, which the
+gate obtains by replaying. `workflow.quality.EntryReplays` replays each entry of a gate
+run at most once.
 
 ## Context
 

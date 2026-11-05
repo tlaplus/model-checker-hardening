@@ -110,20 +110,21 @@ An entry of `03aggregator-pass` is *admissible* when all of these hold:
 - TLC recorded exploration metrics;
 - it matches none of `shallow_patterns`.
 
-The gate ranks admissible entries by TLC's exploration metrics, compared in
-this order, higher first:
+The gate ranks admissible entries by TLC's exploration metrics and the temporal
+shapes of their property, compared in this order, higher first:
 
 1. `projectedDepth`;
 2. `projectedStates`, by power of two;
-3. `actionsDiscovering`;
-4. `maxStateNodes`, by power of two;
-5. `maxCardinality`, by power of two;
-6. `maxNesting`.
+3. the number of distinct temporal shapes, by power of two (below);
+4. `actionsDiscovering`;
+5. `maxStateNodes`, by power of two;
+6. `maxCardinality`, by power of two;
+7. `maxNesting`.
 
 Ties go to the shorter input. A `gbt` corpus ranks by action coverage instead
 ([ADR 0024](../decisions/0024-graph-action-coverage.md)): `dataActions` by power of
 two, `projectedStates` by power of two, `projectedDepth`, then the last three as
-above. Its metrics project out `pc` as well as `step`, so they measure the data a
+above, without temporal shapes, since `gbt` does not check properties. Its metrics project out `pc` as well as `step`, so they measure the data a
 graph entry computes rather than the length of its walks.
 
 The gate walks the admissible entries in this order and keeps an entry while it
@@ -131,9 +132,10 @@ has kept fewer than `ceil(select_fraction × agreeing entries of the generation)
 and either of these holds:
 
 - **Behaviour.** The entry's *cell* holds fewer than `cell_capacity` kept
-  entries. The cell is the TLC verdict together with the six metrics of the
-  corpus's ranking, each compared as in the ranking (states, nodes and
-  cardinality by power of two, and, under action coverage, `dataActions` too).
+  entries. The cell is the TLC verdict together with the components of the
+  corpus's ranking, each compared as in the ranking (states, temporal shapes,
+  nodes and cardinality by power of two, and, under action coverage,
+  `dataActions` too).
 - **Coverage.** `feature_coverage` is enabled and the entry has a *feature* that no kept
   entry has.
 
@@ -149,11 +151,22 @@ features are:
 
 - a construct and how often it occurs;
 - an *edge*, meaning a construct and a construct that is its immediate
-  argument (`SET_IN → FUN_APP`, for example), and how often it occurs.
+  argument (`SET_IN → FUN_APP`, for example), and how often it occurs;
+- a *temporal shape* of the property, and how often it occurs.
+
+A temporal shape is a temporal operator (`[]`, `<>`, `~>`, `WF_v`, `SF_v`,
+`[A]_v`, `<<A>>_v` or `ENABLED`) whose operand reads a state variable, together
+with the nearest enclosing temporal operator that reads one, or `PROPERTY` at the
+top. `[](<>(x > 0))` has the shapes `PROPERTY → GLOBALLY` and
+`GLOBALLY → EVENTUALLY`; `[](<>TRUE)` has none. The shapes come from `Prop` and
+`Fairness`, and in a metamorphic module also from `PropC` and `FairnessC`
+([ADR 0028](../decisions/0028-temporal-property-quality.md)).
 
 Counts are bucketed as in AFL: 1, 2, 3, 4–7, 8–15, 16–31, 32–127, 128 or more.
-The gate computes features by replaying the input through the generator, as
-`fuzztla export-db` does. An input that fails to replay has no features.
+The gate computes features and temporal shapes by replaying the input through
+the generator, as `fuzztla export-db` does. A `pbt` or `mt` corpus replays every
+admissible entry and the pool in each generation, since the ranking reads the
+shapes. An input that fails to replay has no features and no shapes.
 
 An `expr` corpus is always shallow: its module has no transitions. To exercise
 mutation on one, set `shallow_patterns = []`.

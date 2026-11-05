@@ -64,7 +64,7 @@ class TomlConfigTest {
         assertTrue(Files.readString(path).contains("max_action_operators = 2"));
         assertTrue(Files.readString(path).contains("max_action_depth = 3"));
         assertTrue(Files.readString(path)
-                .contains("weights = { name = 8, enum_set = 16 }"));
+                .contains("weights = { name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }"));
         assertTrue(Files.readString(path)
                 .contains("ignore = [\"unbound\", \"exotic\"]"));
         assertTrue(Files.readString(path).contains("max_input_bytes = 10240"));
@@ -328,7 +328,7 @@ class TomlConfigTest {
     @Test
     void readsFormWeightsAsATableOrAHeader(@TempDir Path directory) throws Exception {
         var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
-        var defaultWeights = "weights = { name = 8, enum_set = 16 }";
+        var defaultWeights = "weights = { name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }";
 
         var none = readConfig(directory, rendered.replace(defaultWeights, "weights = {}"));
         var one = readConfig(
@@ -353,7 +353,7 @@ class TomlConfigTest {
     @Test
     void rejectsUnusableFormWeights(@TempDir Path directory) throws Exception {
         var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
-        var defaultWeights = "weights = { name = 8, enum_set = 16 }";
+        var defaultWeights = "weights = { name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }";
 
         var missing = assertInvalid(directory, rendered.replace(defaultWeights + "\n", ""));
         assertTrue(missing.getMessage().contains("missing generator keys: weights"));

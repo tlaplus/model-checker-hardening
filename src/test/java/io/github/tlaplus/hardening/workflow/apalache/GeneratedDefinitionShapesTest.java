@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.GeneratedSpecSamples;
+import io.github.tlaplus.hardening.gen.ExpressionCategory;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
@@ -48,7 +49,9 @@ class GeneratedDefinitionShapesTest {
     }
 
     private void assertTypeChecks(Path directory, Predicate<GeneratedSpec> shape, long seed) throws Exception {
-        var samples = GeneratedSpecSamples.collect(IrGenerationConfig.defaults(), seed, 4000, 4, shape);
+        // The shapes are in definitions; a temporal property would hit apalache-temporal-001 instead.
+        var config = IrGenerationConfig.defaults().ignoring(ExpressionCategory.TEMPORAL);
+        var samples = GeneratedSpecSamples.collect(config, seed, 4000, 4, shape);
         assertEquals(4, samples.size(), "too few modules with the shape were generated");
         var scratch = Files.createDirectory(directory.resolve("scratch"));
         try (var worker = ApalacheCheckerBackend.start(StagedTools.locate(ToolJar.APALACHE), scratch, CONFIG, TIMEOUT)) {

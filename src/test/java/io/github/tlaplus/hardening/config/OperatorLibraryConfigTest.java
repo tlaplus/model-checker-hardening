@@ -18,7 +18,7 @@ class OperatorLibraryConfigTest {
         var text = TomlConfig.render(FuzzTlaConfig.defaults())
                 .replace("classpath = []", "classpath = [\"./tla files\", \"../operators.jar\"]")
                 .replace("custom_operators = []", "custom_operators = [{ module = \"Mine\", operators = [\"Second\", \"First\"] }]")
-                .replace("weights = { name = 8, enum_set = 16 }", "weights = { \"Mine!Second\" = 12 }");
+                .replace("weights = { name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }", "weights = { \"Mine!Second\" = 12 }");
         var path = directory.resolve("config.toml");
         Files.writeString(path, text);
         var config = TomlConfig.read(path);
@@ -52,7 +52,7 @@ class OperatorLibraryConfigTest {
             Files.writeString(path, base.replace("custom_operators = []", "custom_operators = " + value));
             assertThrows(ConfigException.class, () -> TomlConfig.read(path), value);
         }
-        Files.writeString(path, base.replace("weights = { name = 8, enum_set = 16 }", "weights = { \"Mine!Op\" = 4 }"));
+        Files.writeString(path, base.replace("weights = { name = 8, always = 16, eventually = 16, leads_to = 16, enum_set = 16 }", "weights = { \"Mine!Op\" = 4 }"));
         assertTrue(assertThrows(ConfigException.class, () -> TomlConfig.read(path)).getMessage().contains("unselected"));
     }
 

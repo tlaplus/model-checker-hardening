@@ -1,8 +1,8 @@
 package io.github.tlaplus.hardening.workflow.quality;
 
-import io.github.tlaplus.hardening.checker.ExplorationMetrics;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.Ranking;
+import io.github.tlaplus.hardening.corpus.RankingInput;
 import java.util.List;
 import java.util.Objects;
 
@@ -16,7 +16,7 @@ record QualityCell(CorpusVerdict verdict, List<Long> components) {
         components = List.copyOf(components);
     }
 
-    static QualityCell of(CorpusVerdict verdict, ExplorationMetrics metrics, Ranking ranking) {
-        return new QualityCell(verdict, ranking.values(metrics));
+    static QualityCell of(CorpusVerdict verdict, RankingInput input, Ranking ranking) {
+        return new QualityCell(verdict, ranking.values(input));
     }
 }
