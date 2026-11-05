@@ -1,10 +1,10 @@
 # `RuleLevels`
 
-`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleLevels.java#L19) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleLevels.java#L19) · module [gen](../modules/gen.md)
 
 What the levels of a rule require of a match (ADR 0027 §1).
 
-**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/docs/decisions/0027-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/docs/decisions/0027-temporal-metamorphic-testing.md)
 
 ```mermaid
 classDiagram

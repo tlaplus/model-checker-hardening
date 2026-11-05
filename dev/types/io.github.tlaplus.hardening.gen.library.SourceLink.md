@@ -1,6 +1,6 @@
 # `SourceLink`
 
-`io.github.tlaplus.hardening.gen.library` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/gen/library/SourceLink.java#L12) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.library` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/gen/library/SourceLink.java#L12) · module [gen](../modules/gen.md)
 
 The module the parser and TLC evaluate, and the aliases its renderer must define through named instances.
 

@@ -1748,7 +1748,8 @@ cardinality of any set of sequences.</p>
 - <strong>Scaffolding.</strong> Every input has the same <code>Spec == Init /\ [][Next]_vars /\
   Fairness</code> and <code>Liveness == Fairness =&gt; Prop</code>, and every <code>module</code> input of a
   <a href="../metamorphic-testing/">metamorphic</a> corpus has
-  <code>StepProperty == [][Step]_vars</code>. A pattern that matches them, such as
+  <code>StepProperty == [][Step]_vars</code>; with temporal rules, also
+  <code>SpecC == InitC /\ [][NextC]_vars /\ FairnessC</code>. A pattern that matches them, such as
   <code>(GLOBALLY (STUTTER ...))</code>, matches every input; exclude them with <code>(~ p)</code>.
   <code>KnownDefectScaffoldingTest</code> fails on such a signature.
 - <strong>Alternatives.</strong> The alternatives in <code>match</code> are independent. Bindings do
@@ -2064,7 +2065,8 @@ listing both defines every shipped id twice, which is an error:</p>
   <code>ApaFoldSeqLeft</code> and can exhaust the heap from about nine elements
   (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-performance/apalache-performance-002.md"><code>apalache-performance-002</code></a>).
 - <code>apalache-always-action-bound</code>: every <code>[][A]_v</code> other than <code>Spec</code>'s
-  <code>[][Next]_vars</code> and a metamorphic relation's <code>[][Step]_vars</code>. The workflow checks <code>Prop</code> under <code>Fairness =&gt; Prop</code>, where
+  <code>[][Next]_vars</code>, a metamorphic relation's <code>[][Step]_vars</code>, and a temporal
+  relation's <code>[][NextC]_vars</code> in <code>SpecC</code>. The workflow checks <code>Prop</code> under <code>Fairness =&gt; Prop</code>, where
   Apalache needs one more step than the lasso to report a violation of <code>[][A]_v</code>
   (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-temporal/apalache-temporal-005.md"><code>apalache-temporal-005</code></a>).
 - <code>fold-concatenation</code>: every application of the recursion library's

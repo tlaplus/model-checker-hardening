@@ -1,6 +1,6 @@
 # `GeneratorStatistics`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/efb80f561357d9a62d3b24e493bb2f450ab6410c/src/main/java/io/github/tlaplus/hardening/workflow/execution/GeneratorStatistics.java#L19) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/67e35a58c073e6c440eeda056deff562aedf32cb/src/main/java/io/github/tlaplus/hardening/workflow/execution/GeneratorStatistics.java#L19) · module [workflow](../modules/workflow.md)
 
 Cumulative input-generation counters shared by the generator workers.
 
