@@ -219,12 +219,19 @@ TLC_LIVENESS_ERROR_AFTER_INITIAL_STATES = (
     rf"{TLC_IMPLIED_TEMPORAL}[\s\S]*^Finished computing initial states: "
 )
 
+# A TLC warning block: the "Warning:" line and its continuation lines, such as
+# the location and "(Use the -nowarning option ...)", up to the next warning or
+# error.
+TLC_WARNING_BLOCK = r"Warning: [^\n]*\n(?:(?!Error: |Warning: )[^\n]*\n)*"
+
 # The same escape while TLC evaluates the tableau on an initial state: a plain
-# "Error:" line directly after "Computing initial states...". An error in Init
-# or in the invariant exits 75 instead; a wrapped RuntimeException stays with
-# tlc-001 and tlc-003.
+# "Error:" line after "Computing initial states...", directly or after warnings
+# that the evaluation printed, such as an EXCEPT on a missing field (corpus80
+# 08f0b102). An error in Init or in the invariant exits 75 instead; a wrapped
+# RuntimeException stays with tlc-001 and tlc-003.
 TLC_LIVENESS_ERROR_ON_INITIAL_STATE = (
     rf"{TLC_IMPLIED_TEMPORAL}[\s\S]*^Computing initial states\.\.\.\n"
+    rf"(?:{TLC_WARNING_BLOCK})*"
     r"Error: (?!TLC threw an unexpected exception\.)"
 )
 
@@ -377,6 +384,10 @@ SIGNATURES = (
             all_of(r"^TLC error code 21(?:69|78|79|80|83|84) mapped to exit status 255$",
                    rf"^Error: Evaluating invariant \w+ failed\.\n(?!{TLC_MODULE_ERROR_MESSAGE})",
                    r"^Error: The error occurred when TLC was evaluating the nested$")),
+    # No signature for TLC's "cannot handle the temporal formula" (2213) and "must
+    # be of forms" (2214): they stay NEW so that each rejected property is
+    # classified by shape in tlc-temporal-formula-limits.md, where tlc-011 and
+    # tlc-013 print the same diagnostics.
     finding("apalache-printer-008.md", Tool.TLC,
             all_of(r"^TLC error code 2102 mapped to exit status 255$",
                    r"Error: current state is not a legal state", r"/\\ step = null")),
