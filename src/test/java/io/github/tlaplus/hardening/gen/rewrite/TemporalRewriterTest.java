@@ -108,6 +108,41 @@ class TemporalRewriterTest {
                 "~~[]P keeps []P in a formula position");
     }
 
+    /**
+     * EventuallyWeaken copies its operand, so stacked it nests copies until TLC's tableau times
+     * out (ADR 0030). The growth factor is lifted here, so only the temporal budget binds.
+     */
+    @Test
+    void theTemporalBudgetBoundsTheTemporalOperatorsOfARewrittenProperty() {
+        var spec = spec(List.of(), B.always(POSITIVE));
+        var ones = new byte[512];
+        Arrays.fill(ones, (byte) 1);
+        for (var budget : new int[] {1, 4, 8}) {
+            var limits = new RewriteLimits(64, 4, 64, budget);
+            var rewrite = new Rewriter(BASE, temporal(eventuallyWeaken()), IrGenerationConfig.defaults(), limits)
+                    .rewriteSpec(spec, new Draw(ones));
+            var formula = rewrite.rewritten().property().orElseThrow().formula();
+            assertTrue(Rewriter.Extent.of(formula).temporal() <= budget, budget + ": " + formula);
+        }
+        var unbounded = new Rewriter(BASE, temporal(eventuallyWeaken()), IrGenerationConfig.defaults(),
+                new RewriteLimits(64, 4, 64, 1_000)).rewriteSpec(spec, new Draw(ones));
+        assertTrue(Rewriter.Extent.of(unbounded.rewritten().property().orElseThrow().formula()).temporal() > 8,
+                "without the budget the copies nest: " + unbounded.appliedRules());
+    }
+
+    /** A base above the budget keeps it, and a rule that adds no temporal operator still applies. */
+    @Test
+    void aPropertyAboveTheTemporalBudgetStillTakesRulesThatAddNone() {
+        var spec = spec(List.of(), B.always(B.eventually(POSITIVE)));
+        var ones = new byte[64];
+        Arrays.fill(ones, (byte) 1);
+        var rewrite = new Rewriter(library(doubleNeg()), temporal(eventuallyWeaken()), IrGenerationConfig.defaults(),
+                new RewriteLimits(16, 4, 2, 1)).rewriteSpec(spec, new Draw(ones));
+        assertTrue(rewrite.appliedRules().contains("DoubleNeg"), rewrite.appliedRules().toString());
+        assertFalse(rewrite.appliedRules().contains("EventuallyWeaken"), rewrite.appliedRules().toString());
+        assertEquals(2, Rewriter.Extent.of(rewrite.rewritten().property().orElseThrow().formula()).temporal());
+    }
+
     /** Without temporal rules, the walk reads no byte in the property, as before ADR 0027. */
     @Test
     void withoutTemporalRulesThePropertyStaysAsItIs() {

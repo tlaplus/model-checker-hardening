@@ -173,6 +173,10 @@ max_rewrite_depth = 4
 # Times its original size a rewritten body may grow, so rules that duplicate a parameter
 # cannot double a body with every rewrite.
 max_rewrite_growth = 2
+# Temporal operators a rewritten body may reach (ADR 0030); a rule that would add more does
+# not apply, so rules that copy a temporal operand cannot nest copies that TLC's tableau
+# construction does not finish.
+max_rewrite_temporal_operators = 16
 # pbt or gbt corpus, relative to this config file, whose 04quality-pass entries are adopted:
 # each is combined with random rewrite bytes (ADR 0016 §6). It is read, never written.
 # base_corpus = "../corpus-conf"
