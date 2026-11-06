@@ -1145,6 +1145,62 @@ class Corpus53CrashTest(unittest.TestCase):
                     ),
                 )
 
+    def test_tableau_error_after_warnings_is_tlc_010(self) -> None:
+        """corpus80 08f0b102 (one warning) and a second warning without the hint line."""
+        warning = (
+            "Warning: The EXCEPT was applied to non-existing fields of the value at",
+            "line 121, col 9 to line 126, col 9 of module FuzzInput",
+        )
+        hint = "(Use the -nowarning option to disable this warning.)"
+        error = (
+            "Error: The second argument of % should be a positive number, but instead it is:",
+            "0",
+        )
+        for name, warnings in (
+            ("one warning", (*warning, hint)),
+            ("two warnings", (*warning, hint, *warning)),
+        ):
+            with self.subTest(name):
+                self.assertEqual(
+                    "tlc-010.md",
+                    classify_quietly(
+                        self,
+                        triager.CrashKind.TLC,
+                        "\n".join((*self.INITIAL_STATES, *warnings, *error)),
+                    ),
+                )
+
+    def test_wrapped_exception_after_warnings_is_not_tlc_010(self) -> None:
+        diagnostic = "\n".join((
+            *self.INITIAL_STATES,
+            "Warning: The EXCEPT was applied to non-existing fields of the value at",
+            "line 121, col 9 to line 126, col 9 of module FuzzInput",
+            "Error: TLC threw an unexpected exception.",
+        ))
+        self.assertNotEqual(
+            "tlc-010.md", classify_quietly(self, triager.CrashKind.TLC, diagnostic)
+        )
+
+    def test_rejected_temporal_formulas_stay_new(self) -> None:
+        """corpus80 2909f03a (2213) and 1e14af79 (2214): triaged by shape, by hand."""
+        for code, message in (
+            ("2213", "Error: TLC cannot handle the temporal formula line 180, col 3 to "
+                     "line 292, col 15 of module FuzzInput:"),
+            ("2214", "Error: Temporal formulas containing actions must be of forms "
+                     "<>[]A or []<>A."),
+        ):
+            with self.subTest(code):
+                diagnostic = "\n".join((
+                    "in the property run Spec |= Prop (ADR 0027 §4):",
+                    f"TLC error code {code} mapped to exit status 255",
+                    "Starting... (2026-11-06 08:13:33)",
+                    message,
+                ))
+                self.assertEqual(
+                    triager.NEW_FINDING,
+                    classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+                )
+
     def test_tableau_error_needs_implied_temporal_checking(self) -> None:
         diagnostic = "\n".join((
             "TLC error code 1000 mapped to exit status 255",
