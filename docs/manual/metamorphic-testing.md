@@ -313,6 +313,11 @@ known_defects = ["../signatures/all-defects.toml",
   in this corpus either; for that, run a corpus with `checkers = ["tlc", "tlcn"]`.
 - **Without Apalache,** `metamorphic-defects.toml`, which quarantines `CHOOSE` for
   Apalache, is left out, and every temporal rule keeps its weight.
+- **Editing `checkers` after `init`** does not update these settings. When you remove
+  `apalache`, also remove both Apalache databases from `known_defects` and the
+  `WFDef` and `SFDef` entries from `temporal_weights`. Otherwise every module with
+  `CHOOSE`, fairness or `ENABLED` is quarantined although TLC checks it; `run` warns
+  about each such setting.
 - **The base must generate modules with properties:** a `module` base, or a `graph` base
   with `[graph] properties = true`
   ([Graph-based testing](graph-based-testing.md#1-setting-up-a-corpus)). `init` refuses

@@ -71,7 +71,8 @@ final class InitCommand implements Callable<Integer> {
     @Option(
             names = "--temporal",
             description = "With --how=mt, also rewrite properties and fairness with the shipped temporal rules"
-                    + " and check them with TLC alone (ADR 0027); the corpus generates modules.")
+                    + " and check them with the corpus's checkers (ADR 0027, ADR 0029); the corpus generates"
+                    + " modules. With Apalache, fairness and ENABLED are quarantined.")
     private boolean temporal;
 
     @Spec private CommandSpec spec;

@@ -353,8 +353,8 @@ final class ConfigSchema {
             METAMORPHIC.project(MetamorphicConfig::temporalRules), "temporal_", ConfigValueType.EXAMPLE_TEMPORAL_RULES,
             "temporal rewrite rule",
             "Temporal rule module, relative to this config file (ADR 0027): its rules A <=> B rewrite",
-            "properties and fairness, which TLC then checks in runs of their own. Needs kind = \"module\"",
-            "and checkers without apalache; without it, properties are not rewritten or checked.");
+            "properties and fairness, which the checkers then check in runs of their own (ADR 0029).",
+            "Needs kind = \"module\"; without it, properties are not rewritten or checked.");
     private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
     static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
             "max_rewrites", RewriteLimits::maximumRewrites, RewriteLimits.defaults().maximumRewrites(),

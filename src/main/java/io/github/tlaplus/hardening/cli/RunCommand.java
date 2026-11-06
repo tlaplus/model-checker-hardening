@@ -81,6 +81,10 @@ final class RunCommand implements Callable<Integer> {
             out.printf("Random seed: %d%n", config.seeds().generator());
             out.printf("Technique: %s%n", config.workflow().technique().encodedName());
             out.flush();
+            for (var warning : ApalacheOnlySettings.warnings(config)) {
+                spec.commandLine().getErr().printf("fuzztla: warning: %s%n", warning);
+            }
+            spec.commandLine().getErr().flush();
             var mode = continueRun ? RunMode.CONTINUE : RunMode.FRESH;
             if (!directory.isFresh()) {
                 if (mode == RunMode.FRESH) {
