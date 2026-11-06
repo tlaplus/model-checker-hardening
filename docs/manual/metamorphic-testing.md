@@ -47,6 +47,7 @@ adopt_ratio = 0.5
 max_rewrites = 16
 max_rewrite_depth = 4
 max_rewrite_growth = 2
+max_rewrite_temporal_operators = 16
 ```
 
 - **The technique is fixed.** `init --how=mt` writes `technique = "mt"` under
@@ -313,6 +314,11 @@ known_defects = ["../signatures/all-defects.toml",
   in this corpus either; for that, run a corpus with `checkers = ["tlc", "tlcn"]`.
 - **Without Apalache,** `metamorphic-defects.toml`, which quarantines `CHOOSE` for
   Apalache, is left out, and every temporal rule keeps its weight.
+- **Editing `checkers` after `init`** does not update these settings. When you remove
+  `apalache`, also remove both Apalache databases from `known_defects` and the
+  `WFDef` and `SFDef` entries from `temporal_weights`. Otherwise every module with
+  `CHOOSE`, fairness or `ENABLED` is quarantined although TLC checks it; `run` warns
+  about each such setting.
 - **The base must generate modules with properties:** a `module` base, or a `graph` base
   with `[graph] properties = true`
   ([Graph-based testing](graph-based-testing.md#1-setting-up-a-corpus)). `init` refuses
@@ -334,6 +340,11 @@ known_defects = ["../signatures/all-defects.toml",
 condition and then the property, before the other bodies, since a rewrite payload is
 short. There it applies the base rules and the temporal rules, such as `[]F` to `[][]F`,
 `F ~> G` to `[](F => <>G)`, and `WF_v(A)` to its definition in terms of `ENABLED`.
+Rules such as `EventuallyWeaken` (`F` to `F /\ <>F`) copy their operand, and stacked
+copies make TLC's tableau construction time out before it explores a state. A rule that
+adds operators of temporal level (`[]`, `<>`, `~>`, `WF`, `SF`) therefore applies only
+while the body keeps at most `max_rewrite_temporal_operators` of them, 16 by default
+([ADR 0030](../decisions/0030-temporal-operator-budget.md)).
 
 **What TLC checks.** An entry whose base has a property is checked in up to three TLC
 runs of one relation module. `SpecX == InitX /\ [][NextX]_vars /\ FairnessX` is side

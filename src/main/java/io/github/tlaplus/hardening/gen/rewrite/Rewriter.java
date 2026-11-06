@@ -50,6 +50,10 @@ import org.apalache_mc.tla.jir.TlaTypes;
  *       replacement is estimated without bytes: each parameter counts the size of its binding, and
  *       a fresh parameter one node, so the rewrite that crosses the bound overshoots it by its
  *       fresh operands at most, and no rule applies to the body after it.
+ *   <li>A rule that adds operators of temporal level applies only while the body has at most
+ *       {@link RewriteLimits#maximumTemporalOperators()} of them, estimated in the same way with
+ *       none for a fresh parameter (ADR 0030). A rule that adds none applies to a body above the
+ *       limit too.
  *   <li>Exhausted input reads even markers, so the rest of the body stays as it is.
  * </ul>
  *
@@ -180,7 +184,8 @@ public final class Rewriter {
         /** The rules of the current body. */
         private RewriteLibrary rules = library;
         private int rewrites;
-        private int bodySize;
+        /** The nodes and temporal operators of the body as rewritten so far. */
+        private Extent body;
         private int sizeLimit;
         private Set<String> assigned = Set.of();
         /** The {@code EXCEPT} replacements the walk is in, where a fresh operand may hold no label. */
@@ -217,8 +222,8 @@ public final class Rewriter {
             this.assigned = assigned;
             this.rules = bodyRules;
             rewrites = 0;
-            bodySize = size(expression);
-            sizeLimit = bodySize * limits.maximumGrowth() + freshSize();
+            body = Extent.of(expression);
+            sizeLimit = body.nodes() * limits.maximumGrowth() + freshSize();
             return visit(expression, scope, null, temporal);
         }
 
@@ -237,7 +242,7 @@ public final class Rewriter {
                 var chosen = RuleOperands.select(options, RuleOperands.Plan::weight, draw.drawIndex(slots, SELECTION_BYTES));
                 var replaced = current;
                 current = apply(chosen, scope);
-                bodySize += size(current) - size(replaced);
+                body = body.replace(Extent.of(replaced), Extent.of(current));
                 rewrites++;
                 applied.add(chosen.rule().name());
             }
@@ -351,7 +356,12 @@ public final class Rewriter {
                     continue;
                 }
                 RuleMatcher.match(rule, node, assigned).ifPresent(match -> {
-                    if (bodySize - size(node) + estimatedSize(match) > sizeLimit) {
+                    var original = Extent.of(node);
+                    var replacement = estimated(match);
+                    var after = body.replace(original, replacement);
+                    if (after.nodes() > sizeLimit
+                            || replacement.temporal() > original.temporal()
+                                    && after.temporal() > limits.maximumTemporalOperators()) {
                         return;
                     }
                     RuleOperands.planFresh(match, operands).ifPresent(options::add);
@@ -366,15 +376,18 @@ public final class Rewriter {
                     option.match(), drawn.values(), drawn.types(), RuleOperands.freshNames(operands));
         }
 
-        /** Bounds the size of a match's replacement, before any fresh operand is drawn. */
-        private int estimatedSize(RuleMatch match) {
+        /**
+         * Estimates the extent of a match's replacement before any fresh operand is drawn: a bound
+         * parameter counts its binding, and a fresh one a single node.
+         */
+        private Extent estimated(RuleMatch match) {
             var rule = match.rule();
-            var total = new int[1];
+            var total = new Extent[] {Extent.NONE};
             TlaExpressions.forEach(rule.replacement(), node -> {
                 var parameter = node instanceof NameEx name
                         ? rule.parameter(name.name()) : Optional.<RuleParameter>empty();
-                total[0] += parameter.map(value -> value.kind() == RuleParameter.Kind.FRESH
-                        ? 1 : size(match.bindings().get(value.name()))).orElse(1);
+                total[0] = total[0].plus(parameter.map(value -> value.kind() == RuleParameter.Kind.FRESH
+                        ? Extent.NODE : Extent.of(match.bindings().get(value.name()))).orElseGet(() -> Extent.node(node)));
             });
             return total[0];
         }
@@ -384,10 +397,31 @@ public final class Rewriter {
         }
     }
 
-    /** Counts the nodes of an expression. */
-    private static int size(TlaEx expression) {
-        var count = new int[1];
-        TlaExpressions.forEach(expression, ignored -> count[0]++);
-        return count[0];
+    /** The nodes of an expression and, among them, its operators of temporal level (ADR 0030). */
+    record Extent(int nodes, int temporal) {
+        static final Extent NONE = new Extent(0, 0);
+        /** A node that is no temporal operator. */
+        static final Extent NODE = new Extent(1, 0);
+
+        static Extent of(TlaEx expression) {
+            var total = new Extent[] {NONE};
+            TlaExpressions.forEach(expression, node -> total[0] = total[0].plus(node(node)));
+            return total[0];
+        }
+
+        /** The extent of {@code node} alone, without its operands. */
+        static Extent node(TlaEx node) {
+            return node instanceof OperEx application && FormulaLevels.TEMPORAL.contains(application.oper())
+                    ? new Extent(1, 1) : NODE;
+        }
+
+        Extent plus(Extent other) {
+            return new Extent(nodes + other.nodes, temporal + other.temporal);
+        }
+
+        /** This extent with the subexpression {@code removed} replaced by {@code added}. */
+        Extent replace(Extent removed, Extent added) {
+            return new Extent(nodes - removed.nodes + added.nodes, temporal - removed.temporal + added.temporal);
+        }
     }
 }

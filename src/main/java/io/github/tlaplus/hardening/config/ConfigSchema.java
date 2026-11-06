@@ -353,8 +353,8 @@ final class ConfigSchema {
             METAMORPHIC.project(MetamorphicConfig::temporalRules), "temporal_", ConfigValueType.EXAMPLE_TEMPORAL_RULES,
             "temporal rewrite rule",
             "Temporal rule module, relative to this config file (ADR 0027): its rules A <=> B rewrite",
-            "properties and fairness, which TLC then checks in runs of their own. Needs kind = \"module\"",
-            "and checkers without apalache; without it, properties are not rewritten or checked.");
+            "properties and fairness, which the checkers then check in runs of their own (ADR 0029).",
+            "Needs kind = \"module\"; without it, properties are not rewritten or checked.");
     private static final ConfigTableBuilder<RewriteLimits> REWRITE_LIMITS = METAMORPHIC.project(MetamorphicConfig::limits);
     static final Key<Integer> MAXIMUM_REWRITES = REWRITE_LIMITS.defaultedInteger(
             "max_rewrites", RewriteLimits::maximumRewrites, RewriteLimits.defaults().maximumRewrites(),
@@ -366,6 +366,12 @@ final class ConfigSchema {
             "max_rewrite_growth", RewriteLimits::maximumGrowth, RewriteLimits.defaults().maximumGrowth(),
             "Times its original size a rewritten body may grow, so rules that duplicate a parameter",
             "cannot double a body with every rewrite.");
+    static final Key<Integer> MAXIMUM_REWRITE_TEMPORAL_OPERATORS = REWRITE_LIMITS.defaultedInteger(
+            "max_rewrite_temporal_operators", RewriteLimits::maximumTemporalOperators,
+            RewriteLimits.defaults().maximumTemporalOperators(),
+            "Temporal operators a rewritten body may reach (ADR 0030); a rule that would add more does",
+            "not apply, so rules that copy a temporal operand cannot nest copies that TLC's tableau",
+            "construction does not finish.");
     private static final ConfigTableBuilder<MetamorphicConfig.Adoption> ADOPTION = METAMORPHIC.project(MetamorphicConfig::adoption);
     static final Key<Optional<Path>> BASE_CORPUS = ADOPTION.optional(
             "base_corpus", ConfigValueType.OPTIONAL_PATH, MetamorphicConfig.Adoption::baseCorpus, new Absent<>(),

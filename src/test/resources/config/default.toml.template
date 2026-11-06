@@ -160,8 +160,8 @@ feature_coverage = true
 # with neither has weight 1, and 0 disables it.
 weights = {}
 # Temporal rule module, relative to this config file (ADR 0027): its rules A <=> B rewrite
-# properties and fairness, which TLC then checks in runs of their own. Needs kind = "module"
-# and checkers without apalache; without it, properties are not rewritten or checked.
+# properties and fairness, which the checkers then check in runs of their own (ADR 0029).
+# Needs kind = "module"; without it, properties are not rewritten or checked.
 # temporal_rules = { module = "TemporalRewrites", classpath = ["../libraries/rewrites"] }
 # Selection slots per temporal rewrite rule, overriding the rule's @weight annotation; a rule
 # with neither has weight 1, and 0 disables it.
@@ -173,6 +173,10 @@ max_rewrite_depth = 4
 # Times its original size a rewritten body may grow, so rules that duplicate a parameter
 # cannot double a body with every rewrite.
 max_rewrite_growth = 2
+# Temporal operators a rewritten body may reach (ADR 0030); a rule that would add more does
+# not apply, so rules that copy a temporal operand cannot nest copies that TLC's tableau
+# construction does not finish.
+max_rewrite_temporal_operators = 16
 # pbt or gbt corpus, relative to this config file, whose 04quality-pass entries are adopted:
 # each is combined with random rewrite bytes (ADR 0016 §6). It is read, never written.
 # base_corpus = "../corpus-conf"
