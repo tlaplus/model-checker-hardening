@@ -1,6 +1,6 @@
 # `CorpusEnvelopeCodec`
 
-`io.github.tlaplus.hardening.corpus` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/39531345378d8db5a429220f50aed4254ea670fb/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEnvelopeCodec.java#L33) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/63cd44067a101bcc7b39ec4d8176d39ae569b650/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEnvelopeCodec.java#L33) · module [corpus](../modules/corpus.md)
 
 Reads and rewrites the `stages` metadata of a corpus envelope.
 

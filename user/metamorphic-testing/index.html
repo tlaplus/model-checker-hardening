@@ -1413,6 +1413,7 @@ The <code>[metamorphic]</code> table then reads:</p>
 <span class="n">max_rewrites</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span>
 <span class="n">max_rewrite_depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
 <span class="n">max_rewrite_growth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="n">max_rewrite_temporal_operators</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span>
 </code></pre></div>
 <ul>
 <li><strong>The technique is fixed.</strong> <code>init --how=mt</code> writes <code>technique = "mt"</code> under
@@ -1758,6 +1759,11 @@ checkers:</p>
   in this corpus either; for that, run a corpus with <code>checkers = ["tlc", "tlcn"]</code>.</li>
 <li><strong>Without Apalache,</strong> <code>metamorphic-defects.toml</code>, which quarantines <code>CHOOSE</code> for
   Apalache, is left out, and every temporal rule keeps its weight.</li>
+<li><strong>Editing <code>checkers</code> after <code>init</code></strong> does not update these settings. When you remove
+  <code>apalache</code>, also remove both Apalache databases from <code>known_defects</code> and the
+  <code>WFDef</code> and <code>SFDef</code> entries from <code>temporal_weights</code>. Otherwise every module with
+  <code>CHOOSE</code>, fairness or <code>ENABLED</code> is quarantined although TLC checks it; <code>run</code> warns
+  about each such setting.</li>
 <li><strong>The base must generate modules with properties:</strong> a <code>module</code> base, or a <code>graph</code> base
   with <code>[graph] properties = true</code>
   (<a href="../graph-based-testing/#1-setting-up-a-corpus">Graph-based testing</a>). <code>init</code> refuses
@@ -1778,7 +1784,12 @@ checkers:</p>
 <p><strong>What is rewritten.</strong> Besides the bodies of section 2, the rewriter walks each fairness
 condition and then the property, before the other bodies, since a rewrite payload is
 short. There it applies the base rules and the temporal rules, such as <code>[]F</code> to <code>[][]F</code>,
-<code>F ~&gt; G</code> to <code>[](F =&gt; &lt;&gt;G)</code>, and <code>WF_v(A)</code> to its definition in terms of <code>ENABLED</code>.</p>
+<code>F ~&gt; G</code> to <code>[](F =&gt; &lt;&gt;G)</code>, and <code>WF_v(A)</code> to its definition in terms of <code>ENABLED</code>.
+Rules such as <code>EventuallyWeaken</code> (<code>F</code> to <code>F /\ &lt;&gt;F</code>) copy their operand, and stacked
+copies make TLC's tableau construction time out before it explores a state. A rule that
+adds operators of temporal level (<code>[]</code>, <code>&lt;&gt;</code>, <code>~&gt;</code>, <code>WF</code>, <code>SF</code>) therefore applies only
+while the body keeps at most <code>max_rewrite_temporal_operators</code> of them, 16 by default
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0030-temporal-operator-budget.md">ADR 0030</a>).</p>
 <p><strong>What TLC checks.</strong> An entry whose base has a property is checked in up to three TLC
 runs of one relation module. <code>SpecX == InitX /\ [][NextX]_vars /\ FairnessX</code> is side
 X's specification.</p>

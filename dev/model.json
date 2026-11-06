@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "39531345378d8db5a429220f50aed4254ea670fb"
+    "commit" : "63cd44067a101bcc7b39ec4d8176d39ae569b650"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -119,6 +119,10 @@
     "number" : "0029",
     "title" : "Apalache in temporal metamorphic testing",
     "path" : "docs/decisions/0029-apalache-temporal-metamorphic-testing.md"
+  }, {
+    "number" : "0030",
+    "title" : "A budget of temporal operators per rewritten body",
+    "path" : "docs/decisions/0030-temporal-operator-budget.md"
   } ],
   "modules" : [ {
     "name" : "common",
@@ -377,6 +381,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/checker/ExplorationPhase.java",
     "line" : 4,
     "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "packageName" : "io.github.tlaplus.hardening.cli",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Settings that `fuzztla init` writes only for a corpus that checks with Apalache (ADR 0029 §3), found in a corpus that does not.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/cli/ApalacheOnlySettings.java",
+    "line" : 16,
+    "adrs" : [ "0029" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.CommandDiagnostic",
     "packageName" : "io.github.tlaplus.hardening.cli",
@@ -2813,10 +2827,10 @@
     "kind" : "RECORD",
     "role" : null,
     "key" : false,
-    "summary" : "Bounds of one rewrite (ADR 0016 §2, §7).",
+    "summary" : "Bounds of one rewrite (ADR 0016 §2, §7, ADR 0030).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewriteLimits.java",
-    "line" : 14,
-    "adrs" : [ "0016" ]
+    "line" : 17,
+    "adrs" : [ "0016", "0030" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RewritePositions",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -2845,8 +2859,8 @@
     "key" : true,
     "summary" : "Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/Rewriter.java",
-    "line" : 65,
-    "adrs" : [ "0016", "0027" ]
+    "line" : 69,
+    "adrs" : [ "0016", "0027", "0030" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.rewrite.RuleContract",
     "packageName" : "io.github.tlaplus.hardening.gen.rewrite",
@@ -4303,6 +4317,42 @@
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.config.InputStageConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.config.MetamorphicConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.config.RuleLibraryConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.config.WorkflowConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.corpus.CheckerSet",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "to" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.cli.CommandDiagnostic",
     "to" : "io.github.tlaplus.hardening.common.Diagnostics",
     "kind" : "DEPENDS"
@@ -4813,6 +4863,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.ReportCommand",
     "to" : "io.github.tlaplus.hardening.cli.ReportInstructions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunCommand",
+    "to" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
@@ -13754,10 +13808,10 @@
   }, {
     "from" : "cli",
     "to" : "signature",
-    "typePairs" : 6,
+    "typePairs" : 7,
     "allowed" : true,
     "implied" : true,
-    "exampleFrom" : "io.github.tlaplus.hardening.cli.InitialConfig",
+    "exampleFrom" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
     "exampleTo" : "io.github.tlaplus.hardening.signature.KnownDefectDatabase"
   }, {
     "from" : "cli",
@@ -13770,19 +13824,19 @@
   }, {
     "from" : "cli",
     "to" : "corpus",
-    "typePairs" : 56,
+    "typePairs" : 58,
     "allowed" : true,
     "implied" : true,
-    "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
-    "exampleTo" : "io.github.tlaplus.hardening.corpus.CorpusVerdict"
+    "exampleFrom" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "exampleTo" : "io.github.tlaplus.hardening.corpus.CheckerSet"
   }, {
     "from" : "cli",
     "to" : "config",
-    "typePairs" : 29,
+    "typePairs" : 34,
     "allowed" : true,
     "implied" : true,
-    "exampleFrom" : "io.github.tlaplus.hardening.cli.ExportDbCommand",
-    "exampleTo" : "io.github.tlaplus.hardening.config.ConfigException"
+    "exampleFrom" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",
+    "exampleTo" : "io.github.tlaplus.hardening.config.FuzzTlaConfig"
   }, {
     "from" : "cli",
     "to" : "database",
