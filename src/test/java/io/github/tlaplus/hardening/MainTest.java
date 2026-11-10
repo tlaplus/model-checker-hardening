@@ -229,6 +229,16 @@ class MainTest {
     }
 
     @Test
+    void rejectsARetiredSampleOutsideTheUnitInterval() {
+        for (var value : List.of("1.5", "-0.1", "NaN", "some")) {
+            var result = execute("run", "--validate-retired=" + value);
+
+            assertEquals(CommandLine.ExitCode.USAGE, result.exitCode(), value);
+            assertTrue(result.err().contains("expected a number in the range 0..1"), result.err());
+        }
+    }
+
+    @Test
     void printsRunHelp() {
         var result = execute("run", "--help");
 
@@ -237,6 +247,7 @@ class MainTest {
         assertTrue(result.out().contains("--corpus=DIR"));
         assertTrue(result.out().contains("--continue"));
         assertTrue(result.out().contains("--max-cpus=N"));
+        assertTrue(result.out().contains("--validate-retired=FRACTION"));
         assertTrue(result.out().contains("not reproducible"));
         assertFalse(result.out().contains("--seed"), result.out());
         assertFalse(result.out().contains("--how"), result.out());

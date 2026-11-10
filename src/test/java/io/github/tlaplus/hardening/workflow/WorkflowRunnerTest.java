@@ -417,6 +417,36 @@ class WorkflowRunnerTest {
     }
 
     @Test
+    void decodesOnlyTheSampledRetiredEntriesAtStartup(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var config = config(2, 2, 2, 1);
+        var expression = new TlaTypedScopeUncheckedBuilder()
+                .name("missing", TlaTypes.BOOL);
+        var decoded = new CopyOnWriteArrayList<Integer>();
+        Generator<TlaEx> recording = draw -> {
+            decoded.add(draw.remaining());
+            return expression;
+        };
+        var retired = new byte[] {1};
+        corpus.store(InputKind.EXPRESSION, retired, ADMITTED);
+        corpus.completeParser(
+                corpus.inputPath(retired),
+                new StageResult(CorpusVerdict.FAIL, Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)));
+        var live = new byte[] {2, 2};
+        corpus.store(InputKind.EXPRESSION, live, ADMITTED);
+        var noRetired = new WorkflowRunner(
+                config.withTechnique(Technique.PBT),
+                SpecDecoders.of(config.generator()).replacingExpressions(recording),
+                new RetiredEntrySample(0.0, 0));
+
+        noRetired.run(corpus, RunMode.CONTINUE, 1);
+
+        // The retired parser failure is never decoded; the live input is decoded at startup and parsed.
+        assertFalse(decoded.contains(1), decoded.toString());
+        assertTrue(decoded.contains(2), decoded.toString());
+    }
+
+    @Test
     void savesStatisticsWhenTheRunnerIsInterrupted(@TempDir Path directory) throws Exception {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
         var config = config(1, 1, 1, 16);

@@ -22,4 +22,14 @@ public record CorpusEnvelope(
                 .filter(metadata -> stage.metadataName().equals(metadata.stage()))
                 .findFirst();
     }
+
+    /**
+     * Reports whether a stage recorded a verdict after which no stage of any run reads this
+     * entry's input again (ADR 0031 §1).
+     */
+    public boolean isRetired() {
+        return stages.stream().anyMatch(metadata -> CorpusStage.fromMetadataName(metadata.stage())
+                .filter(stage -> stage.role().retires(metadata.verdict()))
+                .isPresent());
+    }
 }

@@ -6,8 +6,8 @@
 
 **Date:** 2026-11-10
 
-**Implementation.** `CorpusStage` names the verdicts that retire an entry, and
-`CorpusEnvelope.isRetired` applies them. `workflow.RetiredEntrySample` decides which retired
+**Implementation.** `CorpusStage.PipelineRole` names the verdicts that retire an entry,
+and `CorpusEnvelope.isRetired` applies them. `workflow.RetiredEntrySample` decides which retired
 entries `WorkflowRunner` decodes at startup, and `fuzztla run --validate-retired=FRACTION` sets
 the fraction.
 
@@ -57,8 +57,8 @@ the entry's input again:
 | aggregator | fail (differ) | A pass waits for the quality gate. |
 | quality | fail (drop) | A pass is a parent of later mutants. |
 
-Each `CorpusStage` constant states its retiring verdicts, and `CorpusEnvelope.isRetired`
-reports whether any recorded verdict retires the entry. This depends only on the envelope,
+The retiring verdicts follow from a stage's role, so each `CorpusStage.PipelineRole`
+constant states them, and `CorpusEnvelope.isRetired` reports whether any recorded verdict retires the entry. This depends only on the envelope,
 which check 1 matches against the directory.
 
 A checker copy whose partner crashed stays in its pass, counterexample or fail directory and
@@ -91,7 +91,8 @@ is still recorded under `.work/generator-crash`. Check 1 is still applied to eve
 ## Consequences
 
 - **Startup cost.** On corpus78, startup decodes 3,921 live and about 990 retired entries
-  instead of 98,835, so it takes about 5% of its earlier CPU time.
+  instead of 98,835. The run of the Context takes 3 min 9 s wall clock and 653 s of CPU time
+  on 7 threads, against 50 min 19 s and 17,365 s.
 - **Detection.** A build change that breaks a share p of the retired entries is detected
   with probability 1 − (1 − p)^n, where n is the number of sampled entries. On corpus78
   (n ≈ 990), p = 1% is detected almost surely, and p = 0.1% about 63% of the time. A miss

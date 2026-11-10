@@ -1,13 +1,19 @@
 package io.github.tlaplus.hardening.corpus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage.PipelineRole;
+import io.github.tlaplus.hardening.gen.InputKind;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
@@ -123,5 +129,40 @@ class CorpusStageTest {
         assertEquals(
                 CorpusStage.AGGREGATOR.resultVerdicts(),
                 CorpusStage.QUALITY.resultVerdicts());
+    }
+    /** Pins the result directories whose entries no later stage reads (ADR 0031 §1). */
+    @Test
+    void pinsTheVerdictsThatRetireAnEntry() {
+        var retiring = new TreeMap<String, List<CorpusVerdict>>();
+        for (var stage : CorpusStage.values()) {
+            retiring.put(stage.metadataName(), stage.resultVerdicts().stream()
+                    .filter(stage.role()::retires)
+                    .toList());
+        }
+        assertEquals(Map.of(
+                "parser", List.of(CorpusVerdict.FAIL, CorpusVerdict.CRASH),
+                "tlc", List.of(CorpusVerdict.CRASH),
+                "tlcn", List.of(CorpusVerdict.CRASH),
+                "apalache", List.of(CorpusVerdict.CRASH),
+                "aggregator", List.of(CorpusVerdict.FAIL),
+                "quality", List.of(CorpusVerdict.FAIL)), retiring);
+    }
+
+    @Test
+    void retiresAnEntryWhenAnyRecordedVerdictRetiresIt() {
+        var input = new CorpusInput(InputKind.EXPRESSION, new byte[] {1});
+        var time = Instant.ofEpochSecond(1);
+        var parserPass = new StageMetadata("parser", CorpusVerdict.PASS, time, time);
+        var tlcPass = new StageMetadata("tlc", CorpusVerdict.PASS, time, time);
+        var aggregated = new StageMetadata("aggregator", CorpusVerdict.PASS, time, time);
+
+        assertFalse(new CorpusEnvelope(input, Optional.empty(), List.of()).isRetired());
+        assertFalse(new CorpusEnvelope(input, Optional.empty(), List.of(parserPass, tlcPass)).isRetired());
+        assertTrue(new CorpusEnvelope(input, Optional.empty(), List.of(
+                parserPass, new StageMetadata("tlc", CorpusVerdict.CRASH, time, time))).isRetired());
+        assertFalse(new CorpusEnvelope(input, Optional.empty(), List.of(parserPass, tlcPass, aggregated,
+                new StageMetadata("quality", CorpusVerdict.PASS, time, time))).isRetired());
+        assertTrue(new CorpusEnvelope(input, Optional.empty(), List.of(parserPass, tlcPass, aggregated,
+                new StageMetadata("quality", CorpusVerdict.FAIL, time, time))).isRetired());
     }
 }
