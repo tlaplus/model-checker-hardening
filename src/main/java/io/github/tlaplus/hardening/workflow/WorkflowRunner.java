@@ -122,7 +122,7 @@ public final class WorkflowRunner {
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             requireRunnable(corpus, mode);
-            var initial = corpus.recoverAndValidate(entryValidator(), checking);
+            var initial = corpus.recoverAndValidate(entryValidator(), checking, maximumCpus);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
             var statistics = new RunStatisticsOnExit(corpus, metrics, invocationElapsed);
@@ -186,7 +186,8 @@ public final class WorkflowRunner {
             var stopReason = generations.run();
             phase.set(WorkflowProgress.Phase.FINALIZING);
             // This run decoded every entry it admitted, so the final pass need not decode them again.
-            var result = invocation.corpus().recoverAndValidate(WorkflowRunner::requireGeneration);
+            var result = invocation.corpus().recoverAndValidate(
+                    WorkflowRunner::requireGeneration, checking, invocation.maximumCpus());
             var finalSummaries = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
             for (var stage : CorpusStage.values()) {
                 finalSummaries.put(stage, StageGraph.summary(result, stage, metrics));

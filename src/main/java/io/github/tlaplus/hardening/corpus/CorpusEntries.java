@@ -5,6 +5,8 @@ import static io.github.tlaplus.hardening.corpus.CorpusLayout.ENTRY_FILE_NAME;
 import static io.github.tlaplus.hardening.corpus.CorpusLayout.NO_FOLLOW_LINKS;
 
 import io.github.tlaplus.hardening.common.Diagnostics;
+import io.github.tlaplus.hardening.common.OrderedParallel;
+import io.github.tlaplus.hardening.common.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,11 +27,16 @@ final class CorpusEntries {
     private final CorpusLayout layout;
     private final CorpusEntryValidator validator;
     private final CorpusEntryStore store;
+    private final int parallelism;
 
-    CorpusEntries(CorpusLayout layout, CorpusEntryValidator validator, CorpusEntryStore store) {
+    /** @param parallelism how many threads {@link #forEachVerified} reads and validates on */
+    CorpusEntries(
+            CorpusLayout layout, CorpusEntryValidator validator, CorpusEntryStore store, int parallelism) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.validator = Objects.requireNonNull(validator, "validator");
         this.store = Objects.requireNonNull(store, "store");
+        Preconditions.requirePositive(parallelism, "parallelism");
+        this.parallelism = parallelism;
     }
 
     /** One decoded corpus entry, kept with the bytes it was decoded from. */
@@ -65,25 +72,93 @@ final class CorpusEntries {
 
     /** Reads one entry and checks its name, digest, envelope, and payload. */
     Entry verify(Path path) throws IOException, CorpusException {
-        var matcher = ENTRY_FILE_NAME.matcher(path.getFileName().toString());
-        if (!matcher.matches()) {
-            throw new CorpusException("invalid corpus entry name: " + path);
+        return check(path).entry(store);
+    }
+
+    /**
+     * Verifies every entry of {@code paths} as {@link #verify} does, reading and validating up to
+     * {@code parallelism} entries at a time, and hands them to {@code consumer} in list order on the
+     * calling thread. The first entry in list order that fails stops the walk with its failure.
+     */
+    void forEachVerified(List<Path> paths, EntryVisitor consumer) throws IOException, CorpusException {
+        try (var checked = OrderedParallel.map(paths, parallelism, this::check)) {
+            while (checked.hasNext()) {
+                consumer.visit(checked.next().entry(store));
+            }
         }
-        var encoded = CorpusLayout.readRegularFile(path, "corpus entry");
-        var entry = decode(path, encoded);
-        var corpusInput = entry.envelope().corpusInput();
-        var input = corpusInput.input();
-        if (!matcher.group(1).equals(CorpusLayout.digest(input))) {
-            throw new CorpusException("corpus entry hash does not match its input: " + path);
-        }
+    }
+
+    /** Receives the verified entries of {@link #forEachVerified}, one at a time. */
+    @FunctionalInterface
+    interface EntryVisitor {
+        void visit(Entry entry) throws IOException, CorpusException;
+    }
+
+    /**
+     * Reads and validates one entry without side effects, so that it may run on any thread. A
+     * failure is returned, not thrown; {@link Checked#entry} raises it on the caller's thread.
+     */
+    private Checked check(Path path) {
         try {
-            validator.validate(path, entry.envelope());
-        } catch (RuntimeException | StackOverflowError exception) {
-            // The payload broke the generator: keep it for inspection outside the stage
-            // directories.
-            throw store.generatorCrash(path, corpusInput.kind(), input, exception);
+            var matcher = ENTRY_FILE_NAME.matcher(path.getFileName().toString());
+            if (!matcher.matches()) {
+                throw new CorpusException("invalid corpus entry name: " + path);
+            }
+            var encoded = CorpusLayout.readRegularFile(path, "corpus entry");
+            var entry = decode(path, encoded);
+            var corpusInput = entry.envelope().corpusInput();
+            if (!matcher.group(1).equals(CorpusLayout.digest(corpusInput.input()))) {
+                throw new CorpusException("corpus entry hash does not match its input: " + path);
+            }
+            try {
+                validator.validate(path, entry.envelope());
+            } catch (RuntimeException | StackOverflowError exception) {
+                return new Checked.GeneratorCrash(path, corpusInput, exception);
+            }
+            return new Checked.Valid(entry);
+        } catch (IOException exception) {
+            return new Checked.Unreadable(exception);
+        } catch (CorpusException exception) {
+            return new Checked.Invalid(exception);
         }
-        return entry;
+    }
+
+    /** The outcome of {@link #check}: a valid entry, or the failure to raise for it. */
+    private sealed interface Checked {
+        /** Returns the entry, or raises its failure; a generator crash is recorded first. */
+        Entry entry(CorpusEntryStore store) throws IOException, CorpusException;
+
+        record Valid(Entry valid) implements Checked {
+            @Override
+            public Entry entry(CorpusEntryStore store) {
+                return valid;
+            }
+        }
+
+        record Unreadable(IOException failure) implements Checked {
+            @Override
+            public Entry entry(CorpusEntryStore store) throws IOException {
+                throw failure;
+            }
+        }
+
+        record Invalid(CorpusException failure) implements Checked {
+            @Override
+            public Entry entry(CorpusEntryStore store) throws CorpusException {
+                throw failure;
+            }
+        }
+
+        /**
+         * The payload broke the generator: the input is kept for inspection outside the stage
+         * directories. The store writes files, so this runs on the caller's thread only.
+         */
+        record GeneratorCrash(Path path, CorpusInput input, Throwable failure) implements Checked {
+            @Override
+            public Entry entry(CorpusEntryStore store) throws IOException, CorpusException {
+                throw store.generatorCrash(path, input.kind(), input.input(), failure);
+            }
+        }
     }
 
     /**

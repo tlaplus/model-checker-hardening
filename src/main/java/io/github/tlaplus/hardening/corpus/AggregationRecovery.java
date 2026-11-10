@@ -34,11 +34,11 @@ final class AggregationRecovery {
         var residualSources = new ArrayList<Path>();
 
         for (var verdict : CorpusStage.AGGREGATOR.resultVerdicts()) {
-            for (var path : CorpusLayout.entryPaths(
-                    layout.resolve(CorpusStage.AGGREGATOR.result(verdict)))) {
-                var entry = entries.verify(path);
+            var paths = CorpusLayout.entryPaths(layout.resolve(CorpusStage.AGGREGATOR.result(verdict)));
+            entries.forEachVerified(paths, entry -> {
+                var path = entry.path();
                 var aggregation = AggregationInput.of(
-                        entry.path(), upstreamCheckerResults(entry), policy, entry.envelope().corpusInput());
+                        path, upstreamCheckerResults(entry), policy, entry.envelope().corpusInput());
                 if (verdict != aggregation.verdict()) {
                     throw new CorpusException(
                             "aggregator verdict does not match checker results: " + path);
@@ -51,7 +51,7 @@ final class AggregationRecovery {
                 residualSources.addAll(
                         transition.residualSources(entry, verdict, aggregation));
                 resultCounts.increment(verdict);
-            }
+            });
         }
         for (var source : residualSources) {
             Files.delete(source);
