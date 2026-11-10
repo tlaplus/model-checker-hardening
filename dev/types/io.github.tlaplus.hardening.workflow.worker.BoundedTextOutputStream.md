@@ -1,6 +1,6 @@
 # `BoundedTextOutputStream`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/63cd44067a101bcc7b39ec4d8176d39ae569b650/src/main/java/io/github/tlaplus/hardening/workflow/worker/BoundedTextOutputStream.java#L10) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/workflow/worker/BoundedTextOutputStream.java#L10) · module [workflow](../modules/workflow.md)
 
 Retains a bounded UTF-8 byte prefix while discarding subsequent output.
 
