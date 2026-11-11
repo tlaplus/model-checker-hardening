@@ -1,6 +1,6 @@
 # `OneShotTool`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/workflow/worker/OneShotTool.java#L11) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/worker/OneShotTool.java#L11) · module [workflow](../modules/workflow.md)
 
 A finite CLI invocation, unlike protocol workers which serve a sequence of per-input requests.
 

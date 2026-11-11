@@ -1,6 +1,6 @@
 # `CorpusEntries`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEntries.java#L24) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEntries.java#L26) · module [corpus](../modules/corpus.md)
 
 Reads corpus entries and states what makes one valid: a decodable CBOR envelope holding an expression, a name that matches its payload digest, a payload the caller's validator accepts, and stage metadata consistent with the directory the entry sits in.
 
@@ -26,6 +26,7 @@ classDiagram
   class CorpusEnvelope {
     <<record>>
   }
+  class CorpusException
   class CorpusInput {
     <<record>>
   }
@@ -47,13 +48,14 @@ classDiagram
   StageTransition --> CorpusEntries : has
   TransitionRecovery --> CorpusEntries : has
   CorpusEntries ..> CorpusEnvelope : uses
+  CorpusEntries ..> CorpusException : uses
   CorpusEntries ..> CorpusInput : uses
   CorpusEntries ..> CorpusPath : uses
   CorpusEntries ..> CorpusStage : uses
   CorpusEntries ..> CorpusVerdict : uses
 ```
 
-The diagram draws 13 of 21 relations; the table lists them all.
+The diagram draws 14 of 23 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -66,13 +68,15 @@ The diagram draws 13 of 21 relations; the table lists them all.
 | ← | has | [StageTransition](io.github.tlaplus.hardening.corpus.StageTransition.md) | Moves one entry from a stage's input directory to the directory its verdict names. |
 | ← | has | [TransitionRecovery](io.github.tlaplus.hardening.corpus.TransitionRecovery.md) | The first pass of startup recovery: finishes the durable transitions an interrupted run left behind. |
 | → | uses | [CorpusEnvelope](io.github.tlaplus.hardening.corpus.CorpusEnvelope.md) | Supported fields decoded from one corpus input envelope. |
+| → | uses | [CorpusException](io.github.tlaplus.hardening.corpus.CorpusException.md) | Reports an invalid corpus layout or corpus entry. |
 | → | uses | [CorpusInput](io.github.tlaplus.hardening.corpus.CorpusInput.md) | The required fields of one encoded corpus input. |
 | → | uses | [CorpusPath](io.github.tlaplus.hardening.corpus.CorpusPath.md) | A fixed path in the on-disk corpus layout. |
 | → | uses | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
 | → | uses | [CorpusVerdict](io.github.tlaplus.hardening.corpus.CorpusVerdict.md) | A verdict supported by the implemented corpus stages. |
 | → | depends | [Diagnostics](io.github.tlaplus.hardening.common.Diagnostics.md) | Human-readable diagnostic formatting for failures. |
+| → | depends | [OrderedParallel](io.github.tlaplus.hardening.common.OrderedParallel.md) | Applies a function to the items of a list on a pool of platform threads, and returns the results in list order to the calling thread. |
+| → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | → | depends | [CorpusEnvelopeCodec](io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec.md) | Reads and rewrites the `stages` metadata of a corpus envelope. |
-| → | depends | [CorpusException](io.github.tlaplus.hardening.corpus.CorpusException.md) | Reports an invalid corpus layout or corpus entry. |
 | → | depends | [CorpusFormatException](io.github.tlaplus.hardening.corpus.CorpusFormatException.md) | Reports stored corpus data that does not follow the documented CBOR format. |
 | → | depends | [StageMetadata](io.github.tlaplus.hardening.corpus.StageMetadata.md) | Metadata recorded when one workflow stage finishes processing an input. |
 | → | depends | [InputKind](io.github.tlaplus.hardening.gen.InputKind.md) | What a generator payload decodes to. |

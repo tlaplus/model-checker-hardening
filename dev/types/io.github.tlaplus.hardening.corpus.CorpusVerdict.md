@@ -1,6 +1,6 @@
 # `CorpusVerdict`
 
-`io.github.tlaplus.hardening.corpus` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/corpus/CorpusVerdict.java#L8) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/corpus/CorpusVerdict.java#L8) · module [corpus](../modules/corpus.md)
 
 A verdict supported by the implemented corpus stages.
 
@@ -105,7 +105,7 @@ classDiagram
   StageRouting ..> CorpusVerdict : uses
 ```
 
-The diagram draws 26 of 42 relations; the table lists them all.
+The diagram draws 26 of 43 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -142,6 +142,7 @@ The diagram draws 26 of 42 relations; the table lists them all.
 | ← | depends | [RunTable](io.github.tlaplus.hardening.cli.RunTable.md) | Complete, exact statistics grouped by stage; suitable for scrollback and redirected output. |
 | ← | depends | [RunView](io.github.tlaplus.hardening.cli.RunView.md) | The statistics shared by live and final reports, without layout or terminal state. |
 | ← | depends | [AggregationRecovery](io.github.tlaplus.hardening.corpus.AggregationRecovery.md) | Recovers aggregate commits and inventories the aggregator's result directories. |
+| ← | depends | [CorpusEnvelope](io.github.tlaplus.hardening.corpus.CorpusEnvelope.md) | Supported fields decoded from one corpus input envelope. |
 | ← | depends | [CorpusEnvelopeCodec](io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec.md) | Reads and rewrites the `stages` metadata of a corpus envelope. |
 | ← | depends | [CorpusInventory](io.github.tlaplus.hardening.corpus.CorpusInventory.md) | Immutable startup inventory used to seed stage queues and capacities. |
 | ← | depends | [StageTransition](io.github.tlaplus.hardening.corpus.StageTransition.md) | Moves one entry from a stage's input directory to the directory its verdict names. |

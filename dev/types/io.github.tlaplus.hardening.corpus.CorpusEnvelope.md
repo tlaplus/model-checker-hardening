@@ -1,6 +1,6 @@
 # `CorpusEnvelope`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEnvelope.java#L8) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEnvelope.java#L8) · module [corpus](../modules/corpus.md)
 
 Supported fields decoded from one corpus input envelope.
 
@@ -36,6 +36,9 @@ classDiagram
   class EntryRows {
     <<record>>
   }
+  class RetiredEntrySample {
+    <<record>>
+  }
   class QualityGate {
     <<policy>>
   }
@@ -50,10 +53,11 @@ classDiagram
   EntryProgress ..> CorpusEnvelope : uses
   EntryBatchExporter ..> CorpusEnvelope : uses
   EntryRows ..> CorpusEnvelope : uses
+  RetiredEntrySample ..> CorpusEnvelope : uses
   QualityGate ..> CorpusEnvelope : uses
 ```
 
-The diagram draws 12 of 20 relations; the table lists them all.
+The diagram draws 13 of 22 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -68,7 +72,9 @@ The diagram draws 12 of 20 relations; the table lists them all.
 | ← | uses | [EntryProgress](io.github.tlaplus.hardening.corpus.EntryProgress.md) | How far one logical entry has moved through the pipeline, and the single definition of the two questions generation scheduling asks of it (ADR 0010). |
 | ← | uses | [EntryBatchExporter](io.github.tlaplus.hardening.database.EntryBatchExporter.md) | Exports listed entry files in chunks. |
 | ← | uses | [EntryRows](io.github.tlaplus.hardening.database.EntryRows.md) | The rows that one decoded corpus entry contributes: its `entry` row, followed by the rows that reference it: one `knownDefect` row per signature, one `mutationOperator` row per operator, one `stage` row per stage record, one `expr` row per expression construct of its replayed input and one `exprEdge` row per edge between constructs. |
+| ← | uses | [RetiredEntrySample](io.github.tlaplus.hardening.workflow.RetiredEntrySample.md) | Which retired entries startup decodes (ADR 0031 §2). |
 | ← | uses | [QualityGate](io.github.tlaplus.hardening.workflow.quality.QualityGate.md) | Selects the parents of the next generation from one settled generation (ADR 0010, ADR 0013). |
+| → | depends | [CorpusVerdict](io.github.tlaplus.hardening.corpus.CorpusVerdict.md) | A verdict supported by the implemented corpus stages. |
 | ← | depends | [PrintCommand](io.github.tlaplus.hardening.cli.PrintCommand.md) | `fuzztla print`: decodes a payload or corpus envelope and renders it, with the known defects it matches. |
 | ← | depends | [AggregationRecovery](io.github.tlaplus.hardening.corpus.AggregationRecovery.md) | Recovers aggregate commits and inventories the aggregator's result directories. |
 | ← | depends | [AggregationTransition](io.github.tlaplus.hardening.corpus.AggregationTransition.md) | Joins the checker copies of one logical input into one durable aggregator result. |

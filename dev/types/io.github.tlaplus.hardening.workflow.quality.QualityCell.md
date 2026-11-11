@@ -1,10 +1,10 @@
 # `QualityCell`
 
-`io.github.tlaplus.hardening.workflow.quality` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityCell.java#L13) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.quality` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityCell.java#L13) · module [workflow](../modules/workflow.md)
 
 The behaviour cell of an admissible entry (ADR 0013): its TLC verdict and the components of the gate's `Ranking`, each after its bucket.
 
-**Decisions:** [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+**Decisions:** [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
 
 ```mermaid
 classDiagram

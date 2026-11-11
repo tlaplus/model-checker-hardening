@@ -1,6 +1,6 @@
 # `ByteMutator`
 
-`io.github.tlaplus.hardening.mutation` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/mutation/ByteMutator.java#L24) · module [mutation](../modules/mutation.md)
+`io.github.tlaplus.hardening.mutation` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/mutation/ByteMutator.java#L24) · module [mutation](../modules/mutation.md)
 
 Derives one mutant from a parent by stacking weighted operator edits.
 

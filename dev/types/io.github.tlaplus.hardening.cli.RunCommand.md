@@ -1,10 +1,10 @@
 # `RunCommand`
 
-`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/cli/RunCommand.java#L32) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/cli/RunCommand.java#L33) · module [cli](../modules/cli.md)
 
 `fuzztla run`: reads a corpus configuration and runs `WorkflowRunner` with live progress output.
 
-**Decisions:** [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/docs/decisions/0025-self-contained-corpora.md), [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/docs/decisions/0026-reproducible-runs.md)
+**Decisions:** [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0025-self-contained-corpora.md), [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0026-reproducible-runs.md)
 
 ```mermaid
 classDiagram
@@ -17,7 +17,7 @@ classDiagram
   RunCommand --> FuzzTlaCommand : has
 ```
 
-The diagram draws 1 of 22 relations; the table lists them all.
+The diagram draws 1 of 23 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -37,6 +37,7 @@ The diagram draws 1 of 22 relations; the table lists them all.
 | → | depends | [CorpusException](io.github.tlaplus.hardening.corpus.CorpusException.md) | Reports an invalid corpus layout or corpus entry. |
 | → | depends | [CorpusPath](io.github.tlaplus.hardening.corpus.CorpusPath.md) | A fixed path in the on-disk corpus layout. |
 | → | depends | [Technique](io.github.tlaplus.hardening.corpus.Technique.md) | The fuzzing technique a corpus runs: `[workflow] technique`, which `fuzztla init --how` sets (ADR 0025 §1), so every run and every replay decodes and judges its entries the same way. |
+| → | depends | [RetiredEntrySample](io.github.tlaplus.hardening.workflow.RetiredEntrySample.md) | Which retired entries startup decodes (ADR 0031 §2). |
 | → | depends | [RunMode](io.github.tlaplus.hardening.workflow.RunMode.md) | Whether a run may extend a corpus that an earlier run has written (ADR 0026). |
 | → | depends | [WorkflowException](io.github.tlaplus.hardening.workflow.WorkflowException.md) | Reports an infrastructure or lifecycle failure in a fuzzing workflow. |
 | → | depends | [WorkflowRunSummary](io.github.tlaplus.hardening.workflow.WorkflowRunSummary.md) | Cumulative corpus statistics and stopping reason after one complete workflow invocation. |

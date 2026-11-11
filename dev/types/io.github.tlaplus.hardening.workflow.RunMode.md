@@ -1,10 +1,10 @@
 # `RunMode`
 
-`io.github.tlaplus.hardening.workflow` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/workflow/RunMode.java#L7) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/RunMode.java#L7) · module [workflow](../modules/workflow.md)
 
 Whether a run may extend a corpus that an earlier run has written (ADR 0026).
 
-**Decisions:** [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/docs/decisions/0026-reproducible-runs.md)
+**Decisions:** [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0026-reproducible-runs.md)
 
 ```mermaid
 classDiagram

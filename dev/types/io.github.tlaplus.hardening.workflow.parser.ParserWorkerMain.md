@@ -1,6 +1,6 @@
 # `ParserWorkerMain`
 
-`io.github.tlaplus.hardening.workflow.parser` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/workflow/parser/ParserWorkerMain.java#L25) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.parser` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/parser/ParserWorkerMain.java#L25) · module [workflow](../modules/workflow.md)
 
 Child-process entry point for persistent isolated SANY requests.
 

@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "da386b24fc0ea1f5a200a0d74df0b119a27ca0ba"
+    "commit" : "ac2372d47bb5bde8dbaa1a2983a7214ae253523e"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -123,11 +123,15 @@
     "number" : "0030",
     "title" : "A budget of temporal operators per rewritten body",
     "path" : "docs/decisions/0030-temporal-operator-budget.md"
+  }, {
+    "number" : "0031",
+    "title" : "Sampled validation of retired entries at startup",
+    "path" : "docs/decisions/0031-sampled-startup-validation.md"
   } ],
   "modules" : [ {
     "name" : "common",
     "packageName" : "io.github.tlaplus.hardening.common",
-    "summary" : "Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, and the architecture annotations and layering of ADR 0022.",
+    "summary" : "Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, an ordered parallel map, and the architecture annotations and layering of ADR 0022.",
     "allowed" : [ ]
   }, {
     "name" : "checker",
@@ -198,7 +202,7 @@
   }, {
     "name" : "io.github.tlaplus.hardening.common",
     "module" : "common",
-    "summary" : "Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, and the architecture annotations and layering of ADR 0022.",
+    "summary" : "Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, an ordered parallel map, and the architecture annotations and layering of ADR 0022.",
     "adrs" : [ "0022" ]
   }, {
     "name" : "io.github.tlaplus.hardening.config",
@@ -589,7 +593,7 @@
     "key" : true,
     "summary" : "`fuzztla run`: reads a corpus configuration and runs `WorkflowRunner` with live progress output.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/RunCommand.java",
-    "line" : 32,
+    "line" : 33,
     "adrs" : [ "0025", "0026" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.RunMetric",
@@ -831,6 +835,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/common/Key.java",
     "line" : 16,
     "adrs" : [ "0022" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.common.OrderedParallel",
+    "packageName" : "io.github.tlaplus.hardening.common",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Applies a function to the items of a list on a pool of platform threads, and returns the results in list order to the calling thread.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/common/OrderedParallel.java",
+    "line" : 28,
+    "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.common.Preconditions",
     "packageName" : "io.github.tlaplus.hardening.common",
@@ -1219,7 +1233,7 @@
     "key" : false,
     "summary" : "Reads corpus entries and states what makes one valid: a decodable CBOR envelope holding an expression, a name that matches its payload digest, a payload the caller's validator accepts, and stage metadata consistent with the directory the entry sits in.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/CorpusEntries.java",
-    "line" : 24,
+    "line" : 26,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.CorpusEntryStore",
@@ -1369,7 +1383,7 @@
     "key" : true,
     "summary" : "One implemented stage of the fuzzing pipeline, and the corpus directories it owns.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/CorpusStage.java",
-    "line" : 22,
+    "line" : 23,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.CorpusVerdict",
@@ -3222,6 +3236,16 @@
     "line" : 10,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.workflow.RetiredEntrySample",
+    "packageName" : "io.github.tlaplus.hardening.workflow",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "Which retired entries startup decodes (ADR 0031 §2).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/RetiredEntrySample.java",
+    "line" : 17,
+    "adrs" : [ "0031" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.workflow.RunMode",
     "packageName" : "io.github.tlaplus.hardening.workflow",
     "kind" : "ENUM",
@@ -4930,6 +4954,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunCommand",
+    "to" : "io.github.tlaplus.hardening.workflow.RetiredEntrySample",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunCommand",
     "to" : "io.github.tlaplus.hardening.workflow.RunMode",
     "kind" : "DEPENDS"
   }, {
@@ -5278,6 +5306,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.common.GeneratorAggregate",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.common.OrderedParallel",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
   }, {
@@ -6202,6 +6234,14 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.CorpusEntries",
+    "to" : "io.github.tlaplus.hardening.common.OrderedParallel",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.CorpusEntries",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.CorpusEntries",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusEntryStore",
     "kind" : "HAS"
   }, {
@@ -6219,7 +6259,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.CorpusEntries",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusException",
-    "kind" : "DEPENDS"
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.CorpusEntries",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusFormatException",
@@ -6324,6 +6364,10 @@
     "from" : "io.github.tlaplus.hardening.corpus.CorpusEnvelope",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.CorpusEnvelope",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusVerdict",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.CorpusEnvelope",
     "to" : "io.github.tlaplus.hardening.corpus.GenerationMetadata",
@@ -10753,6 +10797,18 @@
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.RetiredEntrySample",
+    "to" : "io.github.tlaplus.hardening.common.Digests",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.RetiredEntrySample",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusEnvelope",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.RetiredEntrySample",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusInput",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.RunStatisticsOnExit",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
     "kind" : "HAS"
@@ -11135,6 +11191,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.workflow.OccupancyLimits",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
+    "to" : "io.github.tlaplus.hardening.workflow.RetiredEntrySample",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
@@ -13624,7 +13684,7 @@
   }, {
     "from" : "corpus",
     "to" : "common",
-    "typePairs" : 33,
+    "typePairs" : 35,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.corpus.AggregationInput",
@@ -13728,7 +13788,7 @@
   }, {
     "from" : "workflow",
     "to" : "common",
-    "typePairs" : 71,
+    "typePairs" : 72,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13768,7 +13828,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 174,
+    "typePairs" : 176,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13848,7 +13908,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 39,
+    "typePairs" : 40,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

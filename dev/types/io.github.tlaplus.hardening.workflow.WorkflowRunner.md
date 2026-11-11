@@ -1,6 +1,6 @@
 # `WorkflowRunner`
 
-`io.github.tlaplus.hardening.workflow` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunner.java#L45) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunner.java#L45) · module [workflow](../modules/workflow.md)
 
 Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget.
 
@@ -16,6 +16,9 @@ classDiagram
     <<enum>>
   }
   class OccupancyLimits
+  class RetiredEntrySample {
+    <<record>>
+  }
   class StageGraph {
     <<process>>
   }
@@ -53,6 +56,7 @@ classDiagram
   WorkflowRunner --> CheckingPolicy : has
   WorkflowRunner --> Technique : has
   WorkflowRunner --> OccupancyLimits : has
+  WorkflowRunner --> RetiredEntrySample : has
   WorkflowRunner --> StageGraph : has
   WorkflowRunner ..> FuzzTlaConfig : uses
   WorkflowRunner ..> CorpusDirectory : uses
@@ -67,13 +71,14 @@ classDiagram
   RunOutput ..> WorkflowRunner : uses
 ```
 
-The diagram draws 15 of 47 relations; the table lists them all.
+The diagram draws 16 of 48 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckingPolicy](io.github.tlaplus.hardening.corpus.CheckingPolicy.md) | Which checkers a workflow run feeds and how the aggregator judges their verdicts. |
 | → | has | [Technique](io.github.tlaplus.hardening.corpus.Technique.md) | The fuzzing technique a corpus runs: `[workflow] technique`, which `fuzztla init --how` sets (ADR 0025 §1), so every run and every replay decodes and judges its entries the same way. |
 | → | has | [OccupancyLimits](io.github.tlaplus.hardening.workflow.OccupancyLimits.md) | Checks an invocation and a recovered corpus against the configured capacity limits. |
+| → | has | [RetiredEntrySample](io.github.tlaplus.hardening.workflow.RetiredEntrySample.md) | Which retired entries startup decodes (ADR 0031 §2). |
 | → | has | [StageGraph](io.github.tlaplus.hardening.workflow.StageGraph.md) | The stages that run one workflow invocation, wired to their queues, result capacities, and shared collaborators, and the order in which they start and stop. |
 | → | uses | [FuzzTlaConfig](io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | Complete configuration of input generation and workflow execution. |
 | → | uses | [CorpusDirectory](io.github.tlaplus.hardening.corpus.CorpusDirectory.md) | Owns the on-disk layout and integrity checks for one FuzzTLA corpus. |

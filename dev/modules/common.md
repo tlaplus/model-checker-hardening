@@ -2,7 +2,7 @@
 
 `io.github.tlaplus.hardening.common` · [atlas](../README.md)
 
-Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, and the architecture annotations and layering of ADR 0022.
+Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, an ordered parallel map, and the architecture annotations and layering of ADR 0022.
 
 **Depends on:** none  
 **Used by:** [checker](checker.md), [gen](gen.md), [signature](signature.md), [mutation](mutation.md), [corpus](corpus.md), [config](config.md), [database](database.md), [workflow](workflow.md), [cli](cli.md)
@@ -41,6 +41,7 @@ classDiagram
 | [**FileTrees** ★](../types/io.github.tlaplus.hardening.common.FileTrees.md) | class | utility | File-tree operations shared by the corpus and by isolated worker processes. |
 | [GeneratorAggregate](../types/io.github.tlaplus.hardening.common.GeneratorAggregate.md) | record | other | Immutable generation counters shared by persisted statistics and invocation summaries. |
 | [Key](../types/io.github.tlaplus.hardening.common.Key.md) | annotation | other | Marks a top-level type as one of the few that carry its package, so that the architecture atlas draws it in the package views (ADR 0022). |
+| [OrderedParallel](../types/io.github.tlaplus.hardening.common.OrderedParallel.md) | class | other | Applies a function to the items of a list on a pool of platform threads, and returns the results in list order to the calling thread. |
 | [**Preconditions** ★](../types/io.github.tlaplus.hardening.common.Preconditions.md) | class | utility | Shared validation of method and constructor arguments. |
 | [Role](../types/io.github.tlaplus.hardening.common.Role.md) | enum | other | What a type does in its package, as the architecture atlas shows it (ADR 0022). |
 | [TemporaryDirectory](../types/io.github.tlaplus.hardening.common.TemporaryDirectory.md) | record | other | Owned temporary storage, removed on normal and exceptional completion. |
@@ -49,5 +50,5 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/docs/decisions/0022-architecture-atlas.md)
-- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/docs/decisions/0028-temporal-property-quality.md)
+- [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0022-architecture-atlas.md)
+- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0028-temporal-property-quality.md)

@@ -1355,7 +1355,7 @@
 
 <h1 id="running-campaigns">Running campaigns<a class="headerlink" href="#running-campaigns" title="Permanent link">&para;</a></h1>
 <div class="highlight"><pre><span></span><code>fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>TECHNIQUE<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--library<span class="o">=</span>FILE<span class="w"> </span><span class="p">|</span><span class="w"> </span>--base-corpus<span class="o">=</span>DIR<span class="o">]</span>
-fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--continue<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span>
+fuzztla<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--corpus<span class="o">=</span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--continue<span class="o">]</span><span class="w"> </span><span class="o">[</span>--max-cpus<span class="o">=</span>N<span class="o">]</span><span class="w"> </span><span class="o">[</span>--validate-retired<span class="o">=</span>FRACTION<span class="o">]</span>
 </code></pre></div>
 <p><code>init</code> chooses the technique once and writes it into the corpus's <code>config.toml</code> as
 <code>[workflow] technique</code>. Every <code>run</code> follows it
@@ -1405,6 +1405,10 @@ determined by its configuration
 <tr>
 <td><code>--max-cpus=N</code></td>
 <td>Maximum number of jobs that run at the same time. Default: all processors.</td>
+</tr>
+<tr>
+<td><code>--validate-retired=FRACTION</code></td>
+<td>Share of retired entries that startup decodes, from 0 to 1. Default: 0.01. See <a href="#stopping-and-resuming">Stopping and resuming</a>.</td>
 </tr>
 </tbody>
 </table>
@@ -1456,6 +1460,13 @@ finishes the work in flight and prints a summary. See
 and continues where the last run stopped. The counters in the summary add up over all
 runs of a corpus. Raising <code>max_entries</code> to grow a finished corpus also needs
 <code>--continue</code>.</p>
+<p>Startup checks that every entry is consistent with its directory, on <code>--max-cpus</code>
+threads. It decodes the input of every entry that the run may still read, and of a
+random 1% of the <em>retired</em> ones: entries that the parser failed, a checker crashed on,
+the checkers disagreed on, or the quality gate dropped. No later stage reads a retired
+entry, so the sample only tells you whether this build still accepts old inputs. After
+upgrading fuzztla, pass <code>--validate-retired=1</code> once to decode all of them
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0031-sampled-startup-validation.md">ADR 0031</a>).</p>
 <p><code>run</code> without <code>--continue</code> accepts only a fresh corpus: one without entries and without
 <code>.workflow-stats.cbor</code>. On any other corpus it stops and names <code>--continue</code>. A continued
 run depends on where the earlier runs stopped, so <code>run --continue</code> prints a warning and

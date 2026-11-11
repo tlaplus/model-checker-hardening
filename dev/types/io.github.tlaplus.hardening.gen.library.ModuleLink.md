@@ -1,6 +1,6 @@
 # `ModuleLink`
 
-`io.github.tlaplus.hardening.gen.library` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/da386b24fc0ea1f5a200a0d74df0b119a27ca0ba/src/main/java/io/github/tlaplus/hardening/gen/library/ModuleLink.java#L12) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.library` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/gen/library/ModuleLink.java#L12) · module [gen](../modules/gen.md)
 
 How one custom module is linked, and the module that its TLA+ source aliases instantiate: the module itself unless the linkage names a separate TLC module.
 
