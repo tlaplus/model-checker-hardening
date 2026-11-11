@@ -45,11 +45,10 @@ final class TransitionRecovery {
      * directory their verdict names, completing the crash sidecar on the way.
      */
     private void recoverTransitions(CorpusStage stage) throws IOException, CorpusException {
-        for (var path : CorpusLayout.entryPaths(layout.resolve(stage.input()))) {
-            var entry = entries.verify(path);
+        entries.forEachVerified(CorpusLayout.entryPaths(layout.resolve(stage.input())), entry -> {
             var recorded = entry.envelope().stage(stage);
             if (recorded.isEmpty()) {
-                continue;
+                return;
             }
             var verdict = recorded.orElseThrow().verdict();
             if (!stage.resultVerdicts().contains(verdict)) {
@@ -69,6 +68,6 @@ final class TransitionRecovery {
                 transitions.recoverCrashReport(entry.path(), stage);
             }
             Files.move(entry.path(), destination, StandardCopyOption.ATOMIC_MOVE);
-        }
+        });
     }
 }

@@ -233,17 +233,31 @@ public final class CorpusDirectory {
     }
 
     /**
-     * Recovers durable transitions and returns a validated snapshot of the corpus. The validator
-     * decides whether a stored payload is still usable by this build. {@code policy} names the
-     * checker branches the corpus runs and judges the aggregator results found here; it also
-     * governs every fan-out and aggregation that follows on this handle.
+     * Recovers durable transitions and returns a validated snapshot of the corpus, reading entries
+     * on every available processor; see {@link #recoverAndValidate(CorpusEntryValidator,
+     * CheckingPolicy, int)}.
      */
     public synchronized CorpusInventory recoverAndValidate(
             CorpusEntryValidator validator, CheckingPolicy policy)
             throws IOException, CorpusException {
+        return recoverAndValidate(validator, policy, Runtime.getRuntime().availableProcessors());
+    }
+
+    /**
+     * Recovers durable transitions and returns a validated snapshot of the corpus. The validator
+     * decides whether a stored payload is still usable by this build; it must be safe to call
+     * concurrently, since up to {@code parallelism} entries are read and validated at a time. The
+     * entries are still checked against each other in path order, so the outcome and the first
+     * reported failure do not depend on {@code parallelism}. {@code policy} names the checker
+     * branches the corpus runs and judges the aggregator results found here; it also governs every
+     * fan-out and aggregation that follows on this handle.
+     */
+    public synchronized CorpusInventory recoverAndValidate(
+            CorpusEntryValidator validator, CheckingPolicy policy, int parallelism)
+            throws IOException, CorpusException {
         Objects.requireNonNull(validator, "validator");
         checkingPolicy = Objects.requireNonNull(policy, "policy");
-        var validatedEntries = entries(validator);
+        var validatedEntries = new CorpusEntries(layout, validator, store, parallelism);
         new TransitionRecovery(layout, validatedEntries, transitions, checkingPolicy.checkers()).recover();
         var aggregationRecovery =
                 new AggregationRecovery(layout, validatedEntries, aggregations, checkingPolicy);
@@ -376,7 +390,7 @@ public final class CorpusDirectory {
     }
 
     private CorpusEntries entries(CorpusEntryValidator validator) {
-        return new CorpusEntries(layout, validator, store);
+        return new CorpusEntries(layout, validator, store, 1);
     }
 
     synchronized StageScratch createScratch(CorpusStage stage)

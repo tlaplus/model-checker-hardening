@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * One implemented stage of the fuzzing pipeline, and the corpus directories it owns.
@@ -132,13 +133,33 @@ public enum CorpusStage {
      */
     public enum PipelineRole {
         /** Judges an admitted entry and fans its pass out to the checker branches. */
-        PARSING,
-        /** One branch that checks a parser pass; the branches run concurrently. */
-        CHECKING,
+        PARSING(Set.of(CorpusVerdict.FAIL, CorpusVerdict.CRASH)),
+        /**
+         * One branch that checks a parser pass; the branches run concurrently. Every result but a
+         * crash waits for the aggregator, which never aggregates a pair with a crash.
+         */
+        CHECKING(Set.of(CorpusVerdict.CRASH)),
         /** Compares the finished branches and gives the entry its terminal verdict. */
-        AGGREGATION,
-        /** Selects among entries that already settled; runs outside the per-entry pipeline. */
-        SELECTION
+        AGGREGATION(Set.of(CorpusVerdict.FAIL)),
+        /**
+         * Selects among entries that already settled; runs outside the per-entry pipeline. A kept
+         * entry is a parent of later mutants.
+         */
+        SELECTION(Set.of(CorpusVerdict.FAIL));
+
+        private final Set<CorpusVerdict> retiring;
+
+        PipelineRole(Set<CorpusVerdict> retiring) {
+            this.retiring = retiring;
+        }
+
+        /**
+         * Reports whether this verdict retires an entry: no stage of any run reads the entry's input
+         * after it (ADR 0031 §1).
+         */
+        public boolean retires(CorpusVerdict verdict) {
+            return retiring.contains(Objects.requireNonNull(verdict, "verdict"));
+        }
     }
 
     /**

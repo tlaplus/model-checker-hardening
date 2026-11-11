@@ -19,12 +19,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import io.github.tlaplus.hardening.common.Digests;
@@ -349,6 +351,51 @@ class CorpusDirectoryTest {
                 CorpusInputCodec.decode(Files.readAllBytes(candidate)));
         assertTrue(Files.readString(report).contains("IllegalStateException: generator defect"));
         assertEquals(1, corpus.recoverAndValidate(ACCEPT).totalEntries());
+    }
+
+    @Test
+    void reportsTheFirstFailureInPathOrderWhenValidatingInParallel(@TempDir Path directory)
+            throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var byHash = new TreeMap<String, byte[]>();
+        for (var i = 0; i < 64; i++) {
+            var input = new byte[] {(byte) i};
+            corpus.store(InputKind.EXPRESSION, input);
+            byHash.put(hash(input), input);
+        }
+        var inPathOrder = List.copyOf(byHash.values());
+        var first = inPathOrder.get(10);
+        var later = inPathOrder.get(50);
+        // The earlier failure is the slower one, so the later one is seen first.
+        CorpusEntryValidator broken = (entry, payload) -> {
+            var input = payload.corpusInput().input();
+            if (Arrays.equals(input, first)) {
+                sleep(200);
+                throw new IllegalStateException("first defect");
+            }
+            if (Arrays.equals(input, later)) {
+                throw new IllegalStateException("later defect");
+            }
+        };
+
+        var failure = assertThrows(CorpusException.class,
+                () -> corpus.recoverAndValidate(broken, CheckingPolicy.DEFAULT, 8));
+
+        assertTrue(failure.getMessage().contains(corpus.inputPath(first).toString()));
+        assertEquals("first defect", failure.getCause().getMessage());
+        var crashes = corpus.resolve(CorpusPath.GENERATOR_CRASH);
+        assertTrue(Files.exists(crashes.resolve(hash(first) + ".cbor")));
+        assertFalse(Files.exists(crashes.resolve(hash(later) + ".cbor")));
+        assertEquals(64, corpus.recoverAndValidate(ACCEPT, CheckingPolicy.DEFAULT, 8).totalEntries());
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(exception);
+        }
     }
 
     @Test

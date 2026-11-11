@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.config.TomlConfig;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusPath;
+import io.github.tlaplus.hardening.workflow.RetiredEntrySample;
 import io.github.tlaplus.hardening.workflow.RunMode;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.WorkflowRunner;
@@ -59,6 +60,14 @@ final class RunCommand implements Callable<Integer> {
             description = "Maximum active stage jobs (default: all available processors).")
     private int maximumCpus = Runtime.getRuntime().availableProcessors();
 
+    @Option(
+            names = "--validate-retired",
+            converter = FractionConverter.class,
+            paramLabel = "FRACTION",
+            description = "Share of retired entries whose inputs startup decodes, from 0 to 1"
+                    + " (default: ${DEFAULT-VALUE}); 1 decodes every entry (ADR 0031).")
+    private double validateRetired = RetiredEntrySample.DEFAULT_FRACTION;
+
     @ParentCommand private FuzzTlaCommand parent;
 
     @Spec private CommandSpec spec;
@@ -101,7 +110,9 @@ final class RunCommand implements Callable<Integer> {
             // Closing the output restores the terminal before a diagnostic is printed.
             try (var output = RunOutput.open(out, parent.terminals(),
                     config.mutator().feedbackRatio() > 0)) {
-                var summary = output.run(new WorkflowRunner(config), directory, mode, maximumCpus);
+                var summary = output.run(
+                        new WorkflowRunner(config, RetiredEntrySample.withFreshSalt(validateRetired)),
+                        directory, mode, maximumCpus);
                 output.finish(directory.resolve(CorpusPath.ROOT), summary);
             }
             return CommandLine.ExitCode.OK;
@@ -111,6 +122,21 @@ final class RunCommand implements Callable<Integer> {
         } catch (RuntimeException | StackOverflowError exception) {
             CommandDiagnostic.print(spec.commandLine().getErr(), "workflow failed in", corpus, exception);
             return CommandLine.ExitCode.SOFTWARE;
+        }
+    }
+
+    public static final class FractionConverter implements ITypeConverter<Double> {
+        @Override
+        public Double convert(String value) {
+            try {
+                var result = Double.parseDouble(value);
+                if (result >= 0.0 && result <= 1.0) {
+                    return result;
+                }
+            } catch (NumberFormatException exception) {
+                // Reported below, as for a value out of range.
+            }
+            throw new TypeConversionException("expected a number in the range 0..1");
         }
     }
 

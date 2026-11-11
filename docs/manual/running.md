@@ -2,7 +2,7 @@
 
 ```sh
 fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE | --base-corpus=DIR]
-fuzztla run [--corpus=DIR] [--continue] [--max-cpus=N]
+fuzztla run [--corpus=DIR] [--continue] [--max-cpus=N] [--validate-retired=FRACTION]
 ```
 
 `init` chooses the technique once and writes it into the corpus's `config.toml` as
@@ -24,6 +24,7 @@ determined by its configuration
 | `--corpus=DIR` | The corpus directory. Default: `corpus`. |
 | `--continue` | Extend a corpus that an earlier run has written. Without it, `run` refuses such a corpus. See [Stopping and resuming](#stopping-and-resuming). |
 | `--max-cpus=N` | Maximum number of jobs that run at the same time. Default: all processors. |
+| `--validate-retired=FRACTION` | Share of retired entries that startup decodes, from 0 to 1. Default: 0.01. See [Stopping and resuming](#stopping-and-resuming). |
 
 A run admits inputs until the corpus holds `workflow.max_entries` entries, then
 finishes the work in flight and prints a summary. See
@@ -48,6 +49,14 @@ Press ++ctrl+c++ to stop. The run stops its workers and saves the corpus. A late
 and continues where the last run stopped. The counters in the summary add up over all
 runs of a corpus. Raising `max_entries` to grow a finished corpus also needs
 `--continue`.
+
+Startup checks that every entry is consistent with its directory, on `--max-cpus`
+threads. It decodes the input of every entry that the run may still read, and of a
+random 1% of the *retired* ones: entries that the parser failed, a checker crashed on,
+the checkers disagreed on, or the quality gate dropped. No later stage reads a retired
+entry, so the sample only tells you whether this build still accepts old inputs. After
+upgrading fuzztla, pass `--validate-retired=1` once to decode all of them
+([ADR 0031](../decisions/0031-sampled-startup-validation.md)).
 
 `run` without `--continue` accepts only a fresh corpus: one without entries and without
 `.workflow-stats.cbor`. On any other corpus it stops and names `--continue`. A continued

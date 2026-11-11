@@ -59,14 +59,13 @@ final class InventoryScan {
         var parserResults = new VerdictTally();
 
         // Validate inputs that are still waiting for the parser.
-        for (var path : CorpusLayout.entryPaths(layout.resolve(CorpusPath.INPUT))) {
-            var entry = entries.verify(path);
+        entries.forEachVerified(CorpusLayout.entryPaths(layout.resolve(CorpusPath.INPUT)), entry -> {
             for (var stage : CorpusStage.values()) {
                 CorpusEntries.requireMissingStage(entry, stage);
             }
             logicalEntries.add(entry);
-            inputs.add(path);
-        }
+            inputs.add(entry.path());
+        });
 
         // Parser passes must be fanned out; only failures and crashes remain here.
         if (!CorpusLayout.entryPaths(layout.resolve(CorpusPath.PARSER_PASS)).isEmpty()) {
@@ -186,17 +185,14 @@ final class InventoryScan {
             paths = CorpusLayout.entryPaths(directory);
         }
 
-        long count = 0;
-        for (var path : paths) {
-            var entry = entries.verify(path);
+        entries.forEachVerified(paths, entry -> {
             CorpusEntries.requireStageVerdict(entry, stage, verdict);
             consumer.accept(entry);
-            count++;
-        }
+        });
         if (verdict == CorpusVerdict.CRASH) {
             validateCrashReports(directory, entriesWithReports, stage.displayName());
         }
-        return count;
+        return paths.size();
     }
 
     /** Validates one checker branch: its pending inputs and each of its result directories. */
@@ -207,15 +203,14 @@ final class InventoryScan {
         var resultEntries = new HashMap<String, Entry>();
         var resultCounts = new VerdictTally();
 
-        for (var path : CorpusLayout.entryPaths(layout.resolve(checker.input()))) {
-            var entry = entries.verify(path);
+        entries.forEachVerified(CorpusLayout.entryPaths(layout.resolve(checker.input())), entry -> {
             CorpusEntries.requireStageVerdict(
                     entry, CorpusStage.PARSER, CorpusVerdict.PASS);
             CorpusEntries.requireMissingStage(entry, checker);
             CorpusEntries.requireMissingOtherCheckerStages(checker, entry);
             addCheckerBranchEntry(checker, branchEntries, entry);
-            inputs.add(path);
-        }
+            inputs.add(entry.path());
+        });
         for (var verdict : checker.resultVerdicts()) {
             var count = visitResultEntries(
                     checker,

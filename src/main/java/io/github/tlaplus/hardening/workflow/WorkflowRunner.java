@@ -51,15 +51,31 @@ public final class WorkflowRunner {
     private final OccupancyLimits limits;
     private final Technique technique;
     private final CheckingPolicy checking;
+    private final RetiredEntrySample retired;
 
-    /** Runs the technique of {@code config}, {@code [workflow] technique} (ADR 0025 §1). */
+    /**
+     * Runs the technique of {@code config}, {@code [workflow] technique} (ADR 0025 §1), and decodes
+     * every corpus entry at startup.
+     */
     public WorkflowRunner(FuzzTlaConfig config) throws WorkflowException {
-        this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config"), config.workflow().technique()));
+        this(config, RetiredEntrySample.ALL);
+    }
+
+    /** Runs as {@link #WorkflowRunner(FuzzTlaConfig)}, decoding only {@code retired} of the retired entries. */
+    public WorkflowRunner(FuzzTlaConfig config, RetiredEntrySample retired) throws WorkflowException {
+        this(config, SpecDecoders.prepare(Objects.requireNonNull(config, "config"), config.workflow().technique()),
+                retired);
+    }
+
+    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
+        this(config, decoders, RetiredEntrySample.ALL);
     }
 
     /** Reads the configured known-defect databases before any corpus is locked. */
-    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders) throws WorkflowException {
+    WorkflowRunner(FuzzTlaConfig config, SpecDecoders decoders, RetiredEntrySample retired)
+            throws WorkflowException {
         Objects.requireNonNull(config, "config");
+        this.retired = Objects.requireNonNull(retired, "retired");
         this.technique = config.workflow().technique();
         if (!technique.generates(config.generatedKind())) {
             throw new WorkflowException("this corpus runs " + technique.encodedName() + ", which does not generate "
@@ -122,7 +138,7 @@ public final class WorkflowRunner {
 
         try (var corpusLock = corpus.acquireExclusiveLock()) {
             requireRunnable(corpus, mode);
-            var initial = corpus.recoverAndValidate(entryValidator(), checking);
+            var initial = corpus.recoverAndValidate(entryValidator(), checking, maximumCpus);
             limits.requireWithin(initial);
             var metrics = new WorkflowMetrics(corpus.readRunStatistics(), initial.totalEntries());
             var statistics = new RunStatisticsOnExit(corpus, metrics, invocationElapsed);
@@ -186,7 +202,8 @@ public final class WorkflowRunner {
             var stopReason = generations.run();
             phase.set(WorkflowProgress.Phase.FINALIZING);
             // This run decoded every entry it admitted, so the final pass need not decode them again.
-            var result = invocation.corpus().recoverAndValidate(WorkflowRunner::requireGeneration);
+            var result = invocation.corpus().recoverAndValidate(
+                    WorkflowRunner::requireGeneration, checking, invocation.maximumCpus());
             var finalSummaries = new EnumMap<CorpusStage, StageVerdictSummary>(CorpusStage.class);
             for (var stage : CorpusStage.values()) {
                 finalSummaries.put(stage, StageGraph.summary(result, stage, metrics));
@@ -221,11 +238,15 @@ public final class WorkflowRunner {
     /**
      * Returns the policy that decides whether a stored input is still usable. Each entry selects
      * its own decoder; {@code generator.kind} only selects what the input stage adds to the corpus.
-     * Every entry must record the generation that admitted it (ADR 0010).
+     * Every entry must record the generation that admitted it (ADR 0010). A retired entry is
+     * decoded only when {@link #retired} selects it (ADR 0031).
      */
     private CorpusEntryValidator entryValidator() {
         return (entry, envelope) -> {
             requireGeneration(entry, envelope);
+            if (!retired.decodes(envelope)) {
+                return;
+            }
             try {
                 setup.decoders().decode(envelope.corpusInput());
             } catch (InputRejectedException exception) {
