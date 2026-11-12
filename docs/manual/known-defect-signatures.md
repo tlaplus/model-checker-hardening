@@ -369,7 +369,7 @@ known_defects = ["../signatures/all-defects.toml"]
 The added signatures follow one rule:
 - **Uncommon operators.** When a defect depends on run-time values and the
   operator is uncommon in generated code, the signature matches every use of
-  the operator. Examples are `Int`, `Nat`, `SUBSET`, `..`, `^`, `\div`,
+  the operator. Examples are `Int`, `Nat`, `SUBSET`, `^`, `\div`,
   `ENABLED`, `WF` and `SF`.
 - **Frequent operators.** When the operator is frequent, the signature matches
   only the literal shapes that fail whenever they are evaluated. Examples are
@@ -395,6 +395,20 @@ The remaining signatures match fixed shapes:
 - `variant-filter`: every `VariantFilter`, whose Apalache encoding fails on
   run-time payload values
   ([`apalache-bmc-022`](../../findings/apalache-bmc/apalache-bmc-022.md)).
+- `integer-range`: an interval in a position where Apalache expands it -- a
+  set-equality or comparison operand, a binary set-operator operand, a set
+  enumeration element, a filter or map domain, a function-set or
+  function-constructor domain, a record-set field, a product operand, a unary
+  `UNION` operand, a bounded `CHOOSE` bound or an `IF`-wrapped quantifier
+  bound -- plus an interval with a boundary-table literal bound large enough
+  to endanger TLC's materialization ([`tlc-005`](../../findings/TLC/tlc-005.md),
+  [`tlc-006`](../../findings/TLC/tlc-006.md)). An interval as a quantifier
+  bound or membership set stays symbolic in Apalache and is admitted. The
+  signature matched every `(INT_RANGE _ _)` until
+  [`apalache-bmc-023`](../../findings/apalache-bmc/apalache-bmc-023.md) showed
+  that the blanket match quarantined exactly the positions where a
+  state-dependent range prunes executions silently; the finding's position
+  table records which rows are admitted.
 - `set-map-duplicate-product`: a set map with at least two bound variables in a
   fold combinator, or in the first or second bound set of another such map.
   Apalache counts a mapped set by its tuples rather than its distinct values,

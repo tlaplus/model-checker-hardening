@@ -168,8 +168,12 @@ class AllDefectsTest {
                         List.of(builder.enumSet(builder.funSet(one, one), functions),
                                 builder.enumSet(functions, builder.funSet(one, one)))),
                 Map.entry("integer-range",
-                        List.of(builder.interval(builder.integer(1), builder.integer(2)),
-                                builder.enumSet(builder.integer(1), builder.integer(2)))),
+                        List.of(
+                                builder.eql(
+                                        builder.name("ys", TlaTypes.set(TlaTypes.INT)),
+                                        builder.interval(builder.integer(1), x)),
+                                builder.exists(
+                                        y, builder.interval(builder.integer(1), x), builder.eql(y, y)))),
                 Map.entry("power",
                         List.of(builder.exp(step, builder.integer(2)),
                                 builder.mult(step, builder.integer(2)))),

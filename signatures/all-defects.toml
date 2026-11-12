@@ -8,9 +8,11 @@
 # The goal is a fast corpus: quarantine every candidate that could trigger a defect recorded in
 # ../findings or ../conformance, and spend checking time only on candidates that can show new
 # behavior. Where a defect depends on run-time values, a signature matches the operator when it
-# is uncommon in generated code (Int, Nat, SUBSET, .., ^, \div, ENABLED, WF, SF), and only literal
+# is uncommon in generated code (Int, Nat, SUBSET, ^, \div, ENABLED, WF, SF), and only literal
 # or special shapes when the operator is frequent or useful ([S -> T], f[x], CHOOSE, CASE, Head,
-# Tail, SubSeq, %). The
+# Tail, SubSeq, %). The interval `..` is matched only in the positions Apalache expands it:
+# blanket-matching it quarantined the quantifier-bound positions where a range stays symbolic,
+# which hid apalache-bmc-023. The
 # signatures after the shipped ones are not measured for precision. A closed signature, whose
 # findings are all closed, does not quarantine: its shapes are checked again for regressions.
 # docs/manual/known-defect-signatures.md describes the format and this database.
@@ -379,14 +381,46 @@ match = ['(SET_ENUM (FUN_SET _ _) ...)']
 id = "integer-range"
 references = [
   "../conformance/nonconstant-integer-range.md",
+  "../findings/apalache-bmc/apalache-bmc-023.md",
   "../findings/apalache-cli/apalache-cli-001.md",
   "../findings/TLC/tlc-004.md",
   "../findings/TLC/tlc-005.md",
   "../findings/TLC/tlc-006.md",
 ]
-description = "Apalache requires constant, small interval bounds, and TLC materializes an interval bound of CHOOSE or \\E without its enumeration limit."
+description = "Apalache rejects an interval it must expand: an operand of a set equality, comparison or binary set operator, a set enumeration element, a filter or map domain, a function-set or function-constructor domain, a record-set field, a product operand, a unary UNION operand, a bounded CHOOSE bound, or an IF-wrapped quantifier bound. An interval as a quantifier bound or membership set stays symbolic and is admitted. TLC materializes a large interval without its enumeration limit, even as a quantifier bound."
 status = "open"
-match = ['(INT_RANGE _ _)']
+match = [
+  # The pattern language matches a node and its descendants, never its parents, so an
+  # exception list is inexpressible: these alternatives enumerate the positions where Apalache
+  # expands an interval, verified with 0.62.3 (apalache-bmc-023). The EQ/NE alternatives carve
+  # out ranges under membership, which Apalache evaluates symbolically (b = (e \in a..b)).
+  '(& (EQ _ _) (.. (INT_RANGE _ _)) (~ (.. (SET_IN _ (INT_RANGE _ _)))) (~ (.. (SET_NOT_IN _ (INT_RANGE _ _)))))',
+  '(& (NE _ _) (.. (INT_RANGE _ _)) (~ (.. (SET_IN _ (INT_RANGE _ _)))) (~ (.. (SET_NOT_IN _ (INT_RANGE _ _)))))',
+  '(& (SET_UNION2 _ _) (.. (INT_RANGE _ _)))',
+  '(& (SET_INTERSECT _ _) (.. (INT_RANGE _ _)))',
+  '(& (SET_MINUS _ _) (.. (INT_RANGE _ _)))',
+  '(& (SET_SUBSET_EQ _ _) (.. (INT_RANGE _ _)))',
+  '(& (SET_ENUM _ ...) (.. (INT_RANGE _ _)))',
+  '(SET_UNARY_UNION (.. (INT_RANGE _ _)))',
+  '(SET_FILTER _ (.. (INT_RANGE _ _)) ...)',
+  '(SET_MAP _ _ (.. (INT_RANGE _ _)) ...)',
+  '(& (FUN_SET _ _) (.. (INT_RANGE _ _)))',
+  '(FUN_CTOR _ (.. (INT_RANGE _ _)) ...)',
+  '(& (RECORD_SET _ ...) (.. (INT_RANGE _ _)))',
+  '(& (SET_TIMES _ ...) (.. (INT_RANGE _ _)))',
+  '(CHOOSE3 _ (.. (INT_RANGE _ _)) ...)',
+  # A bounded quantifier skolemizes only a syntactic interval; a wrapped bound is expanded.
+  '(EXISTS3 _ (IF_THEN_ELSE _ (.. (INT_RANGE _ _)) ...) ...)',
+  '(EXISTS3 _ (IF_THEN_ELSE _ _ (.. (INT_RANGE _ _))) ...)',
+  '(FORALL3 _ (IF_THEN_ELSE _ (.. (INT_RANGE _ _)) ...) ...)',
+  '(FORALL3 _ (IF_THEN_ELSE _ _ (.. (INT_RANGE _ _))) ...)',
+  # TLC materializes a large interval without its enumeration limit, even in a quantifier
+  # bound (tlc-005, tlc-006). Only the boundary-table literals are patternable; wide-mode
+  # literals are not, so this under-approximates.
+  '(INT_RANGE _ 1073741824)',
+  '(INT_RANGE _ 2147483647)',
+  '(INT_RANGE -2147483648 ...)',
+]
 
 [[signature]]
 id = "power"
