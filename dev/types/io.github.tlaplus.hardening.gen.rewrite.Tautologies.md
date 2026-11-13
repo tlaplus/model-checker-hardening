@@ -1,10 +1,10 @@
 # `Tautologies`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/gen/rewrite/Tautologies.java#L33) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/gen/rewrite/Tautologies.java#L33) · module [gen](../modules/gen.md)
 
 Draws edge guards of a graph module from a rule library (ADR 0023 §6): a guard is the formula `A = B` or `A &lt;=&gt; B` of a rule, with every parameter drawn at its type.
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0016-metamorphic-testing.md), [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/docs/decisions/0016-metamorphic-testing.md), [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

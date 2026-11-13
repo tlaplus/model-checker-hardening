@@ -1,6 +1,6 @@
 # `PatternParser`
 
-`io.github.tlaplus.hardening.signature` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/signature/PatternParser.java#L24) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/signature/PatternParser.java#L24) · module [signature](../modules/signature.md)
 
 Parses the S-expression pattern syntax that the known-defect manual specifies:
 

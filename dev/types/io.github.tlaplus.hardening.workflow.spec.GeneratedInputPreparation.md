@@ -1,6 +1,6 @@
 # `GeneratedInputPreparation`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/spec/GeneratedInputPreparation.java#L13) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/workflow/spec/GeneratedInputPreparation.java#L13) · module [workflow](../modules/workflow.md)
 
 Regenerates and renders one tool input while preserving generator-crash artifacts.
 

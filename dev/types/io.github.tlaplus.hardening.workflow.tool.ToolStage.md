@@ -1,6 +1,6 @@
 # `ToolStage`
 
-`io.github.tlaplus.hardening.workflow.tool` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolStage.java#L32) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tool` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolStage.java#L32) · module [workflow](../modules/workflow.md)
 
 One stage that runs an external tool over corpus entries: the parser, TLC, or Apalache.
 

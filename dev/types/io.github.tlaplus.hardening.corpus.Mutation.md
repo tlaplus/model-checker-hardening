@@ -1,6 +1,6 @@
 # `Mutation`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/corpus/Mutation.java#L12) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/corpus/Mutation.java#L12) · module [corpus](../modules/corpus.md)
 
 How a mutated input was derived: the digest of the parent it was mutated from and the operators applied to the parent, in order.
 

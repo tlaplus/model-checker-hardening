@@ -1,6 +1,6 @@
 # `IsolatedWorkerProcess`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/worker/IsolatedWorkerProcess.java#L29) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/workflow/worker/IsolatedWorkerProcess.java#L29) · module [workflow](../modules/workflow.md)
 
 Parent-side supervisor for one isolated Java tool worker.
 
