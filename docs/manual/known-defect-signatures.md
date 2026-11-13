@@ -396,15 +396,19 @@ The remaining signatures match fixed shapes:
 - `variant-filter`: every `VariantFilter`, whose Apalache encoding fails on
   run-time payload values
   ([`apalache-bmc-022`](../../findings/apalache-bmc/apalache-bmc-022.md)).
-- `integer-range`: an interval in a position where Apalache expands it -- a
-  set-equality or comparison operand, a binary set-operator operand, a set
-  enumeration element, a filter or map domain, a function-set or
-  function-constructor domain, a record-set field, a product operand, a unary
-  `UNION` operand, a bounded `CHOOSE` bound or an `IF`-wrapped quantifier
-  bound -- plus an interval with a boundary-table literal bound large enough
-  to endanger TLC's materialization ([`tlc-005`](../../findings/TLC/tlc-005.md),
-  [`tlc-006`](../../findings/TLC/tlc-006.md)). An interval as a quantifier
-  bound or membership set stays symbolic in Apalache and is admitted. The
+- `integer-range`: an interval in a position where Apalache expands it -- an
+  equality or comparison operand that is not itself a membership, a binary
+  set operator, a set enumeration, a unary `UNION`, a set map, a function set
+  or constructor, a record set or a product, a filter domain, a bounded
+  `CHOOSE` bound, a set fold's set, or a quantifier bound or membership set
+  that wraps the interval in `IF`, `CASE`, `LET` or another operator -- plus
+  an interval whose bounds hold an integer literal of magnitude at least
+  1,000,000, which TLC materializes past its enumeration limit
+  ([`tlc-005`](../../findings/TLC/tlc-005.md),
+  [`tlc-006`](../../findings/TLC/tlc-006.md)). A syntactic interval as a
+  quantifier bound or membership set stays symbolic in Apalache and is
+  admitted, although Apalache expands it under a quantifier it does not
+  skolemize. The
   signature matched every `(INT_RANGE _ _)` until
   [`apalache-bmc-023`](../../findings/apalache-bmc/apalache-bmc-023.md) showed
   that the blanket match quarantined exactly the positions where a

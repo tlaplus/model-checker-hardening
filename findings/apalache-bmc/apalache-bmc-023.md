@@ -101,24 +101,32 @@ into an arena set. Measured with Apalache 0.62.3 (`3eb15b2`); every row uses
 
 | Position | Verdict |
 | --- | --- |
-| `\E c \in R : P` quantifier bound | accepted (symbolic; this defect) |
-| `\A c \in R : P` quantifier bound | accepted (rewritten to `\E`) |
+| `\E c \in R : P` quantifier bound, skolemized | accepted (symbolic; this defect) |
+| `\A c \in R : P` invariant quantifier bound | accepted (rewritten to `\E`) |
+| `b' = \E c \in R : P`, `\A d \in S : \E c \in R : P` quantifier not skolemized | rejected |
 | `x' \in R` assignment membership | accepted (symbolic; this defect) |
 | `e \in R`, `e \notin R` membership in a state predicate | accepted (symbolic) |
+| `e \in IF .. THEN R ELSE ..`, `e \in LET .. IN R` wrapped membership set | rejected |
+| `x' \in IF .. THEN R ELSE ..`, `x' \in LET .. IN R` wrapped assignment set | rejected |
 | `Cardinality(R)`, `IsFiniteSet(R)` | accepted (arithmetic) |
 | `SUBSET R` as a membership operand | accepted (symbolic powerset cell) |
 | `CHOOSE c \in R : P` bound | rejected |
 | `ys = R`, `ys = IF .. THEN R ELSE ..`, `ys = LET .. IN R` | rejected |
 | `R = S`, `R # S` set equality | rejected |
 | `b = (e \in R)` equality over a membership | accepted |
+| `ys = IF e \in R THEN .. ELSE ..`, `s = IF e \in R THEN "a" ELSE "b"` membership nested in an equality | accepted |
+| `t = <<R, 1>>` tuple component | rejected |
 | `R \union S`, `R \intersect S`, `R \ S`, `R \subseteq S` | rejected |
 | `UNION {R, ..}` | rejected |
 | `{R, ..}` set enumeration element | rejected |
 | `{v \in R : P}`, `{e : v \in R}` filter or map domain | rejected |
+| `{e : v \in S, w \in R}` second map domain | rejected |
 | `[R -> T]`, `[v \in R \|-> e]` function set or constructor domain | rejected |
+| `[v \in S, w \in R \|-> e]` second constructor domain | rejected |
+| `ApaFoldSet(Op, v, R)` folded set | rejected |
 | `[f: R]` record-set field | rejected |
 | `R \X S` cartesian product | rejected |
-| `\E c \in (IF .. THEN R ELSE ..) : P` wrapped quantifier bound | rejected |
+| `\E c \in (IF .. THEN R ELSE ..) : P`, `\E c \in (LET .. IN R) : P`, `\E c \in (CASE .. -> R [] ..) : P` wrapped quantifier bound | rejected |
 
 ## Why the fuzzer did not find it
 
@@ -146,21 +154,36 @@ TLC materializes a large range even under a quantifier
 pattern language matches a node and its descendants and cannot name a parent,
 so "an interval except as a quantifier bound" is inexpressible as an exception;
 the fix enumerates the expanded positions instead. `integer-range` now matches
-an interval only where Apalache expands it (the rejected rows above) or where a
-boundary-table literal makes it large enough to endanger TLC, and admits the
-symbolic positions: quantifier bounds, membership, `Cardinality`,
-`IsFiniteSet`, and the powerset operand.
+an interval where Apalache expands it (the rejected rows above) or where a
+bound holds an integer literal of magnitude at least 1,000,000, TLC's
+enumeration limit, and admits the symbolic positions: a syntactic interval as
+a quantifier bound or membership set, an equality operand that is itself such
+a membership, `Cardinality`, `IsFiniteSet`, and the powerset operand of a
+membership.
 
 The residual cost of admitting ranges is triage noise, not hidden defects: a
-nonconstant range in an unlisted expanded position makes Apalache exit 255 with
-its named diagnosis, and a large wide-mode interval literal makes TLC report an
-enumeration error. Neither is a silent divergence.
+nonconstant range in an expanded position no alternative lists makes Apalache
+exit 255 with its named diagnosis. A large interval whose bounds hold only
+small literals, such as `1..(1000 * 1000 * 10)`, escapes the literal check and
+can make TLC exhaust the heap ([`tlc-005`](../TLC/tlc-005.md),
+[`tlc-006`](../TLC/tlc-006.md)); under `-XX:+ExitOnOutOfMemoryError` the
+worker crashes. Neither is a silent divergence.
 
-Two limitations of the fix, both inherited from the pattern language:
+Three limitations of the fix, all inherited from the pattern language, which
+sees neither a node's parents nor the polarity of its context:
 
-- A range under a membership inside a larger equality, as in
-  `ys = {v \in S : 3 \in R}`, escapes the `EQ` alternatives' membership
-  carve-out and is quarantined although Apalache accepts it.
+- Apalache skolemizes only an existential in a positive position outside a
+  universal quantifier. A syntactic interval bounding any other quantifier, as
+  in `\A d \in S : \E c \in R : P` in an action, is expanded and rejected, but
+  is admitted unless it sits in an equality operand or another listed
+  position.
+- An equality operand that holds a membership over an interval below its root,
+  as in `ys = IF e \in R THEN {1} ELSE {}` or `ys = {v \in S : 3 \in R}`, is
+  quarantined although Apalache accepts it; only an operand that is itself the
+  membership is exempt. Likewise, a set map or function constructor is
+  quarantined for an interval anywhere in it, including a membership in its
+  body, because its domains follow the body at every other position for any
+  number of binders.
 - An entry whose ranges all sit in symbolic positions but which also matches
   another signature stays quarantined for that reason. All 202 `corpus77`
   specimens still match the narrowed `integer-range`, and 29 of a 40-entry
@@ -200,6 +223,10 @@ aggregator divergence the quarantine suppressed:
   `--length=2`.
 - The position table was measured with the corpus-pinned Apalache on one module
   per row.
+- The rows on unskolemized quantifiers, wrapped memberships and quantifier
+  bounds, second binders, folds, tuples and nested memberships were measured
+  with Apalache 0.62.3 (`3eb15b2`) on fuzztla `1ebe6601`, one module per row,
+  with the same `R`.
 - `signatures/all-defects.toml` narrows `integer-range` as described;
-  `AllDefectsTest` carries the new shape (a set equality with an interval
-  matches; a quantifier bound over an interval does not).
+  `AllDefectsTest.integerRangeMatchesTheExpandedPositionsOnly` checks one
+  shape per row and per TLC literal case.

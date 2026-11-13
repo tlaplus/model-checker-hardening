@@ -387,39 +387,46 @@ references = [
   "../findings/TLC/tlc-005.md",
   "../findings/TLC/tlc-006.md",
 ]
-description = "Apalache rejects an interval it must expand: an operand of a set equality, comparison or binary set operator, a set enumeration element, a filter or map domain, a function-set or function-constructor domain, a record-set field, a product operand, a unary UNION operand, a bounded CHOOSE bound, or an IF-wrapped quantifier bound. An interval as a quantifier bound or membership set stays symbolic and is admitted. TLC materializes a large interval without its enumeration limit, even as a quantifier bound."
+description = "Apalache rejects an interval it must expand: one inside a set equality or comparison operand that is not itself a membership, a binary set operator, a set enumeration, a unary UNION, a set map, a function set or constructor, a record set or a product; a filter domain, a bounded CHOOSE bound or a set fold's set; or a quantifier bound or membership set that wraps the interval. An interval directly as a membership set or a skolemized quantifier bound stays symbolic and is admitted. TLC materializes a large interval without its enumeration limit, even as a quantifier bound."
 status = "open"
 match = [
   # The pattern language matches a node and its descendants, never its parents, so an
   # exception list is inexpressible: these alternatives enumerate the positions where Apalache
-  # expands an interval, verified with 0.62.3 (apalache-bmc-023). The EQ/NE alternatives carve
-  # out ranges under membership, which Apalache evaluates symbolically (b = (e \in a..b)).
-  '(& (EQ _ _) (.. (INT_RANGE _ _)) (~ (.. (SET_IN _ (INT_RANGE _ _)))) (~ (.. (SET_NOT_IN _ (INT_RANGE _ _)))))',
-  '(& (NE _ _) (.. (INT_RANGE _ _)) (~ (.. (SET_IN _ (INT_RANGE _ _)))) (~ (.. (SET_NOT_IN _ (INT_RANGE _ _)))))',
+  # expands an interval, verified with 0.62.3 (apalache-bmc-023). An equality operand that is
+  # itself a membership over an interval stays symbolic (b = (e \in a..b)); any other operand
+  # with an interval inside, including a quantifier (b' = \E c \in a..b : P), is expanded.
+  '(EQ (& (~ (SET_IN _ (INT_RANGE _ _))) (~ (SET_NOT_IN _ (INT_RANGE _ _))) (.. (INT_RANGE _ _))) _)',
+  '(EQ _ (& (~ (SET_IN _ (INT_RANGE _ _))) (~ (SET_NOT_IN _ (INT_RANGE _ _))) (.. (INT_RANGE _ _))))',
+  '(NE (& (~ (SET_IN _ (INT_RANGE _ _))) (~ (SET_NOT_IN _ (INT_RANGE _ _))) (.. (INT_RANGE _ _))) _)',
+  '(NE _ (& (~ (SET_IN _ (INT_RANGE _ _))) (~ (SET_NOT_IN _ (INT_RANGE _ _))) (.. (INT_RANGE _ _))))',
   '(& (SET_UNION2 _ _) (.. (INT_RANGE _ _)))',
   '(& (SET_INTERSECT _ _) (.. (INT_RANGE _ _)))',
   '(& (SET_MINUS _ _) (.. (INT_RANGE _ _)))',
   '(& (SET_SUBSET_EQ _ _) (.. (INT_RANGE _ _)))',
   '(& (SET_ENUM _ ...) (.. (INT_RANGE _ _)))',
   '(SET_UNARY_UNION (.. (INT_RANGE _ _)))',
-  '(SET_FILTER _ (.. (INT_RANGE _ _)) ...)',
-  '(SET_MAP _ _ (.. (INT_RANGE _ _)) ...)',
+  # A map or constructor binds any number of names, and its domains sit at every other
+  # position after the body, so these match an interval anywhere in it.
+  '(& (SET_MAP _ ...) (.. (INT_RANGE _ _)))',
+  '(& (FUN_CTOR _ ...) (.. (INT_RANGE _ _)))',
   '(& (FUN_SET _ _) (.. (INT_RANGE _ _)))',
-  '(FUN_CTOR _ (.. (INT_RANGE _ _)) ...)',
   '(& (RECORD_SET _ ...) (.. (INT_RANGE _ _)))',
   '(& (SET_TIMES _ ...) (.. (INT_RANGE _ _)))',
-  '(CHOOSE3 _ (.. (INT_RANGE _ _)) ...)',
-  # A bounded quantifier skolemizes only a syntactic interval; a wrapped bound is expanded.
-  '(EXISTS3 _ (IF_THEN_ELSE _ (.. (INT_RANGE _ _)) ...) ...)',
-  '(EXISTS3 _ (IF_THEN_ELSE _ _ (.. (INT_RANGE _ _))) ...)',
-  '(FORALL3 _ (IF_THEN_ELSE _ (.. (INT_RANGE _ _)) ...) ...)',
-  '(FORALL3 _ (IF_THEN_ELSE _ _ (.. (INT_RANGE _ _))) ...)',
-  # TLC materializes a large interval without its enumeration limit, even in a quantifier
-  # bound (tlc-005, tlc-006). Only the boundary-table literals are patternable; wide-mode
-  # literals are not, so this under-approximates.
-  '(INT_RANGE _ 1073741824)',
-  '(INT_RANGE _ 2147483647)',
-  '(INT_RANGE -2147483648 ...)',
+  '(SET_FILTER _ (.. (INT_RANGE _ _)) _)',
+  '(CHOOSE3 _ (.. (INT_RANGE _ _)) _)',
+  '(Apalache!ApaFoldSet _ _ (.. (INT_RANGE _ _)))',
+  # A quantifier skolemizes, and a membership evaluates symbolically, only a syntactic
+  # interval; an interval wrapped in IF, CASE, LET or another operator is expanded. The
+  # powerset operand of a membership stays symbolic.
+  '(EXISTS3 _ (& (~ (INT_RANGE _ _)) (.. (INT_RANGE _ _))) _)',
+  '(FORALL3 _ (& (~ (INT_RANGE _ _)) (.. (INT_RANGE _ _))) _)',
+  '(SET_IN _ (& (~ (INT_RANGE _ _)) (~ (SET_POWERSET (INT_RANGE _ _))) (.. (INT_RANGE _ _))))',
+  '(SET_NOT_IN _ (& (~ (INT_RANGE _ _)) (~ (SET_POWERSET (INT_RANGE _ _))) (.. (INT_RANGE _ _))))',
+  # TLC materializes an interval without its enumeration limit of 1,000,000 elements, even
+  # in a quantifier bound (tlc-005, tlc-006). An interval whose bounds hold no literal that
+  # large is admitted; a large bound computed from small literals escapes.
+  '(& (INT_RANGE _ _) (.. (>= 1000000)))',
+  '(& (INT_RANGE _ _) (.. (<= -1000000)))',
 ]
 
 [[signature]]
