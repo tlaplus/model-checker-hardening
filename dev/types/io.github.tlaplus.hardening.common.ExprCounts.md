@@ -1,6 +1,6 @@
 # `ExprCounts`
 
-`io.github.tlaplus.hardening.common` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/common/ExprCounts.java#L16) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/common/ExprCounts.java#L16) · module [common](../modules/common.md)
 
 The size of a piece of TLA+ code, the occurrences of each expression construct in it, and the occurrences of each edge between constructs.
 

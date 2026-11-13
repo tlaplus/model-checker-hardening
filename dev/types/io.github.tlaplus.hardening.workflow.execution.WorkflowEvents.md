@@ -1,10 +1,10 @@
 # `WorkflowEvents`
 
-`io.github.tlaplus.hardening.workflow.execution` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowEvents.java#L24) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowEvents.java#L24) · module [workflow](../modules/workflow.md)
 
 Durable admission and stage transitions, reported to whatever schedules generations (ADR 0010).
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram

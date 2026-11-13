@@ -1707,13 +1707,18 @@ argument.</p>
 <td>An expression that does not match <code>p</code>.</td>
 <td><code>(STUTTER (~ (OPER_APP Next)) _)</code></td>
 </tr>
+<tr>
+<td><code>(&gt;= n)</code>, <code>(&lt;= n)</code></td>
+<td>An integer literal whose value is at least, or at most, the integer <code>n</code>.</td>
+<td><code>(INT_RANGE _ (&gt;= 1000000))</code></td>
+</tr>
 </tbody>
 </table>
 <p>An identifier consists of letters, digits, <code>_</code>, <code>!</code> and <code>$</code>, and does not
 start with a digit. In head position it names an operator, which must exist;
 anywhere else it names a variable, parameter or definition. The words <code>_</code>,
 <code>TRUE</code>, <code>FALSE</code>, <code>STRING</code>, <code>Int</code>, <code>Nat</code> and <code>BOOLEAN</code> are reserved, and <code>..</code>,
-<code>&amp;</code> and <code>~</code> are reserved as heads.</p>
+<code>&amp;</code>, <code>~</code>, <code>&gt;=</code> and <code>&lt;=</code> are reserved as heads.</p>
 <p><code>(.. p)</code> searches operator arguments and the declarations and body of a <code>LET</code>,
 skipping labels. It does not follow a name to the definition it refers to: a
 temporal operator inside a referenced definition is matched where that
@@ -2030,7 +2035,7 @@ listing both defines every shipped id twice, which is an error:</p>
 <p>The added signatures follow one rule:
 - <strong>Uncommon operators.</strong> When a defect depends on run-time values and the
   operator is uncommon in generated code, the signature matches every use of
-  the operator. Examples are <code>Int</code>, <code>Nat</code>, <code>SUBSET</code>, <code>..</code>, <code>^</code>, <code>\div</code>,
+  the operator. Examples are <code>Int</code>, <code>Nat</code>, <code>SUBSET</code>, <code>^</code>, <code>\div</code>,
   <code>ENABLED</code>, <code>WF</code> and <code>SF</code>.
 - <strong>Frequent operators.</strong> When the operator is frequent, the signature matches
   only the literal shapes that fail whenever they are evaluated. Examples are
@@ -2055,6 +2060,24 @@ listing both defines every shipped id twice, which is an error:</p>
 - <code>variant-filter</code>: every <code>VariantFilter</code>, whose Apalache encoding fails on
   run-time payload values
   (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-bmc/apalache-bmc-022.md"><code>apalache-bmc-022</code></a>).
+- <code>integer-range</code>: an interval in a position where Apalache expands it -- an
+  equality or comparison operand that is not itself a membership, a binary
+  set operator, a set enumeration, a unary <code>UNION</code>, a set map, a function set
+  or constructor, a record set or a product, a filter domain, a bounded
+  <code>CHOOSE</code> bound, a set fold's set, or a quantifier bound or membership set
+  that wraps the interval in <code>IF</code>, <code>CASE</code>, <code>LET</code> or another operator -- plus
+  an interval whose bounds hold an integer literal of magnitude at least
+  1,000,000, which TLC materializes past its enumeration limit
+  (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/TLC/tlc-005.md"><code>tlc-005</code></a>,
+  <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/TLC/tlc-006.md"><code>tlc-006</code></a>). A syntactic interval as a
+  quantifier bound or membership set stays symbolic in Apalache and is
+  admitted, although Apalache expands it under a quantifier it does not
+  skolemize. The
+  signature matched every <code>(INT_RANGE _ _)</code> until
+  <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-bmc/apalache-bmc-023.md"><code>apalache-bmc-023</code></a> showed
+  that the blanket match quarantined exactly the positions where a
+  state-dependent range prunes executions silently; the finding's position
+  table records which rows are admitted.
 - <code>set-map-duplicate-product</code>: a set map with at least two bound variables in a
   fold combinator, or in the first or second bound set of another such map.
   Apalache counts a mapped set by its tuples rather than its distinct values,

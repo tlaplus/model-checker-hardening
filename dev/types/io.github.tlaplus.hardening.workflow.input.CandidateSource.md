@@ -1,10 +1,10 @@
 # `CandidateSource`
 
-`io.github.tlaplus.hardening.workflow.input` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/input/CandidateSource.java#L21) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/input/CandidateSource.java#L21) · module [workflow](../modules/workflow.md)
 
 Where the candidates for a target entry of the input stage come from: property-based generation or mutation of a selected parent (ADR 0010).
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram

@@ -1,6 +1,6 @@
 # `CheckingPolicy`
 
-`io.github.tlaplus.hardening.corpus` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/corpus/CheckingPolicy.java#L18) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/corpus/CheckingPolicy.java#L18) · module [corpus](../modules/corpus.md)
 
 Which checkers a workflow run feeds and how the aggregator judges their verdicts.
 

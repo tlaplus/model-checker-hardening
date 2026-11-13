@@ -1,6 +1,6 @@
 # `ConfigSchema`
 
-`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
 
 The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back.
 

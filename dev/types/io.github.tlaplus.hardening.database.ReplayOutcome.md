@@ -1,6 +1,6 @@
 # `ReplayOutcome`
 
-`io.github.tlaplus.hardening.database` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/database/ReplayOutcome.java#L11) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/database/ReplayOutcome.java#L11) · module [database](../modules/database.md)
 
 The result of analysing one input: what its replay shows, or why it could not be replayed.
 

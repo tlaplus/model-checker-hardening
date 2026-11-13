@@ -1,10 +1,10 @@
 # `TlcExplorationMetrics`
 
-`io.github.tlaplus.hardening.workflow.tlc` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcExplorationMetrics.java#L20) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcExplorationMetrics.java#L20) · module [workflow](../modules/workflow.md)
 
 Measures one TLC run and attaches the result to its classified outcome (ADR 0008).
 
-**Decisions:** [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0008-exploration-metrics.md)
+**Decisions:** [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0008-exploration-metrics.md)
 
 ```mermaid
 classDiagram

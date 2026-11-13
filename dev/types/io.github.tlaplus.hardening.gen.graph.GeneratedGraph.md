@@ -1,10 +1,10 @@
 # `GeneratedGraph`
 
-`io.github.tlaplus.hardening.gen.graph` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/gen/graph/GeneratedGraph.java#L26) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.graph` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/gen/graph/GeneratedGraph.java#L26) · module [gen](../modules/gen.md)
 
 A module decoded from a graph input (ADR 0023 §2), with the graph it encodes and the target its invariant `pc /= target` names.
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

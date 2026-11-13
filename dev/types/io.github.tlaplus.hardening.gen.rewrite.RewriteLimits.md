@@ -1,10 +1,10 @@
 # `RewriteLimits`
 
-`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewriteLimits.java#L17) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewriteLimits.java#L17) · module [gen](../modules/gen.md)
 
 Bounds of one rewrite (ADR 0016 §2, §7, ADR 0030).
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0016-metamorphic-testing.md), [ADR 0030: A budget of temporal operators per rewritten body](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0030-temporal-operator-budget.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0016-metamorphic-testing.md), [ADR 0030: A budget of temporal operators per rewritten body](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0030-temporal-operator-budget.md)
 
 ```mermaid
 classDiagram

@@ -1,10 +1,10 @@
 # `RuleMatcher`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java#L60) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleMatcher.java#L60) · module [gen](../modules/gen.md)
 
 Matches a rule's pattern at one node (ADR 0017 §4).
 
-**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0017-rewrite-rule-library.md), [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0027-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0017-rewrite-rule-library.md), [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0027-temporal-metamorphic-testing.md)
 
 ```mermaid
 classDiagram

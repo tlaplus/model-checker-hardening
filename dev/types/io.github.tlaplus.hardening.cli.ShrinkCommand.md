@@ -1,10 +1,10 @@
 # `ShrinkCommand`
 
-`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/cli/ShrinkCommand.java#L30) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/cli/ShrinkCommand.java#L30) · module [cli](../modules/cli.md)
 
 `fuzztla shrink`: reduces a metamorphic counterexample with `MetamorphicShrinker` (ADR 0016).
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0016-metamorphic-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0016-metamorphic-testing.md)
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|

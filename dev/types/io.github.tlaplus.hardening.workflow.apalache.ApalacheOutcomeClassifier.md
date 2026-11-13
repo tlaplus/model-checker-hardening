@@ -1,6 +1,6 @@
 # `ApalacheOutcomeClassifier`
 
-`io.github.tlaplus.hardening.workflow.apalache` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheOutcomeClassifier.java#L13) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.apalache` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheOutcomeClassifier.java#L13) · module [workflow](../modules/workflow.md)
 
 Maps Apalache tool exit statuses to shared workflow outcomes.
 

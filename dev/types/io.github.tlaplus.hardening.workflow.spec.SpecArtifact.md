@@ -1,10 +1,10 @@
 # `SpecArtifact`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L40) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L40) · module [workflow](../modules/workflow.md)
 
 One assembled module, what its checkers are asked about it, and what its decoder produced.
 
-**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0014-per-checker-library-linking.md)
+**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0014-per-checker-library-linking.md)
 
 ```mermaid
 classDiagram

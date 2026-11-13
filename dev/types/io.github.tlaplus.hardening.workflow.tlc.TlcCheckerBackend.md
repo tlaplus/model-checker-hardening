@@ -1,10 +1,10 @@
 # `TlcCheckerBackend`
 
-`io.github.tlaplus.hardening.workflow.tlc` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcCheckerBackend.java#L30) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcCheckerBackend.java#L30) · module [workflow](../modules/workflow.md)
 
 Adapts fresh isolated TLC invocations to the shared tool stage.
 
-**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/ac2372d47bb5bde8dbaa1a2983a7214ae253523e/docs/decisions/0027-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/d5dcbcb332600c9312f00550a0131fd51a164e9f/docs/decisions/0027-temporal-metamorphic-testing.md)
 
 ```mermaid
 classDiagram

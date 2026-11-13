@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "ac2372d47bb5bde8dbaa1a2983a7214ae253523e"
+    "commit" : "d5dcbcb332600c9312f00550a0131fd51a164e9f"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -3023,7 +3023,7 @@
     "key" : true,
     "summary" : "One pattern over the typed Apalache IR, as parsed by `PatternParser`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/signature/IrPattern.java",
-    "line" : 30,
+    "line" : 32,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.signature.IrTree",
