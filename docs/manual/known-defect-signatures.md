@@ -114,12 +114,13 @@ argument.
 | `(.. p)` | An expression that matches `p`, or that has a subexpression matching `p` at any depth. | `(EQUIV (.. (GLOBALLY _)) _)` |
 | `(& p1 … pn)` | An expression that matches every `p1 … pn`. | `(& (CASE ...) (.. (GLOBALLY _)))` |
 | `(~ p)` | An expression that does not match `p`. | `(STUTTER (~ (OPER_APP Next)) _)` |
+| `(>= n)`, `(<= n)` | An integer literal whose value is at least, or at most, the integer `n`. | `(INT_RANGE _ (>= 1000000))` |
 
 An identifier consists of letters, digits, `_`, `!` and `$`, and does not
 start with a digit. In head position it names an operator, which must exist;
 anywhere else it names a variable, parameter or definition. The words `_`,
 `TRUE`, `FALSE`, `STRING`, `Int`, `Nat` and `BOOLEAN` are reserved, and `..`,
-`&` and `~` are reserved as heads.
+`&`, `~`, `>=` and `<=` are reserved as heads.
 
 `(.. p)` searches operator arguments and the declarations and body of a `LET`,
 skipping labels. It does not follow a name to the definition it refers to: a
@@ -369,7 +370,7 @@ known_defects = ["../signatures/all-defects.toml"]
 The added signatures follow one rule:
 - **Uncommon operators.** When a defect depends on run-time values and the
   operator is uncommon in generated code, the signature matches every use of
-  the operator. Examples are `Int`, `Nat`, `SUBSET`, `..`, `^`, `\div`,
+  the operator. Examples are `Int`, `Nat`, `SUBSET`, `^`, `\div`,
   `ENABLED`, `WF` and `SF`.
 - **Frequent operators.** When the operator is frequent, the signature matches
   only the literal shapes that fail whenever they are evaluated. Examples are
@@ -395,6 +396,24 @@ The remaining signatures match fixed shapes:
 - `variant-filter`: every `VariantFilter`, whose Apalache encoding fails on
   run-time payload values
   ([`apalache-bmc-022`](../../findings/apalache-bmc/apalache-bmc-022.md)).
+- `integer-range`: an interval in a position where Apalache expands it -- an
+  equality or comparison operand that is not itself a membership, a binary
+  set operator, a set enumeration, a unary `UNION`, a set map, a function set
+  or constructor, a record set or a product, a filter domain, a bounded
+  `CHOOSE` bound, a set fold's set, or a quantifier bound or membership set
+  that wraps the interval in `IF`, `CASE`, `LET` or another operator -- plus
+  an interval whose bounds hold an integer literal of magnitude at least
+  1,000,000, which TLC materializes past its enumeration limit
+  ([`tlc-005`](../../findings/TLC/tlc-005.md),
+  [`tlc-006`](../../findings/TLC/tlc-006.md)). A syntactic interval as a
+  quantifier bound or membership set stays symbolic in Apalache and is
+  admitted, although Apalache expands it under a quantifier it does not
+  skolemize. The
+  signature matched every `(INT_RANGE _ _)` until
+  [`apalache-bmc-023`](../../findings/apalache-bmc/apalache-bmc-023.md) showed
+  that the blanket match quarantined exactly the positions where a
+  state-dependent range prunes executions silently; the finding's position
+  table records which rows are admitted.
 - `set-map-duplicate-product`: a set map with at least two bound variables in a
   fold combinator, or in the first or second bound set of another such map.
   Apalache counts a mapped set by its tuples rather than its distinct values,

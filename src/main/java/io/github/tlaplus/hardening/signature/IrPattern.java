@@ -14,8 +14,10 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -31,6 +33,13 @@ import org.apalache_mc.tla.jir.TlaTypes;
 @Key
 sealed interface IrPattern {
     boolean matches(TlaEx expression, Bindings bindings);
+
+    /** The value of an integer literal, or empty for any other expression. */
+    private static Optional<BigInteger> integer(TlaEx expression) {
+        return expression instanceof ValEx literal && literal.value() instanceof TlaInt integer
+                ? Optional.of(integer.value().bigInteger())
+                : Optional.empty();
+    }
 
     /** {@code _}: any expression. */
     record Wildcard() implements IrPattern {
@@ -59,9 +68,46 @@ sealed interface IrPattern {
 
         @Override
         public boolean matches(TlaEx expression, Bindings bindings) {
-            return expression instanceof ValEx literal
-                    && literal.value() instanceof TlaInt integer
-                    && integer.value().bigInteger().equals(value);
+            return IrPattern.integer(expression).filter(value::equals).isPresent();
+        }
+    }
+
+    /** {@code (>= n)}, {@code (<= n)}: an integer literal on the given side of {@code bound}, inclusive. */
+    record IntegerBound(Comparison comparison, BigInteger bound) implements IrPattern {
+        /** The comparisons a pattern spells as a head, each with the sign of {@code value - bound} it accepts. */
+        enum Comparison {
+            AT_LEAST(">=", 1),
+            AT_MOST("<=", -1);
+
+            private final String spelling;
+            private final int sign;
+
+            Comparison(String spelling, int sign) {
+                this.spelling = spelling;
+                this.sign = sign;
+            }
+
+            String spelling() {
+                return spelling;
+            }
+
+            static Optional<Comparison> bySpelling(String spelling) {
+                return Arrays.stream(values()).filter(c -> c.spelling.equals(spelling)).findFirst();
+            }
+
+            boolean holds(BigInteger value, BigInteger bound) {
+                return value.compareTo(bound) * sign >= 0;
+            }
+        }
+
+        public IntegerBound {
+            Objects.requireNonNull(comparison, "comparison");
+            Objects.requireNonNull(bound, "bound");
+        }
+
+        @Override
+        public boolean matches(TlaEx expression, Bindings bindings) {
+            return IrPattern.integer(expression).filter(value -> comparison.holds(value, bound)).isPresent();
         }
     }
 

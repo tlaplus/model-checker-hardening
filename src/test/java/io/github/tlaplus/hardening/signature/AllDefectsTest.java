@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apalache_mc.tla.jir.ExpressionPair;
+import org.apalache_mc.tla.jir.NamedExpression;
 import org.apalache_mc.tla.jir.NamedType;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
@@ -132,6 +133,83 @@ class AllDefectsTest {
         }
     }
 
+    /**
+     * {@code integer-range} matches an interval in each position where Apalache 0.62.3 expands it
+     * or TLC materializes a large one, and in none where it stays symbolic; apalache-bmc-023
+     * records the measured positions.
+     */
+    @Test
+    void integerRangeMatchesTheExpandedPositionsOnly() throws Exception {
+        var database = KnownDefectDatabase.load(List.of(DATABASE));
+        var x = builder.name("x", TlaTypes.INT);
+        var c = builder.name("c", TlaTypes.INT);
+        var v = builder.name("v", TlaTypes.INT);
+        var w = builder.name("w", TlaTypes.INT);
+        var b = builder.name("b", TlaTypes.BOOL);
+        var ys = builder.name("ys", TlaTypes.set(TlaTypes.INT));
+        var set = builder.name("S", TlaTypes.set(TlaTypes.INT));
+        var e = builder.integer(1);
+        var range = builder.interval(e, x);
+        var body = builder.eql(c, c);
+        var let = builder.letIn(range, builder.decl("K", builder.integer(0)));
+        var fold = builder.foldSet(
+                builder.lambda("Add", builder.plus(c, v),
+                        builder.param("c", TlaTypes.INT), builder.param("v", TlaTypes.INT)),
+                builder.integer(0), range);
+        var expanded = Map.ofEntries(
+                Map.entry("ys = R", builder.eql(ys, range)),
+                Map.entry("R # S", builder.neql(range, set)),
+                Map.entry("b' = \\E c \\in R : P", builder.eql(builder.prime(b), builder.exists(c, range, body))),
+                Map.entry("ys' = IF e \\in R THEN R ELSE S",
+                        builder.eql(builder.prime(ys), builder.ite(builder.in(e, range), range, set))),
+                Map.entry("R \\union S", builder.union(range, set)),
+                Map.entry("R \\intersect S", builder.intersect(range, set)),
+                Map.entry("R \\subseteq S", builder.subsetEq(range, set)),
+                Map.entry("{R}", builder.enumSet(range)),
+                Map.entry("UNION {R}", builder.unionAll(builder.enumSet(range))),
+                Map.entry("{v : v \\in R}", builder.map(v, new ExpressionPair<>(v, range))),
+                Map.entry("{v + w : v \\in S, w \\in R}",
+                        builder.map(builder.plus(v, w), new ExpressionPair<>(v, set), new ExpressionPair<>(w, range))),
+                Map.entry("[v \\in R |-> 0]", builder.funDef(builder.integer(0), new ExpressionPair<>(v, range))),
+                Map.entry("[v \\in S, w \\in R |-> 0]", builder.funDef(builder.integer(0),
+                        new ExpressionPair<>(v, set), new ExpressionPair<>(w, range))),
+                Map.entry("[R -> S]", builder.funSet(range, set)),
+                Map.entry("[f: R]", builder.recordSet(new NamedExpression<>("f", range))),
+                Map.entry("R \\X S", builder.times(range, set)),
+                Map.entry("{v \\in R : P}", builder.filter(v, range, builder.bool(true))),
+                Map.entry("CHOOSE v \\in R : P", builder.choose(v, range, builder.bool(true))),
+                Map.entry("ApaFoldSet(Add, 0, R)", fold),
+                Map.entry("\\E c \\in IF b THEN R ELSE S : P", builder.exists(c, builder.ite(b, range, set), body)),
+                Map.entry("\\E c \\in LET K == 0 IN R : P", builder.exists(c, let, body)),
+                Map.entry("\\A c \\in CASE b -> R [] OTHER -> S : P",
+                        builder.forall(c, builder.caseOther(set, arm(b, range)), body)),
+                Map.entry("x' \\in IF b THEN R ELSE S", builder.in(builder.prime(x), builder.ite(b, range, set))),
+                Map.entry("e \\notin LET K == 0 IN R", builder.notIn(e, let)),
+                Map.entry("\\E c \\in 1..1073741824 : P",
+                        builder.exists(c, builder.interval(e, builder.integer(1073741824)), body)),
+                Map.entry("\\E c \\in Cardinality(S) + 0..411248002 : P", builder.exists(c,
+                        builder.interval(builder.plus(builder.cardinality(set), builder.integer(0)),
+                                builder.integer(411248002)), body)),
+                Map.entry("\\E c \\in -6078109..x : P", builder.exists(c,
+                        builder.interval(builder.integer(-6078109), x), body)));
+        var symbolic = Map.ofEntries(
+                Map.entry("\\E c \\in R : P", builder.exists(c, range, body)),
+                Map.entry("\\A c \\in R : P", builder.forall(c, range, body)),
+                Map.entry("x' \\in R", builder.in(builder.prime(x), range)),
+                Map.entry("e \\notin R", builder.notIn(e, range)),
+                Map.entry("b = (e \\in R)", builder.eql(b, builder.in(e, range))),
+                Map.entry("Cardinality(R) < 3", builder.lt(builder.cardinality(range), builder.integer(3))),
+                Map.entry("IsFiniteSet(R)", builder.isFiniteSet(range)),
+                Map.entry("S \\in SUBSET R", builder.in(set, builder.powerSet(range))),
+                Map.entry("\\E c \\in -999999..999999 : P", builder.exists(c,
+                        builder.interval(builder.integer(-999999), builder.integer(999999)), body)));
+
+        expanded.forEach((shape, expression) -> assertTrue(
+                shapes.ids(database, expression).contains("integer-range"), shape + " is admitted"));
+        symbolic.forEach((shape, expression) -> assertFalse(
+                shapes.ids(database, expression).contains("integer-range"), shape + " is quarantined"));
+    }
+
     private Map<String, List<TlaEx>> newCases() {
         var step = shapes.step();
         var flag = shapes.flag();
@@ -168,8 +246,12 @@ class AllDefectsTest {
                         List.of(builder.enumSet(builder.funSet(one, one), functions),
                                 builder.enumSet(functions, builder.funSet(one, one)))),
                 Map.entry("integer-range",
-                        List.of(builder.interval(builder.integer(1), builder.integer(2)),
-                                builder.enumSet(builder.integer(1), builder.integer(2)))),
+                        List.of(
+                                builder.eql(
+                                        builder.name("ys", TlaTypes.set(TlaTypes.INT)),
+                                        builder.interval(builder.integer(1), x)),
+                                builder.exists(
+                                        y, builder.interval(builder.integer(1), x), builder.eql(y, y)))),
                 Map.entry("power",
                         List.of(builder.exp(step, builder.integer(2)),
                                 builder.mult(step, builder.integer(2)))),

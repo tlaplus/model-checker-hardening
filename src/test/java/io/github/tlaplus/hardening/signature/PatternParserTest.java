@@ -49,6 +49,12 @@ class PatternParserTest {
         assertEquals(
                 new IrPattern.Negation(new IrPattern.Application(TlaOperators.CASE, List.of(), true)),
                 PatternParser.parse("(~ (CASE ...))"));
+        assertEquals(
+                new IrPattern.IntegerBound(IrPattern.IntegerBound.Comparison.AT_LEAST, BigInteger.valueOf(1000000)),
+                PatternParser.parse("(>= 1000000)"));
+        assertEquals(
+                new IrPattern.IntegerBound(IrPattern.IntegerBound.Comparison.AT_MOST, BigInteger.valueOf(-5)),
+                PatternParser.parse("( <= -5 )"));
     }
 
     @Test
@@ -74,6 +80,9 @@ class PatternParserTest {
         assertError("(& _", 1, "missing ')'");
         assertError("(~)", 1, "a negation takes one pattern");
         assertError("(~ _ _)", 1, "a negation takes one pattern");
+        assertError("(>=)", 1, "'>=' takes one integer");
+        assertError("(>= x)", 1, "'>=' takes one integer");
+        assertError("(<= 1 2)", 1, "'<=' takes one integer");
     }
 
     private static void assertError(String pattern, int column, String message) {
