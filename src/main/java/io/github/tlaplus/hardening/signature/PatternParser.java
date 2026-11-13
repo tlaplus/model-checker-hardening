@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * <pre>
  * pattern := _ | ?name | integer | "string" | TRUE | FALSE | STRING | Int | Nat | BOOLEAN
  *          | identifier | (OPER pattern* [...]) | (: pattern "Type1") | (.. pattern)
- *          | (&amp; pattern pattern*) | (~ pattern)
+ *          | (&amp; pattern pattern*) | (~ pattern) | (&gt;= integer) | (&lt;= integer)
  * </pre>
  *
  * <p>Operator names are checked against {@link OperatorNames} and types are parsed here, so a
@@ -90,6 +90,10 @@ final class PatternParser {
         if (head.equals(NEGATION)) {
             return new IrPattern.Negation(onePattern(open, "a negation"));
         }
+        var comparison = IrPattern.IntegerBound.Comparison.bySpelling(head);
+        if (comparison.isPresent()) {
+            return integerBound(open, comparison.orElseThrow());
+        }
         var operator = OperatorNames.find(head)
                 .orElseThrow(() -> new PatternException(headColumn, "unknown operator '" + head + "'"));
         var arguments = new ArrayList<IrPattern>();
@@ -139,6 +143,19 @@ final class PatternParser {
             }
             result.add(pattern());
         }
+    }
+
+    /** Reads the integer bound of a comparison opened at {@code open}, and its closing parenthesis. */
+    private IrPattern integerBound(int open, IrPattern.IntegerBound.Comparison comparison)
+            throws PatternException {
+        skipWhitespace();
+        var bound = token();
+        skipWhitespace();
+        if (!INTEGER.matcher(bound).matches() || atEnd() || text.charAt(position) != ')') {
+            throw new PatternException(open + 1, "'" + comparison.spelling() + "' takes one integer");
+        }
+        position++;
+        return new IrPattern.IntegerBound(comparison, new BigInteger(bound));
     }
 
     private IrPattern typed(int open) throws PatternException {

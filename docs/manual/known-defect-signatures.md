@@ -114,12 +114,13 @@ argument.
 | `(.. p)` | An expression that matches `p`, or that has a subexpression matching `p` at any depth. | `(EQUIV (.. (GLOBALLY _)) _)` |
 | `(& p1 … pn)` | An expression that matches every `p1 … pn`. | `(& (CASE ...) (.. (GLOBALLY _)))` |
 | `(~ p)` | An expression that does not match `p`. | `(STUTTER (~ (OPER_APP Next)) _)` |
+| `(>= n)`, `(<= n)` | An integer literal whose value is at least, or at most, the integer `n`. | `(INT_RANGE _ (>= 1000000))` |
 
 An identifier consists of letters, digits, `_`, `!` and `$`, and does not
 start with a digit. In head position it names an operator, which must exist;
 anywhere else it names a variable, parameter or definition. The words `_`,
 `TRUE`, `FALSE`, `STRING`, `Int`, `Nat` and `BOOLEAN` are reserved, and `..`,
-`&` and `~` are reserved as heads.
+`&`, `~`, `>=` and `<=` are reserved as heads.
 
 `(.. p)` searches operator arguments and the declarations and body of a `LET`,
 skipping labels. It does not follow a name to the definition it refers to: a

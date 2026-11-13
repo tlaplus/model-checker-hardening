@@ -37,6 +37,17 @@ class IrPatternTest {
     }
 
     @Test
+    void comparesIntegerLiteralsWithABoundInclusively() throws Exception {
+        assertTrue(matches("(>= 10)", builder.integer(10)));
+        assertTrue(matches("(>= 10)", builder.integer(11)));
+        assertFalse(matches("(>= 10)", builder.integer(9)));
+        assertTrue(matches("(<= -10)", builder.integer(-10)));
+        assertFalse(matches("(<= -10)", builder.integer(-9)));
+        assertFalse(matches("(>= 0)", builder.name("step", TlaTypes.INT)));
+        assertFalse(matches("(>= 0)", builder.str("1")));
+    }
+
+    @Test
     void matchesApplicationsByOperatorAndArity() throws Exception {
         var modulo = builder.mod(builder.name("step", TlaTypes.INT), builder.integer(0));
         assertTrue(matches("(MOD _ 0)", modulo));
