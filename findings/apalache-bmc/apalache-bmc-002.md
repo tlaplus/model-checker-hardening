@@ -15,6 +15,9 @@ reflexive, so the counterexample is unsound.
 Observed twice in the inspected corpus with Apalache 0.62.0 and reproduced with
 Apalache 0.62.2, build `f0dec98`.
 
+TLC handles this input but got function-set equality wrong when the domains or
+co-domains differ and are empty; see [`tlc-022`](../TLC/tlc-022.md).
+
 Fixed upstream in [Apalache
 0.62.3](https://github.com/apalache-mc/apalache/releases/tag/v0.62.3) by [PR
 #3478](https://github.com/apalache-mc/apalache/pull/3478). Verified with
