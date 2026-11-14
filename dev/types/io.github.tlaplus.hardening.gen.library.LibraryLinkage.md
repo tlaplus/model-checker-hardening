@@ -1,6 +1,6 @@
 # `LibraryLinkage`
 
-`io.github.tlaplus.hardening.gen.library` · enum · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/gen/library/LibraryLinkage.java#L14) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.library` · enum · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/23dc4fb7c23bc523342cefd80942a9bd4fc1c554/src/main/java/io/github/tlaplus/hardening/gen/library/LibraryLinkage.java#L14) · module [gen](../modules/gen.md)
 
 How a custom module's definitions reach the TLA+ source of the parser and TLC.
 

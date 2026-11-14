@@ -1,6 +1,6 @@
 # `KnownDefectReport`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/cli/KnownDefectReport.java#L13) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/23dc4fb7c23bc523342cefd80942a9bd4fc1c554/src/main/java/io/github/tlaplus/hardening/cli/KnownDefectReport.java#L13) · module [cli](../modules/cli.md)
 
 Renders the known-defect signatures that match one decoded input: each signature's id, description, status, and references, and the subexpression it matched first, as TLA+.
 

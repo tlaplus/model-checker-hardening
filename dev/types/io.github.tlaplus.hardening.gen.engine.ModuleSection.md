@@ -1,6 +1,6 @@
 # `ModuleSection`
 
-`io.github.tlaplus.hardening.gen.engine` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/gen/engine/ModuleSection.java#L25) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/23dc4fb7c23bc523342cefd80942a9bd4fc1c554/src/main/java/io/github/tlaplus/hardening/gen/engine/ModuleSection.java#L25) · module [gen](../modules/gen.md)
 
 The independent parts of a module input, each decoded from its own contiguous range of bytes.
 

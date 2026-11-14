@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`364baf4`](https://github.com/tlaplus/model-checker-hardening/commit/364baf41a0dd399c6d0563acc88702569b58407d) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`23dc4fb`](https://github.com/tlaplus/model-checker-hardening/commit/23dc4fb7c23bc523342cefd80942a9bd4fc1c554) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/23dc4fb7c23bc523342cefd80942a9bd4fc1c554/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -46,7 +46,7 @@ flowchart TB
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 24 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
 | [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 116 | 56 | common, checker, gen, signature, mutation, corpus, config |
-| [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 34 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
+| [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 36 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
 ## Roles
@@ -65,7 +65,7 @@ flowchart TB
 | config | configuration and its schema | 9 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 261 |
+| other | no `@ArchRole` | 263 |
 
 ## Relations
 

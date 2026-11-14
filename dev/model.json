@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "364baf41a0dd399c6d0563acc88702569b58407d"
+    "commit" : "23dc4fb7c23bc523342cefd80942a9bd4fc1c554"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -127,6 +127,10 @@
     "number" : "0031",
     "title" : "Sampled validation of retired entries at startup",
     "path" : "docs/decisions/0031-sampled-startup-validation.md"
+  }, {
+    "number" : "0032",
+    "title" : "Earlier TLC and Apalache builds",
+    "path" : "docs/decisions/0032-earlier-checker-builds.md"
   } ],
   "modules" : [ {
     "name" : "common",
@@ -483,7 +487,7 @@
     "key" : true,
     "summary" : "`fuzztla init`: writes the configuration of a new corpus, which names the technique every run follows (ADR 0025 §1), and copies its libraries and tool JARs into it (§2, §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/InitCommand.java",
-    "line" : 32,
+    "line" : 34,
     "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.InitialConfig",
@@ -724,6 +728,26 @@
     "summary" : "Terminal mechanics of live progress: snapshots, change highlighting, resizing, and screen restoration.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/TerminalProgressDisplay.java",
     "line" : 16,
+    "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.cli.ToolOverride",
+    "packageName" : "io.github.tlaplus.hardening.cli",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "One `--tool TOOL=FILE` of `fuzztla init`: the JAR a new corpus copies into ` tools/` in place of the staged one (ADR 0032 §2).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/cli/ToolOverride.java",
+    "line" : 18,
+    "adrs" : [ "0032" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.cli.ToolOverrideConverter",
+    "packageName" : "io.github.tlaplus.hardening.cli",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Reads a `--tool TOOL=FILE` option of `fuzztla init`, TOOL being a `[tools]` key.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/cli/ToolOverrideConverter.java",
+    "line" : 10,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.common.ArchModule",
@@ -1113,7 +1137,7 @@
     "key" : false,
     "summary" : "A checker distribution that a corpus copies into its `tools/` directory, so its entries keep being checked, and its libraries typed, with the release they were admitted under (ADR 0025 §3).",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/ToolJar.java",
-    "line" : 8,
+    "line" : 13,
     "adrs" : [ "0025" ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.ToolsConfig",
@@ -4618,6 +4642,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.cli.ToolOverride",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.config.ConfigException",
     "kind" : "DEPENDS"
   }, {
@@ -4635,6 +4663,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.config.TomlConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.config.ToolJar",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
@@ -5284,6 +5316,26 @@
     "from" : "io.github.tlaplus.hardening.cli.TerminalProgressDisplay",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowProgress",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ToolOverride",
+    "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ToolOverride",
+    "to" : "io.github.tlaplus.hardening.config.ToolJar",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ToolOverride",
+    "to" : "io.github.tlaplus.hardening.config.ToolsConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ToolOverrideConverter",
+    "to" : "io.github.tlaplus.hardening.cli.ToolOverride",
+    "kind" : "IMPLEMENTS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.ToolOverrideConverter",
+    "to" : "io.github.tlaplus.hardening.config.ToolJar",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.common.ArchRole",
     "to" : "io.github.tlaplus.hardening.common.Role",
@@ -13892,7 +13944,7 @@
   }, {
     "from" : "cli",
     "to" : "config",
-    "typePairs" : 34,
+    "typePairs" : 39,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",

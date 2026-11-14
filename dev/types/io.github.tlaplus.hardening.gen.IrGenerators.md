@@ -1,6 +1,6 @@
 # `IrGenerators`
 
-`io.github.tlaplus.hardening.gen` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/364baf41a0dd399c6d0563acc88702569b58407d/src/main/java/io/github/tlaplus/hardening/gen/IrGenerators.java#L69) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/23dc4fb7c23bc523342cefd80942a9bd4fc1c554/src/main/java/io/github/tlaplus/hardening/gen/IrGenerators.java#L69) · module [gen](../modules/gen.md)
 
 Factory methods for deterministic generators of type-checked Apalache IR expressions.
 
