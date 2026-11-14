@@ -857,10 +857,12 @@ class Corpus22CrashTest(unittest.TestCase):
         )
 
     def test_module_error_in_action_property_is_tlc_002(self) -> None:
-        """corpus22 8e1c9a32 (SubSeq, 2183) and 9ba661a0 (0^0, 2180)."""
+        """corpus22 8e1c9a32 (SubSeq, 2183), 9ba661a0 (0^0, 2180) and corpus83 76137ff2
+        (Cardinality(Int), 2181)."""
         for code, message in (
             (2183, "The second argument of SubSeq must be in the domain of its first argument:"),
             (2180, "0^0 is undefined."),
+            (2181, "Attempted to compute cardinality of the value"),
         ):
             diagnostic = "\n".join(
                 (

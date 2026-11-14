@@ -346,8 +346,10 @@ SIGNATURES = (
                    r"Error: The second argument of \^ should be a natural number"),
             all_of(r"^TLC error code 2178 mapped to exit status 255$",
                    r"Overflow when computing "),
+            # Printed without "Error:" after an "Evaluating action property ...
+            # failed." wrapper (corpus83 76137ff2).
             all_of(r"^TLC error code 2181 mapped to exit status 255$",
-                   r"Error: Attempted to compute cardinality of the value"),
+                   r"^(?:Error: )?Attempted to compute cardinality of the value$"),
             # Community Modules overrides whose errors follow the TLA+ definition:
             # LongestCommonPrefix({}) is a CHOOSE over an empty set, and FoldBag of
             # a multiplicity outside Nat \ {0} applies pow outside its domain.
