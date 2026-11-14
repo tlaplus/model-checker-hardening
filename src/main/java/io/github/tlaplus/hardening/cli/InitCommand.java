@@ -18,6 +18,8 @@ import io.github.tlaplus.hardening.workflow.library.LibraryInstall;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -75,6 +77,14 @@ final class InitCommand implements Callable<Integer> {
                     + " modules. With Apalache, fairness and ENABLED are quarantined.")
     private boolean temporal;
 
+    @Option(
+            names = "--tool",
+            paramLabel = "TOOL=FILE",
+            converter = ToolOverrideConverter.class,
+            description = "Copy FILE into the corpus's tools/ as the JAR of TOOL, a key of the [tools] table, in"
+                    + " place of the build's or the base corpus's JAR (ADR 0032). Repeatable, once per tool.")
+    private List<ToolOverride> tools = new ArrayList<>();
+
     @Spec private CommandSpec spec;
 
     @Override
@@ -87,6 +97,10 @@ final class InitCommand implements Callable<Integer> {
         }
         if (temporal && technique != Technique.MT) {
             return usage("--temporal requires --how=mt");
+        }
+        var repeated = ToolOverride.repeated(tools);
+        if (repeated.isPresent()) {
+            return usage("--tool " + repeated.get().configKey() + " is given more than once");
         }
         var initial = new InitialConfig(corpus, InitialConfig.locateProject(), InitialConfig.randomSeed());
         FuzzTlaConfig config;
@@ -131,6 +145,7 @@ final class InitCommand implements Callable<Integer> {
                 return CommandLine.ExitCode.USAGE;
             }
         }
+        config = ToolOverride.apply(config, tools);
         final LibraryInstall.Plan plan;
         try {
             plan = LibraryInstall.plan(config);

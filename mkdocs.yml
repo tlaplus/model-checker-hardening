@@ -68,6 +68,7 @@ nav:
       - Overview: index.md
       - Getting started: getting-started.md
       - The corpus: corpus.md
+      - Earlier checker versions: checker-versions.md
       - Running campaigns: running.md
       - Configuration: configuration.md
   - Campaigns:

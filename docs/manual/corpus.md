@@ -13,7 +13,7 @@ the place of a file tells you how far it got and what happened to it.
 |---|---|
 | `config.toml` | The campaign's [configuration](configuration.md), including its technique. |
 | `tla/` | Copies of the TLA<sup>+</sup> libraries and rule modules the configuration names. |
-| `tools/` | Copies of `apalache.jar` and `tla2tools.jar`, which every run, `print` and `export-db` use. |
+| `tools/` | Copies of `apalache.jar` and `tla2tools.jar`, which every run, `print` and `export-db` use. `init --tool` installs [earlier versions](checker-versions.md). |
 | `00-inputs/` | Generated inputs waiting for the parser. |
 | `00-known-defects/` | Candidates that match a [known-defect signature](known-defect-signatures.md), kept as samples instead of being checked. Created on the first match. |
 | `01parser-pass/`, `-fail/`, `-crash/` | Parser verdicts. SANY must accept every generated module, so a `fail` or `crash` here is a generator bug or a SANY defect. |

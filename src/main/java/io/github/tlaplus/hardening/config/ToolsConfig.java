@@ -39,6 +39,14 @@ public record ToolsConfig(Map<ToolJar, Path> jars) {
         return new ToolsConfig(jars);
     }
 
+    /** Returns this table with {@code jar} as the JAR of {@code tool}. */
+    public ToolsConfig with(ToolJar tool, Path jar) {
+        var replaced = new EnumMap<ToolJar, Path>(ToolJar.class);
+        replaced.putAll(jars);
+        replaced.put(Objects.requireNonNull(tool, "tool"), Objects.requireNonNull(jar, "jar"));
+        return new ToolsConfig(replaced);
+    }
+
     /** Returns the configured JAR of {@code tool}. */
     public Optional<Path> jar(ToolJar tool) {
         return Optional.ofNullable(jars.get(Objects.requireNonNull(tool, "tool")));

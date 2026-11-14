@@ -311,6 +311,43 @@ class MainTest {
         assertTrue(nested.err().contains("must be a pbt or gbt corpus"), nested.err());
     }
 
+    /** --tool installs a JAR of the user's choice in place of the staged one (ADR 0032 §2). */
+    @Test
+    void initCopiesAGivenToolJar(@TempDir Path directory) throws Exception {
+        var jar = Files.write(directory.resolve("tla2tools-20250314-1a2b3c4d5e6f.jar"), new byte[] {1, 2, 3});
+        var corpus = directory.resolve("corpus");
+
+        var result = execute("init", "--how=pbt", "--corpus=" + corpus, "--tool", "tla2tools=" + jar);
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        var tools = corpus.resolve("tools");
+        assertArrayEquals(Files.readAllBytes(jar), Files.readAllBytes(tools.resolve(ToolJar.TLA2TOOLS.fileName())));
+        assertTrue(Files.size(tools.resolve(ToolJar.APALACHE.fileName())) > 3);
+        var config = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath()));
+        assertEquals(Optional.of(tools.resolve(ToolJar.TLA2TOOLS.fileName()).toAbsolutePath().normalize()),
+                config.tools().jar(ToolJar.TLA2TOOLS));
+    }
+
+    @Test
+    void initRefusesAnInvalidToolOption(@TempDir Path directory) throws Exception {
+        var jar = Files.write(directory.resolve("apalache.jar"), new byte[] {1});
+
+        var unknown = execute("init", "--how=pbt", "--corpus=" + directory.resolve("a"), "--tool", "tlc=" + jar);
+        assertEquals(CommandLine.ExitCode.USAGE, unknown.exitCode());
+        assertTrue(unknown.err().contains("expected TOOL to be one of: apalache, tla2tools"), unknown.err());
+
+        var missing = execute("init", "--how=pbt", "--corpus=" + directory.resolve("b"),
+                "--tool", "apalache=" + directory.resolve("absent.jar"));
+        assertEquals(CommandLine.ExitCode.USAGE, missing.exitCode());
+        assertTrue(missing.err().contains("tools.apalache does not exist"), missing.err());
+        assertFalse(Files.exists(directory.resolve("b")));
+
+        var twice = execute("init", "--how=pbt", "--corpus=" + directory.resolve("c"),
+                "--tool", "apalache=" + jar, "--tool", "apalache=" + jar);
+        assertEquals(CommandLine.ExitCode.USAGE, twice.exitCode());
+        assertTrue(twice.err().contains("--tool apalache is given more than once"), twice.err());
+    }
+
     @Test
     void onlyAnMtCorpusAdoptsFromABase(@TempDir Path directory) {
         var base = directory.resolve("base");
