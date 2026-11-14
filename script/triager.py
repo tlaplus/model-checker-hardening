@@ -227,11 +227,13 @@ TLC_WARNING_BLOCK = r"Warning: [^\n]*\n(?:(?!Error: |Warning: )[^\n]*\n)*"
 # The same escape while TLC evaluates the tableau on an initial state: a plain
 # "Error:" line after "Computing initial states...", directly or after warnings
 # that the evaluation printed, such as an EXCEPT on a missing field (corpus80
-# 08f0b102). An error in Init or in the invariant exits 75 instead; a wrapped
-# RuntimeException stays with tlc-001 and tlc-003.
+# 08f0b102), or after the progress line TLC prints when an initial state other
+# than the first fails (corpus83 1b1b2375). An error in Init or in the invariant
+# exits 75 instead; a wrapped RuntimeException stays with tlc-001 and tlc-003.
+TLC_INITIAL_STATES_PROGRESS = r"Computed \d+ initial states?\.\.\.\n"
 TLC_LIVENESS_ERROR_ON_INITIAL_STATE = (
     rf"{TLC_IMPLIED_TEMPORAL}[\s\S]*^Computing initial states\.\.\.\n"
-    rf"(?:{TLC_WARNING_BLOCK})*"
+    rf"(?:{TLC_WARNING_BLOCK}|{TLC_INITIAL_STATES_PROGRESS})*"
     r"Error: (?!TLC threw an unexpected exception\.)"
 )
 
