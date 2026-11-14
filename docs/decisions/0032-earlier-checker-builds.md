@@ -37,9 +37,10 @@ works as follows:
 1. It resolves the ref to a full SHA, and refuses a commit that `master` does not
    reach, so branch builds are never published.
 2. It runs `ant -f tlatools/org.lamport.tlatools/customBuild.xml -Dtest.skip=true info
-   compile dist`, the target TLC's own release build reaches through Maven. `info`
-   stamps the commit into the manifest (`X-Git-Revision`), and the workflow checks the
-   stamp.
+   compile compile-test dist`. These are the steps of TLC's own `default-maven` target
+   without `test-dist`; `dist` packages a few test classes, so it needs `compile-test`.
+   `info` stamps the commit into the manifest (`X-Git-Revision`), and the workflow checks
+   the stamp.
 3. It runs a smoke campaign (section 3).
 4. It publishes a release of this repository.
 
@@ -83,9 +84,14 @@ corpus's `tla2tools.jar` in front of FuzzTLA's class path, and the Apalache work
 `tla2sany.drivers.SanySettings` in `ParserWorkerMain`. The worker then fails to start.
 
 The workflow therefore runs a 20-entry, TLC-only `pbt` campaign with the new JAR, at the
-hardening commit of the run. The campaign has passed if `run` exits 0 and TLC passes
-at least one entry. The notes record the result, which holds for that hardening commit
+hardening commit of the run. The campaign has passed if `run` exits 0 and TLC gives at
+least one entry a verdict other than `crash`. The notes record the result, which holds for that hardening commit
 only. A build that does not run is still published: a later FuzzTLA may adapt to it.
+
+At FuzzTLA `c7f2d024`, a build from before tlaplus `932a781c` (2026-02-19), which added
+`SanySettings`, does not run. For example, with a local build of `f8eabae1`
+(2025-07-19), the parser worker failed on all 20 entries with `NoSuchMethodError` on
+`SANY.parse(SpecObj, String, SanyOutput, SanySettings)`, so TLC received no input.
 
 Earlier Apalache releases get no smoke test; their compatibility shows when a corpus
 runs.

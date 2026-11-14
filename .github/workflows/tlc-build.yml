@@ -1,0 +1,236 @@
+# Builds tla2tools.jar at a tlaplus/tlaplus commit and publishes it as a prerelease of this
+# repository, named after the commit's date and hash (ADR 0032). The release is never the
+# latest one: it is an earlier TLC for testing FuzzTLA, not a TLC distribution.
+name: TLC build
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit (SHA or ref) of tlaplus/tlaplus, reachable from master"
+        required: true
+        type: string
+      java:
+        description: "JDK to build with"
+        required: false
+        default: "17"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tlc-build-${{ inputs.commit }}
+  cancel-in-progress: false
+
+env:
+  BUILD_FILE: tlatools/org.lamport.tlatools/customBuild.xml
+  BUILT_JAR: tlatools/org.lamport.tlatools/dist/tla2tools.jar
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      sha: ${{ steps.name.outputs.sha }}
+      subject: ${{ steps.name.outputs.subject }}
+      committed: ${{ steps.name.outputs.committed }}
+      day: ${{ steps.name.outputs.day }}
+      tag: ${{ steps.name.outputs.tag }}
+      asset: ${{ steps.name.outputs.asset }}
+      built: ${{ steps.jar.outputs.built }}
+      jdk: ${{ steps.jar.outputs.jdk }}
+      sha256: ${{ steps.jar.outputs.sha256 }}
+    steps:
+      - name: Check the commit input
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          printf '%s\n' "$COMMIT" | grep -Eqx '[A-Za-z0-9][A-Za-z0-9._/-]*' \
+            || { echo "::error::invalid commit: $COMMIT"; exit 1; }
+      - uses: actions/checkout@v7
+        with:
+          repository: tlaplus/tlaplus
+          ref: ${{ inputs.commit }}
+          # jgit-buildnumber reads the history for the X-Git-* manifest attributes.
+          fetch-depth: 0
+          path: tlaplus
+      - name: Name the build
+        id: name
+        working-directory: tlaplus
+        run: |
+          sha=$(git rev-parse HEAD)
+          # Only commits on master are published, never branch builds.
+          git merge-base --is-ancestor "$sha" origin/master \
+            || { echo "::error::$sha is not reachable from tlaplus/tlaplus master"; exit 1; }
+          day=$(TZ=UTC0 git log -1 --format=%cd --date=format-local:%Y%m%d "$sha")
+          {
+            echo "sha=$sha"
+            echo "subject=$(git log -1 --format=%s "$sha")"
+            echo "committed=$(TZ=UTC0 git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ "$sha")"
+            echo "day=$day"
+            echo "tag=tlc-$day-${sha:0:12}"
+            echo "asset=tla2tools-$day-${sha:0:12}.jar"
+          } >> "$GITHUB_OUTPUT"
+      - name: Refuse an existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$TAG" \
+            --jq "map(select(.ref == \"refs/tags/$TAG\")) | length")
+          if [ "$existing" -ne 0 ]; then
+            echo "::error::$TAG exists: this commit was published already"
+            exit 1
+          fi
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java }}
+      - name: Build tla2tools.jar
+        working-directory: tlaplus
+        run: ant -f "$BUILD_FILE" -Dtest.skip=true info compile compile-test dist
+      - name: Check, name and hash the JAR
+        id: jar
+        env:
+          SHA: ${{ steps.name.outputs.sha }}
+          ASSET: ${{ steps.name.outputs.asset }}
+        run: |
+          revision=$(unzip -p "tlaplus/$BUILT_JAR" META-INF/MANIFEST.MF | tr -d '\r' | sed -n 's/^X-Git-Revision: //p')
+          if [ "$revision" != "$SHA" ]; then
+            echo "::error::the manifest names revision '$revision', not $SHA"
+            exit 1
+          fi
+          mkdir dist
+          cp "tlaplus/$BUILT_JAR" "dist/$ASSET"
+          (cd dist && sha256sum "$ASSET" > "$ASSET.sha256")
+          {
+            echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "jdk=$(java -version 2>&1 | head -1)"
+            echo "sha256=$(cut -d ' ' -f 1 "dist/$ASSET.sha256")"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: tla2tools
+          path: dist/
+          if-no-files-found: error
+
+  # Runs a small TLC-only campaign with the new JAR at this repository's commit. The result
+  # goes into the release notes; it does not block publishing (ADR 0032 §3).
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      result: ${{ steps.verdicts.outputs.result }}
+      verdicts: ${{ steps.verdicts.outputs.verdicts }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Package FuzzTLA
+        run: mvn --batch-mode --no-transfer-progress -DskipTests package
+      - uses: actions/download-artifact@v5
+        with:
+          name: tla2tools
+          path: checker
+      - name: Run a 20-entry TLC campaign
+        id: campaign
+        continue-on-error: true
+        timeout-minutes: 10
+        shell: bash
+        env:
+          ASSET: ${{ needs.build.outputs.asset }}
+        run: |
+          ./bin/fuzztla init --how=pbt --tool "tla2tools=$PWD/checker/$ASSET"
+          sed -i 's/^max_entries = .*/max_entries = 20/; s/^checkers = .*/checkers = ["tlc"]/' corpus/config.toml
+          ./bin/fuzztla run 2>&1 | tee campaign.log
+      - name: Count the verdicts
+        id: verdicts
+        if: always()
+        env:
+          OUTCOME: ${{ steps.campaign.outcome }}
+        run: |
+          count() { find "corpus/$1" -name '*.cbor' 2>/dev/null | wc -l; }
+          pass=$(count 02tlc-pass); cex=$(count 02tlc-counterexample)
+          fail=$(count 02tlc-fail); crash=$(count 02tlc-crash)
+          if [ "$OUTCOME" = success ] && [ $((pass + cex + fail)) -gt 0 ]; then
+            result=ran
+          else
+            result="did not run"
+          fi
+          {
+            echo "result=$result"
+            echo "verdicts=TLC pass $pass, counterexample $cex, fail $fail, crash $crash; parser crash $(count 01parser-crash)"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: campaign-log
+          path: campaign.log
+          if-no-files-found: ignore
+
+  publish:
+    needs: [build, smoke]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: tla2tools
+          path: dist
+      - name: Publish a prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.build.outputs.sha }}
+          SUBJECT: ${{ needs.build.outputs.subject }}
+          COMMITTED: ${{ needs.build.outputs.committed }}
+          DAY: ${{ needs.build.outputs.day }}
+          TAG: ${{ needs.build.outputs.tag }}
+          ASSET: ${{ needs.build.outputs.asset }}
+          BUILT: ${{ needs.build.outputs.built }}
+          JDK: ${{ needs.build.outputs.jdk }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+          SMOKE_JOB: ${{ needs.smoke.result }}
+          SMOKE_RESULT: ${{ needs.smoke.outputs.result }}
+          SMOKE_VERDICTS: ${{ needs.smoke.outputs.verdicts }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -n "$SMOKE_RESULT" ]; then
+            smoke="$SMOKE_RESULT at ${GITHUB_SHA:0:12}: $SMOKE_VERDICTS"
+          else
+            smoke="not completed (job $SMOKE_JOB)"
+          fi
+          cat > notes.md <<EOF
+          **Not the latest TLC.** This is \`tla2tools.jar\` built from tlaplus/tlaplus@$SHA for
+          testing FuzzTLA against earlier TLC. For the current TLC, see
+          https://github.com/tlaplus/tlaplus/releases.
+
+          | | |
+          | --- | --- |
+          | TLC commit | [\`$SHA\`](https://github.com/tlaplus/tlaplus/commit/$SHA) |
+          | Subject | ${SUBJECT//|/\\|} |
+          | Committed (UTC) | $COMMITTED |
+          | Built (UTC) | $BUILT |
+          | JDK | $JDK |
+          | Build command | \`ant -f $BUILD_FILE -Dtest.skip=true info compile compile-test dist\` |
+          | Built by | $GITHUB_REPOSITORY@$GITHUB_SHA ([run]($RUN_URL)) |
+          | SHA-256 | \`$SHA256\` |
+          | FuzzTLA smoke test | $smoke |
+
+          Fetch it with \`make tlc-build TLC_BUILD=$TAG\`, and install it in a corpus with
+          \`fuzztla init --tool tla2tools=target/checkers/$ASSET\` (ADR 0032).
+          EOF
+          gh release create "$TAG" "dist/$ASSET" "dist/$ASSET.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --latest=false \
+            --title "TLC tlaplus@${SHA:0:12} of ${DAY:0:4}-${DAY:4:2}-${DAY:6:2} (not the latest TLC)" \
+            --notes-file notes.md
