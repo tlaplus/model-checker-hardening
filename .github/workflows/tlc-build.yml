@@ -153,18 +153,24 @@ jobs:
         if: always()
         env:
           OUTCOME: ${{ steps.campaign.outcome }}
+        # Reads the verdict counts from the run's final summary. With one checker, entries
+        # move on from 02tlc-*, so the stage directories do not hold them.
         run: |
-          count() { find "corpus/$1" -name '*.cbor' 2>/dev/null | wc -l; }
-          pass=$(count 02tlc-pass); cex=$(count 02tlc-counterexample)
-          fail=$(count 02tlc-fail); crash=$(count 02tlc-crash)
-          if [ "$OUTCOME" = success ] && [ $((pass + cex + fail)) -gt 0 ]; then
+          touch campaign.log
+          verdicts() {
+            awk -v stage="$1" '$0 == stage {on = 1; next} on && /^$/ {exit}
+              on && $1 ~ /^(Pass|Cex|Fail|Crash)$/ {printf "%s%s %s", sep, tolower($1), $2; sep = ", "}' campaign.log
+          }
+          checked=$(awk '$0 == "TLC" {on = 1; next} on && /^$/ {exit}
+            on && $1 ~ /^(Pass|Cex|Fail)$/ {n += $2} END {print n + 0}' campaign.log)
+          if [ "$OUTCOME" = success ] && [ "$checked" -gt 0 ]; then
             result=ran
           else
             result="did not run"
           fi
           {
             echo "result=$result"
-            echo "verdicts=TLC pass $pass, counterexample $cex, fail $fail, crash $crash; parser crash $(count 01parser-crash)"
+            echo "verdicts=TLC $(verdicts TLC); parser $(verdicts PARSER)"
           } >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v5
         if: always()
