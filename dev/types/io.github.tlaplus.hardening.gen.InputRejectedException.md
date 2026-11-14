@@ -1,6 +1,6 @@
 # `InputRejectedException`
 
-`io.github.tlaplus.hardening.gen` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/23dc4fb7c23bc523342cefd80942a9bd4fc1c554/src/main/java/io/github/tlaplus/hardening/gen/InputRejectedException.java#L10) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/src/main/java/io/github/tlaplus/hardening/gen/InputRejectedException.java#L10) · module [gen](../modules/gen.md)
 
 Indicates that the current input cannot be decoded into a valid value.
 

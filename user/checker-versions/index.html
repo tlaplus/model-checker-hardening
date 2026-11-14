@@ -1374,7 +1374,9 @@ prerelease. To start a build (needs write access):</p>
 </div>
 <p>The release notes state whether a small FuzzTLA campaign ran with the build, at the
 FuzzTLA commit that built it. An earlier JAR may lack an API that FuzzTLA's workers use;
-then a worker fails to start.</p>
+then a worker fails to start. At the time of writing, the earliest compatible TLC commit
+is <code>7e64fd03</code> (2026-02-23), which added <code>SanyExitCode</code>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0032-earlier-checker-builds.md#3-compatibility-is-reported-not-guaranteed">ADR 0032</a>).</p>
 <p>To download a published build into <code>target/checkers/</code> and verify its checksum, run:</p>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>tlc-build<span class="w"> </span><span class="nv">TLC_BUILD</span><span class="o">=</span>tlc-20250314-1a2b3c4d5e6f
 </code></pre></div>
