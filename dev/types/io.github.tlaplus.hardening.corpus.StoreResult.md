@@ -1,6 +1,6 @@
 # `StoreResult`
 
-`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/src/main/java/io/github/tlaplus/hardening/corpus/StoreResult.java#L4) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/src/main/java/io/github/tlaplus/hardening/corpus/StoreResult.java#L4) · module [corpus](../modules/corpus.md)
 
 Result of attempting to add an input to a corpus.
 

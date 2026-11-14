@@ -1,10 +1,10 @@
 # `IrGraphGeneratorEngine`
 
-`io.github.tlaplus.hardening.gen.engine` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/src/main/java/io/github/tlaplus/hardening/gen/engine/IrGraphGeneratorEngine.java#L59) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/src/main/java/io/github/tlaplus/hardening/gen/engine/IrGraphGeneratorEngine.java#L59) · module [gen](../modules/gen.md)
 
 Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`.
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

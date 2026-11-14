@@ -1,10 +1,10 @@
 # `CoverageFeature`
 
-`io.github.tlaplus.hardening.workflow.quality` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/src/main/java/io/github/tlaplus/hardening/workflow/quality/CoverageFeature.java#L14) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.quality` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/src/main/java/io/github/tlaplus/hardening/workflow/quality/CoverageFeature.java#L14) · module [workflow](../modules/workflow.md)
 
 One coverage feature of an entry, with the hit-count bucket of its occurrences: a construct or an edge between constructs of its evaluated code (ADR 0013), or a temporal shape of its property (ADR 0028 §3).
 
-**Decisions:** [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/docs/decisions/0013-behaviour-archive-and-operator-coverage.md), [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/a53e78bbfad166215b349d23251b4a36b7a1f860/docs/decisions/0028-temporal-property-quality.md)
+**Decisions:** [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/docs/decisions/0013-behaviour-archive-and-operator-coverage.md), [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/docs/decisions/0028-temporal-property-quality.md)
 
 ```mermaid
 classDiagram
