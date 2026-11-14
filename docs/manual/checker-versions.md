@@ -28,7 +28,9 @@ A build is named after the commit's date (UTC) and its first 12 hex digits:
 
 The release notes state whether a small FuzzTLA campaign ran with the build, at the
 FuzzTLA commit that built it. An earlier JAR may lack an API that FuzzTLA's workers use;
-then a worker fails to start.
+then a worker fails to start. At the time of writing, the earliest compatible TLC commit
+is `7e64fd03` (2026-02-23), which added `SanyExitCode`
+([ADR 0032](../decisions/0032-earlier-checker-builds.md#3-compatibility-is-reported-not-guaranteed)).
 
 To download a published build into `target/checkers/` and verify its checksum, run:
 

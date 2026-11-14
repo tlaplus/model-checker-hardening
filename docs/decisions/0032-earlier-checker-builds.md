@@ -99,10 +99,20 @@ least one entry a verdict other than `crash`. The notes record the result, which
 for that hardening commit only. A build that does not run is still published: a later
 FuzzTLA may adapt to it.
 
-At FuzzTLA `cc79ae99`, a build from before tlaplus `932a781c` (2026-02-19), which added
-`SanySettings`, does not run. For example, with a local build of `f8eabae1`
-(2025-07-19), the parser worker failed on all 20 entries with `NoSuchMethodError` on
-`SANY.parse(SpecObj, String, SanyOutput, SanySettings)`, so TLC received no input.
+At FuzzTLA `0ba4bc04`, the earliest compatible TLC is tlaplus `7e64fd03` (2026-02-23,
+"SANY: enumerate possible exit codes"), which added `tla2sany.drivers.SanyExitCode`.
+Its parent `2c4d2b02` fails only on that enum, in `ParserWorkerMain` and
+`RuleModuleDefinitions`. `SanySettings` arrived four days earlier, in `932a781c`.
+This was found as follows:
+- FuzzTLA's main sources were compiled against `tla2tools.jar` built at
+  first-parent commits of `master`, bisecting the 299 commits from `932a781c` to
+  `d8fb231d`. The bisection assumes that a commit compiles once its predecessor does.
+- A 20-entry TLC-only campaign with the `7e64fd03` build gave TLC pass 3,
+  counterexample 3, fail 13 and crash 1, and parser pass 20. The crash is TLC reporting
+  an empty `CHOOSE` as an unexpected exception, not an API mismatch.
+- With a build of `f8eabae1` (2025-07-19), the parser worker failed on all 20 entries
+  with `NoSuchMethodError` on `SANY.parse(SpecObj, String, SanyOutput, SanySettings)`,
+  so TLC received no input.
 
 Earlier Apalache releases get no smoke test; their compatibility shows when a corpus
 runs.
