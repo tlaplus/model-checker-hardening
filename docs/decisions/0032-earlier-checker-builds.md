@@ -2,9 +2,19 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-11-14
+
+**Implementation.** Branch `igor/tlc-builds`:
+- `init --tool` (FuzzTLA `cc79ae99`): `cli.ToolOverride`, applied before
+  `LibraryInstall.plan`;
+- the `make` targets `tlc-build` and `apalache-release` (`c7f2d024`);
+- `.github/workflows/tlc-build.yml` (`05b1e56b`).
+
+The build recipe and the smoke criterion were checked locally, with Ant 1.10.15 and JDK
+17 on tlaplus `d8fb231d` and `f8eabae1`. The workflow itself runs only from the default
+branch, so its first dispatch happens after merge.
 
 ## Context
 
@@ -85,10 +95,11 @@ corpus's `tla2tools.jar` in front of FuzzTLA's class path, and the Apalache work
 
 The workflow therefore runs a 20-entry, TLC-only `pbt` campaign with the new JAR, at the
 hardening commit of the run. The campaign has passed if `run` exits 0 and TLC gives at
-least one entry a verdict other than `crash`. The notes record the result, which holds for that hardening commit
-only. A build that does not run is still published: a later FuzzTLA may adapt to it.
+least one entry a verdict other than `crash`. The notes record the result, which holds
+for that hardening commit only. A build that does not run is still published: a later
+FuzzTLA may adapt to it.
 
-At FuzzTLA `c7f2d024`, a build from before tlaplus `932a781c` (2026-02-19), which added
+At FuzzTLA `cc79ae99`, a build from before tlaplus `932a781c` (2026-02-19), which added
 `SanySettings`, does not run. For example, with a local build of `f8eabae1`
 (2025-07-19), the parser worker failed on all 20 entries with `NoSuchMethodError` on
 `SANY.parse(SpecObj, String, SanyOutput, SanySettings)`, so TLC received no input.
