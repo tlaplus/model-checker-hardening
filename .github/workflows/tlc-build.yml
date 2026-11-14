@@ -48,18 +48,24 @@ jobs:
         run: |
           printf '%s\n' "$COMMIT" | grep -Eqx '[A-Za-z0-9][A-Za-z0-9._/-]*' \
             || { echo "::error::invalid commit: $COMMIT"; exit 1; }
+      # Checks out master with its whole history: checkout's ref takes only a branch, a tag or
+      # a full SHA, and jgit-buildnumber reads the history for the X-Git-* manifest attributes.
       - uses: actions/checkout@v7
         with:
           repository: tlaplus/tlaplus
-          ref: ${{ inputs.commit }}
-          # jgit-buildnumber reads the history for the X-Git-* manifest attributes.
           fetch-depth: 0
           path: tlaplus
       - name: Name the build
         id: name
         working-directory: tlaplus
+        env:
+          COMMIT: ${{ inputs.commit }}
         run: |
-          sha=$(git rev-parse HEAD)
+          # A full or abbreviated SHA, a tag, or a branch; an ambiguous abbreviation fails.
+          sha=$(git rev-parse --verify --quiet "$COMMIT^{commit}" \
+            || git rev-parse --verify --quiet "origin/$COMMIT^{commit}") \
+            || { echo "::error::no commit $COMMIT in tlaplus/tlaplus"; exit 1; }
+          git checkout --quiet --detach "$sha"
           # Only commits on master are published, never branch builds.
           git merge-base --is-ancestor "$sha" origin/master \
             || { echo "::error::$sha is not reachable from tlaplus/tlaplus master"; exit 1; }
