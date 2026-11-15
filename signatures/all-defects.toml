@@ -482,8 +482,9 @@ references = [
   "../conformance/fairness-apalache-unsupported.md",
   "../conformance/tlc-temporal-formula-limits.md",
   "../findings/TLC/tlc-010.md",
+  "../findings/TLC/tlc-023.md",
 ]
-description = "Apalache does not support fairness, and TLC reports an evaluation error while checking fairness as error 1000."
+description = "Apalache does not support fairness, TLC reports an evaluation error while checking fairness as error 1000, and TLC rejects fairness formulas conjoined under []."
 status = "open"
 match = [
   '(WEAK_FAIRNESS ...)',
