@@ -114,6 +114,25 @@ test("renders a source notice, marker, summary, and repository-relative links", 
   assert.doesNotMatch(body, /Details that must not enter/);
 });
 
+test("leaves link syntax inside inline code spans unchanged", () => {
+  const markdown = [
+    "TLC rejects `[](WF_x(A) /\\ WF_x(B))` but checks `[]WF_x(A)`.",
+    "``[](a)`` and `` `[](b)` `` stay, [doc](../doc.md) is rewritten.",
+    "An unmatched ` leaves [after](../after.md) a link.",
+  ].join("\n");
+  const rewritten = syncFindings.rewriteRelativeLinks(
+    markdown,
+    "findings/tool/tool-001.md",
+    RENDER_OPTIONS,
+  );
+  const lines = rewritten.split("\n");
+
+  assert.equal(lines[0], "TLC rejects `[](WF_x(A) /\\ WF_x(B))` but checks `[]WF_x(A)`.");
+  assert.match(lines[1], /^``\[\]\(a\)`` and `` `\[\]\(b\)` `` stay, \[doc\]\(https:/);
+  assert.match(lines[1], /owner\/repo\/blob\/main\/findings\/doc\.md\)/);
+  assert.match(lines[2], /owner\/repo\/blob\/main\/findings\/after\.md\)/);
+});
+
 test("plans an idempotent create followed by no changes", () => {
   const finding = syncFindings.parseFinding("findings/tool/tool-001.md", findingText());
   const firstPlan = syncFindings.planReconciliation([finding], [], RENDER_OPTIONS);
