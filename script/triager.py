@@ -371,6 +371,12 @@ SIGNATURES = (
             all_of(r"^TLC error code 2154 mapped to exit status 255$",
                    r"tlc2\.overrides\.Functions\.antiFunction\(",
                    r"^occurs multiple times in the function domain\.$")),
+    # ENABLED <<A>>_v whose A leaves a variable of v unassigned, evaluated while
+    # TLC prepares a property on an initial state. An actual WF_v(A) raises the
+    # same message as error 1000 (tlc-010), so error 2148 is the ENABLED path.
+    finding("tlc-012.md", Tool.TLC,
+            all_of(r"^TLC error code 2148 mapped to exit status 255$",
+                   r"^Error: The action formula A appearing in a WF_v\(A\) or SF_v\(A\) operator does not specif")),
     finding("tlc-003.md", Tool.TLC,
             tlc_runtime_error(r"Attempted to compare the set .+ with the value:"),
             tlc_runtime_error(r"Attempted to compare overridden value .+ with non-overridden value:"),
