@@ -285,6 +285,48 @@ function rewriteTarget(target, sourcePath, options, image) {
   return enclosed ? `<${rewritten}>` : rewritten;
 }
 
+// Applies replace to the parts of a line outside inline code spans. A code span
+// opens with a backtick run and closes at the next run of the same length; an
+// unmatched run is literal text. Spans that continue on the next line are not
+// recognized.
+function replaceOutsideCodeSpans(line, replace) {
+  let result = "";
+  let text = "";
+  let index = 0;
+  while (index < line.length) {
+    if (line[index] !== "`") {
+      text += line[index];
+      index += 1;
+      continue;
+    }
+    let runEnd = index;
+    while (runEnd < line.length && line[runEnd] === "`") {
+      runEnd += 1;
+    }
+    const run = line.slice(index, runEnd);
+    let close = runEnd;
+    let closeEnd = -1;
+    while ((close = line.indexOf(run, close)) >= 0) {
+      const before = close > 0 && line[close - 1] === "`";
+      const after = line[close + run.length] === "`";
+      if (!before && !after) {
+        closeEnd = close + run.length;
+        break;
+      }
+      close += 1;
+    }
+    if (closeEnd < 0) {
+      text += run;
+      index = runEnd;
+      continue;
+    }
+    result += replace(text) + line.slice(index, closeEnd);
+    text = "";
+    index = closeEnd;
+  }
+  return result + replace(text);
+}
+
 function rewriteRelativeLinks(markdown, sourcePath, options) {
   let activeFence = null;
   return markdown
@@ -299,10 +341,12 @@ function rewriteRelativeLinks(markdown, sourcePath, options) {
         return line;
       }
 
-      let rewritten = line.replace(
-        /(!?\[[^\]]*\]\()(<[^>]+>|[^)\s]+)([^)]*\))/g,
-        (match, prefix, target, suffix) =>
-          `${prefix}${rewriteTarget(target, sourcePath, options, prefix.startsWith("!"))}${suffix}`,
+      let rewritten = replaceOutsideCodeSpans(line, (text) =>
+        text.replace(
+          /(!?\[[^\]]*\]\()(<[^>]+>|[^)\s]+)([^)]*\))/g,
+          (match, prefix, target, suffix) =>
+            `${prefix}${rewriteTarget(target, sourcePath, options, prefix.startsWith("!"))}${suffix}`,
+        ),
       );
       rewritten = rewritten.replace(
         /^(\s*\[[^\]]+\]:\s*)(<[^>]+>|\S+)(.*)$/,
