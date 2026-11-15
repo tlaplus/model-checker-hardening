@@ -42,12 +42,15 @@ quarantine them, so neither checker spends time on them.
 | `WF_v(A)` or `SF_v(A)` under `<>` or `~>` | `<>SF_x(A)`, `WF_x(A) ~> (x = 3)` | must be of forms | fail, fairness | `tlc-fairness-under-eventuality` |
 | `SF_v(A)` under `[]` | `[]SF_x(x' = x + 1)` | must be of forms | fail, fairness | none |
 | A negated `WF_v(A)` under `[]` | `[](~WF_x(A))` | must be of forms | fail, fairness | none |
+| A conjunction of `WF_v(A)` formulas under `[]`, also as a bounded `\A` over a constant set ([tlc-023](../findings/TLC/tlc-023.md)) | `[](\A q \in {1, 2}: WF_x(A))` | must be of forms | fail, fairness | none |
 | A negated `IF` around a temporal formula whose constant condition selects a constant branch | `~(IF FALSE THEN <>(x = 3) ELSE FALSE)` | must be of forms | pass | none |
 
 TLC checks the unlabeled `[][x' >= x]_x` and `[]WF_x(x' = x + 1)`. A label is only
 a name for a subexpression, so the labeled row is a TLC defect,
 [tlc-013](../findings/TLC/tlc-013.md), rather than a missing case; it is listed
-here with the other shapes TLC's liveness translation does not handle.
+here with the other shapes TLC's liveness translation does not handle. The
+conjunction row is also a defect, [tlc-023](../findings/TLC/tlc-023.md): TLC
+checks the equivalent `[]WF_x(A) /\ []WF_x(B)`.
 
 The examples use the module below with `SPECIFICATION Spec` and `PROPERTY Prop`
 for TLC, and `--temporal=Liveness --length=4` for Apalache.

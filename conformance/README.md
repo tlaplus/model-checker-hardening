@@ -1451,6 +1451,70 @@ may draw a fresh operand that fails to evaluate
 ([Metamorphic testing](../docs/manual/metamorphic-testing.md#5-writing-rules)), so
 these entries are TLC's documented handling of an evaluation error.
 
+## corpus84 residuals
+
+corpus84 is a `pbt` `module` run that compares TLC with one worker (`tlc`) with
+Apalache. It holds 988 quarantined samples in `00-known-defects`. Triage left 116
+of the 2,159 TLC crashes, 6 of the 11,778 TLC failures and 26 of the 39,798
+aggregator deviations `NEW`. Every Apalache crash outcome was classified; 10,452
+of the 14,272 are worker timeouts. The Apalache failures were all classified,
+and the parser reports were empty. The residuals yield one new finding,
+[`tlc-023`](../findings/TLC/tlc-023.md), and extend
+[`tlc-012`](../findings/TLC/tlc-012.md) to `ENABLED <<A>>_v`. No entry needs a
+new conformance report.
+
+The entries were rendered with FuzzTLA `89796b2d`. The checkers were the
+corpus's `tools/tla2tools.jar`, TLC commit `bc1b506` (TLC2 version
+2026.11.15.002146), and `tools/apalache.jar`, Apalache 0.63.0. TLC reruns used
+the same JAR. Apalache was not rerun.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 83 | TLC crash | `must be of forms`: `SF_v(A)` under `[]`, possibly negated, labeled or nested | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 3 | TLC crash | `must be of forms`: a negated `WF_v(A)` under `[]` (`94fa7f9a`, `e040eac4`), or a `WF_v(A)` with an action inside its action (`7935d79a`) | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 1 | TLC crash | `must be of forms`: `[](\A q \in {a, b}: WF_FALSE(A))`, a conjunction of `WF` formulas under `[]`, `5875e141` | [`tlc-023`](../findings/TLC/tlc-023.md), new |
+| 2 | TLC crash | `must be of forms`: a label directly on `[][A]_v`, `083ae701` and `08a28a0f` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 20 | TLC crash | `cannot handle`: a bounded quantifier whose domain reads the state | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), state-dependent domain |
+| 2 | TLC crash | `cannot handle`: `\E q \in Int` (`4a459e25`) and `\A q \in Nat` (`daf8f0f0`) | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), `Int` or `Nat` |
+| 4 | TLC crash | `cannot handle`: a constant domain that fails to evaluate (`3f95fd6d`, `43b15ac2`, `85d6abd5`), or a body that does (`8aa235a5`, `CASE FALSE -> FALSE`) | [`tlc-011`](../findings/TLC/tlc-011.md) |
+| 1 | TLC crash | error 2148, the `WF_v(A)` message, for `ENABLED <<A>>_var2` in `Prop` where `A` does not prime `var2`, `bed27271` | [`tlc-012`](../findings/TLC/tlc-012.md), signature added |
+| 2 | TLC fail | exit 150, `the identifier step is either undefined`: `step * ...` in an `ApaFoldSet` or `ApaFoldSeqLeft` combinator in `Prop`, `3a941090` and `f8e8acbc` | [`tlc-015`](../findings/TLC/tlc-015.md) |
+| 2 + 1 | TLC fail, aggregator | exit 150, `the identifier ... is either undefined`: `ENABLED` over a primed expression that reads a variable no conjunct assigns, `cd8e5b51`, `ce10f0b2` and `a6ddb59c` | TLC's evaluation of `ENABLED` |
+| 2 + 1 | TLC fail, aggregator | exit 75, `StackOverflowError` in the worker, `03c6d436`, `1ffda1c9` and `199223ca` | the corpus29 deep-expression class |
+| 12 | aggregator | TLC pass, Apalache counterexample (9), or the reverse (`38098b79`, `b0f223cc` and `baaa0ca1`): order-sensitive `ApaFoldSet` whose combinator returns its element, `=>` or `<<x>>` | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 7 | aggregator | TLC counterexample, Apalache pass: `ENABLED` as a `CASE` guard | [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md) |
+| 3 | aggregator | TLC counterexample, Apalache pass: `ENABLED` in a non-`CASE` position, `01abad73`, `19dc5609` and `3680dacc` | not reduced; possible variants of [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md) |
+| 2 | aggregator | TLC counterexample, Apalache pass (`0046bb28`), or the reverse (`39e39bd4`); large specifications with nested folds and `CHOOSE` | not reduced |
+
+The crash rows were classified from the stored diagnostics and the rendered
+`Prop`. `5875e141` and `bed27271` were reduced with TLC `bc1b506`; the
+reductions are in their findings. The `\A` domain of `5875e141` evaluates to a
+two-element set, and TLC rejects `[](\A q \in {1, 2}: WF_x(A))` and
+`[](WF_x(A) /\ WF_x(B))` but checks `[]WF_x(A) /\ []WF_x(B)`.
+
+The five exit-150 failures were rerun with `SPECIFICATION Spec`, `INVARIANT Inv`
+and `PROPERTY Prop`, `-Xmx512m` and the corpus's `-fp` and `-seed`. Each reports
+the undefined identifier at a position in `Prop` and exits 151, as
+in `tlc-015`. In `3a941090` and `f8e8acbc` the position is under `*` in a fold
+combinator. In the other three it is inside a primed expression under
+`ENABLED`; with `Prop == TRUE ~> ENABLED (\A q \in {x'}: FALSE)`, TLC reports the
+same message for `x`, since it evaluates a primed variable under `ENABLED` only
+after an assignment binds it.
+
+The three stack overflows were rerun with the default thread stack and with
+`-Xss64m`. Both report the same result: `03c6d436` a `CHOOSE` without a
+witness, `1ffda1c9` a nonpositive divisor of `%`, and `199223ca` an initial
+state that violates `Inv`, which agrees with Apalache's counterexample. The
+worker's smaller stack overflows first, as in corpus29.
+
+The aggregator rows were classified from their specifications, by their fold
+combinators and the positions of `ENABLED`. They were not rerun.
+
+The triager now assigns error 2148 crashes to `tlc-012`, which reclassifies
+`bed27271`. It still has no signature for `tlc-015`, and its pattern for `the
+identifier ... is either undefined` expects exit 75, so the exit-150 failures
+stay `NEW`.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row

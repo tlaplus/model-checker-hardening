@@ -1105,6 +1105,19 @@ class Corpus22CrashTest(unittest.TestCase):
                     classify_quietly(self, triager.CrashKind.TLC, "\n".join(lines)),
                 )
 
+    def test_enabled_angle_action_crash_is_tlc_012(self) -> None:
+        """corpus84 bed27271: ENABLED <<A>>_v in a property, A not assigning v."""
+        diagnostic = "\n".join((
+            "TLC error code 2148 mapped to exit status 255",
+            "Computing initial states...",
+            "Error: The action formula A appearing in a WF_v(A) or SF_v(A) operator does not "
+            "specify the primed value of the variable var2 occurring in the state formula v.",
+        ))
+        self.assertEqual(
+            "tlc-012.md",
+            classify_quietly(self, triager.CrashKind.TLC, diagnostic),
+        )
+
     def test_foreign_error_under_a_community_modules_constant_stays_new(self) -> None:
         """Error 2283 alone does not identify an override."""
         diagnostic = "\n".join((
