@@ -1,6 +1,6 @@
 # `StageWorker`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageWorker.java#L8) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageWorker.java#L8) · module [workflow](../modules/workflow.md)
 
 Runs one stage worker, turning its interruption or failure into shared stop state.
 

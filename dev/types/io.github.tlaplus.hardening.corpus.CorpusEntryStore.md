@@ -1,6 +1,6 @@
 # `CorpusEntryStore`
 
-`io.github.tlaplus.hardening.corpus` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEntryStore.java#L28) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/corpus/CorpusEntryStore.java#L28) · module [corpus](../modules/corpus.md)
 
 Admits generated payloads to the input stage and preserves the ones that broke the generator.
 

@@ -1,6 +1,6 @@
 # `LibraryJson`
 
-`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb3bb7ddd8f7fa681b44bd858847122dbd84907/src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryJson.java#L22) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryJson.java#L22) · module [workflow](../modules/workflow.md)
 
 Prunes typechecker JSON to the operator declarations reachable from the selected operators.
 
