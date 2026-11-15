@@ -1,6 +1,6 @@
 # `CborMapWriter`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/corpus/CborMapWriter.java#L27) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/corpus/CborMapWriter.java#L27) · module [corpus](../modules/corpus.md)
 
 Collects the fields of one CBOR map so that its definite length is derived from what is written rather than maintained beside it.
 

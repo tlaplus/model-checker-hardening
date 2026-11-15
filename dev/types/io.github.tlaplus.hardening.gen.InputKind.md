@@ -1,6 +1,6 @@
 # `InputKind`
 
-`io.github.tlaplus.hardening.gen` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/gen/InputKind.java#L17) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/gen/InputKind.java#L17) · module [gen](../modules/gen.md)
 
 What a generator payload decodes to.
 

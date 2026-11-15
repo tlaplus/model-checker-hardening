@@ -1,6 +1,6 @@
 # `WorkflowControl`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowControl.java#L12) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowControl.java#L12) · module [workflow](../modules/workflow.md)
 
 Shared stop state for independently running stages.
 
