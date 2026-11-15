@@ -1,6 +1,6 @@
 # `TechniqueConverter`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/cli/TechniqueConverter.java#L8) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/cli/TechniqueConverter.java#L8) · module [cli](../modules/cli.md)
 
 Reads the `--how` option of `fuzztla init` by the technique's encoded name.
 

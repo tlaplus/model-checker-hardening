@@ -1,6 +1,6 @@
 # `ParserStageConfig`
 
-`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/config/ParserStageConfig.java#L6) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/config/ParserStageConfig.java#L6) · module [config](../modules/config.md)
 
 Capacity and timeout limits for the parser stage.
 

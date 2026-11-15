@@ -1,6 +1,6 @@
 # `GeneratedSpec`
 
-`io.github.tlaplus.hardening.gen` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/gen/GeneratedSpec.java#L44) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/gen/GeneratedSpec.java#L44) · module [gen](../modules/gen.md)
 
 The declarations one generated module consists of.
 

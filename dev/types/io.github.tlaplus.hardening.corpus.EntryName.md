@@ -1,6 +1,6 @@
 # `EntryName`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/corpus/EntryName.java#L15) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/corpus/EntryName.java#L15) · module [corpus](../modules/corpus.md)
 
 The identity of one logical corpus entry: the file name it keeps in every stage directory it passes through.
 

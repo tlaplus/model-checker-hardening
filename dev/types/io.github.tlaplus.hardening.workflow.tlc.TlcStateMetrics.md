@@ -1,10 +1,10 @@
 # `TlcStateMetrics`
 
-`io.github.tlaplus.hardening.workflow.tlc` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcStateMetrics.java#L31) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcStateMetrics.java#L31) · module [workflow](../modules/workflow.md)
 
 Measures the state graph TLC explores, through the state-writer callbacks TLC makes for every initial state and every generated transition.
 
-**Decisions:** [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/docs/decisions/0024-graph-action-coverage.md)
+**Decisions:** [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/docs/decisions/0024-graph-action-coverage.md)
 
 ```mermaid
 classDiagram

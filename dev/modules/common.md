@@ -50,5 +50,5 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/docs/decisions/0022-architecture-atlas.md)
-- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/docs/decisions/0028-temporal-property-quality.md)
+- [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/docs/decisions/0022-architecture-atlas.md)
+- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/docs/decisions/0028-temporal-property-quality.md)

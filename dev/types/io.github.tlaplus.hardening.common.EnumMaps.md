@@ -1,6 +1,6 @@
 # `EnumMaps`
 
-`io.github.tlaplus.hardening.common` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/89796b2de37276efdd760202b81b5673c0ecab50/src/main/java/io/github/tlaplus/hardening/common/EnumMaps.java#L11) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/3c2500bf7d02f2c13a45205dbeb914bdb6699281/src/main/java/io/github/tlaplus/hardening/common/EnumMaps.java#L11) · module [common](../modules/common.md)
 
 Validated immutable copies of maps keyed by an enum, iterated in declaration order.
 
