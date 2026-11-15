@@ -857,10 +857,12 @@ class Corpus22CrashTest(unittest.TestCase):
         )
 
     def test_module_error_in_action_property_is_tlc_002(self) -> None:
-        """corpus22 8e1c9a32 (SubSeq, 2183) and 9ba661a0 (0^0, 2180)."""
+        """corpus22 8e1c9a32 (SubSeq, 2183), 9ba661a0 (0^0, 2180) and corpus83 76137ff2
+        (Cardinality(Int), 2181)."""
         for code, message in (
             (2183, "The second argument of SubSeq must be in the domain of its first argument:"),
             (2180, "0^0 is undefined."),
+            (2181, "Attempted to compute cardinality of the value"),
         ):
             diagnostic = "\n".join(
                 (
@@ -1169,6 +1171,42 @@ class Corpus53CrashTest(unittest.TestCase):
                         "\n".join((*self.INITIAL_STATES, *warnings, *error)),
                     ),
                 )
+
+    def test_tableau_error_on_a_later_initial_state_is_tlc_010(self) -> None:
+        """corpus83 1b1b2375: the third initial state fails after a progress line."""
+        progress = "Computed 2 initial states..."
+        error = (
+            "Error: Attempted to access index 3 of tuple",
+            "<<<<TRUE>>, <<FALSE>>>>",
+            "which is out of bounds.",
+            "While working on the initial state:",
+        )
+        for name, lines in (
+            ("progress", (progress, *error)),
+            ("progress and warning", (
+                progress,
+                "Warning: The EXCEPT was applied to non-existing fields of the value at",
+                "line 121, col 9 to line 126, col 9 of module FuzzInput",
+                *error,
+            )),
+        ):
+            with self.subTest(name):
+                self.assertEqual(
+                    "tlc-010.md",
+                    classify_quietly(
+                        self, triager.CrashKind.TLC, "\n".join((*self.INITIAL_STATES, *lines))
+                    ),
+                )
+
+    def test_wrapped_exception_after_progress_is_not_tlc_010(self) -> None:
+        diagnostic = "\n".join((
+            *self.INITIAL_STATES,
+            "Computed 2 initial states...",
+            "Error: TLC threw an unexpected exception.",
+        ))
+        self.assertNotEqual(
+            "tlc-010.md", classify_quietly(self, triager.CrashKind.TLC, diagnostic)
+        )
 
     def test_wrapped_exception_after_warnings_is_not_tlc_010(self) -> None:
         diagnostic = "\n".join((

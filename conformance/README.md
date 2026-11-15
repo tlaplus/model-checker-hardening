@@ -1402,6 +1402,55 @@ checker failed or reported a counterexample, and the crash side is in the rows
 above (`tlc-002`, `tlc-010`, `tlc-performance-001`). As for `FIRST_ERROR`, the
 two checkers explore states in different orders and stop at different errors.
 
+## corpus83 residuals
+
+corpus83 is a metamorphic (`mt`) `module` run over the `04quality-pass` entries of
+corpus75, with temporal rewrites. It compares TLC with one worker (`tlc`) with
+TLC with eight workers (`tlcn`) and runs no Apalache. It holds 819 quarantined
+samples in `00-known-defects`. Its 4,982 `tlc` and 5,117 `tlcn` crashes left 25 and
+24 entries `NEW`. The 7 entries in `02tlc-fail` and `02tlcn-fail` were all
+classified, and no entry is in `03aggregator-fail`. Nine of the `NEW` entries were
+missed by two signature gaps, which are now fixed; the other 16 are classified
+below by hand. No entry needs a new finding or a new conformance report.
+
+The entries were rendered with FuzzTLA `4bb3bb7d`. The crashes ran TLC commit
+`090e85c` (TLC2 version 2026.10.30.154139), the corpus's `tools/tla2tools.jar`,
+which the reruns below also used. The rows other than `tlc-006` were classified
+from the stored diagnostics and the rendered specifications.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 8 + 8 | TLC crash | error 1000 while TLC evaluates a tableau property on an initial state; the failing state is not the first, so TLC prints `Computed 2 initial states...` before the error, which the signature did not allow | [`tlc-010`](../findings/TLC/tlc-010.md), signature fixed |
+| 1 + 1 | TLC crash | `76137ff2`: `Cardinality(Int)` in the rewritten action, exit 255 under 2181, printed without `Error:` after `Evaluating action property StepProperty failed.` | [`tlc-002`](../findings/TLC/tlc-002.md), signature fixed |
+| 3 + 3 | TLC crash | `cannot handle`: `\A` over a domain that reads `step`, `8a75561c`, `c95ee4b2` and `f5257d01` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), state-dependent domain |
+| 2 + 2 | TLC crash | `cannot handle`: `\E q \in {Head(<<>>)}` around a temporal formula, `6ab5c9ff` and `b49950f1` | [`tlc-011`](../findings/TLC/tlc-011.md), failing domain |
+| 1 + 1 | TLC crash | `cannot handle`: `\E e \in {c} : [](P) \/ ...` whose constant body applies a function outside its domain, `00fb230b` | [`tlc-011`](../findings/TLC/tlc-011.md), failing body |
+| 2 + 2 | TLC crash | `must be of forms`: a label directly on `[][A]_v`, `afae22d1` and `f5e41468` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 2 + 2 | TLC crash | `must be of forms`: `~(IF IsFiniteSet({1, 2, 3}) THEN FALSE ELSE ...)`, `574183bc` and `7f4af918` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), negated constant `IF` |
+| 1 + 1 | TLC crash | `must be of forms`: `(\E q \in {} : FALSE ~> FALSE => FALSE) => FALSE`, `076ff525` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), negated quantifier over `{}` |
+| 2 + 2 | TLC crash | `OutOfMemoryError`, no diagnostic: `\E e \in 0 .. 46340 * 46340` in `436ba39f` and `\E e \in a .. 32768 * 32768` in `84cbd87d` | [`tlc-006`](../findings/TLC/tlc-006.md) |
+| 3 + 2 | TLC crash | `OutOfMemoryError`, no diagnostic: nested folds concatenate `var0` with itself, so its length grows by a factor of 30 or more per step, `20551c9e`, `8206ba80` and `c9e65edc` | resource limit |
+
+Counts are `tlc` + `tlcn`. `20551c9e` crashed only in `tlc`, with its 2 GB heap.
+`tlcn`, with 8 GB, passed it in 1 min 43 s with six distinct states and a largest
+value of 273,066,667 elements. Its spec builds that value, so this is not a TLC
+defect.
+
+`436ba39f` and `84cbd87d` were rerun with `-Xmx512m` and
+`-XX:AbortVMOnException=java.lang.OutOfMemoryError`. Both abort in
+`IntervalValue.toSetEnum()`, called from `EnumerableValue.elements` in
+`Tool.contexts`: the bounded `\E` materializes its interval, as in `tlc-006`. Both
+intervals come from the rewrites. `InAsExists` turns `x \in 0 .. y * y`, which
+`ModInRange` introduced with `y = 46340` or `32768`, into a bounded `\E`.
+
+The rewrites also introduced the failing expressions of `76137ff2` and `00fb230b`.
+The generator drew the fresh operand `y` of `ModInRange`
+as `CASE TRUE -> Cardinality(Int) [] ...`, and that of `FunApplyConst` as a
+function applied outside its domain. Both rules are valid, and the generator
+may draw a fresh operand that fails to evaluate
+([Metamorphic testing](../docs/manual/metamorphic-testing.md#5-writing-rules)), so
+these entries are TLC's documented handling of an evaluation error.
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
