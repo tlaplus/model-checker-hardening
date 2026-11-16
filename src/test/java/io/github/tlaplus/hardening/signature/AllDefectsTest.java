@@ -315,6 +315,11 @@ class AllDefectsTest {
                                 builder.leadsTo(builder.eql(
                                         builder.funDef(step, new ExpressionPair<>(x, one)),
                                         function), flag))),
+                Map.entry("apalache-leads-to-action",
+                        List.of(builder.leadsTo(flag, builder.always(builder.eventually(
+                                        builder.noStutter(shapes.action(), flag)))),
+                                builder.always(builder.implies(flag, builder.always(builder.eventually(
+                                        builder.noStutter(shapes.action(), flag))))))),
                 Map.entry("apalache-nested-one-conjunct",
                         List.of(builder.and(builder.and(flag)), builder.and(flag, flag))),
                 Map.entry("apalache-unchanged-after-assignment",

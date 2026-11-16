@@ -696,6 +696,18 @@ match = [
 ]
 
 [[signature]]
+id = "apalache-leads-to-action"
+references = ["../findings/apalache-temporal/apalache-temporal-007.md"]
+description = "Apalache crashes on <<A>>_v or [A]_v under ~>: a rewriter error for a non-variable subscript, an assignment error for a variable one."
+status = "open"
+match = [
+  '(LEADS_TO (.. (NO_STUTTER ...)) _)',
+  '(LEADS_TO _ (.. (NO_STUTTER ...)))',
+  '(LEADS_TO (.. (STUTTER ...)) _)',
+  '(LEADS_TO _ (.. (STUTTER ...)))',
+]
+
+[[signature]]
 id = "apalache-nested-one-conjunct"
 references = ["../findings/apalache-temporal/apalache-temporal-002.md"]
 description = "Apalache fails type checking under --temporal on a nested one-conjunct list in a fold lambda."
