@@ -484,6 +484,10 @@ SIGNATURES = (
                    r"^Input error \(see the manual\): SubstRule: Variable \S+ is not assigned a value")),
     finding("apalache-temporal-004.md", Tool.APALACHE,
             apalache_error(r"^java\.lang\.IllegalArgumentException: Variable names should never contain more than one separator$")),
+    # The bounded checker meets a prime that the leads-to encoding left on a
+    # non-variable subscript of <<A>>_v or [A]_v.
+    finding("apalache-temporal-007.md", Tool.APALACHE,
+            apalache_error(r"^<unknown>: rewriter error: Prime operator is only implemented for variables\b")),
     # The builder's stack-unsafe State.run, reached from the bounded checker's
     # encoding; the trace may start in collection or type-unifier frames above typecomp,
     # or in a simplifier mapped over the State, where the 1,024 printed frames below it
@@ -553,7 +557,7 @@ AGGREGATOR_SIGNATURES = (
     failure("division-by-zero-tlc-fails.md", Tool.TLC,
             r"^The second argument of \\div is 0\.$"),
     failure("infinite-set-as-state-value.md", Tool.TLC,
-            r"^TLC has found a state in which the value of a variable contains (?:Int|Nat)$"),
+            r"^TLC has found a state in which the value of a variable contains (?:Int|Nat|Seq\(.*)$"),
     failure("filter-over-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate \{ x \\in S : p\(x\) \} when S:$"),
     failure("union-containing-infinite-set.md", Tool.TLC,
