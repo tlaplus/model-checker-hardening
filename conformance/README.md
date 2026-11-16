@@ -1515,6 +1515,79 @@ The triager now assigns error 2148 crashes to `tlc-012`, which reclassifies
 identifier ... is either undefined` expects exit 75, so the exit-150 failures
 stay `NEW`.
 
+## corpus85 residuals
+
+corpus85 is a `pbt` `module` run that compares TLC with one worker (`tlc`) with
+Apalache. Unlike corpus84, it lists no known-defect database, so no input was
+quarantined and every signature shape reached the checkers. Triage left 2,436 of
+the 4,467 TLC crashes, 8 of the 12,964 TLC failures, 9 of the 15,975 Apalache
+crash outcomes and 46 of the 37,280 aggregator deviations `NEW`; 12,666 of the
+Apalache crash outcomes are worker timeouts. The Apalache failures were all
+classified. The triager does not read `01parser-fail`, which holds 25 entries.
+The residuals yield one new finding,
+[`apalache-temporal-007`](../findings/apalache-temporal/apalache-temporal-007.md).
+No entry needs a new conformance report.
+
+The entries were rendered with FuzzTLA `1a813728` and matched against
+`signatures/all-defects.toml` in one JVM. The checkers were the corpus's
+`tools/tla2tools.jar`, TLC commit `bc1b506` (TLC2 version 2026.11.15.002146),
+and `tools/apalache.jar`, Apalache 0.63.0. Reruns used the same JARs and SANY
+from the same `tla2tools.jar`.
+
+| Count | Stage | Cause | Class |
+|---:|---|---|---|
+| 2,316 | TLC crash | `must be of forms` or `cannot handle`, matching `tlc-eventually-action`, `tlc-always-action-under-temporal`, `tlc-temporal-equivalence`, `tlc-fairness-under-eventuality` or another TLC temporal signature | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 86 | TLC crash | `must be of forms`: `SF_v(A)` under `[]`, possibly negated, labeled, nested, in an `IF` branch or under a bounded `\A` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md) |
+| 3 | TLC crash | `must be of forms`: a label directly on `[][A]_v`, `04423f5f`, `55f5ab02` and `e7609a8f` | [`tlc-013`](../findings/TLC/tlc-013.md) |
+| 2 | TLC crash | `must be of forms`: `WF_v(A)` under `[]` on the left of `=>`, `6a54d3b6` and `7ec8028d` | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), negated `WF` |
+| 18 | TLC crash | `cannot handle`: a bounded quantifier whose domain reads the state | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), state-dependent domain |
+| 5 | TLC crash | `cannot handle`: a quantifier over `Int` (`b975cdf3`, `f721eb82`), `STRING` (`572d0c2e`, `92201b08`) or `Seq(S)` (`46938f64`) | [tlc-temporal-formula-limits](tlc-temporal-formula-limits.md), non-enumerable domain |
+| 6 | TLC crash | `cannot handle`: a constant domain or body that fails to evaluate, such as `Head(<<>>)` or a mismatched `VariantGetUnsafe` | [`tlc-011`](../findings/TLC/tlc-011.md) |
+| 4 + 1 | TLC fail, aggregator | exit 150, `the identifier step is either undefined`: `step` in a primed expression under `ENABLED` | TLC's evaluation of `ENABLED`, as in corpus84 |
+| 1 + 2 | TLC fail, aggregator | exit 150, `the identifier step is either undefined`: `step * ...` in a fold combinator in `Prop`, `d8861ea3`, `82f20647` and `c76165fb` | [`tlc-015`](../findings/TLC/tlc-015.md) |
+| 1 + 1 | TLC fail, aggregator | exit 75, `StackOverflowError` in the worker, `8130a49d` and `3a573133` | the corpus29 deep-expression class |
+| 2 | TLC fail | exit 75, a state whose variable holds `Seq({FALSE, TRUE})` (`84c93be7`) or `Seq({1})` (`a43550f4`) | [infinite-set-as-state-value](infinite-set-as-state-value.md), signature extended |
+| 9 | Apalache crash | `rewriter error: Prime operator is only implemented for variables`: `<<A>>_e` or `[A]_e` with a non-variable `e` under `~>` | [`apalache-temporal-007`](../findings/apalache-temporal/apalache-temporal-007.md), new |
+| 18 | aggregator | TLC pass, Apalache counterexample (17), or the reverse (`5df8d2a9`): order-sensitive `ApaFoldSet` whose combinator returns its element | [order-sensitive-set-fold](order-sensitive-set-fold.md) |
+| 4 | aggregator | TLC pass, Apalache counterexample: `CHOOSE` whose predicate holds for several elements, `1f99c18c`, `38309ef4`, `7d5b1179` and `e9316981` | [choose-multiple-witnesses](choose-multiple-witnesses.md) |
+| 13 | aggregator | TLC counterexample, Apalache pass: `ENABLED` as a `CASE` guard | [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md) |
+| 7 | aggregator | TLC counterexample, Apalache pass: `ENABLED` nested in a `CASE` guard, for example under a fold combinator in `c31ad1da` | [`apalache-bmc-019`](../findings/apalache-bmc/apalache-bmc-019.md); only `c31ad1da` was read |
+| 20 | parser fail | `Label ... must contain formal parameter`: a nested `CASE` that absorbs the enclosing arms moves a label under a `CHOOSE` or quantifier | [`apalache-printer-009`](../findings/apalache-printer/apalache-printer-009.md) |
+| 5 | parser fail | `Level error in applying operator ApaFoldSet` or `ApaFoldSeqLeft`: an action-level fold argument passed to a combinator that applies `UNCHANGED` or `ENABLED` to its parameter | FuzzTLA generator, not a checker defect |
+
+The TLC crash rows were classified from the signature matches, the stored
+diagnostics and the rendered `Prop`; each crash is counted once, by the
+outermost shape of the formula that TLC rejected. No row is new. The fail rows
+were rerun with `SPECIFICATION Spec`, `INVARIANT Inv` and `PROPERTY Prop`,
+`-Xmx512m`, and the corpus's `-fp` and `-seed`; each reproduced its stored
+diagnostic, and the stack overflow `8130a49d` reports a `CHOOSE` without a
+witness with `-Xss4m`. The exit-150 positions were located in the rendered
+modules: under `ENABLED` inside a primed subexpression, or under `*` in a fold
+combinator.
+
+The Apalache crashes were reduced from `6f80c427`'s JSON IR; the reduction is in
+the finding. The aggregator rows were classified from their specifications, by
+their fold combinators, their `CHOOSE` predicates and the positions of
+`ENABLED`; they were not rerun.
+
+The parser failures store no diagnostic and were rerun with SANY. The label
+failures all match the `printer-nested-case-arm` signature. In the level
+failures, the fold argument is primed or applies `UNCHANGED`, as in
+`ApaFoldSet(Lambda79, (var0' = var0'), S)` in `fa7c548f`, and the combinator
+applies `UNCHANGED` or `ENABLED` to its parameter, as `Lambda15` in `8fac4cd0`
+does with `UNCHANGED parameter13`. SANY accepts an action-level fold argument
+when the combinator applies neither, so the failures point at a generator
+obligation that [ir-generators](../docs/architecture/ir-generators.md) section 7
+does not state: a fold argument is drawn in the enclosing action context while
+the combinator body treats its parameters as state-level. They were not reduced
+further. Three of the five also match `printer-nested-case-arm`.
+
+The triager now assigns the prime error to `apalache-temporal-007` and a `Seq(S)`
+state value to infinite-set-as-state-value, which reclassifies the nine Apalache
+crashes and `84c93be7` and `a43550f4`. The illegal-assignment variant of
+`apalache-temporal-007`, for a variable subscript, stays filed under
+[`apalache-assignments-001`](../findings/apalache-assignments/apalache-assignments-001.md).
+
 ## Auditing the classified entries
 
 corpus14's 62,478 classified deviations were audited two ways. Every row
