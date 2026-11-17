@@ -1,6 +1,6 @@
 # `CorpusCbor`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/corpus/CorpusCbor.java#L7) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/corpus/CorpusCbor.java#L7) · module [corpus](../modules/corpus.md)
 
 The Jackson wiring shared by every codec of the corpus CBOR formats.
 

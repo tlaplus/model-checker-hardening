@@ -1,6 +1,6 @@
 # `WorkerChannel`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/workflow/worker/WorkerChannel.java#L26) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/workflow/worker/WorkerChannel.java#L26) · module [workflow](../modules/workflow.md)
 
 The parent's end of one worker's control channel: message framing, and the deadline every read runs under.
 

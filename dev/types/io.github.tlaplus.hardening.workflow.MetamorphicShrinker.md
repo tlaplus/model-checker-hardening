@@ -1,10 +1,10 @@
 # `MetamorphicShrinker`
 
-`io.github.tlaplus.hardening.workflow` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/workflow/MetamorphicShrinker.java#L36) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/workflow/MetamorphicShrinker.java#L36) · module [workflow](../modules/workflow.md)
 
 Reduces a metamorphic counterexample for triage (ADR 0016 §8).
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/docs/decisions/0016-metamorphic-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0016-metamorphic-testing.md)
 
 ```mermaid
 classDiagram

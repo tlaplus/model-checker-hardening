@@ -1,6 +1,6 @@
 # `FuzzTlaConfig`
 
-`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L27) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java#L27) · module [config](../modules/config.md)
 
 Complete configuration of input generation and workflow execution.
 

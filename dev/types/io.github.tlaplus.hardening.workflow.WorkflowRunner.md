@@ -1,6 +1,6 @@
 # `WorkflowRunner`
 
-`io.github.tlaplus.hardening.workflow` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunner.java#L45) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunner.java#L45) · module [workflow](../modules/workflow.md)
 
 Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget.
 

@@ -1,6 +1,6 @@
 # `CheckerFailure`
 
-`io.github.tlaplus.hardening.checker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/checker/CheckerFailure.java#L12) · module [checker](../modules/checker.md)
+`io.github.tlaplus.hardening.checker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/checker/CheckerFailure.java#L12) · module [checker](../modules/checker.md)
 
 A stable checker failure code with optional bounded diagnostic context.
 

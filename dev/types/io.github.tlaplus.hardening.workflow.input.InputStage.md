@@ -1,10 +1,10 @@
 # `InputStage`
 
-`io.github.tlaplus.hardening.workflow.input` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/src/main/java/io/github/tlaplus/hardening/workflow/input/InputStage.java#L46) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/workflow/input/InputStage.java#L46) · module [workflow](../modules/workflow.md)
 
 Concurrent input stage: admits reserved target ranges from adjacent generations.
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/1a81372896451189e1d67bbda94bc29460dad20e/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram
