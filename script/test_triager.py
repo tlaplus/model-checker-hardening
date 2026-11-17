@@ -155,6 +155,10 @@ class AggregatorClassificationTest(unittest.TestCase):
                 "Attempted to evaluate an expression of form P => Q when P was",
                 "apalache-printer-008.md",
             ),
+            (
+                "TLC has found a state in which the value of a variable contains Seq({FALSE, TRU…",
+                "infinite-set-as-state-value.md",
+            ),
         )
         for detail, issue in cases:
             with self.subTest(issue=issue):
@@ -1026,6 +1030,21 @@ class Corpus22CrashTest(unittest.TestCase):
         )
         self.assertEqual(
             "apalache-temporal-004.md",
+            classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
+        )
+
+    def test_prime_of_non_variable_is_temporal_007(self) -> None:
+        """corpus85 6f80c427: <<A>>_v with a non-variable v under ~>."""
+        diagnostic = "\n".join(
+            (
+                "Apalache exited with status 255",
+                "PASS #13: BoundedChecker                                          I@01:21:50.175",
+                "<unknown>: rewriter error: Prime operator is only implemented for variables E@01:21:50.286",
+                "at.forsyte.apalache.infra.AdaptedException: <unknown>: rewriter error: Prime operator is only implemented for variables",
+            )
+        )
+        self.assertEqual(
+            "apalache-temporal-007.md",
             classify_quietly(self, triager.CrashKind.APALACHE, diagnostic),
         )
 
