@@ -967,3 +967,16 @@ match = [
   '(UNARY_MINUS (.. (STUTTER _ _)))',
   '(UNARY_MINUS (.. (NO_STUTTER _ _)))',
 ]
+
+[[signature]]
+id = "sany-tuple-with-action-subscript-after-bracket"
+references = ["../findings/SANY/sany-004.md"]
+description = "SANY reads [ or { followed by a tuple that contains <<A>>_v as the start of a function constructor or set comprehension when a later >> is followed by \\in, and reports a parse error; the following \\in is not matched."
+status = "open"
+match = [
+  '(EXCEPT (& (TUPLE ...) (.. (NO_STUTTER _ _))) ...)',
+  '(FUN_APP _ (& (TUPLE ...) (.. (NO_STUTTER _ _))))',
+  '(FUN_SET (& (TUPLE ...) (.. (NO_STUTTER _ _))) _)',
+  '(SET_ENUM (& (TUPLE ...) (.. (NO_STUTTER _ _))) ...)',
+  '(SET_MAP (& (TUPLE ...) (.. (NO_STUTTER _ _))) ...)',
+]

@@ -394,7 +394,14 @@ class AllDefectsTest {
                 Map.entry("sany-minus-over-action-subscript",
                         List.of(builder.uminus(builder.ite(
                                         builder.enabled(builder.stutter(shapes.action(), flag)), step, step)),
-                                builder.uminus(builder.ite(builder.enabled(shapes.action()), step, step)))));
+                                builder.uminus(builder.ite(builder.enabled(shapes.action()), step, step)))),
+                Map.entry("sany-tuple-with-action-subscript-after-bracket",
+                        List.of(builder.except(
+                                        builder.tuple(builder.enabled(builder.noStutter(shapes.action(), flag))),
+                                        builder.integer(1), builder.bool(false)),
+                                builder.except(
+                                        builder.tuple(builder.enabled(builder.stutter(shapes.action(), flag))),
+                                        builder.integer(1), builder.bool(false)))));
     }
 
     /** A fold over {@code s} whose combinator builds {@code body} from its accumulator {@code r} and element {@code x}. */

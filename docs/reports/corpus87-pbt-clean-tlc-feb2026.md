@@ -16,19 +16,21 @@ TLC `7e64fd0` (2026-02-23) against Apalache 0.63.0. It answers three questions:
 - **Known issues.** The campaign reproduced 30 of the 82 findings and 38 of the
   53 conformance reports. On the TLC side (TLC, TLC performance and SANY findings),
   it reproduced 13 of 28 findings, two of them closed: `tlc-008` and `tlc-014`.
-- **Previously unknown issues.** Three TLC issues are not recorded in this
-  repository. They account for 3,004 entries, all rejections of a valid
-  `PROPERTY`:
+- **Previously unknown issues.** Four issues are not recorded in this
+  repository. Three are TLC issues. They account for 3,004 entries, all
+  rejections of a valid `PROPERTY`:
   - a Boolean state variable as the property;
   - an operator argument as the property;
   - a `LET` around `[][A]_v`.
-- **Current TLC.** None of the three reproduces on `bc1b506`. Upstream fixed them
-  in commits `72a0c291`, `9b5afe73` and `0727a074`, all of which descend
-  from `7e64fd0`. The first two resolve upstream issues
+
+  The fourth is a SANY parse error on a tuple that contains `<<A>>_v` after `[`
+  or `{` (1 entry), now [`sany-004`](../../findings/SANY/sany-004.md).
+- **Current TLC.** None of the three TLC issues reproduces on `bc1b506`.
+  Upstream fixed them in commits `72a0c291`, `9b5afe73` and `0727a074`, all of
+  which descend from `7e64fd0`. The first two resolve upstream issues
   [#715](https://github.com/tlaplus/tlaplus/issues/715) and
-  [#1244](https://github.com/tlaplus/tlaplus/issues/1244).
-- **Still to resolve.** One SANY parse error reproduces on both SANY versions
-  and is not reduced; see [§2.3](#23-unresolved).
+  [#1244](https://github.com/tlaplus/tlaplus/issues/1244). The SANY issue
+  reproduces on `bc1b506`; it is the campaign's one new open defect.
 - **Undocumented TLC behaviour that persists.** The following still reproduces
   on `bc1b506` but has no document of its own:
   - TLC fails on `ENABLED` over a primed expression that reads a variable no
@@ -259,27 +261,29 @@ The `ENABLED` behaviour is a TLC capability limit rather than a version
 difference. It needs a conformance report of its own, so that the triager stops
 attributing it to a closed printer defect.
 
-### 2.3. Unresolved
+### 2.3. SANY issue present on both versions
 
-| Count | Stage | Cause | `bc1b506` |
-|---:|---|---|---|
-| 1 | parser fail | SANY `***Parse Error*** Was expecting "Identifier or >>"` at the `<<` of `[ << [ << … >>[1] EXCEPT ![1] = FALSE ] >> EXCEPT ![1] = … ]`, under a nested `CASE` (`d701237a`) | reproduces |
+| Count | Stage | Cause | `bc1b506` | Document |
+|---:|---|---|---|---|
+| 1 | parser fail | SANY `***Parse Error*** Was expecting "Identifier or >>"`: the lookahead after `[<<` does not count the `>>_` of `<<A>>_v`, skips the tuple's own `>>`, and finds `\in` after an enclosing `>>` (`d701237a`) | reproduces | [`sany-004`](../../findings/SANY/sany-004.md) |
 
-The bracket does not fail on its own. Extracted into a fresh module, it parses,
-including inside the nested `CASE`, the `LET` and the labels that enclose it. It
-also parses when only its top-level shape is kept, as in
-`[<<[<<e>>[1] EXCEPT ![1] = FALSE]>> EXCEPT ![1] = …]`. The whole one-line `Inv`
-of the entry fails. Automatic reduction was not finished, so it is open whether
-this is a SANY defect or a printer output that SANY rightly rejects. Since SANY
-`bc1b506` rejects it too, the version question does not separate it.
+In `d701237a`, one `ENABLED (<<…>>_(…))` lies in a tuple that follows
+`[<< … EXCEPT`, and the entry's `Inv` ends in `>> \in {TRUE}`. Rewriting only
+that `>>_(` as `>> = (` makes the entry parse on both versions. The minimal
+module in `sany-004` fails on `7e64fd0`, on `bc1b506` and on the SANY that
+Apalache 0.63.0 bundles. The lookahead dates from 2009, so the defect is not a
+version difference. Extracting the bracket on its own had hidden it, because
+the extracted text lacked the enclosing `\in`.
 
 ## 3. Reproduction on the current TLC
 
 None of the previously unknown TLC issues reproduces on `bc1b506`. All three were
-fixed upstream within days of `7e64fd0`. The closed findings that the campaign
+fixed upstream within days of `7e64fd0`. The SANY parse error
+([`sany-004`](../../findings/SANY/sany-004.md)) reproduces on `bc1b506`. The closed findings that the campaign
 reproduced, `tlc-008` and `tlc-014`, are fixed on `bc1b506` as well. The open
 findings that were rerun, `tlc-013` and `tlc-015`, reproduce on both versions. A
-campaign against TLC `7e64fd0` therefore adds no open TLC defect.
+campaign against TLC `7e64fd0` therefore adds no open TLC defect, and one open
+SANY defect.
 
 ## Method
 
@@ -304,7 +308,10 @@ campaign against TLC `7e64fd0` therefore adds no open TLC defect.
     ones;
   - samples of the other classes, as stated in their rows.
 - **Parser failures.** The 211 `01parser-fail` entries were checked with the
-  SANY of both JARs.
+  SANY of both JARs. The new `all-defects.toml` signature
+  `sany-tuple-with-action-subscript-after-bracket` matches `d701237a` and no
+  other parser failure. It matches 2 of 3,000 entries sampled from `02tlc-pass`,
+  `02apa-crash` and `03aggregator-fail`.
 - **Upstream fixes.** The fixing commits were found in the history of
   `SpecProcessor.java` between `7e64fd0` and `bc1b506`, and confirmed by the
   MWEs above.
