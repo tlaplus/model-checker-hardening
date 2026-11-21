@@ -1,6 +1,6 @@
 # `RunOutput`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/cli/RunOutput.java#L20) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/cli/RunOutput.java#L20) · module [cli](../modules/cli.md)
 
 The output of one run: the command's configured writer and an optional live display in front of it.
 

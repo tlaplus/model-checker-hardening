@@ -1,6 +1,6 @@
 # `RunMetric`
 
-`io.github.tlaplus.hardening.cli` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/cli/RunMetric.java#L11) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/cli/RunMetric.java#L11) · module [cli](../modules/cli.md)
 
 Stable field identity, independent of screen coordinates or formatted text.
 

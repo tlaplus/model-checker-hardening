@@ -1,6 +1,6 @@
 # `Cleanup`
 
-`io.github.tlaplus.hardening.common` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/common/Cleanup.java#L6) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/common/Cleanup.java#L6) · module [common](../modules/common.md)
 
 Best-effort I/O cleanup that retains the original failure and its suppressed diagnostics.
 

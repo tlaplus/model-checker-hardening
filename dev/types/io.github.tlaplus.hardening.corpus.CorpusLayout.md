@@ -1,6 +1,6 @@
 # `CorpusLayout`
 
-`io.github.tlaplus.hardening.corpus` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/corpus/CorpusLayout.java#L35) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/corpus/CorpusLayout.java#L35) · module [corpus](../modules/corpus.md)
 
 Where one corpus keeps its files, how an entry is named, and how a file is written into it.
 
