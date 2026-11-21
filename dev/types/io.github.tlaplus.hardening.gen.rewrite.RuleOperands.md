@@ -1,10 +1,10 @@
 # `RuleOperands`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleOperands.java#L29) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RuleOperands.java#L29) · module [gen](../modules/gen.md)
 
 Draws what instantiating a rule needs beyond a match (ADR 0017 §3): a concrete type for every type variable the match leaves open, then a value for each drawn parameter at its type.
 
-**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0017-rewrite-rule-library.md), [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0017-rewrite-rule-library.md), [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

@@ -1,10 +1,10 @@
 # `TransitionGraph`
 
-`io.github.tlaplus.hardening.gen.graph` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/gen/graph/TransitionGraph.java#L22) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.graph` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/gen/graph/TransitionGraph.java#L22) · module [gen](../modules/gen.md)
 
 A directed graph over the nodes `0..N-1`, the control structure of a graph module (ADR 0023 §2).
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

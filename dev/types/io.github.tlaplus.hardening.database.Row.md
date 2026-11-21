@@ -1,6 +1,6 @@
 # `Row`
 
-`io.github.tlaplus.hardening.database` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/database/Row.java#L14) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/database/Row.java#L14) · module [database](../modules/database.md)
 
 The values of one row, set by column.
 

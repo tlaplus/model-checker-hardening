@@ -59,5 +59,5 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0006-known-defect-signatures.md)
-- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0028-temporal-property-quality.md)
+- [ADR 0006: Known-defect signatures](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0006-known-defect-signatures.md)
+- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0028-temporal-property-quality.md)

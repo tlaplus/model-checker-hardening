@@ -1,10 +1,10 @@
 # `MetamorphicPayload`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/gen/rewrite/MetamorphicPayload.java#L19) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/gen/rewrite/MetamorphicPayload.java#L19) · module [gen](../modules/gen.md)
 
 The layout of a metamorphic input (ADR 0016 §1):
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0016-metamorphic-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0016-metamorphic-testing.md)
 
 ```mermaid
 classDiagram

@@ -1,6 +1,6 @@
 # `InventoryScan`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/corpus/InventoryScan.java#L35) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/corpus/InventoryScan.java#L35) · module [corpus](../modules/corpus.md)
 
 The second pass of startup recovery: validates every entry of a corpus in which no transition is half-finished, and reports what it holds.
 

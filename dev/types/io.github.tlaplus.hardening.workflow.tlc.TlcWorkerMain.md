@@ -1,6 +1,6 @@
 # `TlcWorkerMain`
 
-`io.github.tlaplus.hardening.workflow.tlc` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcWorkerMain.java#L26) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tlc` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcWorkerMain.java#L26) · module [workflow](../modules/workflow.md)
 
 One-shot TLC child process.
 

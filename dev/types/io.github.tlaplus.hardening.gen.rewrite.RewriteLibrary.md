@@ -1,10 +1,10 @@
 # `RewriteLibrary`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewriteLibrary.java#L31) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewriteLibrary.java#L31) · module [gen](../modules/gen.md)
 
 The rules of one rule module, in declaration order (ADR 0017 §1).
 
-**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0017-rewrite-rule-library.md)
+**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0017-rewrite-rule-library.md)
 
 ```mermaid
 classDiagram

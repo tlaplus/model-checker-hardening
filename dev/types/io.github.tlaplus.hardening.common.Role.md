@@ -1,10 +1,10 @@
 # `Role`
 
-`io.github.tlaplus.hardening.common` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/common/Role.java#L9) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/common/Role.java#L9) · module [common](../modules/common.md)
 
 What a type does in its package, as the architecture atlas shows it (ADR 0022).
 
-**Decisions:** [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/docs/decisions/0022-architecture-atlas.md)
+**Decisions:** [ADR 0022: Architecture atlas](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/docs/decisions/0022-architecture-atlas.md)
 
 ```mermaid
 classDiagram

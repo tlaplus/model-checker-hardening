@@ -1,6 +1,6 @@
 # `InputStageConfig`
 
-`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/config/InputStageConfig.java#L15) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/config/InputStageConfig.java#L15) · module [config](../modules/config.md)
 
 The input stage's occupancy limit and the known-defect databases its admission consults.
 

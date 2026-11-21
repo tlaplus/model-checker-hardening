@@ -1,6 +1,6 @@
 # `RunTerminal`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/a410726a3386c3c9938acd3065b88cce8664b5bf/src/main/java/io/github/tlaplus/hardening/cli/RunTerminal.java#L11) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/55f773569fabb98e25d93a38f23df40b83b375cf/src/main/java/io/github/tlaplus/hardening/cli/RunTerminal.java#L11) · module [cli](../modules/cli.md)
 
 Acquires the process stdout terminal for live progress when it is capable.
 
