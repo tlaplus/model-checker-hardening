@@ -1,11 +1,13 @@
 ---
-state: open
+state: closed
 labels: [sany]
 ---
 
 # SANY crashes while formatting a level error for `%`
 
 ## Summary
+
+Fixed by https://github.com/tlaplus/tlaplus/pull/1401
 
 SANY throws `FrontEndException` instead of returning a semantic-analysis or
 level-checking failure when a diagnostic names the infix `%` operator. The
