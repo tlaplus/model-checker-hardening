@@ -557,7 +557,7 @@ AGGREGATOR_SIGNATURES = (
     failure("division-by-zero-tlc-fails.md", Tool.TLC,
             r"^The second argument of \\div is 0\.$"),
     failure("infinite-set-as-state-value.md", Tool.TLC,
-            r"^TLC has found a state in which the value of a variable contains (?:Int|Nat|Seq\(.*)$"),
+            r"^TLC has found a state in which the value of a variable contains (?:Int|Nat|STRING|Seq\(.*)$"),
     failure("filter-over-infinite-set.md", Tool.TLC,
             r"^Attempted to enumerate \{ x \\in S : p\(x\) \} when S:$"),
     failure("union-containing-infinite-set.md", Tool.TLC,
@@ -579,7 +579,7 @@ AGGREGATOR_SIGNATURES = (
             # Truncation drops the "with <value>:" tail whenever the compared
             # value is long, so match only the prefix TLC always emits.
             r"^Attempted to compare (?:the set|overridden value) ",
-            r"^Attempted to check equality of the set .+ with the value:$"),
+            r"^Attempted to check equality of the set .+(?: with the value:|…)$"),
     # The same operand reached as the element of a membership test rather than
     # as a value being compared. TLC names the element, not the set, so the
     # finite-set-containing-infinite-set alternatives above cannot match.

@@ -159,6 +159,18 @@ class AggregatorClassificationTest(unittest.TestCase):
                 "TLC has found a state in which the value of a variable contains Seq({FALSE, TRU…",
                 "infinite-set-as-state-value.md",
             ),
+            (
+                "TLC has found a state in which the value of a variable contains STRING",
+                "infinite-set-as-state-value.md",
+            ),
+            (
+                'Attempted to check equality of the set {<<<<"value1_OF_MODEL">>>>} with the val…',
+                "finite-set-containing-infinite-set.md",
+            ),
+            (
+                'Attempted to check equality of the set {<<[Tag1 |-> {"value1_OF_MODEL"}]>>} w…',
+                "finite-set-containing-infinite-set.md",
+            ),
         )
         for detail, issue in cases:
             with self.subTest(issue=issue):
