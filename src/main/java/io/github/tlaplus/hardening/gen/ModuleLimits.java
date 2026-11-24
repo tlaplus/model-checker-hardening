@@ -28,6 +28,10 @@ public record ModuleLimits(int maximumVariables, int maximumAuxiliaryOperators,
     }
 
     /** Returns these limits with another step bound. */
+    public ModuleLimits withMaximumFairnessConditions(int conditions) {
+        return new ModuleLimits(maximumVariables, maximumAuxiliaryOperators, actions, maximumSteps, conditions);
+    }
+
     public ModuleLimits withMaximumSteps(int steps) {
         return new ModuleLimits(maximumVariables, maximumAuxiliaryOperators, actions, steps, maximumFairnessConditions);
     }

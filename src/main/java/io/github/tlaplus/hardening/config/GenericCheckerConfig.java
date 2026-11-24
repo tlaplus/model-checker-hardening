@@ -15,20 +15,23 @@ import java.util.Objects;
  * @param compatibility the reference checker whose conventions the tool follows
  * @param executable the tool, relative to the configuration file until it is resolved
  * @param arguments the command-line arguments, each of which may contain placeholders
+ * @param capabilities what the tool supports of the reference checker's conventions
  */
 @ArchRole(Role.CONFIG)
 public record GenericCheckerConfig(
-        String name, GenericCompatibility compatibility, Path executable, List<String> arguments) {
+        String name, GenericCompatibility compatibility, Path executable, List<String> arguments,
+        GenericCapabilities capabilities) {
     /** The table a configuration without a generic checker shows, commented out: Manyan, against TLC. */
     static final GenericCheckerConfig EXAMPLE = new GenericCheckerConfig(
             "Manyan", GenericCompatibility.TLC, ToolsConfig.DIRECTORY.resolve("manyan-a9ca4f38028f"),
             List.of("-workers", "1", "-deadlock", "-config", GenericPlaceholder.CONFIG.token(),
-                    GenericPlaceholder.MODULE.token()));
+                    GenericPlaceholder.MODULE.token()), GenericCapabilities.FULL);
 
     public GenericCheckerConfig {
         Preconditions.require(!Objects.requireNonNull(name, "name").isBlank(), "generic.name must not be blank");
         Objects.requireNonNull(compatibility, "compatibility");
         Objects.requireNonNull(executable, "executable");
+        Objects.requireNonNull(capabilities, "capabilities");
         arguments = List.copyOf(Objects.requireNonNull(arguments, "arguments"));
         for (var argument : arguments) {
             var unknown = GenericPlaceholder.unknownNames(argument);
@@ -38,6 +41,12 @@ public record GenericCheckerConfig(
         // A stage passes one rendering of the module: TLA+ source or Apalache's JSON IR.
         Preconditions.require(!(names(arguments, GenericPlaceholder.MODULE) && names(arguments, GenericPlaceholder.IR)),
                 "generic.arguments: name the module as {module} or as {ir}, not both");
+    }
+
+    /** A checker with the reference checker's capabilities. */
+    public GenericCheckerConfig(
+            String name, GenericCompatibility compatibility, Path executable, List<String> arguments) {
+        this(name, compatibility, executable, arguments, GenericCapabilities.FULL);
     }
 
     /** Reports whether an argument names {@code placeholder}. */
@@ -51,7 +60,7 @@ public record GenericCheckerConfig(
 
     /** Returns this checker with {@code replacement} as its executable. */
     public GenericCheckerConfig withExecutable(Path replacement) {
-        return new GenericCheckerConfig(name, compatibility, replacement, arguments);
+        return new GenericCheckerConfig(name, compatibility, replacement, arguments, capabilities);
     }
 
     /** Resolves the executable relative to the directory of the configuration file. */

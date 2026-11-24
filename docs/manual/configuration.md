@@ -62,12 +62,14 @@ also excludes bounded quantifiers and functions, because their domains are sets.
 
 `action`, `temporal`, `unbound`, `exotic`, `control`, `label`, `operator`,
 `quantifier`, `bool_logic`, `arithmetic`, `set`, `finite_set`, `universe`,
-`sequence`, `function`, `fold`, `tuple`, `record`, `variant`, `model`.
+`sequence`, `function`, `fold`, `tuple`, `record`, `variant`, `model`, `fairness`.
 
 `unbound` covers unbounded quantifiers and `CHOOSE` (`\A x : P`, `\E x : P`,
 `CHOOSE x : P`), which neither checker can evaluate in general. `exotic` covers
 operators that one or both checkers do not support: `\cdot`, `-+->`, and temporal `\EE`
-and `\AA`. Both are ignored by default. The `core` category provides literals and fallbacks and cannot be
+and `\AA`. Both are ignored by default. `fairness` covers `WF_v(A)` and `SF_v(A)` in
+formulas, which `temporal` covers too; `max_fairness` bounds the fairness conditions of
+the specification. The `core` category provides literals and fallbacks and cannot be
 ignored.
 
 ### Weighting forms

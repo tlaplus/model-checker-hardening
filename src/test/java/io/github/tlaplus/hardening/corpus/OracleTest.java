@@ -13,7 +13,9 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class OracleTest {
@@ -105,6 +107,32 @@ class OracleTest {
                 () -> new CheckingPolicy(CheckerSet.DEFAULT, Oracle.GRAPH, ExpectedOutcomes.NONE));
     }
 
+    /**
+     * A checker compared by exit status alone matches any error of another checker, while the
+     * others still agree exactly (ADR 0033 §7).
+     */
+    @Test
+    void comparesAnExitStatusOnlyCheckerByWhetherItPassed() {
+        assertEquals(PASS, statusOnly(Oracle.CONFORMANCE, COUNTEREXAMPLE, COUNTEREXAMPLE, FAIL));
+        assertEquals(PASS, statusOnly(Oracle.CONFORMANCE, FAIL, FAIL, FAIL));
+        assertEquals(PASS, statusOnly(Oracle.CONFORMANCE, PASS, PASS, PASS));
+        assertEquals(FAIL, statusOnly(Oracle.CONFORMANCE, PASS, PASS, FAIL));
+        assertEquals(FAIL, statusOnly(Oracle.CONFORMANCE, COUNTEREXAMPLE, COUNTEREXAMPLE, PASS));
+        assertEquals(FAIL, statusOnly(Oracle.CONFORMANCE, COUNTEREXAMPLE, FAIL, FAIL), "TLC and Apalache still differ");
+        assertEquals(PASS, statusOnly(Oracle.METAMORPHIC, FAIL, FAIL, FAIL));
+        assertEquals(FAIL, statusOnly(Oracle.METAMORPHIC, COUNTEREXAMPLE, COUNTEREXAMPLE, FAIL));
+        assertThrows(IllegalArgumentException.class, () -> new CheckingPolicy(CheckerSet.DEFAULT, Oracle.GRAPH,
+                ExpectedOutcomes.NONE, Set.of(CorpusStage.GENERIC)));
+    }
+
+    /** Judges TLC, Apalache and the generic checker, the last by exit status alone. */
+    private static CorpusVerdict statusOnly(
+            Oracle oracle, CorpusVerdict tlc, CorpusVerdict apalache, CorpusVerdict generic) {
+        var results = Map.of(CorpusStage.TLC, result(tlc), CorpusStage.APALACHE, result(apalache),
+                CorpusStage.GENERIC, result(generic));
+        return oracle.judge(results, Optional.empty(), Set.of(CorpusStage.GENERIC));
+    }
+
     /** Judges {@code results}, keyed by the checker branches in order, against a pass. */
     private static CorpusVerdict judge(Oracle oracle, List<StageRecord> results) {
         return judge(oracle, results, Optional.of(ExpectedOutcome.pass()));
@@ -116,7 +144,7 @@ class OracleTest {
         for (var index = 0; index < results.size(); index++) {
             keyed.put(CorpusStage.checkerBranches().get(index), results.get(index));
         }
-        return oracle.judge(keyed, expected);
+        return oracle.judge(keyed, expected, Set.of());
     }
 
     private static List<StageRecord> verdicts(CorpusVerdict... verdicts) {

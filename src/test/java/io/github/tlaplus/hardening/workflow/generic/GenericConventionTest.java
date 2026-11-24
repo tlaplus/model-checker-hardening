@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.GenericCompatibility;
+import io.github.tlaplus.hardening.config.GenericErrors;
 import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -27,6 +28,27 @@ class GenericConventionTest {
         assertEquals(Optional.of(CheckerFailureCode.PARSE), failure(150, ""));
         assertEquals(Optional.of(CheckerFailureCode.PARSE), failure(151, ""));
         assertEquals(StageOutcome.CRASH, outcome(255));
+    }
+
+    /**
+     * Compared by exit status alone, 0 passes, a signal crashes, and every other status is an error
+     * without a failure code, whatever the compatibility (ADR 0033 §7).
+     */
+    @Test
+    void classifiesOnlyZeroAndNonzeroInTheNonzeroMode() {
+        for (var compatibility : GenericCompatibility.values()) {
+            var classifier = GenericConvention.of(compatibility).classifier(GenericErrors.NONZERO);
+            assertEquals(StageOutcome.PASS, classifier.classify(0, "").outcome());
+            for (var error : new int[] {1, 2, 12, 75, 128, 129, 138, 150, 151, 255}) {
+                var result = classifier.classify(error, "");
+                assertEquals(StageOutcome.FAIL, result.outcome(), Integer.toString(error));
+                assertEquals(Optional.empty(), result.failureCode(), Integer.toString(error));
+            }
+            for (var signal : new int[] {132, 133, 134, 135, 136, 137, 139}) {
+                assertEquals(StageOutcome.CRASH, classifier.classify(signal, "").outcome(), Integer.toString(signal));
+            }
+        }
+        assertEquals(StageOutcome.COUNTEREXAMPLE, TLC.classifier(GenericErrors.EXACT).classify(12, "").outcome());
     }
 
     /** TLC's command line reports integer overflow with status 255; it is an evaluation failure. */

@@ -233,8 +233,8 @@ weights = {}
 [generic]
 # A model checker that claims compatibility with TLC or Apalache, which the generic checker
 # stage runs (ADR 0033). fuzztla init --generic FILE writes this table from FILE and copies
-# its executable into tools/; generic/ in the repository holds examples. The four keys go
-# together. name is the tool's name in progress output and reports.
+# its executable into tools/; generic/ in the repository holds examples. The first
+# four keys go together. name is the tool's name in progress output and reports.
 # name = "Manyan"
 # "tlc" or "apalache": the checker whose configuration file and exit statuses the tool follows.
 # compatibility = "tlc"
@@ -244,3 +244,14 @@ weights = {}
 # {dir}, {module}, {module_name}, {config}, {init}, {next}, {inv}, {temporal}, {length}
 # and {ir}. Have the tool use one worker: FuzzTLA runs several invocations at once.
 # arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
+# Optional, "exact" if omitted: compare the exit statuses as the compatibility defines them.
+# "nonzero": compare only whether the tool exits 0, for a tool whose other statuses differ
+# (ADR 0033 §7). A process killed by a fatal signal, such as 139 for SIGSEGV, still crashes.
+# errors = "exact"
+# Optional, true if omitted. false generates no weak or strong fairness, in the
+# specification or in properties, for every checker of the corpus (ADR 0033 §8).
+# fairness = true
+# Optional, true if omitted. false generates no operators of the Apalache and Variants
+# modules, the folds and variants, for every checker of the corpus, and gives the tool its
+# module without them in EXTENDS (ADR 0033 §8).
+# apalache = true

@@ -23,6 +23,16 @@ class SpecTextTest {
         assertTrue(SpecText.withinWorkerProtocolLimit(module));
     }
 
+    /** A tool without the Apalache modules gets a module that does not extend them (ADR 0033 §8). */
+    @Test
+    void dropsModulesFromTheExtendsClause() {
+        var text = SpecText.render(FuzzInputModule.create(IrGenerators.expressions().generate(new byte[0])));
+        assertTrue(text.contains("EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants\n\n"), text);
+
+        var without = SpecText.withoutExtended(text, List.of("Apalache", "Variants"));
+        assertEquals(text.replace("TLC, Apalache, Variants\n", "TLC\n"), without);
+    }
+
     @Test
     void rendersLabelParametersAsIdentifiersRatherThanStringLiterals() {
         // The IR carries a label's name and formal parameters as string arguments. TLA+ wants

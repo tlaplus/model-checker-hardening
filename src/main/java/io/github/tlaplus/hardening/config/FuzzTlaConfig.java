@@ -61,10 +61,19 @@ public record FuzzTlaConfig(
             if (tools.generic().isEmpty()) {
                 throw new IllegalArgumentException("workflow.checkers lists generic, but there is no [generic] table");
             }
+            // Every checker gets the inputs the generic checker can read (ADR 0033 §8).
+            generator = tools.generic().orElseThrow().capabilities().restrict(generator);
             // Instance-linked libraries are not probed with a generic checker (ADR 0033, probe P5).
             if (libraries.modules().stream().anyMatch(module -> module.linkage() == LibraryLinkage.INSTANCE)) {
                 throw new IllegalArgumentException(
                         "workflow.checkers lists generic, which does not run instance-linked libraries yet");
+            }
+            // The graph oracle judges counterexamples and their lengths (ADR 0023 §5), which a
+            // checker compared only on its exit status does not report (ADR 0033 §7).
+            if (workflow.technique() == Technique.GBT
+                    && tools.generic().orElseThrow().capabilities().errors() == GenericErrors.NONZERO) {
+                throw new IllegalArgumentException(
+                        "generic.errors = \"nonzero\" does not apply to gbt, whose oracle judges counterexamples");
             }
         }
         if (!pbt.supportsDistinctInputs(workflow.maximumEntries())) {

@@ -9,17 +9,17 @@ Apalache. FuzzTLA compares its verdicts with those of the other checkers in the 
 The checker is called `generic` in the checker list and the corpus, and it is described
 by the `[generic]` table of `config.toml`.
 
-## 1. Building Manyan
+## 1. Building a checker
 
-[Manyan](https://github.com/soasme/manyan) is a TLC-compatible checker written in C.
-To build it at the pinned revision, run:
+The repository builds two checkers at pinned revisions:
 
-```sh
-make manyan-build
-```
+| checker | target | revision variable | needs |
+| --- | --- | --- | --- |
+| [Manyan](https://github.com/soasme/manyan), in C | `make manyan-build` | `MANYAN_REV` | a C11 compiler |
+| [tla-rs](https://github.com/fabracht/tla-rs), in Rust | `make tla-rs-build` | `TLA_RS_REV` | cargo |
 
-The binary is staged as `target/checkers/manyan-<rev12>`. To build another revision,
-pass `MANYAN_REV=<sha-or-tag>`. The build needs a C11 compiler.
+Each binary is staged as `target/checkers/<checker>-<rev12>`. To build another
+revision, pass the variable, as in `make manyan-build MANYAN_REV=<sha-or-tag>`.
 
 ## 2. Initializing a corpus
 
@@ -30,6 +30,7 @@ Manyan:
 | --- | --- |
 | `generic/manyan.toml` | Manyan with TLC |
 | `generic/manyan-symbolic.toml` | Manyan's bounded mode with Apalache |
+| `generic/tla-rs.toml` | tla-rs with TLC, by exit status alone |
 
 Name one at `init`:
 
@@ -49,7 +50,8 @@ executable = "../target/checkers/manyan-a9ca4f38028f"
 arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 ```
 
-- **The four keys go together.** A table that sets only some of them is an error.
+- **The first four keys go together.** A table that sets only some of them is an error.
+  `errors`, `fairness` and `apalache` are optional.
 - **`compatibility`** is `tlc` or `apalache`. It decides which configuration file
   FuzzTLA writes and how exit statuses become verdicts.
 - **`executable`** is relative to the file that names it. A corpus with a native tool
@@ -57,6 +59,22 @@ arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
   missing or not executable.
 - **`arguments`** is the command line, one array element per argument. Have the tool
   use one worker: FuzzTLA runs several invocations in parallel itself.
+- **`errors`** is `"exact"` when omitted: the exit statuses mean what they mean to the
+  compatibility's checker. `"nonzero"` is for a tool with exit statuses of its own, such
+  as tla-rs, which exits 0 or 1. With it, FuzzTLA compares only whether the tool exits 0:
+  any error matches a counterexample or a failure of another checker. A fatal signal,
+  such as status 139 for SIGSEGV, is still a crash. `gbt` corpora reject `"nonzero"`,
+  because their oracle compares counterexamples
+  ([ADR 0033](../decisions/0033-generic-checker.md) §7).
+- **`fairness`** and **`apalache`** are `true` when omitted. Set `fairness = false` for
+  a tool that does not check `WF_v(A)` and `SF_v(A)`. Set `apalache = false` for a tool
+  that reads neither the `Apalache` nor the `Variants` module. While `generic` runs,
+  every checker of the corpus then gets inputs without these features:
+  - `fairness = false` sets `max_fairness` to 0 and adds `fairness` to
+    `[generator] ignore`;
+  - `apalache = false` adds `fold` and `variant` to `ignore`, and the generic checker's
+    module does not extend `Apalache` and `Variants`
+    ([ADR 0033](../decisions/0033-generic-checker.md) §8).
 
 Then add `generic` to the checker list, and list Manyan's known-defect signatures
 ([Known-defect signatures](known-defect-signatures.md#73-manyan-database)):
@@ -110,10 +128,20 @@ part in every oracle. FuzzTLA records no state counts or trace lengths for it, s
 - the [state-count agreement](exploration-metrics.md) does not apply to it;
 - the graph oracle checks only its verdict.
 
-A timeout is a crash, as it is for the other checkers.
+A timeout is a crash, as it is for the other checkers. With `errors = "nonzero"`, every
+error goes to `02gen-fail`, and `02gen-counterexample` stays empty.
 
 Expect Manyan to differ from TLC on about one pbt entry in five on parsing alone, for
 example on `[A]_FALSE` ([ADR 0033](../decisions/0033-generic-checker.md#probe), P2).
 Known-defect signatures filter these out of the aggregator's failures.
+
+tla-rs `v0.24.11` checks a subset of TLA<sup>+</sup>. `generic/tla-rs.toml` sets
+`apalache = false`, because tla-rs cannot parse the bundled `Apalache.tla`. tla-rs still
+rejects two constructs of generated modules:
+- labels, which `[generator] ignore` can exclude with `label`;
+- `UNCHANGED (<<x>>)` and `[]([Next]_(<<x>>))`, the printer's forms, although it parses
+  `UNCHANGED <<x>>` and `[][Next]_<<x>>`.
+
+Until the second is resolved, tla-rs reports an error on almost every input.
 
 Findings cite the tool's revision, together with the FuzzTLA, TLC and Apalache versions.

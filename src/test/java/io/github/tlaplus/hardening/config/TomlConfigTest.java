@@ -204,6 +204,56 @@ class TomlConfigTest {
         assertTrue(both.getMessage().contains("{module} or as {ir}, not both"), both.getMessage());
     }
 
+    /**
+     * errors is optional and "exact" when omitted; "nonzero" compares the exit status alone, which
+     * the graph oracle cannot use (ADR 0033 §7).
+     */
+    @Test
+    void readsTheErrorsModeOfAGenericChecker(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        assertTrue(defaults.contains("\n# errors = \"exact\"\n"), defaults);
+        var complete = defaults.replace("checkers = [\"tlc\", \"apalache\"]", "checkers = [\"tlc\", \"generic\"]")
+                .replace("# name = ", "name = ").replace("# compatibility = ", "compatibility = ")
+                .replace("# executable = ", "executable = ").replace("# arguments = ", "arguments = ");
+        assertEquals(GenericErrors.EXACT, readConfig(directory, complete).tools().generic().orElseThrow().capabilities().errors());
+
+        var nonzero = complete.replace("# errors = \"exact\"", "errors = \"nonzero\"");
+        assertEquals(GenericErrors.NONZERO, readConfig(directory, nonzero).tools().generic().orElseThrow().capabilities().errors());
+        var unknown = assertInvalid(directory, complete.replace("# errors = \"exact\"", "errors = \"zero\""));
+        assertTrue(unknown.getMessage().contains("unknown errors mode 'zero'"), unknown.getMessage());
+        var alone = assertInvalid(directory, defaults.replace("# errors = \"exact\"", "errors = \"nonzero\""));
+        assertEquals("generic sets errors without the keys of a checker: name, compatibility, executable, arguments",
+                alone.getMessage());
+        var graph = assertInvalid(directory, nonzero.replace("technique = \"pbt\"", "technique = \"gbt\""));
+        assertTrue(graph.getMessage().contains("does not apply to gbt"), graph.getMessage());
+    }
+
+    /**
+     * fairness = false and apalache = false shape what every checker gets (ADR 0033 §8), but only
+     * while the generic checker runs.
+     */
+    @Test
+    void restrictsGenerationToTheCapabilitiesOfTheGenericChecker(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        assertTrue(defaults.contains("\n# fairness = true\n"), defaults);
+        assertTrue(defaults.contains("\n# apalache = true\n"), defaults);
+        var table = defaults.replace("# name = ", "name = ").replace("# compatibility = ", "compatibility = ")
+                .replace("# executable = ", "executable = ").replace("# arguments = ", "arguments = ")
+                .replace("# fairness = true", "fairness = false").replace("# apalache = true", "apalache = false");
+
+        var idle = readConfig(directory, table);
+        assertEquals(new GenericCapabilities(GenericErrors.EXACT, false, false),
+                idle.tools().generic().orElseThrow().capabilities());
+        assertEquals(FuzzTlaConfig.defaults().generator(), idle.generator(), "generic does not run");
+
+        var generator = readConfig(directory,
+                table.replace("checkers = [\"tlc\", \"apalache\"]", "checkers = [\"tlc\", \"generic\"]")).generator();
+        assertEquals(0, generator.modules().maximumFairnessConditions());
+        assertTrue(generator.ignoredCategories().containsAll(
+                Set.of(ExpressionCategory.FAIRNESS, ExpressionCategory.FOLD, ExpressionCategory.VARIANT)));
+        assertTrue(generator.ignoredCategories().containsAll(FuzzTlaConfig.defaults().generator().ignoredCategories()));
+    }
+
     /** A generic checker file holds exactly the [generic] table; the shipped examples are such files. */
     @Test
     void readsAGenericCheckerFile(@TempDir Path directory) throws Exception {
@@ -213,6 +263,9 @@ class TomlConfigTest {
         assertEquals(examples.resolveSibling("target/checkers/manyan-a9ca4f38028f").normalize(), manyan.executable());
         assertEquals(GenericCompatibility.APALACHE,
                 TomlConfig.readGeneric(examples.resolve("manyan-symbolic.toml")).compatibility());
+        assertEquals(GenericCapabilities.FULL, manyan.capabilities());
+        assertEquals(new GenericCapabilities(GenericErrors.NONZERO, true, false),
+                TomlConfig.readGeneric(examples.resolve("tla-rs.toml")).capabilities());
 
         var extra = Files.writeString(directory.resolve("extra.toml"),
                 "[generic]\nname = \"X\"\ncompatibility = \"tlc\"\nexecutable = \"x\"\narguments = []\n\n[tools]\n");

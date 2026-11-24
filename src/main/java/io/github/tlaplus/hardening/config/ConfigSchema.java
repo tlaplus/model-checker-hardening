@@ -423,8 +423,8 @@ final class ConfigSchema {
             checker -> checker.map(GenericCheckerConfig::name), new Absent<>(),
             "A model checker that claims compatibility with TLC or Apalache, which the generic checker",
             "stage runs (ADR 0033). fuzztla init --generic FILE writes this table from FILE and copies",
-            "its executable into tools/; generic/ in the repository holds examples. The four keys go",
-            "together. name is the tool's name in progress output and reports.");
+            "its executable into tools/; generic/ in the repository holds examples. The first",
+            "four keys go together. name is the tool's name in progress output and reports.");
     static final Key<Optional<GenericCompatibility>> GENERIC_COMPATIBILITY = GENERIC.optional(
             "compatibility",
             ConfigValueType.optional(ConfigValueType.GENERIC_COMPATIBILITY, GenericCheckerConfig.EXAMPLE.compatibility()),
@@ -440,6 +440,26 @@ final class ConfigSchema {
             "The command line, one element per argument. An element may contain the placeholders",
             "{dir}, {module}, {module_name}, {config}, {init}, {next}, {inv}, {temporal}, {length}",
             "and {ir}. Have the tool use one worker: FuzzTLA runs several invocations at once.");
+    static final Key<Optional<GenericErrors>> GENERIC_ERRORS = GENERIC.optional(
+            "errors", ConfigValueType.optional(ConfigValueType.GENERIC_ERRORS,
+                    GenericCheckerConfig.EXAMPLE.capabilities().errors()),
+            checker -> checker.map(value -> value.capabilities().errors()), new Absent<>(),
+            "Optional, \"exact\" if omitted: compare the exit statuses as the compatibility defines them.",
+            "\"nonzero\": compare only whether the tool exits 0, for a tool whose other statuses differ",
+            "(ADR 0033 §7). A process killed by a fatal signal, such as 139 for SIGSEGV, still crashes.");
+    static final Key<Optional<Boolean>> GENERIC_FAIRNESS = GENERIC.optional(
+            "fairness", ConfigValueType.optional(ConfigValueType.BOOLEAN,
+                    GenericCheckerConfig.EXAMPLE.capabilities().fairness()),
+            checker -> checker.map(value -> value.capabilities().fairness()), new Absent<>(),
+            "Optional, true if omitted. false generates no weak or strong fairness, in the",
+            "specification or in properties, for every checker of the corpus (ADR 0033 §8).");
+    static final Key<Optional<Boolean>> GENERIC_APALACHE = GENERIC.optional(
+            "apalache", ConfigValueType.optional(ConfigValueType.BOOLEAN,
+                    GenericCheckerConfig.EXAMPLE.capabilities().apalache()),
+            checker -> checker.map(value -> value.capabilities().apalache()), new Absent<>(),
+            "Optional, true if omitted. false generates no operators of the Apalache and Variants",
+            "modules, the folds and variants, for every checker of the corpus, and gives the tool its",
+            "module without them in EXTENDS (ADR 0033 §8).");
 
     private static final ConfigTableBuilder<SeedConfig> SEEDS = new ConfigTableBuilder<>("seeds", FuzzTlaConfig::seeds);
     static final Key<Long> GENERATOR_SEED = SEEDS.key(
@@ -551,6 +571,12 @@ final class ConfigSchema {
         return new ToolsConfig(jars, readGeneric(tables));
     }
 
+    /** Returns the keys a generic checker file must set: those of the checker, not its capabilities. */
+    static Set<String> requiredGenericKeys() {
+        return Set.of(GENERIC_NAME.name(), GENERIC_COMPATIBILITY.name(), GENERIC_EXECUTABLE.name(),
+                GENERIC_ARGUMENTS.name());
+    }
+
     /** The path of the generic checker's table. */
     static String genericPath() {
         return GENERIC_NAME.tablePath();
@@ -565,6 +591,9 @@ final class ConfigSchema {
         var compatibility = GENERIC_COMPATIBILITY.read(tables);
         var executable = GENERIC_EXECUTABLE.read(tables);
         var arguments = GENERIC_ARGUMENTS.read(tables);
+        var errors = GENERIC_ERRORS.read(tables);
+        var fairness = GENERIC_FAIRNESS.read(tables);
+        var apalache = GENERIC_APALACHE.read(tables);
         var keys = List.of(GENERIC_NAME, GENERIC_COMPATIBILITY, GENERIC_EXECUTABLE, GENERIC_ARGUMENTS);
         var values = List.of(name, compatibility, executable, arguments);
         var missing = new ArrayList<String>();
@@ -574,12 +603,23 @@ final class ConfigSchema {
             }
         }
         if (missing.size() == keys.size()) {
+            var optional = new ArrayList<String>();
+            for (var key : List.of(GENERIC_ERRORS, GENERIC_FAIRNESS, GENERIC_APALACHE)) {
+                if (key.read(tables).isPresent()) {
+                    optional.add(key.name());
+                }
+            }
+            if (!optional.isEmpty()) {
+                throw new ConfigException(genericPath() + " sets " + String.join(", ", optional)
+                        + " without the keys of a checker: " + String.join(", ", missing));
+            }
             return Optional.empty();
         }
         if (!missing.isEmpty()) {
             throw new ConfigException("missing " + genericPath() + " keys: " + String.join(", ", missing));
         }
-        return Optional.of(new GenericCheckerConfig(name.get(), compatibility.get(), executable.get(), arguments.get()));
+        return Optional.of(new GenericCheckerConfig(name.get(), compatibility.get(), executable.get(), arguments.get(),
+                new GenericCapabilities(errors.orElse(GenericErrors.EXACT), fairness.orElse(true), apalache.orElse(true))));
     }
 
     private static Map<CorpusStage, CheckerKeys> checkerKeys() {
