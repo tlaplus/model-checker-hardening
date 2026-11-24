@@ -663,7 +663,7 @@ match = [
 id = "sany-temporal-under-modulo"
 references = ["../findings/SANY/sany-001.md"]
 description = "SANY crashes while formatting the level error for % applied to a temporal formula."
-status = "open"
+status = "closed"
 match = [
   '(& (MOD ...) (.. (GLOBALLY ...)))',
   '(& (MOD ...) (.. (EVENTUALLY ...)))',
