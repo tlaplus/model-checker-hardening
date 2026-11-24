@@ -1044,9 +1044,10 @@ class WorkflowRunnerTest {
                 base.pbt(), base.mutator(), base.libraries(), base.metamorphic());
     }
 
-    /** Checker limits of a test that does not enable TLC-n, which takes TLC's limits. */
+    /** Checker limits of a test that enables neither TLC-n nor the generic checker, which take TLC's limits. */
     private static Map<CorpusStage, CheckerStageConfig> checkers(CheckerStageConfig tlc, CheckerStageConfig apalache) {
-        return Map.of(CorpusStage.TLC, tlc, CorpusStage.TLCN, tlc, CorpusStage.APALACHE, apalache);
+        return Map.of(CorpusStage.TLC, tlc, CorpusStage.TLCN, tlc, CorpusStage.APALACHE, apalache,
+                CorpusStage.GENERIC, tlc);
     }
 
     /** TLC-n's workers in {@link #config}; a run with TLC-n needs at least this many CPUs. */
@@ -1067,6 +1068,8 @@ class WorkflowRunnerTest {
                                 CorpusStage.TLCN,
                                 new CheckerStageConfig(total, 10, 512, TLCN_WORKERS),
                                 CorpusStage.APALACHE,
+                                new CheckerStageConfig(total, 10, 512, 1),
+                                CorpusStage.GENERIC,
                                 new CheckerStageConfig(total, 10, 512, 1))),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty());
     }

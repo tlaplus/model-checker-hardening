@@ -31,6 +31,7 @@ class CorpusStageTest {
                 "tlc", CorpusStage.CounterexampleSearch.SHORTEST,
                 "tlcn", CorpusStage.CounterexampleSearch.ANY,
                 "apalache", CorpusStage.CounterexampleSearch.SHORTEST,
+                "generic", CorpusStage.CounterexampleSearch.ANY,
                 "aggregator", CorpusStage.CounterexampleSearch.ANY,
                 "quality", CorpusStage.CounterexampleSearch.ANY), search);
     }
@@ -72,6 +73,7 @@ class CorpusStageTest {
                         CorpusStage.TLC,
                         CorpusStage.TLCN,
                         CorpusStage.APALACHE,
+                        CorpusStage.GENERIC,
                         CorpusStage.AGGREGATOR,
                         CorpusStage.QUALITY),
                 List.of(CorpusStage.values()));
@@ -91,6 +93,7 @@ class CorpusStageTest {
                         CorpusStage.TLC, PipelineRole.CHECKING,
                         CorpusStage.TLCN, PipelineRole.CHECKING,
                         CorpusStage.APALACHE, PipelineRole.CHECKING,
+                        CorpusStage.GENERIC, PipelineRole.CHECKING,
                         CorpusStage.AGGREGATOR, PipelineRole.AGGREGATION,
                         CorpusStage.QUALITY, PipelineRole.SELECTION),
                 Arrays.stream(CorpusStage.values())
@@ -99,7 +102,8 @@ class CorpusStageTest {
 
     @Test
     void theCheckerBranchesAreExactlyTheStagesThatCheck() {
-        assertEquals(List.of(CorpusStage.TLC, CorpusStage.TLCN, CorpusStage.APALACHE), CorpusStage.checkerBranches());
+        assertEquals(List.of(CorpusStage.TLC, CorpusStage.TLCN, CorpusStage.APALACHE, CorpusStage.GENERIC),
+                CorpusStage.checkerBranches());
         for (var stage : CorpusStage.values()) {
             assertEquals(
                     stage.role() == PipelineRole.CHECKING,
@@ -144,6 +148,7 @@ class CorpusStageTest {
                 "tlc", List.of(CorpusVerdict.CRASH),
                 "tlcn", List.of(CorpusVerdict.CRASH),
                 "apalache", List.of(CorpusVerdict.CRASH),
+                "generic", List.of(CorpusVerdict.CRASH),
                 "aggregator", List.of(CorpusVerdict.FAIL),
                 "quality", List.of(CorpusVerdict.FAIL)), retiring);
     }

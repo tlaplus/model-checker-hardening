@@ -78,6 +78,22 @@ public enum CorpusStage {
             // Bounded model checking checks the invariant after each step, so the first
             // violation found is a shortest one; 157 of 157 graph counterexamples agreed (ADR 0023).
             CounterexampleSearch.SHORTEST),
+    /**
+     * The generic checker of ADR 0033: a TLC- or Apalache-compatible tool that the corpus's
+     * {@code [generic]} table names. Its search order is unknown, so it reports any counterexample.
+     */
+    GENERIC(
+            "generic",
+            "generic",
+            new StagePaths(
+                    CorpusPath.GENERIC_INPUT,
+                    CorpusPath.GENERIC_SCRATCH,
+                    Map.of(
+                            CorpusVerdict.PASS, CorpusPath.GENERIC_PASS,
+                            CorpusVerdict.COUNTEREXAMPLE, CorpusPath.GENERIC_COUNTEREXAMPLE,
+                            CorpusVerdict.FAIL, CorpusPath.GENERIC_FAIL,
+                            CorpusVerdict.CRASH, CorpusPath.GENERIC_CRASH)),
+            CounterexampleSearch.ANY),
     AGGREGATOR(
             "aggregator",
             "aggregator",

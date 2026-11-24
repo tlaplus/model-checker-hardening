@@ -39,10 +39,11 @@ class TomlConfigTest {
     @Test
     void renderedDefaultsMatchThePreRefactorFixture() throws Exception {
         try (var fixture = getClass().getResourceAsStream("/config/default.toml.template")) {
-            // Only Apalache's worker default is host-dependent. WorkflowConfigTest pins its
+            // Only the Apalache and generic worker defaults are host-dependent. WorkflowConfigTest pins its
             // CPU-count formula; all other defaults and formatting remain fixed byte-for-byte.
-            var expected = new String(fixture.readAllBytes(), UTF_8).replace(
-                    "${APALACHE_WORKERS}", Integer.toString(CheckerProfile.APALACHE.defaults().workers()));
+            var expected = new String(fixture.readAllBytes(), UTF_8)
+                    .replace("${APALACHE_WORKERS}", Integer.toString(CheckerProfile.APALACHE.defaults().workers()))
+                    .replace("${GENERIC_WORKERS}", Integer.toString(CheckerProfile.GENERIC.defaults().workers()));
             assertArrayEquals(expected.getBytes(UTF_8),
                     TomlConfig.render(FuzzTlaConfig.defaults()).getBytes(UTF_8));
         }
@@ -186,6 +187,21 @@ class TomlConfigTest {
         assertTrue(unknown.getMessage().contains("unknown placeholder {cfg} in '{cfg}'"), unknown.getMessage());
         var compatibility = assertInvalid(directory, complete.replace("compatibility = \"tlc\"", "compatibility = \"tlc2\""));
         assertTrue(compatibility.getMessage().contains("unknown compatibility 'tlc2'"), compatibility.getMessage());
+    }
+
+    /** Running generic needs its table, and the arguments name the module in one representation. */
+    @Test
+    void rejectsAGenericCheckerItCannotRun(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        var listed = defaults.replace("checkers = [\"tlc\", \"apalache\"]", "checkers = [\"tlc\", \"generic\"]");
+        assertTrue(assertInvalid(directory, listed).getMessage().contains("there is no [generic] table"));
+
+        var complete = listed.replace("# name = ", "name = ").replace("# compatibility = ", "compatibility = ")
+                .replace("# executable = ", "executable = ").replace("# arguments = ", "arguments = ");
+        assertEquals(List.of(CorpusStage.TLC, CorpusStage.GENERIC),
+                readConfig(directory, complete).workflow().enabledCheckers().stages());
+        var both = assertInvalid(directory, complete.replace("\"{config}\"", "\"{ir}\""));
+        assertTrue(both.getMessage().contains("{module} or as {ir}, not both"), both.getMessage());
     }
 
     /** A generic checker file holds exactly the [generic] table; the shipped examples are such files. */

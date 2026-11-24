@@ -3,10 +3,12 @@ package io.github.tlaplus.hardening.config;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
+import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.engine.CustomExpressionKind;
+import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -53,6 +55,16 @@ public record FuzzTlaConfig(
             if (kind instanceof CustomExpressionKind custom
                     && !selected.contains(custom.id())) {
                 throw new IllegalArgumentException("weight names an unselected custom operator: " + custom.id());
+            }
+        }
+        if (workflow.enabledCheckers().contains(CorpusStage.GENERIC)) {
+            if (tools.generic().isEmpty()) {
+                throw new IllegalArgumentException("workflow.checkers lists generic, but there is no [generic] table");
+            }
+            // Instance-linked libraries are not probed with a generic checker (ADR 0033, probe P5).
+            if (libraries.modules().stream().anyMatch(module -> module.linkage() == LibraryLinkage.INSTANCE)) {
+                throw new IllegalArgumentException(
+                        "workflow.checkers lists generic, which does not run instance-linked libraries yet");
             }
         }
         if (!pbt.supportsDistinctInputs(workflow.maximumEntries())) {

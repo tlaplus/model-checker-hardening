@@ -151,8 +151,7 @@ final class StageGraph {
                                     new CheckerBackends.Resources(
                                             invocation.maximumCpus(),
                                             startup.scratch(),
-                                            invocation.apalacheJar(),
-                                            CorpusTools.sourceCheckerClasspath(setup.config()),
+                                            CheckerBackends.Tools.of(setup.config(), invocation.apalacheJar()),
                                             setup.config().seeds())),
                             new CheckerRouting(
                                     checkerCapacities.get(checker),

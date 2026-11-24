@@ -6,6 +6,7 @@ import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /** The Apalache command line for one checked module. */
 public final class ApalacheArguments {
@@ -63,16 +64,37 @@ public final class ApalacheArguments {
         options.add("check");
         options.add("--init=" + side.init());
         options.add("--next=" + side.next());
-        if (kind.invariant()) {
-            options.add("--inv=" + (kind.actionInvariant()
-                    ? FuzzInputModule.INV + "," + FuzzInputModule.STEP
-                    : FuzzInputModule.INV));
+        var invariants = invariants(request);
+        if (!invariants.isEmpty()) {
+            options.add("--inv=" + String.join(",", invariants));
         }
-        if (kind.property()) {
-            options.add("--temporal=" + (kind.invariant() ? FuzzInputModule.LIVENESS : side.property()));
-        }
+        temporal(request).ifPresent(property -> options.add("--temporal=" + property));
         options.add("--length=" + request.unrollingLength());
         options.add("--no-deadlock");
         return options;
+    }
+
+    /**
+     * Returns the invariants Apalache checks for {@code request}: the invariant, then the action
+     * invariant of a relation, which Apalache checks on every transition.
+     */
+    public static List<String> invariants(CheckRequest request) {
+        var kind = request.kind();
+        if (!kind.invariant()) {
+            return List.of();
+        }
+        return kind.actionInvariant() ? List.of(FuzzInputModule.INV, FuzzInputModule.STEP) : List.of(FuzzInputModule.INV);
+    }
+
+    /**
+     * Returns the temporal property Apalache checks for {@code request}: {@link FuzzInputModule#LIVENESS}
+     * with the invariant, the side's property alone in a property run, and none otherwise.
+     */
+    public static Optional<String> temporal(CheckRequest request) {
+        var kind = request.kind();
+        if (!kind.property()) {
+            return Optional.empty();
+        }
+        return Optional.of(kind.invariant() ? FuzzInputModule.LIVENESS : FuzzInputModule.entryPoints(kind.side()).property());
     }
 }

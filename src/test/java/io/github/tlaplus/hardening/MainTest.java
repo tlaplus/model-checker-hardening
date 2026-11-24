@@ -959,6 +959,8 @@ class MainTest {
                                 CorpusStage.TLCN,
                                 new CheckerStageConfig(entries, 10, 512, 1),
                                 CorpusStage.APALACHE,
+                                new CheckerStageConfig(entries, 10, 512, 1),
+                                CorpusStage.GENERIC,
                                 new CheckerStageConfig(entries, 10, 512, 1))),
                 new PbtConfig(maximumInputBytes, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty())
                 .withSeeds(SeedConfig.derive(42));

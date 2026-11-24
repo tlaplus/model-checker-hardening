@@ -12,7 +12,7 @@ import java.util.Objects;
  * What differs between the configured model checkers: the defaults of their resource settings and
  * the documentation of the settings whose meaning follows from the worker lifecycle. TLC and TLC-n
  * run one child JVM per input with its own worker threads; Apalache keeps one persistent child JVM
- * per FuzzTLA worker.
+ * per FuzzTLA worker; the generic checker runs one native process per input.
  *
  * <p>Every other fact about a checker table is shared by {@link CheckerStageConfig} and {@link
  * ConfigSchema}, so adding a checker adds one constant here.
@@ -41,6 +41,14 @@ public enum CheckerProfile {
             "Maximum heap allocated to each persistent Apalache worker JVM.",
             List.of(
                     "Number of concurrent FuzzTLA Apalache workers.",
+                    "Initialized to half the available processors, rounded down (at least one).")),
+    GENERIC(
+            CorpusStage.GENERIC,
+            512,
+            Math.max(1, Runtime.getRuntime().availableProcessors() / 2),
+            "Unused: the generic checker is a native process (ADR 0033).",
+            List.of(
+                    "Number of concurrent invocations of the generic checker, one process each.",
                     "Initialized to half the available processors, rounded down (at least one)."));
 
     private final CorpusStage stage;

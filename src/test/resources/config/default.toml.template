@@ -68,7 +68,7 @@ max_entries = 1000
 # Fuzzing technique: "pbt", "mt" for metamorphic testing (ADR 0016) or "gbt" for graph-based testing (ADR 0023).
 # fuzztla init --how sets it; every entry decodes and is judged by it, so keep it (ADR 0025).
 technique = "pbt"
-# Model checkers to run, a subset of ["tlc", "tlcn", "apalache"] (ADR 0016 §5).
+# Model checkers to run, a subset of ["tlc", "tlcn", "apalache", "generic"] (ADR 0016 §5).
 # A corpus with one checker compares no verdicts; keep the list once the corpus holds entries.
 checkers = ["tlc", "apalache"]
 
@@ -123,6 +123,18 @@ max_heap_mb = 1024
 # Number of concurrent FuzzTLA Apalache workers.
 # Initialized to half the available processors, rounded down (at least one).
 workers = ${APALACHE_WORKERS}
+
+[workflow.generic]
+# Maximum combined occupancy of the generic result directories.
+# Defaults to workflow.max_entries.
+# max_entries = 1000
+# Wall-clock limit for checking one generated specification.
+timeout_sec = 30
+# Unused: the generic checker is a native process (ADR 0033).
+max_heap_mb = 512
+# Number of concurrent invocations of the generic checker, one process each.
+# Initialized to half the available processors, rounded down (at least one).
+workers = ${GENERIC_WORKERS}
 
 [pbt]
 # Inclusive upper bound on a randomly generated input's length.

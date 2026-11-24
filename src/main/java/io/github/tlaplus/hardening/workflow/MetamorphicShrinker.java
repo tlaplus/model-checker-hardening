@@ -117,8 +117,8 @@ public final class MetamorphicShrinker {
         }
         var decoders = SpecDecoders.prepare(config, technique);
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
-            var resources = new CheckerBackends.Resources(maximumCpus, scratch, CorpusTools.apalache(config),
-                    CorpusTools.sourceCheckerClasspath(config), config.seeds());
+            var resources = new CheckerBackends.Resources(maximumCpus, scratch,
+                    CheckerBackends.Tools.of(config, CorpusTools.apalache(config)), config.seeds());
             var checkers = new ArrayList<Checker>();
             try {
                 for (var stage : config.workflow().enabledCheckers()) {

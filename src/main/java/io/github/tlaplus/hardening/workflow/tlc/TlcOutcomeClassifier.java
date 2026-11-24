@@ -8,10 +8,19 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import tlc2.output.EC;
 
-/** Maps TLC's internal error constants to workflow outcomes. */
+/**
+ * Maps TLC's internal error constants and exit statuses to workflow outcomes, for TLC and for a
+ * generic checker that follows TLC's exit statuses (ADR 0033 §2).
+ */
 @ArchRole(Role.POLICY)
 @Key
-final class TlcOutcomeClassifier {
+public final class TlcOutcomeClassifier {
+    /**
+     * What TLC's command line prints for {@code EC.TLC_INTEGER_TOO_BIG}, which it reports with the
+     * general exit status 255.
+     */
+    static final String INTEGER_TOO_BIG = "TLC can't handle a number this big.";
+
     private TlcOutcomeClassifier() {}
 
     static ToolResult classifyErrorCode(int errorCode, String diagnostic) {
@@ -20,6 +29,18 @@ final class TlcOutcomeClassifier {
         }
         return classifyExitStatus(
                 EC.ExitStatus.errorConstantToExitStatus(errorCode), diagnostic);
+    }
+
+    /**
+     * Classifies the exit status of a command line that follows TLC's. Integer overflow has the
+     * general status there, so it is recognized by its message and classified as an evaluation
+     * failure, as {@link #classifyErrorCode} does in process (ADR 0033, probe P2).
+     */
+    public static ToolResult classifyCommandLine(int exitStatus, String diagnostic) {
+        if (exitStatus == EC.ExitStatus.ERROR && diagnostic.contains(INTEGER_TOO_BIG)) {
+            return ToolResult.failure(CheckerFailureCode.SPEC_EVAL, diagnostic);
+        }
+        return classifyExitStatus(exitStatus, diagnostic);
     }
 
     static ToolResult classifyExitStatus(int exitStatus, String diagnostic) {
