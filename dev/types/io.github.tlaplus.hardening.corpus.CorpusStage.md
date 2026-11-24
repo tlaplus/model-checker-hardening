@@ -1,6 +1,6 @@
 # `CorpusStage`
 
-`io.github.tlaplus.hardening.corpus` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/corpus/CorpusStage.java#L23) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/corpus/CorpusStage.java#L23) · module [corpus](../modules/corpus.md)
 
 One implemented stage of the fuzzing pipeline, and the corpus directories it owns.
 
@@ -53,6 +53,9 @@ classDiagram
     <<process>>
   }
   class WorkflowMetrics
+  class GenericCheckerBackend {
+    <<adapter>>
+  }
   class ParserRouting {
     <<policy>>
   }
@@ -86,9 +89,6 @@ classDiagram
   class CorpusEnvelope {
     <<record>>
   }
-  class CorpusLayout {
-    <<store>>
-  }
   CorpusStage <|.. CheckerSet
   CorpusStage --> CorpusVerdict : has
   RunView --> CorpusStage : has
@@ -105,6 +105,7 @@ classDiagram
   WorkflowRunSummary --> CorpusStage : has
   AggregatorStage --> CorpusStage : has
   WorkflowMetrics --> CorpusStage : has
+  GenericCheckerBackend --> CorpusStage : has
   ParserRouting --> CorpusStage : has
   TlcCheckerBackend --> CorpusStage : has
   CorpusStage ..> CorpusPath : uses
@@ -118,10 +119,9 @@ classDiagram
   CorpusDirectory ..> CorpusStage : uses
   CorpusEntries ..> CorpusStage : uses
   CorpusEnvelope ..> CorpusStage : uses
-  CorpusLayout ..> CorpusStage : uses
 ```
 
-The diagram draws 30 of 59 relations; the table lists them all.
+The diagram draws 30 of 61 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -141,6 +141,7 @@ The diagram draws 30 of 59 relations; the table lists them all.
 | ← | has | [WorkflowRunSummary](io.github.tlaplus.hardening.workflow.WorkflowRunSummary.md) | Cumulative corpus statistics and stopping reason after one complete workflow invocation. |
 | ← | has | [AggregatorStage](io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage.md) | Joins completed TLC and Apalache results with one in-process worker. |
 | ← | has | [WorkflowMetrics](io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics.md) | The cumulative statistics of one workflow invocation: how long each stage has been busy, what input generation has produced, and the total elapsed time carried over from earlier runs. |
+| ← | has | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
 | ← | has | [ParserRouting](io.github.tlaplus.hardening.workflow.parser.ParserRouting.md) | Routes parser results. |
 | ← | has | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | → | uses | [CorpusPath](io.github.tlaplus.hardening.corpus.CorpusPath.md) | A fixed path in the on-disk corpus layout. |
@@ -173,6 +174,7 @@ The diagram draws 30 of 59 relations; the table lists them all.
 | ← | depends | [ProgressLayout](io.github.tlaplus.hardening.cli.ProgressLayout.md) | Pure, size-bounded flow and table layouts for the same statistics and styles. |
 | ← | depends | [RunTable](io.github.tlaplus.hardening.cli.RunTable.md) | Complete, exact statistics grouped by stage; suitable for scrollback and redirected output. |
 | ← | depends | [ConfigValueType](io.github.tlaplus.hardening.config.ConfigValueType.md) | How the value of one configuration key is read from TOML and written back as TOML syntax. |
+| ← | depends | [FuzzTlaConfig](io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | Complete configuration of input generation and workflow execution. |
 | ← | depends | [TomlConfig](io.github.tlaplus.hardening.config.TomlConfig.md) | Reads and writes the strict `config.toml` format used by a corpus. |
 | ← | depends | [TransitionRecovery](io.github.tlaplus.hardening.corpus.TransitionRecovery.md) | The first pass of startup recovery: finishes the durable transitions an interrupted run left behind. |
 | ← | depends | [CorpusDatabaseSchema](io.github.tlaplus.hardening.database.CorpusDatabaseSchema.md) | The schema of the corpus database, as the corpus-database manual documents it. |

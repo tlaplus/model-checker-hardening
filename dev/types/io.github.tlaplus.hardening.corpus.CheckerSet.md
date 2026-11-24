@@ -1,10 +1,10 @@
 # `CheckerSet`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/corpus/CheckerSet.java#L14) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/corpus/CheckerSet.java#L14) · module [corpus](../modules/corpus.md)
 
 The checker branches a corpus runs: a non-empty set of checking stages, in stage order.
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0016-metamorphic-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0016-metamorphic-testing.md)
 
 ```mermaid
 classDiagram
@@ -57,7 +57,7 @@ classDiagram
   StageGraph ..> CheckerSet : uses
 ```
 
-The diagram draws 13 of 22 relations; the table lists them all.
+The diagram draws 13 of 23 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -77,6 +77,7 @@ The diagram draws 13 of 22 relations; the table lists them all.
 | → | depends | [Preconditions](io.github.tlaplus.hardening.common.Preconditions.md) | Shared validation of method and constructor arguments. |
 | ← | depends | [ApalacheOnlySettings](io.github.tlaplus.hardening.cli.ApalacheOnlySettings.md) | Settings that `fuzztla init` writes only for a corpus that checks with Apalache (ADR 0029 §3), found in a corpus that does not. |
 | ← | depends | [InitialConfig](io.github.tlaplus.hardening.cli.InitialConfig.md) | The configuration `fuzztla init` writes (ADR 0025 §1): the defaults, the shipped known-defect database, the settings that follow from the technique, and fresh seeds (ADR 0026). |
+| ← | depends | [FuzzTlaConfig](io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | Complete configuration of input generation and workflow execution. |
 | ← | depends | [TomlConfig](io.github.tlaplus.hardening.config.TomlConfig.md) | Reads and writes the strict `config.toml` format used by a corpus. |
 | ← | depends | [AggregationInput](io.github.tlaplus.hardening.corpus.AggregationInput.md) | A logical corpus entry whose non-crash checker results are ready for aggregation. |
 | ← | depends | [AggregationRecovery](io.github.tlaplus.hardening.corpus.AggregationRecovery.md) | Recovers aggregate commits and inventories the aggregator's result directories. |

@@ -18,6 +18,7 @@ flowchart TB
   workflow_apalache["workflow.apalache"]
   workflow_checker["workflow.checker"]
   workflow_execution["workflow.execution"]
+  workflow_generic["workflow.generic"]
   workflow_input["workflow.input"]
   workflow_library["workflow.library"]
   workflow_parser["workflow.parser"]
@@ -33,6 +34,7 @@ flowchart TB
   workflow_aggregator -->|7| workflow_execution
   workflow_apalache -->|2| workflow_tool
   workflow_execution -->|1| workflow
+  workflow_generic -->|2| workflow_tool
   workflow_input -->|6| workflow_execution
   workflow_quality -->|1| workflow_execution
   workflow_spec -->|4| workflow_worker
@@ -129,7 +131,7 @@ classDiagram
 | [**ApalacheCheckerBackend** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | class | adapter | Adapts persistent Apalache tool workers to the shared tool stage. |
 | [ApalacheFailureDetail](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheFailureDetail.md) | class | other | Extracts bounded human-readable context from Apalache diagnostics. |
 | [**ApalacheIrJson** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson.md) | class | codec | Renders an assembled module as the typed Apalache IR JSON that Apalache consumes. |
-| [**ApalacheOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | class | policy | Maps Apalache tool exit statuses to shared workflow outcomes. |
+| [**ApalacheOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | class | policy | Maps Apalache tool exit statuses to shared workflow outcomes, for Apalache and for a generic checker that follows Apalache's exit statuses (ADR 0033 §2). |
 | [ApalacheTraceLength](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheTraceLength.md) | class | other | Reads the length of the counterexample Apalache wrote for one check. |
 | [**ApalacheWorkerMain** ★](../types/io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain.md) | class | entry point | Persistent child process that invokes Apalache's `Tool.run` sequentially. |
 
@@ -200,6 +202,27 @@ classDiagram
 | [WorkflowMetrics](../types/io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics.md) | class | other | The cumulative statistics of one workflow invocation: how long each stage has been busy, what input generation has produced, and the total elapsed time carried over from earlier runs. |
 | [WorkflowProgressMonitor](../types/io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor.md) | class | other | Periodically publishes serialized workflow snapshots without delaying stage workers. |
 | [**WorkflowStage** ★](../types/io.github.tlaplus.hardening.workflow.execution.WorkflowStage.md) | interface | contract | An independently scheduled workflow stage that owns its worker threads. |
+
+## `io.github.tlaplus.hardening.workflow.generic`
+
+The generic checker of ADR 0033: a TLC- or Apalache-compatible tool run as one native process per input.
+
+```mermaid
+classDiagram
+  class GenericCheckerBackend {
+    <<adapter>>
+  }
+  class GenericConvention {
+    <<policy>>
+  }
+  GenericCheckerBackend --> GenericConvention : has
+```
+
+| Type | Kind | Role | Summary |
+|---|---|---|---|
+| [**GenericCheckerBackend** ★](../types/io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | class | adapter | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
+| [**GenericConvention** ★](../types/io.github.tlaplus.hardening.workflow.generic.GenericConvention.md) | record | policy | What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, and how an exit status becomes a verdict. |
+| [GenericInvocation](../types/io.github.tlaplus.hardening.workflow.generic.GenericInvocation.md) | record | model | The files and the command line of one generic checker invocation in its working directory (ADR 0033 §3, §4). |
 
 ## `io.github.tlaplus.hardening.workflow.input`
 
@@ -393,7 +416,7 @@ classDiagram
 | [TlcExplorationMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics.md) | class | other | Measures one TLC run and attaches the result to its classified outcome (ADR 0008). |
 | [TlcFailureDetail](../types/io.github.tlaplus.hardening.workflow.tlc.TlcFailureDetail.md) | class | other | Extracts bounded human-readable context from TLC diagnostics. |
 | [TlcMessageMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcMessageMetrics.md) | class | other | Follows the messages TLC prints, which say when its initial states are complete and which states its error trace consists of. |
-| [**TlcOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | class | policy | Maps TLC's internal error constants to workflow outcomes. |
+| [**TlcOutcomeClassifier** ★](../types/io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | class | policy | Maps TLC's internal error constants and exit statuses to workflow outcomes, for TLC and for a generic checker that follows TLC's exit statuses (ADR 0033 §2). |
 | [TlcSettings](../types/io.github.tlaplus.hardening.workflow.tlc.TlcSettings.md) | record | other | What one TLC stage launches its JVMs with: the stage's limits and the TLC seeds of ` [seeds]` (ADR 0026), which every TLC stage shares. |
 | [TlcStateMetrics](../types/io.github.tlaplus.hardening.workflow.tlc.TlcStateMetrics.md) | class | other | Measures the state graph TLC explores, through the state-writer callbacks TLC makes for every initial state and every generated transition. |
 | [TlcValueShape](../types/io.github.tlaplus.hardening.workflow.tlc.TlcValueShape.md) | class | other | The shape of the values of one state: how many value nodes they hold, their largest collection, and their deepest nesting. |
@@ -499,21 +522,21 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0002-pbt-richness-score.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0008-exploration-metrics.md)
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0021-timeout-diagnostics.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0024-graph-action-coverage.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0025-self-contained-corpora.md)
-- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0026-reproducible-runs.md)
-- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0027-temporal-metamorphic-testing.md)
-- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0028-temporal-property-quality.md)
-- [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
-- [ADR 0031: Sampled validation of retired entries at startup](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0031-sampled-startup-validation.md)
-- [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0033-generic-checker.md)
+- [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0002-pbt-richness-score.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0021: Diagnostics of a timed-out worker](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0021-timeout-diagnostics.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0024-graph-action-coverage.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0026-reproducible-runs.md)
+- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0027-temporal-metamorphic-testing.md)
+- [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0028-temporal-property-quality.md)
+- [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
+- [ADR 0031: Sampled validation of retired entries at startup](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0031-sampled-startup-validation.md)
+- [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0033-generic-checker.md)

@@ -1,6 +1,6 @@
 # `CheckerStageConfig`
 
-`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/config/CheckerStageConfig.java#L12) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/config/CheckerStageConfig.java#L12) · module [config](../modules/config.md)
 
 Capacity and resource limits for one model-checker stage.
 
@@ -16,6 +16,9 @@ classDiagram
     <<config>>
   }
   class ApalacheCheckerBackend {
+    <<adapter>>
+  }
+  class GenericCheckerBackend {
     <<adapter>>
   }
   class LibraryTypechecker {
@@ -36,6 +39,7 @@ classDiagram
   StageLimits <|.. CheckerStageConfig
   WorkflowConfig --> CheckerStageConfig : has
   ApalacheCheckerBackend --> CheckerStageConfig : has
+  GenericCheckerBackend --> CheckerStageConfig : has
   LibraryTypechecker --> CheckerStageConfig : has
   TlcSettings --> CheckerStageConfig : has
   CheckerProfile ..> CheckerStageConfig : uses
@@ -43,13 +47,14 @@ classDiagram
   RuleLibraryPreparation ..> CheckerStageConfig : uses
 ```
 
-The diagram draws 8 of 18 relations; the table lists them all.
+The diagram draws 9 of 19 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | implements | [StageLimits](io.github.tlaplus.hardening.config.StageLimits.md) | The limits every configured tool stage takes: its result capacity and a per-input time limit. |
 | ← | has | [WorkflowConfig](io.github.tlaplus.hardening.config.WorkflowConfig.md) | Global and per-stage limits for the implemented fuzzing workflow. |
 | ← | has | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
+| ← | has | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
 | ← | has | [LibraryTypechecker](io.github.tlaplus.hardening.workflow.library.LibraryTypechecker.md) | Finite, isolated Snowcat invocation producing a typed module rather than a checker verdict. |
 | ← | has | [TlcSettings](io.github.tlaplus.hardening.workflow.tlc.TlcSettings.md) | What one TLC stage launches its JVMs with: the stage's limits and the TLC seeds of ` [seeds]` (ADR 0026), which every TLC stage shares. |
 | ← | uses | [CheckerProfile](io.github.tlaplus.hardening.config.CheckerProfile.md) | What differs between the configured model checkers: the defaults of their resource settings and the documentation of the settings whose meaning follows from the worker lifecycle. |

@@ -1,10 +1,10 @@
 # `LibrarySourceProbe`
 
-`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/library/LibrarySourceProbe.java#L21) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/library/LibrarySourceProbe.java#L21) · module [workflow](../modules/workflow.md)
 
 Parses every source alias of a prepared library once, with the classpath the parser and TLC workers receive (ADR 0015).
 
-**Decisions:** [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0015-diff-linked-libraries.md)
+**Decisions:** [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0015-diff-linked-libraries.md)
 
 ```mermaid
 classDiagram

@@ -1,10 +1,10 @@
 # `AssignmentFacts`
 
-`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/gen/rewrite/AssignmentFacts.java#L25) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/gen/rewrite/AssignmentFacts.java#L25) · module [gen](../modules/gen.md)
 
 What a rule does to the checkers' assignments (ADR 0017 §5.3).
 
-**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0017-rewrite-rule-library.md)
+**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0017-rewrite-rule-library.md)
 
 ```mermaid
 classDiagram

@@ -1346,9 +1346,8 @@
 <h1 id="other-model-checkers">Other model checkers<a class="headerlink" href="#other-model-checkers" title="Permanent link">&para;</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Proposed in <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a>. <code>make manyan-build</code>,
-the <code>[generic]</code> table and <code>init --generic</code> are implemented. The <code>generic</code> checker
-stage, which runs the tool, is not yet.</p>
+<p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a> records the design and the probe of
+Manyan it is based on.</p>
 </div>
 <p>A corpus can run one additional model checker that claims compatibility with TLC or
 Apalache. FuzzTLA compares its verdicts with those of the other checkers in the corpus.
@@ -1404,13 +1403,23 @@ JARs, and writes the table into <code>config.toml</code> with the copied path. W
 <li><strong><code>arguments</code></strong> is the command line, one array element per argument. Have the tool
   use one worker: FuzzTLA runs several invocations in parallel itself.</li>
 </ul>
-<p>Then add <code>generic</code> to the checker list:</p>
+<p>Then add <code>generic</code> to the checker list, and list Manyan's known-defect signatures
+(<a href="../known-defect-signatures/#73-manyan-database">Known-defect signatures</a>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>
 <span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">,</span><span class="w"> </span><span class="s2">"generic"</span><span class="p">]</span>
+
+<span class="k">[workflow.inputs]</span>
+<span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">,</span><span class="w"> </span><span class="s2">"../signatures/manyan-defects.toml"</span><span class="p">]</span>
+
+<span class="k">[workflow.generic]</span>
+<span class="n">timeout_sec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+<span class="n">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w">          </span><span class="c1"># concurrent invocations</span>
 </code></pre></div>
+<p>Listing <code>generic</code> without a <code>[generic]</code> table is an error, as is listing it in a corpus
+that links a library through <code>INSTANCE</code>.</p>
 <p>FuzzTLA writes the module, the configuration file, and the <code>Apalache</code> and <code>Variants</code>
-modules that every generated module extends into the invocation's working directory.
-A corpus that links a library through <code>INSTANCE</code> cannot run the generic checker yet.</p>
+modules that every generated module extends into a fresh working directory for each
+invocation, and removes the directory afterwards.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>In the bounded mode of <code>generic/manyan-symbolic.toml</code>, Manyan rejects most generated

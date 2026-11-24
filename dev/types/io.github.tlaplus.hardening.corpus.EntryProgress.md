@@ -1,10 +1,10 @@
 # `EntryProgress`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/corpus/EntryProgress.java#L18) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/corpus/EntryProgress.java#L18) · module [corpus](../modules/corpus.md)
 
 How far one logical entry has moved through the pipeline, and the single definition of the two questions generation scheduling asks of it (ADR 0010).
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram

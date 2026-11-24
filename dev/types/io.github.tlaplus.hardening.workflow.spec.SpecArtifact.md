@@ -1,10 +1,10 @@
 # `SpecArtifact`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L40) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java#L40) · module [workflow](../modules/workflow.md)
 
 One assembled module, what its checkers are asked about it, and what its decoder produced.
 
-**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0014-per-checker-library-linking.md)
+**Decisions:** [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0014-per-checker-library-linking.md)
 
 ```mermaid
 classDiagram
@@ -43,6 +43,9 @@ classDiagram
   class ApalacheCheckerBackend {
     <<adapter>>
   }
+  class GenericCheckerBackend {
+    <<adapter>>
+  }
   class CandidateSource {
     <<contract>>
   }
@@ -71,6 +74,7 @@ classDiagram
   SpecArtifact ..> PropertyRelation : uses
   DecodedInputRenderer ..> SpecArtifact : uses
   ApalacheCheckerBackend ..> SpecArtifact : uses
+  GenericCheckerBackend ..> SpecArtifact : uses
   CandidateSource ..> SpecArtifact : uses
   InputAdmission ..> SpecArtifact : uses
   InputStage ..> SpecArtifact : uses
@@ -79,7 +83,7 @@ classDiagram
   ToolBackend ..> SpecArtifact : uses
 ```
 
-The diagram draws 18 of 27 relations; the table lists them all.
+The diagram draws 19 of 28 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -95,6 +99,7 @@ The diagram draws 18 of 27 relations; the table lists them all.
 | → | uses | [PropertyRelation](io.github.tlaplus.hardening.workflow.spec.PropertyRelation.md) | How the relation module of a metamorphic pair of modules treats their properties and fairness. |
 | ← | uses | [DecodedInputRenderer](io.github.tlaplus.hardening.cli.DecodedInputRenderer.md) | Renders a decoded input independently of picocli command wiring. |
 | ← | uses | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
+| ← | uses | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
 | ← | uses | [CandidateSource](io.github.tlaplus.hardening.workflow.input.CandidateSource.md) | Where the candidates for a target entry of the input stage come from: property-based generation or mutation of a selected parent (ADR 0010). |
 | ← | uses | [InputAdmission](io.github.tlaplus.hardening.workflow.input.InputAdmission.md) | Decides whether a decoded candidate enters `00-inputs`, and where a known defect goes. |
 | ← | uses | [InputStage](io.github.tlaplus.hardening.workflow.input.InputStage.md) | Concurrent input stage: admits reserved target ranges from adjacent generations. |

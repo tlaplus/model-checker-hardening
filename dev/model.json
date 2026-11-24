@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "e4ab65335fef2f7aa9e835e4805d8e294545cba2"
+    "commit" : "390ea420071a36987998dbae4a6bab1d394188dc"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -292,6 +292,11 @@
     "module" : "workflow",
     "summary" : "Concurrency, lifecycle, capacity, and progress primitives shared by workflow stages.",
     "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.generic",
+    "module" : "workflow",
+    "summary" : "The generic checker of ADR 0033: a TLC- or Apalache-compatible tool run as one native process per input.",
+    "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.input",
     "module" : "workflow",
@@ -1001,7 +1006,7 @@
     "key" : true,
     "summary" : "Complete configuration of input generation and workflow execution.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/FuzzTlaConfig.java",
-    "line" : 27,
+    "line" : 29,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.GeneratorLimitSchema",
@@ -3231,7 +3236,7 @@
     "key" : true,
     "summary" : "How each model-checker stage builds its backend for one invocation.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/CheckerBackends.java",
-    "line" : 25,
+    "line" : 29,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.CorpusTools",
@@ -3401,7 +3406,7 @@
     "key" : false,
     "summary" : "The Apalache command line for one checked module.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheArguments.java",
-    "line" : 11,
+    "line" : 12,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend",
@@ -3439,10 +3444,10 @@
     "kind" : "CLASS",
     "role" : "POLICY",
     "key" : true,
-    "summary" : "Maps Apalache tool exit statuses to shared workflow outcomes.",
+    "summary" : "Maps Apalache tool exit statuses to shared workflow outcomes, for Apalache and for a generic checker that follows Apalache's exit statuses (ADR 0033 §2).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheOutcomeClassifier.java",
-    "line" : 13,
-    "adrs" : [ ]
+    "line" : 16,
+    "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheTraceLength",
     "packageName" : "io.github.tlaplus.hardening.workflow.apalache",
@@ -3643,6 +3648,36 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowStage.java",
     "line" : 8,
     "adrs" : [ ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "packageName" : "io.github.tlaplus.hardening.workflow.generic",
+    "kind" : "CLASS",
+    "role" : "ADAPTER",
+    "key" : true,
+    "summary" : "Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericCheckerBackend.java",
+    "line" : 40,
+    "adrs" : [ "0033" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "packageName" : "io.github.tlaplus.hardening.workflow.generic",
+    "kind" : "RECORD",
+    "role" : "POLICY",
+    "key" : true,
+    "summary" : "What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, and how an exit status becomes a verdict.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericConvention.java",
+    "line" : 28,
+    "adrs" : [ "0033" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "packageName" : "io.github.tlaplus.hardening.workflow.generic",
+    "kind" : "RECORD",
+    "role" : "MODEL",
+    "key" : false,
+    "summary" : "The files and the command line of one generic checker invocation in its working directory (ADR 0033 §3, §4).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericInvocation.java",
+    "line" : 24,
+    "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.input.CandidateSource",
     "packageName" : "io.github.tlaplus.hardening.workflow.input",
@@ -4069,10 +4104,10 @@
     "kind" : "CLASS",
     "role" : "POLICY",
     "key" : true,
-    "summary" : "Maps TLC's internal error constants to workflow outcomes.",
+    "summary" : "Maps TLC's internal error constants and exit statuses to workflow outcomes, for TLC and for a generic checker that follows TLC's exit statuses (ADR 0033 §2).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcOutcomeClassifier.java",
-    "line" : 12,
-    "adrs" : [ ]
+    "line" : 15,
+    "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcSettings",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
@@ -4151,8 +4186,8 @@
     "key" : true,
     "summary" : "Tool-specific behavior injected into the shared `ToolStage`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolBackend.java",
-    "line" : 30,
-    "adrs" : [ ]
+    "line" : 31,
+    "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tool.ToolStage",
     "packageName" : "io.github.tlaplus.hardening.workflow.tool",
@@ -4251,7 +4286,7 @@
     "key" : false,
     "summary" : "A finite CLI invocation, unlike protocol workers which serve a sequence of per-input requests.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/OneShotTool.java",
-    "line" : 11,
+    "line" : 12,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
@@ -5684,6 +5719,14 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.CheckerSet",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "to" : "io.github.tlaplus.hardening.corpus.Technique",
     "kind" : "USES"
   }, {
@@ -5701,6 +5744,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "to" : "io.github.tlaplus.hardening.gen.engine.ExpressionKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "to" : "io.github.tlaplus.hardening.gen.library.LibraryLinkage",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
@@ -5761,7 +5808,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
     "to" : "io.github.tlaplus.hardening.config.GenericPlaceholder",
-    "kind" : "DEPENDS"
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
     "to" : "io.github.tlaplus.hardening.config.ToolsConfig",
@@ -10552,8 +10599,20 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
     "to" : "io.github.tlaplus.hardening.config.SeedConfig",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.config.ToolsConfig",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
@@ -10564,7 +10623,15 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.workflow.CorpusTools",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
     "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
+    "to" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CheckerBackends",
@@ -11865,6 +11932,158 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowProgress",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.common.Diagnostics",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.common.FileTrees",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.config.CheckerStageConfig",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.config.GenericCompatibility",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.config.GenericPlaceholder",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.WorkflowException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.SpecText",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.tool.PropertyRunsVerdict",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.tool.ToolBackend",
+    "kind" : "IMPLEMENTS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.tool.ToolWorker",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.OneShotTool",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.ToolInput",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.config.GenericCompatibility",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "to" : "io.github.tlaplus.hardening.config.GenericPlaceholder",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.input.CandidateSource",
@@ -13862,7 +14081,7 @@
   }, {
     "from" : "config",
     "to" : "gen",
-    "typePairs" : 37,
+    "typePairs" : 38,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.config.ConfigSchema",
@@ -13878,7 +14097,7 @@
   }, {
     "from" : "config",
     "to" : "corpus",
-    "typePairs" : 17,
+    "typePairs" : 19,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.config.CheckerProfile",
@@ -13926,7 +14145,7 @@
   }, {
     "from" : "workflow",
     "to" : "common",
-    "typePairs" : 72,
+    "typePairs" : 75,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13966,7 +14185,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 176,
+    "typePairs" : 177,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13974,7 +14193,7 @@
   }, {
     "from" : "workflow",
     "to" : "config",
-    "typePairs" : 73,
+    "typePairs" : 83,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

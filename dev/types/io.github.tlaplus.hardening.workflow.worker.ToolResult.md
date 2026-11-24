@@ -1,6 +1,6 @@
 # `ToolResult`
 
-`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolResult.java#L19) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolResult.java#L19) · module [workflow](../modules/workflow.md)
 
 One request result returned by an isolated tool worker.
 
@@ -19,6 +19,12 @@ classDiagram
     <<enum>>
   }
   class ApalacheOutcomeClassifier {
+    <<policy>>
+  }
+  class GenericCheckerBackend {
+    <<adapter>>
+  }
+  class GenericConvention {
     <<policy>>
   }
   class TlcCheckerBackend {
@@ -51,6 +57,8 @@ classDiagram
   ToolResult --> ExplorationMetrics : has
   ToolResult --> StageOutcome : has
   ApalacheOutcomeClassifier ..> ToolResult : uses
+  GenericCheckerBackend ..> ToolResult : uses
+  GenericConvention ..> ToolResult : uses
   TlcCheckerBackend ..> ToolResult : uses
   TlcExplorationMetrics ..> ToolResult : uses
   TlcOutcomeClassifier ..> ToolResult : uses
@@ -63,17 +71,19 @@ classDiagram
   WorkerChannel ..> ToolResult : uses
 ```
 
-The diagram draws 14 of 23 relations; the table lists them all.
+The diagram draws 16 of 25 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckerFailureCode](io.github.tlaplus.hardening.checker.CheckerFailureCode.md) | Stable failure codes shared by model-checker stages. |
 | → | has | [ExplorationMetrics](io.github.tlaplus.hardening.checker.ExplorationMetrics.md) | What a model checker explored to reach its verdict, as ADR 0008 defines it. |
 | → | has | [StageOutcome](io.github.tlaplus.hardening.workflow.worker.StageOutcome.md) | Common result of processing one input in a checking stage. |
-| ← | uses | [ApalacheOutcomeClassifier](io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | Maps Apalache tool exit statuses to shared workflow outcomes. |
+| ← | uses | [ApalacheOutcomeClassifier](io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | Maps Apalache tool exit statuses to shared workflow outcomes, for Apalache and for a generic checker that follows Apalache's exit statuses (ADR 0033 §2). |
+| ← | uses | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
+| ← | uses | [GenericConvention](io.github.tlaplus.hardening.workflow.generic.GenericConvention.md) | What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, and how an exit status becomes a verdict. |
 | ← | uses | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | ← | uses | [TlcExplorationMetrics](io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics.md) | Measures one TLC run and attaches the result to its classified outcome (ADR 0008). |
-| ← | uses | [TlcOutcomeClassifier](io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | Maps TLC's internal error constants to workflow outcomes. |
+| ← | uses | [TlcOutcomeClassifier](io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier.md) | Maps TLC's internal error constants and exit statuses to workflow outcomes, for TLC and for a generic checker that follows TLC's exit statuses (ADR 0033 §2). |
 | ← | uses | [ProcessToolWorker](io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker.md) | A tool worker served by one isolated child process until a crash verdict retires it. |
 | ← | uses | [PropertyRunsVerdict](io.github.tlaplus.hardening.workflow.tool.PropertyRunsVerdict.md) | Folds the relation run of a metamorphic module and its two property runs into the one outcome of a checker stage (ADR 0027 §4, ADR 0029 §1). |
 | ← | uses | [ToolWorker](io.github.tlaplus.hardening.workflow.tool.ToolWorker.md) | Worker-local tool state used for one or more sequential inputs. |

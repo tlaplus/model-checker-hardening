@@ -1,6 +1,6 @@
 # `ToolInput`
 
-`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolInput.java#L18) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolInput.java#L18) · module [workflow](../modules/workflow.md)
 
 One rendered specification and what the receiving checker is asked about it.
 
@@ -11,6 +11,9 @@ classDiagram
   }
   class CheckRequest {
     <<record>>
+  }
+  class GenericCheckerBackend {
+    <<adapter>>
   }
   class GeneratedInputPreparation
   class TlcCheckerBackend {
@@ -32,6 +35,7 @@ classDiagram
     <<process>>
   }
   ToolInput --> CheckRequest : has
+  GenericCheckerBackend ..> ToolInput : uses
   GeneratedInputPreparation ..> ToolInput : uses
   TlcCheckerBackend ..> ToolInput : uses
   ProcessToolWorker ..> ToolInput : uses
@@ -41,11 +45,12 @@ classDiagram
   ToolWorkerRuntime ..> ToolInput : uses
 ```
 
-The diagram draws 8 of 15 relations; the table lists them all.
+The diagram draws 9 of 16 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckRequest](io.github.tlaplus.hardening.workflow.worker.CheckRequest.md) | What a checker is asked about one assembled module. |
+| ← | uses | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
 | ← | uses | [GeneratedInputPreparation](io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation.md) | Regenerates and renders one tool input while preserving generator-crash artifacts. |
 | ← | uses | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | ← | uses | [ProcessToolWorker](io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker.md) | A tool worker served by one isolated child process until a crash verdict retires it. |

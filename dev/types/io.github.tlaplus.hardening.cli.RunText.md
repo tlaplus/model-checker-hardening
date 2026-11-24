@@ -1,6 +1,6 @@
 # `RunText`
 
-`io.github.tlaplus.hardening.cli` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/cli/RunText.java#L13) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/cli/RunText.java#L13) · module [cli](../modules/cli.md)
 
 Shared field formatting; attributed text keeps terminal escapes out of width arithmetic.
 

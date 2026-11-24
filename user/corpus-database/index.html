@@ -1644,7 +1644,7 @@ export time: about 1.2 ms of CPU per entry, so a corpus of 100,000 entries takes
 about two minutes on one thread. The export writes rows in the same order for
 every <code>--max-cpus</code>, so the database does not depend on it.</p>
 <h2 id="2-schema">2. Schema<a class="headerlink" href="#2-schema" title="Permanent link">&para;</a></h2>
-<p><code>PRAGMA user_version</code> holds the schema version, currently <code>10</code>. Any change to a
+<p><code>PRAGMA user_version</code> holds the schema version, currently <code>11</code>. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.</p>
 <p>Table and column names are camelCase. A column that stores an envelope field has
@@ -1917,7 +1917,7 @@ verdict and both times.</p>
 <td><code>stage</code></td>
 <td>TEXT</td>
 <td>no</td>
-<td><code>parser</code>, <code>tlc</code>, <code>apalache</code>, <code>aggregator</code> or <code>quality</code></td>
+<td><code>parser</code>, <code>tlc</code>, <code>tlcn</code>, <code>apalache</code>, <code>generic</code>, <code>aggregator</code> or <code>quality</code></td>
 <td>key in <code>stages</code></td>
 </tr>
 <tr>
@@ -2328,6 +2328,27 @@ checkers' results side by side. A corpus that runs a subset of the checkers
 <td>INTEGER</td>
 <td>yes</td>
 <td>Apalache counterexample length</td>
+<td><code>stage.traceLength</code></td>
+</tr>
+<tr>
+<td><code>generic</code></td>
+<td>TEXT</td>
+<td>yes</td>
+<td>Verdict of the generic checker (<a href="../generic-checker/">Other model checkers</a>); null when the corpus does not run it</td>
+<td><code>stage.verdict</code></td>
+</tr>
+<tr>
+<td><code>genericCode</code></td>
+<td>INTEGER</td>
+<td>yes</td>
+<td>Generic checker failure code</td>
+<td><code>stage.code</code></td>
+</tr>
+<tr>
+<td><code>genericTraceLength</code></td>
+<td>INTEGER</td>
+<td>yes</td>
+<td>Generic checker counterexample length; FuzzTLA records none</td>
 <td><code>stage.traceLength</code></td>
 </tr>
 </tbody>

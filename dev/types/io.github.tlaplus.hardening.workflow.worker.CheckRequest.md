@@ -1,10 +1,10 @@
 # `CheckRequest`
 
-`io.github.tlaplus.hardening.workflow.worker` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/worker/CheckRequest.java#L22) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/worker/CheckRequest.java#L22) · module [workflow](../modules/workflow.md)
 
 What a checker is asked about one assembled module.
 
-**Decisions:** [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0024-graph-action-coverage.md)
+**Decisions:** [ADR 0024: Action coverage in the selection of graph entries](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0024-graph-action-coverage.md)
 
 ```mermaid
 classDiagram
@@ -13,6 +13,12 @@ classDiagram
   }
   class CheckKind {
     <<enum>>
+  }
+  class GenericConvention {
+    <<policy>>
+  }
+  class GenericInvocation {
+    <<model>>
   }
   class SpecArtifact {
     <<model>>
@@ -32,6 +38,8 @@ classDiagram
     <<adapter>>
   }
   CheckRequest --> CheckKind : has
+  GenericConvention --> CheckRequest : has
+  GenericInvocation --> CheckRequest : has
   SpecArtifact --> CheckRequest : has
   ToolInput --> CheckRequest : has
   DecodedInputRenderer ..> CheckRequest : uses
@@ -41,11 +49,13 @@ classDiagram
   WorkerChannel ..> CheckRequest : uses
 ```
 
-The diagram draws 8 of 17 relations; the table lists them all.
+The diagram draws 10 of 20 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckKind](io.github.tlaplus.hardening.workflow.worker.CheckKind.md) | What one checker invocation checks in an assembled module: which side's specification it explores, and whether it checks the invariant, the action invariant of a metamorphic module and a temporal property. |
+| ← | has | [GenericConvention](io.github.tlaplus.hardening.workflow.generic.GenericConvention.md) | What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, and how an exit status becomes a verdict. |
+| ← | has | [GenericInvocation](io.github.tlaplus.hardening.workflow.generic.GenericInvocation.md) | The files and the command line of one generic checker invocation in its working directory (ADR 0033 §3, §4). |
 | ← | has | [SpecArtifact](io.github.tlaplus.hardening.workflow.spec.SpecArtifact.md) | One assembled module, what its checkers are asked about it, and what its decoder produced. |
 | ← | has | [ToolInput](io.github.tlaplus.hardening.workflow.worker.ToolInput.md) | One rendered specification and what the receiving checker is asked about it. |
 | ← | uses | [DecodedInputRenderer](io.github.tlaplus.hardening.cli.DecodedInputRenderer.md) | Renders a decoded input independently of picocli command wiring. |
@@ -58,6 +68,7 @@ The diagram draws 8 of 17 relations; the table lists them all.
 | ← | depends | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | ← | depends | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
 | ← | depends | [ApalacheWorkerMain](io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain.md) | Persistent child process that invokes Apalache's `Tool.run` sequentially. |
+| ← | depends | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
 | ← | depends | [GeneratedInputPreparation](io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation.md) | Regenerates and renders one tool input while preserving generator-crash artifacts. |
 | ← | depends | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | ← | depends | [TlcWorkerMain](io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain.md) | One-shot TLC child process. |

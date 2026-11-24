@@ -1,6 +1,6 @@
 # `RunStatisticsOnExit`
 
-`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/RunStatisticsOnExit.java#L11) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/RunStatisticsOnExit.java#L11) · module [workflow](../modules/workflow.md)
 
 Stops the invocation clock and saves its aggregate while the corpus lock is still held.
 

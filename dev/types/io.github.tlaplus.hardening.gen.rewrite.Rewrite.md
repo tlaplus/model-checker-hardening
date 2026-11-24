@@ -1,6 +1,6 @@
 # `Rewrite`
 
-`io.github.tlaplus.hardening.gen.rewrite` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/gen/rewrite/Rewrite.java#L13) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/gen/rewrite/Rewrite.java#L13) · module [gen](../modules/gen.md)
 
 A decoded metamorphic pair: the base the payload's base part decodes to, its rewrite, the orientation, and the rules applied in order.
 

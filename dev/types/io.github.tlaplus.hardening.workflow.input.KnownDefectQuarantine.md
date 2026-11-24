@@ -1,6 +1,6 @@
 # `KnownDefectQuarantine`
 
-`io.github.tlaplus.hardening.workflow.input` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/input/KnownDefectQuarantine.java#L22) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/input/KnownDefectQuarantine.java#L22) · module [workflow](../modules/workflow.md)
 
 Keeps at most a fixed number of quarantined candidates per primary known-defect signature in `00-known-defects`; past the cap, a match is counted by the caller and discarded here.
 

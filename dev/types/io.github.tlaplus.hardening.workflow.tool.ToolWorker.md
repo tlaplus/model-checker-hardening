@@ -1,6 +1,6 @@
 # `ToolWorker`
 
-`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolWorker.java#L11) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/workflow/tool/ToolWorker.java#L11) · module [workflow](../modules/workflow.md)
 
 Worker-local tool state used for one or more sequential inputs.
 
@@ -24,6 +24,9 @@ classDiagram
   class ApalacheCheckerBackend {
     <<adapter>>
   }
+  class GenericCheckerBackend {
+    <<adapter>>
+  }
   class ParserBackend {
     <<adapter>>
   }
@@ -41,13 +44,14 @@ classDiagram
   ToolWorker ..> ToolResult : uses
   MetamorphicShrinker ..> ToolWorker : uses
   ApalacheCheckerBackend ..> ToolWorker : uses
+  GenericCheckerBackend ..> ToolWorker : uses
   ParserBackend ..> ToolWorker : uses
   TlcCheckerBackend ..> ToolWorker : uses
   ToolBackend ..> ToolWorker : uses
   ToolStage ..> ToolWorker : uses
 ```
 
-The diagram draws 9 of 11 relations; the table lists them all.
+The diagram draws 10 of 12 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -56,6 +60,7 @@ The diagram draws 9 of 11 relations; the table lists them all.
 | → | uses | [ToolResult](io.github.tlaplus.hardening.workflow.worker.ToolResult.md) | One request result returned by an isolated tool worker. |
 | ← | uses | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | ← | uses | [ApalacheCheckerBackend](io.github.tlaplus.hardening.workflow.apalache.ApalacheCheckerBackend.md) | Adapts persistent Apalache tool workers to the shared tool stage. |
+| ← | uses | [GenericCheckerBackend](io.github.tlaplus.hardening.workflow.generic.GenericCheckerBackend.md) | Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM. |
 | ← | uses | [ParserBackend](io.github.tlaplus.hardening.workflow.parser.ParserBackend.md) | Runs SANY in persistent isolated JVMs, one per stage worker, each replaced after a crash. |
 | ← | uses | [TlcCheckerBackend](io.github.tlaplus.hardening.workflow.tlc.TlcCheckerBackend.md) | Adapts fresh isolated TLC invocations to the shared tool stage. |
 | ← | uses | [ToolBackend](io.github.tlaplus.hardening.workflow.tool.ToolBackend.md) | Tool-specific behavior injected into the shared `ToolStage`. |

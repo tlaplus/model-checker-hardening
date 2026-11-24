@@ -1,6 +1,6 @@
 # `CheckerProfile`
 
-`io.github.tlaplus.hardening.config` · enum · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/config/CheckerProfile.java#L20) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · enum · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/config/CheckerProfile.java#L20) · module [config](../modules/config.md)
 
 What differs between the configured model checkers: the defaults of their resource settings and the documentation of the settings whose meaning follows from the worker lifecycle.
 

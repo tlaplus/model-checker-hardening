@@ -1,10 +1,10 @@
 # `ModuleScopes`
 
-`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/gen/rewrite/ModuleScopes.java#L16) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/src/main/java/io/github/tlaplus/hardening/gen/rewrite/ModuleScopes.java#L16) · module [gen](../modules/gen.md)
 
 The names the bodies of a generated module see, as the generator drew them (ADR 0016 §2): the state variables besides `step`, `step` itself, and the auxiliary operators in declaration order.
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/docs/decisions/0016-metamorphic-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/390ea420071a36987998dbae4a6bab1d394188dc/docs/decisions/0016-metamorphic-testing.md)
 
 ```mermaid
 classDiagram
