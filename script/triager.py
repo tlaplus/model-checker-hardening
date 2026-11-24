@@ -508,6 +508,14 @@ SIGNATURES = (
                    r"Error: In applying the function$")),
     # Every Manyan SIGABRT observed so far is cup_merge's abort; it prints nothing.
     finding("manyan-006.md", Tool.GENERIC, all_of(r"^Manyan exited with status 134$")),
+    # Every Manyan SIGSEGV observed so far is op_info reading the string table
+    # that canonical() reallocated; it prints nothing.
+    finding("manyan-007.md", Tool.GENERIC, all_of(r"^Manyan exited with status 139$")),
+    # Generated specifications declare every name they use, so an undefined
+    # identifier is Manyan evaluating a state function too early.
+    finding("manyan-008.md", Tool.GENERIC,
+            all_of(r"^Manyan exited with status 255$",
+                   r"^(?:: )?In evaluation, the identifier \S+ is either undefined or not an operator\.$")),
     finding("apalache-builder-001.md", Tool.APALACHE,
             apalache_error(r"^java\.lang\.StackOverflowError\n(?:\tat .+\n)*?"
                            r"\tat (?:at\.forsyte\.apalache\.tla\.typecomp\.|scalaz\.IndexedStateT\.)")),

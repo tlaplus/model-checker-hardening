@@ -1505,6 +1505,42 @@ class ManyanCrashTest(unittest.TestCase):
             "manyan-006.md", classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
         )
 
+    def test_segmentation_fault_is_manyan_007(self) -> None:
+        diagnostic = "Manyan exited with status 139"
+        self.assertEqual(
+            "manyan-007.md", classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_undefined_identifier_is_manyan_008(self) -> None:
+        """manyan-008's reproduction, as the generic stage records it."""
+        diagnostic = "\n".join(
+            (
+                "Manyan exited with status 255",
+                "manyan version 0.17.0",
+                "Error: TLC threw an unexpected exception.",
+                "This was probably caused by an error in the spec or model.",
+                "See the User Output or TLC Console for clues to what happened.",
+                "The exception was a java.lang.RuntimeException",
+                ": In evaluation, the identifier x is either undefined or not an operator.",
+                "line 7, col 13 to line 7, col 13 of module Mult",
+            )
+        )
+        self.assertEqual(
+            "manyan-008.md", classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_wrong_temporal_form_stays_new(self) -> None:
+        """TLC reports manyan-009's message for the forms it rejects too."""
+        diagnostic = "\n".join(
+            (
+                "Manyan exited with status 255",
+                "Error: Temporal formulas containing actions must be of forms <>[]A or []<>A.",
+            )
+        )
+        self.assertEqual(
+            triager.NEW_FINDING, classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
     def test_tlc_crash_signatures_ignore_the_generic_checker(self) -> None:
         diagnostic = "Manyan exited with status 134"
         self.assertEqual(
