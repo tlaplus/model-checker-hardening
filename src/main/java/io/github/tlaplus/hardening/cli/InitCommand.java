@@ -85,6 +85,13 @@ final class InitCommand implements Callable<Integer> {
                     + " place of the build's or the base corpus's JAR (ADR 0032). Repeatable, once per tool.")
     private List<ToolOverride> tools = new ArrayList<>();
 
+    @Option(
+            names = "--generic",
+            paramLabel = "FILE",
+            description = "File whose [generic] table names a TLC- or Apalache-compatible checker (ADR 0033);"
+                    + " the table goes into the corpus's configuration and its executable into tools/.")
+    private Path generic;
+
     @Spec private CommandSpec spec;
 
     @Override
@@ -142,6 +149,14 @@ final class InitCommand implements Callable<Integer> {
                 config = config.withLibraries(TomlConfig.readLibrary(library));
             } catch (IOException | ConfigException exception) {
                 CommandDiagnostic.print(spec.commandLine().getErr(), "cannot read library", library, exception);
+                return CommandLine.ExitCode.USAGE;
+            }
+        }
+        if (generic != null) {
+            try {
+                config = config.withTools(config.tools().withGeneric(TomlConfig.readGeneric(generic)));
+            } catch (IOException | ConfigException exception) {
+                CommandDiagnostic.print(spec.commandLine().getErr(), "cannot read generic checker", generic, exception);
                 return CommandLine.ExitCode.USAGE;
             }
         }

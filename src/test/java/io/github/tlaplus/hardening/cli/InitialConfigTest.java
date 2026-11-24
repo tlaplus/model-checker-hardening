@@ -109,7 +109,7 @@ class InitialConfigTest {
         var tlcOnly = gbt.withWorkflow(gbt.workflow().withEnabledCheckers(CheckerSet.of(CorpusStage.TLC)))
                 .withKnownDefects(List.of(PROJECT.resolve("signatures/all-defects.toml")))
                 .withLibraries(new OperatorLibraryConfig(List.of(base.resolve("tla/recursion")), List.of()))
-                .withTools(new ToolsConfig(Map.of(ToolJar.APALACHE, base.resolve("tools/apalache.jar"))));
+                .withTools(ToolsConfig.none().with(ToolJar.APALACHE, base.resolve("tools/apalache.jar")));
 
         var config = inside.inherit(tlcOnly, base);
 

@@ -6,8 +6,15 @@
 
 **Date:** 2026-11-24
 
-Nothing in this ADR is implemented yet. The first instance is
-[Manyan](https://github.com/soasme/manyan), `v0.17.0` (`a9ca4f38`).
+**Implementation.** Phases 1 to 3 are implemented; the stage itself (phases 4 and 5)
+is not:
+- `make manyan-build` and `signatures/manyan-defects.toml`, on branch
+  `igor/generic-checker-build`;
+- the `[generic]` table and `init --generic FILE`, on branch
+  `igor/generic-checker-config`.
+
+The first instance is [Manyan](https://github.com/soasme/manyan), `v0.17.0`
+(`a9ca4f38`).
 
 ## Context
 
@@ -55,16 +62,20 @@ arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 | --- | --- |
 | `name` | The tool's name in progress output, diagnostics and reports. |
 | `compatibility` | `tlc` or `apalache`: the checker whose conventions the tool follows (section 2). |
-| `executable` | The tool's path, relative to the configuration file. `init` copies it into `tools/` (section 4). |
+| `executable` | The tool's path, relative to the configuration file. `init --generic` copies it into `tools/` (section 4). |
 | `arguments` | The command-line arguments. Each one may contain placeholders (section 3). |
 
-Listing `generic` without a `[generic]` table is a configuration error. A corpus runs at
-most one generic checker. Comparing two compatible tools takes two corpora.
+The four keys go together: a table that sets some of them is a configuration error.
+Loading also rejects an unknown `compatibility` or placeholder. Listing `generic` without
+a `[generic]` table is a configuration error. A corpus runs at most one generic checker.
+Comparing two compatible tools takes two corpora.
 
 ### 2. Compatibility selects conventions, not code paths
 
-`GenericCompatibility` is an enum. Each constant holds the facts that distinguish it,
-so no `switch` elsewhere needs to know about them:
+`GenericCompatibility` is an enum in `config`, which reads it from the table. The
+conventions below live in `workflow`, above `config`, so the backend keys them by the
+enum in one map, and loading fails if a constant has none, as `CheckerBackends` does
+for the checker stages. No `switch` elsewhere names a compatibility:
 
 | fact | `tlc` | `apalache` |
 | --- | --- | --- |
@@ -121,9 +132,13 @@ same form as the JVM workers' ([ADR 0021][adr-0021]), so the triager files it un
 `ToolBackend`'s javadoc names this lifecycle. `cpuPermits` is 1, so the tool's own
 parallelism has to be set to one worker through `arguments`.
 
-`init` copies `executable` into `tools/` and rewrites the path, as it does for the JARs
-([ADR 0025][adr-0025] §3), keeping the executable bit. A corpus with a native tool runs
-only on the platform that built the tool.
+`fuzztla init --generic FILE` reads a file that holds exactly a `[generic]` table, with
+`executable` relative to FILE. It copies the executable into `tools/` under its own
+name, keeping its permissions, and writes the table with the copied path, as `init`
+does for the JARs ([ADR 0025][adr-0025] §3). `init` refuses an executable that is
+missing, is not executable, or shares the name of a tool JAR. A table added to
+`config.toml` by hand is read like any other, but its executable is not copied. A
+corpus with a native tool runs only on the platform that built the tool.
 
 ### 5. Oracle participation
 
@@ -145,19 +160,23 @@ needs TLC in the checker set, as it does now.
 `target/checkers/manyan-src` and builds it with `make manyan PGO_TOOLS=`. This is a
 plain build: no profile-guided training run, and none of Manyan's own test suites. The
 target stages the result as `target/checkers/manyan-<rev12>`. Findings cite the
-revision, as they cite TLC's and Apalache's commits. `init` writes the `[generic]`
-table commented out, pre-filled for Manyan in both modes:
+revision, as they cite TLC's and Apalache's commits.
+
+The repository ships two files for `init --generic`, pre-filled for Manyan:
+- `generic/manyan.toml` compares it with TLC;
+- `generic/manyan-symbolic.toml` compares its bounded mode with Apalache, which rejects
+  most modules (probe P4).
+
+Their `executable` is the staged binary, `../target/checkers/manyan-a9ca4f38028f`, and
+follows `MANYAN_REV`. A `config.toml` without a generic checker shows the table
+commented out, as Manyan in TLC mode:
 
 ```toml
-# [generic]
+[generic]
 # name = "Manyan"
 # compatibility = "tlc"
-# executable = "../target/checkers/manyan-a9ca4f38028f"
+# executable = "tools/manyan-a9ca4f38028f"
 # arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
-#
-# Manyan's bounded mode, compared with Apalache (rejects most modules, probe P4):
-# compatibility = "apalache"
-# arguments = ["-symbolic", "-length", "{length}", "-config", "{config}", "{module}"]
 ```
 
 ## Probe
@@ -279,9 +298,9 @@ a campaign. Otherwise the aggregator's failures are dominated by these two cause
 
 1. `make manyan-build`, and known-defect signatures for the parse differences of
    probe P2.
-2. `init` copies a native executable into `tools/`.
-3. The `[generic]` table: `GenericCheckerConfig`, `GenericCompatibility`,
-   `GenericPlaceholder`, and the commented example `init` writes.
+2. The `[generic]` table: `GenericCheckerConfig`, `GenericCompatibility`,
+   `GenericPlaceholder`, the commented example, and the shipped examples.
+3. `init --generic FILE` copies the executable into `tools/`.
 4. `CorpusStage.GENERIC`, its paths, profile and backend.
 5. The database view, the campaign report and the triager.
 

@@ -1,8 +1,9 @@
 # Other model checkers
 
 !!! note
-    Proposed in [ADR 0033](../decisions/0033-generic-checker.md). This is not
-    implemented yet.
+    Proposed in [ADR 0033](../decisions/0033-generic-checker.md). `make manyan-build`,
+    the `[generic]` table and `init --generic` are implemented. The `generic` checker
+    stage, which runs the tool, is not yet.
 
 A corpus can run one additional model checker that claims compatibility with TLC or
 Apalache. FuzzTLA compares its verdicts with those of the other checkers in the corpus.
@@ -21,19 +22,27 @@ make manyan-build
 The binary is staged as `target/checkers/manyan-<rev12>`. To build another revision,
 pass `MANYAN_REV=<sha-or-tag>`. The build needs a C11 compiler.
 
-## 2. Configuring the checker
+## 2. Initializing a corpus
 
-`init` writes a commented `[generic]` table that is pre-filled for Manyan. Uncomment
-it and add `generic` to the checker list:
+A file with a `[generic]` table describes the checker. The repository ships two, for
+Manyan:
+
+| file | compares |
+| --- | --- |
+| `generic/manyan.toml` | Manyan with TLC |
+| `generic/manyan-symbolic.toml` | Manyan's bounded mode with Apalache |
+
+Name one at `init`:
+
+```sh
+./bin/fuzztla init --how=pbt --corpus corpus-manyan --generic generic/manyan.toml
+```
+
+`init` copies the executable into the corpus's `tools/` directory, like the checker
+JARs, and writes the table into `config.toml` with the copied path. Without
+`--generic`, `config.toml` shows the table commented out. `generic/manyan.toml` reads:
 
 ```toml
-[workflow]
-checkers = ["tlc", "generic"]
-
-[workflow.generic]
-timeout_sec = 30
-workers = 4          # concurrent invocations
-
 [generic]
 name = "Manyan"
 compatibility = "tlc"
@@ -41,36 +50,32 @@ executable = "../target/checkers/manyan-a9ca4f38028f"
 arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 ```
 
+- **The four keys go together.** A table that sets only some of them is an error.
 - **`compatibility`** is `tlc` or `apalache`. It decides which configuration file
   FuzzTLA writes and how exit statuses become verdicts.
-- **`executable`** is copied into the corpus's `tools/` directory, like the checker
-  JARs. A corpus with a native tool runs only on the platform that built it.
+- **`executable`** is relative to the file that names it. A corpus with a native tool
+  runs only on the platform that built it. `init` refuses an executable that is
+  missing or not executable.
 - **`arguments`** is the command line, one array element per argument. Have the tool
-  use one worker: FuzzTLA runs `workers` invocations in parallel itself.
+  use one worker: FuzzTLA runs several invocations in parallel itself.
+
+Then add `generic` to the checker list:
+
+```toml
+[workflow]
+checkers = ["tlc", "generic"]
+```
 
 FuzzTLA writes the module, the configuration file, and the `Apalache` and `Variants`
 modules that every generated module extends into the invocation's working directory.
 A corpus that links a library through `INSTANCE` cannot run the generic checker yet.
 
-To compare Manyan's bounded mode with Apalache, use the configuration below.
-
 !!! warning
-    In this mode Manyan rejects most generated modules with a type error. Its type
-    checker infers types from TLA<sup>+</sup> source, while Apalache receives typed
-    JSON IR. The rendered source annotates only variables and constants
-    ([ADR 0033](../decisions/0033-generic-checker.md#probe), P4). A tool that reads
-    Apalache's JSON IR can use `{ir}` instead of `{module}`.
-
-```toml
-[workflow]
-checkers = ["apalache", "generic"]
-
-[generic]
-name = "Manyan"
-compatibility = "apalache"
-executable = "../target/checkers/manyan-a9ca4f38028f"
-arguments = ["-symbolic", "-length", "{length}", "-config", "{config}", "{module}"]
-```
+    In the bounded mode of `generic/manyan-symbolic.toml`, Manyan rejects most generated
+    modules with a type error. Its type checker infers types from TLA<sup>+</sup>
+    source, while Apalache receives typed JSON IR. The rendered source annotates only
+    variables and constants ([ADR 0033](../decisions/0033-generic-checker.md#probe),
+    P4). A tool that reads Apalache's JSON IR can use `{ir}` instead of `{module}`.
 
 ## 3. Placeholders
 

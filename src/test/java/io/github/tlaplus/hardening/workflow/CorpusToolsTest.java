@@ -12,7 +12,6 @@ import io.github.tlaplus.hardening.gen.library.LibraryLinkage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -34,7 +33,7 @@ class CorpusToolsTest {
         var config = FuzzTlaConfig.defaults()
                 .withLibraries(new OperatorLibraryConfig(List.of(library), List.of(new OperatorLibraryConfig.Module(
                         "M", List.of("Op"), LibraryLinkage.INSTANCE))))
-                .withTools(new ToolsConfig(Map.of(ToolJar.APALACHE, apalache, ToolJar.TLA2TOOLS, tla2tools)));
+                .withTools(ToolsConfig.none().with(ToolJar.APALACHE, apalache).with(ToolJar.TLA2TOOLS, tla2tools));
 
         CorpusTools.require(config);
         assertEquals(apalache, CorpusTools.apalache(config));
@@ -44,7 +43,7 @@ class CorpusToolsTest {
     @Test
     void refusesAMissingJar(@TempDir Path directory) {
         var missing = directory.resolve("tools/apalache.jar");
-        var config = FuzzTlaConfig.defaults().withTools(new ToolsConfig(Map.of(ToolJar.APALACHE, missing)));
+        var config = FuzzTlaConfig.defaults().withTools(ToolsConfig.none().with(ToolJar.APALACHE, missing));
 
         var refused = assertThrows(WorkflowException.class, () -> CorpusTools.require(config));
         assertTrue(refused.getMessage().contains("tools.apalache does not exist"), refused.getMessage());

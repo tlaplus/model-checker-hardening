@@ -86,6 +86,25 @@ public final class TomlConfig {
         }
     }
 
+    /**
+     * Reads a generic checker file: a {@code [generic]} table that sets every key, with the
+     * executable relative to the file's directory (ADR 0033).
+     */
+    public static GenericCheckerConfig readGeneric(Path path) throws IOException, ConfigException {
+        var result = parse(path);
+        var generic = ConfigSchema.genericPath();
+        requireKeys(result, Set.of(generic), Set.of(generic), ROOT_LOCATION);
+        var tables = Map.of(generic, requireTable(result, generic));
+        var keys = ConfigSchema.expectedKeys(generic);
+        requireKeys(tables.get(generic), keys, keys, generic);
+        try {
+            return ConfigSchema.readGeneric(tables).orElseThrow()
+                    .relativeTo(path.toAbsolutePath().normalize().getParent());
+        } catch (IllegalArgumentException exception) {
+            throw new ConfigException(exception.getMessage(), exception);
+        }
+    }
+
     private static TomlParseResult parse(Path path) throws IOException, ConfigException {
         var result = Toml.parse(path);
         if (result.hasErrors()) {

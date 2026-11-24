@@ -15,12 +15,22 @@ import java.util.Objects;
 public final class CorpusTools {
     private CorpusTools() {}
 
-    /** Refuses a configured JAR that does not exist, before any worker starts. */
+    /**
+     * Refuses a configured JAR that does not exist, and a generic checker whose executable is not an
+     * executable file, before any worker starts.
+     */
     public static void require(FuzzTlaConfig config) throws WorkflowException {
         for (var tool : ToolJar.values()) {
             var jar = config.tools().jar(tool);
             if (jar.isPresent() && !Files.isRegularFile(jar.get())) {
                 throw new WorkflowException("tools." + tool.configKey() + " does not exist: " + jar.get());
+            }
+        }
+        var generic = config.tools().generic();
+        if (generic.isPresent()) {
+            var executable = generic.get().executable();
+            if (!Files.isRegularFile(executable) || !Files.isExecutable(executable)) {
+                throw new WorkflowException("generic.executable is not an executable file: " + executable);
             }
         }
     }

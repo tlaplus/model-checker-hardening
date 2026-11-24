@@ -1,0 +1,14 @@
+# Manyan, compared with TLC as the generic checker (ADR 0033). Build it, then name this file at
+# init:
+#
+#   make manyan-build
+#   ./bin/fuzztla init --how=pbt --corpus corpus-manyan --generic generic/manyan.toml
+#
+# init copies the executable into the corpus's tools/. The executable is relative to this file;
+# keep its revision in step with MANYAN_REV in the Makefile.
+
+[generic]
+name = "Manyan"
+compatibility = "tlc"
+executable = "../target/checkers/manyan-a9ca4f38028f"
+arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
