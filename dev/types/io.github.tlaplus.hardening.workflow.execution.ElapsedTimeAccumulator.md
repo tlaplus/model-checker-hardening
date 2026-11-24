@@ -1,6 +1,6 @@
 # `ElapsedTimeAccumulator`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d/src/main/java/io/github/tlaplus/hardening/workflow/execution/ElapsedTimeAccumulator.java#L10) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/workflow/execution/ElapsedTimeAccumulator.java#L10) · module [workflow](../modules/workflow.md)
 
 Accumulates active intervals across workers using a monotonic clock.
 

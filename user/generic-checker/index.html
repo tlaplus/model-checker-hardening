@@ -497,10 +497,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-configuring-the-checker" class="md-nav__link">
+  <a href="#2-initializing-a-corpus" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Configuring the checker
+        2. Initializing a corpus
       
     </span>
   </a>
@@ -1291,10 +1291,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-configuring-the-checker" class="md-nav__link">
+  <a href="#2-initializing-a-corpus" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Configuring the checker
+        2. Initializing a corpus
       
     </span>
   </a>
@@ -1346,8 +1346,9 @@
 <h1 id="other-model-checkers">Other model checkers<a class="headerlink" href="#other-model-checkers" title="Permanent link">&para;</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Proposed in <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a>. This is not
-implemented yet.</p>
+<p>Proposed in <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a>. <code>make manyan-build</code>,
+the <code>[generic]</code> table and <code>init --generic</code> are implemented. The <code>generic</code> checker
+stage, which runs the tool, is not yet.</p>
 </div>
 <p>A corpus can run one additional model checker that claims compatibility with TLC or
 Apalache. FuzzTLA compares its verdicts with those of the other checkers in the corpus.
@@ -1360,51 +1361,64 @@ To build it at the pinned revision, run:</p>
 </code></pre></div>
 <p>The binary is staged as <code>target/checkers/manyan-&lt;rev12&gt;</code>. To build another revision,
 pass <code>MANYAN_REV=&lt;sha-or-tag&gt;</code>. The build needs a C11 compiler.</p>
-<h2 id="2-configuring-the-checker">2. Configuring the checker<a class="headerlink" href="#2-configuring-the-checker" title="Permanent link">&para;</a></h2>
-<p><code>init</code> writes a commented <code>[generic]</code> table that is pre-filled for Manyan. Uncomment
-it and add <code>generic</code> to the checker list:</p>
-<div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>
-<span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">,</span><span class="w"> </span><span class="s2">"generic"</span><span class="p">]</span>
-
-<span class="k">[workflow.generic]</span>
-<span class="n">timeout_sec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
-<span class="n">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w">          </span><span class="c1"># concurrent invocations</span>
-
-<span class="k">[generic]</span>
+<h2 id="2-initializing-a-corpus">2. Initializing a corpus<a class="headerlink" href="#2-initializing-a-corpus" title="Permanent link">&para;</a></h2>
+<p>A file with a <code>[generic]</code> table describes the checker. The repository ships two, for
+Manyan:</p>
+<table>
+<thead>
+<tr>
+<th>file</th>
+<th>compares</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>generic/manyan.toml</code></td>
+<td>Manyan with TLC</td>
+</tr>
+<tr>
+<td><code>generic/manyan-symbolic.toml</code></td>
+<td>Manyan's bounded mode with Apalache</td>
+</tr>
+</tbody>
+</table>
+<p>Name one at <code>init</code>:</p>
+<div class="highlight"><pre><span></span><code>./bin/fuzztla<span class="w"> </span>init<span class="w"> </span>--how<span class="o">=</span>pbt<span class="w"> </span>--corpus<span class="w"> </span>corpus-manyan<span class="w"> </span>--generic<span class="w"> </span>generic/manyan.toml
+</code></pre></div>
+<p><code>init</code> copies the executable into the corpus's <code>tools/</code> directory, like the checker
+JARs, and writes the table into <code>config.toml</code> with the copied path. Without
+<code>--generic</code>, <code>config.toml</code> shows the table commented out. <code>generic/manyan.toml</code> reads:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[generic]</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Manyan"</span>
 <span class="n">compatibility</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tlc"</span>
 <span class="n">executable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"../target/checkers/manyan-a9ca4f38028f"</span>
 <span class="n">arguments</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"-workers"</span><span class="p">,</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-deadlock"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-config"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{config}"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{module}"</span><span class="p">]</span>
 </code></pre></div>
 <ul>
+<li><strong>The four keys go together.</strong> A table that sets only some of them is an error.</li>
 <li><strong><code>compatibility</code></strong> is <code>tlc</code> or <code>apalache</code>. It decides which configuration file
   FuzzTLA writes and how exit statuses become verdicts.</li>
-<li><strong><code>executable</code></strong> is copied into the corpus's <code>tools/</code> directory, like the checker
-  JARs. A corpus with a native tool runs only on the platform that built it.</li>
+<li><strong><code>executable</code></strong> is relative to the file that names it. A corpus with a native tool
+  runs only on the platform that built it. <code>init</code> refuses an executable that is
+  missing or not executable.</li>
 <li><strong><code>arguments</code></strong> is the command line, one array element per argument. Have the tool
-  use one worker: FuzzTLA runs <code>workers</code> invocations in parallel itself.</li>
+  use one worker: FuzzTLA runs several invocations in parallel itself.</li>
 </ul>
+<p>Then add <code>generic</code> to the checker list:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>
+<span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"tlc"</span><span class="p">,</span><span class="w"> </span><span class="s2">"generic"</span><span class="p">]</span>
+</code></pre></div>
 <p>FuzzTLA writes the module, the configuration file, and the <code>Apalache</code> and <code>Variants</code>
 modules that every generated module extends into the invocation's working directory.
 A corpus that links a library through <code>INSTANCE</code> cannot run the generic checker yet.</p>
-<p>To compare Manyan's bounded mode with Apalache, use the configuration below.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>In this mode Manyan rejects most generated modules with a type error. Its type
-checker infers types from TLA<sup>+</sup> source, while Apalache receives typed
-JSON IR. The rendered source annotates only variables and constants
-(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md#probe">ADR 0033</a>, P4). A tool that reads
-Apalache's JSON IR can use <code>{ir}</code> instead of <code>{module}</code>.</p>
+<p>In the bounded mode of <code>generic/manyan-symbolic.toml</code>, Manyan rejects most generated
+modules with a type error. Its type checker infers types from TLA<sup>+</sup>
+source, while Apalache receives typed JSON IR. The rendered source annotates only
+variables and constants (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md#probe">ADR 0033</a>,
+P4). A tool that reads Apalache's JSON IR can use <code>{ir}</code> instead of <code>{module}</code>.</p>
 </div>
-<div class="highlight"><pre><span></span><code><span class="k">[workflow]</span>
-<span class="n">checkers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"apalache"</span><span class="p">,</span><span class="w"> </span><span class="s2">"generic"</span><span class="p">]</span>
-
-<span class="k">[generic]</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Manyan"</span>
-<span class="n">compatibility</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"apalache"</span>
-<span class="n">executable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"../target/checkers/manyan-a9ca4f38028f"</span>
-<span class="n">arguments</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"-symbolic"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-length"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{length}"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-config"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{config}"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{module}"</span><span class="p">]</span>
-</code></pre></div>
 <h2 id="3-placeholders">3. Placeholders<a class="headerlink" href="#3-placeholders" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

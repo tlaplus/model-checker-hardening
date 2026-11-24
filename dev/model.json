@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d"
+    "commit" : "e4ab65335fef2f7aa9e835e4805d8e294545cba2"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -1014,6 +1014,36 @@
     "line" : 14,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "packageName" : "io.github.tlaplus.hardening.config",
+    "kind" : "RECORD",
+    "role" : "CONFIG",
+    "key" : false,
+    "summary" : "The `[generic]` table (ADR 0033 §1): a model checker that claims compatibility with TLC or Apalache, run as a native process for each input.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/config/GenericCheckerConfig.java",
+    "line" : 19,
+    "adrs" : [ "0033" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.config.GenericCompatibility",
+    "packageName" : "io.github.tlaplus.hardening.config",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "The reference checker whose conventions a generic checker follows (ADR 0033 §2): the configuration file FuzzTLA writes for it and how its exit status becomes a verdict.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/config/GenericCompatibility.java",
+    "line" : 8,
+    "adrs" : [ "0033" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.config.GenericPlaceholder",
+    "packageName" : "io.github.tlaplus.hardening.config",
+    "kind" : "ENUM",
+    "role" : null,
+    "key" : false,
+    "summary" : "A placeholder in `[generic] arguments` (ADR 0033 §3), written `{name}`.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/config/GenericPlaceholder.java",
+    "line" : 16,
+    "adrs" : [ "0033" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.config.InputStageConfig",
     "packageName" : "io.github.tlaplus.hardening.config",
     "kind" : "RECORD",
@@ -1149,10 +1179,10 @@
     "kind" : "RECORD",
     "role" : "CONFIG",
     "key" : false,
-    "summary" : "The `[tools]` table (ADR 0025 §3): the tool JARs a corpus checks and types with.",
+    "summary" : "The tools a corpus checks and types with: the JARs of the `[tools]` table (ADR 0025 §3), and the generic checker of the `[generic]` table (ADR 0033).",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/ToolsConfig.java",
-    "line" : 17,
-    "adrs" : [ "0025" ]
+    "line" : 19,
+    "adrs" : [ "0025", "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.config.WorkflowConfig",
     "packageName" : "io.github.tlaplus.hardening.config",
@@ -3731,8 +3761,8 @@
     "key" : true,
     "summary" : "Copies into a new corpus every file its configuration names (ADR 0025 §2, §3), so the corpus keeps the releases it was initialized with: the classpath of the operator library, of the rewrite rules and of the edge guards goes to `tla/`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryInstall.java",
-    "line" : 41,
-    "adrs" : [ "0025" ]
+    "line" : 44,
+    "adrs" : [ "0025", "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.library.LibraryJson",
     "packageName" : "io.github.tlaplus.hardening.workflow.library",
@@ -4658,6 +4688,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.config.OperatorLibraryConfig",
     "kind" : "DEPENDS"
   }, {
@@ -4671,6 +4705,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
     "to" : "io.github.tlaplus.hardening.config.ToolJar",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.InitCommand",
+    "to" : "io.github.tlaplus.hardening.config.ToolsConfig",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.InitCommand",
@@ -5426,6 +5464,14 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
+    "to" : "io.github.tlaplus.hardening.config.GenericCompatibility",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ConfigSchema",
     "to" : "io.github.tlaplus.hardening.config.InputStageConfig",
     "kind" : "USES"
   }, {
@@ -5536,6 +5582,10 @@
     "from" : "io.github.tlaplus.hardening.config.ConfigValueType",
     "to" : "io.github.tlaplus.hardening.config.ConfigException",
     "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ConfigValueType",
+    "to" : "io.github.tlaplus.hardening.config.GenericCompatibility",
+    "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.config.ConfigValueType",
     "to" : "io.github.tlaplus.hardening.config.OperatorLibraryConfig",
@@ -5701,6 +5751,22 @@
     "to" : "io.github.tlaplus.hardening.gen.ModuleLimits",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "to" : "io.github.tlaplus.hardening.config.GenericCompatibility",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "to" : "io.github.tlaplus.hardening.config.GenericPlaceholder",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "to" : "io.github.tlaplus.hardening.config.ToolsConfig",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.config.InputStageConfig",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -5814,6 +5880,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.TomlConfig",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.TomlConfig",
     "to" : "io.github.tlaplus.hardening.config.InputStageConfig",
     "kind" : "DEPENDS"
   }, {
@@ -5900,6 +5970,10 @@
     "from" : "io.github.tlaplus.hardening.config.TomlConfig",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RewriteLimits",
     "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.config.ToolsConfig",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.config.ToolsConfig",
     "to" : "io.github.tlaplus.hardening.config.ToolJar",
@@ -10510,6 +10584,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.CorpusTools",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CorpusTools",
     "to" : "io.github.tlaplus.hardening.config.OperatorLibraryConfig",
     "kind" : "DEPENDS"
   }, {
@@ -12142,6 +12220,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
+    "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
     "to" : "io.github.tlaplus.hardening.config.MetamorphicConfig",
     "kind" : "DEPENDS"
   }, {
@@ -13772,7 +13854,7 @@
   }, {
     "from" : "config",
     "to" : "common",
-    "typePairs" : 10,
+    "typePairs" : 11,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.config.CheckerStageConfig",
@@ -13892,7 +13974,7 @@
   }, {
     "from" : "workflow",
     "to" : "config",
-    "typePairs" : 71,
+    "typePairs" : 73,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -13948,7 +14030,7 @@
   }, {
     "from" : "cli",
     "to" : "config",
-    "typePairs" : 39,
+    "typePairs" : 41,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.ApalacheOnlySettings",

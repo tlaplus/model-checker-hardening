@@ -1,6 +1,6 @@
 # `ConfigSchema`
 
-`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/e4ab65335fef2f7aa9e835e4805d8e294545cba2/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
 
 The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back.
 
@@ -17,6 +17,12 @@ classDiagram
   }
   class FuzzTlaConfig {
     <<config>>
+  }
+  class GenericCheckerConfig {
+    <<config>>
+  }
+  class GenericCompatibility {
+    <<enum>>
   }
   class InputStageConfig {
     <<record>>
@@ -78,12 +84,6 @@ classDiagram
   class ExpressionKind {
     <<interface>>
   }
-  class RewriteLimits {
-    <<record>>
-  }
-  class MutationOperator {
-    <<model>>
-  }
   ConfigTableBuilder --> ConfigSchema : has
   GeneratorLimitSchema --> ConfigSchema : has
   RuleLibrarySchema --> ConfigSchema : has
@@ -91,6 +91,8 @@ classDiagram
   ConfigSchema ..> ConfigValueType : uses
   ConfigSchema ..> FuzzTlaConfig : uses
   ConfigSchema ..> GeneratorLimitSchema : uses
+  ConfigSchema ..> GenericCheckerConfig : uses
+  ConfigSchema ..> GenericCompatibility : uses
   ConfigSchema ..> InputStageConfig : uses
   ConfigSchema ..> MetamorphicConfig : uses
   ConfigSchema ..> MutatorConfig : uses
@@ -112,11 +114,9 @@ classDiagram
   ConfigSchema ..> InputKind : uses
   ConfigSchema ..> IrGenerationConfig : uses
   ConfigSchema ..> ExpressionKind : uses
-  ConfigSchema ..> RewriteLimits : uses
-  ConfigSchema ..> MutationOperator : uses
 ```
 
-The diagram draws 30 of 36 relations; the table lists them all.
+The diagram draws 30 of 38 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -127,6 +127,8 @@ The diagram draws 30 of 36 relations; the table lists them all.
 | → | uses | [ConfigValueType](io.github.tlaplus.hardening.config.ConfigValueType.md) | How the value of one configuration key is read from TOML and written back as TOML syntax. |
 | → | uses | [FuzzTlaConfig](io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | Complete configuration of input generation and workflow execution. |
 | → | uses | [GeneratorLimitSchema](io.github.tlaplus.hardening.config.GeneratorLimitSchema.md) | Declares and assembles the expression and module limit keys in the generator table. |
+| → | uses | [GenericCheckerConfig](io.github.tlaplus.hardening.config.GenericCheckerConfig.md) | The `[generic]` table (ADR 0033 §1): a model checker that claims compatibility with TLC or Apalache, run as a native process for each input. |
+| → | uses | [GenericCompatibility](io.github.tlaplus.hardening.config.GenericCompatibility.md) | The reference checker whose conventions a generic checker follows (ADR 0033 §2): the configuration file FuzzTLA writes for it and how its exit status becomes a verdict. |
 | → | uses | [InputStageConfig](io.github.tlaplus.hardening.config.InputStageConfig.md) | The input stage's occupancy limit and the known-defect databases its admission consults. |
 | → | uses | [MetamorphicConfig](io.github.tlaplus.hardening.config.MetamorphicConfig.md) | The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1, ADR 0027 §1): what an `mt` corpus reads besides the generator settings. |
 | → | uses | [MutatorConfig](io.github.tlaplus.hardening.config.MutatorConfig.md) | Generations, the quality gate's selection, and the mutator's share and operators (ADR 0010). |
@@ -137,7 +139,7 @@ The diagram draws 30 of 36 relations; the table lists them all.
 | → | uses | [RuleLibrarySchema](io.github.tlaplus.hardening.config.RuleLibrarySchema.md) | Declares and assembles the `rules` and `weights` keys of a table that names a rule module (ADR 0017 §1), so every such table reads them alike. |
 | → | uses | [SeedConfig](io.github.tlaplus.hardening.config.SeedConfig.md) | The `[seeds]` table (ADR 0026): every random seed a run uses. |
 | → | uses | [ToolJar](io.github.tlaplus.hardening.config.ToolJar.md) | A checker distribution that a corpus copies into its `tools/` directory, so its entries keep being checked, and its libraries typed, with the release they were admitted under (ADR 0025 §3). |
-| → | uses | [ToolsConfig](io.github.tlaplus.hardening.config.ToolsConfig.md) | The `[tools]` table (ADR 0025 §3): the tool JARs a corpus checks and types with. |
+| → | uses | [ToolsConfig](io.github.tlaplus.hardening.config.ToolsConfig.md) | The tools a corpus checks and types with: the JARs of the `[tools]` table (ADR 0025 §3), and the generic checker of the `[generic]` table (ADR 0033). |
 | → | uses | [WorkflowConfig](io.github.tlaplus.hardening.config.WorkflowConfig.md) | Global and per-stage limits for the implemented fuzzing workflow. |
 | → | uses | [CheckerSet](io.github.tlaplus.hardening.corpus.CheckerSet.md) | The checker branches a corpus runs: a non-empty set of checking stages, in stage order. |
 | → | uses | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
