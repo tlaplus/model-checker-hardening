@@ -1,6 +1,6 @@
 # `ConfigException`
 
-`io.github.tlaplus.hardening.config` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/config/ConfigException.java#L4) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/24ed0403c7b9dcb03d020ba52a985ca0f9e882f2/src/main/java/io/github/tlaplus/hardening/config/ConfigException.java#L4) · module [config](../modules/config.md)
 
 Reports invalid contents in a FuzzTLA configuration file.
 

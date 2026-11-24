@@ -1,6 +1,6 @@
 # `JavaLaunch`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/workflow/worker/JavaLaunch.java#L8) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/24ed0403c7b9dcb03d020ba52a985ca0f9e882f2/src/main/java/io/github/tlaplus/hardening/workflow/worker/JavaLaunch.java#L8) · module [workflow](../modules/workflow.md)
 
 How this project spells a child JVM launch, so every caller spells it the same way.
 

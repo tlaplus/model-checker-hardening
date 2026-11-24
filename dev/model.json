@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "f8e3696af4019dbcdc642f10bde6a3edccf359c2"
+    "commit" : "24ed0403c7b9dcb03d020ba52a985ca0f9e882f2"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -131,6 +131,10 @@
     "number" : "0032",
     "title" : "Earlier TLC and Apalache builds",
     "path" : "docs/decisions/0032-earlier-checker-builds.md"
+  }, {
+    "number" : "0033",
+    "title" : "A generic checker for TLC- and Apalache-compatible tools",
+    "path" : "docs/decisions/0033-generic-checker.md"
   } ],
   "modules" : [ {
     "name" : "common",

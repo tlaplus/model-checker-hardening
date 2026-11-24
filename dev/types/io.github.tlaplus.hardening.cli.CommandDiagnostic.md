@@ -1,6 +1,6 @@
 # `CommandDiagnostic`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/cli/CommandDiagnostic.java#L8) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/24ed0403c7b9dcb03d020ba52a985ca0f9e882f2/src/main/java/io/github/tlaplus/hardening/cli/CommandDiagnostic.java#L8) · module [cli](../modules/cli.md)
 
 Formats command failures without coupling diagnostics to picocli.
 

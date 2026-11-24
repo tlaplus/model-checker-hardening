@@ -1,6 +1,6 @@
 # `StageTransition`
 
-`io.github.tlaplus.hardening.corpus` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f8e3696af4019dbcdc642f10bde6a3edccf359c2/src/main/java/io/github/tlaplus/hardening/corpus/StageTransition.java#L26) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/24ed0403c7b9dcb03d020ba52a985ca0f9e882f2/src/main/java/io/github/tlaplus/hardening/corpus/StageTransition.java#L26) · module [corpus](../modules/corpus.md)
 
 Moves one entry from a stage's input directory to the directory its verdict names.
 
