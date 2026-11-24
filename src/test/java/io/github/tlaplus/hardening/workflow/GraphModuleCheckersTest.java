@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -103,8 +104,8 @@ class GraphModuleCheckersTest {
         var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), "");
         var counterexamples = new EnumMap<CorpusStage, Integer>(CorpusStage.class);
         try (var lock = corpus.acquireExclusiveLock(); var scratch = corpus.createScratch()) {
-            var resources = new CheckerBackends.Resources(1, scratch, StagedTools.locate(ToolJar.APALACHE), List.of(),
-                    SeedConfig.derive(0));
+            var tools = new CheckerBackends.Tools(StagedTools.locate(ToolJar.APALACHE), List.of(), Optional.empty());
+            var resources = new CheckerBackends.Resources(1, scratch, tools, SeedConfig.derive(0));
             for (var stage : CHECKERS) {
                 var backend = CheckerBackends.create(stage, CONFIG, resources);
                 try (var worker = backend.startWorker()) {

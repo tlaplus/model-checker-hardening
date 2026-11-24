@@ -27,7 +27,13 @@ class WorkflowConfigTest {
                                 1_000,
                                 30,
                                 1_024,
-                                CheckerProfile.APALACHE.defaults().workers()))),
+                                CheckerProfile.APALACHE.defaults().workers()),
+                                CorpusStage.GENERIC,
+                                new CheckerStageConfig(
+                                1_000,
+                                30,
+                                512,
+                                CheckerProfile.GENERIC.defaults().workers()))),
                 WorkflowConfig.defaults());
         assertEquals(
                 Math.max(1, Runtime.getRuntime().availableProcessors() / 2),
@@ -54,6 +60,8 @@ class WorkflowConfigTest {
                                 CorpusStage.TLC,
                                 new CheckerStageConfig(1, 30, 512, 1),
                                 CorpusStage.APALACHE,
+                                new CheckerStageConfig(1, 30, 512, 1),
+                                CorpusStage.GENERIC,
                                 new CheckerStageConfig(1, 30, 512, 1))));
         assertThrows(
                 IllegalArgumentException.class,
@@ -65,6 +73,8 @@ class WorkflowConfigTest {
                                 CorpusStage.TLC,
                                 new CheckerStageConfig(1, 30, 512, 1),
                                 CorpusStage.APALACHE,
+                                new CheckerStageConfig(1, 30, 512, 1),
+                                CorpusStage.GENERIC,
                                 new CheckerStageConfig(1, 30, 512, 1))));
         assertThrows(
                 IllegalArgumentException.class,
@@ -76,6 +86,8 @@ class WorkflowConfigTest {
                                 CorpusStage.TLC,
                                 new CheckerStageConfig(2, 30, 512, 1),
                                 CorpusStage.APALACHE,
+                                new CheckerStageConfig(1, 30, 512, 1),
+                                CorpusStage.GENERIC,
                                 new CheckerStageConfig(1, 30, 512, 1))));
         assertThrows(
                 IllegalArgumentException.class,
@@ -87,6 +99,8 @@ class WorkflowConfigTest {
                                 CorpusStage.TLC,
                                 new CheckerStageConfig(1, 30, 512, 1),
                                 CorpusStage.APALACHE,
+                                new CheckerStageConfig(2, 30, 512, 1),
+                                CorpusStage.GENERIC,
                                 new CheckerStageConfig(2, 30, 512, 1))));
     }
 
@@ -124,6 +138,8 @@ class WorkflowConfigTest {
                                         CorpusStage.TLC,
                                         new CheckerStageConfig(2, 30, 512, 1),
                                         CorpusStage.APALACHE,
+                                        new CheckerStageConfig(2, 30, 512, 1),
+                                        CorpusStage.GENERIC,
                                         new CheckerStageConfig(2, 30, 512, 1))),
                         new PbtConfig(0, 10, 2.0, 1.5), MutatorConfig.defaults(), OperatorLibraryConfig.empty()));
     }

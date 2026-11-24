@@ -33,6 +33,12 @@ public enum CorpusPath {
             "02apa-counterexample", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_FAIL("02apa-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     APALACHE_CRASH("02apa-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    GENERIC_INPUT("02gen-inputs", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    GENERIC_PASS("02gen-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    GENERIC_COUNTEREXAMPLE(
+            "02gen-counterexample", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    GENERIC_FAIL("02gen-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
+    GENERIC_CRASH("02gen-crash", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     AGGREGATOR_PASS("03aggregator-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     AGGREGATOR_FAIL("03aggregator-fail", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
     QUALITY_PASS("04quality-pass", Kind.DIRECTORY, Presence.REQUIRED, Contents.ENTRIES),
@@ -43,6 +49,7 @@ public enum CorpusPath {
     TLC_SCRATCH(".work/tlc-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     TLCN_SCRATCH(".work/tlcn-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     APALACHE_SCRATCH(".work/apalache-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
+    GENERIC_SCRATCH(".work/generic-tmp", Kind.DIRECTORY, Presence.TRANSIENT, Contents.NONE),
     LOCK(".workflow.lock", Kind.FILE, Presence.LAZY, Contents.NONE),
     WORKFLOW_STATISTICS(".workflow-stats.cbor", Kind.FILE, Presence.LAZY, Contents.NONE),
     /**

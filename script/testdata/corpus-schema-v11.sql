@@ -1,4 +1,4 @@
--- Schema version 10 of fuzztla export-db (docs/manual/corpus-database.md), as written by the export.
+-- Schema version 11 of fuzztla export-db (docs/manual/corpus-database.md), as written by the export.
 -- Regenerate with: sqlite3 corpus/corpus.sqlite .schema
 CREATE TABLE export (key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (key)) WITHOUT ROWID;
 CREATE TABLE entry (id INTEGER NOT NULL, directory TEXT NOT NULL, hash TEXT NOT NULL, kind TEXT NOT NULL, inputBytes INTEGER NOT NULL, cohort INTEGER, richness REAL, generation INTEGER, parent TEXT, evaluatedNodes INTEGER, replayError TEXT, PRIMARY KEY (id), UNIQUE (hash, directory));
@@ -10,5 +10,5 @@ CREATE TABLE expr (entryId INTEGER NOT NULL, name TEXT NOT NULL, occurrences INT
 CREATE TABLE exprEdge (entryId INTEGER NOT NULL, parentName TEXT NOT NULL, childName TEXT NOT NULL, occurrences INTEGER NOT NULL, PRIMARY KEY (entryId, parentName, childName), FOREIGN KEY (entryId) REFERENCES entry (id)) WITHOUT ROWID;
 CREATE TABLE unreadable (directory TEXT NOT NULL, hash TEXT NOT NULL, error TEXT NOT NULL, PRIMARY KEY (directory, hash)) WITHOUT ROWID;
 CREATE INDEX stageByStageAndVerdict ON stage (stage, verdict);
-CREATE VIEW verdictPair AS SELECT e.id AS entryId, e.hash AS hash, e.cohort AS cohort, a.verdict AS aggregator, tlc.verdict AS tlc, tlc.code AS tlcCode, tlc.traceLength AS tlcTraceLength, tlcn.verdict AS tlcn, tlcn.code AS tlcnCode, tlcn.traceLength AS tlcnTraceLength, apalache.verdict AS apalache, apalache.code AS apalacheCode, apalache.traceLength AS apalacheTraceLength FROM entry e JOIN stage a ON a.entryId = e.id AND a.stage = 'aggregator' LEFT JOIN stage tlc ON tlc.entryId = e.id AND tlc.stage = 'tlc' LEFT JOIN stage tlcn ON tlcn.entryId = e.id AND tlcn.stage = 'tlcn' LEFT JOIN stage apalache ON apalache.entryId = e.id AND apalache.stage = 'apalache';
-PRAGMA user_version = 10;
+CREATE VIEW verdictPair AS SELECT e.id AS entryId, e.hash AS hash, e.cohort AS cohort, a.verdict AS aggregator, tlc.verdict AS tlc, tlc.code AS tlcCode, tlc.traceLength AS tlcTraceLength, tlcn.verdict AS tlcn, tlcn.code AS tlcnCode, tlcn.traceLength AS tlcnTraceLength, apalache.verdict AS apalache, apalache.code AS apalacheCode, apalache.traceLength AS apalacheTraceLength, generic.verdict AS generic, generic.code AS genericCode, generic.traceLength AS genericTraceLength FROM entry e JOIN stage a ON a.entryId = e.id AND a.stage = 'aggregator' LEFT JOIN stage tlc ON tlc.entryId = e.id AND tlc.stage = 'tlc' LEFT JOIN stage tlcn ON tlcn.entryId = e.id AND tlcn.stage = 'tlcn' LEFT JOIN stage apalache ON apalache.entryId = e.id AND apalache.stage = 'apalache' LEFT JOIN stage generic ON generic.entryId = e.id AND generic.stage = 'generic';
+PRAGMA user_version = 11;

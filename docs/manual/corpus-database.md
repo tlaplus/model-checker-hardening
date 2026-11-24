@@ -56,7 +56,7 @@ every `--max-cpus`, so the database does not depend on it.
 
 ## 2. Schema
 
-`PRAGMA user_version` holds the schema version, currently `10`. Any change to a
+`PRAGMA user_version` holds the schema version, currently `11`. Any change to a
 table, column or view increments it. Old databases are not migrated; export them
 again.
 
@@ -143,7 +143,7 @@ verdict and both times.
 | Column | Type | Null | Meaning | Source |
 | --- | --- | --- | --- | --- |
 | `entryId` | INTEGER | no | `entry.id` | – |
-| `stage` | TEXT | no | `parser`, `tlc`, `apalache`, `aggregator` or `quality` | key in `stages` |
+| `stage` | TEXT | no | `parser`, `tlc`, `tlcn`, `apalache`, `generic`, `aggregator` or `quality` | key in `stages` |
 | `verdict` | TEXT | no | `pass`, `counterexample`, `fail` or `crashed` | `stages.<stage>.verdict` |
 | `startTime` | TEXT | no | When the stage started | `stages.<stage>.startTime` |
 | `endTime` | TEXT | no | When the stage finished | `stages.<stage>.endTime` |
@@ -255,6 +255,9 @@ checkers' results side by side. A corpus that runs a subset of the checkers
 | `apalache` | TEXT | yes | Apalache verdict; null when the corpus does not run Apalache | `stage.verdict` |
 | `apalacheCode` | INTEGER | yes | Apalache failure code | `stage.code` |
 | `apalacheTraceLength` | INTEGER | yes | Apalache counterexample length | `stage.traceLength` |
+| `generic` | TEXT | yes | Verdict of the generic checker ([Other model checkers](generic-checker.md)); null when the corpus does not run it | `stage.verdict` |
+| `genericCode` | INTEGER | yes | Generic checker failure code | `stage.code` |
+| `genericTraceLength` | INTEGER | yes | Generic checker counterexample length; FuzzTLA records none | `stage.traceLength` |
 
 ### 2.11. Indexes
 

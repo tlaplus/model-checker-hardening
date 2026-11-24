@@ -18,7 +18,8 @@ import java.util.function.Function;
  * <ul>
  *   <li><em>One child process per input.</em> {@link #startWorker()} returns a worker that runs a
  *       single check, so process state cannot leak between inputs at the cost of one JVM startup
- *       each. TLC works this way.
+ *       each. TLC works this way, and so does the generic checker (ADR 0033), whose process is the
+ *       native tool itself rather than a JVM.
  *   <li><em>One child process per worker.</em> {@link #startWorker()} returns a worker that serves
  *       many inputs sequentially until a crash retires it, amortizing JVM startup. The parser and
  *       Apalache work this way.

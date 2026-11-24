@@ -9,10 +9,13 @@ import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.util.List;
 
-/** Maps Apalache tool exit statuses to shared workflow outcomes. */
+/**
+ * Maps Apalache tool exit statuses to shared workflow outcomes, for Apalache and for a generic
+ * checker that follows Apalache's exit statuses (ADR 0033 §2).
+ */
 @ArchRole(Role.POLICY)
 @Key
-final class ApalacheOutcomeClassifier {
+public final class ApalacheOutcomeClassifier {
     private static final String INPUT_ERROR_PREFIX = "Input error (see the manual): ";
     private static final List<String> UNDEFINED_ARITHMETIC = List.of(
             "Division by zero", "Mod by zero", "0 ^ 0 is undefined");
@@ -26,7 +29,7 @@ final class ApalacheOutcomeClassifier {
 
     private ApalacheOutcomeClassifier() {}
 
-    static ToolResult classify(int exitStatus, String diagnostic) {
+    public static ToolResult classify(int exitStatus, String diagnostic) {
         if (exitStatus == 255 && isInputLimitation(diagnostic)) {
             return ToolResult.failure(CheckerFailureCode.SPEC_EVAL, diagnostic);
         }

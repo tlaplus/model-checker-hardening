@@ -35,6 +35,18 @@ public record GenericCheckerConfig(
             Preconditions.require(unknown.isEmpty(),
                     "generic.arguments: unknown placeholder {" + String.join("}, {", unknown) + "} in '" + argument + "'");
         }
+        // A stage passes one rendering of the module: TLA+ source or Apalache's JSON IR.
+        Preconditions.require(!(names(arguments, GenericPlaceholder.MODULE) && names(arguments, GenericPlaceholder.IR)),
+                "generic.arguments: name the module as {module} or as {ir}, not both");
+    }
+
+    /** Reports whether an argument names {@code placeholder}. */
+    public boolean names(GenericPlaceholder placeholder) {
+        return names(arguments, placeholder);
+    }
+
+    private static boolean names(List<String> arguments, GenericPlaceholder placeholder) {
+        return arguments.stream().anyMatch(argument -> argument.contains(placeholder.token()));
     }
 
     /** Returns this checker with {@code replacement} as its executable. */

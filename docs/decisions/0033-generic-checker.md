@@ -2,16 +2,19 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-11-24
 
-**Implementation.** Phases 1 to 3 are implemented; the stage itself (phases 4 and 5)
-is not:
-- `make manyan-build` and `signatures/manyan-defects.toml`, on branch
-  `igor/generic-checker-build`;
-- the `[generic]` table and `init --generic FILE`, on branch
-  `igor/generic-checker-config`.
+**Implementation.** Stacked branches:
+- `make manyan-build` and `signatures/manyan-defects.toml`: `igor/generic-checker-build`;
+- the `[generic]` table and `init --generic FILE`: `igor/generic-checker-config`;
+- `CorpusStage.GENERIC`, `workflow.generic`, the database view, the campaign report
+  and the triager: `igor/generic-checker-stage`.
+
+A 60-entry pbt campaign with `checkers = ["tlc", "generic"]` and Manyan ran end to
+end: Manyan took 2 s of worker time against TLC's 37 s, the aggregator agreed on 55
+entries and differed on one, a `spec_eval` failure of Manyan where TLC passes.
 
 The first instance is [Manyan](https://github.com/soasme/manyan), `v0.17.0`
 (`a9ca4f38`).
@@ -80,7 +83,7 @@ for the checker stages. No `switch` elsewhere names a compatibility:
 | fact | `tlc` | `apalache` |
 | --- | --- | --- |
 | configuration written as `{config}` | `TlcConfiguration.text`: `SPECIFICATION`, `INVARIANT Inv`, `PROPERTY` | `INIT`, `NEXT`, `INVARIANT Inv`, `PROPERTY Liveness` (or the side's property in a property run), the entry points `ApalacheArguments` passes |
-| exit status → verdict | `TlcOutcomeClassifier.classifyExitStatus`, plus integer overflow at 255 as `spec_eval` (probe P2) | `ApalacheOutcomeClassifier.classify` |
+| exit status → verdict | `TlcOutcomeClassifier.classifyCommandLine`: TLC's exit statuses, plus integer overflow at 255 as `spec_eval` (probe P2) | `ApalacheOutcomeClassifier.classify` |
 | deadlock | the tool's own flag; TLC's is `-deadlock` | not checked, as with `--no-deadlock` |
 | unrolling length `{length}` | not meaningful | `CheckRequest.unrollingLength()` |
 
@@ -109,9 +112,11 @@ them, as it does for TLC.
 | `{length}` | `CheckRequest.unrollingLength()` |
 | `{ir}` | `{dir}/FuzzInput.json`, the module as Apalache's JSON IR (`ApalacheIrJson`), written only when an argument names it (probe P4) |
 
-Loading the configuration rejects an unknown placeholder. A placeholder whose value the
-request lacks, such as `{temporal}` for an invariant-only request, expands to an empty
-argument. Placeholders are expanded inside a single argument and never split one into
+Loading the configuration rejects an unknown placeholder, and arguments that name both
+`{module}` and `{ir}`: a stage passes one rendering of the module to its tool, TLA<sup>+</sup>
+source or, when an argument names `{ir}`, Apalache's JSON IR. A placeholder whose value
+the request lacks, such as `{temporal}` for an invariant-only request, expands to an
+empty argument. Placeholders are expanded inside a single argument and never split one into
 several, so there is no quoting to get wrong.
 
 ### 4. One native process per input
@@ -121,8 +126,8 @@ lifecycle that TLC uses, except that the process is the tool itself rather than 
 JVM. For each invocation, it:
 1. creates a fresh directory under the stage's scratch directory, and writes into it the
    module, `{config}`, and the bundled `Apalache.tla` and `Variants.tla` (probe P1);
-2. runs the executable through `OneShotTool.run`, which bounds the captured output and
-   kills the process on timeout or interruption;
+2. runs the executable through `OneShotTool.attempt`, which bounds the captured output,
+   kills the process on timeout or interruption, and reports a timeout in its result;
 3. classifies the exit status by the compatibility.
 
 A timeout becomes a crash whose diagnostic reads `<name> timed out after PT30S`, the
@@ -262,12 +267,23 @@ The action-invariant question (whether `-symbolic` accepts `Step` as an `INVARIA
 was not reached: no metamorphic corpus was available, and typechecking failed first.
 
 **P5. Instance-linked libraries.** Neither corpus links a library by `INSTANCE`
-([ADR 0014][adr-0014]). This is still open. Until it is probed, `init` refuses
-`generic` together with `link = "instance"`.
+([ADR 0014][adr-0014]). This is still open. Until it is probed, loading a configuration
+refuses `generic` in `checkers` together with a `link = "instance"` library.
 
 **Consequence for campaigns.** About 19% of pbt entries would differ on parsing alone.
 Known-defect signatures for `[A]_FALSE` and parameterized labels have to exist before
 a campaign. Otherwise the aggregator's failures are dominated by these two causes.
+
+## Implementation notes
+
+- **Output capture.** `OneShotTool` read a tool's output before draining the capture
+  thread, so a tool that ends at once, as Manyan does, could lose its output. It now
+  drains first. The race affected `OneShotTool.run` before, too.
+- **Bundled modules.** Only `Apalache.tla` and `Variants.tla` are written, from FuzzTLA's
+  class path. `Integers` is left to the tool.
+- **Shared Apalache entry points.** `ApalacheArguments.invariants` and `temporal` give the
+  invariants and the temporal property of a request, which the Apalache command line,
+  `{inv}`, `{temporal}` and the `apalache` configuration file all use.
 
 ## Alternatives considered
 

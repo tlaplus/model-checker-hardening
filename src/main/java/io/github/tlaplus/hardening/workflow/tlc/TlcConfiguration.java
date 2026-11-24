@@ -38,7 +38,7 @@ public final class TlcConfiguration {
      * property, since TLC rejects a primed {@code INVARIANT}. A property run of a metamorphic module
      * checks its property alone (ADR 0027 §4).
      */
-    static String text(CheckRequest request) {
+    public static String text(CheckRequest request) {
         var kind = request.kind();
         var text = new StringBuilder()
                 .append("SPECIFICATION ").append(FuzzInputModule.entryPoints(kind.side()).specification()).append('\n');
