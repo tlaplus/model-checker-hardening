@@ -520,6 +520,14 @@ later bound's set ([`manyan-002`](../../findings/manyan/manyan-002.md), 18 of th
 entries), which no signature can express, because labels are skipped.
 `ManyanDefectsTest` checks the database.
 
+[`manyan-003`](../../findings/manyan/manyan-003.md) to
+[`manyan-009`](../../findings/manyan/manyan-009.md) have no signature either. Whether
+Manyan fails depends on run-time values, so the closest shapes match mostly inputs that
+Manyan checks correctly. For example, a `~>` whose left side is constant matched 932 of
+10,000 pbt entries, and only 65 of them had the tautology error of `manyan-003`.
+[`script/triager.py`](../../script/triager.py) classifies the crashes of `manyan-005` to
+`manyan-008` instead.
+
 ## Background
 
 [ADR 0006](../decisions/0006-known-defect-signatures.md) records the design and its
