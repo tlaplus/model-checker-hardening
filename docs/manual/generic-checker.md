@@ -48,7 +48,18 @@ arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 - **`arguments`** is the command line, one array element per argument. Have the tool
   use one worker: FuzzTLA runs `workers` invocations in parallel itself.
 
-To compare Manyan's bounded mode with Apalache, use:
+FuzzTLA writes the module, the configuration file, and the `Apalache` and `Variants`
+modules that every generated module extends into the invocation's working directory.
+A corpus that links a library through `INSTANCE` cannot run the generic checker yet.
+
+To compare Manyan's bounded mode with Apalache, use the configuration below.
+
+!!! warning
+    In this mode Manyan rejects most generated modules with a type error. Its type
+    checker infers types from TLA<sup>+</sup> source, while Apalache receives typed
+    JSON IR. The rendered source annotates only variables and constants
+    ([ADR 0033](../decisions/0033-generic-checker.md#probe), P4). A tool that reads
+    Apalache's JSON IR can use `{ir}` instead of `{module}`.
 
 ```toml
 [workflow]
@@ -73,6 +84,7 @@ arguments = ["-symbolic", "-length", "{length}", "-config", "{config}", "{module
 | `{inv}` | the invariants to check |
 | `{temporal}` | the temporal property to check, if any |
 | `{length}` | the number of steps a bounded checker unrolls |
+| `{ir}` | `{dir}/FuzzInput.json`, the module as Apalache's JSON IR |
 
 An unknown placeholder is a configuration error.
 
@@ -84,5 +96,9 @@ part in every oracle. FuzzTLA records no state counts or trace lengths for it, s
 - the graph oracle checks only its verdict.
 
 A timeout is a crash, as it is for the other checkers.
+
+Expect Manyan to differ from TLC on about one pbt entry in five on parsing alone, for
+example on `[A]_FALSE` ([ADR 0033](../decisions/0033-generic-checker.md#probe), P2).
+Known-defect signatures filter these out of the aggregator's failures.
 
 Findings cite the tool's revision, together with the FuzzTLA, TLC and Apalache versions.

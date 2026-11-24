@@ -69,7 +69,7 @@ so no `switch` elsewhere needs to know about them:
 | fact | `tlc` | `apalache` |
 | --- | --- | --- |
 | configuration written as `{config}` | `TlcConfiguration.text`: `SPECIFICATION`, `INVARIANT Inv`, `PROPERTY` | `INIT`, `NEXT`, `INVARIANT Inv`, `PROPERTY Liveness` (or the side's property in a property run), the entry points `ApalacheArguments` passes |
-| exit status → verdict | `TlcOutcomeClassifier.classifyExitStatus` | `ApalacheOutcomeClassifier.classify` |
+| exit status → verdict | `TlcOutcomeClassifier.classifyExitStatus`, plus integer overflow at 255 as `spec_eval` (probe P2) | `ApalacheOutcomeClassifier.classify` |
 | deadlock | the tool's own flag; TLC's is `-deadlock` | not checked, as with `--no-deadlock` |
 | unrolling length `{length}` | not meaningful | `CheckRequest.unrollingLength()` |
 
@@ -96,6 +96,7 @@ them, as it does for TLC.
 | `{inv}` | `Inv`, or `Inv,Step` for a relation with an action invariant |
 | `{temporal}` | `Liveness`, or the side's property in a property run |
 | `{length}` | `CheckRequest.unrollingLength()` |
+| `{ir}` | `{dir}/FuzzInput.json`, the module as Apalache's JSON IR (`ApalacheIrJson`), written only when an argument names it (probe P4) |
 
 Loading the configuration rejects an unknown placeholder. A placeholder whose value the
 request lacks, such as `{temporal}` for an invariant-only request, expands to an empty
@@ -107,8 +108,8 @@ several, so there is no quoting to get wrong.
 `GenericCheckerBackend` implements `ToolBackend` with the one-process-per-input
 lifecycle that TLC uses, except that the process is the tool itself rather than a child
 JVM. For each invocation, it:
-1. creates a fresh directory under the stage's scratch directory, and writes the module
-   and `{config}` into it;
+1. creates a fresh directory under the stage's scratch directory, and writes into it the
+   module, `{config}`, and the bundled `Apalache.tla` and `Variants.tla` (probe P1);
 2. runs the executable through `OneShotTool.run`, which bounds the captured output and
    kills the process on timeout or interruption;
 3. classifies the exit status by the compatibility.
@@ -154,24 +155,100 @@ table commented out, pre-filled for Manyan in both modes:
 # executable = "../target/checkers/manyan-a9ca4f38028f"
 # arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 #
-# Manyan's bounded mode, compared with Apalache:
+# Manyan's bounded mode, compared with Apalache (rejects most modules, probe P4):
 # compatibility = "apalache"
 # arguments = ["-symbolic", "-length", "{length}", "-config", "{config}", "{module}"]
 ```
 
-## Open questions for the probe
+## Probe
 
-These need a run of Manyan on corpus entries before implementation, about 20 entries
-per technique:
-1. Rendered modules `EXTEND Apalache` and `Variants`. Manyan's README does not list
-   either among its built-in modules. If they don't resolve, the backend writes
-   `StandardModuleResources.BUNDLED` into `{dir}`.
-2. In a `.cfg`, does `-symbolic` accept an action invariant (`Step`) as an `INVARIANT`?
-   Apalache accepts one in `--inv`.
-3. Does Manyan agree with TLC's exit status on the corpus87 TLC verdicts?
-4. Instance-linked libraries ([ADR 0014][adr-0014]) `INSTANCE` the Community Modules,
-   which Manyan reimplements in C. Probe whether they resolve. If they don't, refuse
-   `generic` together with instance-linked libraries.
+**Setup.**
+- Manyan `v0.17.0` (`a9ca4f38`), a plain build (`make manyan PGO_TOOLS=`).
+- FuzzTLA `f8e3696a`.
+- TLC `7e64fd03` from corpus87's `tools/`, and TLC `d8fb231d` for the gbt corpus.
+- Entries: 430 pbt entries of corpus87, drawn from the TLC verdict directories (pass
+  100, counterexample 200, fail 100, crash 30). Also the 12 entries of a small gbt
+  corpus. No mt corpus was available.
+
+**Method.**
+- A scratch class rendered each entry as the TLC stage does: `SpecText.render` and
+  `TlcConfiguration.texts`.
+- Manyan ran it with `-workers 1 -deadlock -config FuzzInput.cfg FuzzInput` under a
+  60-second limit.
+- Manyan's exit status was compared with the TLC verdict and failure code recorded in
+  each entry's envelope.
+
+**P1. Standard modules.** Manyan resolves neither `Apalache` nor `Variants`, and every
+entry extends both. All 430 entries failed with exit 150 (`Cannot find source file for
+module Variants`). After `Apalache.tla` and `Variants.tla` were copied from
+`fuzztla.jar` into the working directory, all 430 entries parsed or failed on their own
+merits. **Decision:** the backend writes `StandardModuleResources.BUNDLED` into `{dir}`
+before every invocation.
+
+**P2. TLC compatibility, pbt.** TLC's verdict against Manyan's exit status:
+
+| TLC | Manyan agrees | Manyan differs |
+| --- | --- | --- |
+| pass (100) | 68 (exit 0) | 13 parse (150), 18 evaluation error (255), 1 tautology (77) |
+| counterexample (200) | 156 (exit 12 or 13) | 27 parse (150), 10 evaluation error (255), 5 no error (0), 2 tautology (77) |
+| fail, `spec_eval` (94) | 61 (exit 75) | 22 parse (150), 11 at exit 255 (10 `TLC can't handle a number this big.`) |
+| fail, `parse` (6) | 5 (exit 150 or 151) | 1 evaluation error (75) |
+| crash (30) | — | 18 parse (150), 10 at 255, 2 at 75 |
+
+On the 12 gbt entries, Manyan agreed with TLC on 9. The other 3 were evaluation errors
+at exit 255 where TLC reported `spec_eval`.
+
+Most differences fall into a few groups:
+- **Parse differences: 82 entries (19%).** Manyan rejects them at parsing, and SANY
+  accepted all 82 in the parser stage.
+  - 64 fail with `Encountered "FALSE": expected a subscript`. These are actions of the
+    form `[A]_FALSE`.
+  - 18 fail with `Label … must contain formal parameter …`.
+- **Exit 255 for evaluation errors.** TLC's command line also exits 255 for integer
+  overflow. FuzzTLA records `spec_eval` for it only because `TlcOutcomeClassifier`
+  special-cases `EC.TLC_INTEGER_TOO_BIG`, a check it can make in process. **Decision:**
+  the `tlc` compatibility classifies exit 255 with `TLC can't handle a number this big.`
+  in its diagnostics as `spec_eval`, as `ApalacheOutcomeClassifier` matches input
+  limitations by message. Every other exit 255 stays a crash.
+- **Liveness: 5 entries.** TLC reports a temporal violation and Manyan reports no error
+  (`026915cc`, `3e404d45`, `4d6da981`, `9f60da69`, `cc0c3efe`). A rerun of TLC's command
+  line confirmed exit 13 on all five.
+- **Evaluation strictness: 31 entries.** Manyan raises an evaluation error where TLC
+  passes or finds a counterexample. In `01492b23`, TLC's command line prints the same
+  `%` error as Manyan but exits 0, and FuzzTLA recorded a pass. That one may be a TLC
+  defect.
+
+**P3. State counts.** Of the 68 entries that both checkers passed, Manyan's
+`distinct` count (from `-result`) equals TLC's recorded `distinctStates` on 65. The
+other 3 (`27db0ae5`, `30f4921b`, `96a4ca0e`) check a temporal property, and there TLC's
+recorded count is twice Manyan's (12 against 6, 2 against 1). On `27db0ae5` and
+`30f4921b`, a rerun of TLC's command line prints Manyan's count. So FuzzTLA's TLC
+metric differs from TLC's printed count on liveness runs, and Manyan does not. The
+counts are a usable oracle, but restoring them is still deferred (section 5).
+
+**P4. Apalache compatibility through source.** For `-symbolic -length N`, each entry
+got a `.cfg` with `INIT Init`, `NEXT Next`, `INVARIANT Inv`, and `PROPERTY Liveness`
+when the request has one. Manyan's type checker rejected 310 of 430 entries (exit 120),
+most with `Annotation required … ((a, b) => <<a, b>>) or ((a, a) => Seq(a))` on a
+`LET` operator or a `LAMBDA`. Another 82 failed parsing, for the reasons in P2. The
+Apalache stage never typechecks source: it receives typed JSON IR (`ApalacheIrJson`).
+The rendered source carries type annotations only on variables and constants, which is
+not enough for a checker that infers types from source. **Decision:**
+- `apalache` compatibility stays in the design, with one more placeholder, `{ir}`. It
+  is the module as Apalache's JSON IR, written only when an argument names it.
+- The Manyan example for this mode is documented as not yet usable. Annotating the
+  rendered source's operators is out of scope.
+
+The action-invariant question (whether `-symbolic` accepts `Step` as an `INVARIANT`)
+was not reached: no metamorphic corpus was available, and typechecking failed first.
+
+**P5. Instance-linked libraries.** Neither corpus links a library by `INSTANCE`
+([ADR 0014][adr-0014]). This is still open. Until it is probed, `init` refuses
+`generic` together with `link = "instance"`.
+
+**Consequence for campaigns.** About 19% of pbt entries would differ on parsing alone.
+Known-defect signatures for `[A]_FALSE` and parameterized labels have to exist before
+a campaign. Otherwise the aggregator's failures are dominated by these two causes.
 
 ## Alternatives considered
 
@@ -200,7 +277,8 @@ per technique:
 
 ## Implementation phases
 
-1. `make manyan-build` and the probe, answering the open questions.
+1. `make manyan-build`, and known-defect signatures for the parse differences of
+   probe P2.
 2. `init` copies a native executable into `tools/`.
 3. The `[generic]` table: `GenericCheckerConfig`, `GenericCompatibility`,
    `GenericPlaceholder`, and the commented example `init` writes.
