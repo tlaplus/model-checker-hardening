@@ -359,6 +359,8 @@ class AggregatorClassificationTest(unittest.TestCase):
         cases = (
             (triager.CrashKind.APALACHE, "Apalache worker timed out after PT30S"),
             (triager.CrashKind.TLC, "TLC worker timed out after PT30S"),
+            # The generic checker names the tool, not a worker (ADR 0033 §4).
+            (triager.CrashKind.GENERIC, "Manyan timed out after PT1M30S"),
         )
         for crash_kind, diagnostic in cases:
             with self.subTest(crash_kind=crash_kind):

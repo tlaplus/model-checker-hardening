@@ -19,6 +19,7 @@ class Stage(Enum):
     TLC = ("tlc", "TLC", "tlc", CrashKind.TLC)
     TLCN = ("tlcn", "TLC-n", "tlcn", CrashKind.TLCN)
     APALACHE = ("apalache", "Apalache", "apalache", CrashKind.APALACHE)
+    GENERIC = ("generic", "Generic", "generic", CrashKind.GENERIC)
     AGGREGATOR = ("aggregator", "Aggregator", None, None)
     QUALITY = ("quality", "Quality gate", None, None)
 

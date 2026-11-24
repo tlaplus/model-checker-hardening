@@ -19,7 +19,7 @@ from campaign_report.errors import ReportError
 from campaign_report.stages import Outcome, Stage
 from campaign_report.triage import LabelClass
 
-SCHEMA = Path(__file__).resolve().parent / "testdata" / "corpus-schema-v10.sql"
+SCHEMA = Path(__file__).resolve().parent / "testdata" / "corpus-schema-v11.sql"
 NO_DATA = "*No data for this plot in this corpus.*"
 
 H_SELECTED, H_AGREEING, H_STATES, H_CRASH, H_KNOWN = (c * 64 for c in "12345")
@@ -278,7 +278,7 @@ class EnumTest(unittest.TestCase):
     def test_stage_order_is_the_pipeline_order(self) -> None:
         self.assertEqual(
             [stage.value for stage in Stage],
-            ["parser", "tlc", "tlcn", "apalache", "aggregator", "quality"],
+            ["parser", "tlc", "tlcn", "apalache", "generic", "aggregator", "quality"],
         )
 
     def test_outcomes_partition_their_directories(self) -> None:

@@ -33,6 +33,8 @@ class Tool(Enum):
     PARSER = "parser"
     TLC = "tlc"
     APALACHE = "apalache"
+    # The generic checker of ADR 0033, such as Manyan.
+    GENERIC = "generic"
 
 
 class Checker(Enum):
@@ -45,6 +47,7 @@ class Checker(Enum):
     TLC = ("tlc", Tool.TLC)
     TLCN = ("tlcn", Tool.TLC)
     APALACHE = ("apalache", Tool.APALACHE)
+    GENERIC = ("generic", Tool.GENERIC)
 
     def __new__(cls, stage: str, tool: Tool) -> Checker:
         member = object.__new__(cls)
@@ -58,6 +61,7 @@ class CrashKind(Enum):
     TLC = ("02tlc-crash", Tool.TLC)
     TLCN = ("02tlcn-crash", Tool.TLC)
     APALACHE = ("02apa-crash", Tool.APALACHE)
+    GENERIC = ("02gen-crash", Tool.GENERIC)
 
     def __new__(cls, directory: str, tool: Tool) -> CrashKind:
         member = object.__new__(cls)
@@ -81,6 +85,7 @@ class FailKind(Enum):
     TLC = ("02tlc-fail", Checker.TLC)
     TLCN = ("02tlcn-fail", Checker.TLCN)
     APALACHE = ("02apa-fail", Checker.APALACHE)
+    GENERIC = ("02gen-fail", Checker.GENERIC)
 
     def __new__(cls, directory: str, checker: Checker) -> FailKind:
         member = object.__new__(cls)
@@ -672,9 +677,10 @@ NEW_FINDING = "NEW"
 # A worker timeout is the harness killing a slow run; the diagnostic carries no
 # tool output to classify against a finding. Bucket it separately so that NEW
 # keeps meaning "an unclassified crash that needs investigation". The message is
-# "<Apalache|TLC> worker timed out after <Duration>" (IsolatedWorkerProcess).
+# "<Apalache|TLC> worker timed out after <Duration>" (IsolatedWorkerProcess), or
+# "<name> timed out after <Duration>" for the generic checker (ADR 0033 §4).
 WORKER_TIMEOUT = "TIMEOUT"
-WORKER_TIMEOUT_PATTERN = re.compile(r"^\w+ worker timed out after ", re.MULTILINE)
+WORKER_TIMEOUT_PATTERN = re.compile(r"^[\w .+-]+ timed out after PT", re.MULTILINE)
 
 # Checkers of one tool that explore states in a different order, TLC with one
 # and with n workers, may stop at different errors when an input reaches both
