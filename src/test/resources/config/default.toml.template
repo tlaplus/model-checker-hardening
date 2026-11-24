@@ -217,3 +217,18 @@ weights = {}
 # The tla2tools JAR this corpus runs, relative to this config file (ADR 0025 §3);
 # fuzztla init copies it here. Without it, FuzzTLA's own release runs.
 # tla2tools = "tools/tla2tools.jar"
+
+[generic]
+# A model checker that claims compatibility with TLC or Apalache, which the generic checker
+# stage runs (ADR 0033). fuzztla init --generic FILE writes this table from FILE and copies
+# its executable into tools/; generic/ in the repository holds examples. The four keys go
+# together. name is the tool's name in progress output and reports.
+# name = "Manyan"
+# "tlc" or "apalache": the checker whose configuration file and exit statuses the tool follows.
+# compatibility = "tlc"
+# The tool, relative to this config file.
+# executable = "tools/manyan-a9ca4f38028f"
+# The command line, one element per argument. An element may contain the placeholders
+# {dir}, {module}, {module_name}, {config}, {init}, {next}, {inv}, {temporal}, {length}
+# and {ir}. Have the tool use one worker: FuzzTLA runs several invocations at once.
+# arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]

@@ -415,6 +415,32 @@ final class ConfigSchema {
     private static final ConfigTableBuilder<ToolsConfig> TOOLS = new ConfigTableBuilder<>("tools", FuzzTlaConfig::tools);
     private static final Map<ToolJar, Key<Optional<Path>>> TOOL_JARS = toolJars();
 
+    /** The generic checker's table: either every key or none, which a fresh config shows as Manyan. */
+    private static final ConfigTableBuilder<Optional<GenericCheckerConfig>> GENERIC =
+            new ConfigTableBuilder<>("generic", FuzzTlaConfig::tools).project(ToolsConfig::generic);
+    static final Key<Optional<String>> GENERIC_NAME = GENERIC.optional(
+            "name", ConfigValueType.optional(ConfigValueType.STRING, GenericCheckerConfig.EXAMPLE.name()),
+            checker -> checker.map(GenericCheckerConfig::name), new Absent<>(),
+            "A model checker that claims compatibility with TLC or Apalache, which the generic checker",
+            "stage runs (ADR 0033). fuzztla init --generic FILE writes this table from FILE and copies",
+            "its executable into tools/; generic/ in the repository holds examples. The four keys go",
+            "together. name is the tool's name in progress output and reports.");
+    static final Key<Optional<GenericCompatibility>> GENERIC_COMPATIBILITY = GENERIC.optional(
+            "compatibility",
+            ConfigValueType.optional(ConfigValueType.GENERIC_COMPATIBILITY, GenericCheckerConfig.EXAMPLE.compatibility()),
+            checker -> checker.map(GenericCheckerConfig::compatibility), new Absent<>(),
+            "\"tlc\" or \"apalache\": the checker whose configuration file and exit statuses the tool follows.");
+    static final Key<Optional<Path>> GENERIC_EXECUTABLE = GENERIC.optional(
+            "executable", ConfigValueType.optionalPath(GenericCheckerConfig.EXAMPLE.executable()),
+            checker -> checker.map(GenericCheckerConfig::executable), new Absent<>(),
+            "The tool, relative to this config file.");
+    static final Key<Optional<List<String>>> GENERIC_ARGUMENTS = GENERIC.optional(
+            "arguments", ConfigValueType.optional(ConfigValueType.STRINGS, GenericCheckerConfig.EXAMPLE.arguments()),
+            checker -> checker.map(GenericCheckerConfig::arguments), new Absent<>(),
+            "The command line, one element per argument. An element may contain the placeholders",
+            "{dir}, {module}, {module_name}, {config}, {init}, {next}, {inv}, {temporal}, {length}",
+            "and {ir}. Have the tool use one worker: FuzzTLA runs several invocations at once.");
+
     private static final ConfigTableBuilder<SeedConfig> SEEDS = new ConfigTableBuilder<>("seeds", FuzzTlaConfig::seeds);
     static final Key<Long> GENERATOR_SEED = SEEDS.key(
             "generator", ConfigValueType.LONG, SeedConfig::generator,
@@ -493,6 +519,7 @@ final class ConfigSchema {
         tables.add(METAMORPHIC.buildOptional());
         tables.add(GRAPH.buildOptional());
         tables.add(TOOLS.buildOptional());
+        tables.add(GENERIC.buildOptional());
         return List.copyOf(tables);
     }
 
@@ -509,7 +536,10 @@ final class ConfigSchema {
         return Map.copyOf(keys);
     }
 
-    /** Reads the {@code [tools]} table, with the JARs still relative to the config file. */
+    /**
+     * Reads the {@code [tools]} and {@code [generic]} tables, with the paths still relative to the
+     * config file.
+     */
     static ToolsConfig readTools(Map<String, TomlTable> tables) throws ConfigException {
         var jars = new EnumMap<ToolJar, Path>(ToolJar.class);
         for (var entry : TOOL_JARS.entrySet()) {
@@ -518,7 +548,38 @@ final class ConfigSchema {
                 jars.put(entry.getKey(), jar.get());
             }
         }
-        return new ToolsConfig(jars);
+        return new ToolsConfig(jars, readGeneric(tables));
+    }
+
+    /** The path of the generic checker's table. */
+    static String genericPath() {
+        return GENERIC_NAME.tablePath();
+    }
+
+    /**
+     * Reads the {@code [generic]} table: a checker when it sets every key, none when it sets none,
+     * with the executable still relative to the config file.
+     */
+    static Optional<GenericCheckerConfig> readGeneric(Map<String, TomlTable> tables) throws ConfigException {
+        var name = GENERIC_NAME.read(tables);
+        var compatibility = GENERIC_COMPATIBILITY.read(tables);
+        var executable = GENERIC_EXECUTABLE.read(tables);
+        var arguments = GENERIC_ARGUMENTS.read(tables);
+        var keys = List.of(GENERIC_NAME, GENERIC_COMPATIBILITY, GENERIC_EXECUTABLE, GENERIC_ARGUMENTS);
+        var values = List.of(name, compatibility, executable, arguments);
+        var missing = new ArrayList<String>();
+        for (var index = 0; index < keys.size(); index++) {
+            if (values.get(index).isEmpty()) {
+                missing.add(keys.get(index).name());
+            }
+        }
+        if (missing.size() == keys.size()) {
+            return Optional.empty();
+        }
+        if (!missing.isEmpty()) {
+            throw new ConfigException("missing " + genericPath() + " keys: " + String.join(", ", missing));
+        }
+        return Optional.of(new GenericCheckerConfig(name.get(), compatibility.get(), executable.get(), arguments.get()));
     }
 
     private static Map<CorpusStage, CheckerKeys> checkerKeys() {

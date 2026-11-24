@@ -15,6 +15,7 @@ import io.github.tlaplus.hardening.workflow.WorkflowException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -35,7 +36,9 @@ import java.util.Set;
  *       {@code tla/}. A file entry is copied with a sibling {@code VERSION} file that records its
  *       provenance; a directory entry as its top-level regular files. An entry two of them share is
  *       copied once;
- *   <li>the tool JARs go to {@code tools/}: those the configuration names, else the staged ones.
+ *   <li>the tool JARs go to {@code tools/}: those the configuration names, else the staged ones;
+ *   <li>the generic checker's executable, if any, goes to {@code tools/} under its own name, with
+ *       its permissions (ADR 0033 §4).
  * </ul>
  */
 @ArchRole(Role.STORE)
@@ -77,7 +80,7 @@ public final class LibraryInstall {
                 .withMetamorphic(metamorphic.withRules(classpath.install(metamorphic.rules()))
                         .withTemporalRules(classpath.install(metamorphic.temporalRules())))
                 .withGraphGuards(classpath.install(config.graphGuards()))
-                .withTools(ToolsConfig.installed());
+                .withTools(config.tools().installed());
         var tools = new LinkedHashMap<Path, Path>();
         for (var tool : ToolJar.values()) {
             var source = config.tools().jar(tool);
@@ -85,6 +88,14 @@ public final class LibraryInstall {
                     ToolsConfig.DIRECTORY.resolve(tool.fileName()));
         }
         CorpusTools.require(config);
+        var generic = config.tools().generic();
+        if (generic.isPresent()) {
+            var installedExecutable = ToolsConfig.installedExecutable(generic.get());
+            if (tools.containsValue(installedExecutable)) {
+                throw new WorkflowException("generic.executable shares the name of a tool JAR: " + installedExecutable);
+            }
+            tools.put(generic.get().executable(), installedExecutable);
+        }
         return new Plan(installed, classpath.copies, tools);
     }
 
@@ -108,7 +119,8 @@ public final class LibraryInstall {
         for (var entry : plan.tools().entrySet()) {
             var target = corpusRoot.resolve(entry.getValue());
             Files.createDirectories(target.getParent());
-            Files.copy(entry.getKey(), target);
+            // The attributes keep the generic checker's executable runnable.
+            Files.copy(entry.getKey(), target, StandardCopyOption.COPY_ATTRIBUTES);
         }
     }
 

@@ -328,6 +328,37 @@ class MainTest {
                 config.tools().jar(ToolJar.TLA2TOOLS));
     }
 
+    /** init --generic writes the file's [generic] table and copies its executable into tools/ (ADR 0033). */
+    @Test
+    void initInstallsAGenericChecker(@TempDir Path directory) throws Exception {
+        var bin = Files.createDirectory(directory.resolve("bin"));
+        var executable = Files.writeString(bin.resolve("checker-1a2b"), "#!/bin/sh\nexit 0\n");
+        assertTrue(executable.toFile().setExecutable(true));
+        var file = Files.writeString(directory.resolve("checker.toml"), """
+                [generic]
+                name = "Checker"
+                compatibility = "tlc"
+                executable = "bin/checker-1a2b"
+                arguments = ["-config", "{config}", "{module}"]
+                """);
+        var corpus = directory.resolve("corpus");
+
+        var result = execute("init", "--how=pbt", "--corpus=" + corpus, "--generic", file.toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.err());
+        var installed = corpus.resolve("tools/checker-1a2b").toAbsolutePath().normalize();
+        assertTrue(Files.isExecutable(installed));
+        var config = TomlConfig.read(corpus.resolve(CorpusPath.CONFIG.relativePath()));
+        assertEquals(Optional.of(new GenericCheckerConfig("Checker", GenericCompatibility.TLC, installed,
+                List.of("-config", "{config}", "{module}"))), config.tools().generic());
+
+        var missing = execute("init", "--how=pbt", "--corpus=" + directory.resolve("b"),
+                "--generic", directory.resolve("absent.toml").toString());
+        assertEquals(CommandLine.ExitCode.USAGE, missing.exitCode());
+        assertTrue(missing.err().contains("cannot read generic checker"), missing.err());
+        assertFalse(Files.exists(directory.resolve("b")));
+    }
+
     @Test
     void initRefusesAnInvalidToolOption(@TempDir Path directory) throws Exception {
         var jar = Files.write(directory.resolve("apalache.jar"), new byte[] {1});

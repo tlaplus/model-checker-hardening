@@ -145,13 +145,66 @@ class TomlConfigTest {
     void readsTheToolJars(@TempDir Path directory) throws Exception {
         var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
         assertEquals(ToolsConfig.none(), readConfig(directory, defaults).tools());
-        var installed = TomlConfig.render(FuzzTlaConfig.defaults().withTools(ToolsConfig.installed()));
+        var installed = TomlConfig.render(FuzzTlaConfig.defaults().withTools(ToolsConfig.none().installed()));
         assertTrue(installed.contains("\napalache = \"tools/apalache.jar\"\n"), installed);
         var tools = readConfig(directory, installed).tools();
         for (var tool : ToolJar.values()) {
             assertEquals(Optional.of(directory.resolve("tools").resolve(tool.fileName()).toAbsolutePath().normalize()),
                     tools.jar(tool));
         }
+    }
+
+    /**
+     * [generic] names the generic checker with its executable relative to the file, and a fresh
+     * configuration shows Manyan commented out (ADR 0033).
+     */
+    @Test
+    void readsTheGenericChecker(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        assertTrue(defaults.contains("\n# executable = \"tools/manyan-a9ca4f38028f\"\n"), defaults);
+        assertEquals(Optional.empty(), readConfig(directory, defaults).tools().generic());
+
+        var checker = new GenericCheckerConfig("Manyan", GenericCompatibility.APALACHE, Path.of("tools/manyan"),
+                List.of("-symbolic", "-length", "{length}", "{module}"));
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults().withTools(ToolsConfig.none().withGeneric(checker)));
+        assertTrue(rendered.contains("\ncompatibility = \"apalache\"\n"), rendered);
+        assertEquals(Optional.of(checker.withExecutable(directory.resolve("tools/manyan").toAbsolutePath().normalize())),
+                readConfig(directory, rendered).tools().generic());
+    }
+
+    /** The four [generic] keys go together, and an argument names only known placeholders. */
+    @Test
+    void rejectsAPartialOrUnknownGenericChecker(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+
+        var partial = assertInvalid(directory, defaults.replace("# name = \"Manyan\"", "name = \"Manyan\""));
+        assertEquals("missing generic keys: compatibility, executable, arguments", partial.getMessage());
+
+        var complete = defaults.replace("# name = ", "name = ").replace("# compatibility = ", "compatibility = ")
+                .replace("# executable = ", "executable = ").replace("# arguments = ", "arguments = ");
+        var unknown = assertInvalid(directory, complete.replace("\"{config}\"", "\"{cfg}\""));
+        assertTrue(unknown.getMessage().contains("unknown placeholder {cfg} in '{cfg}'"), unknown.getMessage());
+        var compatibility = assertInvalid(directory, complete.replace("compatibility = \"tlc\"", "compatibility = \"tlc2\""));
+        assertTrue(compatibility.getMessage().contains("unknown compatibility 'tlc2'"), compatibility.getMessage());
+    }
+
+    /** A generic checker file holds exactly the [generic] table; the shipped examples are such files. */
+    @Test
+    void readsAGenericCheckerFile(@TempDir Path directory) throws Exception {
+        var examples = Path.of("generic").toAbsolutePath();
+        var manyan = TomlConfig.readGeneric(examples.resolve("manyan.toml"));
+        assertEquals(GenericCompatibility.TLC, manyan.compatibility());
+        assertEquals(examples.resolveSibling("target/checkers/manyan-a9ca4f38028f").normalize(), manyan.executable());
+        assertEquals(GenericCompatibility.APALACHE,
+                TomlConfig.readGeneric(examples.resolve("manyan-symbolic.toml")).compatibility());
+
+        var extra = Files.writeString(directory.resolve("extra.toml"),
+                "[generic]\nname = \"X\"\ncompatibility = \"tlc\"\nexecutable = \"x\"\narguments = []\n\n[tools]\n");
+        assertTrue(assertThrows(ConfigException.class, () -> TomlConfig.readGeneric(extra)).getMessage()
+                .contains("unknown root keys: tools"));
+        var partial = Files.writeString(directory.resolve("partial.toml"), "[generic]\nname = \"X\"\n");
+        assertTrue(assertThrows(ConfigException.class, () -> TomlConfig.readGeneric(partial)).getMessage()
+                .contains("missing generic keys"));
     }
 
     /** Names the rule module {@code rules} and weighs two rules, in table {@code [table]} only. */

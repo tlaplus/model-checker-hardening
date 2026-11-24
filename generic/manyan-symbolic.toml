@@ -1,0 +1,17 @@
+# Manyan's bounded mode, compared with Apalache as the generic checker (ADR 0033). Build it, then
+# name this file at init:
+#
+#   make manyan-build
+#   ./bin/fuzztla init --how=pbt --corpus corpus-manyan-symbolic --generic generic/manyan-symbolic.toml
+#
+# Manyan v0.17.0 rejects most generated modules in this mode: its type checker infers types from
+# the rendered source, which annotates only variables and constants (ADR 0033, probe P4).
+#
+# init copies the executable into the corpus's tools/. The executable is relative to this file;
+# keep its revision in step with MANYAN_REV in the Makefile.
+
+[generic]
+name = "Manyan"
+compatibility = "apalache"
+executable = "../target/checkers/manyan-a9ca4f38028f"
+arguments = ["-symbolic", "-length", "{length}", "-config", "{config}", "{module}"]
