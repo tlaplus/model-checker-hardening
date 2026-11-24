@@ -7,6 +7,7 @@ const LABEL_CATALOG = new Map([
   ["apalache", { color: "7057ff", description: "A finding affecting Apalache" }],
   ["sany", { color: "1d76db", description: "A finding affecting SANY" }],
   ["tlc", { color: "0e8a16", description: "A finding affecting TLC" }],
+  ["manyan", { color: "fbca04", description: "A finding affecting Manyan" }],
 ]);
 const TOOL_LABELS = new Set([...LABEL_CATALOG.keys()].filter((label) => label !== FINDING_LABEL));
 const FINDING_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[0-9]{3}$/;

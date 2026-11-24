@@ -7,15 +7,18 @@ ATLAS_OUTPUT ?= target/architecture
 MKDOCS ?= mkdocs
 HARDENING_REPO ?= https://github.com/tlaplus/model-checker-hardening
 APALACHE_REPO ?= https://github.com/apalache-mc/apalache
+MANYAN_REPO ?= https://github.com/soasme/manyan
 # Earlier checker JARs for `fuzztla init --tool` (ADR 0032); `make clean` removes them.
 CHECKERS_DIR ?= target/checkers
 # A release tag of the tlc-build workflow, tlc-YYYYMMDD-<sha12>.
 TLC_BUILD ?=
 # An Apalache release version, such as 0.62.0.
 APALACHE_VERSION ?=
+# The Manyan revision that manyan-build builds (ADR 0033): a commit or a tag.
+MANYAN_REV ?= a9ca4f38028f4e8b4cc3f016167d071b55e3abe0
 
 .PHONY: compile test package verify run clean proofs community-modules tlc-build apalache-release \
-	architecture user-manual
+	manyan-build architecture user-manual
 
 compile:
 	$(MVN) compile
@@ -102,3 +105,19 @@ apalache-release:
 	test -s $$jar.part || { echo "no lib/apalache.jar in Apalache $(APALACHE_VERSION)" >&2; exit 1; }; \
 	mv $$jar.part $$jar; \
 	echo "Apalache $(APALACHE_VERSION) in $$jar"
+
+# Builds Manyan at MANYAN_REV from a clone in $(CHECKERS_DIR)/manyan-src, as
+# $(CHECKERS_DIR)/manyan-<rev12>, for the generic checker (ADR 0033). A plain build: Manyan's
+# profile-guided build would run its test suites. Needs git and a C11 compiler.
+manyan-build:
+	@set -eu; \
+	src=$(CHECKERS_DIR)/manyan-src; \
+	mkdir -p $(CHECKERS_DIR); \
+	test -d $$src/.git || git clone -q $(MANYAN_REPO) $$src; \
+	git -C $$src fetch -q --tags origin; \
+	git -C $$src checkout -q --detach $(MANYAN_REV); \
+	rev=$$(git -C $$src rev-parse HEAD); \
+	$(MAKE) -B -C $$src manyan PGO_TOOLS=; \
+	binary=$(CHECKERS_DIR)/manyan-$$(printf %.12s $$rev); \
+	cp $$src/manyan $$binary; \
+	echo "Manyan $$rev in $$binary"

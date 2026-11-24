@@ -1,0 +1,27 @@
+# Known-defect signatures of Manyan, the first generic checker (ADR 0033).
+#
+# List this database next to all-defects.toml in a corpus that runs Manyan as the generic
+# checker:
+#
+#   known_defects = ["../signatures/all-defects.toml", "../signatures/manyan-defects.toml"]
+#
+# Its signatures quarantine inputs that SANY and TLC accept, so they would hide valid inputs
+# from a corpus that runs only TLC and Apalache; all-defects.toml does not contain them.
+#
+# findings/manyan/manyan-002.md, a label in a later bound's set, has no signature: the
+# pattern language skips labels.
+#
+# docs/manual/known-defect-signatures.md describes the format. References are relative to this
+# file.
+
+[[signature]]
+id = "manyan-literal-subscript"
+references = ["../findings/manyan/manyan-001.md"]
+description = "Manyan rejects FALSE, TRUE, STRING or BOOLEAN as an action or fairness subscript."
+status = "open"
+match = [
+  '(STUTTER _ FALSE)', '(STUTTER _ TRUE)', '(STUTTER _ STRING)', '(STUTTER _ BOOLEAN)',
+  '(NO_STUTTER _ FALSE)', '(NO_STUTTER _ TRUE)', '(NO_STUTTER _ STRING)', '(NO_STUTTER _ BOOLEAN)',
+  '(WEAK_FAIRNESS FALSE _)', '(WEAK_FAIRNESS TRUE _)', '(WEAK_FAIRNESS STRING _)', '(WEAK_FAIRNESS BOOLEAN _)',
+  '(STRONG_FAIRNESS FALSE _)', '(STRONG_FAIRNESS TRUE _)', '(STRONG_FAIRNESS STRING _)', '(STRONG_FAIRNESS BOOLEAN _)',
+]

@@ -44,6 +44,13 @@ public final class KnownDefectDatabase {
      */
     public static final Path TEMPORAL_APALACHE = Path.of("signatures", "temporal-apalache-defects.toml");
 
+    /**
+     * Signatures of Manyan's defects on inputs that SANY and TLC accept, relative to the project
+     * directory. A corpus that runs Manyan as its generic checker lists it next to {@link #ALL}
+     * (ADR 0033).
+     */
+    public static final Path MANYAN = Path.of("signatures", "manyan-defects.toml");
+
     private static final KnownDefectDatabase EMPTY = new KnownDefectDatabase(List.of());
 
     private final List<KnownDefect> signatures;

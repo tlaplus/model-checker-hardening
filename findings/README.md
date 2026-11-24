@@ -18,7 +18,8 @@ The filename is lowercase kebab case with a letter prefix and a three-digit
 number. It is globally unique and permanent. Move the file without renaming it,
 and do not reuse its name for a different finding. The `state` is either `open`
 or `closed` and controls the corresponding GitHub issue state. `labels` is a
-non-empty inline list containing one or more of `apalache`, `sany`, and `tlc`.
+non-empty inline list containing one or more of `apalache`, `sany`, `tlc`, and
+`manyan`.
 
 After the metadata, the file has exactly one H1 title and one `## Summary`
 section. The title and Summary are copied to the issue. The issue links back to

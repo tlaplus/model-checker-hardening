@@ -496,6 +496,30 @@ one signature, `metamorphic-choose`, matches every bounded and unbounded `CHOOSE
 conformance corpus it would quarantine valid inputs, so `all-defects.toml` does not
 contain it. `MetamorphicDefectsTest` checks that both databases load together.
 
+### 7.3. Manyan database
+
+`signatures/manyan-defects.toml` is for a corpus that runs
+[Manyan](generic-checker.md) as its generic checker. List it next to
+`all-defects.toml`:
+
+```toml
+known_defects = ["../signatures/all-defects.toml", "../signatures/manyan-defects.toml"]
+```
+
+Its signature matches inputs that SANY and TLC accept and Manyan rejects. A corpus
+without Manyan must keep them, so `all-defects.toml` does not contain it.
+
+| Id | Match | Defect | Recall | Precision |
+| --- | --- | --- | ---: | ---: |
+| `manyan-literal-subscript` | `[A]_e`, `<<A>>_e`, `WF_e(A)` or `SF_e(A)` with `e` one of `FALSE`, `TRUE`, `STRING`, `BOOLEAN` | [`manyan-001`](../../findings/manyan/manyan-001.md) | 62 of 64 | 62 of 62 |
+
+It was measured on 430 corpus87 pbt entries with Manyan `v0.17.0`. The two entries it
+misses have the subscript in a definition that nothing references. The signature skips
+such definitions, but Manyan's parser rejects them. Manyan also rejects a label in a
+later bound's set ([`manyan-002`](../../findings/manyan/manyan-002.md), 18 of the 430
+entries), which no signature can express, because labels are skipped.
+`ManyanDefectsTest` checks the database.
+
 ## Background
 
 [ADR 0006](../decisions/0006-known-defect-signatures.md) records the design and its
