@@ -1,9 +1,8 @@
 # Other model checkers
 
 !!! note
-    Proposed in [ADR 0033](../decisions/0033-generic-checker.md). `make manyan-build`,
-    the `[generic]` table and `init --generic` are implemented. The `generic` checker
-    stage, which runs the tool, is not yet.
+    [ADR 0033](../decisions/0033-generic-checker.md) records the design and the probe of
+    Manyan it is based on.
 
 A corpus can run one additional model checker that claims compatibility with TLC or
 Apalache. FuzzTLA compares its verdicts with those of the other checkers in the corpus.
@@ -59,16 +58,27 @@ arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 - **`arguments`** is the command line, one array element per argument. Have the tool
   use one worker: FuzzTLA runs several invocations in parallel itself.
 
-Then add `generic` to the checker list:
+Then add `generic` to the checker list, and list Manyan's known-defect signatures
+([Known-defect signatures](known-defect-signatures.md#73-manyan-database)):
 
 ```toml
 [workflow]
 checkers = ["tlc", "generic"]
+
+[workflow.inputs]
+known_defects = ["../signatures/all-defects.toml", "../signatures/manyan-defects.toml"]
+
+[workflow.generic]
+timeout_sec = 30
+workers = 4          # concurrent invocations
 ```
 
+Listing `generic` without a `[generic]` table is an error, as is listing it in a corpus
+that links a library through `INSTANCE`.
+
 FuzzTLA writes the module, the configuration file, and the `Apalache` and `Variants`
-modules that every generated module extends into the invocation's working directory.
-A corpus that links a library through `INSTANCE` cannot run the generic checker yet.
+modules that every generated module extends into a fresh working directory for each
+invocation, and removes the directory afterwards.
 
 !!! warning
     In the bounded mode of `generic/manyan-symbolic.toml`, Manyan rejects most generated

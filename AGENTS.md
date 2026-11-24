@@ -30,7 +30,8 @@ scope early, use precise terms and direct sentences, and distinguish implemented
 behavior from proposals.
 
 When writing findings and conformance issues, add the commit hashes of: fuzztla,
-TLC, and Apalache.
+TLC, and Apalache, and of the generic checker when one is involved, such as Manyan
+([ADR 0033](docs/decisions/0033-generic-checker.md)).
 
 ## Coding rules
 

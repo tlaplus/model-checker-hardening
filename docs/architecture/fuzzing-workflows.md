@@ -20,7 +20,8 @@ that the model-checker stages store. [ADR 0010][] records generations, the
 quality gate that ranks entries by those metrics, and the mutator
 ([mutation manual][]). [ADR 0009][] records `fuzztla export-db`, which exports a
 corpus to a SQLite database for analysis ([corpus-database manual][database
-manual]). [ADR 0023][] records graph-based testing (§1.5).
+manual]). [ADR 0023][] records graph-based testing (§1.5). [ADR 0033][] records the
+optional generic checker stage.
 
 ### 1.1. General architecture
 
@@ -121,6 +122,15 @@ the requested unrolling length, and `--temporal=Liveness` when the module has a
 property; `Liveness` is `Fairness => Prop`, because Apalache supports no fairness
 in a specification.
 
+**Implemented architectural extension.** The optional `generic` checker branch
+([ADR 0033][]) runs a tool that claims compatibility with TLC or Apalache, such as
+Manyan. Unlike every other branch, its tool comes from the corpus's `[generic]`
+table rather than from the build: an executable, a command line with placeholders,
+and a compatibility that selects the configuration file FuzzTLA writes (TLC's, or
+`INIT`/`NEXT` with Apalache's invariants and `Liveness`) and how its exit status
+becomes a verdict. It runs one native process per input and records no
+exploration metrics, so the oracles compare only its verdict.
+
 The parser and TLC consume a TLA+ module rendered through Apalache's Java I/O
 facade. Apalache instead consumes its typed IR JSON format through the same
 facade, which preserves the type tag on every expression and avoids inferring
@@ -176,6 +186,15 @@ flowchart LR
         tlcn_crash["02tlcn-crash"]
     end
 
+    subgraph generic["Generic checker (optional, ADR 0033)"]
+        direction TB
+        generic_inputs["02gen-inputs"]
+        generic_pass["02gen-pass"]
+        generic_counterexample["02gen-counterexample"]
+        generic_fail["02gen-fail"]
+        generic_crash["02gen-crash"]
+    end
+
     subgraph conformance["Aggregator"]
         direction TB
         aggregator_pass["03aggregator-pass"]
@@ -203,6 +222,7 @@ flowchart LR
     parse_pass --> tlc_inputs
     parse_pass --> apalache_inputs
     parse_pass -.-> tlcn_inputs
+    parse_pass -.-> generic_inputs
     tlc_inputs --> tlc_pass
     tlc_inputs --> tlc_counterexample
     tlc_inputs --> tlc_fail
@@ -215,6 +235,10 @@ flowchart LR
     tlcn_inputs --> tlcn_counterexample
     tlcn_inputs --> tlcn_fail
     tlcn_inputs --> tlcn_crash
+    generic_inputs --> generic_pass
+    generic_inputs --> generic_counterexample
+    generic_inputs --> generic_fail
+    generic_inputs --> generic_crash
     tlc_pass --> conformance
     apalache_pass --> conformance
     tlc_counterexample --> conformance
@@ -224,6 +248,9 @@ flowchart LR
     tlcn_pass --> conformance
     tlcn_counterexample --> conformance
     tlcn_fail --> conformance
+    generic_pass --> conformance
+    generic_counterexample --> conformance
+    generic_fail --> conformance
     aggregator_pass --> quality
     quality_pass --> mutator
     mutator --> inp
@@ -233,6 +260,7 @@ flowchart LR
     tlc_crash --> tests_crash
     apalache_crash --> tests_crash
     tlcn_crash --> tests_crash
+    generic_crash --> tests_crash
 ```
 
 ### 1.2. Custom-operator preparation
@@ -806,6 +834,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0016]: ../decisions/0016-metamorphic-testing.md
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
 [ADR 0023]: ../decisions/0023-graph-based-testing.md
+[ADR 0033]: ../decisions/0033-generic-checker.md
 [ADR 0024]: ../decisions/0024-graph-action-coverage.md
 [ADR 0025]: ../decisions/0025-self-contained-corpora.md
 [ADR 0027]: ../decisions/0027-temporal-metamorphic-testing.md
