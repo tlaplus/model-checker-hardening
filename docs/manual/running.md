@@ -1,7 +1,7 @@
 # Running campaigns
 
 ```sh
-fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE | --base-corpus=DIR]
+fuzztla init --how=TECHNIQUE [--corpus=DIR] [--library=FILE | --base-corpus=DIR] [--generic=FILE]
 fuzztla run [--corpus=DIR] [--continue] [--max-cpus=N] [--validate-retired=FRACTION]
 ```
 
