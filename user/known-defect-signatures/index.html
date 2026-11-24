@@ -1089,6 +1089,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#73-manyan-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3. Manyan database
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1545,6 +1556,17 @@
     <span class="md-ellipsis">
       
         7.2. Metamorphic database
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-manyan-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3. Manyan database
       
     </span>
   </a>
@@ -2207,6 +2229,40 @@ one signature, <code>metamorphic-choose</code>, matches every bounded and unboun
 (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/conformance/choose-multiple-witnesses.md"><code>choose-multiple-witnesses</code></a>). In a
 conformance corpus it would quarantine valid inputs, so <code>all-defects.toml</code> does not
 contain it. <code>MetamorphicDefectsTest</code> checks that both databases load together.</p>
+<h3 id="73-manyan-database">7.3. Manyan database<a class="headerlink" href="#73-manyan-database" title="Permanent link">&para;</a></h3>
+<p><code>signatures/manyan-defects.toml</code> is for a corpus that runs
+<a href="../generic-checker/">Manyan</a> as its generic checker. List it next to
+<code>all-defects.toml</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">known_defects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"../signatures/all-defects.toml"</span><span class="p">,</span><span class="w"> </span><span class="s2">"../signatures/manyan-defects.toml"</span><span class="p">]</span>
+</code></pre></div>
+<p>Its signature matches inputs that SANY and TLC accept and Manyan rejects. A corpus
+without Manyan must keep them, so <code>all-defects.toml</code> does not contain it.</p>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Match</th>
+<th>Defect</th>
+<th style="text-align: right;">Recall</th>
+<th style="text-align: right;">Precision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>manyan-literal-subscript</code></td>
+<td><code>[A]_e</code>, <code>&lt;&lt;A&gt;&gt;_e</code>, <code>WF_e(A)</code> or <code>SF_e(A)</code> with <code>e</code> one of <code>FALSE</code>, <code>TRUE</code>, <code>STRING</code>, <code>BOOLEAN</code></td>
+<td><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-001.md"><code>manyan-001</code></a></td>
+<td style="text-align: right;">62 of 64</td>
+<td style="text-align: right;">62 of 62</td>
+</tr>
+</tbody>
+</table>
+<p>It was measured on 430 corpus87 pbt entries with Manyan <code>v0.17.0</code>. The two entries it
+misses have the subscript in a definition that nothing references. The signature skips
+such definitions, but Manyan's parser rejects them. Manyan also rejects a label in a
+later bound's set (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-002.md"><code>manyan-002</code></a>, 18 of the 430
+entries), which no signature can express, because labels are skipped.
+<code>ManyanDefectsTest</code> checks the database.</p>
 <h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0006-known-defect-signatures.md">ADR 0006</a> records the design and its
 rationale.</p>
