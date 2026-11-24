@@ -1,10 +1,10 @@
 # `RuleModuleDefinitions`
 
-`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/31579170bdc4f6daf38d5f7e6cc3a6237e42cc60/src/main/java/io/github/tlaplus/hardening/workflow/library/RuleModuleDefinitions.java#L30) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d/src/main/java/io/github/tlaplus/hardening/workflow/library/RuleModuleDefinitions.java#L30) · module [workflow](../modules/workflow.md)
 
 Names the top-level definitions of a rule module itself, in declaration order, with the weight each one's comments annotate (ADR 0017 §1).
 
-**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/31579170bdc4f6daf38d5f7e6cc3a6237e42cc60/docs/decisions/0017-rewrite-rule-library.md)
+**Decisions:** [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d/docs/decisions/0017-rewrite-rule-library.md)
 
 ```mermaid
 classDiagram

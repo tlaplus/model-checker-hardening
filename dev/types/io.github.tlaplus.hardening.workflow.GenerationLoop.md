@@ -1,10 +1,10 @@
 # `GenerationLoop`
 
-`io.github.tlaplus.hardening.workflow` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/31579170bdc4f6daf38d5f7e6cc3a6237e42cc60/src/main/java/io/github/tlaplus/hardening/workflow/GenerationLoop.java#L57) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d/src/main/java/io/github/tlaplus/hardening/workflow/GenerationLoop.java#L57) · module [workflow](../modules/workflow.md)
 
 Runs the generations of one workflow invocation over a single stage graph (ADR 0010).
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/31579170bdc4f6daf38d5f7e6cc3a6237e42cc60/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/68ebe63ccffa9cbf7f7d04763e66bdf2f8b7613d/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram
