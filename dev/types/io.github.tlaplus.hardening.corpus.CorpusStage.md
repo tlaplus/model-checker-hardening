@@ -1,6 +1,6 @@
 # `CorpusStage`
 
-`io.github.tlaplus.hardening.corpus` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/corpus/CorpusStage.java#L23) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/corpus/CorpusStage.java#L23) · module [corpus](../modules/corpus.md)
 
 One implemented stage of the fuzzing pipeline, and the corpus directories it owns.
 
@@ -26,6 +26,9 @@ classDiagram
   }
   class AggregationInput {
     <<record>>
+  }
+  class CheckingPolicy {
+    <<policy>>
   }
   class CorpusInventory {
     <<record>>
@@ -86,15 +89,13 @@ classDiagram
     <<facade>>
   }
   class CorpusEntries
-  class CorpusEnvelope {
-    <<record>>
-  }
   CorpusStage <|.. CheckerSet
   CorpusStage --> CorpusVerdict : has
   RunView --> CorpusStage : has
   CheckerProfile --> CorpusStage : has
   WorkflowConfig --> CorpusStage : has
   AggregationInput --> CorpusStage : has
+  CheckingPolicy --> CorpusStage : has
   CorpusInventory --> CorpusStage : has
   CorpusRunStatistics --> CorpusStage : has
   EntryProgress --> CorpusStage : has
@@ -118,10 +119,9 @@ classDiagram
   AggregationTransition ..> CorpusStage : uses
   CorpusDirectory ..> CorpusStage : uses
   CorpusEntries ..> CorpusStage : uses
-  CorpusEnvelope ..> CorpusStage : uses
 ```
 
-The diagram draws 30 of 61 relations; the table lists them all.
+The diagram draws 30 of 62 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -131,6 +131,7 @@ The diagram draws 30 of 61 relations; the table lists them all.
 | ← | has | [CheckerProfile](io.github.tlaplus.hardening.config.CheckerProfile.md) | What differs between the configured model checkers: the defaults of their resource settings and the documentation of the settings whose meaning follows from the worker lifecycle. |
 | ← | has | [WorkflowConfig](io.github.tlaplus.hardening.config.WorkflowConfig.md) | Global and per-stage limits for the implemented fuzzing workflow. |
 | ← | has | [AggregationInput](io.github.tlaplus.hardening.corpus.AggregationInput.md) | A logical corpus entry whose non-crash checker results are ready for aggregation. |
+| ← | has | [CheckingPolicy](io.github.tlaplus.hardening.corpus.CheckingPolicy.md) | Which checkers a workflow run feeds and how the aggregator judges their verdicts. |
 | ← | has | [CorpusInventory](io.github.tlaplus.hardening.corpus.CorpusInventory.md) | Immutable startup inventory used to seed stage queues and capacities. |
 | ← | has | [CorpusRunStatistics](io.github.tlaplus.hardening.corpus.CorpusRunStatistics.md) | Durable cumulative statistics that cannot be recovered cheaply from corpus entries. |
 | ← | has | [EntryProgress](io.github.tlaplus.hardening.corpus.EntryProgress.md) | How far one logical entry has moved through the pipeline, and the single definition of the two questions generation scheduling asks of it (ADR 0010). |

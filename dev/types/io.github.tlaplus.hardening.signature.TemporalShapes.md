@@ -1,10 +1,10 @@
 # `TemporalShapes`
 
-`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/signature/TemporalShapes.java#L35) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/signature/TemporalShapes.java#L35) · module [signature](../modules/signature.md)
 
 Counts the temporal shapes of a module's properties (ADR 0028 §2).
 
-**Decisions:** [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0028-temporal-property-quality.md)
+**Decisions:** [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0028-temporal-property-quality.md)
 
 ```mermaid
 classDiagram

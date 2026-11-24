@@ -1,6 +1,6 @@
 # `LabelPlacement`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/gen/rewrite/LabelPlacement.java#L32) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/gen/rewrite/LabelPlacement.java#L32) · module [gen](../modules/gen.md)
 
 Where a rule's replacement may not carry a label of the node it rewrites.
 

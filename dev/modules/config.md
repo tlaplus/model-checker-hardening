@@ -43,8 +43,10 @@ classDiagram
 | [ConfigValueType](../types/io.github.tlaplus.hardening.config.ConfigValueType.md) | record | other | How the value of one configuration key is read from TOML and written back as TOML syntax. |
 | [**FuzzTlaConfig** ★](../types/io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | record | config | Complete configuration of input generation and workflow execution. |
 | [GeneratorLimitSchema](../types/io.github.tlaplus.hardening.config.GeneratorLimitSchema.md) | class | other | Declares and assembles the expression and module limit keys in the generator table. |
+| [GenericCapabilities](../types/io.github.tlaplus.hardening.config.GenericCapabilities.md) | record | config | What a generic checker supports of the reference checker's conventions (ADR 0033 §7, §8). |
 | [GenericCheckerConfig](../types/io.github.tlaplus.hardening.config.GenericCheckerConfig.md) | record | config | The `[generic]` table (ADR 0033 §1): a model checker that claims compatibility with TLC or Apalache, run as a native process for each input. |
 | [GenericCompatibility](../types/io.github.tlaplus.hardening.config.GenericCompatibility.md) | enum | other | The reference checker whose conventions a generic checker follows (ADR 0033 §2): the configuration file FuzzTLA writes for it and how its exit status becomes a verdict. |
+| [GenericErrors](../types/io.github.tlaplus.hardening.config.GenericErrors.md) | enum | other | How much of a generic checker's exit status the aggregator compares (ADR 0033 §7). |
 | [GenericPlaceholder](../types/io.github.tlaplus.hardening.config.GenericPlaceholder.md) | enum | other | A placeholder in `[generic] arguments` (ADR 0033 §3), written `{name}`. |
 | [InputStageConfig](../types/io.github.tlaplus.hardening.config.InputStageConfig.md) | record | other | The input stage's occupancy limit and the known-defect databases its admission consults. |
 | [MetamorphicConfig](../types/io.github.tlaplus.hardening.config.MetamorphicConfig.md) | record | other | The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1, ADR 0027 §1): what an `mt` corpus reads besides the generator settings. |
@@ -64,12 +66,12 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0010-mutation.md)
-- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0025-self-contained-corpora.md)
-- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0026-reproducible-runs.md)
-- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0027-temporal-metamorphic-testing.md)
-- [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0033-generic-checker.md)
+- [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0010-mutation.md)
+- [ADR 0013: Behaviour archive and operator-edge coverage](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0013-behaviour-archive-and-operator-coverage.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0025: Self-contained corpora, chosen at `init`](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0025-self-contained-corpora.md)
+- [ADR 0026: Reproducible runs: seeds chosen at `init`, `run --continue`](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0026-reproducible-runs.md)
+- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0027-temporal-metamorphic-testing.md)
+- [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0033-generic-checker.md)

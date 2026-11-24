@@ -1,6 +1,6 @@
 # `ConfigSchema`
 
-`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/config/ConfigSchema.java#L43) · module [config](../modules/config.md)
 
 The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back.
 
@@ -22,6 +22,9 @@ classDiagram
     <<config>>
   }
   class GenericCompatibility {
+    <<enum>>
+  }
+  class GenericErrors {
     <<enum>>
   }
   class InputStageConfig {
@@ -81,9 +84,6 @@ classDiagram
   class IrGenerationConfig {
     <<config>>
   }
-  class ExpressionKind {
-    <<interface>>
-  }
   ConfigTableBuilder --> ConfigSchema : has
   GeneratorLimitSchema --> ConfigSchema : has
   RuleLibrarySchema --> ConfigSchema : has
@@ -93,6 +93,7 @@ classDiagram
   ConfigSchema ..> GeneratorLimitSchema : uses
   ConfigSchema ..> GenericCheckerConfig : uses
   ConfigSchema ..> GenericCompatibility : uses
+  ConfigSchema ..> GenericErrors : uses
   ConfigSchema ..> InputStageConfig : uses
   ConfigSchema ..> MetamorphicConfig : uses
   ConfigSchema ..> MutatorConfig : uses
@@ -113,10 +114,9 @@ classDiagram
   ConfigSchema ..> GraphLimits : uses
   ConfigSchema ..> InputKind : uses
   ConfigSchema ..> IrGenerationConfig : uses
-  ConfigSchema ..> ExpressionKind : uses
 ```
 
-The diagram draws 30 of 38 relations; the table lists them all.
+The diagram draws 30 of 40 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -129,6 +129,7 @@ The diagram draws 30 of 38 relations; the table lists them all.
 | → | uses | [GeneratorLimitSchema](io.github.tlaplus.hardening.config.GeneratorLimitSchema.md) | Declares and assembles the expression and module limit keys in the generator table. |
 | → | uses | [GenericCheckerConfig](io.github.tlaplus.hardening.config.GenericCheckerConfig.md) | The `[generic]` table (ADR 0033 §1): a model checker that claims compatibility with TLC or Apalache, run as a native process for each input. |
 | → | uses | [GenericCompatibility](io.github.tlaplus.hardening.config.GenericCompatibility.md) | The reference checker whose conventions a generic checker follows (ADR 0033 §2): the configuration file FuzzTLA writes for it and how its exit status becomes a verdict. |
+| → | uses | [GenericErrors](io.github.tlaplus.hardening.config.GenericErrors.md) | How much of a generic checker's exit status the aggregator compares (ADR 0033 §7). |
 | → | uses | [InputStageConfig](io.github.tlaplus.hardening.config.InputStageConfig.md) | The input stage's occupancy limit and the known-defect databases its admission consults. |
 | → | uses | [MetamorphicConfig](io.github.tlaplus.hardening.config.MetamorphicConfig.md) | The `[metamorphic]` table (ADR 0016 §7, ADR 0017 §1, ADR 0027 §1): what an `mt` corpus reads besides the generator settings. |
 | → | uses | [MutatorConfig](io.github.tlaplus.hardening.config.MutatorConfig.md) | Generations, the quality gate's selection, and the mutator's share and operators (ADR 0010). |
@@ -156,5 +157,6 @@ The diagram draws 30 of 38 relations; the table lists them all.
 | → | depends | [CheckerProfile](io.github.tlaplus.hardening.config.CheckerProfile.md) | What differs between the configured model checkers: the defaults of their resource settings and the documentation of the settings whose meaning follows from the worker lifecycle. |
 | → | depends | [CheckerStageConfig](io.github.tlaplus.hardening.config.CheckerStageConfig.md) | Capacity and resource limits for one model-checker stage. |
 | → | depends | [ConfigException](io.github.tlaplus.hardening.config.ConfigException.md) | Reports invalid contents in a FuzzTLA configuration file. |
+| → | depends | [GenericCapabilities](io.github.tlaplus.hardening.config.GenericCapabilities.md) | What a generic checker supports of the reference checker's conventions (ADR 0033 §7, §8). |
 | → | depends | [RuleLibraryConfig](io.github.tlaplus.hardening.config.RuleLibraryConfig.md) | A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `mt` corpora and `[graph]` the tautological edge guards of ADR 0023 §6. |
 | ← | depends | [TomlConfig](io.github.tlaplus.hardening.config.TomlConfig.md) | Reads and writes the strict `config.toml` format used by a corpus. |

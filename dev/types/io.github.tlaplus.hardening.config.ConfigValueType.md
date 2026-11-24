@@ -1,6 +1,6 @@
 # `ConfigValueType`
 
-`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/config/ConfigValueType.java#L41) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/config/ConfigValueType.java#L41) · module [config](../modules/config.md)
 
 How the value of one configuration key is read from TOML and written back as TOML syntax.
 
@@ -10,6 +10,9 @@ classDiagram
     <<record>>
   }
   class GenericCompatibility {
+    <<enum>>
+  }
+  class GenericErrors {
     <<enum>>
   }
   class OperatorLibraryConfig {
@@ -47,6 +50,7 @@ classDiagram
   }
   class ConfigTableBuilder
   ConfigValueType ..> GenericCompatibility : uses
+  ConfigValueType ..> GenericErrors : uses
   ConfigValueType ..> OperatorLibraryConfig : uses
   ConfigValueType ..> RuleLibraryConfig : uses
   ConfigValueType ..> CheckerSet : uses
@@ -61,11 +65,12 @@ classDiagram
   ConfigTableBuilder ..> ConfigValueType : uses
 ```
 
-The diagram draws 13 of 21 relations; the table lists them all.
+The diagram draws 14 of 22 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | uses | [GenericCompatibility](io.github.tlaplus.hardening.config.GenericCompatibility.md) | The reference checker whose conventions a generic checker follows (ADR 0033 §2): the configuration file FuzzTLA writes for it and how its exit status becomes a verdict. |
+| → | uses | [GenericErrors](io.github.tlaplus.hardening.config.GenericErrors.md) | How much of a generic checker's exit status the aggregator compares (ADR 0033 §7). |
 | → | uses | [OperatorLibraryConfig](io.github.tlaplus.hardening.config.OperatorLibraryConfig.md) | Source-only library settings. |
 | → | uses | [RuleLibraryConfig](io.github.tlaplus.hardening.config.RuleLibraryConfig.md) | A rule module and its weights (ADR 0017 §1), as `[metamorphic]` configures the rewrites of `mt` corpora and `[graph]` the tautological edge guards of ADR 0023 §6. |
 | → | uses | [CheckerSet](io.github.tlaplus.hardening.corpus.CheckerSet.md) | The checker branches a corpus runs: a non-empty set of checking stages, in stage order. |

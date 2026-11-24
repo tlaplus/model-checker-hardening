@@ -1,6 +1,6 @@
 # `SequenceExpressionKind`
 
-`io.github.tlaplus.hardening.gen.engine` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/gen/engine/SequenceExpressionKind.java#L6) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/gen/engine/SequenceExpressionKind.java#L6) · module [gen](../modules/gen.md)
 
 Sequence-valued expression forms.
 

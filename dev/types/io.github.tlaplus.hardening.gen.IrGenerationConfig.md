@@ -1,6 +1,6 @@
 # `IrGenerationConfig`
 
-`io.github.tlaplus.hardening.gen` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/gen/IrGenerationConfig.java#L30) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/gen/IrGenerationConfig.java#L30) · module [gen](../modules/gen.md)
 
 Settings for generated TLA+ expressions and modules.
 
@@ -49,6 +49,9 @@ classDiagram
     <<config>>
   }
   class GeneratorLimitSchema
+  class GenericCapabilities {
+    <<config>>
+  }
   class IrGenerators {
     <<facade>>
   }
@@ -86,6 +89,7 @@ classDiagram
   Rewriter --> IrGenerationConfig : has
   ConfigSchema ..> IrGenerationConfig : uses
   GeneratorLimitSchema ..> IrGenerationConfig : uses
+  GenericCapabilities ..> IrGenerationConfig : uses
   IrGenerators ..> IrGenerationConfig : uses
   CustomExpressionKind ..> IrGenerationConfig : uses
   ExpressionKind ..> IrGenerationConfig : uses
@@ -98,7 +102,7 @@ classDiagram
   SpecDecoders ..> IrGenerationConfig : uses
 ```
 
-The diagram draws 24 of 45 relations; the table lists them all.
+The diagram draws 25 of 46 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -116,6 +120,7 @@ The diagram draws 24 of 45 relations; the table lists them all.
 | ← | has | [Rewriter](io.github.tlaplus.hardening.gen.rewrite.Rewriter.md) | Decodes a rewrite payload into a rewrite of a base (ADR 0016 §2). |
 | ← | uses | [ConfigSchema](io.github.tlaplus.hardening.config.ConfigSchema.md) | The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back. |
 | ← | uses | [GeneratorLimitSchema](io.github.tlaplus.hardening.config.GeneratorLimitSchema.md) | Declares and assembles the expression and module limit keys in the generator table. |
+| ← | uses | [GenericCapabilities](io.github.tlaplus.hardening.config.GenericCapabilities.md) | What a generic checker supports of the reference checker's conventions (ADR 0033 §7, §8). |
 | ← | uses | [IrGenerators](io.github.tlaplus.hardening.gen.IrGenerators.md) | Factory methods for deterministic generators of type-checked Apalache IR expressions. |
 | ← | uses | [CustomExpressionKind](io.github.tlaplus.hardening.gen.engine.CustomExpressionKind.md) | One configured operator kind; its type scheme comes from the immutable prepared library. |
 | ← | uses | [ExpressionKind](io.github.tlaplus.hardening.gen.engine.ExpressionKind.md) | A selectable expression form grouped by the component that constructs it. |

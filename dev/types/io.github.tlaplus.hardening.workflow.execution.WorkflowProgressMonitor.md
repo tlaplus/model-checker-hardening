@@ -1,6 +1,6 @@
 # `WorkflowProgressMonitor`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowProgressMonitor.java#L11) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/execution/WorkflowProgressMonitor.java#L11) · module [workflow](../modules/workflow.md)
 
 Periodically publishes serialized workflow snapshots without delaying stage workers.
 

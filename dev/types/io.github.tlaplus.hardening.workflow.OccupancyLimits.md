@@ -1,6 +1,6 @@
 # `OccupancyLimits`
 
-`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/OccupancyLimits.java#L10) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/OccupancyLimits.java#L10) · module [workflow](../modules/workflow.md)
 
 Checks an invocation and a recovered corpus against the configured capacity limits.
 

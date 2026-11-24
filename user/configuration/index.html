@@ -1680,11 +1680,13 @@ also excludes bounded quantifiers and functions, because their domains are sets.
 <code>ignore = []</code> enables everything.</p>
 <p><code>action</code>, <code>temporal</code>, <code>unbound</code>, <code>exotic</code>, <code>control</code>, <code>label</code>, <code>operator</code>,
 <code>quantifier</code>, <code>bool_logic</code>, <code>arithmetic</code>, <code>set</code>, <code>finite_set</code>, <code>universe</code>,
-<code>sequence</code>, <code>function</code>, <code>fold</code>, <code>tuple</code>, <code>record</code>, <code>variant</code>, <code>model</code>.</p>
+<code>sequence</code>, <code>function</code>, <code>fold</code>, <code>tuple</code>, <code>record</code>, <code>variant</code>, <code>model</code>, <code>fairness</code>.</p>
 <p><code>unbound</code> covers unbounded quantifiers and <code>CHOOSE</code> (<code>\A x : P</code>, <code>\E x : P</code>,
 <code>CHOOSE x : P</code>), which neither checker can evaluate in general. <code>exotic</code> covers
 operators that one or both checkers do not support: <code>\cdot</code>, <code>-+-&gt;</code>, and temporal <code>\EE</code>
-and <code>\AA</code>. Both are ignored by default. The <code>core</code> category provides literals and fallbacks and cannot be
+and <code>\AA</code>. Both are ignored by default. <code>fairness</code> covers <code>WF_v(A)</code> and <code>SF_v(A)</code> in
+formulas, which <code>temporal</code> covers too; <code>max_fairness</code> bounds the fairness conditions of
+the specification. The <code>core</code> category provides literals and fallbacks and cannot be
 ignored.</p>
 <h3 id="weighting-forms">Weighting forms<a class="headerlink" href="#weighting-forms" title="Permanent link">&para;</a></h3>
 <p><code>weights</code> maps the lowercase name of an expression form, such as <code>plus</code>, <code>fold_set</code>

@@ -1,6 +1,6 @@
 # `LibraryPreparation`
 
-`io.github.tlaplus.hardening.workflow.library` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryPreparation.java#L23) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.library` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/library/LibraryPreparation.java#L23) · module [workflow](../modules/workflow.md)
 
 Prepares custom libraries once before decoding; no importer/typechecker Maven dependency.
 

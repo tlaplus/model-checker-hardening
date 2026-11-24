@@ -486,10 +486,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-building-manyan" class="md-nav__link">
+  <a href="#1-building-a-checker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Building Manyan
+        1. Building a checker
       
     </span>
   </a>
@@ -1280,10 +1280,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-building-manyan" class="md-nav__link">
+  <a href="#1-building-a-checker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Building Manyan
+        1. Building a checker
       
     </span>
   </a>
@@ -1353,13 +1353,34 @@ Manyan it is based on.</p>
 Apalache. FuzzTLA compares its verdicts with those of the other checkers in the corpus.
 The checker is called <code>generic</code> in the checker list and the corpus, and it is described
 by the <code>[generic]</code> table of <code>config.toml</code>.</p>
-<h2 id="1-building-manyan">1. Building Manyan<a class="headerlink" href="#1-building-manyan" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/soasme/manyan">Manyan</a> is a TLC-compatible checker written in C.
-To build it at the pinned revision, run:</p>
-<div class="highlight"><pre><span></span><code>make<span class="w"> </span>manyan-build
-</code></pre></div>
-<p>The binary is staged as <code>target/checkers/manyan-&lt;rev12&gt;</code>. To build another revision,
-pass <code>MANYAN_REV=&lt;sha-or-tag&gt;</code>. The build needs a C11 compiler.</p>
+<h2 id="1-building-a-checker">1. Building a checker<a class="headerlink" href="#1-building-a-checker" title="Permanent link">&para;</a></h2>
+<p>The repository builds two checkers at pinned revisions:</p>
+<table>
+<thead>
+<tr>
+<th>checker</th>
+<th>target</th>
+<th>revision variable</th>
+<th>needs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/soasme/manyan">Manyan</a>, in C</td>
+<td><code>make manyan-build</code></td>
+<td><code>MANYAN_REV</code></td>
+<td>a C11 compiler</td>
+</tr>
+<tr>
+<td><a href="https://github.com/fabracht/tla-rs">tla-rs</a>, in Rust</td>
+<td><code>make tla-rs-build</code></td>
+<td><code>TLA_RS_REV</code></td>
+<td>cargo</td>
+</tr>
+</tbody>
+</table>
+<p>Each binary is staged as <code>target/checkers/&lt;checker&gt;-&lt;rev12&gt;</code>. To build another
+revision, pass the variable, as in <code>make manyan-build MANYAN_REV=&lt;sha-or-tag&gt;</code>.</p>
 <h2 id="2-initializing-a-corpus">2. Initializing a corpus<a class="headerlink" href="#2-initializing-a-corpus" title="Permanent link">&para;</a></h2>
 <p>A file with a <code>[generic]</code> table describes the checker. The repository ships two, for
 Manyan:</p>
@@ -1379,6 +1400,10 @@ Manyan:</p>
 <td><code>generic/manyan-symbolic.toml</code></td>
 <td>Manyan's bounded mode with Apalache</td>
 </tr>
+<tr>
+<td><code>generic/tla-rs.toml</code></td>
+<td>tla-rs with TLC, by exit status alone</td>
+</tr>
 </tbody>
 </table>
 <p>Name one at <code>init</code>:</p>
@@ -1394,7 +1419,8 @@ JARs, and writes the table into <code>config.toml</code> with the copied path. W
 <span class="n">arguments</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"-workers"</span><span class="p">,</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-deadlock"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-config"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{config}"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{module}"</span><span class="p">]</span>
 </code></pre></div>
 <ul>
-<li><strong>The four keys go together.</strong> A table that sets only some of them is an error.</li>
+<li><strong>The first four keys go together.</strong> A table that sets only some of them is an error.
+  <code>errors</code>, <code>fairness</code> and <code>apalache</code> are optional.</li>
 <li><strong><code>compatibility</code></strong> is <code>tlc</code> or <code>apalache</code>. It decides which configuration file
   FuzzTLA writes and how exit statuses become verdicts.</li>
 <li><strong><code>executable</code></strong> is relative to the file that names it. A corpus with a native tool
@@ -1402,6 +1428,22 @@ JARs, and writes the table into <code>config.toml</code> with the copied path. W
   missing or not executable.</li>
 <li><strong><code>arguments</code></strong> is the command line, one array element per argument. Have the tool
   use one worker: FuzzTLA runs several invocations in parallel itself.</li>
+<li><strong><code>errors</code></strong> is <code>"exact"</code> when omitted: the exit statuses mean what they mean to the
+  compatibility's checker. <code>"nonzero"</code> is for a tool with exit statuses of its own, such
+  as tla-rs, which exits 0 or 1. With it, FuzzTLA compares only whether the tool exits 0:
+  any error matches a counterexample or a failure of another checker. A fatal signal,
+  such as status 139 for SIGSEGV, is still a crash. <code>gbt</code> corpora reject <code>"nonzero"</code>,
+  because their oracle compares counterexamples
+  (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a> §7).</li>
+<li><strong><code>fairness</code></strong> and <strong><code>apalache</code></strong> are <code>true</code> when omitted. Set <code>fairness = false</code> for
+  a tool that does not check <code>WF_v(A)</code> and <code>SF_v(A)</code>. Set <code>apalache = false</code> for a tool
+  that reads neither the <code>Apalache</code> nor the <code>Variants</code> module. While <code>generic</code> runs,
+  every checker of the corpus then gets inputs without these features:</li>
+<li><code>fairness = false</code> sets <code>max_fairness</code> to 0 and adds <code>fairness</code> to
+    <code>[generator] ignore</code>;</li>
+<li><code>apalache = false</code> adds <code>fold</code> and <code>variant</code> to <code>ignore</code>, and the generic checker's
+    module does not extend <code>Apalache</code> and <code>Variants</code>
+    (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a> §8).</li>
 </ul>
 <p>Then add <code>generic</code> to the checker list, and list Manyan's known-defect signatures
 (<a href="../known-defect-signatures/#73-manyan-database">Known-defect signatures</a>):</p>
@@ -1481,10 +1523,19 @@ P4). A tool that reads Apalache's JSON IR can use <code>{ir}</code> instead of <
 part in every oracle. FuzzTLA records no state counts or trace lengths for it, so:
 - the <a href="../exploration-metrics/">state-count agreement</a> does not apply to it;
 - the graph oracle checks only its verdict.</p>
-<p>A timeout is a crash, as it is for the other checkers.</p>
+<p>A timeout is a crash, as it is for the other checkers. With <code>errors = "nonzero"</code>, every
+error goes to <code>02gen-fail</code> with failure code 1 (<code>error</code>), and <code>02gen-counterexample</code> stays
+empty.</p>
 <p>Expect Manyan to differ from TLC on about one pbt entry in five on parsing alone, for
 example on <code>[A]_FALSE</code> (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md#probe">ADR 0033</a>, P2).
 Known-defect signatures filter these out of the aggregator's failures.</p>
+<p>tla-rs <code>v0.24.11</code> checks a subset of TLA<sup>+</sup>. <code>generic/tla-rs.toml</code> sets
+<code>apalache = false</code>, because tla-rs cannot parse the bundled <code>Apalache.tla</code>. tla-rs still
+rejects two constructs of generated modules:
+- labels, which <code>[generator] ignore</code> can exclude with <code>label</code>;
+- <code>UNCHANGED (&lt;&lt;x&gt;&gt;)</code> and <code>[]([Next]_(&lt;&lt;x&gt;&gt;))</code>, the printer's forms, although it parses
+  <code>UNCHANGED &lt;&lt;x&gt;&gt;</code> and <code>[][Next]_&lt;&lt;x&gt;&gt;</code>.</p>
+<p>Until the second is resolved, tla-rs reports an error on almost every input.</p>
 <p>Findings cite the tool's revision, together with the FuzzTLA, TLC and Apalache versions.</p>
 
 

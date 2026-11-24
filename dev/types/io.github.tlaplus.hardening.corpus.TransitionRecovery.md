@@ -1,6 +1,6 @@
 # `TransitionRecovery`
 
-`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/corpus/TransitionRecovery.java#L19) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/corpus/TransitionRecovery.java#L19) · module [corpus](../modules/corpus.md)
 
 The first pass of startup recovery: finishes the durable transitions an interrupted run left behind.
 

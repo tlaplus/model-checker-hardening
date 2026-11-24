@@ -1,10 +1,10 @@
 # `ExportDbCommand`
 
-`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/cli/ExportDbCommand.java#L29) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/cli/ExportDbCommand.java#L29) · module [cli](../modules/cli.md)
 
 `fuzztla export-db`: exports a corpus with `CorpusExport` (ADR 0009).
 
-**Decisions:** [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0009-corpus-database.md)
+**Decisions:** [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0009-corpus-database.md)
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|

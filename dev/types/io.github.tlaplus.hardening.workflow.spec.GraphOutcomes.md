@@ -1,10 +1,10 @@
 # `GraphOutcomes`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · adapter · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/spec/GraphOutcomes.java#L18) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · adapter · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/spec/GraphOutcomes.java#L18) · module [workflow](../modules/workflow.md)
 
 Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise.
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

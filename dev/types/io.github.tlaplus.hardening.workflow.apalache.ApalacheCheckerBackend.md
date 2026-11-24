@@ -1,10 +1,10 @@
 # `ApalacheCheckerBackend`
 
-`io.github.tlaplus.hardening.workflow.apalache` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheCheckerBackend.java#L30) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.apalache` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheCheckerBackend.java#L30) · module [workflow](../modules/workflow.md)
 
 Adapts persistent Apalache tool workers to the shared tool stage.
 
-**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
 
 ```mermaid
 classDiagram

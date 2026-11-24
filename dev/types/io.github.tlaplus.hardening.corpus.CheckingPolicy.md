@@ -1,6 +1,6 @@
 # `CheckingPolicy`
 
-`io.github.tlaplus.hardening.corpus` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/corpus/CheckingPolicy.java#L18) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/corpus/CheckingPolicy.java#L21) · module [corpus](../modules/corpus.md)
 
 Which checkers a workflow run feeds and how the aggregator judges their verdicts.
 
@@ -11,6 +11,9 @@ classDiagram
   }
   class CheckerSet {
     <<record>>
+  }
+  class CorpusStage {
+    <<model>>
   }
   class ExpectedOutcomes {
     <<contract>>
@@ -33,6 +36,7 @@ classDiagram
   }
   class AggregationTransition
   CheckingPolicy --> CheckerSet : has
+  CheckingPolicy --> CorpusStage : has
   CheckingPolicy --> ExpectedOutcomes : has
   CheckingPolicy --> Oracle : has
   AggregationInput --> CheckingPolicy : has
@@ -46,6 +50,7 @@ classDiagram
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckerSet](io.github.tlaplus.hardening.corpus.CheckerSet.md) | The checker branches a corpus runs: a non-empty set of checking stages, in stage order. |
+| → | has | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
 | → | has | [ExpectedOutcomes](io.github.tlaplus.hardening.corpus.ExpectedOutcomes.md) | Predicts the outcome of one stored input, typically by replaying it through the generator (ADR 0023 §5). |
 | → | has | [Oracle](io.github.tlaplus.hardening.corpus.Oracle.md) | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5). |
 | ← | has | [AggregationInput](io.github.tlaplus.hardening.corpus.AggregationInput.md) | A logical corpus entry whose non-crash checker results are ready for aggregation. |

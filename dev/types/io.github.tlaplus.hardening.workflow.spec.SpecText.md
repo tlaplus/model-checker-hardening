@@ -1,6 +1,6 @@
 # `SpecText`
 
-`io.github.tlaplus.hardening.workflow.spec` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecText.java#L16) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · class · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecText.java#L18) · module [workflow](../modules/workflow.md)
 
 Renders an assembled module as the TLA+ source that the parser and TLC consume.
 

@@ -1,6 +1,6 @@
 # `ApalacheArguments`
 
-`io.github.tlaplus.hardening.workflow.apalache` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheArguments.java#L12) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.apalache` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheArguments.java#L12) · module [workflow](../modules/workflow.md)
 
 The Apalache command line for one checked module.
 

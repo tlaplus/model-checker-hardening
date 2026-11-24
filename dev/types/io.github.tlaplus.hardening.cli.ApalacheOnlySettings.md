@@ -1,10 +1,10 @@
 # `ApalacheOnlySettings`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/src/main/java/io/github/tlaplus/hardening/cli/ApalacheOnlySettings.java#L16) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/cli/ApalacheOnlySettings.java#L16) · module [cli](../modules/cli.md)
 
 Settings that `fuzztla init` writes only for a corpus that checks with Apalache (ADR 0029 §3), found in a corpus that does not.
 
-**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/4bb4de908e112f3701f8f30b6bcd32c25707bdd7/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
 
 ```mermaid
 classDiagram
