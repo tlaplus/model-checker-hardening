@@ -1,0 +1,16 @@
+# tla-rs, compared with TLC as the generic checker (ADR 0033 §7). Build it, then name this file
+# at init:
+#
+#   make tla-rs-build
+#   ./bin/fuzztla init --how=pbt --corpus corpus-tla-rs --generic generic/tla-rs.toml
+#
+# tla-rs reads TLC's configuration file but exits 0 or 1, so the aggregator compares only
+# whether it exits 0. --allow-deadlock matches TLC's -deadlock, which the other checkers get.
+# tla-rs cannot parse the bundled Apalache.tla, so the corpus generates no Apalache operators.
+[generic]
+name = "tla-rs"
+compatibility = "tlc"
+executable = "../target/checkers/tla-rs-9438572f8278"
+arguments = ["--allow-deadlock", "--config", "{config}", "{module}"]
+errors = "nonzero"
+apalache = false

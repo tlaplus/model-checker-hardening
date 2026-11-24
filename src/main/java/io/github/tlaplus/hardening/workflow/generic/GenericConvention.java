@@ -1,19 +1,23 @@
 package io.github.tlaplus.hardening.workflow.generic;
 
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.GenericCompatibility;
+import io.github.tlaplus.hardening.config.GenericErrors;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration;
 import io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
+import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -23,7 +27,8 @@ import java.util.function.Function;
  * class fails if a compatibility has none.
  *
  * @param configuration the configuration file of one invocation
- * @param classifier the verdict of an exit status and the tool's output
+ * @param classifier the verdict of an exit status and the tool's output, when the exit statuses
+ *     are compared exactly
  */
 @ArchRole(Role.POLICY)
 @Key
@@ -38,6 +43,39 @@ record GenericConvention(Function<CheckRequest, String> configuration, Classifie
     GenericConvention {
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(classifier, "classifier");
+    }
+
+    /**
+     * The exit statuses of a process killed by a fatal signal, 128 + the signal by the shell's
+     * convention: SIGILL, SIGTRAP, SIGABRT, SIGBUS, SIGFPE, SIGKILL and SIGSEGV. Other statuses above
+     * 128 are a tool's own, such as TLC's 150 for a parse error.
+     */
+    private static final Set<Integer> FATAL_SIGNAL_STATUSES = Set.of(132, 133, 134, 135, 136, 137, 139);
+
+    /**
+     * Returns how an exit status becomes a verdict under {@code errors}: by this compatibility's
+     * classifier, or by {@link #classifyNonzero} (ADR 0033 §7).
+     */
+    Classifier classifier(GenericErrors errors) {
+        return switch (Objects.requireNonNull(errors, "errors")) {
+            case EXACT -> classifier;
+            case NONZERO -> GenericConvention::classifyNonzero;
+        };
+    }
+
+    /**
+     * Classifies a tool compared by its exit status alone: 0 passes, a process killed by a fatal
+     * signal crashed, and any other status is an {@link CheckerFailureCode#ERROR}, which the oracle
+     * matches with a counterexample or a failure of another checker.
+     */
+    static ToolResult classifyNonzero(int exitStatus, String diagnostic) {
+        if (exitStatus == 0) {
+            return new ToolResult(StageOutcome.PASS, diagnostic);
+        }
+        if (FATAL_SIGNAL_STATUSES.contains(exitStatus)) {
+            return new ToolResult(StageOutcome.CRASH, diagnostic);
+        }
+        return ToolResult.failure(CheckerFailureCode.ERROR, diagnostic);
     }
 
     /** Returns the conventions of {@code compatibility}. */

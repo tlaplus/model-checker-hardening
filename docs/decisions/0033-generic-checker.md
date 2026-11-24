@@ -184,6 +184,52 @@ commented out, as Manyan in TLC mode:
 # arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 ```
 
+### 7. Comparing exit status alone
+
+Some tools read the reference checker's inputs but have exit statuses of their own.
+[tla-rs](https://github.com/fabracht/tla-rs) reads TLC's `.cfg` and exits 0 or 1. Under
+`compatibility = "tlc"`, a 1 is not one of TLC's statuses, so every error would be a
+crash. The optional key `errors` selects how much of the status the aggregator compares:
+- **`"exact"`, the default,** classifies the status by the compatibility, as in §2.
+- **`"nonzero"`** classifies 0 as a pass and any other status as a failure. Its failure
+  code is a new one, `error` (encoded 1), because a stored failure carries a code. A process killed by a fatal signal is still a crash: the statuses
+  132–137 and 139, which are SIGILL, SIGTRAP, SIGABRT, SIGBUS, SIGFPE, SIGKILL and
+  SIGSEGV. A timeout is still a crash too. Other statuses above 128 belong to the tool,
+  such as TLC's 150.
+
+The aggregator gets these checkers as `CheckingPolicy.exitStatusOnly`. `Oracle.agree`
+requires two things:
+- every checker agrees on whether it passed;
+- the checkers compared exactly agree on their verdicts.
+
+A failure of a nonzero checker thus matches a counterexample or a failure of TLC. A
+counterexample of TLC against a failure of Apalache still disagrees. The metamorphic
+oracle keeps its meaning, since a nonzero checker reports no counterexample. The graph
+oracle judges counterexamples and their lengths, so the configuration rejects
+`"nonzero"` with `gbt`.
+
+### 8. Capabilities shape generation
+
+A tool may lack features that generated modules use. Two optional keys, both `true` when
+omitted, declare that it does:
+- **`fairness = false`:** the tool does not check `WF_v(A)` or `SF_v(A)`.
+- **`apalache = false`:** the tool reads neither the `Apalache` nor the `Variants`
+  module.
+
+Every checker of a corpus checks the same inputs, so a missing capability restricts
+generation for the whole corpus while `generic` is in `checkers`:
+- **Without fairness,** `[generator] max_fairness` becomes 0, and the generator ignores
+  a new category, `fairness`. That category holds the weak and strong fairness forms,
+  which properties draw from the `temporal` category.
+- **Without Apalache,** the generator ignores the `fold` and `variant` categories, whose
+  forms are the only users of the two modules. The generic checker gets its module
+  without `Apalache` and `Variants` in `EXTENDS`, and no bundled modules in its working
+  directory. TLC and Apalache keep the full `EXTENDS`, which is harmless.
+
+`FuzzTlaConfig` applies the restriction (`GenericCapabilities.restrict`), so every
+consumer of `generator()` sees it. A config rendered from it lists the added categories
+under `ignore`. `errors` (§7) and the two capabilities form `GenericCapabilities`.
+
 ## Probe
 
 **Setup.**
@@ -307,6 +353,11 @@ a campaign. Otherwise the aggregator's failures are dominated by these two cause
 - **The database's `verdictPair` view gains `generic` columns,** which bumps the schema
   version. The campaign report and the triager learn the stage.
 - **Corpora become platform-specific** when they run a native tool.
+- **A missing capability (§8) weakens the corpus for every checker,** since TLC and
+  Apalache no longer see fairness or the Apalache operators. A corpus that tests those
+  needs a separate run without the generic checker.
+- **A nonzero checker (§7) finds fewer differences.** It cannot tell a counterexample
+  from an evaluation error, so it finds only differences between a pass and an error.
 - **Architecture.** [fuzzing-workflows.md][workflows] gains a checker branch whose tool
   comes from configuration. Every other branch is fixed at build time.
 

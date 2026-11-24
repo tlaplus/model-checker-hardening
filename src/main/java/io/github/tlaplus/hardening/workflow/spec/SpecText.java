@@ -8,6 +8,8 @@ import io.github.tlaplus.hardening.gen.library.InstanceAlias;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerProtocol;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import org.apalache_mc.tla.jio.TlaText;
@@ -55,6 +57,21 @@ public final class SpecText {
         if (extendsEnd < 0) throw new IllegalStateException("rendered module has no EXTENDS clause");
         return text.substring(0, extendsEnd + 1) + "\n" + instanceDeclarations(source.aliases())
                 + text.substring(extendsEnd + 1);
+    }
+
+    /**
+     * Returns rendered {@code text} without {@code modules} in its {@code EXTENDS} clause, for a tool
+     * that cannot read them (ADR 0033 §8). The module must not refer to their operators.
+     */
+    public static String withoutExtended(String text, Collection<String> modules) {
+        var start = text.indexOf("EXTENDS ");
+        var end = text.indexOf("\n\n", start);
+        if (start < 0 || end < 0) throw new IllegalStateException("rendered module has no EXTENDS clause");
+        var kept = Arrays.stream(text.substring(start + "EXTENDS ".length(), end).split(","))
+                .map(String::strip)
+                .filter(module -> !modules.contains(module))
+                .toList();
+        return text.substring(0, start) + "EXTENDS " + String.join(", ", kept) + text.substring(end);
     }
 
     /**

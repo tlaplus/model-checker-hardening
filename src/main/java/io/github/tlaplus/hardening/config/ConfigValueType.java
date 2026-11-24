@@ -122,6 +122,9 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
     static final ConfigValueType<GenericCompatibility> GENERIC_COMPATIBILITY =
             name(GenericCompatibility.class, GenericCompatibility::configName, "compatibility");
 
+    static final ConfigValueType<GenericErrors> GENERIC_ERRORS =
+            name(GenericErrors.class, GenericErrors::configName, "errors mode");
+
     static final ConfigValueType<Optional<Path>> OPTIONAL_PATH = optionalPath(EXAMPLE_BASE_CORPUS);
 
     /** Returns the type of an optional path, which a configuration without it shows as {@code example}. */

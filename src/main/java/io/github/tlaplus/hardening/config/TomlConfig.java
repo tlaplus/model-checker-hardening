@@ -95,8 +95,7 @@ public final class TomlConfig {
         var generic = ConfigSchema.genericPath();
         requireKeys(result, Set.of(generic), Set.of(generic), ROOT_LOCATION);
         var tables = Map.of(generic, requireTable(result, generic));
-        var keys = ConfigSchema.expectedKeys(generic);
-        requireKeys(tables.get(generic), keys, keys, generic);
+        requireKeys(tables.get(generic), ConfigSchema.expectedKeys(generic), ConfigSchema.requiredGenericKeys(), generic);
         try {
             return ConfigSchema.readGeneric(tables).orElseThrow()
                     .relativeTo(path.toAbsolutePath().normalize().getParent());

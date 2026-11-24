@@ -188,6 +188,8 @@ class ExpressionKindCatalogTest {
                                     OtherExpressionKind.PARSED_MODEL_VALUE)));
     private static final Map<ExpressionKind, Set<ExpressionCategory>> CATEGORY_DEPENDENCIES =
             Map.ofEntries(
+                    Map.entry(BooleanExpressionKind.WEAK_FAIR, Set.of(ExpressionCategory.FAIRNESS)),
+                    Map.entry(BooleanExpressionKind.STRONG_FAIR, Set.of(ExpressionCategory.FAIRNESS)),
                     Map.entry(
                             GeneralExpressionKind.BOUNDED_CHOOSE,
                             Set.of(ExpressionCategory.SET)),

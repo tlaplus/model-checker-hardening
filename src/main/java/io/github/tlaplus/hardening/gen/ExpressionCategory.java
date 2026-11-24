@@ -22,7 +22,9 @@ public enum ExpressionCategory {
     TUPLE("tuple"),
     RECORD("record"),
     VARIANT("variant"),
-    MODEL("model");
+    MODEL("model"),
+    /** Weak and strong fairness in a formula, which the temporal category includes. */
+    FAIRNESS("fairness");
 
     private final String configName;
     private final boolean ignorable;

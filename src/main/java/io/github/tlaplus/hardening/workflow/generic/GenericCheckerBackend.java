@@ -46,10 +46,14 @@ public final class GenericCheckerBackend implements ToolBackend {
      */
     static final List<String> BUNDLED_MODULES = List.of("Apalache.tla", "Variants.tla");
 
+    /** The modules a tool without the Apalache capability gets no {@code EXTENDS} of (ADR 0033 §8). */
+    static final List<String> APALACHE_MODULES = List.of("Apalache", "Variants");
+
     private final CorpusStage stage;
     private final CheckerStageConfig config;
     private final GenericCheckerConfig checker;
     private final GenericConvention convention;
+    private final GenericConvention.Classifier classifier;
     private final Path scratchDirectory;
 
     public GenericCheckerBackend(
@@ -59,6 +63,7 @@ public final class GenericCheckerBackend implements ToolBackend {
         Preconditions.requirePositive(config.workers(), "workers");
         this.checker = Objects.requireNonNull(checker, "checker");
         this.convention = GenericConvention.of(checker.compatibility());
+        this.classifier = convention.classifier(checker.capabilities().errors());
         this.scratchDirectory = Objects.requireNonNull(scratchDirectory, "scratchDirectory");
     }
 
@@ -78,11 +83,17 @@ public final class GenericCheckerBackend implements ToolBackend {
         return 1;
     }
 
-    /** TLA+ source, or Apalache's JSON IR when the arguments name {@code {ir}}. */
+    /**
+     * TLA+ source, or Apalache's JSON IR when the arguments name {@code {ir}}. The source of a tool
+     * without the Apalache capability does not extend the Apalache modules.
+     */
     @Override
     public Function<SpecArtifact, String> renderer() {
         if (checker.names(GenericPlaceholder.IR)) {
             return artifact -> ApalacheIrJson.render(artifact.module());
+        }
+        if (!checker.capabilities().apalache()) {
+            return artifact -> SpecText.withoutExtended(SpecText.render(artifact), APALACHE_MODULES);
         }
         return SpecText::render;
     }
@@ -115,7 +126,7 @@ public final class GenericCheckerBackend implements ToolBackend {
                         Diagnostics.append(OneShotTool.timeoutMessage(command), attempt.diagnostics()));
             }
             var status = attempt.exitCode().getAsInt();
-            return convention.classifier().classify(status,
+            return classifier.classify(status,
                     Diagnostics.append(checker.name() + " exited with status " + status, attempt.diagnostics()));
         } catch (IOException exception) {
             return ToolResult.crash(exception, checker.name() + " could not be run");
@@ -135,6 +146,9 @@ public final class GenericCheckerBackend implements ToolBackend {
         Files.writeString(module, source.text(), StandardCharsets.UTF_8);
         Files.writeString(invocation.configuration(), convention.configuration().apply(source.request()),
                 StandardCharsets.UTF_8);
+        if (!checker.capabilities().apalache()) {
+            return;
+        }
         for (var name : BUNDLED_MODULES) {
             try (var resource = GenericCheckerBackend.class.getClassLoader()
                     .getResourceAsStream(StandardModuleResources.PREFIX + name)) {

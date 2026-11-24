@@ -6,7 +6,7 @@ import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
-import java.util.Collection;
+import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 
@@ -26,8 +26,9 @@ public enum Oracle {
      */
     CONFORMANCE {
         @Override
-        CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
-            return agree(results.values()) ? CorpusVerdict.PASS : CorpusVerdict.FAIL;
+        CorpusVerdict judge(
+                Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected, Set<CorpusStage> exitStatusOnly) {
+            return agree(results, exitStatusOnly) ? CorpusVerdict.PASS : CorpusVerdict.FAIL;
         }
     },
     /**
@@ -37,8 +38,9 @@ public enum Oracle {
      */
     METAMORPHIC {
         @Override
-        CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
-            return agree(results.values())
+        CorpusVerdict judge(
+                Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected, Set<CorpusStage> exitStatusOnly) {
+            return agree(results, exitStatusOnly)
                             && results.values().stream()
                                     .noneMatch(result -> result.verdict() == CorpusVerdict.COUNTEREXAMPLE)
                     ? CorpusVerdict.PASS
@@ -59,10 +61,11 @@ public enum Oracle {
         }
 
         @Override
-        CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected) {
+        CorpusVerdict judge(
+                Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected, Set<CorpusStage> exitStatusOnly) {
             var outcome = expected.orElseThrow(
                     () -> new IllegalArgumentException("the graph oracle judges against an expected outcome"));
-            return agree(results.values())
+            return agree(results, exitStatusOnly)
                             && results.entrySet().stream().allMatch(result -> outcome.admits(result.getKey(), result.getValue()))
                     ? CorpusVerdict.PASS
                     : CorpusVerdict.FAIL;
@@ -71,20 +74,35 @@ public enum Oracle {
 
     /**
      * Judges the non-crash results of every checker that ran on one entry, against what the entry
-     * predicts when the oracle needs a prediction.
+     * predicts when the oracle needs a prediction. The checkers of {@code exitStatusOnly} tell only
+     * a pass from an error (ADR 0033 §7), so their failure agrees with any counterexample or failure.
      *
      * @throws IllegalArgumentException if this oracle needs an expectation and none is given
      */
-    abstract CorpusVerdict judge(Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected);
+    abstract CorpusVerdict judge(
+            Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected, Set<CorpusStage> exitStatusOnly);
 
     /** Reports whether this oracle judges against the outcome an entry predicts. */
     boolean needsExpectation() {
         return false;
     }
 
-    private static boolean agree(Collection<StageRecord> results) {
-        return results.stream().map(StageRecord::verdict).distinct().count() == 1
-                && results.stream()
+    /**
+     * Reports whether the results agree: every checker on whether it passed, the other checkers on
+     * their verdicts, and completed searches on the states they reached.
+     */
+    private static boolean agree(Map<CorpusStage, StageRecord> results, Set<CorpusStage> exitStatusOnly) {
+        var exact = results.entrySet().stream()
+                .filter(result -> !exitStatusOnly.contains(result.getKey()))
+                .map(result -> result.getValue().verdict())
+                .distinct()
+                .count();
+        var passes = results.values().stream()
+                .map(result -> result.verdict() == CorpusVerdict.PASS)
+                .distinct()
+                .count();
+        return exact <= 1 && passes == 1
+                && results.values().stream()
                                 .map(StageRecord::metrics)
                                 .flatMap(metrics -> reachableStates(metrics).stream())
                                 .distinct()

@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.common.Diagnostics;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.FuzzTlaConfig;
+import io.github.tlaplus.hardening.config.GenericErrors;
 import io.github.tlaplus.hardening.config.MetamorphicConfig;
 import io.github.tlaplus.hardening.corpus.CheckingPolicy;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
@@ -32,6 +33,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -81,7 +83,8 @@ public final class WorkflowRunner {
             throw new WorkflowException("this corpus runs " + technique.encodedName() + ", which does not generate "
                     + config.generatedKind().encodedName() + " inputs: set [generator] kind to one it generates");
         }
-        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers(), new GraphOutcomes(decoders));
+        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers(), new GraphOutcomes(decoders),
+                exitStatusOnly(config));
         final KnownDefectDatabase knownDefects;
         try {
             knownDefects = KnownDefectDatabase.load(config.workflow().inputs().knownDefects());
@@ -275,5 +278,12 @@ public final class WorkflowRunner {
         WorkflowRunSummary summary(Duration totalElapsed) {
             return new WorkflowRunSummary(stopReason, generator, stages, corpus, totalElapsed);
         }
+    }
+
+    /** Returns the checkers the aggregator compares by exit status alone (ADR 0033 §7). */
+    private static Set<CorpusStage> exitStatusOnly(FuzzTlaConfig config) {
+        var generic = config.workflow().enabledCheckers().contains(CorpusStage.GENERIC)
+                && config.tools().generic().map(checker -> checker.capabilities().errors() == GenericErrors.NONZERO).orElse(false);
+        return generic ? Set.of(CorpusStage.GENERIC) : Set.of();
     }
 }

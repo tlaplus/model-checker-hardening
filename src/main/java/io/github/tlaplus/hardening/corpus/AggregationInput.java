@@ -49,6 +49,6 @@ public record AggregationInput(
 
     /** Returns the aggregator's verdict: the oracle's judgement of the checker results. */
     public CorpusVerdict verdict() {
-        return policy.oracle().judge(checkerResults, expected);
+        return policy.oracle().judge(checkerResults, expected, policy.exitStatusOnly());
     }
 }

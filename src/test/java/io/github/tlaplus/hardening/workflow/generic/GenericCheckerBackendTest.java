@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
+import io.github.tlaplus.hardening.config.GenericCapabilities;
 import io.github.tlaplus.hardening.config.GenericCheckerConfig;
 import io.github.tlaplus.hardening.config.GenericCompatibility;
+import io.github.tlaplus.hardening.config.GenericErrors;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
@@ -58,6 +60,36 @@ class GenericCheckerBackendTest {
         try (var left = Files.list(directory.resolve("scratch"))) {
             assertEquals(List.of(), left.toList());
         }
+    }
+
+    /** A tool without the Apalache capability gets no bundled modules (ADR 0033 §8). */
+    @Test
+    void writesNoBundledModulesForAToolWithoutTheApalacheCapability() throws Exception {
+        var script = stub("""
+                test -f "$1" && test ! -e "$(dirname "$1")/Apalache.tla" \
+                  && test ! -e "$(dirname "$1")/Variants.tla" || exit 1
+                exit 0""");
+        var checker = new GenericCheckerConfig("Stub", GenericCompatibility.TLC, script, List.of("{module}", "{config}"),
+                new GenericCapabilities(GenericErrors.EXACT, true, false));
+        var backend = new GenericCheckerBackend(CorpusStage.GENERIC,
+                new CheckerStageConfig(CheckerStageConfig.DEFAULT_MAXIMUM_ENTRIES, 10, 512, 1), checker,
+                directory.resolve("scratch"));
+
+        var result = backend.startWorker().check(INPUT);
+
+        assertEquals(StageOutcome.PASS, result.outcome(), result.diagnostic());
+    }
+
+    /** Compared by exit status alone, an error of any status fails and a fatal signal crashes. */
+    @Test
+    void classifiesOnlyZeroAndNonzeroInTheNonzeroMode() throws Exception {
+        var checker = new GenericCheckerConfig("Stub", GenericCompatibility.TLC, stub("exit 1"),
+                List.of("{module}", "{config}"), new GenericCapabilities(GenericErrors.NONZERO, true, true));
+        var backend = new GenericCheckerBackend(CorpusStage.GENERIC,
+                new CheckerStageConfig(CheckerStageConfig.DEFAULT_MAXIMUM_ENTRIES, 10, 512, 1), checker,
+                directory.resolve("scratch"));
+
+        assertEquals(StageOutcome.FAIL, backend.startWorker().check(INPUT).outcome());
     }
 
     @Test

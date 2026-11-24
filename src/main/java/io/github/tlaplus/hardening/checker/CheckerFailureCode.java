@@ -10,7 +10,12 @@ import io.github.tlaplus.hardening.common.Role;
 public enum CheckerFailureCode {
     SPEC_EVAL(75, "spec_eval"),
     TYPECHECK(120, "typecheck"),
-    PARSE(150, "parse");
+    PARSE(150, "parse"),
+    /**
+     * An error that a generic checker reports by a nonzero exit status alone, without its kind
+     * (ADR 0033 §7).
+     */
+    ERROR(1, "error");
 
     private final int encodedCode;
     private final String symbol;
