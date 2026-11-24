@@ -8,6 +8,7 @@ MKDOCS ?= mkdocs
 HARDENING_REPO ?= https://github.com/tlaplus/model-checker-hardening
 APALACHE_REPO ?= https://github.com/apalache-mc/apalache
 MANYAN_REPO ?= https://github.com/soasme/manyan
+TLA_RS_REPO ?= https://github.com/fabracht/tla-rs
 # Earlier checker JARs for `fuzztla init --tool` (ADR 0032); `make clean` removes them.
 CHECKERS_DIR ?= target/checkers
 # A release tag of the tlc-build workflow, tlc-YYYYMMDD-<sha12>.
@@ -16,9 +17,11 @@ TLC_BUILD ?=
 APALACHE_VERSION ?=
 # The Manyan revision that manyan-build builds (ADR 0033): a commit or a tag.
 MANYAN_REV ?= a9ca4f38028f4e8b4cc3f016167d071b55e3abe0
+# The tla-rs revision that tla-rs-build builds (ADR 0033 §7): a commit or a tag. v0.24.11.
+TLA_RS_REV ?= 9438572f8278df75427460597ca48b0e0026684c
 
 .PHONY: compile test package verify run clean proofs community-modules tlc-build apalache-release \
-	manyan-build architecture user-manual
+	manyan-build tla-rs-build architecture user-manual
 
 compile:
 	$(MVN) compile
@@ -121,3 +124,18 @@ manyan-build:
 	binary=$(CHECKERS_DIR)/manyan-$$(printf %.12s $$rev); \
 	cp $$src/manyan $$binary; \
 	echo "Manyan $$rev in $$binary"
+
+# Builds tla-rs at TLA_RS_REV from a clone in $(CHECKERS_DIR)/tla-rs-src, as
+# $(CHECKERS_DIR)/tla-rs-<rev12>, for the generic checker (ADR 0033 §7). Needs git and cargo.
+tla-rs-build:
+	@set -eu; \
+	src=$(CHECKERS_DIR)/tla-rs-src; \
+	mkdir -p $(CHECKERS_DIR); \
+	test -d $$src/.git || git clone -q $(TLA_RS_REPO) $$src; \
+	git -C $$src fetch -q --tags origin; \
+	git -C $$src checkout -q --detach $(TLA_RS_REV); \
+	rev=$$(git -C $$src rev-parse HEAD); \
+	cargo build --release --locked --bin tla --manifest-path $$src/Cargo.toml; \
+	binary=$(CHECKERS_DIR)/tla-rs-$$(printf %.12s $$rev); \
+	cp $$src/target/release/tla $$binary; \
+	echo "tla-rs $$rev in $$binary"
