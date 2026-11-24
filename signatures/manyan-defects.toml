@@ -9,10 +9,10 @@
 # from a corpus that runs only TLC and Apalache; all-defects.toml does not contain them.
 #
 # findings/manyan/manyan-002.md, a label in a later bound's set, has no signature: the
-# pattern language skips labels. manyan-003 to manyan-006 have none either: each depends on
+# pattern language skips labels. manyan-003 to manyan-009 have none either: each depends on
 # run-time values, and the closest shapes match mostly inputs that Manyan checks correctly
 # (the findings give the measurements). script/triager.py classifies the crashes of
-# manyan-005 and manyan-006 by their diagnostics.
+# manyan-005 to manyan-008 by their diagnostics.
 #
 # docs/manual/known-defect-signatures.md describes the format. References are relative to this
 # file.
