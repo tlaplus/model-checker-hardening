@@ -32,7 +32,7 @@ class GenericConventionTest {
 
     /**
      * Compared by exit status alone, 0 passes, a signal crashes, and every other status is an error
-     * without a failure code, whatever the compatibility (ADR 0033 §7).
+     * of code {@code error}, whatever the compatibility (ADR 0033 §7).
      */
     @Test
     void classifiesOnlyZeroAndNonzeroInTheNonzeroMode() {
@@ -42,7 +42,7 @@ class GenericConventionTest {
             for (var error : new int[] {1, 2, 12, 75, 128, 129, 138, 150, 151, 255}) {
                 var result = classifier.classify(error, "");
                 assertEquals(StageOutcome.FAIL, result.outcome(), Integer.toString(error));
-                assertEquals(Optional.empty(), result.failureCode(), Integer.toString(error));
+                assertEquals(Optional.of(CheckerFailureCode.ERROR), result.failureCode(), Integer.toString(error));
             }
             for (var signal : new int[] {132, 133, 134, 135, 136, 137, 139}) {
                 assertEquals(StageOutcome.CRASH, classifier.classify(signal, "").outcome(), Integer.toString(signal));

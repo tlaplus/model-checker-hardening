@@ -129,7 +129,8 @@ part in every oracle. FuzzTLA records no state counts or trace lengths for it, s
 - the graph oracle checks only its verdict.
 
 A timeout is a crash, as it is for the other checkers. With `errors = "nonzero"`, every
-error goes to `02gen-fail`, and `02gen-counterexample` stays empty.
+error goes to `02gen-fail` with failure code 1 (`error`), and `02gen-counterexample` stays
+empty.
 
 Expect Manyan to differ from TLC on about one pbt entry in five on parsing alone, for
 example on `[A]_FALSE` ([ADR 0033](../decisions/0033-generic-checker.md#probe), P2).

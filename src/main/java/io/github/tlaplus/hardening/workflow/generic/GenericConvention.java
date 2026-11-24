@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.workflow.generic;
 
+import io.github.tlaplus.hardening.checker.CheckerFailureCode;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
@@ -64,8 +65,8 @@ record GenericConvention(Function<CheckRequest, String> configuration, Classifie
 
     /**
      * Classifies a tool compared by its exit status alone: 0 passes, a process killed by a fatal
-     * signal crashed, and any other status is an error without a failure code, which the oracle matches with
-     * a counterexample or a failure of another checker.
+     * signal crashed, and any other status is an {@link CheckerFailureCode#ERROR}, which the oracle
+     * matches with a counterexample or a failure of another checker.
      */
     static ToolResult classifyNonzero(int exitStatus, String diagnostic) {
         if (exitStatus == 0) {
@@ -74,7 +75,7 @@ record GenericConvention(Function<CheckRequest, String> configuration, Classifie
         if (FATAL_SIGNAL_STATUSES.contains(exitStatus)) {
             return new ToolResult(StageOutcome.CRASH, diagnostic);
         }
-        return new ToolResult(StageOutcome.FAIL, diagnostic);
+        return ToolResult.failure(CheckerFailureCode.ERROR, diagnostic);
     }
 
     /** Returns the conventions of {@code compatibility}. */

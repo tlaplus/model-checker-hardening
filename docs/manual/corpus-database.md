@@ -148,7 +148,7 @@ verdict and both times.
 | `startTime` | TEXT | no | When the stage started | `stages.<stage>.startTime` |
 | `endTime` | TEXT | no | When the stage finished | `stages.<stage>.endTime` |
 | `durationMillis` | INTEGER | no | `endTime` minus `startTime`; stages record whole seconds | derived |
-| `code` | INTEGER | yes | Checker failure code: 75, 120 or 150 ([ADR 0003][adr-0003]) | `stages.<stage>.code` |
+| `code` | INTEGER | yes | Checker failure code: 75, 120 or 150 ([ADR 0003][adr-0003]), or 1 for an error a generic checker reports by exit status alone | `stages.<stage>.code` |
 | `detail` | TEXT | yes | One-line failure detail, at most 80 characters | `stages.<stage>.detail` |
 | `phase` | TEXT | yes | `init`, `explore` or `complete` | `stages.<stage>.metrics.phase` |
 | `saturated` | INTEGER | yes | 1 if a value walk hit its node cap, 0 if not; `NULL` without metrics | `stages.<stage>.metrics.saturated` |

@@ -191,8 +191,8 @@ Some tools read the reference checker's inputs but have exit statuses of their o
 `compatibility = "tlc"`, a 1 is not one of TLC's statuses, so every error would be a
 crash. The optional key `errors` selects how much of the status the aggregator compares:
 - **`"exact"`, the default,** classifies the status by the compatibility, as in §2.
-- **`"nonzero"`** classifies 0 as a pass and any other status as a failure without a
-  failure code. A process killed by a fatal signal is still a crash: the statuses
+- **`"nonzero"`** classifies 0 as a pass and any other status as a failure. Its failure
+  code is a new one, `error` (encoded 1), because a stored failure carries a code. A process killed by a fatal signal is still a crash: the statuses
   132–137 and 139, which are SIGILL, SIGTRAP, SIGABRT, SIGBUS, SIGFPE, SIGKILL and
   SIGSEGV. A timeout is still a crash too. Other statuses above 128 belong to the tool,
   such as TLC's 150.

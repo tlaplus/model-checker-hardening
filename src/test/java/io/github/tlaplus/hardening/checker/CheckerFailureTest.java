@@ -13,6 +13,7 @@ class CheckerFailureTest {
         assertEquals(CheckerFailureCode.SPEC_EVAL, CheckerFailureCode.fromEncodedCode(75));
         assertEquals(CheckerFailureCode.TYPECHECK, CheckerFailureCode.fromEncodedCode(120));
         assertEquals(CheckerFailureCode.PARSE, CheckerFailureCode.fromEncodedCode(150));
+        assertEquals(CheckerFailureCode.ERROR, CheckerFailureCode.fromEncodedCode(1));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> CheckerFailureCode.fromEncodedCode(12));
