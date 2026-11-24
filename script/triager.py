@@ -497,6 +497,17 @@ SIGNATURES = (
     # encoding; the trace may start in collection or type-unifier frames above typecomp,
     # or in a simplifier mapped over the State, where the 1,024 printed frames below it
     # are only the IndexedStateT bind chain.
+    # Manyan, the first generic checker (ADR 0033), prints TLC's messages itself:
+    # a domain error in the next-state relation follows the initial states
+    # directly, without TLC's unexpected-exception wrapper, and exits 255 where
+    # TLC exits 75.
+    finding("manyan-005.md", Tool.GENERIC,
+            all_of(r"^Manyan exited with status 255$",
+                   r"\A(?![\s\S]*^Error: TLC threw an unexpected exception\.$)",
+                   rf"^Finished computing initial states: [^\n]*\n(?:{TLC_WARNING_BLOCK})*"
+                   r"Error: In applying the function$")),
+    # Every Manyan SIGABRT observed so far is cup_merge's abort; it prints nothing.
+    finding("manyan-006.md", Tool.GENERIC, all_of(r"^Manyan exited with status 134$")),
     finding("apalache-builder-001.md", Tool.APALACHE,
             apalache_error(r"^java\.lang\.StackOverflowError\n(?:\tat .+\n)*?"
                            r"\tat (?:at\.forsyte\.apalache\.tla\.typecomp\.|scalaz\.IndexedStateT\.)")),

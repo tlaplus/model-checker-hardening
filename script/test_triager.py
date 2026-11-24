@@ -1439,6 +1439,79 @@ def verdicts(**stages: str | tuple[int, str]) -> dict[triager.Checker, triager.C
     }
 
 
+class ManyanCrashTest(unittest.TestCase):
+    """ADR 0033: crashes of Manyan, run as the generic checker."""
+
+    DOMAIN_ERROR = (
+        "Error: In applying the function",
+        "(5 :> 1 @@ 6 :> 1),",
+        "the first argument is:",
+        "7",
+        "which is not in its domain.",
+    )
+
+    def test_domain_error_after_the_initial_states_is_manyan_005(self) -> None:
+        """manyan-005's reproduction, as the generic stage records it."""
+        diagnostic = "\n".join(
+            (
+                "Manyan exited with status 255",
+                "manyan version 0.17.0",
+                "Finished computing initial states: 1 distinct state generated.",
+                *self.DOMAIN_ERROR,
+            )
+        )
+        self.assertEqual(
+            "manyan-005.md", classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_domain_error_after_a_warning_is_manyan_005(self) -> None:
+        diagnostic = "\n".join(
+            (
+                "Manyan exited with status 255",
+                "Finished computing initial states: 3 distinct states generated.",
+                "Warning: The invariant Inv is a constant-level formula.",
+                "(Use the -nowarning option to disable this warning.)",
+                *self.DOMAIN_ERROR,
+            )
+        )
+        self.assertEqual(
+            "manyan-005.md", classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_wrapped_domain_error_stays_new(self) -> None:
+        """Manyan prints TLC's wrapper where TLC itself crashes, which manyan-005 is not."""
+        diagnostic = "\n".join(
+            (
+                "Manyan exited with status 255",
+                "Finished computing initial states: 1 distinct state generated.",
+                "Error: TLC threw an unexpected exception.",
+                "The exception was a java.lang.RuntimeException",
+                ": In applying the function",
+            )
+        )
+        self.assertEqual(
+            triager.NEW_FINDING, classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_domain_error_while_computing_initial_states_stays_new(self) -> None:
+        diagnostic = "\n".join(("Manyan exited with status 255", *self.DOMAIN_ERROR))
+        self.assertEqual(
+            triager.NEW_FINDING, classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_abort_is_manyan_006(self) -> None:
+        diagnostic = "Manyan exited with status 134\nmanyan version 0.17.0"
+        self.assertEqual(
+            "manyan-006.md", classify_quietly(self, triager.CrashKind.GENERIC, diagnostic)
+        )
+
+    def test_tlc_crash_signatures_ignore_the_generic_checker(self) -> None:
+        diagnostic = "Manyan exited with status 134"
+        self.assertEqual(
+            triager.NEW_FINDING, classify_quietly(self, triager.CrashKind.TLC, diagnostic)
+        )
+
+
 class ParallelTlcTest(unittest.TestCase):
     """ADR 0018: TLC-n is TLC with more workers, triaged by TLC's signatures."""
 
