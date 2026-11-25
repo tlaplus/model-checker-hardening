@@ -147,13 +147,35 @@ corpus with a native tool runs only on the platform that built the tool.
 
 ### 5. Oracle participation
 
-A generic checker records only a verdict and a failure code. It records no
-`ExplorationMetrics`. Every oracle therefore compares its verdict, and two checks are
-skipped:
-- **The state-count agreement of [ADR 0019][adr-0019].** `Oracle.agree` skips a
-  checker without a `DISTINCT_STATES` count.
-- **The trace-length check of the graph oracle ([ADR 0023][adr-0023] §5).**
-  `ExpectedOutcome.admits` accepts a counterexample without a recorded length.
+A generic checker records a verdict and a failure code. A `tlc`-compatible checker also
+records the size of a completed search. When it passes and the last statistics line of
+its output reads `N states generated, M distinct states found, 0 states left on queue.`,
+as TLC's command line prints it, the stage records `phase = complete` and
+`distinctStates = M`. `TlcCommandLineMetrics` reads the line, and `GenericConvention`
+keys the reader by compatibility. An `apalache`-compatible checker records no metrics,
+as Apalache counts no states. A tool that does not print the line, such as tla-rs,
+records none either.
+
+Every oracle compares the verdict. The state-count agreement of [ADR 0019][adr-0019]
+then compares Manyan's count with TLC's, unchanged: `Oracle.agree` already compares
+every checker that records `distinctStates` for a completed search, and skips one
+without it. The trace-length check of the graph oracle ([ADR 0023][adr-0023] §5) is
+still skipped: `ExpectedOutcome.admits` accepts a counterexample without a recorded
+length.
+
+*Revision.* The original decision recorded no metrics at all, which made the
+state-count agreement skip the generic checker. Probe P3 showed that Manyan's counts
+equal TLC's printed counts, and corpus89-manyan showed what the gap hides
+([report](../reports/corpus89-manyan-pbt.md) §3): Manyan before `5a1aa3a` missed a
+successor under `(ENABLED A)'`, and with `-deadlock` that changes only the number of
+reachable states. Comparing the counts needed a fix on TLC's side as well. With a
+temporal property, TLC's worker reports a stuttering self-loop of every state to the
+state writer as a transition to a new state (`Worker.doNextCheckLiveness`,
+`Visualization.STUTTERING`). `TlcStateMetrics` counted it, which doubled TLC's
+`distinctStates` and inflated `generatedStates` on every run with a property. It now
+ignores that callback. On 3,000 pass/pass entries of corpus89-manyan, Manyan's printed
+count equalled TLC's recorded count on all 2,419 runs without a property, and was half
+of it on 407 of the 581 runs with one. The fix removes the halves.
 
 `GENERIC` declares `CounterexampleSearch.ANY`, which is the right declaration for a
 tool whose search order is unknown. The quality gate ranks on TLC's metadata and
@@ -294,7 +316,7 @@ other 3 (`27db0ae5`, `30f4921b`, `96a4ca0e`) check a temporal property, and ther
 recorded count is twice Manyan's (12 against 6, 2 against 1). On `27db0ae5` and
 `30f4921b`, a rerun of TLC's command line prints Manyan's count. So FuzzTLA's TLC
 metric differs from TLC's printed count on liveness runs, and Manyan does not. The
-counts are a usable oracle, but restoring them is still deferred (section 5).
+counts are a usable oracle. Section 5's revision records them and corrects TLC's metric.
 
 **P4. Apalache compatibility through source.** For `-symbolic -length N`, each entry
 got a `.cfg` with `INIT Init`, `NEXT Next`, `INVARIANT Inv`, and `PROPERTY Liveness`
@@ -343,13 +365,21 @@ a campaign. Otherwise the aggregator's failures are dominated by these two cause
   serve the same purpose.
 - **Metrics from the tool's JSON output.** Manyan's `-result` and `-dumpTrace json`
   would restore the ADR 0019 and ADR 0023 checks, but the formats are tool-specific.
-  This is deferred: a later `metrics` key could name a format.
+  The revision of section 5 reads TLC's statistics line instead, which every
+  `tlc`-compatible tool that follows TLC's output prints. Trace lengths stay deferred:
+  a later `metrics` key could name a format.
 
 ## Consequences
 
 - **Adding a compatible tool needs no code,** only a `[generic]` table.
-- **The comparison is weaker than TLC's against Apalache's.** It compares verdicts but
-  not state counts or trace lengths.
+- **The comparison is weaker than TLC against TLC-n.** A `tlc`-compatible checker's
+  completed searches are compared by state count (section 5), but no trace length is
+  recorded.
+- **Recorded TLC counts change on runs with a temporal property.** Corpora written
+  before the revision of section 5 hold doubled `distinctStates` and inflated
+  `generatedStates` for such runs, so their exploration metrics are not comparable with
+  new ones. The state-count agreement is unaffected for them: `tlc` and `tlcn` were
+  doubled alike.
 - **The database's `verdictPair` view gains `generic` columns,** which bumps the schema
   version. The campaign report and the triager learn the stage.
 - **Corpora become platform-specific** when they run a native tool.

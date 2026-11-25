@@ -126,8 +126,8 @@ public final class GenericCheckerBackend implements ToolBackend {
                         Diagnostics.append(OneShotTool.timeoutMessage(command), attempt.diagnostics()));
             }
             var status = attempt.exitCode().getAsInt();
-            return classifier.classify(status,
-                    Diagnostics.append(checker.name() + " exited with status " + status, attempt.diagnostics()));
+            return convention.metrics().apply(classifier.classify(status,
+                    Diagnostics.append(checker.name() + " exited with status " + status, attempt.diagnostics())));
         } catch (IOException exception) {
             return ToolResult.crash(exception, checker.name() + " could not be run");
         } finally {

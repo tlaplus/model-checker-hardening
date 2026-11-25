@@ -128,8 +128,10 @@ Manyan. Unlike every other branch, its tool comes from the corpus's `[generic]`
 table rather than from the build: an executable, a command line with placeholders,
 and a compatibility that selects the configuration file FuzzTLA writes (TLC's, or
 `INIT`/`NEXT` with Apalache's invariants and `Liveness`) and how its exit status
-becomes a verdict. It runs one native process per input and records no
-exploration metrics, so the oracles compare only its verdict.
+becomes a verdict. It runs one native process per input. A `tlc`-compatible tool
+records the distinct-state count of a passing search, read from TLC's statistics
+line in its output, so the state-count agreement of [ADR 0019][adr-0019] compares it
+with TLC's. It records no other exploration metrics.
 
 The parser and TLC consume a TLA+ module rendered through Apalache's Java I/O
 facade. Apalache instead consumes its typed IR JSON format through the same

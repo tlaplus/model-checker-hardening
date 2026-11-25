@@ -156,6 +156,25 @@ class TlcExplorationMetricsTest {
                 ExplorationCount.TRACE_LENGTH, 2L));
     }
 
+    /**
+     * With a temporal property, TLC's worker reports a stuttering self-loop of every state as a
+     * transition to a new state; the counts are those of the run without the property.
+     */
+    @Test
+    void countsTheSameStatesWhenTLCChecksLiveness() throws Exception {
+        var invariantOnly = check(module("x = 0", "x' = x + 1", "TRUE", "<>(step = 3)"), false);
+        var withProperty = check(module("x = 0", "x' = x + 1", "TRUE", "TRUE ~> TRUE"), true);
+
+        assertEquals(StageOutcome.PASS, invariantOnly.outcome(), invariantOnly.diagnostic());
+        assertEquals(StageOutcome.PASS, withProperty.outcome(), withProperty.diagnostic());
+        var expected = Map.of(
+                ExplorationCount.INIT_STATES, 1L,
+                ExplorationCount.DISTINCT_STATES, 4L,
+                ExplorationCount.GENERATED_STATES, 8L);
+        assertCounts(metrics(invariantOnly), expected);
+        assertCounts(metrics(withProperty), expected);
+    }
+
     @Test
     void countsTheLoopOfALivenessCounterexample() throws Exception {
         var result = check(module("x = 0", "x' = x + 1", "TRUE", "<>(x = 9)"), true);

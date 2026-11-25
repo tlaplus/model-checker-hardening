@@ -124,9 +124,15 @@ An unknown placeholder is a configuration error.
 ## 4. Results
 
 The checker's results are stored under `02gen-*` in the corpus, and its verdicts take
-part in every oracle. FuzzTLA records no state counts or trace lengths for it, so:
-- the [state-count agreement](exploration-metrics.md) does not apply to it;
-- the graph oracle checks only its verdict.
+part in every oracle. For a `tlc`-compatible checker that passes, FuzzTLA also reads
+TLC's statistics line from its output,
+`N states generated, M distinct states found, 0 states left on queue.`, and records
+`phase = complete` and `distinctStates = M`. The
+[state-count agreement](exploration-metrics.md) then compares that count with TLC's: an
+entry whose completed searches reach different numbers of states fails, and the triager
+labels it `STATE_COUNT`. A tool that does not print the line records no count, and an
+`apalache`-compatible tool records none. FuzzTLA records no trace lengths, so the graph
+oracle checks only the verdict.
 
 A timeout is a crash, as it is for the other checkers. With `errors = "nonzero"`, every
 error goes to `02gen-fail` with failure code 1 (`error`), and `02gen-counterexample` stays
