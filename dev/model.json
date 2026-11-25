@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "d5f36672ab371b1224968e82791fde50c3daaeaf"
+    "commit" : "33d03ca7780f0879c0203f4b1eede232bb04eb8e"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -1513,10 +1513,10 @@
     "kind" : "ENUM",
     "role" : null,
     "key" : false,
-    "summary" : "Which candidate source admitted an entry, as its generation metadata records it (ADR 0010, ADR 0016 §6).",
+    "summary" : "Which candidate source admitted an entry, as its generation metadata records it (ADR 0010, ADR 0016 §6, ADR 0034 §6).",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/EntryOrigin.java",
-    "line" : 12,
-    "adrs" : [ "0010", "0016" ]
+    "line" : 13,
+    "adrs" : [ "0010", "0016", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.EntryProgress",
     "packageName" : "io.github.tlaplus.hardening.corpus",
@@ -3135,8 +3135,8 @@
     "key" : true,
     "summary" : "One byte-level edit of a generator input, as ADR 0010 defines it.",
     "path" : "src/main/java/io/github/tlaplus/hardening/mutation/MutationOperator.java",
-    "line" : 24,
-    "adrs" : [ "0010", "0016" ]
+    "line" : 25,
+    "adrs" : [ "0010", "0016", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.signature.Bindings",
     "packageName" : "io.github.tlaplus.hardening.signature",
@@ -3345,8 +3345,8 @@
     "key" : true,
     "summary" : "Runs the generations of one workflow invocation over a single stage graph (ADR 0010).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/GenerationLoop.java",
-    "line" : 57,
-    "adrs" : [ "0010" ]
+    "line" : 60,
+    "adrs" : [ "0010", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.GenerationProgress",
     "packageName" : "io.github.tlaplus.hardening.workflow",
@@ -3366,7 +3366,7 @@
     "summary" : "Which target ordinals of one generation are already spoken for, and which source fills the rest (ADR 0010, ADR 0016 §6).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/GenerationTargets.java",
     "line" : 27,
-    "adrs" : [ "0010", "0016" ]
+    "adrs" : [ "0010", "0016", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.MetamorphicShrinker",
     "packageName" : "io.github.tlaplus.hardening.workflow",
@@ -3878,6 +3878,16 @@
     "line" : 15,
     "adrs" : [ "0002" ]
   }, {
+    "name" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "packageName" : "io.github.tlaplus.hardening.workflow.input",
+    "kind" : "CLASS",
+    "role" : "POLICY",
+    "key" : true,
+    "summary" : "Replays one recorded counterexample (ADR 0034 §6): the single candidate of its target is the `trace` payload of a parent's trace.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/input/ReplayCandidates.java",
+    "line" : 37,
+    "adrs" : [ "0034" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
     "packageName" : "io.github.tlaplus.hardening.workflow.library",
     "kind" : "CLASS",
@@ -4035,8 +4045,8 @@
     "key" : true,
     "summary" : "Selects the parents of the next generation from one settled generation (ADR 0010, ADR 0013).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/quality/QualityGate.java",
-    "line" : 51,
-    "adrs" : [ "0010", "0013" ]
+    "line" : 52,
+    "adrs" : [ "0010", "0013", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.quality.QualityKey",
     "packageName" : "io.github.tlaplus.hardening.workflow.quality",
@@ -11068,6 +11078,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
+    "to" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
     "to" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "kind" : "HAS"
   }, {
@@ -12731,6 +12745,94 @@
     "to" : "io.github.tlaplus.hardening.workflow.input.CandidateSource",
     "kind" : "IMPLEMENTS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.common.Diagnostics",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.common.Digests",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusEnvelope",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusFormatException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusInput",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.CorpusVerdict",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.GenerationMetadata",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.Mutation",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.StageMetadata",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.corpus.StoredEntry",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.gen.InputRejectedException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.mutation.MutationOperator",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.workflow.input.CandidateSource",
+    "kind" : "IMPLEMENTS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.input.ReplayCandidates",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.library.LibraryInstall",
     "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "kind" : "USES"
@@ -13214,6 +13316,10 @@
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.corpus.StoredEntry",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.quality.QualityGate",
     "to" : "io.github.tlaplus.hardening.workflow.execution.ElapsedTimeAccumulator",
@@ -14538,7 +14644,7 @@
   }, {
     "from" : "workflow",
     "to" : "common",
-    "typePairs" : 75,
+    "typePairs" : 77,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -14554,7 +14660,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 82,
+    "typePairs" : 87,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -14570,7 +14676,7 @@
   }, {
     "from" : "workflow",
     "to" : "mutation",
-    "typePairs" : 3,
+    "typePairs" : 4,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
@@ -14578,7 +14684,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 178,
+    "typePairs" : 191,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

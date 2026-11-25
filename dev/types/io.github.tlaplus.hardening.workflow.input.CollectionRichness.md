@@ -1,6 +1,6 @@
 # `CollectionRichness`
 
-`io.github.tlaplus.hardening.workflow.input` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/workflow/input/CollectionRichness.java#L13) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/workflow/input/CollectionRichness.java#L13) · module [workflow](../modules/workflow.md)
 
 Scores the explicit collection literals contained in generated TLA+ expressions.
 

@@ -1372,11 +1372,10 @@
 
 
 <h1 id="counterexample-replay">Counterexample replay<a class="headerlink" href="#counterexample-replay" title="Permanent link">&para;</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">In progress</p>
-<p>The checkers record their traces, and <code>trace</code> entries decode and are judged, but a run does
-not yet turn the recorded traces into entries. <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0034-counterexample-replay.md">ADR 0034</a>
-records the design.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0034-counterexample-replay.md">ADR 0034</a> records the design and the probes
+it is based on.</p>
 </div>
 <p>When two checkers both report a counterexample, the aggregator counts that as agreement,
 even if one of the traces is not a behavior of the specification. Counterexample replay
@@ -1426,18 +1425,27 @@ is already compared between the checkers of the parent entry.</p>
 <p>A generic checker checks every <code>trace</code> entry, but its own counterexamples are not
 recorded.</p>
 <h2 id="3-results">3. Results<a class="headerlink" href="#3-results" title="Permanent link">&para;</a></h2>
-<p>Every checker must report a counterexample of exactly the replayed length. Otherwise the
-<code>trace</code> entry moves to <code>03aggregator-fail</code>:</p>
+<p>Every checker must report a counterexample of exactly the replayed length, or fail on a
+partial term as it may on any input. Otherwise the <code>trace</code> entry moves to
+<code>03aggregator-fail</code>:</p>
 <ul>
 <li><strong>A <code>pass</code></strong> means that the trace is not a behavior, or that its last state does not
-  satisfy the claim. Either the checker that reported the trace or the checker that
+  satisfy the claim. Either the checker that recorded the trace or the checker that
   passed is wrong.</li>
 <li><strong>A counterexample of another length,</strong> or a disagreement between checkers, means the
   same.</li>
 </ul>
-<p><code>fuzztla print</code> shows the parent's module, the trace and the replay module. The parent's
-digest is in <code>gen.parent</code>. A <code>trace</code> entry is never a parent for mutation, and the quality
-gate drops it.</p>
+<p>A checker that failed on the parent entry may fail on its replay too: a trace of Apalache
+can pass through a state where TLC cannot evaluate a partial term, such as a function
+applied outside its domain. This is the parent's disagreement again.</p>
+<p>Apalache gives a partial term some value of its type, and it need not give the same term
+the same value in two searches. A replay of its own trace may then pass, for example after
+a sequence indexed past its end or a <code>CHOOSE</code> without a witness. Triage such a failure as
+a partial-term difference before suspecting the trace.</p>
+<p><code>fuzztla print</code> shows a <code>trace</code> entry's length, what its last state claims, the outcome it
+predicts, and the replay module, which holds the recorded states as literals. The parent's
+digest is in <code>gen.parent</code>, and its stage map says which checker recorded the trace. A
+<code>trace</code> entry is never a parent for mutation, and the quality gate drops it.</p>
 <h2 id="4-cost">4. Cost<a class="headerlink" href="#4-cost" title="Permanent link">&para;</a></h2>
 <p>Each replay is one path of at most <code>max_steps</code> transitions, so each check is short. But
 every configured checker checks every replay, and a generation can add up to one replay

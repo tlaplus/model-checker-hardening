@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`d5f3667`](https://github.com/tlaplus/model-checker-hardening/commit/d5f36672ab371b1224968e82791fde50c3daaeaf) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`33d03ca`](https://github.com/tlaplus/model-checker-hardening/commit/33d03ca7780f0879c0203f4b1eede232bb04eb8e) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -45,7 +45,7 @@ flowchart TB
 | [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 54 | 11 | common, checker, gen, mutation |
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 29 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
-| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 123 | 59 | common, checker, gen, signature, mutation, corpus, config |
+| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 124 | 60 | common, checker, gen, signature, mutation, corpus, config |
 | [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 36 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
@@ -60,7 +60,7 @@ flowchart TB
 | adapter | wraps an external tool, process, or protocol | 9 |
 | store | layout, locking, persistence | 5 |
 | codec | a wire or storage format | 12 |
-| policy | a decision rule | 20 |
+| policy | a decision rule | 21 |
 | model | a domain value or enum | 35 |
 | config | configuration and its schema | 11 |
 | view | rendering and formatting | 3 |

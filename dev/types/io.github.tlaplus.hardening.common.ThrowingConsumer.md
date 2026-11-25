@@ -1,6 +1,6 @@
 # `ThrowingConsumer`
 
-`io.github.tlaplus.hardening.common` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/common/ThrowingConsumer.java#L11) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/common/ThrowingConsumer.java#L11) · module [common](../modules/common.md)
 
 An operation on one value that may fail with a checked exception.
 
