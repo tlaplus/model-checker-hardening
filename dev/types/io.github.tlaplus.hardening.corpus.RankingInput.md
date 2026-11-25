@@ -1,6 +1,6 @@
 # `RankingInput`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/corpus/RankingInput.java#L15) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d4b229fc7366469558e1c11dfe92890fdc0a5049/src/main/java/io/github/tlaplus/hardening/corpus/RankingInput.java#L15) · module [corpus](../modules/corpus.md)
 
 What a `Ranking` reads of one entry: TLC's exploration metrics and the counts that replaying the input yields.
 

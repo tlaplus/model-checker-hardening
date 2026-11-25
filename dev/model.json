@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "ba2e1e4c25060fbc3e55fc04bbd3969141180293"
+    "commit" : "d4b229fc7366469558e1c11dfe92890fdc0a5049"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -3684,9 +3684,9 @@
     "kind" : "RECORD",
     "role" : "POLICY",
     "key" : true,
-    "summary" : "What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, and how an exit status becomes a verdict.",
+    "summary" : "What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, how an exit status becomes a verdict, and which exploration metrics the tool's output gives (§5).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericConvention.java",
-    "line" : 33,
+    "line" : 37,
     "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
@@ -4078,6 +4078,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcCheckerBackend.java",
     "line" : 30,
     "adrs" : [ "0027" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
+    "kind" : "CLASS",
+    "role" : "POLICY",
+    "key" : true,
+    "summary" : "Reads the size of a completed search from the statistics that TLC's command line prints, for a generic checker that follows TLC's output (ADR 0033 §5).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcCommandLineMetrics.java",
+    "line" : 19,
+    "adrs" : [ "0033" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
@@ -12143,6 +12153,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
     "kind" : "DEPENDS"
   }, {
@@ -12164,7 +12178,7 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.generic.GenericConvention",
     "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
-    "kind" : "USES"
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.generic.GenericInvocation",
     "to" : "io.github.tlaplus.hardening.config.GenericCheckerConfig",
@@ -13478,6 +13492,26 @@
     "to" : "io.github.tlaplus.hardening.workflow.worker.WorkerSpec",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationCount",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationMetrics",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "to" : "io.github.tlaplus.hardening.checker.ExplorationPhase",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration",
     "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "kind" : "DEPENDS"
@@ -14257,7 +14291,7 @@
   }, {
     "from" : "workflow",
     "to" : "checker",
-    "typePairs" : 21,
+    "typePairs" : 24,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheFailureDetail",

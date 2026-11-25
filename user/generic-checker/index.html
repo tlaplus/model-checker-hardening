@@ -1520,9 +1520,15 @@ P4). A tool that reads Apalache's JSON IR can use <code>{ir}</code> instead of <
 <p>An unknown placeholder is a configuration error.</p>
 <h2 id="4-results">4. Results<a class="headerlink" href="#4-results" title="Permanent link">&para;</a></h2>
 <p>The checker's results are stored under <code>02gen-*</code> in the corpus, and its verdicts take
-part in every oracle. FuzzTLA records no state counts or trace lengths for it, so:
-- the <a href="../exploration-metrics/">state-count agreement</a> does not apply to it;
-- the graph oracle checks only its verdict.</p>
+part in every oracle. For a <code>tlc</code>-compatible checker that passes, FuzzTLA also reads
+TLC's statistics line from its output,
+<code>N states generated, M distinct states found, 0 states left on queue.</code>, and records
+<code>phase = complete</code> and <code>distinctStates = M</code>. The
+<a href="../exploration-metrics/">state-count agreement</a> then compares that count with TLC's: an
+entry whose completed searches reach different numbers of states fails, and the triager
+labels it <code>STATE_COUNT</code>. A tool that does not print the line records no count, and an
+<code>apalache</code>-compatible tool records none. FuzzTLA records no trace lengths, so the graph
+oracle checks only the verdict.</p>
 <p>A timeout is a crash, as it is for the other checkers. With <code>errors = "nonzero"</code>, every
 error goes to <code>02gen-fail</code> with failure code 1 (<code>error</code>), and <code>02gen-counterexample</code> stays
 empty.</p>

@@ -1155,6 +1155,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#23-generic-checker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3. Generic checker
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1368,6 +1379,17 @@
     <span class="md-ellipsis">
       
         2.2. Apalache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-generic-checker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3. Generic checker
       
     </span>
   </a>
@@ -1591,6 +1613,25 @@ unchanged, so metrics reach <code>03aggregator-pass</code> and <code>03aggregato
 <tr>
 <td><code>traceLength</code></td>
 <td>States in <code>violation1.itf.json</code> minus one. Present only for <code>counterexample</code>, and absent if Apalache wrote no readable trace.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-generic-checker">2.3. Generic checker<a class="headerlink" href="#23-generic-checker" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>phase</code></td>
+<td><code>complete</code>, present only for a <code>tlc</code>-compatible tool that passes and prints TLC's statistics line with no state left on the queue (<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0033-generic-checker.md">ADR 0033</a> §5).</td>
+</tr>
+<tr>
+<td><code>distinctStates</code></td>
+<td>The <code>M</code> of the tool's last <code>N states generated, M distinct states found, 0 states left on queue.</code> line.</td>
 </tr>
 </tbody>
 </table>
