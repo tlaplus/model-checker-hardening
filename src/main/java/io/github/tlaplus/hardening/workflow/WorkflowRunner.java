@@ -23,7 +23,7 @@ import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowMetrics;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor;
-import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
+import io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -83,7 +83,7 @@ public final class WorkflowRunner {
             throw new WorkflowException("this corpus runs " + technique.encodedName() + ", which does not generate "
                     + config.generatedKind().encodedName() + " inputs: set [generator] kind to one it generates");
         }
-        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers(), new GraphOutcomes(decoders),
+        checking = CheckingPolicy.of(technique, config.workflow().enabledCheckers(), new PredictedOutcomes(decoders),
                 exitStatusOnly(config));
         final KnownDefectDatabase knownDefects;
         try {

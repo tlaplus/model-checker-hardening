@@ -17,12 +17,12 @@ import java.util.Set;
  */
 public enum Technique {
     /** Property-based generation and mutation, judged by conformance of TLC and Apalache. */
-    PBT("pbt", Oracle.CONFORMANCE, EnumSet.allOf(InputKind.class), Ranking.DEPTH),
+    PBT("pbt", Oracle.CONFORMANCE, generatedKinds(), Ranking.DEPTH),
     /**
      * Metamorphic testing: a base and its rewrite, judged by the metamorphic relation (ADR 0016). A
      * graph base is rewritten as the module it decodes to.
      */
-    MT("mt", Oracle.METAMORPHIC, EnumSet.allOf(InputKind.class), Ranking.DEPTH),
+    MT("mt", Oracle.METAMORPHIC, generatedKinds(), Ranking.DEPTH),
     /**
      * Graph-based testing: control graphs whose target the graph predicts (ADR 0023), whose parents
      * are selected for node actions that produce new data (ADR 0024).
@@ -49,9 +49,19 @@ public enum Technique {
         return encodedName;
     }
 
-    /** Returns how the aggregator judges the entries of a corpus that runs this technique. */
+    /**
+     * Returns how the aggregator judges the generated entries of a corpus that runs this technique;
+     * {@link Oracle#forKind} judges a derived entry by its prediction.
+     */
     public Oracle oracle() {
         return oracle;
+    }
+
+    /** The kinds a generator draws from bytes, in declaration order. */
+    private static Set<InputKind> generatedKinds() {
+        var kinds = EnumSet.noneOf(InputKind.class);
+        Arrays.stream(InputKind.values()).filter(kind -> !kind.derived()).forEach(kinds::add);
+        return kinds;
     }
 
     /** Returns how the quality gate ranks the entries of a corpus that runs this technique. */

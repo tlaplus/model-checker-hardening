@@ -6,9 +6,11 @@ import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
-import java.util.Set;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016
@@ -49,7 +51,8 @@ public enum Oracle {
     },
     /**
      * Passes when the checkers agree and every one reports the outcome the input predicts, or fails
-     * (ADR 0023 §5). A checker that reports a pass where the graph reaches its target, or a
+     * (ADR 0023 §5). It judges graph entries under gbt, and replayed traces under every technique
+     * (ADR 0034 §4). A checker that reports a pass where the graph reaches its target, or a
      * counterexample where it does not, fails the entry even when every checker agrees with it; so
      * does a counterexample shorter than the shortest path to the target, or longer from a checker
      * that reports a shortest one.
@@ -81,6 +84,15 @@ public enum Oracle {
      */
     abstract CorpusVerdict judge(
             Map<CorpusStage, StageRecord> results, Optional<ExpectedOutcome> expected, Set<CorpusStage> exitStatusOnly);
+
+    /**
+     * Returns the oracle that judges an entry of {@code kind} in a corpus whose generated entries
+     * this oracle judges. A derived entry, such as a replayed trace, exists only to test the outcome
+     * it predicts, so every technique judges it by {@link #GRAPH} (ADR 0034 §4).
+     */
+    public Oracle forKind(InputKind kind) {
+        return Objects.requireNonNull(kind, "kind").derived() ? GRAPH : this;
+    }
 
     /** Reports whether this oracle judges against the outcome an entry predicts. */
     boolean needsExpectation() {

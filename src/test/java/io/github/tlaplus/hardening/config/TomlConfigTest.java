@@ -472,6 +472,17 @@ class TomlConfigTest {
         assertEquals(Map.of(GeneralExpressionKind.NAME, 3), header.generator().formWeights());
     }
 
+    /** No run generates a derived kind: the workflow derives it from checker output (ADR 0034). */
+    @Test
+    void rejectsADerivedInputKind(@TempDir Path directory) throws Exception {
+        var rendered = TomlConfig.render(FuzzTlaConfig.defaults());
+
+        var trace = assertInvalid(directory, rendered.replace("kind = \"module\"", "kind = \"trace\""));
+
+        assertTrue(trace.getMessage().contains("unknown input kind 'trace'"), trace.getMessage());
+        assertTrue(trace.getMessage().contains("expected one of expr, module, graph"), trace.getMessage());
+    }
+
     @Test
     void rejectsUnusableFormWeights(@TempDir Path directory) throws Exception {
         var rendered = TomlConfig.render(FuzzTlaConfig.defaults());

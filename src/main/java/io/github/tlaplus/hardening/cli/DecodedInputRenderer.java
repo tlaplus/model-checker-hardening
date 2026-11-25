@@ -1,14 +1,17 @@
 package io.github.tlaplus.hardening.cli;
 
 import at.forsyte.apalache.tla.lir.TlaEx;
+import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
 import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.gen.trace.Trace;
+import io.github.tlaplus.hardening.gen.trace.TraceEnding;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
-import io.github.tlaplus.hardening.workflow.spec.GraphOutcomes;
+import io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecText;
 import io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration;
@@ -20,8 +23,9 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * Renders a decoded input independently of picocli command wiring. By default, a metamorphic pair
- * and a graph module are rendered for triage; any other input as its module or expression.
+ * Renders a decoded input independently of picocli command wiring. By default, a metamorphic pair,
+ * a graph module and a replayed trace are rendered for triage; any other input as its module or
+ * expression.
  */
 final class DecodedInputRenderer {
     enum Mode {
@@ -38,6 +42,7 @@ final class DecodedInputRenderer {
         return switch (mode) {
             case DEFAULT -> artifact.rewrite().map(rewrite -> rewrite(rewrite, artifact.request()))
                     .or(() -> artifact.graph().map(graph -> graph(graph, SpecText.render(artifact))))
+                    .or(() -> artifact.trace().map(trace -> trace(trace, SpecText.render(artifact))))
                     .orElseGet(() -> artifact.standaloneExpression()
                             .map(EnvelopeReport::expression)
                             .orElseGet(() -> SpecText.render(artifact)));
@@ -104,9 +109,29 @@ final class DecodedInputRenderer {
             var distance = graph.graph().distance(graph.target());
             writer.printf("target: %d (%s)%n", graph.target(), distance.isEmpty() ? "unreachable"
                     : "distance " + distance.getAsInt() + ", step bound " + graph.spec().stepBound());
-            var expected = GraphOutcomes.of(graph);
+            var expected = PredictedOutcomes.of(graph);
             writer.printf("expected: %s%s%n", expected.verdict().encodedName(),
                     expected.traceLength().isPresent() ? ", trace length " + expected.traceLength().getAsInt() : "");
+            writer.printf("module:%n%s%n", module.stripTrailing());
+        }
+        return output.toString();
+    }
+
+    /**
+     * Renders a replayed trace (ADR 0034): its transitions, what its last state claims, the outcome
+     * it predicts, and the replay module, which holds the recorded states as literals.
+     */
+    private static String trace(Trace trace, String module) {
+        var output = new StringWriter();
+        try (var writer = new PrintWriter(output)) {
+            writer.printf("transitions: %d%n", trace.transitions());
+            writer.printf("ending: %s%n", switch (trace.ending()) {
+                case TraceEnding.Invariant() -> "violates Inv";
+                case TraceEnding.Loop(var index) -> "returns to state " + index;
+                case TraceEnding.Prefix() -> "reachable";
+            });
+            writer.printf("expected: %s, trace length %d%n",
+                    CorpusVerdict.COUNTEREXAMPLE.encodedName(), trace.transitions());
             writer.printf("module:%n%s%n", module.stripTrailing());
         }
         return output.toString();

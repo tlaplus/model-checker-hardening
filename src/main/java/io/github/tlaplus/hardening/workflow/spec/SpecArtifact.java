@@ -10,6 +10,7 @@ import io.github.tlaplus.hardening.gen.graph.GeneratedGraph;
 import io.github.tlaplus.hardening.gen.library.OperatorLibrary;
 import io.github.tlaplus.hardening.gen.library.SourceLink;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.gen.trace.Trace;
 import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import java.util.Optional;
 @ArchRole(Role.MODEL)
 @Key
 public final class SpecArtifact {
+    private final TlaModule skeleton;
     private final TlaModule module;
     private final SourceLink source;
     private final CheckRequest request;
@@ -57,13 +59,15 @@ public final class SpecArtifact {
 
     /**
      * What the decoder produced besides the module, each part absent ({@code null}) unless the
-     * decoder has it: the standalone expression, the metamorphic pair, the control graph.
+     * decoder has it: the standalone expression, the metamorphic pair, the control graph, the
+     * replayed trace.
      */
-    private record Origin(TlaEx standaloneExpression, Rewrite<?> rewrite, GeneratedGraph graph) {
-        static final Origin MODULE = new Origin(null, null, null);
+    private record Origin(TlaEx standaloneExpression, Rewrite<?> rewrite, GeneratedGraph graph, Trace trace) {
+        static final Origin MODULE = new Origin(null, null, null, null);
     }
 
     private SpecArtifact(Parts parts, OperatorLibrary library) {
+        this.skeleton = Objects.requireNonNull(parts.skeleton(), "skeleton");
         this.source = library.linkSource(parts.skeleton(), parts.generated());
         // Without aliases the source form is the self-contained module; link only once.
         this.module = source.aliases().isEmpty() ? source.module() : library.link(parts.skeleton(), parts.generated());
@@ -77,7 +81,7 @@ public final class SpecArtifact {
     public static SpecArtifact fromExpression(TlaEx expression, OperatorLibrary library) {
         Objects.requireNonNull(expression, "expression");
         return new SpecArtifact(new Parts(FuzzInputModule.create(expression), CheckRequest.invariant(0),
-                FuzzInputModule.ENTRY_POINTS, List.of(expression), new Origin(library.close(expression), null, null)), library);
+                FuzzInputModule.ENTRY_POINTS, List.of(expression), new Origin(library.close(expression), null, null, null)), library);
     }
 
     /**
@@ -90,7 +94,7 @@ public final class SpecArtifact {
         var checked = rewrite.checked();
         return new SpecArtifact(new Parts(FuzzInputModule.create(explored, checked), CheckRequest.invariant(0),
                 FuzzInputModule.ENTRY_POINTS, List.of(explored, checked),
-                new Origin(library.close(rewrite.original()), rewrite, null)), library);
+                new Origin(library.close(rewrite.original()), rewrite, null, null)), library);
     }
 
     /**
@@ -109,7 +113,7 @@ public final class SpecArtifact {
         var module = FuzzInputModule.create(original, rewritten, rewrite.orientation(), relation);
         var effective = relation.forBase(original);
         return new SpecArtifact(new Parts(module, new CheckRequest(original.stepBound(), effective.checkKind()),
-                effective.entryPoints(), generated, new Origin(null, rewrite, null)), library);
+                effective.entryPoints(), generated, new Origin(null, rewrite, null, null)), library);
     }
 
     /** Assembles the declarations produced by the whole-module decoder, plus the library it uses. */
@@ -130,7 +134,24 @@ public final class SpecArtifact {
         return new SpecArtifact(new Parts(FuzzInputModule.create(spec),
                 // The graph predicts the invariant alone; a property is for mt to adopt (ADR 0027 §8).
                 CheckRequest.invariant(spec.stepBound()).withControlVariables(GeneratedGraph.CONTROL_VARIABLES),
-                FuzzInputModule.ENTRY_POINTS, spec.generated(), new Origin(null, null, graph)), library);
+                FuzzInputModule.ENTRY_POINTS, spec.generated(), new Origin(null, null, graph, null)), library);
+    }
+
+    /**
+     * Assembles the module that replays {@code trace} against {@code base} (ADR 0034 §3), which
+     * every checker is asked about its invariant alone, over the trace's transitions. The base's
+     * generated expressions are this artifact's, so admission scores and matches what the base
+     * decoded to.
+     *
+     * @throws io.github.tlaplus.hardening.gen.InputRejectedException if the trace does not fit the
+     *     base's variables
+     */
+    public static SpecArtifact replaying(SpecArtifact base, Trace trace, OperatorLibrary library) {
+        Objects.requireNonNull(base, "base");
+        Objects.requireNonNull(trace, "trace");
+        return new SpecArtifact(new Parts(FuzzInputModule.replay(base.skeleton, trace),
+                CheckRequest.invariant(trace.transitions()), FuzzInputModule.ENTRY_POINTS, base.generated,
+                new Origin(null, null, null, trace)), library);
     }
 
     /** A generated module is checked against its invariant and, if it has one, its property. */
@@ -167,6 +188,11 @@ public final class SpecArtifact {
     /** Returns the control graph this artifact encodes, when it came from the graph decoder. */
     public Optional<GeneratedGraph> graph() {
         return Optional.ofNullable(origin.graph());
+    }
+
+    /** Returns the trace this artifact replays, when it came from the trace decoder (ADR 0034). */
+    public Optional<Trace> trace() {
+        return Optional.ofNullable(origin.trace());
     }
 
     /** Returns the input expression when this artifact came from the expression decoder. */

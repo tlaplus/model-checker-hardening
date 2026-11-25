@@ -1,6 +1,7 @@
 package io.github.tlaplus.hardening.corpus;
 
 import io.github.tlaplus.hardening.common.Preconditions;
+import io.github.tlaplus.hardening.gen.InputKind;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.Map;
@@ -13,10 +14,11 @@ import java.util.Set;
  * judges the whole records: verdicts and, for completed searches, state counts (ADR 0019).
  */
 public record AggregationInput(
-        Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy,
+        Path candidate, InputKind kind, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy,
         Optional<ExpectedOutcome> expected) {
     public AggregationInput {
         Objects.requireNonNull(candidate, "candidate");
+        Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(checkerResults, "checkerResults");
         Objects.requireNonNull(policy, "policy");
         Objects.requireNonNull(expected, "expected");
@@ -29,15 +31,17 @@ public record AggregationInput(
         checkerResults = Map.copyOf(copy);
     }
 
-    /** An aggregation whose entry predicts no outcome. */
-    public AggregationInput(Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy) {
-        this(candidate, checkerResults, policy, Optional.empty());
+    /** An aggregation whose entry of {@code kind} predicts no outcome. */
+    public AggregationInput(
+            Path candidate, InputKind kind, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy) {
+        this(candidate, kind, checkerResults, policy, Optional.empty());
     }
 
     /** An aggregation of the entry that stores {@code input}, with the outcome the policy predicts for it. */
     static AggregationInput of(
             Path candidate, Map<CorpusStage, StageRecord> checkerResults, CheckingPolicy policy, CorpusInput input) {
-        return new AggregationInput(candidate, checkerResults, policy, policy.expectations().expected(input));
+        return new AggregationInput(
+                candidate, input.kind(), checkerResults, policy, policy.expectations().expected(input));
     }
 
     /** Returns the verdict of each checker. */
@@ -47,8 +51,11 @@ public record AggregationInput(
         return Map.copyOf(verdicts);
     }
 
-    /** Returns the aggregator's verdict: the oracle's judgement of the checker results. */
+    /**
+     * Returns the aggregator's verdict: the judgement of the checker results by the oracle of this
+     * entry's kind.
+     */
     public CorpusVerdict verdict() {
-        return policy.oracle().judge(checkerResults, expected, policy.exitStatusOnly());
+        return policy.oracle().forKind(kind).judge(checkerResults, expected, policy.exitStatusOnly());
     }
 }

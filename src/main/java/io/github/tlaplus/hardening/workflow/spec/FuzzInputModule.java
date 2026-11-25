@@ -1,26 +1,35 @@
 package io.github.tlaplus.hardening.workflow.spec;
 
+import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaDecl;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
+import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import at.forsyte.apalache.tla.lir.TlaVarDecl;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.gen.GeneratedSpec;
+import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.gen.TemporalProperty;
 import io.github.tlaplus.hardening.gen.ir.IrNames;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
+import io.github.tlaplus.hardening.gen.trace.Trace;
+import io.github.tlaplus.hardening.gen.trace.TraceEnding;
+import io.github.tlaplus.hardening.gen.trace.TraceLiterals;
 import io.github.tlaplus.hardening.workflow.worker.CheckKind;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 import org.apalache_mc.tla.jir.TlaDeclarations;
 import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
+import org.apalache_mc.tla.jir.TlaOperators;
 import org.apalache_mc.tla.jir.TlaTypedScopeUncheckedBuilder;
 import org.apalache_mc.tla.jir.TlaTypes;
 
@@ -284,6 +293,132 @@ public final class FuzzInputModule {
                 orientation.explored(property1.formula(), formula2));
         return assemble(declarations, variables, new Skeleton(init, next, invariant, Optional.of(explored),
                 Optional.of(new RelationParts(stepAction, checkedSide))));
+    }
+
+    /** The base's initial predicate in a replay module (ADR 0034 §3). */
+    public static final String BASE_INIT = "BaseInit";
+
+    /** The base's next-state action, stuttering disjunct included, in a replay module. */
+    public static final String BASE_NEXT = "BaseNext";
+
+    /** The base's invariant in a replay module. */
+    public static final String BASE_INV = "BaseInv";
+
+    /** The base's temporal definitions, which a replay module defines again as {@code TRUE}. */
+    private static final Set<String> REPLAY_DROPPED = Set.of(FAIRNESS, SPEC, PROP, LIVENESS);
+
+    /** The variable that counts the replayed transitions; no decoder draws this name. */
+    public static final String REPLAY_INDEX = "idx";
+
+    /**
+     * Assembles the module that replays {@code trace} against an assembled base module (ADR 0034
+     * §3). The base's {@code Init}, {@code Next} and {@code Inv} become {@link #BASE_INIT}, {@link
+     * #BASE_NEXT} and {@link #BASE_INV}; its fairness, specification and properties are dropped.
+     * With the trace's states s0, ..., sn as literals:
+     *
+     * <pre>
+     * Init == v1 = s0.v1 /\ ... /\ idx = 0 /\ BaseInit
+     * Next == \/ idx = 0 /\ v1' = s1.v1 /\ ... /\ idx' = 1 /\ BaseNext
+     *         ...
+     * Inv  == idx /= n \/ Last
+     * </pre>
+     *
+     * <p>{@code Last} is {@code BaseInv} when sn claims to violate the invariant, {@code <<v1, ...>>
+     * /= <<sl.v1, ...>>} for a lasso back to sl, and absent otherwise. The trace's equalities come
+     * first, so TLC binds every variable from a constant and the base only checks it, and Apalache's
+     * assignment finder takes them. The base's {@code UNCHANGED e} becomes {@code e' = e}: Apalache
+     * desugars {@code UNCHANGED} into assignments, which it would reject as second assignments.
+     * Without transitions, {@code Next} only stutters.
+     *
+     * @throws io.github.tlaplus.hardening.gen.InputRejectedException if a recorded value does not
+     *     have its variable's type, or the trace's width is not the base's
+     */
+    public static TlaModule replay(TlaModule base, Trace trace) {
+        Objects.requireNonNull(base, "base");
+        Objects.requireNonNull(trace, "trace");
+        var builder = new TlaTypedScopeUncheckedBuilder();
+        var renamed = Map.of(INIT, BASE_INIT, NEXT, BASE_NEXT, INV, BASE_INV);
+        var declarations = new ArrayList<TlaDecl>();
+        var baseVariables = new ArrayList<TlaVarDecl>();
+        for (var declaration : TlaModules.declarations(base)) {
+            if (declaration instanceof TlaVarDecl variable) {
+                baseVariables.add(variable);
+                declarations.add(variable);
+            } else if (declaration instanceof TlaOperDecl operator && !REPLAY_DROPPED.contains(operator.name())) {
+                var checking = TlaDeclarations.rewrite(operator, FuzzInputModule::unchangedAsEquality);
+                declarations.add(renamed.containsKey(operator.name())
+                        ? TlaDeclarations.withHeader(checking, renamed.get(operator.name()), List.of())
+                        : checking);
+            } else if (!REPLAY_DROPPED.contains(declaration.name())) {
+                declarations.add(declaration);
+            }
+        }
+        if (trace.width() != baseVariables.size()) {
+            throw new InputRejectedException("a trace of " + trace.width() + " variables replays a module of "
+                    + baseVariables.size());
+        }
+        var index = TlaDeclarations.variable(REPLAY_INDEX, TlaTypes.INT);
+        declarations.add(baseVariables.size(), index);
+        var variables = new ArrayList<>(baseVariables);
+        variables.add(index);
+        var literals = new TraceLiterals();
+        var states = trace.states();
+        var init = new ArrayList<TlaEx>();
+        for (var position = 0; position < baseVariables.size(); position++) {
+            init.add(builder.eql(builder.varDeclAsNameEx(baseVariables.get(position)),
+                    literals.literal(states.getFirst().get(position), TlaTypes.typeOf(baseVariables.get(position)))));
+        }
+        init.add(builder.eql(builder.varDeclAsNameEx(index), builder.integer(0)));
+        init.add(reference(builder, BASE_INIT));
+        var steps = new ArrayList<TlaEx>();
+        for (var step = 1; step <= trace.transitions(); step++) {
+            var conjuncts = new ArrayList<TlaEx>();
+            conjuncts.add(builder.eql(builder.varDeclAsNameEx(index), builder.integer(step - 1)));
+            for (var position = 0; position < baseVariables.size(); position++) {
+                conjuncts.add(builder.eql(builder.prime(builder.varDeclAsNameEx(baseVariables.get(position))),
+                        literals.literal(states.get(step).get(position), TlaTypes.typeOf(baseVariables.get(position)))));
+            }
+            conjuncts.add(builder.primeEq(builder.varDeclAsNameEx(index), builder.integer(step)));
+            conjuncts.add(reference(builder, BASE_NEXT));
+            steps.add(builder.and(conjuncts.toArray(TlaEx[]::new)));
+        }
+        var next = switch (steps.size()) {
+            case 0 -> builder.unchanged(variablesTuple(builder, variables));
+            case 1 -> steps.getFirst();
+            default -> builder.or(steps.toArray(TlaEx[]::new));
+        };
+        var reached = builder.neql(builder.varDeclAsNameEx(index), builder.integer(trace.transitions()));
+        var invariant = switch (trace.ending()) {
+            case TraceEnding.Invariant() -> builder.or(reached, reference(builder, BASE_INV));
+            case TraceEnding.Loop(var loop) -> {
+                var loopState = new ArrayList<TlaEx>();
+                for (var position = 0; position < baseVariables.size(); position++) {
+                    loopState.add(literals.literal(states.get(loop).get(position),
+                            TlaTypes.typeOf(baseVariables.get(position))));
+                }
+                yield builder.or(reached, builder.neql(variablesTuple(builder, baseVariables),
+                        builder.tuple(loopState.toArray(TlaEx[]::new))));
+            }
+            case TraceEnding.Prefix() -> reached;
+        };
+        return assemble(declarations, variables, new Skeleton(builder.and(init.toArray(TlaEx[]::new)), next, invariant,
+                Optional.empty(), Optional.empty()));
+    }
+
+    /**
+     * Replaces {@code UNCHANGED e} by {@code e' = e}, which means the same (ADR 0034 §3). Apalache
+     * desugars {@code UNCHANGED} into assignments {@code x' := x}, and rejects them once the trace's
+     * equalities have assigned every variable; an equality it checks as a constraint.
+     */
+    private static TlaEx unchangedAsEquality(TlaEx expression) {
+        return TlaExpressions.rewrite(expression, node -> {
+            if (node instanceof OperEx application && application.oper() == TlaOperators.UNCHANGED) {
+                var builder = new TlaTypedScopeUncheckedBuilder();
+                var unchanged = TlaExpressions.arguments(application).getFirst();
+                return builder.eql(builder.prime(unchanged), TlaExpressions.deepCopy(unchanged));
+            }
+            return node;
+        });
     }
 
     /**
