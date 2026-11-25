@@ -32,6 +32,15 @@ public interface CandidateSource {
         /** Returns the collection-richness score a candidate for this target must reach. */
         double richnessThreshold();
 
+        /**
+         * Reports whether the stage draws another candidate after one is not stored. A target
+         * with a single candidate, such as a replay, is settled without an entry instead (ADR
+         * 0034 §6).
+         */
+        default boolean retries() {
+            return true;
+        }
+
         /** Describes the target in the diagnostic of a target that cannot be filled. */
         String describe();
     }

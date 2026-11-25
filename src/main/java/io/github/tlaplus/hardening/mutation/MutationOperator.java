@@ -17,9 +17,10 @@ import java.util.random.RandomGenerator;
  * configuration ({@code [mutator] weights}). Declaration order is only the order in which weights
  * are rendered and a weighted choice scans the operators.
  *
- * <p>{@link #ADOPT} is provenance, not an edit (ADR 0016 §6): the adoption source records it for an
- * entry whose base payload it copied from a parent. The mutator never draws it, and the
- * configuration gives it no weight.
+ * <p>{@link #ADOPT} and {@link #REPLAY} are provenance, not edits (ADR 0016 §6, ADR 0034 §6): the
+ * adoption source records the first for an entry whose base payload it copied from a parent, and
+ * the replay source the second for a parent's recorded counterexample. The mutator never draws
+ * them, and the configuration gives them no weight.
  */
 @ArchRole(Role.MODEL)
 @Key
@@ -85,7 +86,9 @@ public enum MutationOperator {
         return concat(Arrays.copyOf(input, prefix), Arrays.copyOfRange(other, suffix, other.length));
     }),
     /** Copies a conformance parent as the base of a metamorphic entry; not a byte edit. */
-    ADOPT("adopt", 0, null);
+    ADOPT("adopt", 0, null),
+    /** A recorded counterexample of the parent, replayed against every checker (ADR 0034 §6). */
+    REPLAY("replay", 0, null);
 
     /** Block sizes, held apart because enum constants cannot refer forward to their own fields. */
     private static final class Bounds {
@@ -115,7 +118,7 @@ public enum MutationOperator {
         return encodedName;
     }
 
-    /** Whether the mutator applies this operator; {@link #ADOPT} only records provenance. */
+    /** Whether the mutator applies this operator; {@link #ADOPT} and {@link #REPLAY} only record provenance. */
     public boolean isByteEdit() {
         return edit != null;
     }

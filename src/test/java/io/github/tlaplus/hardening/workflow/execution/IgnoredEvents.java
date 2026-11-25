@@ -18,6 +18,9 @@ public final class IgnoredEvents implements WorkflowEvents {
     public void admitted(EntryName entry, int generation, EntryOrigin origin) {}
 
     @Override
+    public void skipped(int generation) {}
+
+    @Override
     public void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict) {}
 
     @Override

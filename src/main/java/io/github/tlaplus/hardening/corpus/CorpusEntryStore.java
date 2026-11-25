@@ -115,6 +115,11 @@ final class CorpusEntryStore {
      * Reports whether a payload is already stored under any entry directory, and rejects a digest
      * collision with a different payload.
      */
+    /** Reports whether {@code payload} is stored in any directory that stores entries. */
+    boolean contains(byte[] payload) throws IOException, CorpusException {
+        return isStored(CorpusLayout.entryFileName(payload), payload);
+    }
+
     private boolean isStored(String fileName, byte[] payload) throws IOException, CorpusException {
         for (var corpusPath : CorpusPath.values()) {
             if (!corpusPath.storesEntries()) {

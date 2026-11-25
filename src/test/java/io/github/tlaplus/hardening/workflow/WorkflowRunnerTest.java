@@ -257,6 +257,46 @@ class WorkflowRunnerTest {
         assertEquals(0, inventory.counts(CorpusStage.AGGREGATOR).count(CorpusVerdict.FAIL));
     }
 
+    /**
+     * With replay (ADR 0034 §6), every counterexample TLC records on the last generation is replayed
+     * in one more generation of replays alone. TLC confirms each of its own traces, so every replay
+     * passes the aggregator, and the gate keeps none, since a replay is no parent.
+     */
+    @Test
+    void replaysTheRecordedCounterexamplesInAGenerationOfTheirOwn(@TempDir Path directory) throws Exception {
+        var corpus = CorpusDirectory.initialize(directory.resolve("corpus"), TomlConfig.render(FuzzTlaConfig.defaults()));
+        var base = graphConfig(config(8, 3, 8, 512));
+        var config = new FuzzTlaConfig(base.generatedKind(), base.generator(), base.workflow().withReplay(true),
+                base.pbt(), base.mutator(), base.libraries(), base.metamorphic());
+
+        var summary = new WorkflowRunner(config.withTechnique(Technique.GBT)).run(corpus, RunMode.FRESH, 1);
+
+        var inventory = summary.corpus();
+        assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
+        var counterexamples = inventory.counts(CorpusStage.TLC).count(CorpusVerdict.COUNTEREXAMPLE);
+        var replays = inventory.admitted(1, EntryOrigin.REPLAY);
+        assertTrue(replays > 0, "no counterexample was replayed");
+        assertEquals(8, inventory.sizedEntries());
+        assertEquals(8 + replays, inventory.totalEntries());
+        assertEquals(replays, inventory.entries(1));
+        assertTrue(counterexamples >= 2 * replays, "each replay is a counterexample of TLC on its base and on itself");
+        var parents = new HashSet<String>();
+        for (var stored : corpus.resultEntries(CorpusStage.QUALITY, CorpusVerdict.PASS)) {
+            parents.add(stored.digest());
+        }
+        for (var stored : corpus.resultEntries(CorpusStage.QUALITY, CorpusVerdict.FAIL)) {
+            var envelope = CorpusEnvelopeCodec.decodeEnvelope(stored.read());
+            if (envelope.corpusInput().kind() != InputKind.TRACE) {
+                continue;
+            }
+            var mutation = envelope.generation().orElseThrow().mutation().orElseThrow();
+            assertEquals(List.of(MutationOperator.REPLAY), mutation.operators());
+            assertEquals(CorpusVerdict.PASS, envelope.stage(CorpusStage.AGGREGATOR).orElseThrow().verdict());
+            assertFalse(parents.contains(stored.digest()));
+        }
+        assertEquals(0, corpus.resultEntries(CorpusStage.AGGREGATOR, CorpusVerdict.FAIL).size());
+    }
+
     /** A technique runs only on the kinds it generates: gbt only on graphs. */
     @Test
     void refusesAKindTheTechniqueDoesNotGenerate() {

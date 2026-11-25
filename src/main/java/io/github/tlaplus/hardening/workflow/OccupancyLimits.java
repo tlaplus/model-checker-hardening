@@ -35,7 +35,7 @@ final class OccupancyLimits {
 
     /** Rejects a corpus that already exceeds any configured limit. */
     void requireWithin(CorpusInventory inventory) throws WorkflowException {
-        if (inventory.totalEntries() > workflow.maximumEntries()) {
+        if (inventory.sizedEntries() > workflow.maximumEntries()) {
             throw new WorkflowException(
                     "corpus contains more entries than workflow.max_entries");
         }
@@ -67,6 +67,6 @@ final class OccupancyLimits {
             }
         }
         return workflow.inputs().maximumEntries() == 0
-                && initial.totalEntries() < workflow.maximumEntries();
+                && initial.sizedEntries() < workflow.maximumEntries();
     }
 }

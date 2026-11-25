@@ -168,4 +168,13 @@ public record CorpusInventory(
     public long totalEntries() {
         return pendingEntries(CorpusStage.PARSER) + processedEntries(CorpusStage.PARSER);
     }
+
+    /**
+     * Counts the entries that {@code workflow.max_entries} bounds: every one but the replays, which
+     * come on top of each generation (ADR 0034 §6).
+     */
+    public long sizedEntries() {
+        return totalEntries() - generations.values().stream()
+                .mapToLong(admitted -> admitted.admitted(EntryOrigin.REPLAY)).sum();
+    }
 }

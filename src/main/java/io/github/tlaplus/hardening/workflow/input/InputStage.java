@@ -174,6 +174,11 @@ public final class InputStage implements WorkflowStage {
             if (outcome != Attempt.REJECTED) {
                 return outcome == Attempt.STORED;
             }
+            if (!entry.claimed().retries()) {
+                // A single candidate that was not stored settles its target (ADR 0034 §6).
+                environment.events().skipped(entry.plan().generation());
+                return true;
+            }
         }
         return false;
     }

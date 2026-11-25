@@ -90,6 +90,14 @@ final class GenerationProgress implements WorkflowEvents {
     }
 
     @Override
+    public void skipped(int generation) {
+        synchronized (lock) {
+            counts(generation).skipped++;
+            lock.notifyAll();
+        }
+    }
+
+    @Override
     public void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict) {
         Objects.requireNonNull(entry, "entry");
         Objects.requireNonNull(stage, "stage");
@@ -172,12 +180,26 @@ final class GenerationProgress implements WorkflowEvents {
     }
 
     /**
-     * Waits until one generation has admitted {@code target} entries. Returns {@code false} when the
-     * run stopped first, in which case the target may never be reached.
+     * Waits until one generation has admitted {@code target} entries of the origins that share its
+     * size ({@link EntryOrigin#SIZED}). Returns {@code false} when the run stopped first, in which
+     * case the target may never be reached.
      */
     boolean awaitAdmitted(int generation, long target) throws InterruptedException {
         synchronized (lock) {
-            while (counts(generation).admitted < target && !control.shouldStop()) {
+            while (counts(generation).sized() < target && !control.shouldStop()) {
+                lock.wait();
+            }
+            return !control.shouldStop();
+        }
+    }
+
+    /**
+     * Waits until {@code target} replay targets of one generation have settled, each admitted or
+     * skipped (ADR 0034 §6). Returns {@code false} when the run stopped first.
+     */
+    boolean awaitReplays(int generation, long target) throws InterruptedException {
+        synchronized (lock) {
+            while (counts(generation).replays() < target && !control.shouldStop()) {
                 lock.wait();
             }
             return !control.shouldStop();
@@ -211,5 +233,17 @@ final class GenerationProgress implements WorkflowEvents {
         long admitted;
         final Map<EntryOrigin, Long> origins = new EnumMap<>(EntryOrigin.class);
         long unsettled;
+        /** Replay targets of this invocation settled without an entry; not recovered on restart. */
+        long skipped;
+
+        /** Returns the admitted entries of the origins that share the generation's size. */
+        long sized() {
+            return EntryOrigin.SIZED.stream().mapToLong(origin -> origins.getOrDefault(origin, 0L)).sum();
+        }
+
+        /** Returns the replay targets that settled: replays admitted, and targets skipped. */
+        long replays() {
+            return origins.getOrDefault(EntryOrigin.REPLAY, 0L) + skipped;
+        }
     }
 }
