@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import io.github.tlaplus.hardening.gen.ir.BuilderArrays;
 import at.forsyte.apalache.tla.lir.TlaEx;
 import io.github.tlaplus.hardening.gen.ActionEffect;
 import io.github.tlaplus.hardening.gen.BasicGenerators;

@@ -363,6 +363,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
         }
         var name = table.getString(key);
         return InputKind.fromEncodedName(name)
+                .filter(kind -> !kind.derived())
                 .orElseThrow(() -> new ConfigException(
                         "unknown input kind '"
                                 + name
@@ -370,6 +371,7 @@ record ConfigValueType<T>(Reader<T> reader, Function<T, String> format) {
                                 + path
                                 + "'; expected one of "
                                 + Arrays.stream(InputKind.values())
+                                        .filter(kind -> !kind.derived())
                                         .map(InputKind::encodedName)
                                         .collect(Collectors.joining(", "))));
     }

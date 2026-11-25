@@ -24,6 +24,7 @@ import io.github.tlaplus.hardening.gen.rewrite.RewriteLibrary;
 import io.github.tlaplus.hardening.gen.rewrite.Rewriter;
 import io.github.tlaplus.hardening.gen.rewrite.RuleFamily;
 import io.github.tlaplus.hardening.gen.rewrite.Tautologies;
+import io.github.tlaplus.hardening.gen.trace.TracePayload;
 import io.github.tlaplus.hardening.workflow.CorpusTools;
 import io.github.tlaplus.hardening.workflow.WorkflowException;
 import io.github.tlaplus.hardening.workflow.library.LibraryPreparation;
@@ -165,7 +166,7 @@ public final class SpecDecoders {
         return switch (config.generatedKind()) {
             case MODULE -> true;
             case GRAPH -> config.generator().graphs().properties();
-            case EXPRESSION -> false;
+            case EXPRESSION, TRACE -> false;
         };
     }
 
@@ -197,7 +198,7 @@ public final class SpecDecoders {
                 IrGenerators.specs(config).map(spec -> SpecArtifact.fromGeneratedSpec(spec, config.library())));
         decoders.put(InputKind.GRAPH,
                 graphs(config, guards).map(graph -> SpecArtifact.fromGeneratedGraph(graph, config.library())));
-        return new SpecDecoders(decoders, Map.of(), config.library(), manifests);
+        return new SpecDecoders(withTraces(decoders, config.library()), Map.of(), config.library(), manifests);
     }
 
     /** The graph decoder, whose edges conjoin {@code guards} when present. */
@@ -229,11 +230,31 @@ public final class SpecDecoders {
         decoders.put(InputKind.EXPRESSION, rewriting(expressions, rewriter::rewriteExpression, expressionRelation));
         decoders.put(InputKind.MODULE, rewriting(specs, rewriter::rewriteSpec, specRelation));
         decoders.put(InputKind.GRAPH, rewriting(graphSpecs, rewriter::rewriteSpec, specRelation));
+        decoders.put(InputKind.TRACE, draw -> {
+            throw new InputRejectedException("an mt corpus replays no traces (ADR 0034 §7)");
+        });
         var unrewritten = new EnumMap<InputKind, Generator<SpecArtifact>>(InputKind.class);
         unrewritten.put(InputKind.EXPRESSION, unrewritten(expressions, expressionRelation));
         unrewritten.put(InputKind.MODULE, unrewritten(specs, specRelation));
         unrewritten.put(InputKind.GRAPH, unrewritten(graphSpecs, specRelation));
         return new SpecDecoders(decoders, unrewritten, config.library(), manifests);
+    }
+
+    /**
+     * Returns {@code decoders} with the decoder of {@code trace} inputs (ADR 0034 §2), which decodes
+     * the embedded base through the decoder of its kind in {@code decoders} and replays the trace
+     * against the module it assembles.
+     */
+    private static Map<InputKind, Generator<SpecArtifact>> withTraces(
+            Map<InputKind, Generator<SpecArtifact>> decoders, OperatorLibrary library) {
+        var complete = new EnumMap<InputKind, Generator<SpecArtifact>>(decoders);
+        var bases = Map.copyOf(decoders);
+        complete.put(InputKind.TRACE, draw -> {
+            var payload = TracePayload.decode(draw.drawBytes(draw.remaining()));
+            var base = bases.get(payload.baseKind()).generate(payload.base());
+            return SpecArtifact.replaying(base, payload.trace(), library);
+        });
+        return complete;
     }
 
     /** Decodes the base part through {@code base} and the rewrite part through {@code rewrite}. */
@@ -294,6 +315,10 @@ public final class SpecDecoders {
         replacements.putAll(decoders);
         replacements.put(
                 InputKind.EXPRESSION, expressions.map(expression -> SpecArtifact.fromExpression(expression, library)));
+        if (unrewritten.isEmpty()) {
+            replacements.remove(InputKind.TRACE);
+            return new SpecDecoders(withTraces(replacements, library), unrewritten, library, manifests);
+        }
         return new SpecDecoders(replacements, unrewritten, library, manifests);
     }
 }

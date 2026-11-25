@@ -24,23 +24,40 @@ class TechniqueTest {
         assertEquals(Ranking.ACTION_COVERAGE, Technique.GBT.ranking());
     }
 
-    /** pbt and mt generate every kind, and gbt generates only graphs (ADR 0023 §1). */
+    /**
+     * pbt and mt generate every kind a generator draws, gbt only graphs (ADR 0023 §1), and none a
+     * derived kind, which the workflow derives from checker output (ADR 0034).
+     */
     @Test
     void namesTheKindsEachTechniqueGenerates() {
         for (var kind : InputKind.values()) {
-            assertTrue(Technique.PBT.generates(kind), kind.encodedName());
-            assertTrue(Technique.MT.generates(kind), kind.encodedName());
+            assertEquals(!kind.derived(), Technique.PBT.generates(kind), kind.encodedName());
+            assertEquals(!kind.derived(), Technique.MT.generates(kind), kind.encodedName());
             assertEquals(kind == InputKind.GRAPH, Technique.GBT.generates(kind), kind.encodedName());
         }
+        assertTrue(InputKind.TRACE.derived());
     }
 
     /** init keeps a configured kind the technique generates, and otherwise picks one it does. */
     @Test
     void choosesTheKindANewCorpusGenerates() {
         for (var kind : InputKind.values()) {
+            if (kind.derived()) {
+                continue;
+            }
             assertEquals(kind, Technique.PBT.kindFor(kind));
             assertEquals(kind, Technique.MT.kindFor(kind));
             assertEquals(InputKind.GRAPH, Technique.GBT.kindFor(kind));
+        }
+    }
+
+    /** Every technique judges a derived entry by its prediction (ADR 0034 §4). */
+    @Test
+    void judgesADerivedEntryByItsPrediction() {
+        for (var technique : Technique.values()) {
+            assertEquals(Oracle.GRAPH, technique.oracle().forKind(InputKind.TRACE));
+            assertEquals(technique.oracle(), technique.oracle().forKind(InputKind.MODULE));
+            assertEquals(technique.oracle(), technique.oracle().forKind(InputKind.GRAPH));
         }
     }
 

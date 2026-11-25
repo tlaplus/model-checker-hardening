@@ -9,6 +9,8 @@ import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.gen.IrGenerationConfig;
 import io.github.tlaplus.hardening.gen.rewrite.Orientation;
 import io.github.tlaplus.hardening.gen.rewrite.Rewrite;
+import io.github.tlaplus.hardening.gen.trace.TraceEnding;
+import io.github.tlaplus.hardening.workflow.spec.ReplayFixtures;
 import io.github.tlaplus.hardening.workflow.spec.SpecArtifact;
 import io.github.tlaplus.hardening.workflow.spec.SpecDecoders;
 import io.github.tlaplus.hardening.workflow.worker.CheckKind;
@@ -39,6 +41,19 @@ class DecodedInputRendererTest {
         var lines = DecodedInputRenderer.render(decode(0), DecodedInputRenderer.Mode.DEFAULT).lines().toList();
         assertEquals("target: 2 (distance 2, step bound 1)", lines.get(2));
         assertEquals("expected: pass", lines.get(3));
+    }
+
+    @Test
+    void rendersATracesEndingAndPredictionBeforeTheReplayModule() {
+        var artifact = SpecDecoders.of(IrGenerationConfig.defaults())
+                .decode(ReplayFixtures.module(new TraceEnding.Loop(1), false, 0, false, 1, false, 1));
+        var report = DecodedInputRenderer.render(artifact, DecodedInputRenderer.Mode.DEFAULT);
+        var lines = report.lines().toList();
+        assertEquals("transitions: 2", lines.get(0));
+        assertEquals("ending: returns to state 1", lines.get(1));
+        assertEquals("expected: counterexample, trace length 2", lines.get(2));
+        assertEquals("module:", lines.get(3));
+        assertTrue(report.contains("BaseNext"), report);
     }
 
     @Test

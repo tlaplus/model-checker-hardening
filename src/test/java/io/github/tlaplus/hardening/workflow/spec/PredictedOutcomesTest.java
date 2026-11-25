@@ -13,8 +13,8 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 /** A graph entry predicts the outcome its graph determines (ADR 0023 §4). */
-class GraphOutcomesTest {
-    private final GraphOutcomes outcomes = new GraphOutcomes(SpecDecoders.of(IrGenerationConfig.defaults()));
+class PredictedOutcomesTest {
+    private final PredictedOutcomes outcomes = new PredictedOutcomes(SpecDecoders.of(IrGenerationConfig.defaults()));
 
     @Test
     void aGraphEntryPredictsWhatItsGraphDetermines() {
@@ -26,7 +26,7 @@ class GraphOutcomesTest {
             var graph = IrGenerators.graphs(IrGenerationConfig.defaults()).generate(input);
             var distance = graph.targetDistance();
             var expected = distance.isPresent() ? ExpectedOutcome.counterexample(distance.getAsInt()) : ExpectedOutcome.pass();
-            assertEquals(expected, GraphOutcomes.of(graph));
+            assertEquals(expected, PredictedOutcomes.of(graph));
             assertEquals(Optional.of(expected), outcomes.expected(new CorpusInput(InputKind.GRAPH, input)));
             counterexamples += distance.isPresent() ? 1 : 0;
         }

@@ -138,6 +138,12 @@ corpus. They are described in
 `temporal_weights` name the temporal rule module, described in
 [Metamorphic testing](metamorphic-testing.md#7-temporal-properties).
 
+## `[replay]`: counterexample replay (proposed)
+
+`enabled`, `false` by default, replays every recorded counterexample as an entry of the next
+generation. It is not implemented yet; [Counterexample replay](counterexample-replay.md)
+describes the proposal.
+
 ## `[graph]`: control graphs
 
 | Key | Default | Meaning |
