@@ -35,8 +35,9 @@ class ToolWorkerProtocolTest {
                 ExplorationMetrics.builder().count(ExplorationCount.TRACE_LENGTH, 4).build());
         var failure = ToolResult.failure(CheckerFailureCode.SPEC_EVAL, "undefined").withMetrics(metrics);
         var plain = new ToolResult(StageOutcome.PASS, "accepted");
+        var traced = counterexample.withTrace("{\"ending\": \"invariant\", \"states\": [{\"x\": 1}]}");
 
-        for (var result : new ToolResult[] {counterexample, failure, plain}) {
+        for (var result : new ToolResult[] {counterexample, failure, plain, traced}) {
             assertEquals(result, roundTrip(result));
         }
     }
@@ -57,7 +58,8 @@ class ToolWorkerProtocolTest {
     @Test
     void roundTripsRequestsWithTheirControlVariables() throws Exception {
         var graph = new CheckRequest(12, CheckKind.INVARIANT).withControlVariables(Set.of("step", "pc"));
-        var requests = new ArrayList<CheckRequest>(List.of(CheckRequest.invariant(0), graph));
+        var requests = new ArrayList<CheckRequest>(
+                List.of(CheckRequest.invariant(0), graph, CheckRequest.invariant(3).withTraceRecording(true)));
         for (var kind : CheckKind.values()) {
             requests.add(new CheckRequest(5, kind));
         }
@@ -68,6 +70,14 @@ class ToolWorkerProtocolTest {
             assertEquals(request, input.request());
             assertEquals("---- MODULE M ----\n====", input.text());
         }
+    }
+
+    /** A trace beyond the cap is dropped rather than sent, which changes no verdict (ADR 0034 §5). */
+    @Test
+    void dropsATraceBeyondTheCap() {
+        var counterexample = ToolResult.counterexample("violated");
+
+        assertEquals(counterexample, counterexample.withTrace("x".repeat(ToolResult.MAXIMUM_TRACE_BYTES + 1)));
     }
 
     @Test

@@ -59,7 +59,8 @@ public final class ToolStage implements WorkflowStage {
                 stage.displayName(),
                 environment.corpus(),
                 environment.decoders(),
-                backend.renderer());
+                backend.renderer(),
+                environment.recordsTraces());
         jobs = new StageJobLoop<>(
                 input,
                 environment.cpuBudget(),
@@ -123,11 +124,11 @@ public final class ToolStage implements WorkflowStage {
             }
             var corpus = environment.corpus();
             var startTime = Instant.now();
-            var source = inputPreparation.prepare(path, routing.read(corpus, path));
+            var prepared = inputPreparation.prepare(path, routing.read(corpus, path));
             if (tool == null) {
                 tool = backend.startWorker();
             }
-            var result = tool.check(source);
+            var result = tool.check(prepared.input());
             if (result.outcome() == StageOutcome.CRASH) {
                 tool.close();
                 tool = null;
@@ -148,6 +149,7 @@ public final class ToolStage implements WorkflowStage {
                             StageResult.endedNow(startTime),
                             failure,
                             result.metrics(),
+                            RecordedTraces.encode(result.trace(), prepared.variables()),
                             result.diagnostic()));
             counters.record(verdict);
             // Reported only after routing.complete has durably moved the entry. The move is already

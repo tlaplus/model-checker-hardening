@@ -39,6 +39,16 @@ final class TlcExplorationMetrics {
         MP.setRecorder(messages);
     }
 
+    /**
+     * Registers a recorder of the counterexample's trace (ADR 0034 §5), which finds a violating
+     * initial state through the states this instance observes.
+     */
+    TlcTraceRecorder recordTrace() {
+        var recorder = new TlcTraceRecorder(states::lastInitialState);
+        MP.setRecorder(recorder);
+        return recorder;
+    }
+
     /** Returns {@code result} with the metrics of the observed run, unless the run crashed. */
     ToolResult attach(ToolResult result) {
         Objects.requireNonNull(result, "result");

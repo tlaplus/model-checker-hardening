@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import tla2sany.semantic.SemanticNode;
 import tlc2.tool.Action;
@@ -38,6 +39,7 @@ final class TlcStateMetrics implements IStateWriter {
     private final Set<Long> projected = new HashSet<>();
 
     private long initStates;
+    private TLCState lastInitialState;
     private long distinctStates;
     private long transitions;
     private long depth;
@@ -76,7 +78,17 @@ final class TlcStateMetrics implements IStateWriter {
     @Override
     public synchronized void writeState(TLCState state) {
         initStates++;
+        lastInitialState = state;
         found(state);
+    }
+
+    /**
+     * Returns the last initial state TLC wrote. TLC writes each initial state before it checks the
+     * invariant there, so after a violation in an initial state this is the violating one (ADR 0034
+     * §5).
+     */
+    synchronized Optional<TLCState> lastInitialState() {
+        return Optional.ofNullable(lastInitialState);
     }
 
     @Override

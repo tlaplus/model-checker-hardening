@@ -133,7 +133,8 @@ final class StageGraph {
                 setup.decoders(),
                 new CpuBudget(invocation.maximumCpus()),
                 control,
-                progress);
+                progress,
+                workflow.replay());
         var inputCapacity = new Semaphore(
                 workflow.inputs().maximumEntries()
                         - Math.toIntExact(initial.pendingEntries(CorpusStage.PARSER)),

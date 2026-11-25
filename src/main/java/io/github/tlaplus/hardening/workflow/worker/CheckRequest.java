@@ -18,8 +18,10 @@ import java.util.Set;
  * @param transitions the longest path the module's step counter admits from an initial state
  * @param kind what the invocation checks
  * @param controlVariables the variables the exploration metrics project out
+ * @param recordsTrace whether a checker that finds a counterexample returns its trace (ADR 0034
+ *     §5)
  */
-public record CheckRequest(int transitions, CheckKind kind, Set<String> controlVariables) {
+public record CheckRequest(int transitions, CheckKind kind, Set<String> controlVariables, boolean recordsTrace) {
     /** The control variables of a module whose only control variable is its step counter. */
     public static final Set<String> STEP_ONLY = Set.of(GeneratedSpec.STEP_VARIABLE);
 
@@ -27,6 +29,11 @@ public record CheckRequest(int transitions, CheckKind kind, Set<String> controlV
         Preconditions.requireNonnegative(transitions, "transitions");
         Objects.requireNonNull(kind, "kind");
         controlVariables = Set.copyOf(Objects.requireNonNull(controlVariables, "controlVariables"));
+    }
+
+    /** Returns a request that records no trace. */
+    public CheckRequest(int transitions, CheckKind kind, Set<String> controlVariables) {
+        this(transitions, kind, controlVariables, false);
     }
 
     /** Returns a request whose only control variable is the step counter. */
@@ -41,12 +48,17 @@ public record CheckRequest(int transitions, CheckKind kind, Set<String> controlV
 
     /** Returns this request with other control variables. */
     public CheckRequest withControlVariables(Set<String> replacement) {
-        return new CheckRequest(transitions, kind, replacement);
+        return new CheckRequest(transitions, kind, replacement, recordsTrace);
+    }
+
+    /** Returns this request, asking for the counterexample's trace when {@code replacement} holds. */
+    public CheckRequest withTraceRecording(boolean replacement) {
+        return new CheckRequest(transitions, kind, controlVariables, replacement);
     }
 
     /** Returns this request for another invocation of the same module, such as a property run. */
     public CheckRequest withKind(CheckKind replacement) {
-        return new CheckRequest(transitions, replacement, controlVariables);
+        return new CheckRequest(transitions, replacement, controlVariables, recordsTrace);
     }
 
     /**

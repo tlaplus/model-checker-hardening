@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.config.CheckerProfile;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream;
+import io.github.tlaplus.hardening.workflow.worker.StageOutcome;
 import io.github.tlaplus.hardening.workflow.worker.StandardModuleResources;
 import io.github.tlaplus.hardening.workflow.worker.ToolResult;
 import io.github.tlaplus.hardening.workflow.worker.ToolWorkerConnection;
@@ -17,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Optional;
 import tlc2.TLC;
 import tlc2.output.EC;
 import util.SimpleFilenameToStream;
@@ -85,6 +87,8 @@ public final class TlcWorkerMain {
                         // The request names the variables the metrics project out (ADR 0024 §1).
                         var metrics = new TlcExplorationMetrics(source.request().controlVariables());
                         metrics.install(tlc);
+                        var trace = source.request().recordsTrace()
+                                ? Optional.of(metrics.recordTrace()) : Optional.<TlcTraceRecorder>empty();
                         ToolWorkerRuntime.writeInput(specification, source);
                         // TLC reads the configuration when it processes the input, not when it
                         // accepts its parameters, so the file can follow the request.
@@ -94,7 +98,11 @@ public final class TlcWorkerMain {
                                 StandardCharsets.UTF_8,
                                 StandardOpenOption.CREATE_NEW,
                                 StandardOpenOption.WRITE);
-                        return metrics.attach(check(tlc, diagnostics));
+                        var result = metrics.attach(check(tlc, diagnostics));
+                        if (result.outcome() != StageOutcome.COUNTEREXAMPLE) {
+                            return result;
+                        }
+                        return trace.flatMap(TlcTraceRecorder::trace).map(result::withTrace).orElse(result);
                     });
         }
     }

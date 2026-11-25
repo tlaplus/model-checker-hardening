@@ -24,7 +24,7 @@ import java.util.TreeSet;
 @Key
 public final class ToolWorkerProtocol {
     static final int MAGIC = 0x46545a57;
-    static final int VERSION = 8;
+    static final int VERSION = 9;
     static final int STOP = -1;
     static final int NO_FAILURE_CODE = -1;
     static final int MAXIMUM_MESSAGE_BYTES = 128 * 1024 * 1024;
@@ -71,12 +71,13 @@ public final class ToolWorkerProtocol {
         }
         var kind = CheckKind.fromProtocolCode(input.readUnsignedByte());
         var controlVariables = readControlVariables(input);
+        var recordsTrace = input.readBoolean();
         var bytes = input.readNBytes(byteCount);
         if (bytes.length != byteCount) {
             throw new IOException("truncated worker request");
         }
         return new ToolInput(new String(bytes, StandardCharsets.UTF_8),
-                new CheckRequest(transitions, kind, controlVariables));
+                new CheckRequest(transitions, kind, controlVariables, recordsTrace));
     }
 
     /** Writes one request frame, which {@link #readRequest} reads. */
@@ -85,6 +86,7 @@ public final class ToolWorkerProtocol {
         output.writeInt(request.transitions());
         output.writeByte(request.kind().protocolCode());
         writeControlVariables(output, request.controlVariables());
+        output.writeBoolean(request.recordsTrace());
         output.write(source);
         output.flush();
     }
@@ -122,7 +124,33 @@ public final class ToolWorkerProtocol {
         output.writeInt(diagnostic.length);
         output.write(diagnostic);
         writeMetrics(output, result.metrics());
+        writeTrace(output, result.trace());
         output.flush();
+    }
+
+    /** Writes the recorded trace of a result: whether there is one, then its UTF-8 bytes. */
+    private static void writeTrace(DataOutputStream output, Optional<String> trace) throws IOException {
+        output.writeBoolean(trace.isPresent());
+        if (trace.isPresent()) {
+            var bytes = trace.get().getBytes(StandardCharsets.UTF_8);
+            output.writeInt(bytes.length);
+            output.write(bytes);
+        }
+    }
+
+    private static Optional<String> readTrace(DataInputStream input) throws IOException, WorkflowException {
+        if (!input.readBoolean()) {
+            return Optional.empty();
+        }
+        var length = input.readInt();
+        if (length < 0 || length > ToolResult.MAXIMUM_TRACE_BYTES) {
+            throw new WorkflowException("worker returned an invalid trace length: " + length);
+        }
+        var bytes = input.readNBytes(length);
+        if (bytes.length != length) {
+            throw new EOFException("truncated worker trace");
+        }
+        return Optional.of(new String(bytes, StandardCharsets.UTF_8));
     }
 
     /**
@@ -145,12 +173,14 @@ public final class ToolWorkerProtocol {
             throw new EOFException("truncated worker diagnostic");
         }
         var metrics = readMetrics(input);
+        var trace = readTrace(input);
         try {
             return new ToolResult(
                     outcome,
                     failureCode,
                     new String(diagnosticBytes, StandardCharsets.UTF_8),
-                    metrics);
+                    metrics,
+                    trace);
         } catch (IllegalArgumentException exception) {
             throw new WorkflowException(
                     "worker returned an invalid failure classification", exception);
