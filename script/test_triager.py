@@ -1661,6 +1661,13 @@ class ParallelTlcTest(unittest.TestCase):
                 tlc=self.stage("pass", "complete", 7),
                 tlcn=self.stage("pass", "complete", 7))
 
+    def test_reads_agreeing_counterexamples_of_a_metamorphic_corpus(self) -> None:
+        results = self.read(
+            tlc=self.stage("counterexample", "explore", 3),
+            apalache={"verdict": "counterexample"})
+        self.assertEqual(
+            triager.NEW_FINDING, triager.classify_aggregator(results, HASH_A))
+
     def test_rejects_a_non_integer_state_count(self) -> None:
         with self.assertRaisesRegex(triager.TriageError, "distinctStates"):
             self.read(

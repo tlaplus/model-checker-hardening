@@ -962,8 +962,12 @@ def read_aggregator_results(path: Path) -> dict[Checker, CheckerResult]:
     }
     if len(results) < 2:
         raise TriageError(f"aggregator entry has fewer than two checker results: {path}")
+    # The metamorphic oracle (ADR 0016 §3) fails an entry on any counterexample,
+    # so checkers that agree on a counterexample still land here.
+    verdicts = {result.verdict for result in results.values()}
     if (
-        len({result.verdict for result in results.values()}) == 1
+        len(verdicts) == 1
+        and verdicts != {"counterexample"}
         and not reach_different_states(results)
     ):
         raise TriageError(f"aggregator entry contains agreeing checker results: {path}")
