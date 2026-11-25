@@ -183,7 +183,8 @@ public final class TomlConfig {
                         ConfigSchema.PARSER_TIMEOUT_SECONDS.read(tables)),
                 checkers,
                 ConfigSchema.ENABLED_CHECKERS.read(tables),
-                ConfigSchema.TECHNIQUE.read(tables));
+                ConfigSchema.TECHNIQUE.read(tables),
+                ConfigSchema.REPLAY.read(tables));
 
         var pbtConfig = new PbtConfig(
                 ConfigSchema.MAXIMUM_INPUT_BYTES.read(tables),

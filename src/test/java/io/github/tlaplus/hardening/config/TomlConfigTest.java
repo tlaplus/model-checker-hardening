@@ -226,6 +226,21 @@ class TomlConfigTest {
                 alone.getMessage());
         var graph = assertInvalid(directory, nonzero.replace("technique = \"pbt\"", "technique = \"gbt\""));
         assertTrue(graph.getMessage().contains("does not apply to gbt"), graph.getMessage());
+        var replay = assertInvalid(directory, nonzero.replace("replay = false", "replay = true"));
+        assertTrue(replay.getMessage().contains("does not apply to workflow.replay"), replay.getMessage());
+    }
+
+    /** replay is off unless asked for, and needs a technique whose counterexamples it can replay (ADR 0034 §7). */
+    @Test
+    void readsReplay(@TempDir Path directory) throws Exception {
+        var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
+        assertTrue(defaults.contains("\nreplay = false\n"), defaults);
+        assertFalse(readConfig(directory, defaults).workflow().replay());
+
+        var enabled = defaults.replace("replay = false", "replay = true");
+        assertTrue(readConfig(directory, enabled).workflow().replay());
+        var metamorphic = assertInvalid(directory, enabled.replace("technique = \"pbt\"", "technique = \"mt\""));
+        assertEquals("workflow.replay does not apply to technique = \"mt\"", metamorphic.getMessage());
     }
 
     /**

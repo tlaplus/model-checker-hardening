@@ -21,6 +21,8 @@ import java.util.Objects;
  *
  * @param enabledCheckers the checkers a run feeds and aggregates (ADR 0016 §5)
  * @param technique how the corpus generates, decodes and judges its entries (ADR 0025 §1)
+ * @param replay whether the checkers record their counterexamples and the run replays them as
+ *     entries of the next generation (ADR 0034)
  */
 @ArchRole(Role.CONFIG)
 @Key
@@ -30,7 +32,11 @@ public record WorkflowConfig(
         ParserStageConfig parser,
         Map<CorpusStage, CheckerStageConfig> checkers,
         CheckerSet enabledCheckers,
-        Technique technique) {
+        Technique technique,
+        boolean replay) {
+    /** Counterexamples are replayed only when a configuration asks for it (ADR 0034 §7). */
+    public static final boolean DEFAULT_REPLAY = false;
+
     public WorkflowConfig {
         Preconditions.requireNonnegative(maximumEntries, "maximumEntries");
         Objects.requireNonNull(inputs, "inputs");
@@ -55,22 +61,27 @@ public record WorkflowConfig(
             InputStageConfig inputs,
             ParserStageConfig parser,
             Map<CorpusStage, CheckerStageConfig> checkers) {
-        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT, Technique.DEFAULT);
+        this(maximumEntries, inputs, parser, checkers, CheckerSet.DEFAULT, Technique.DEFAULT, DEFAULT_REPLAY);
     }
 
     /** Returns this configuration with the given input stage. */
     public WorkflowConfig withInputs(InputStageConfig replacement) {
-        return new WorkflowConfig(maximumEntries, replacement, parser, checkers, enabledCheckers, technique);
+        return new WorkflowConfig(maximumEntries, replacement, parser, checkers, enabledCheckers, technique, replay);
     }
 
     /** Returns this configuration running only {@code replacement}. */
     public WorkflowConfig withEnabledCheckers(CheckerSet replacement) {
-        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, replacement, technique);
+        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, replacement, technique, replay);
     }
 
     /** Returns this configuration running {@code replacement}. */
     public WorkflowConfig withTechnique(Technique replacement) {
-        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, enabledCheckers, replacement);
+        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, enabledCheckers, replacement, replay);
+    }
+
+    /** Returns this configuration with counterexample replay switched to {@code replacement}. */
+    public WorkflowConfig withReplay(boolean replacement) {
+        return new WorkflowConfig(maximumEntries, inputs, parser, checkers, enabledCheckers, technique, replacement);
     }
 
     public static WorkflowConfig defaults() {

@@ -71,6 +71,9 @@ technique = "pbt"
 # Model checkers to run, a subset of ["tlc", "tlcn", "apalache", "generic"] (ADR 0016 §5).
 # A corpus with one checker compares no verdicts; keep the list once the corpus holds entries.
 checkers = ["tlc", "apalache"]
+# Record every counterexample and replay it against every checker in the next generation (ADR 0034).
+# Replays come on top of generation_size; not with technique = "mt".
+replay = false
 
 [workflow.inputs]
 # Maximum current occupancy of 00-inputs.
