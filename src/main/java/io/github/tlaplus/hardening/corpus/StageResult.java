@@ -39,6 +39,18 @@ public record StageResult(StageRecord record, String diagnostic) {
         this(new StageRecord(verdict, startTime, endTime, failure, metrics), diagnostic);
     }
 
+    /** A result of a checker stage that recorded the trace of its counterexample (ADR 0034 §5). */
+    public StageResult(
+            CorpusVerdict verdict,
+            Instant startTime,
+            Instant endTime,
+            Optional<CheckerFailure> failure,
+            Optional<ExplorationMetrics> metrics,
+            Optional<EncodedTrace> trace,
+            String diagnostic) {
+        this(new StageRecord(verdict, startTime, endTime, failure, metrics, trace), diagnostic);
+    }
+
     /** A result of a stage that does not classify failures and produced no diagnostic. */
     public StageResult(CorpusVerdict verdict, Instant startTime, Instant endTime) {
         this(verdict, startTime, endTime, Optional.empty(), "");

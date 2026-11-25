@@ -270,6 +270,27 @@ class CorpusEnvelopeCodecTest {
                         .toList());
     }
 
+    /** The aggregator's merge keeps every checker's recorded trace, which replay reads (ADR 0034 §5). */
+    @Test
+    void mergesTheTracesCheckerStagesRecorded() throws Exception {
+        var input = CorpusInputCodec.encode(new CorpusInput(InputKind.MODULE, new byte[] {4, 2}));
+        var tlcTrace = new EncodedTrace(new byte[] {1, 2, 3});
+        var apalacheTrace = new EncodedTrace(new byte[] {4});
+        var tlc = CorpusEnvelopeCodec.withStageMetadata(input, traced("tlc", tlcTrace));
+        var apalache = CorpusEnvelopeCodec.withStageMetadata(input, traced("apalache", apalacheTrace));
+
+        var merged = CorpusEnvelopeCodec.mergeWithStageMetadata(
+                List.of(tlc, apalache),
+                new StageMetadata(
+                        "aggregator", CorpusVerdict.PASS, Instant.ofEpochSecond(7), Instant.ofEpochSecond(8)));
+        var stages = CorpusEnvelopeCodec.decodeEnvelope(merged).stages();
+
+        assertEquals(Optional.of(tlcTrace), stages.get(0).trace());
+        assertEquals(Optional.of(apalacheTrace), stages.get(1).trace());
+        assertEquals(Optional.empty(), stages.get(2).trace());
+        assertTrue(new ObjectMapper(FACTORY).readTree(merged).path("stages").path("tlc").path("trace").isBinary());
+    }
+
     @Test
     void keepsExplorationMetricsThisBuildDoesNotKnow() throws Exception {
         var encoded = cbor(generator -> {
@@ -322,6 +343,11 @@ class CorpusEnvelopeCodecTest {
         assertInvalidEnvelope(
                 metricsEnvelope("pass", generator -> generator.writeNumberField("saturated", 1)),
                 "must be a Boolean");
+    }
+
+    private static StageMetadata traced(String stage, EncodedTrace trace) {
+        return new StageMetadata(stage, new StageRecord(CorpusVerdict.COUNTEREXAMPLE, Instant.ofEpochSecond(10),
+                Instant.ofEpochSecond(12), Optional.empty(), Optional.empty(), Optional.of(trace)));
     }
 
     private static StageMetadata counterexample(String stage, ExplorationMetrics metrics) {

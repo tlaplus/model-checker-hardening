@@ -13,7 +13,8 @@ import java.util.Optional;
 
 /**
  * What a stage records about one input: its verdict, when it worked on the input, its failure
- * classification when it classifies failures, and what it explored when it measures exploration.
+ * classification when it classifies failures, what it explored when it measures exploration, and
+ * the counterexample's trace when the run replays them (ADR 0034 §5).
  *
  * <p>This is the part shared by {@link StageResult}, which a stage hands to the corpus, and {@link
  * StageMetadata}, which the corpus stores under the stage's name. Its invariants hold for both.
@@ -26,7 +27,8 @@ public record StageRecord(
         Instant startTime,
         Instant endTime,
         Optional<CheckerFailure> failure,
-        Optional<ExplorationMetrics> metrics) {
+        Optional<ExplorationMetrics> metrics,
+        Optional<EncodedTrace> trace) {
     public StageRecord {
         Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(startTime, "startTime");
@@ -43,6 +45,19 @@ public record StageRecord(
                         || metrics.stream().noneMatch(
                                 value -> value.counts().containsKey(ExplorationCount.TRACE_LENGTH)),
                 "a trace length requires the counterexample verdict");
+        Objects.requireNonNull(trace, "trace");
+        Preconditions.require(trace.isEmpty() || verdict == CorpusVerdict.COUNTEREXAMPLE,
+                "a recorded trace requires the counterexample verdict");
+    }
+
+    /** A record of a stage that records no trace. */
+    public StageRecord(
+            CorpusVerdict verdict,
+            Instant startTime,
+            Instant endTime,
+            Optional<CheckerFailure> failure,
+            Optional<ExplorationMetrics> metrics) {
+        this(verdict, startTime, endTime, failure, metrics, Optional.empty());
     }
 
     /** A record of a stage that measures no exploration. */

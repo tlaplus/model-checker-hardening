@@ -59,6 +59,11 @@ public record StageMetadata(String stage, StageRecord record) {
         return record.metrics();
     }
 
+    /** Returns the counterexample's trace this stage recorded, if any (ADR 0034 §5). */
+    public Optional<EncodedTrace> trace() {
+        return record.trace();
+    }
+
     /** Checks the stage name before the record, so a blank name is reported first. */
     private static String requireStage(String stage) {
         Preconditions.require(!Objects.requireNonNull(stage, "stage").isBlank(), "stage must not be blank");

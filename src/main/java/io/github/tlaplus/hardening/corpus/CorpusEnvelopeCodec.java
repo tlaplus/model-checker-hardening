@@ -42,10 +42,11 @@ public final class CorpusEnvelopeCodec {
     private static final String METRICS_FIELD = "metrics";
     private static final String PHASE_FIELD = "phase";
     private static final String SATURATED_FIELD = "saturated";
+    private static final String TRACE_FIELD = "trace";
 
     /** Every field this build writes into a stage's metadata; any other field is preserved. */
     private static final Set<String> STAGE_METADATA_FIELDS = Set.of(
-            VERDICT_FIELD, CODE_FIELD, DETAIL_FIELD, START_TIME_FIELD, END_TIME_FIELD, METRICS_FIELD);
+            VERDICT_FIELD, CODE_FIELD, DETAIL_FIELD, START_TIME_FIELD, END_TIME_FIELD, METRICS_FIELD, TRACE_FIELD);
 
     private CorpusEnvelopeCodec() {}
 
@@ -250,6 +251,7 @@ public final class CorpusEnvelopeCodec {
         Integer failureCode = null;
         String failureDetail = null;
         ExplorationMetrics metrics = null;
+        byte[] trace = null;
         CborReader.Field field;
         while ((field = reader.nextField(stage.path())) != null) {
             switch (field.name()) {
@@ -259,6 +261,7 @@ public final class CorpusEnvelopeCodec {
                 case CODE_FIELD -> failureCode = reader.intValue(field);
                 case DETAIL_FIELD -> failureDetail = reader.text(field);
                 case METRICS_FIELD -> metrics = readMetrics(reader, field);
+                case TRACE_FIELD -> trace = reader.binary(field);
                 default -> reader.skipValue();
             }
         }
@@ -288,7 +291,8 @@ public final class CorpusEnvelopeCodec {
                             requiredStart,
                             requiredEnd,
                             failure,
-                            Optional.ofNullable(metrics)));
+                            Optional.ofNullable(metrics),
+                            Optional.ofNullable(trace).map(EncodedTrace::new)));
         } catch (IllegalArgumentException exception) {
             throw CborReader.malformed(
                     "invalid metadata for stage '"
@@ -352,6 +356,7 @@ public final class CorpusEnvelopeCodec {
         metadata.metrics().ifPresent(metrics -> map.map(
                 METRICS_FIELD,
                 metricsMap(metrics, previous == null ? null : previous.get(METRICS_FIELD))));
+        metadata.trace().ifPresent(trace -> map.binary(TRACE_FIELD, trace.bytes()));
         if (previous != null) {
             for (Map.Entry<String, JsonNode> field : previous.properties()) {
                 if (!STAGE_METADATA_FIELDS.contains(field.getKey())) {
