@@ -108,9 +108,17 @@ final class TlcStateMetrics implements IStateWriter {
         writeState(state, successor, successorStateIsNew, (Action) null);
     }
 
+    /**
+     * Ignores the stuttering self-loop that TLC's worker reports for every state when it checks
+     * liveness: TLC marks it as leading to a new state, but it is the state itself, which would
+     * double every count.
+     */
     @Override
     public void writeState(
             TLCState state, TLCState successor, short successorStateIsNew, Visualization visualization) {
+        if (visualization == Visualization.STUTTERING) {
+            return;
+        }
         writeState(state, successor, successorStateIsNew, (Action) null);
     }
 

@@ -9,6 +9,7 @@ import io.github.tlaplus.hardening.config.GenericErrors;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments;
 import io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier;
 import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
+import io.github.tlaplus.hardening.workflow.tlc.TlcCommandLineMetrics;
 import io.github.tlaplus.hardening.workflow.tlc.TlcConfiguration;
 import io.github.tlaplus.hardening.workflow.tlc.TlcOutcomeClassifier;
 import io.github.tlaplus.hardening.workflow.worker.CheckRequest;
@@ -19,20 +20,24 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written
- * as {@code {config}}, and how an exit status becomes a verdict. {@link GenericCompatibility} lives
- * in {@code config}, below the workflow, so its conventions are keyed by it here; loading this
- * class fails if a compatibility has none.
+ * as {@code {config}}, how an exit status becomes a verdict, and which exploration metrics the
+ * tool's output gives (§5). {@link GenericCompatibility} lives in {@code config}, below the
+ * workflow, so its conventions are keyed by it here; loading this class fails if a compatibility
+ * has none.
  *
  * @param configuration the configuration file of one invocation
  * @param classifier the verdict of an exit status and the tool's output, when the exit statuses
  *     are compared exactly
+ * @param metrics the classified result with the metrics that the tool's output records
  */
 @ArchRole(Role.POLICY)
 @Key
-record GenericConvention(Function<CheckRequest, String> configuration, Classifier classifier) {
+record GenericConvention(
+        Function<CheckRequest, String> configuration, Classifier classifier, UnaryOperator<ToolResult> metrics) {
     @FunctionalInterface
     interface Classifier {
         ToolResult classify(int exitStatus, String diagnostic);
@@ -43,6 +48,7 @@ record GenericConvention(Function<CheckRequest, String> configuration, Classifie
     GenericConvention {
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(classifier, "classifier");
+        Objects.requireNonNull(metrics, "metrics");
     }
 
     /**
@@ -86,9 +92,11 @@ record GenericConvention(Function<CheckRequest, String> configuration, Classifie
     private static Map<GenericCompatibility, GenericConvention> conventions() {
         var conventions = new EnumMap<GenericCompatibility, GenericConvention>(GenericCompatibility.class);
         conventions.put(GenericCompatibility.TLC,
-                new GenericConvention(TlcConfiguration::text, TlcOutcomeClassifier::classifyCommandLine));
+                new GenericConvention(TlcConfiguration::text, TlcOutcomeClassifier::classifyCommandLine,
+                        TlcCommandLineMetrics::attach));
         conventions.put(GenericCompatibility.APALACHE,
-                new GenericConvention(GenericConvention::apalacheConfiguration, ApalacheOutcomeClassifier::classify));
+                new GenericConvention(GenericConvention::apalacheConfiguration, ApalacheOutcomeClassifier::classify,
+                        UnaryOperator.identity()));
         if (conventions.size() != GenericCompatibility.values().length) {
             throw new ExceptionInInitializerError("every compatibility needs exactly one convention");
         }

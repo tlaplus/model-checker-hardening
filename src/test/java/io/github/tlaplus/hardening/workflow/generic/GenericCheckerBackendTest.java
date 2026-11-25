@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.checker.CheckerFailureCode;
+import io.github.tlaplus.hardening.checker.ExplorationCount;
+import io.github.tlaplus.hardening.checker.ExplorationPhase;
 import io.github.tlaplus.hardening.config.CheckerStageConfig;
 import io.github.tlaplus.hardening.config.GenericCapabilities;
 import io.github.tlaplus.hardening.config.GenericCheckerConfig;
@@ -18,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -36,6 +39,19 @@ class GenericCheckerBackendTest {
         assertEquals(StageOutcome.CRASH, crash.outcome());
         assertTrue(crash.diagnostic().contains("Stub exited with status 3"), crash.diagnostic());
         assertTrue(crash.diagnostic().contains("boom"), crash.diagnostic());
+    }
+
+    /** A pass of a TLC-compatible tool records the distinct states of its completed search (ADR 0033 §5). */
+    @Test
+    void recordsTheDistinctStatesOfAPass() throws Exception {
+        var statistics = "echo '9 states generated, 4 distinct states found, 0 states left on queue.'";
+
+        var pass = check(statistics + "; exit 0");
+        var metrics = pass.metrics().orElseThrow();
+        assertEquals(Optional.of(ExplorationPhase.COMPLETE), metrics.phase());
+        assertEquals(OptionalLong.of(4), metrics.count(ExplorationCount.DISTINCT_STATES));
+        assertEquals(Optional.empty(), check(statistics + "; exit 12").metrics());
+        assertEquals(Optional.empty(), check("exit 0").metrics());
     }
 
     /** A tool that ends at once keeps its output: the capture is drained before it is read. */

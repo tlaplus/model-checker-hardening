@@ -97,6 +97,13 @@ unchanged, so metrics reach `03aggregator-pass` and `03aggregator-fail`.
 | --- | --- |
 | `traceLength` | States in `violation1.itf.json` minus one. Present only for `counterexample`, and absent if Apalache wrote no readable trace. |
 
+### 2.3. Generic checker
+
+| Field | Meaning |
+| --- | --- |
+| `phase` | `complete`, present only for a `tlc`-compatible tool that passes and prints TLC's statistics line with no state left on the queue ([ADR 0033](../decisions/0033-generic-checker.md) §5). |
+| `distinctStates` | The `M` of the tool's last `N states generated, M distinct states found, 0 states left on queue.` line. |
+
 ## 3. Reading metrics
 
 `fuzztla print --envelope` lists the metrics under each stage, one field per
