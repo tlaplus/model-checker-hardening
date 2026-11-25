@@ -2264,12 +2264,18 @@ later bound's set (<a href="https://github.com/tlaplus/model-checker-hardening/b
 entries), which no signature can express, because labels are skipped.
 <code>ManyanDefectsTest</code> checks the database.</p>
 <p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-003.md"><code>manyan-003</code></a> to
-<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-009.md"><code>manyan-009</code></a> have no signature either. Whether
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-009.md"><code>manyan-009</code></a> and
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-012.md"><code>manyan-012</code></a> have no signature either. Whether
 Manyan fails depends on run-time values, so the closest shapes match mostly inputs that
 Manyan checks correctly. For example, a <code>~&gt;</code> whose left side is constant matched 932 of
 10,000 pbt entries, and only 65 of them had the tautology error of <code>manyan-003</code>.
 <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/script/triager.py"><code>script/triager.py</code></a> classifies the crashes of <code>manyan-005</code> to
 <code>manyan-008</code> instead.</p>
+<p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-010.md"><code>manyan-010</code></a>, a <code>LET</code> with a temporal body under a
+temporal operator, and <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-011.md"><code>manyan-011</code></a>, an operator
+argument applied to a primed expression, are shapes, but no signature has been measured
+for them. <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-013.md"><code>manyan-013</code></a> and
+<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-014.md"><code>manyan-014</code></a> are performance defects.</p>
 <h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0006-known-defect-signatures.md">ADR 0006</a> records the design and its
 rationale.</p>
