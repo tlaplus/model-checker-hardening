@@ -1744,6 +1744,23 @@ class AggregatorDirectoryTest(unittest.TestCase):
                 triager.classify_aggregator_directory(corpus),
             )
 
+    def test_files_an_unconfirmed_replay_in_its_own_bucket(self) -> None:
+        """ADR 0034: checkers that agree on refuting a replayed trace are no disagreement."""
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus = Path(temporary)
+            directory = corpus / triager.AGGREGATOR_DIRECTORY
+            directory.mkdir()
+            self.write_entry(directory, f"{HASH_A}.cbor", {
+                "kind": "trace",
+                "stages": {
+                    "aggregator": {"verdict": "fail"},
+                    "tlc": {"verdict": "pass"},
+                    "apalache": {"verdict": "pass"},
+                },
+            })
+            self.assertEqual(
+                [(HASH_A, triager.REPLAY)], triager.classify_aggregator_directory(corpus))
+
     def test_rejects_malformed_cbor(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             corpus = Path(temporary)

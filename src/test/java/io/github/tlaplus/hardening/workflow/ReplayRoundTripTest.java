@@ -50,9 +50,10 @@ class ReplayRoundTripTest {
     private static final int RECORDED = 6;
     private static final int DEEP = 3;
     /**
-     * Apalache may give a partial term, such as a CHOOSE without a witness, a value in its search
-     * that it does not give it in the replay, so on some samples it refutes its own trace. The
-     * sample is pinned to a seed without such a term; the campaign is where they are found.
+     * On some samples Apalache refutes its own trace: a CHOOSE without a witness is free in its
+     * search but fixed in the replay, where the trace's values assign the variables
+     * (findings/apalache-bmc/apalache-bmc-024.md). The sample is pinned to a seed without such a
+     * term; the campaign is where they are found.
      */
     private static final long SEED = 0x7ad0L;
 

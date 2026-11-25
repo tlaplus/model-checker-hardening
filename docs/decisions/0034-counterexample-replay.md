@@ -2,9 +2,15 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Accepted; phases 1 to 3 implemented
+**Status:** Implemented
 
 **Date:** 2026-11-25
+
+**Implementation.** Stacked branches, one per phase:
+- phase 1: `igor/replay-trace-kind`;
+- phase 2: `igor/replay-capture`;
+- phase 3: `igor/replay-source`;
+- phase 4: `igor/replay-reporting`.
 
 ## Context
 
@@ -202,9 +208,10 @@ which a `pbt` corpus judges by conformance, it exists only to test its predictio
   decoding it, and a `trace` entry from its payload's states, without decoding the base.
   Recovery judges again through the same path.
 
-`ExpectedOutcome.admits` accepts `fail`, which a partial term causes on any input. Whether a
-replay should admit it is open until probe P3. The original checker evaluated the same
-expressions in the same states without failing.
+`ExpectedOutcome.admits` accepts `fail`, which a partial term causes on any input. A replay
+admits it too: probe P3 found TLC failing on Apalache's traces at the partial terms that
+made it fail on their parents. Conformance compares such a failure with the other
+checkers' counterexamples.
 
 ### 5. Capturing traces
 
@@ -346,22 +353,44 @@ documents change with the phase that implements each part.
 
 ## Probes
 
-The implementation phases follow three probes. Each uses at least 200 counterexample
-entries of an existing `pbt` corpus whose modules have temporal properties.
+The probes ran on small samples during implementation. A campaign of a few thousand
+entries is still to be run. Setup:
+- FuzzTLA `1662d075`;
+- TLC 2026.11.19 (`bc1b506`);
+- Apalache 0.63.0 (`67b8ec6`).
 
-- **P1. TLC capture.** Capture the traces through the recorder. Measure:
-  - which value classes occur;
-  - how many traces are lassos, and of which form;
-  - how often the violated invariant is `Inv`.
-- **P2. Apalache ITF.** Read the ITF of the same entries. Determine how a lasso and its
-  loop are represented, which variables the temporal encoding adds, and which values do
-  not convert.
-- **P3. Replay.** A scratch renderer in the `cli` package builds the replay modules in one
-  JVM. TLC, Apalache and Manyan check them, and the probe measures:
-  - verdicts, contradicted predictions and failures;
-  - the cost against the parent's checks.
+- **P1. TLC capture.** Hand-written modules showed which messages TLC sends for an
+  invariant violation, a violation in an initial state, a lasso back to a state, and a
+  stuttering lasso (§5). `TlcTraceRecorderTest` pins them. On generated modules, TLC's
+  `Variant(t, v)` turned out to be the function `t :> v`, and a property violated
+  initially is reported as 2108.
+- **P2. Apalache ITF.** Apalache writes every integer as `#bigint` and a model value as
+  its `name_OF_TYPE` string. A lasso has no `loop` field: the encoding's `__InLoop`
+  turns true after the loop state, which the last state repeats (§5).
+- **P3. Replay.** `ReplayRoundTripTest` sampled generated `module` and `graph` inputs. It
+  recorded every counterexample of TLC and Apalache and replayed each against both
+  checkers. With seed `0x7ace`:
+  - **Recorded.** TLC recorded 7 traces, 3 of them with transitions. Apalache recorded
+    28, 13 with transitions, including 2 lassos.
+  - **Confirmed.** Every checker that had reported a counterexample on the base
+    confirmed every trace of TLC.
+  - **Refuted by Apalache itself.** One of Apalache's own traces, of 4 transitions,
+    passed when Apalache replayed it. Its invariant reads `<<"1", "2", "3">>[step]`
+    beyond the sequence's end; this case has not been analysed. A seed `0x7acf` sample
+    showed the same with a 16-step graph trace, whose node action is a `CHOOSE` without a
+    witness. That one is an Apalache defect,
+    [`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md). Apalache
+    intends a no-witness `CHOOSE` to be free, but it fixes the result when every
+    candidate cell of the set is one arena cell. In the replay, the trace's values
+    assign the variables, which makes the cells coincide. Seeds `0x7ad0` and `0x7ad1`
+    had no such sample, and the test pins `0x7ad0`.
+  - **TLC failures.** TLC failed on several of Apalache's traces, at function applications
+    outside their domain and at values it could not fingerprint. These are the parent
+    entries' disagreements again.
 
-  P3 decides whether a replay admits `fail` (section 4).
+  So `fail` stays admitted, as section 4 left open. A replay that a checker refutes is a
+  finding to triage: either the trace is not a behavior, or the checker evaluates the
+  module inconsistently, as in `apalache-bmc-024`.
 
 ## Implementation phases
 
@@ -372,7 +401,10 @@ entries of an existing `pbt` corpus whose modules have temporal properties.
 3. The source: `EntryOrigin.REPLAY`, the replay targets of `GenerationLoop` and
    its last generation, `OccupancyLimits`, and the quality gate. The architecture
    documents change here (section 8).
-4. The database view, the campaign report, and a triager label for contradicted replays.
+4. The triager files a `trace` entry of `03aggregator-fail` under its own label, `REPLAY`,
+   without the conformance checks that would reject its agreeing verdicts. The campaign
+   report counts replays as their own origin and lists the label. The database needs no
+   change: it exports each entry's kind and provenance already.
 
 Each phase is a branch of its own, stacked on the previous one. Types that carry a new
 `@Key` get an `@ArchRole`.

@@ -23,7 +23,8 @@
 # - label-inside-except, sany-002, labeled rows of tlc-temporal-formula-limits: labels are skipped.
 # - Values known only at run time: arithmetic overflow (integer-outside-tlc-range beyond the
 #   literals), partial operators beyond the literal shapes, apalache-cli-001's non-existing variant
-#   option and z3 UNKNOWN, tlc-007's pair of errors.
+#   option and z3 UNKNOWN, tlc-007's pair of errors, and apalache-bmc-024 beyond the literal
+#   shapes of choose-literal-without-witness: a CHOOSE whose predicate is false at run time.
 # - Frequent operators whose defect depends on the operand values: order-sensitive-set-fold (the
 #   combinator's order sensitivity) and tlc-004 (a CHOOSE over a set of 10^5 functions; the large
 #   sets it needs are caught by powerset, function-set-expansion and integer-range).
@@ -549,8 +550,12 @@ match = [
 
 [[signature]]
 id = "choose-literal-without-witness"
-references = ["../conformance/choose-without-witness.md", "../findings/TLC/tlc-007.md"]
-description = "TLC rejects CHOOSE over the empty set or with the predicate FALSE when it evaluates it."
+references = [
+  "../conformance/choose-without-witness.md",
+  "../findings/TLC/tlc-007.md",
+  "../findings/apalache-bmc/apalache-bmc-024.md",
+]
+description = "TLC rejects CHOOSE over the empty set or with the predicate FALSE when it evaluates it, and Apalache's result without a witness is free or fixed depending on whether the set's cells coincide."
 status = "open"
 match = [
   '(CHOOSE3 _ (SET_ENUM) _)',

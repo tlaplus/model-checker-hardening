@@ -34,6 +34,11 @@ class LabelClass(Enum):
         "workers stop at different first errors (ADR 0018); not a defect",
     )
     TIMEOUT = ("timeout", triager.WORKER_TIMEOUT, "the harness killed a slow worker")
+    REPLAY = (
+        "replay",
+        triager.REPLAY,
+        "a checker did not confirm a replayed counterexample (ADR 0034)",
+    )
 
     def __new__(cls, name: str, triage_label: str | None, meaning: str) -> LabelClass:
         member = object.__new__(cls)

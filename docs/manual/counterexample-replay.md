@@ -62,10 +62,11 @@ A checker that failed on the parent entry may fail on its replay too: a trace of
 can pass through a state where TLC cannot evaluate a partial term, such as a function
 applied outside its domain. This is the parent's disagreement again.
 
-Apalache gives a partial term some value of its type, and it need not give the same term
-the same value in two searches. A replay of its own trace may then pass, for example after
-a sequence indexed past its end or a `CHOOSE` without a witness. Triage such a failure as
-a partial-term difference before suspecting the trace.
+Apalache may refute its own trace. A trace passing through a `CHOOSE` without a witness
+does so when Apalache treated the `CHOOSE` as free in its search but fixes it in the
+replay, where the trace's values assign the variables
+([`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md)). A replay that
+Apalache refutes after a sequence indexed past its end has not been analysed yet.
 
 `fuzztla print` shows a `trace` entry's length, what its last state claims, the outcome it
 predicts, and the replay module, which holds the recorded states as literals. The parent's

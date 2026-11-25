@@ -94,6 +94,7 @@ Each row has two columns, `entry_hash` and `issue`. `issue` is one of:
 | `TIMEOUT` | The worker timed out, and no known slow defect matches ([Timeout diagnostics](timeout-diagnostics.md)). |
 | `FIRST_ERROR` | TLC and TLC-n stopped at different errors, which is expected ([Comparing TLC with itself](running.md#comparing-tlc-with-itself)). |
 | `STATE_COUNT` | TLC and TLC-n completed with different numbers of distinct states. |
+| `REPLAY` | A checker did not confirm a replayed counterexample ([Counterexample replay](counterexample-replay.md#3-results)). |
 | `NEW` | Nothing explains the entry. Investigate it. |
 
 Signatures are conservative: an entry is attributed to a document only when the

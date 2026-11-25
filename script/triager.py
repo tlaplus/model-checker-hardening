@@ -716,6 +716,12 @@ FIRST_ERROR_RACE = "FIRST_ERROR"
 # states (ADR 0019). No signature explains it, and it takes precedence over the
 # verdicts: a failing third checker must not hide it behind its own document.
 STATE_COUNT = "STATE_COUNT"
+# A replayed counterexample (ADR 0034) that a checker did not confirm: its trace is
+# not a behavior, its last state is not what its checker claimed, or a checker
+# evaluates a partial term in its states differently. Its checkers need not
+# disagree, and no conformance signature applies, so it gets its own bucket.
+REPLAY = "REPLAY"
+REPLAY_KIND = "trace"
 AGGREGATOR_DIRECTORY = "03aggregator-fail"
 AGGREGATOR_REPORT = "03aggregator-fail-triage.csv"
 VALID_VERDICTS = frozenset(("pass", "counterexample", "fail", "crashed"))
@@ -1009,10 +1015,17 @@ def list_entries(directory: Path, description: str) -> dict[str, Path]:
     return entries
 
 
+def is_replay(path: Path) -> bool:
+    """Whether an entry is a replayed counterexample, judged by its prediction (ADR 0034)."""
+    document = require_map(decode_cbor(path), "document", path)
+    return document.get("kind") == REPLAY_KIND
+
+
 def classify_aggregator_directory(corpus: Path) -> list[tuple[str, str]]:
     entries = list_entries(corpus / AGGREGATOR_DIRECTORY, "aggregator")
     return [
-        (entry_hash, classify_aggregator(read_aggregator_results(path), entry_hash))
+        (entry_hash, REPLAY if is_replay(path)
+         else classify_aggregator(read_aggregator_results(path), entry_hash))
         for entry_hash, path in sorted(entries.items())
     ]
 
