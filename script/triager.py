@@ -312,6 +312,11 @@ SIGNATURES = (
     # error's call stack, whose frames grow with that formatting.
     timeout_finding("tlc-018.md", Tool.TLC,
                     all_of(TLC_FORMATTING_DOMAIN_ERROR, TLC_CALL_STACK_FRAME)),
+    # A timed-out TLC that is still building the tableau of a temporal property,
+    # before it explores a state: deduplicating particles by linear search
+    # (corpus88: 229 of 230 TLC timeouts).
+    timeout_finding("tlc-performance-003.md", Tool.TLC,
+                    all_of(r"^\tat tlc2\.tool\.liveness\.TBGraph\.<init>\(")),
     # A stack overflow while TLC reconstructs a liveness counterexample: LiveCheck
     # prints the doubly wrapped exception and calls System.exit(1), so there is no
     # TLC error code, and the worker reports the exit with the TLC output that its
@@ -962,8 +967,12 @@ def read_aggregator_results(path: Path) -> dict[Checker, CheckerResult]:
     }
     if len(results) < 2:
         raise TriageError(f"aggregator entry has fewer than two checker results: {path}")
+    # The metamorphic oracle (ADR 0016 §3) fails an entry on any counterexample,
+    # so checkers that agree on a counterexample still land here.
+    verdicts = {result.verdict for result in results.values()}
     if (
-        len({result.verdict for result in results.values()}) == 1
+        len(verdicts) == 1
+        and verdicts != {"counterexample"}
         and not reach_different_states(results)
     ):
         raise TriageError(f"aggregator entry contains agreeing checker results: {path}")

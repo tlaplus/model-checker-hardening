@@ -413,6 +413,19 @@ class AggregatorClassificationTest(unittest.TestCase):
                     "tlc-018.md", triager.classify(crash_kind, replay, HASH_A)
                 )
 
+    def test_classifies_a_timeout_in_tableau_construction(self) -> None:
+        tableau = timeout_diagnostic(
+            "main",
+            "\tat tlc2.tool.liveness.TBPar.equals(TBPar.java:47)",
+            "\tat tlc2.tool.liveness.TBGraph.findOrCreateNode(TBGraph.java:83)",
+            "\tat tlc2.tool.liveness.TBGraph.<init>(TBGraph.java:65)",
+            "\tat tlc2.tool.liveness.Liveness.processLiveness(Liveness.java:739)",
+        )
+        self.assertEqual(
+            "tlc-performance-003.md",
+            triager.classify(triager.CrashKind.TLC, tableau, HASH_A),
+        )
+
     def test_a_timeout_that_no_stack_explains_stays_timeout(self) -> None:
         slow = timeout_diagnostic(
             "TLCWorkerThread-000",
@@ -1660,6 +1673,13 @@ class ParallelTlcTest(unittest.TestCase):
             self.read(
                 tlc=self.stage("pass", "complete", 7),
                 tlcn=self.stage("pass", "complete", 7))
+
+    def test_reads_agreeing_counterexamples_of_a_metamorphic_corpus(self) -> None:
+        results = self.read(
+            tlc=self.stage("counterexample", "explore", 3),
+            apalache={"verdict": "counterexample"})
+        self.assertEqual(
+            triager.NEW_FINDING, triager.classify_aggregator(results, HASH_A))
 
     def test_rejects_a_non_integer_state_count(self) -> None:
         with self.assertRaisesRegex(triager.TriageError, "distinctStates"):

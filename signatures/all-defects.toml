@@ -39,6 +39,9 @@
 # - tlc-performance-002: formatting a domain error re-evaluates nested lazy functions whose
 #   evaluation fails at run time. A structural signature would match every fold combinator that
 #   nests function constructors, failing or not; one of corpus67's 10^6 checked inputs hit it.
+# - tlc-performance-003: the time to build the tableau depends on the whole temporal property,
+#   not on one shape in it. [metamorphic] max_rewrite_temporal_operators bounds the rewrites
+#   instead (ADR 0030), and script/triager.py labels the timeouts by their TBGraph frame.
 # - vacuous-initial-predicate: both tools pass.
 # - Fixed: apalache-printer-001 to 007, apalache-json-001 and 002, let-operand-grouping; and, in
 #   Apalache 0.62.3, apalache-printer-008 and 010, apalache-bmc-002, 011, 013, 017 and 018,
@@ -454,9 +457,10 @@ references = [
   "../conformance/division-by-zero-tlc-fails.md",
   "../conformance/division-negative-divisor.md",
   "../findings/apalache-bmc/apalache-bmc-008.md",
+  "../findings/apalache-optimizer/apalache-optimizer-002.md",
   "../findings/TLC/tlc-002.md",
 ]
-description = "TLC rejects a divisor that evaluates to zero, and Apalache truncates \\div toward zero for a negative divisor."
+description = "TLC rejects a divisor that evaluates to zero; Apalache divides by a negative divisor with Euclidean \\div and folds a negative constant dividend by truncation."
 status = "open"
 match = ['(DIV _ _)']
 
@@ -468,6 +472,16 @@ status = "open"
 match = [
   '(MOD _ (UNARY_MINUS _))',
   '(MOD _ (MINUS ...))',
+]
+
+[[signature]]
+id = "modulo-negative-dividend"
+references = ["../findings/apalache-optimizer/apalache-optimizer-002.md"]
+description = "Apalache folds % of a negative constant dividend by truncation; matches a dividend written as a negation or a difference."
+status = "open"
+match = [
+  '(MOD (UNARY_MINUS _) _)',
+  '(MOD (MINUS ...) _)',
 ]
 
 [[signature]]

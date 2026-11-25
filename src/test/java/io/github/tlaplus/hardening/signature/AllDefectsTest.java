@@ -78,7 +78,8 @@ class AllDefectsTest {
             "findings/TLC/tlc-020.md",
             "findings/TLC/tlc-022.md",
             "findings/tlc-performance/tlc-performance-001.md",
-            "findings/tlc-performance/tlc-performance-002.md");
+            "findings/tlc-performance/tlc-performance-002.md",
+            "findings/tlc-performance/tlc-performance-003.md");
 
     private final SignatureShapes shapes = new SignatureShapes();
     private final TlaTypedScopeUncheckedBuilder builder = shapes.builder;
@@ -270,6 +271,9 @@ class AllDefectsTest {
                                 builder.mult(step, builder.integer(2)))),
                 Map.entry("modulo-negative-divisor",
                         List.of(builder.mod(step, builder.uminus(builder.integer(1))),
+                                builder.mod(step, builder.integer(2)))),
+                Map.entry("modulo-negative-dividend",
+                        List.of(builder.mod(builder.uminus(builder.integer(1)), builder.integer(2)),
                                 builder.mod(step, builder.integer(2)))),
                 Map.entry("enabled",
                         List.of(builder.enabled(shapes.action()), shapes.action())),
