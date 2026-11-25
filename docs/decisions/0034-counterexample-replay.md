@@ -376,16 +376,21 @@ entries is still to be run. Setup:
     confirmed every trace of TLC.
   - **Refuted by Apalache itself.** One of Apalache's own traces, of 4 transitions,
     passed when Apalache replayed it. Its invariant reads `<<"1", "2", "3">>[step]`
-    beyond the sequence's end. A seed `0x7acf` sample showed the same with a 16-step graph
-    trace, whose node action is a `CHOOSE` without a witness. Apalache gives a partial
-    term some value in its search and need not give it the same value in the replay. Seeds
-    `0x7ad0` and `0x7ad1` had no such sample, and the test pins `0x7ad0`.
+    beyond the sequence's end; this case has not been analysed. A seed `0x7acf` sample
+    showed the same with a 16-step graph trace, whose node action is a `CHOOSE` without a
+    witness. That one is an Apalache defect,
+    [`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md). Apalache
+    intends a no-witness `CHOOSE` to be free, but it fixes the result when every
+    candidate cell of the set is one arena cell. In the replay, the trace's values
+    assign the variables, which makes the cells coincide. Seeds `0x7ad0` and `0x7ad1`
+    had no such sample, and the test pins `0x7ad0`.
   - **TLC failures.** TLC failed on several of Apalache's traces, at function applications
     outside their domain and at values it could not fingerprint. These are the parent
     entries' disagreements again.
 
   So `fail` stays admitted, as section 4 left open. A replay that a checker refutes is a
-  finding to triage, either about the trace or about a partial term.
+  finding to triage: either the trace is not a behavior, or the checker evaluates the
+  module inconsistently, as in `apalache-bmc-024`.
 
 ## Implementation phases
 
