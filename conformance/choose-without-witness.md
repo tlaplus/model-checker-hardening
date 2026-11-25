@@ -22,5 +22,9 @@ Inv == TRUE
 ```
 
 TLC reports that no element satisfies the predicate. Apalache permits a
-symbolic value. This row records the corpus-confirmed manifestation of the
+symbolic value. It does not always do so: when every candidate cell of the set is
+the same arena cell, Apalache fixes the result to that cell instead, so the outcome
+depends on how the set's elements were computed
+([`apalache-bmc-024`](../findings/apalache-bmc/apalache-bmc-024.md)).
+This row records the corpus-confirmed manifestation of the
 known `CHOOSE` semantic deviation; it is not a new Apalache defect.
