@@ -802,6 +802,11 @@ The metadata depends on the stage. The minimal set of fields is:
   absent, and a reader preserves metric fields it does not know. The
   [exploration-metrics manual][metrics manual] lists the fields.
 
+- A model-checker stage of a corpus with `[workflow] replay` may contain a `"trace"`
+  byte string: the counterexample it reported, as the CBOR array `[states, ending]` of
+  [ADR 0034][] §5. It is allowed only with `"counterexample"`, and its absence changes no
+  verdict.
+
 - The quality gate records `stages.quality` with the `"pass"` or `"fail"`
   verdict and the two timestamps, and nothing else: the rank and the matched
   shallow pattern derive from the stored metrics ([ADR 0010][]).

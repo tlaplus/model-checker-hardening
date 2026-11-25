@@ -1,8 +1,9 @@
 # Counterexample replay
 
-!!! warning "Proposed"
-    This page describes a proposed feature that is not implemented yet.
-    [ADR 0034](../decisions/0034-counterexample-replay.md) records the design.
+!!! warning "In progress"
+    The checkers record their traces, and `trace` entries decode and are judged, but a run does
+    not yet turn the recorded traces into entries. [ADR 0034](../decisions/0034-counterexample-replay.md)
+    records the design.
 
 When two checkers both report a counterexample, the aggregator counts that as agreement,
 even if one of the traces is not a behavior of the specification. Counterexample replay
@@ -12,11 +13,11 @@ has to confirm that the trace is a behavior, including the checker that reported
 ## 1. Enabling replay
 
 Replay is off by default, because it adds entries to every generation. To enable it, set
-the following in `config.toml`:
+the following in the `[workflow]` table of `config.toml`:
 
 ```toml
-[replay]
-enabled = true
+[workflow]
+replay = true
 ```
 
 The following are configuration errors:
