@@ -11,8 +11,8 @@ import java.util.Objects;
  * (ADR 0010, ADR 0016 §6).
  *
  * <p>A generation of {@code size} entries numbers its targets {@code 0..size-1} and splits them into
- * one contiguous range per {@link EntryOrigin}, in declaration order: mutants, adopted entries, then
- * PBT. The split matters because a target's ordinal seeds its candidate stream: two targets that
+ * one contiguous range per origin of {@link EntryOrigin#SIZED}: mutants, adopted entries, then
+ * PBT. Replays come on top of the size and have no range here (ADR 0034 §6). The split matters because a target's ordinal seeds its candidate stream: two targets that
  * share an ordinal replay one stream, so the ranges must never overlap, whichever source ends up
  * filling them.
  *
@@ -57,18 +57,18 @@ final class GenerationTargets {
         Objects.requireNonNull(shares, "shares");
         Objects.requireNonNull(held, "held");
         var targets = new GenerationTargets();
-        var origins = EntryOrigin.values();
+        var origins = EntryOrigin.SIZED;
         var position = 0L;
-        for (var index = 0; index < origins.length; index++) {
-            var origin = origins[index];
+        for (var index = 0; index < origins.size(); index++) {
+            var origin = origins.get(index);
             var share = origin == EntryOrigin.PBT ? size : shares.getOrDefault(origin, 0L);
             var count = held.getOrDefault(origin, 0L);
             Preconditions.requireNonnegative(share, "share of " + origin);
             Preconditions.requireNonnegative(count, "held " + origin);
             // A share yields to what a later range, but PBT, already holds; held entries never yield.
             var laterHeld = 0L;
-            for (var later = index + 1; later < origins.length - 1; later++) {
-                laterHeld += held.getOrDefault(origins[later], 0L);
+            for (var later = index + 1; later < origins.size() - 1; later++) {
+                laterHeld += held.getOrDefault(origins.get(later), 0L);
             }
             var free = size - position;
             var length = Math.min(free, Math.max(count, Math.min(Math.max(share, count), free - laterHeld)));
@@ -78,8 +78,8 @@ final class GenerationTargets {
             targets.reserved.put(origin, Math.min(count, targets.capacity(origin)));
         }
         var spill = held.getOrDefault(EntryOrigin.PBT, 0L) - targets.reserved.get(EntryOrigin.PBT);
-        for (var index = origins.length - 2; index >= 0 && spill > 0; index--) {
-            var origin = origins[index];
+        for (var index = origins.size() - 2; index >= 0 && spill > 0; index--) {
+            var origin = origins.get(index);
             var taken = Math.min(spill, targets.remaining(origin));
             targets.reserved.merge(origin, taken, Long::sum);
             spill -= taken;
@@ -90,7 +90,7 @@ final class GenerationTargets {
     /** Returns how many entries of this generation no source has been asked for yet. */
     long remaining() {
         var total = 0L;
-        for (var origin : EntryOrigin.values()) {
+        for (var origin : EntryOrigin.SIZED) {
             total += remaining(origin);
         }
         return total;

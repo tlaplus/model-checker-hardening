@@ -33,6 +33,12 @@ public interface WorkflowEvents {
     /** Reports that an entry was stored in the corpus and belongs to {@code generation}. */
     void admitted(EntryName entry, int generation, EntryOrigin origin);
 
+    /**
+     * Reports that a target of {@code generation} with a single candidate was settled without an
+     * entry: its candidate was a duplicate, a known defect or rejected (ADR 0034 §6).
+     */
+    void skipped(int generation);
+
     /** Reports the verdict one stage durably recorded on an entry. */
     void completed(EntryName entry, CorpusStage stage, CorpusVerdict verdict);
 

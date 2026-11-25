@@ -8,6 +8,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusDirectory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.EntryOrigin;
+import io.github.tlaplus.hardening.gen.InputKind;
 import io.github.tlaplus.hardening.mutation.ByteMutator;
 import io.github.tlaplus.hardening.workflow.execution.WorkflowControl;
 import io.github.tlaplus.hardening.workflow.input.CandidateSource;
@@ -17,6 +18,7 @@ import io.github.tlaplus.hardening.workflow.input.MetamorphicCandidates;
 import io.github.tlaplus.hardening.workflow.input.MutantCandidates;
 import io.github.tlaplus.hardening.workflow.input.ParentPool;
 import io.github.tlaplus.hardening.workflow.input.PbtCandidates;
+import io.github.tlaplus.hardening.workflow.input.ReplayCandidates;
 import io.github.tlaplus.hardening.workflow.quality.QualityGate;
 import io.github.tlaplus.hardening.workflow.spec.EvaluatedExprs;
 import java.io.IOException;
@@ -33,8 +35,9 @@ import java.util.Objects;
  *
  * <ol>
  *   <li>admits what g still lacks, one {@link EntryOrigin} range after the other — mutants of the
- *       parents {@code 04quality-pass} holds, adopted entries, then PBT — and waits until every one
- *       of those entries is stored;
+ *       parents {@code 04quality-pass} holds, adopted entries, then PBT — and, with replay, the
+ *       counterexamples recorded on g - 1, and waits until every one of those entries is stored or,
+ *       for a replay, skipped (ADR 0034 §6);
  *   <li>admits the PBT range of g + 1 while g's checker tail is still running, which is what keeps
  *       the CPUs busy across a generation boundary;
  *   <li>waits until every entry of g has settled, runs the gate over g, and moves on.
@@ -43,8 +46,8 @@ import java.util.Objects;
  * <p>Only g + 1's <em>PBT</em> share may run ahead: its mutants depend on g's selection, so they
  * wait for the gate. At most one generation is therefore open ahead of the oldest ungated one, and
  * queued work and CPU-budget requests from the older generation are served first. The loop ends
- * when the corpus has run every generation {@code workflow.max_entries} allows, or when a stage
- * stops the run.
+ * when the corpus has run every generation {@code workflow.max_entries} allows, and the replays of
+ * the last of them in one more, or when a stage stops the run.
  *
  * <p>A run resumes at the oldest generation that is still short of entries, still has work in
  * flight, or is still ungated; see {@link #oldestIncomplete}. Admitting nothing, draining nothing
@@ -70,6 +73,8 @@ final class GenerationLoop {
     private final GenerationProgress progress;
     private final QualityGate gate;
     private final Map<Integer, GenerationTargets> reservations = new HashMap<>();
+    /** The replays each generation admits, collected once its predecessor is gated (ADR 0034 §6). */
+    private final Map<Integer, List<ReplayCandidates>> replays = new HashMap<>();
     private volatile Generation current;
 
     GenerationLoop(
@@ -112,10 +117,11 @@ final class GenerationLoop {
             graph.start();
             started = true;
             var generation = current.number();
-            while (!graph.control().shouldStop() && size(generation) > 0) {
+            while (!graph.control().shouldStop() && (size(generation) > 0 || replayTargets(generation) > 0)) {
                 current = new Generation(generation, graph);
-                admit(generation);
-                if (!progress.awaitAdmitted(generation, size(generation))) {
+                var replayTargets = admit(generation);
+                if (!progress.awaitAdmitted(generation, size(generation))
+                        || !progress.awaitReplays(generation, replayTargets)) {
                     break;
                 }
                 if (size(generation + 1) > 0) {
@@ -126,6 +132,7 @@ final class GenerationLoop {
                 }
                 gate.run(generation);
                 reservations.remove(generation);
+                replays.remove(generation);
                 generation++;
             }
         } catch (InterruptedException exception) {
@@ -169,8 +176,9 @@ final class GenerationLoop {
                                 + " written by this workflow");
             }
         }
-        if (latest > 0
-                && (initial.entries(latest - 1) < size(latest - 1) || leftOpen(initial, latest - 1))) {
+        // Replays come on top of a generation's size, so they do not make up for missing entries.
+        var sized = latest > 0 ? initial.entries(latest - 1) - initial.admitted(latest - 1, EntryOrigin.REPLAY) : 0;
+        if (latest > 0 && (sized < size(latest - 1) || leftOpen(initial, latest - 1))) {
             return latest - 1;
         }
         return latest;
@@ -193,15 +201,59 @@ final class GenerationLoop {
         return Math.max(0, Math.min(setup.config().mutator().generationSize(), remaining));
     }
 
-    /** Admits everything a generation still lacks, one origin's range after the other. */
-    private void admit(int generation) throws IOException, CorpusException {
+    /**
+     * Admits everything a generation still lacks, one origin's range after the other, then the
+     * replays of its predecessor's counterexamples, on top of its size (ADR 0034 §6). Returns how
+     * many replay targets the generation has: those it already holds and those submitted now.
+     */
+    private long admit(int generation) throws IOException, CorpusException {
         var targets = targets(generation);
-        for (var origin : EntryOrigin.values()) {
+        for (var origin : EntryOrigin.SIZED) {
             var count = targets.remaining(origin);
             if (count > 0) {
                 submit(generation, targets.reserve(origin, count), count, source(origin));
             }
         }
+        var pending = replaysOf(generation);
+        if (!pending.isEmpty()) {
+            graph.admit(new GenerationPlan(
+                    InputKind.TRACE,
+                    generation,
+                    InputStage.generationSeed(invocation.seed(), generation),
+                    (long) generation * setup.config().mutator().generationSize(),
+                    invocation.maximumCpus(),
+                    // Above every ordinal of the generation's size; a replay draws no randomness.
+                    size(generation),
+                    pending.stream().map(source -> new GenerationPlan.Quota(source, 1)).toList()));
+        }
+        return replayTargets(generation);
+    }
+
+    /**
+     * Returns how many replay targets a generation has: the replays it holds and those it still
+     * lacks. A generation past {@code workflow.max_entries} runs while it has any, so a run
+     * interrupted in its last, replay-only generation still gates it.
+     */
+    private long replayTargets(int generation) throws IOException, CorpusException {
+        return progress.admittedByOrigin(generation).getOrDefault(EntryOrigin.REPLAY, 0L)
+                + replaysOf(generation).size();
+    }
+
+    /**
+     * Returns the replays a generation admits: the counterexamples recorded on its predecessor,
+     * which has settled and been gated, that the corpus does not hold yet. Without replay, or for
+     * generation 0, there are none.
+     */
+    private List<ReplayCandidates> replaysOf(int generation) throws IOException, CorpusException {
+        if (!setup.config().workflow().replay() || generation == 0) {
+            return List.of();
+        }
+        var collected = replays.get(generation);
+        if (collected == null) {
+            collected = ReplayCandidates.collect(invocation.corpus(), generation - 1);
+            replays.put(generation, collected);
+        }
+        return collected;
     }
 
     /** Returns the source that fills the range of {@code origin}. */
@@ -210,6 +262,7 @@ final class GenerationLoop {
             case MUTANT -> mutantSource();
             case ADOPTED -> adoptSource();
             case PBT -> new PbtCandidates(setup.config().pbt());
+            case REPLAY -> throw new IllegalArgumentException("replays come on top of a generation's ranges");
         };
     }
 

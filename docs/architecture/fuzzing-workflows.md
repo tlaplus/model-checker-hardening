@@ -87,6 +87,18 @@ decode the payload again: the run decoded every entry it admitted, and startup
 validation already decoded the rest. The progress
 display names the oldest ungated generation.
 
+**Implemented architectural extension** ([ADR 0034][]). With `[workflow] replay`,
+the checker stages record the trace of every counterexample under
+`stages.<checker>.trace`. After gating generation g, the loop reads g's aggregated
+entries once and admits each recorded trace into g + 1 as a `trace` entry, on top
+of `generation_size`. This is the one flow from checker output back into the input
+stage, and the one read of finished entries between generations. A replay target has
+a single candidate. When that candidate is not stored, the target settles without an
+entry, which the input stage reports as skipped. `workflow.max_entries` counts
+every entry but the replays. One generation of replays alone follows the last
+generation. Every technique judges a replay by the counterexample it predicts, and
+the quality gate keeps none.
+
 **Implemented architectural extension.** Admission ends with the known-defect
 signatures listed in `[workflow.inputs] known_defects` ([ADR 0006][]). A
 signature is a pattern over the IR of the code the tools evaluate, matching a
@@ -258,6 +270,7 @@ flowchart LR
     aggregator_pass --> quality
     quality_pass --> mutator
     mutator --> inp
+    conformance -. "replay (optional, ADR 0034)" .-> inp
     quality_pass --> tests_pass
     aggregator_fail --> tests_fail
     parse_crash --> tests_crash
@@ -719,7 +732,8 @@ cohort and its collection-richness score in the compact `"gen"` field:
 ```
 
 A mutant also records the digest of the parent it was mutated from and the
-operators applied, in order ([ADR 0010][]). The two fields appear together or
+operators applied, in order ([ADR 0010][]). An adopted entry records the operator
+`adopt`, and a replayed trace the operator `replay` ([ADR 0034][]). The two fields appear together or
 not at all. A mutant keeps its parent's cohort and records its own richness.
 
 ```cbor

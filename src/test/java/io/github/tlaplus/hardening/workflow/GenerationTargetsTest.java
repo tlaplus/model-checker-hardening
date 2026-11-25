@@ -120,7 +120,7 @@ class GenerationTargetsTest {
     private static void assertDisjoint(long size, Map<EntryOrigin, Long> shares, Map<EntryOrigin, Long> held) {
         var targets = GenerationTargets.resuming(size, shares, held);
         var reserved = new ArrayList<Long>();
-        for (var origin : EntryOrigin.values()) {
+        for (var origin : EntryOrigin.SIZED) {
             var count = targets.remaining(origin);
             if (count > 0) {
                 addRange(reserved, targets.reserve(origin, count), count);

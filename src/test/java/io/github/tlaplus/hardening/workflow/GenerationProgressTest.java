@@ -44,6 +44,30 @@ class GenerationProgressTest {
         assertEquals(0, progress.unsettled(1));
     }
 
+    /**
+     * Replays come on top of a generation's size (ADR 0034 §6): they do not count towards it, and a
+     * replay target settles when its entry is admitted or its candidate is skipped.
+     */
+    @Test
+    void replaysSettleApartFromTheGenerationsSize() throws Exception {
+        var control = new WorkflowControl(new WorkQueue<>());
+        var progress = new GenerationProgress(emptyInventory(), control, CheckerSet.DEFAULT);
+        progress.admitted(new EntryName("pbt.cbor"), 1, EntryOrigin.PBT);
+        progress.admitted(new EntryName("replay.cbor"), 1, EntryOrigin.REPLAY);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var sized = executor.submit(() -> progress.awaitAdmitted(1, 2));
+            var replays = executor.submit(() -> progress.awaitReplays(1, 2));
+            assertFalse(sized.isDone());
+            assertFalse(replays.isDone());
+            progress.skipped(1);
+            assertTrue(replays.get(1, TimeUnit.SECONDS));
+            assertFalse(sized.isDone());
+            progress.admitted(new EntryName("mutant.cbor"), 1, EntryOrigin.MUTANT);
+            assertTrue(sized.get(1, TimeUnit.SECONDS));
+        }
+    }
+
     @Test
     void aggregationAndParserFailureAreTerminalAndStopWakesWaiters() throws Exception {
         var control = new WorkflowControl(new WorkQueue<>());

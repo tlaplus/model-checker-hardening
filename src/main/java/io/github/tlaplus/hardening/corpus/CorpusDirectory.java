@@ -265,6 +265,14 @@ public final class CorpusDirectory {
                 .scan();
     }
 
+    /**
+     * Reports whether the corpus holds {@code input} in any directory that stores entries, the
+     * known-defect quarantine included, as {@link #store} would report a duplicate.
+     */
+    public synchronized boolean contains(byte[] input) throws IOException, CorpusException {
+        return store.contains(input);
+    }
+
     /** Stores an input of the given kind under its payload digest in {@code 00-inputs}. */
     public synchronized StoreResult store(InputKind kind, byte[] input)
             throws IOException, CorpusException {

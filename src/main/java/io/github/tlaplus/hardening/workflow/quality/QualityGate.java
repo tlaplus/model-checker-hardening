@@ -37,7 +37,8 @@ import java.util.stream.Stream;
  *
  * <p>The gate's input for generation g is every entry of g that reached {@code 03aggregator-pass},
  * including those an earlier, interrupted run of the gate already moved on. An entry is admissible
- * when TLC measured its exploration, did not fail, and matched no enabled shallow pattern. The gate
+ * when it is not a replayed trace (ADR 0034 §6), TLC measured its exploration, did not fail, and
+ * matched no enabled shallow pattern. The gate
  * walks the admissible entries in rank order and keeps an entry in {@code 04quality-pass} while it
  * has kept fewer than {@code ceil(select_fraction × |input|)} and the {@link SelectionArchive} of
  * the entries kept so far, over every generation, admits it. The rest move to {@code
@@ -91,8 +92,9 @@ public final class QualityGate {
                     passed.add(entry);
                 }
             }
-            var failed = inGeneration(entries(CorpusStage.QUALITY, CorpusVerdict.FAIL), generation).size();
-            var limit = selected(pending.size() + passed.size() + failed);
+            var failed = generated(inGeneration(entries(CorpusStage.QUALITY, CorpusVerdict.FAIL), generation));
+            // A replay is no parent and takes no share of the selection (ADR 0034 §6).
+            var limit = selected(generated(pending) + passed.size() + failed);
             var kept = select(archive, replays, passed, pending, limit);
             for (var entry : kept) {
                 complete(entry, CorpusVerdict.PASS);
@@ -147,9 +149,15 @@ public final class QualityGate {
                 .longValueExact();
     }
 
+    /** Counts the entries of a kind the technique generates, which excludes replayed traces. */
+    private static long generated(List<Candidate> entries) {
+        return entries.stream().filter(entry -> !entry.envelope().corpusInput().kind().derived()).count();
+    }
+
     private boolean admissible(Candidate candidate) {
         var tlc = candidate.tlc();
-        return tlc.verdict() != CorpusVerdict.FAIL
+        return !candidate.envelope().corpusInput().kind().derived()
+                && tlc.verdict() != CorpusVerdict.FAIL
                 && tlc.metrics().isPresent()
                 && config.shallowPatterns().stream().noneMatch(pattern -> pattern.matches(tlc.record()));
     }

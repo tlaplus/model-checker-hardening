@@ -1,9 +1,8 @@
 # Counterexample replay
 
-!!! warning "In progress"
-    The checkers record their traces, and `trace` entries decode and are judged, but a run does
-    not yet turn the recorded traces into entries. [ADR 0034](../decisions/0034-counterexample-replay.md)
-    records the design.
+!!! note
+    [ADR 0034](../decisions/0034-counterexample-replay.md) records the design and the probes
+    it is based on.
 
 When two checkers both report a counterexample, the aggregator counts that as agreement,
 even if one of the traces is not a behavior of the specification. Counterexample replay
@@ -49,18 +48,29 @@ recorded.
 
 ## 3. Results
 
-Every checker must report a counterexample of exactly the replayed length. Otherwise the
-`trace` entry moves to `03aggregator-fail`:
+Every checker must report a counterexample of exactly the replayed length, or fail on a
+partial term as it may on any input. Otherwise the `trace` entry moves to
+`03aggregator-fail`:
 
 - **A `pass`** means that the trace is not a behavior, or that its last state does not
-  satisfy the claim. Either the checker that reported the trace or the checker that
+  satisfy the claim. Either the checker that recorded the trace or the checker that
   passed is wrong.
 - **A counterexample of another length,** or a disagreement between checkers, means the
   same.
 
-`fuzztla print` shows the parent's module, the trace and the replay module. The parent's
-digest is in `gen.parent`. A `trace` entry is never a parent for mutation, and the quality
-gate drops it.
+A checker that failed on the parent entry may fail on its replay too: a trace of Apalache
+can pass through a state where TLC cannot evaluate a partial term, such as a function
+applied outside its domain. This is the parent's disagreement again.
+
+Apalache gives a partial term some value of its type, and it need not give the same term
+the same value in two searches. A replay of its own trace may then pass, for example after
+a sequence indexed past its end or a `CHOOSE` without a witness. Triage such a failure as
+a partial-term difference before suspecting the trace.
+
+`fuzztla print` shows a `trace` entry's length, what its last state claims, the outcome it
+predicts, and the replay module, which holds the recorded states as literals. The parent's
+digest is in `gen.parent`, and its stage map says which checker recorded the trace. A
+`trace` entry is never a parent for mutation, and the quality gate drops it.
 
 ## 4. Cost
 

@@ -21,7 +21,7 @@ class MutationOperatorTest {
     void encodedNamesArePartOfTheCorpusFormat() {
         assertEquals(
                 List.of("random_byte", "bitflip", "parity_flip", "copy", "duplicate", "insert",
-                        "erase", "splice", "adopt"),
+                        "erase", "splice", "adopt", "replay"),
                 Arrays.stream(MutationOperator.values()).map(MutationOperator::encodedName).toList());
         for (var operator : MutationOperator.values()) {
             assertEquals(Optional.of(operator), MutationOperator.fromEncodedName(operator.encodedName()));
@@ -30,12 +30,14 @@ class MutationOperatorTest {
     }
 
     @Test
-    void adoptRecordsProvenanceButIsNeverApplied() {
-        assertEquals(List.of(MutationOperator.ADOPT), Arrays.stream(MutationOperator.values())
+    void adoptAndReplayRecordProvenanceButAreNeverApplied() {
+        assertEquals(List.of(MutationOperator.ADOPT, MutationOperator.REPLAY), Arrays.stream(MutationOperator.values())
                 .filter(operator -> !operator.isByteEdit()).toList());
-        assertEquals(0, MutationOperator.ADOPT.defaultWeight());
-        Assertions.assertThrows(UnsupportedOperationException.class,
-                () -> MutationOperator.ADOPT.apply(new byte[] {1}, NO_DONOR, new SplittableRandom(1)));
+        for (var provenance : List.of(MutationOperator.ADOPT, MutationOperator.REPLAY)) {
+            assertEquals(0, provenance.defaultWeight());
+            Assertions.assertThrows(UnsupportedOperationException.class,
+                    () -> provenance.apply(new byte[] {1}, NO_DONOR, new SplittableRandom(1)));
+        }
     }
 
     @Test
