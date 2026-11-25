@@ -1,10 +1,10 @@
 # `ExprEdge`
 
-`io.github.tlaplus.hardening.common` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/common/ExprEdge.java#L12) · module [common](../modules/common.md)
+`io.github.tlaplus.hardening.common` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/common/ExprEdge.java#L12) · module [common](../modules/common.md)
 
 An edge of an expression tree between two constructs: `parent` applied to, or binding, an immediate subexpression that is the construct `child`.
 
-**Decisions:** [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0028-temporal-property-quality.md)
+**Decisions:** [ADR 0028: Temporal properties that read the state](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0028-temporal-property-quality.md)
 
 ```mermaid
 classDiagram

@@ -1,6 +1,6 @@
 # `StageJobLoop`
 
-`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageJobLoop.java#L15) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageJobLoop.java#L15) · module [workflow](../modules/workflow.md)
 
 Claims queued items on behalf of one stage worker under the shared CPU budget.
 

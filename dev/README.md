@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`ec784e8`](https://github.com/tlaplus/model-checker-hardening/commit/ec784e8112438ead18c35b5a2e7e27b2d25a076b) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`d5f3667`](https://github.com/tlaplus/model-checker-hardening/commit/d5f36672ab371b1224968e82791fde50c3daaeaf) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 
@@ -39,13 +39,13 @@ flowchart TB
 |---|---|---|---|---|
 | [common](modules/common.md) | Leaf utilities that every package may import: argument checks, cleanup, digests, file trees, expression counts, an ordered parallel map, and the architecture annotations and layering of ADR 0022. | 17 | 5 |  |
 | [checker](modules/checker.md) | Checker-independent results of a model-checker run: stable failure codes (ADR 0003) and exploration metrics (ADR 0008). | 5 | 3 | common |
-| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 122 | 32 | common |
+| [gen](modules/gen.md) | Deterministic decoders from byte arrays to typed Apalache IR expressions and module declarations, with their limits and configuration. | 123 | 33 | common |
 | [signature](modules/signature.md) | Known-defect signatures: patterns over the typed Apalache IR and the databases holding them. | 17 | 6 | common |
 | [mutation](modules/mutation.md) | Byte-level mutation operators that derive new generator inputs from corpus entries. | 2 | 2 | common |
-| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 53 | 11 | common, checker, gen, mutation |
+| [corpus](modules/corpus.md) | The on-disk corpus: its layout, CBOR formats, locking, stage transitions, and startup recovery, keyed by `CorpusStage` (ADR 0004). | 54 | 11 | common, checker, gen, mutation |
 | [config](modules/config.md) | The `config.toml` of a corpus: its schema, strict TOML reading and writing, and the typed configuration of input generation and of every workflow stage. | 29 | 5 | common, gen, mutation, corpus |
 | [database](modules/database.md) | Exports a corpus to a SQLite database for analysis, as ADR 0009 defines it. | 12 | 3 | common, checker, gen, mutation, corpus |
-| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 120 | 59 | common, checker, gen, signature, mutation, corpus, config |
+| [workflow](modules/workflow.md) | Runs a fuzzing campaign: the stage graph, the generation loop, checker backends, and corpus replay, under one CPU budget. | 123 | 59 | common, checker, gen, signature, mutation, corpus, config |
 | [cli](modules/cli.md) | The `fuzztla` commands and their output: picocli wiring in the `*Command` classes, and renderers and progress displays that do not depend on picocli. | 36 | 10 | common, checker, gen, signature, mutation, corpus, config, database, workflow |
 | [root](modules/root.md) | The `fuzztla` launcher: `Main` hands the command line to `cli`. | 1 | 1 | cli |
 
@@ -59,13 +59,13 @@ flowchart TB
 | process | a loop or orchestrator that owns threads or a lifecycle | 8 |
 | adapter | wraps an external tool, process, or protocol | 9 |
 | store | layout, locking, persistence | 5 |
-| codec | a wire or storage format | 11 |
+| codec | a wire or storage format | 12 |
 | policy | a decision rule | 20 |
 | model | a domain value or enum | 35 |
 | config | configuration and its schema | 11 |
 | view | rendering and formatting | 3 |
 | utility | a helper with no domain meaning | 7 |
-| other | no `@ArchRole` | 266 |
+| other | no `@ArchRole` | 270 |
 
 ## Relations
 

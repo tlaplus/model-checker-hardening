@@ -40,4 +40,4 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0009-corpus-database.md)
+- [ADR 0009: Corpus database](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0009-corpus-database.md)

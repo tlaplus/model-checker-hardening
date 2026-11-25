@@ -1,6 +1,6 @@
 # `TypePattern`
 
-`io.github.tlaplus.hardening.signature` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/signature/TypePattern.java#L22) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/signature/TypePattern.java#L22) · module [signature](../modules/signature.md)
 
 A type in Apalache's syntax whose type variables are wildcards.
 

@@ -315,6 +315,9 @@ Recorded counterexamples as inputs of the `trace` kind (ADR 0034): the payload t
 
 ```mermaid
 classDiagram
+  class ItfTraces {
+    <<codec>>
+  }
   class Trace {
     <<model>>
   }
@@ -327,12 +330,14 @@ classDiagram
   class TracePayload {
     <<codec>>
   }
+  ItfTraces ..> Trace : uses
   Trace --> TraceEnding : has
   TracePayload --> Trace : has
 ```
 
 | Type | Kind | Role | Summary |
 |---|---|---|---|
+| [**ItfTraces** ★](../types/io.github.tlaplus.hardening.gen.trace.ItfTraces.md) | class | codec | Reads a counterexample that a checker worker recorded (ADR 0034 §5) into a canonical `Trace`. |
 | [**Trace** ★](../types/io.github.tlaplus.hardening.gen.trace.Trace.md) | record | model | The states of one recorded counterexample and what its last state claims (ADR 0034 §1, §2). |
 | [**TraceEnding** ★](../types/io.github.tlaplus.hardening.gen.trace.TraceEnding.md) | interface | model | What the last state of a recorded trace claims (ADR 0034 §1), which decides what its replay checks there. |
 | [**TraceLiterals** ★](../types/io.github.tlaplus.hardening.gen.trace.TraceLiterals.md) | class | codec | Builds the typed IR literal of a recorded value (ADR 0034 §3). |
@@ -340,14 +345,14 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0007-levels-and-temporal-properties.md)
-- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0011-collection-base-size.md)
-- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0012-integer-literals.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0027-temporal-metamorphic-testing.md)
-- [ADR 0030: A budget of temporal operators per rewritten body](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0030-temporal-operator-budget.md)
-- [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0034-counterexample-replay.md)
+- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0007-levels-and-temporal-properties.md)
+- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0011-collection-base-size.md)
+- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0012-integer-literals.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0027-temporal-metamorphic-testing.md)
+- [ADR 0030: A budget of temporal operators per rewritten body](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0030-temporal-operator-budget.md)
+- [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0034-counterexample-replay.md)

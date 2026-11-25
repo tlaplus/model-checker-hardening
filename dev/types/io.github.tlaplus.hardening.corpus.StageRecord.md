@@ -1,8 +1,10 @@
 # `StageRecord`
 
-`io.github.tlaplus.hardening.corpus` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/corpus/StageRecord.java#L21) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/corpus/StageRecord.java#L22) · module [corpus](../modules/corpus.md)
 
-What a stage records about one input: its verdict, when it worked on the input, its failure classification when it classifies failures, and what it explored when it measures exploration.
+What a stage records about one input: its verdict, when it worked on the input, its failure classification when it classifies failures, what it explored when it measures exploration, and the counterexample's trace when the run replays them (ADR 0034 §5).
+
+**Decisions:** [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0034-counterexample-replay.md)
 
 ```mermaid
 classDiagram
@@ -17,6 +19,9 @@ classDiagram
   }
   class CorpusVerdict {
     <<model>>
+  }
+  class EncodedTrace {
+    <<record>>
   }
   class AggregationInput {
     <<record>>
@@ -41,6 +46,7 @@ classDiagram
   StageRecord --> CheckerFailure : has
   StageRecord --> ExplorationMetrics : has
   StageRecord --> CorpusVerdict : has
+  StageRecord --> EncodedTrace : has
   AggregationInput --> StageRecord : has
   StageMetadata --> StageRecord : has
   StageResult --> StageRecord : has
@@ -51,13 +57,14 @@ classDiagram
   ShallowPattern ..> StageRecord : uses
 ```
 
-The diagram draws 11 of 16 relations; the table lists them all.
+The diagram draws 12 of 17 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CheckerFailure](io.github.tlaplus.hardening.checker.CheckerFailure.md) | A stable checker failure code with optional bounded diagnostic context. |
 | → | has | [ExplorationMetrics](io.github.tlaplus.hardening.checker.ExplorationMetrics.md) | What a model checker explored to reach its verdict, as ADR 0008 defines it. |
 | → | has | [CorpusVerdict](io.github.tlaplus.hardening.corpus.CorpusVerdict.md) | A verdict supported by the implemented corpus stages. |
+| → | has | [EncodedTrace](io.github.tlaplus.hardening.corpus.EncodedTrace.md) | The counterexample a checker stage recorded (ADR 0034 §5), stored under ` stages.&lt;checker&gt;.trace`. |
 | ← | has | [AggregationInput](io.github.tlaplus.hardening.corpus.AggregationInput.md) | A logical corpus entry whose non-crash checker results are ready for aggregation. |
 | ← | has | [StageMetadata](io.github.tlaplus.hardening.corpus.StageMetadata.md) | Metadata recorded when one workflow stage finishes processing an input. |
 | ← | has | [StageResult](io.github.tlaplus.hardening.corpus.StageResult.md) | What one stage decided about one input, and the tool output kept for triage. |

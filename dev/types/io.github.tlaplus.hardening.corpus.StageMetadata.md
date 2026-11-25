@@ -1,6 +1,6 @@
 # `StageMetadata`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/corpus/StageMetadata.java#L22) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/corpus/StageMetadata.java#L22) · module [corpus](../modules/corpus.md)
 
 Metadata recorded when one workflow stage finishes processing an input.
 
@@ -24,6 +24,9 @@ classDiagram
   class CorpusVerdict {
     <<model>>
   }
+  class EncodedTrace {
+    <<record>>
+  }
   class CorpusEnvelopeCodec {
     <<codec>>
   }
@@ -38,20 +41,22 @@ classDiagram
   StageMetadata ..> CheckerFailure : uses
   StageMetadata ..> ExplorationMetrics : uses
   StageMetadata ..> CorpusVerdict : uses
+  StageMetadata ..> EncodedTrace : uses
   CorpusEnvelopeCodec ..> StageMetadata : uses
   StageResult ..> StageMetadata : uses
   QualityGate ..> StageMetadata : uses
 ```
 
-The diagram draws 8 of 17 relations; the table lists them all.
+The diagram draws 9 of 18 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
-| → | has | [StageRecord](io.github.tlaplus.hardening.corpus.StageRecord.md) | What a stage records about one input: its verdict, when it worked on the input, its failure classification when it classifies failures, and what it explored when it measures exploration. |
+| → | has | [StageRecord](io.github.tlaplus.hardening.corpus.StageRecord.md) | What a stage records about one input: its verdict, when it worked on the input, its failure classification when it classifies failures, what it explored when it measures exploration, and the counterexample's trace when the run replays them (ADR 0034 §5). |
 | ← | has | [CorpusEnvelope](io.github.tlaplus.hardening.corpus.CorpusEnvelope.md) | Supported fields decoded from one corpus input envelope. |
 | → | uses | [CheckerFailure](io.github.tlaplus.hardening.checker.CheckerFailure.md) | A stable checker failure code with optional bounded diagnostic context. |
 | → | uses | [ExplorationMetrics](io.github.tlaplus.hardening.checker.ExplorationMetrics.md) | What a model checker explored to reach its verdict, as ADR 0008 defines it. |
 | → | uses | [CorpusVerdict](io.github.tlaplus.hardening.corpus.CorpusVerdict.md) | A verdict supported by the implemented corpus stages. |
+| → | uses | [EncodedTrace](io.github.tlaplus.hardening.corpus.EncodedTrace.md) | The counterexample a checker stage recorded (ADR 0034 §5), stored under ` stages.&lt;checker&gt;.trace`. |
 | ← | uses | [CorpusEnvelopeCodec](io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec.md) | Reads and rewrites the `stages` metadata of a corpus envelope. |
 | ← | uses | [StageResult](io.github.tlaplus.hardening.corpus.StageResult.md) | What one stage decided about one input, and the tool output kept for triage. |
 | ← | uses | [QualityGate](io.github.tlaplus.hardening.workflow.quality.QualityGate.md) | Selects the parents of the next generation from one settled generation (ADR 0010, ADR 0013). |

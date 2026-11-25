@@ -1,6 +1,6 @@
 # `WorkflowConfig`
 
-`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/config/WorkflowConfig.java#L25) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · record · config · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/config/WorkflowConfig.java#L27) · module [config](../modules/config.md)
 
 Global and per-stage limits for the implemented fuzzing workflow.
 

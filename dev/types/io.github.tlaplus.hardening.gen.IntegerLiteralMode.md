@@ -1,10 +1,10 @@
 # `IntegerLiteralMode`
 
-`io.github.tlaplus.hardening.gen` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/gen/IntegerLiteralMode.java#L11) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/gen/IntegerLiteralMode.java#L11) · module [gen](../modules/gen.md)
 
 How an integer literal decodes its value (ADR 0012).
 
-**Decisions:** [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0012-integer-literals.md)
+**Decisions:** [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0012-integer-literals.md)
 
 ```mermaid
 classDiagram

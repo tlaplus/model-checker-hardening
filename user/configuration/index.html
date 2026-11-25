@@ -664,17 +664,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#replay-counterexample-replay-proposed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [replay]: counterexample replay (proposed)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#graph-control-graphs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1530,17 +1519,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#replay-counterexample-replay-proposed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [replay]: counterexample replay (proposed)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#graph-control-graphs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1768,6 +1746,11 @@ as <code>"Module!Operator"</code>.</p>
 <td><code>["tlc", "apalache"]</code></td>
 <td>Checkers to run, a subset of <code>tlc</code>, <code>tlcn</code> and <code>apalache</code>. With one checker, nothing is compared. Keep it once the corpus holds entries.</td>
 </tr>
+<tr>
+<td><code>replay</code></td>
+<td><code>false</code></td>
+<td>Record the trace of every counterexample of TLC, TLC-n and Apalache (<a href="../counterexample-replay/">Counterexample replay</a>). Not with <code>technique = "mt"</code>.</td>
+</tr>
 </tbody>
 </table>
 <h3 id="workflowinputs"><code>[workflow.inputs]</code><a class="headerlink" href="#workflowinputs" title="Permanent link">&para;</a></h3>
@@ -1880,10 +1863,6 @@ corpus. They are described in
 <a href="../metamorphic-testing/#1-setting-up-a-corpus">Metamorphic testing</a>. <code>temporal_rules</code> and
 <code>temporal_weights</code> name the temporal rule module, described in
 <a href="../metamorphic-testing/#7-temporal-properties">Metamorphic testing</a>.</p>
-<h2 id="replay-counterexample-replay-proposed"><code>[replay]</code>: counterexample replay (proposed)<a class="headerlink" href="#replay-counterexample-replay-proposed" title="Permanent link">&para;</a></h2>
-<p><code>enabled</code>, <code>false</code> by default, replays every recorded counterexample as an entry of the next
-generation. It is not implemented yet; <a href="../counterexample-replay/">Counterexample replay</a>
-describes the proposal.</p>
 <h2 id="graph-control-graphs"><code>[graph]</code>: control graphs<a class="headerlink" href="#graph-control-graphs" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

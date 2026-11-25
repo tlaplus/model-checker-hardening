@@ -1,8 +1,10 @@
 # `StageEnvironment`
 
-`io.github.tlaplus.hardening.workflow.execution` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageEnvironment.java#L15) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.execution` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/workflow/execution/StageEnvironment.java#L16) · module [workflow](../modules/workflow.md)
 
-The collaborators every stage of one workflow invocation shares: the corpus it reads and writes, the decoder each stored input kind is regenerated through, the CPU budget it competes for, and the stop state it observes and reports to.
+The collaborators every stage of one workflow invocation shares: the corpus it reads and writes, the decoder each stored input kind is regenerated through, the CPU budget it competes for, the stop state it observes and reports to, and whether its checkers record their counterexamples for replay (ADR 0034 §5).
+
+**Decisions:** [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0034-counterexample-replay.md)
 
 ```mermaid
 classDiagram

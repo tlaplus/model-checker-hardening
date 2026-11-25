@@ -1,6 +1,6 @@
 # `StagedTools`
 
-`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/workflow/StagedTools.java#L14) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/workflow/StagedTools.java#L14) · module [workflow](../modules/workflow.md)
 
 Locates the tool JARs the build stages beside FuzzTLA's own JAR, or beside its classes when it runs from the build directory.
 

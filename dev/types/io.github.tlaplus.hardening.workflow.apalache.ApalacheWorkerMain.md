@@ -1,10 +1,10 @@
 # `ApalacheWorkerMain`
 
-`io.github.tlaplus.hardening.workflow.apalache` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheWorkerMain.java#L31) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.apalache` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheWorkerMain.java#L31) · module [workflow](../modules/workflow.md)
 
 Persistent child process that invokes Apalache's `Tool.run` sequentially.
 
-**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
@@ -15,7 +15,7 @@ Persistent child process that invokes Apalache's `Tool.run` sequentially.
 | → | depends | [WorkflowException](io.github.tlaplus.hardening.workflow.WorkflowException.md) | Reports an infrastructure or lifecycle failure in a fuzzing workflow. |
 | → | depends | [ApalacheArguments](io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments.md) | The Apalache command line for one checked module. |
 | → | depends | [ApalacheOutcomeClassifier](io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier.md) | Maps Apalache tool exit statuses to shared workflow outcomes, for Apalache and for a generic checker that follows Apalache's exit statuses (ADR 0033 §2). |
-| → | depends | [ApalacheTraceLength](io.github.tlaplus.hardening.workflow.apalache.ApalacheTraceLength.md) | Reads the length of the counterexample Apalache wrote for one check. |
+| → | depends | [ApalacheTrace](io.github.tlaplus.hardening.workflow.apalache.ApalacheTrace.md) | The counterexample Apalache wrote for one check, read once for its length and, when the request asks for it, its trace (ADR 0034 §5). |
 | → | depends | [FuzzInputModule](io.github.tlaplus.hardening.workflow.spec.FuzzInputModule.md) | Assembles the module checked by the parser and model-checker stages. |
 | → | depends | [PropertyRunsVerdict](io.github.tlaplus.hardening.workflow.tool.PropertyRunsVerdict.md) | Folds the relation run of a metamorphic module and its two property runs into the one outcome of a checker stage (ADR 0027 §4, ADR 0029 §1). |
 | → | depends | [BoundedTextOutputStream](io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream.md) | Retains a bounded UTF-8 byte prefix while discarding subsequent output. |

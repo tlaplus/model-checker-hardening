@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "ec784e8112438ead18c35b5a2e7e27b2d25a076b"
+    "commit" : "d5f36672ab371b1224968e82791fde50c3daaeaf"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -1225,7 +1225,7 @@
     "key" : true,
     "summary" : "Global and per-stage limits for the implemented fuzzing workflow.",
     "path" : "src/main/java/io/github/tlaplus/hardening/config/WorkflowConfig.java",
-    "line" : 25,
+    "line" : 27,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.AggregationInput",
@@ -1488,6 +1488,16 @@
     "line" : 8,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
+    "packageName" : "io.github.tlaplus.hardening.corpus",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "The counterexample a checker stage recorded (ADR 0034 §5), stored under ` stages.<checker>.trace`.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/corpus/EncodedTrace.java",
+    "line" : 12,
+    "adrs" : [ "0034" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.corpus.EntryName",
     "packageName" : "io.github.tlaplus.hardening.corpus",
     "kind" : "RECORD",
@@ -1663,10 +1673,10 @@
     "kind" : "RECORD",
     "role" : "MODEL",
     "key" : true,
-    "summary" : "What a stage records about one input: its verdict, when it worked on the input, its failure classification when it classifies failures, and what it explored when it measures exploration.",
+    "summary" : "What a stage records about one input: its verdict, when it worked on the input, its failure classification when it classifies failures, what it explored when it measures exploration, and the counterexample's trace when the run replays them (ADR 0034 §5).",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/StageRecord.java",
-    "line" : 21,
-    "adrs" : [ ]
+    "line" : 22,
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.StageResult",
     "packageName" : "io.github.tlaplus.hardening.corpus",
@@ -3058,6 +3068,16 @@
     "line" : 33,
     "adrs" : [ "0016", "0023" ]
   }, {
+    "name" : "io.github.tlaplus.hardening.gen.trace.ItfTraces",
+    "packageName" : "io.github.tlaplus.hardening.gen.trace",
+    "kind" : "CLASS",
+    "role" : "CODEC",
+    "key" : true,
+    "summary" : "Reads a counterexample that a checker worker recorded (ADR 0034 §5) into a canonical `Trace`.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/trace/ItfTraces.java",
+    "line" : 45,
+    "adrs" : [ "0034" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.gen.trace.Trace",
     "packageName" : "io.github.tlaplus.hardening.gen.trace",
     "kind" : "RECORD",
@@ -3518,15 +3538,15 @@
     "line" : 16,
     "adrs" : [ "0033" ]
   }, {
-    "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheTraceLength",
+    "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheTrace",
     "packageName" : "io.github.tlaplus.hardening.workflow.apalache",
     "kind" : "CLASS",
     "role" : null,
     "key" : false,
-    "summary" : "Reads the length of the counterexample Apalache wrote for one check.",
-    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheTraceLength.java",
-    "line" : 18,
-    "adrs" : [ ]
+    "summary" : "The counterexample Apalache wrote for one check, read once for its length and, when the request asks for it, its trace (ADR 0034 §5).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheTrace.java",
+    "line" : 27,
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain",
     "packageName" : "io.github.tlaplus.hardening.workflow.apalache",
@@ -3613,10 +3633,10 @@
     "kind" : "RECORD",
     "role" : "MODEL",
     "key" : true,
-    "summary" : "The collaborators every stage of one workflow invocation shares: the corpus it reads and writes, the decoder each stored input kind is regenerated through, the CPU budget it competes for, and the stop state it observes and reports to.",
+    "summary" : "The collaborators every stage of one workflow invocation shares: the corpus it reads and writes, the decoder each stored input kind is regenerated through, the CPU budget it competes for, the stop state it observes and reports to, and whether its checkers record their counterexamples for replay (ADR 0034 §5).",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/execution/StageEnvironment.java",
-    "line" : 15,
-    "adrs" : [ ]
+    "line" : 16,
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.execution.StageJobLoop",
     "packageName" : "io.github.tlaplus.hardening.workflow.execution",
@@ -4065,7 +4085,7 @@
     "key" : false,
     "summary" : "Regenerates and renders one tool input while preserving generator-crash artifacts.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/GeneratedInputPreparation.java",
-    "line" : 13,
+    "line" : 16,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
@@ -4168,6 +4188,16 @@
     "line" : 17,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcItfValues",
+    "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Writes TLC's values in the Informal Trace Format (ADR 0034 §5), as a recorded trace carries them from the worker to its stage.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcItfValues.java",
+    "line" : 29,
+    "adrs" : [ "0034" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcMessageMetrics",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
     "kind" : "CLASS",
@@ -4205,8 +4235,18 @@
     "key" : false,
     "summary" : "Measures the state graph TLC explores, through the state-writer callbacks TLC makes for every initial state and every generated transition.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcStateMetrics.java",
-    "line" : 31,
+    "line" : 32,
     "adrs" : [ "0024" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcTraceRecorder",
+    "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Records the counterexample TLC prints (ADR 0034 §5), as the JSON a worker returns: its states in the Informal Trace Format and what its last state claims.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcTraceRecorder.java",
+    "line" : 30,
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcValueShape",
     "packageName" : "io.github.tlaplus.hardening.workflow.tlc",
@@ -4225,7 +4265,7 @@
     "key" : true,
     "summary" : "One-shot TLC child process.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcWorkerMain.java",
-    "line" : 26,
+    "line" : 28,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tool.ProcessToolWorker",
@@ -4247,6 +4287,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tool/PropertyRunsVerdict.java",
     "line" : 26,
     "adrs" : [ "0027", "0029" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.workflow.tool.RecordedTraces",
+    "packageName" : "io.github.tlaplus.hardening.workflow.tool",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Turns the trace a checker worker recorded into what its stage stores (ADR 0034 §5): read at the types of the module's variables, then encoded canonically.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tool/RecordedTraces.java",
+    "line" : 15,
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tool.StageRouting",
     "packageName" : "io.github.tlaplus.hardening.workflow.tool",
@@ -4325,7 +4375,7 @@
     "key" : false,
     "summary" : "What a checker is asked about one assembled module.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/CheckRequest.java",
-    "line" : 22,
+    "line" : 24,
     "adrs" : [ "0024" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.ChildJvm",
@@ -4405,7 +4455,7 @@
     "key" : true,
     "summary" : "One request result returned by an isolated tool worker.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/worker/ToolResult.java",
-    "line" : 19,
+    "line" : 21,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.worker.ToolThreadStacks",
@@ -6750,6 +6800,10 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec",
+    "to" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.CorpusEnvelopeCodec",
     "to" : "io.github.tlaplus.hardening.corpus.StageMetadata",
     "kind" : "USES"
   }, {
@@ -7186,6 +7240,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.StageMetadata",
+    "to" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.StageMetadata",
     "to" : "io.github.tlaplus.hardening.corpus.StageRecord",
     "kind" : "HAS"
   }, {
@@ -7209,6 +7267,10 @@
     "to" : "io.github.tlaplus.hardening.corpus.CorpusVerdict",
     "kind" : "HAS"
   }, {
+    "from" : "io.github.tlaplus.hardening.corpus.StageRecord",
+    "to" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
+    "kind" : "HAS"
+  }, {
     "from" : "io.github.tlaplus.hardening.corpus.StageResult",
     "to" : "io.github.tlaplus.hardening.checker.CheckerFailure",
     "kind" : "USES"
@@ -7223,6 +7285,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.StageResult",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusVerdict",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.corpus.StageResult",
+    "to" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.corpus.StageResult",
@@ -10533,6 +10599,18 @@
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleParameter",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.ItfTraces",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.ItfTraces",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.ItfTraces",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.gen.trace.Trace",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -11866,7 +11944,7 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain",
-    "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheTraceLength",
+    "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheTrace",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheWorkerMain",
@@ -13682,6 +13760,10 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcTraceRecorder",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcExplorationMetrics",
     "to" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
     "kind" : "DEPENDS"
   }, {
@@ -13725,6 +13807,14 @@
     "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcValueShape",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcTraceRecorder",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcTraceRecorder",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcItfValues",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcValueShape",
     "to" : "io.github.tlaplus.hardening.common.Preconditions",
     "kind" : "DEPENDS"
@@ -13762,11 +13852,19 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain",
+    "to" : "io.github.tlaplus.hardening.workflow.tlc.TlcTraceRecorder",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain",
     "to" : "io.github.tlaplus.hardening.workflow.worker.BoundedTextOutputStream",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain",
     "to" : "io.github.tlaplus.hardening.workflow.worker.CheckRequest",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain",
+    "to" : "io.github.tlaplus.hardening.workflow.worker.StageOutcome",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tlc.TlcWorkerMain",
@@ -13828,6 +13926,22 @@
     "from" : "io.github.tlaplus.hardening.workflow.tool.PropertyRunsVerdict",
     "to" : "io.github.tlaplus.hardening.workflow.worker.ToolResult",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tool.RecordedTraces",
+    "to" : "io.github.tlaplus.hardening.corpus.EncodedTrace",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tool.RecordedTraces",
+    "to" : "io.github.tlaplus.hardening.gen.trace.ItfTraces",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tool.RecordedTraces",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tool.RecordedTraces",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tool.StageRouting",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
@@ -13967,6 +14081,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tool.ToolStage",
     "to" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.tool.ToolStage",
+    "to" : "io.github.tlaplus.hardening.workflow.tool.RecordedTraces",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.tool.ToolStage",
@@ -14436,7 +14554,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 79,
+    "typePairs" : 82,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -14460,7 +14578,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 177,
+    "typePairs" : 178,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

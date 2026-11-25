@@ -1,6 +1,6 @@
 # `StageRouting`
 
-`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/workflow/tool/StageRouting.java#L24) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.tool` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/d5f36672ab371b1224968e82791fde50c3daaeaf/src/main/java/io/github/tlaplus/hardening/workflow/tool/StageRouting.java#L24) · module [workflow](../modules/workflow.md)
 
 Where a `ToolStage` takes its inputs from, how it bounds its result directories, and where a recorded result goes next.
 
