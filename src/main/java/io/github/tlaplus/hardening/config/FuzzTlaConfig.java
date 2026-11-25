@@ -75,6 +75,17 @@ public record FuzzTlaConfig(
                 throw new IllegalArgumentException(
                         "generic.errors = \"nonzero\" does not apply to gbt, whose oracle judges counterexamples");
             }
+            // A replay predicts a counterexample, which the graph oracle judges (ADR 0034 §7).
+            if (workflow.replay()
+                    && tools.generic().orElseThrow().capabilities().errors() == GenericErrors.NONZERO) {
+                throw new IllegalArgumentException(
+                        "generic.errors = \"nonzero\" does not apply to workflow.replay, whose replays predict"
+                                + " counterexamples");
+            }
+        }
+        // An mt counterexample is a trace of a relation module, which a replay does not assemble.
+        if (workflow.replay() && workflow.technique() == Technique.MT) {
+            throw new IllegalArgumentException("workflow.replay does not apply to technique = \"mt\"");
         }
         if (!pbt.supportsDistinctInputs(workflow.maximumEntries())) {
             throw new IllegalArgumentException(

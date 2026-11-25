@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Accepted; phase 1 implemented
+**Status:** Accepted; phases 1 and 2 implemented
 
 **Date:** 2026-11-25
 
@@ -208,36 +208,61 @@ expressions in the same states without failing.
 
 ### 5. Capturing traces
 
-The checker stages record a trace only while `[replay] enabled` holds, and never for a
-`trace` entry.
+`CheckRequest.recordsTrace` asks a checker worker for the trace of a counterexample. The
+stage sets it while `[workflow] replay` holds, through `StageEnvironment.recordsTraces`,
+and never for a `trace` entry. The worker protocol carries the flag (version 9).
 
-- **Worker result.** `ToolResult` gains an optional raw trace: ITF JSON
-  ([Informal Trace Format][itf]) and its ending. Above 256 KiB, nothing is sent. ITF is
-  the common format between the child workers and the stage. It is not stored.
-- **TLC and TLC-n.** The `IMessagePrinterRecorder` of `TlcMessageMetrics` already sees the
-  state messages, and it keeps their payloads too:
-  - the `TLCState` of each `TLC_STATE_PRINT2`;
-  - the loop of `TLC_BACK_TO_STATE`, or the stuttering of `TLC_STATE_PRINT3`;
-  - which invariant was violated.
+- **Worker result.** `ToolResult.trace` is the recorded trace as JSON:
 
-  A new `TlcItfTrace` converts TLC values to ITF, walking them as `TlcValueShape` does.
+  ```json
+  {"ending": "invariant" | "loop" | "prefix", "loop": l, "states": [{"x": v, ...}, ...]}
+  ```
+
+  Its values follow the [Informal Trace Format][itf]. A lasso already ends in a copy of its
+  loop state. Above 256 KiB the trace is dropped. This JSON travels from the child worker to
+  the stage and is not stored.
+- **TLC and TLC-n.** A second message recorder, `TlcTraceRecorder`, subscribes beside the one
+  that measures exploration. TLC broadcasts every message to both. Probe P1 settled which
+  messages it reads:
+
+  | TLC message | Use |
+  | --- | --- |
+  | 2110: invariant violated in a behavior | the ending is `invariant` when it names `Inv`, else `prefix` |
+  | 2107, 2108: invariant or property violated initially | the state is not attached |
+  | 2216, 2217: a trace state | its `TLCState` |
+  | 2122: back to state l | a lasso to state l − 1; state l − 1 is appended |
+  | 2218: stuttering | a lasso to the last state, which is appended again |
+
+  A violation in an initial state comes without a `TLCState`. TLC writes every initial
+  state before it checks the invariant there, so the violating state is the last one
+  `TlcStateMetrics` saw. `TlcItfValues` converts TLC's values: a tuple as an array, a record
+  as an object, a function as `#map`, and any other enumerable set as `#set`. TLC's
+  `Variant(t, v)` is the function `t :> v`.
 - **Apalache.** `ApalacheWorkerMain` reads `violation1.itf.json` before it deletes the job
-  directory. One reader, replacing `ApalacheTraceLength`, gives both the trace and its
-  length. Variables that the module does not declare, such as those of the temporal
-  encoding, are dropped after the loop is read from them. A finite trace has the ending
-  `invariant`, because Apalache checks `Inv` as its only invariant.
-- **Normalization.** The stage normalizes the ITF trace to a `Trace`, using the variable
-  types of its `SpecArtifact`, and encodes it as in section 2. The stage records no trace in
-  these cases:
-  - a value it cannot convert, such as `#unserializable` or an infinite set;
-  - a variable missing from a state;
-  - an encoding over the cap.
+  directory. `ApalacheTrace` replaces `ApalacheTraceLength` and gives both the trace and its
+  length. Probe P2 showed how the temporal encoding marks a lasso. It adds variables whose
+  names begin with `__`. `__InLoop` turns true in the state after the loop state, and the
+  last state repeats the loop state. ITF has no `loop` field. The recorded trace drops the
+  `__` variables. It is a lasso when the last state equals the state before `__InLoop`
+  first holds, and otherwise an `invariant` violation, the only invariant Apalache checks.
+- **Normalization.** `ItfTraces` reads the JSON at the types of the module's variables, which
+  `GeneratedInputPreparation` returns with the tool input. The type settles what TLC does
+  not distinguish:
+  - a sequence may arrive as an array, `#tup`, or a `#map` on `1..n`;
+  - a function may arrive as a `#map`, an array, or a record with string keys;
+  - an integer may arrive as a number or `#bigint`.
 
-  Like a missing `traceLength`, a missing trace changes no verdict.
+  Sets and function pairs are ordered by the encoded bytes of their elements and keys.
+  `RecordedTraces` then encodes the trace as `[states, ending]`
+  (`TracePayload.encodeTrace`). In these cases no trace is stored, which, like a missing
+  `traceLength`, changes no verdict:
+  - a value it cannot convert;
+  - a variable missing from a state;
+  - a trace over the cap.
 - **Storage.** `stages.<checker>.trace` holds the encoded trace as a byte string, allowed
-  only with `counterexample`. `StageRecord` carries the bytes, and `CorpusEnvelopeCodec`
-  reads and writes them. Storage does not interpret them. The aggregator's merge keeps
-  every branch's stage map, so an aggregated entry holds the traces of every checker.
+  only with `counterexample`. `StageRecord` carries it as an opaque `EncodedTrace`, and
+  `CorpusEnvelopeCodec` reads and writes it. The aggregator's merge keeps every branch's
+  stage map, so an aggregated entry holds the traces of every checker.
 - **The generic checker** records no trace. Its formats are tool-specific
   ([ADR 0033][adr-0033], Alternatives). It still checks every `trace` entry.
 
@@ -280,21 +305,20 @@ Replays of generation g join generation g + 1, on top of its `generation_size`.
 
 ### 7. Configuration
 
-A new table, off by default:
+One key in `[workflow]`, beside `technique` and `checkers`, off by default:
 
 ```toml
-[replay]
-enabled = false
+[workflow]
+replay = false
 ```
 
-Loading rejects `enabled = true` in two cases:
+It was first proposed as a table `[replay]` with one key, `enabled`. A boolean beside the
+other keys that shape the whole corpus is the smaller change. Loading rejects
+`replay = true` in two cases:
 - with `technique = "mt"`. Its counterexamples are traces of a relation module whose base
   payload carries a rewrite, and section 3 does not assemble it.
 - with a generic checker whose `errors = "nonzero"`. `CheckingPolicy` already forbids
   prediction with an exit-status-only checker ([ADR 0033][adr-0033] §7).
-
-The key follows `[graph] properties` through `ConfigSchema`, `TomlConfig` and the
-configuration template.
 
 ### 8. Architecture
 
@@ -328,9 +352,9 @@ entries of an existing `pbt` corpus whose modules have temporal properties.
 
 1. `gen.trace`, `InputKind.TRACE`, the replay module, `PredictedOutcomes`, the oracle per
    kind, and `fuzztla print` for `trace` entries.
-2. Capture: the `ToolResult` field and its protocol, the TLC recorder, the Apalache ITF
-   reader, normalization, and `stages.<checker>.trace`.
-3. The source: `[replay]`, `EntryOrigin.REPLAY`, the replay targets of `GenerationLoop` and
+2. Capture: `[workflow] replay`, the `ToolResult` field and its protocol, the TLC recorder,
+   the Apalache ITF reader, normalization, and `stages.<checker>.trace`.
+3. The source: `EntryOrigin.REPLAY`, the replay targets of `GenerationLoop` and
    its last generation, `OccupancyLimits`, and the quality gate. The architecture
    documents change here (section 8).
 4. The database view, the campaign report, and a triager label for contradicted replays.

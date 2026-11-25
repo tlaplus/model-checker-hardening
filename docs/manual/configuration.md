@@ -86,6 +86,7 @@ as `"Module!Operator"`.
 | `max_entries` | `1000` | Unique entries after which the campaign stops, across all directories. |
 | `technique` | `"pbt"` | `"pbt"`, `"mt"` or `"gbt"`, written by `init --how`. Every `run` follows it. Keep it once the corpus holds entries. |
 | `checkers` | `["tlc", "apalache"]` | Checkers to run, a subset of `tlc`, `tlcn` and `apalache`. With one checker, nothing is compared. Keep it once the corpus holds entries. |
+| `replay` | `false` | Record the trace of every counterexample of TLC, TLC-n and Apalache ([Counterexample replay](counterexample-replay.md)). Not with `technique = "mt"`. |
 
 ### `[workflow.inputs]`
 
@@ -137,12 +138,6 @@ corpus. They are described in
 [Metamorphic testing](metamorphic-testing.md#1-setting-up-a-corpus). `temporal_rules` and
 `temporal_weights` name the temporal rule module, described in
 [Metamorphic testing](metamorphic-testing.md#7-temporal-properties).
-
-## `[replay]`: counterexample replay (proposed)
-
-`enabled`, `false` by default, replays every recorded counterexample as an entry of the next
-generation. It is not implemented yet; [Counterexample replay](counterexample-replay.md)
-describes the proposal.
 
 ## `[graph]`: control graphs
 

@@ -66,13 +66,38 @@ public record TracePayload(InputKind baseKind, byte[] base, Trace trace) {
         var root = NODES.arrayNode(ITEMS);
         root.add(baseKind.encodedName());
         root.add(NODES.binaryNode(base));
-        var states = root.addArray();
-        for (var state : trace.states()) {
-            var values = states.addArray();
-            state.forEach(values::add);
-        }
+        root.add(states(trace));
         root.add(ending(trace.ending()));
         return bytes(root);
+    }
+
+    /**
+     * Encodes a trace alone as {@code [states, ending]}, the form a checker stage stores under {@code
+     * stages.<checker>.trace} (ADR 0034 §5).
+     */
+    public static byte[] encodeTrace(Trace trace) {
+        Objects.requireNonNull(trace, "trace");
+        var root = NODES.arrayNode(2);
+        root.add(states(trace));
+        root.add(ending(trace.ending()));
+        return bytes(root);
+    }
+
+    /**
+     * Decodes a trace that {@link #encodeTrace} encoded.
+     *
+     * @throws InputRejectedException if the bytes are not one well-formed trace
+     */
+    public static Trace decodeTrace(byte[] encoded) {
+        var root = tree(encoded);
+        if (root == null || !root.isArray() || root.size() != 2) {
+            throw new InputRejectedException("a stored trace is an array of states and an ending");
+        }
+        try {
+            return new Trace(states(root.get(0)), ending(root.get(1)));
+        } catch (IllegalArgumentException exception) {
+            throw new InputRejectedException("malformed stored trace: " + exception.getMessage(), exception);
+        }
     }
 
     /**
@@ -81,13 +106,7 @@ public record TracePayload(InputKind baseKind, byte[] base, Trace trace) {
      * @throws InputRejectedException if the bytes are not one well-formed payload
      */
     public static TracePayload decode(byte[] input) {
-        Objects.requireNonNull(input, "input");
-        final JsonNode root;
-        try {
-            root = CBOR.readTree(input);
-        } catch (IOException exception) {
-            throw new InputRejectedException("a trace payload is not CBOR: " + exception.getMessage(), exception);
-        }
+        var root = tree(input);
         if (root == null || !root.isArray() || root.size() != ITEMS) {
             throw new InputRejectedException("a trace payload is an array of " + ITEMS + " items");
         }
@@ -117,6 +136,24 @@ public record TracePayload(InputKind baseKind, byte[] base, Trace trace) {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("cannot encode a CBOR tree", exception);
         }
+    }
+
+    private static JsonNode tree(byte[] encoded) {
+        Objects.requireNonNull(encoded, "encoded");
+        try {
+            return CBOR.readTree(encoded);
+        } catch (IOException exception) {
+            throw new InputRejectedException("a trace is not CBOR: " + exception.getMessage(), exception);
+        }
+    }
+
+    private static ArrayNode states(Trace trace) {
+        var states = NODES.arrayNode(trace.states().size());
+        for (var state : trace.states()) {
+            var values = states.addArray();
+            state.forEach(values::add);
+        }
+        return states;
     }
 
     private static List<List<JsonNode>> states(JsonNode states) {

@@ -288,6 +288,11 @@ final class ConfigSchema {
                     + ConfigValueType.CHECKERS.format().apply(new CheckerSet(CorpusStage.checkerBranches()))
                     + " (ADR 0016 §5).",
             "A corpus with one checker compares no verdicts; keep the list once the corpus holds entries.");
+    static final Key<Boolean> REPLAY = WORKFLOW.optional(
+            "replay", ConfigValueType.BOOLEAN, WorkflowConfig::replay, new Constant<>(WorkflowConfig.DEFAULT_REPLAY),
+            "Record every counterexample and replay it against every checker in the next generation"
+                    + " (ADR 0034).",
+            "Replays come on top of generation_size; not with technique = \"mt\".");
     static final Key<Integer> INPUTS_MAXIMUM_ENTRIES = INPUTS.optionalInteger(
             "max_entries", InputStageConfig::maximumEntries, WORKFLOW_MAXIMUM_ENTRIES,
             "Maximum current occupancy of 00-inputs.", INHERITS_MAXIMUM_ENTRIES);

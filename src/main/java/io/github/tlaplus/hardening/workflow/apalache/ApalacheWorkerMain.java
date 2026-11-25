@@ -100,8 +100,8 @@ public final class ApalacheWorkerMain {
                 var exitStatus = (int) toolRun.invoke(
                         null, (Object) ApalacheArguments.check(jobDirectory, specification, request));
                 diagnosticStream.flush();
-                return withTraceLength(
-                        ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text()), jobDirectory);
+                return withTrace(ApalacheOutcomeClassifier.classify(exitStatus, diagnostics.text()),
+                        jobDirectory, request.recordsTrace());
             } catch (Exception | StackOverflowError exception) {
                 diagnosticStream.flush();
                 return ToolResult.crash(exception, diagnostics.text());
@@ -113,17 +113,22 @@ public final class ApalacheWorkerMain {
         }
     }
 
-    /** Attaches the counterexample's length, which Apalache wrote below the job's output directory. */
-    private static ToolResult withTraceLength(ToolResult result, Path jobDirectory) {
+    /**
+     * Attaches the counterexample's length, which Apalache wrote below the job's output directory,
+     * and its trace when {@code recordsTrace} holds (ADR 0034 §5).
+     */
+    private static ToolResult withTrace(ToolResult result, Path jobDirectory, boolean recordsTrace) {
         if (result.outcome() != StageOutcome.COUNTEREXAMPLE) {
             return result;
         }
-        var length = ApalacheTraceLength.read(ApalacheArguments.outputDirectory(jobDirectory));
-        return length.isEmpty()
-                ? result
-                : result.withMetrics(ExplorationMetrics.builder()
-                        .count(ExplorationCount.TRACE_LENGTH, length.getAsLong())
-                        .build());
+        var trace = ApalacheTrace.read(ApalacheArguments.outputDirectory(jobDirectory));
+        if (trace.isEmpty()) {
+            return result;
+        }
+        var measured = result.withMetrics(ExplorationMetrics.builder()
+                .count(ExplorationCount.TRACE_LENGTH, trace.get().length())
+                .build());
+        return recordsTrace ? measured.withTrace(trace.get().recorded()) : measured;
     }
 
     private static void setScalaConsole(PrintStream stream) {

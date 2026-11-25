@@ -77,6 +77,16 @@ class TracePayloadTest {
         assertThrows(InputRejectedException.class, () -> TracePayload.decode(trailing));
     }
 
+    /** A checker stage stores a trace alone, as [states, ending] (ADR 0034 §5). */
+    @Test
+    void roundTripsAStoredTrace() {
+        var trace = trace(new TraceEnding.Loop(0));
+
+        assertEquals(trace, TracePayload.decodeTrace(TracePayload.encodeTrace(trace)));
+        assertThrows(InputRejectedException.class,
+                () -> TracePayload.decodeTrace(new TracePayload(InputKind.MODULE, new byte[0], trace).encode()));
+    }
+
     @Test
     void refusesADerivedBase() {
         assertThrows(IllegalArgumentException.class,
