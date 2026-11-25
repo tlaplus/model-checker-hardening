@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Accepted; phases 1 and 2 implemented
+**Status:** Accepted; phases 1 to 3 implemented
 
 **Date:** 2026-11-25
 
@@ -270,38 +270,53 @@ and never for a `trace` entry. The worker protocol carries the flag (version 9).
 
 Replays of generation g join generation g + 1, on top of its `generation_size`.
 
-- **When.** After every entry of g has settled, `GenerationLoop` collects the recorded
-  traces of g's aggregated entries in `03aggregator-*` and `04quality-*`, whether those
-  entries passed or failed. The following are not sources:
+- **When.** The loop collects the replays of g + 1 after it has gated g, so every entry of
+  g has settled. `ReplayCandidates.collect` reads the aggregated entries of g in
+  `03aggregator-*` and `04quality-*`, whether they passed or failed, and builds one
+  `trace` payload per recorded trace. The following are not sources:
   - entries with a crash, which are not aggregated;
   - `trace` entries, so a replay is never replayed.
-- **Order.** Traces are ordered by parent digest, then by `CorpusStage` order, and equal
-  payloads are kept once. Replay draws no randomness, so a resumed run computes the same
-  list ([ADR 0026][adr-0026]).
-- **Targets.** `EntryOrigin.REPLAY` numbers its targets from `size(g + 1)` upward, after
-  the mutant, adopted and PBT ranges. Each target has exactly one candidate.
+
+  This reads the aggregated directories once per generation. It is the one scan of
+  finished entries between generations, and it runs only with replay.
+- **Order.** Traces are ordered by parent digest, then by `CorpusStage` order. Equal
+  payloads are kept once, and so are payloads the corpus already holds
+  (`CorpusDirectory.contains`). Replay draws no randomness, so a resumed run computes the
+  same list ([ADR 0026][adr-0026]).
+- **Targets.** `EntryOrigin.REPLAY` is outside `EntryOrigin.SIZED`, the origins that share a
+  generation's size, so `GenerationTargets` gives it no range. The replays go to the input
+  stage in one `GenerationPlan` of kind `trace`, numbered from `size(g + 1)` upward, with one
+  quota of one target per replay. Each target has exactly one candidate, a
+  `ReplayCandidates` source whose `Target.retries()` is false.
   - Richness rejection does not apply: a replay keeps its parent's cohort and records its
     own richness.
   - The request-frame limit and the known-defect signatures apply.
-  - A quarantined or duplicate candidate settles its target without an entry.
+  - A candidate that is not stored, as a duplicate, a known defect or a rejected input,
+    settles its target without an entry. The input stage reports
+    `WorkflowEvents.skipped`.
+
+  `GenerationProgress` counts the admitted entries of the sized origins and the replay
+  targets apart. The loop waits for both: `awaitAdmitted` for the size, `awaitReplays` for
+  the replays admitted or skipped.
 - **Provenance.** A replay records `gen.parent` and `gen.operators = ["replay"]`. Like
   `adopt`, `MutationOperator.REPLAY` is provenance only and is never drawn. Which checker
   reported the trace follows from the parent's stage map.
-- **Resumption.** A resumed run recomputes g's list and skips each payload whose digest the
-  corpus already holds.
+- **Resumption.** A resumed run recomputes the list and leaves out what the corpus holds. A
+  generation is short of entries when its sized entries fall below `generation_size`.
+  Replays do not make up for missing entries.
 - **Last generation.** After the last generation that `workflow.max_entries` allows, the
-  loop runs one more generation of replays alone, when there are any. Its entries are
+  loop runs one more generation, of size 0, while it has replay targets. Its entries are
   `trace` entries, so nothing follows it.
 - **Limits.**
-  - `workflow.max_entries`, and the global check of `OccupancyLimits`, count the entries
-    that are not replays.
+  - `workflow.max_entries`, and the global checks of `OccupancyLimits`, count
+    `CorpusInventory.sizedEntries`: every entry but the replays.
   - Replays are bounded by g itself: at most one per recording checker and entry, so at
     most three times `generation_size` with `tlc`, `tlcn` and `apalache`. Deduplication
     and counterexample rates make the number lower in practice.
   - The per-checker `max_entries` still apply, since replays occupy checker capacity.
-- **Quality gate.** A `trace` entry is not admissible: its kind is not one that the
-  technique generates. It moves to `04quality-fail`. `ParentPool` already loads only the
-  run's kind, so the mutator never sees one.
+- **Quality gate.** A `trace` entry is not admissible, and the selection fraction applies
+  to the generated entries alone. A replay therefore moves to `04quality-fail` and takes no
+  parent's place. `ParentPool` loads only the run's kind, so the mutator never sees one.
 
 ### 7. Configuration
 
