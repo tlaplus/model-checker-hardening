@@ -1,5 +1,6 @@
 package io.github.tlaplus.hardening.gen.engine;
 
+import io.github.tlaplus.hardening.gen.ir.BuilderArrays;
 import static io.github.tlaplus.hardening.gen.TlaIrTestSupport.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
