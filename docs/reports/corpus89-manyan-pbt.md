@@ -236,6 +236,38 @@ label errors ("must contain formal parameter") that match `printer-nested-case-a
 The other 3 are level errors of `ApaFoldSet` or `ApaFoldSeqLeft`, as in corpus85 and
 corpus88.
 
+## 3. `(ENABLED A)'`, reported on the tlaplus list
+
+On 2026-11-20, the tlaplus Google Group thread "(ENABLED A)'" reported that Manyan
+mishandles a primed `ENABLED`. The construct occurs in the RealTime modules of
+*Specifying Systems*. Manyan fixed it in `5a1aa3a` (2026-11-24), which `v0.17.0`
+contains, so no Manyan campaign could find it. To see whether this campaign would have
+found it, Manyan was built at the parent of `5a1aa3a` (`0.16.1`) and compared with
+`v0.17.0` and TLC.
+
+- **It is a plain disagreement.** No metamorphic relation is needed. On the thread's
+  `Next == x' = 1 /\ (ENABLED (x = 1 /\ x' = 2))'`, the old Manyan reaches 1 distinct
+  state and TLC 2:
+
+  | Invariant | TLC | Manyan `0.16.1` | Manyan `v0.17.0` |
+  |---|---|---|---|
+  | `TRUE` | no error, 2 states | no error, 1 state | no error, 2 states |
+  | `x # 1` | violated | no error | violated |
+
+  The `TimerNext` shape of the RealTime modules,
+  `t' = IF <<A>>_x \/ ~(ENABLED <<A>>_x)' THEN 0 ELSE t + 1`, behaves alike on all three.
+- **The generator writes the shape, rarely.** Priming takes any state-level operand, and
+  `ENABLED` is state level. The shape occurs in 28 of 45,577 sampled agreeing entries
+  (all of `04quality-pass` and 40,000 of `04quality-fail`), and in 21 of the 15,787
+  failing entries. On all 49, the old Manyan gives the result of `v0.17.0`. Each is
+  decided first by a `manyan-001` parse error, an evaluation error, or an early
+  violation, or its primed `ENABLED` does not change the states reached.
+- **The direct symptom is invisible.** FuzzTLA runs every checker with `-deadlock`, so
+  the defect mostly changes the number of reachable states. The generic stage records no
+  state counts, so the state-count agreement
+  ([ADR 0019](../decisions/0019-state-count-agreement.md)) does not compare Manyan's.
+  Recording them would catch the first row of the table.
+
 ## Follow-ups
 
 - **Store the generic checker's output on failure.** The `02gen-fail` entries and the
