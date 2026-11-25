@@ -312,6 +312,11 @@ SIGNATURES = (
     # error's call stack, whose frames grow with that formatting.
     timeout_finding("tlc-018.md", Tool.TLC,
                     all_of(TLC_FORMATTING_DOMAIN_ERROR, TLC_CALL_STACK_FRAME)),
+    # A timed-out TLC that is still building the tableau of a temporal property,
+    # before it explores a state: deduplicating particles by linear search
+    # (corpus88: 229 of 230 TLC timeouts).
+    timeout_finding("tlc-performance-003.md", Tool.TLC,
+                    all_of(r"^\tat tlc2\.tool\.liveness\.TBGraph\.<init>\(")),
     # A stack overflow while TLC reconstructs a liveness counterexample: LiveCheck
     # prints the doubly wrapped exception and calls System.exit(1), so there is no
     # TLC error code, and the worker reports the exit with the TLC output that its
