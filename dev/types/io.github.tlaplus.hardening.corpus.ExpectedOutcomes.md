@@ -1,17 +1,17 @@
 # `ExpectedOutcomes`
 
-`io.github.tlaplus.hardening.corpus` · interface · contract · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/corpus/ExpectedOutcomes.java#L16) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · interface · contract · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/corpus/ExpectedOutcomes.java#L16) · module [corpus](../modules/corpus.md)
 
 Predicts the outcome of one stored input, typically by replaying it through the generator (ADR 0023 §5).
 
-**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram
   class ExpectedOutcomes {
     <<contract>>
   }
-  class GraphOutcomes {
+  class PredictedOutcomes {
     <<adapter>>
   }
   class CheckingPolicy {
@@ -23,7 +23,7 @@ classDiagram
   class ExpectedOutcome {
     <<model>>
   }
-  ExpectedOutcomes <|.. GraphOutcomes
+  ExpectedOutcomes <|.. PredictedOutcomes
   CheckingPolicy --> ExpectedOutcomes : has
   ExpectedOutcomes ..> CorpusInput : uses
   ExpectedOutcomes ..> ExpectedOutcome : uses
@@ -33,7 +33,7 @@ The diagram draws 4 of 6 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
-| ← | implements | [GraphOutcomes](io.github.tlaplus.hardening.workflow.spec.GraphOutcomes.md) | Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise. |
+| ← | implements | [PredictedOutcomes](io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes.md) | Predicts the outcome of an entry whose kind predicts one: a graph entry, by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise; a trace entry (ADR 0034 §4): a counterexample of exactly the trace's transitions, which its payload states without decoding the base. |
 | ← | has | [CheckingPolicy](io.github.tlaplus.hardening.corpus.CheckingPolicy.md) | Which checkers a workflow run feeds and how the aggregator judges their verdicts. |
 | → | uses | [CorpusInput](io.github.tlaplus.hardening.corpus.CorpusInput.md) | The required fields of one encoded corpus input. |
 | → | uses | [ExpectedOutcome](io.github.tlaplus.hardening.corpus.ExpectedOutcome.md) | The checker verdict an input predicts, independently of any checker (ADR 0023 §4): a graph input predicts a counterexample of known length when its target is reachable within the step bound, and a pass otherwise. |

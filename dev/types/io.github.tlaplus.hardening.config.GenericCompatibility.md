@@ -1,10 +1,10 @@
 # `GenericCompatibility`
 
-`io.github.tlaplus.hardening.config` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/config/GenericCompatibility.java#L8) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/config/GenericCompatibility.java#L8) · module [config](../modules/config.md)
 
 The reference checker whose conventions a generic checker follows (ADR 0033 §2): the configuration file FuzzTLA writes for it and how its exit status becomes a verdict.
 
-**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0033-generic-checker.md)
+**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0033-generic-checker.md)
 
 ```mermaid
 classDiagram

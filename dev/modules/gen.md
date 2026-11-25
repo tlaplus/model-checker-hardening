@@ -19,9 +19,11 @@ flowchart TB
   gen_ir["gen.ir"]
   gen_library["gen.library"]
   gen_rewrite["gen.rewrite"]
+  gen_trace["gen.trace"]
   gen -->|2| gen_engine
   gen_graph -->|1| gen
   gen_library -->|4| gen
+  gen_trace -->|1| gen
 ```
 
 ## `io.github.tlaplus.hardening.gen`
@@ -118,7 +120,6 @@ classDiagram
 | [BooleanExprGenFactory](../types/io.github.tlaplus.hardening.gen.engine.BooleanExprGenFactory.md) | class | other | Constructs Boolean-valued expression generators. |
 | [BooleanExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.BooleanExpressionKind.md) | enum | other | Boolean-valued expression forms. |
 | [BoundaryInteger](../types/io.github.tlaplus.hardening.gen.engine.BoundaryInteger.md) | enum | other | Integer values at which checker arithmetic changes behaviour (ADR 0012). |
-| [BuilderArrays](../types/io.github.tlaplus.hardening.gen.engine.BuilderArrays.md) | class | other | Array conversions for the builder's generic varargs APIs. |
 | [ConstantType](../types/io.github.tlaplus.hardening.gen.engine.ConstantType.md) | record | other | Model-value type. |
 | [CustomExpressionKind](../types/io.github.tlaplus.hardening.gen.engine.CustomExpressionKind.md) | record | other | One configured operator kind; its type scheme comes from the immutable prepared library. |
 | [EdgeGuards](../types/io.github.tlaplus.hardening.gen.engine.EdgeGuards.md) | interface | contract | Draws the tautological guards that a graph module conjoins to its edges (ADR 0023 §6). |
@@ -208,6 +209,7 @@ classDiagram
 
 | Type | Kind | Role | Summary |
 |---|---|---|---|
+| [BuilderArrays](../types/io.github.tlaplus.hardening.gen.ir.BuilderArrays.md) | class | other | Array conversions for the builder's generic varargs APIs. |
 | [**IrAlpha** ★](../types/io.github.tlaplus.hardening.gen.ir.IrAlpha.md) | class | utility | Alpha-equivalence of typed IR: two expressions are equivalent when they differ only in the names of the variables and definitions they bind. |
 | [IrBinding](../types/io.github.tlaplus.hardening.gen.ir.IrBinding.md) | enum | other | Where an operator binds names: which of its arguments introduce bound names, and which arguments see them. |
 | [**IrNames** ★](../types/io.github.tlaplus.hardening.gen.ir.IrNames.md) | class | utility | Names in typed IR: injective renaming and the names an expression reads from its context. |
@@ -307,15 +309,45 @@ classDiagram
 | [RuleParameter](../types/io.github.tlaplus.hardening.gen.rewrite.RuleParameter.md) | record | other | One formal parameter of a rewrite rule, classified by where it occurs (ADR 0017 §3). |
 | [**Tautologies** ★](../types/io.github.tlaplus.hardening.gen.rewrite.Tautologies.md) | class | facade | Draws edge guards of a graph module from a rule library (ADR 0023 §6): a guard is the formula `A = B` or `A &lt;=&gt; B` of a rule, with every parameter drawn at its type. |
 
+## `io.github.tlaplus.hardening.gen.trace`
+
+Recorded counterexamples as inputs of the `trace` kind (ADR 0034): the payload that embeds a base input and the states of one trace, its canonical CBOR encoding, and the typed IR literals of the recorded values.
+
+```mermaid
+classDiagram
+  class Trace {
+    <<model>>
+  }
+  class TraceEnding {
+    <<model>>
+  }
+  class TraceLiterals {
+    <<codec>>
+  }
+  class TracePayload {
+    <<codec>>
+  }
+  Trace --> TraceEnding : has
+  TracePayload --> Trace : has
+```
+
+| Type | Kind | Role | Summary |
+|---|---|---|---|
+| [**Trace** ★](../types/io.github.tlaplus.hardening.gen.trace.Trace.md) | record | model | The states of one recorded counterexample and what its last state claims (ADR 0034 §1, §2). |
+| [**TraceEnding** ★](../types/io.github.tlaplus.hardening.gen.trace.TraceEnding.md) | interface | model | What the last state of a recorded trace claims (ADR 0034 §1), which decides what its replay checks there. |
+| [**TraceLiterals** ★](../types/io.github.tlaplus.hardening.gen.trace.TraceLiterals.md) | class | codec | Builds the typed IR literal of a recorded value (ADR 0034 §3). |
+| [**TracePayload** ★](../types/io.github.tlaplus.hardening.gen.trace.TracePayload.md) | record | codec | The payload of a `trace` input (ADR 0034 §2), a CBOR array in deterministic encoding: |
+
 ## Decisions
 
-- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0007-levels-and-temporal-properties.md)
-- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0011-collection-base-size.md)
-- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0012-integer-literals.md)
-- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0014-per-checker-library-linking.md)
-- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0015-diff-linked-libraries.md)
-- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0016-metamorphic-testing.md)
-- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0017-rewrite-rule-library.md)
-- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0023-graph-based-testing.md)
-- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0027-temporal-metamorphic-testing.md)
-- [ADR 0030: A budget of temporal operators per rewritten body](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/docs/decisions/0030-temporal-operator-budget.md)
+- [ADR 0007: Levels and temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0007-levels-and-temporal-properties.md)
+- [ADR 0011: Collection base size](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0011-collection-base-size.md)
+- [ADR 0012: Integer terminal and boundary literals](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0012-integer-literals.md)
+- [ADR 0014: Per-checker linking of instance-linked libraries](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0014-per-checker-library-linking.md)
+- [ADR 0015: Diff-linked libraries for recursion testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0015-diff-linked-libraries.md)
+- [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0016-metamorphic-testing.md)
+- [ADR 0017: Rewrite rules as a TLA+ library](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0017-rewrite-rule-library.md)
+- [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0023-graph-based-testing.md)
+- [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0027-temporal-metamorphic-testing.md)
+- [ADR 0030: A budget of temporal operators per rewritten body](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0030-temporal-operator-budget.md)
+- [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/docs/decisions/0034-counterexample-replay.md)

@@ -1,6 +1,6 @@
 # `BuilderArrays`
 
-`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/gen/engine/BuilderArrays.java#L10) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.ir` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/gen/ir/BuilderArrays.java#L10) · module [gen](../modules/gen.md)
 
 Array conversions for the builder's generic varargs APIs.
 
@@ -14,3 +14,4 @@ Array conversions for the builder's generic varargs APIs.
 | ← | depends | [IrGraphGeneratorEngine](io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine.md) | Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`. |
 | ← | depends | [OtherExprGenFactory](io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory.md) | Constructs expression generators not covered by the dedicated form families. |
 | ← | depends | [SetExprGenFactory](io.github.tlaplus.hardening.gen.engine.SetExprGenFactory.md) | Constructs set-valued expression generators. |
+| ← | depends | [TraceLiterals](io.github.tlaplus.hardening.gen.trace.TraceLiterals.md) | Builds the typed IR literal of a recorded value (ADR 0034 §3). |

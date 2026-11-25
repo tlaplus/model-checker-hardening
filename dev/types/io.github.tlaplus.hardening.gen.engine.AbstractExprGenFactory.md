@@ -1,6 +1,6 @@
 # `AbstractExprGenFactory`
 
-`io.github.tlaplus.hardening.gen.engine` · class · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/gen/engine/AbstractExprGenFactory.java#L20) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/gen/engine/AbstractExprGenFactory.java#L21) · module [gen](../modules/gen.md)
 
 Shared access to the state and recursive factories used by expression generator families.
 
@@ -91,8 +91,8 @@ The diagram draws 19 of 29 relations; the table lists them all.
 | → | depends | [Draw](io.github.tlaplus.hardening.gen.Draw.md) | A forward-only deterministic cursor that decodes structured choices from an unstructured byte array. |
 | → | depends | [ExpressionLimits](io.github.tlaplus.hardening.gen.ExpressionLimits.md) | Bounds on recursive construction and variable-size payloads within one expression. |
 | → | depends | [IrGenerationConfig](io.github.tlaplus.hardening.gen.IrGenerationConfig.md) | Settings for generated TLA+ expressions and modules. |
-| → | depends | [BuilderArrays](io.github.tlaplus.hardening.gen.engine.BuilderArrays.md) | Array conversions for the builder's generic varargs APIs. |
 | → | depends | [Field](io.github.tlaplus.hardening.gen.engine.Field.md) | Named component of a record or variant type. |
 | → | depends | [PrimitiveType](io.github.tlaplus.hardening.gen.engine.PrimitiveType.md) | Primitive expression result types. |
 | → | depends | [SetType](io.github.tlaplus.hardening.gen.engine.SetType.md) | Set type. |
 | → | depends | [ValueAtomBudget](io.github.tlaplus.hardening.gen.engine.ValueAtomBudget.md) | Bounds the elements of one generated collection value over all nesting levels (ADR 0011). |
+| → | depends | [BuilderArrays](io.github.tlaplus.hardening.gen.ir.BuilderArrays.md) | Array conversions for the builder's generic varargs APIs. |

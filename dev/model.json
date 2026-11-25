@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "70629b77cdc32904ca4bee1787c9d1446340bd90"
+    "commit" : "ec784e8112438ead18c35b5a2e7e27b2d25a076b"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -135,6 +135,10 @@
     "number" : "0033",
     "title" : "A generic checker for TLC- and Apalache-compatible tools",
     "path" : "docs/decisions/0033-generic-checker.md"
+  }, {
+    "number" : "0034",
+    "title" : "Replaying counterexamples as corpus inputs",
+    "path" : "docs/decisions/0034-counterexample-replay.md"
   } ],
   "modules" : [ {
     "name" : "common",
@@ -257,6 +261,11 @@
     "module" : "gen",
     "summary" : "The rewrite rules and rewriter of metamorphic testing: rule modules, matching, instantiation, and the payload of a metamorphic pair (ADR 0016, ADR 0017).",
     "adrs" : [ "0016", "0017" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.trace",
+    "module" : "gen",
+    "summary" : "Recorded counterexamples as inputs of the `trace` kind (ADR 0034): the payload that embeds a base input and the states of one trace, its canonical CBOR encoding, and the typed IR literals of the recorded values.",
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.mutation",
     "module" : "mutation",
@@ -426,7 +435,7 @@
     "key" : false,
     "summary" : "Renders a decoded input independently of picocli command wiring.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/DecodedInputRenderer.java",
-    "line" : 26,
+    "line" : 30,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.EnvelopeReport",
@@ -1226,7 +1235,7 @@
     "key" : false,
     "summary" : "A logical corpus entry whose non-crash checker results are ready for aggregation.",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/AggregationInput.java",
-    "line" : 15,
+    "line" : 16,
     "adrs" : [ "0019" ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.AggregationRecovery",
@@ -1586,7 +1595,7 @@
     "key" : true,
     "summary" : "How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5).",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/Oracle.java",
-    "line" : 20,
+    "line" : 22,
     "adrs" : [ "0016", "0019", "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.Ranking",
@@ -2076,7 +2085,7 @@
     "key" : true,
     "summary" : "Shared access to the state and recursive factories used by expression generator families.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/AbstractExprGenFactory.java",
-    "line" : 20,
+    "line" : 21,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.ActionGenFactory",
@@ -2086,7 +2095,7 @@
     "key" : false,
     "summary" : "Module-level action assembly: Init, operator definitions, bounded parameters, guards, Next and the unconditional step update.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/ActionGenFactory.java",
-    "line" : 21,
+    "line" : 22,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
@@ -2096,7 +2105,7 @@
     "key" : false,
     "summary" : "Recursive, complete action shapes.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/ActionShapeGenFactory.java",
-    "line" : 12,
+    "line" : 13,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.ApplicativeExprGenFactory",
@@ -2148,16 +2157,6 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/BoundaryInteger.java",
     "line" : 13,
     "adrs" : [ "0012" ]
-  }, {
-    "name" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "packageName" : "io.github.tlaplus.hardening.gen.engine",
-    "kind" : "CLASS",
-    "role" : null,
-    "key" : false,
-    "summary" : "Array conversions for the builder's generic varargs APIs.",
-    "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/BuilderArrays.java",
-    "line" : 10,
-    "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.ConstantType",
     "packageName" : "io.github.tlaplus.hardening.gen.engine",
@@ -2236,7 +2235,7 @@
     "key" : false,
     "summary" : "Constructs terminal and type-polymorphic expression generators.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/GeneralExprGenFactory.java",
-    "line" : 22,
+    "line" : 23,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind",
@@ -2286,7 +2285,7 @@
     "key" : false,
     "summary" : "The byte-free k-th value of a value type, from which collection terminals take distinct elements (ADR 0011).",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/IndexedValues.java",
-    "line" : 20,
+    "line" : 21,
     "adrs" : [ "0011" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory",
@@ -2336,7 +2335,7 @@
     "key" : true,
     "summary" : "Reusable decoder of graph inputs (ADR 0023 §2, §3): a control graph whose nodes carry assignment-only actions, tracked by the variable `pc`, and the invariant `pc /= k`.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/IrGraphGeneratorEngine.java",
-    "line" : 59,
+    "line" : 60,
     "adrs" : [ "0023" ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.IrSpecGeneratorEngine",
@@ -2446,7 +2445,7 @@
     "key" : false,
     "summary" : "Constructs expression generators not covered by the dedicated form families.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/OtherExprGenFactory.java",
-    "line" : 14,
+    "line" : 15,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.OtherExpressionKind",
@@ -2546,7 +2545,7 @@
     "key" : false,
     "summary" : "Constructs set-valued expression generators.",
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/engine/SetExprGenFactory.java",
-    "line" : 8,
+    "line" : 9,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.engine.SetExpressionKind",
@@ -2668,6 +2667,16 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/graph/TransitionGraph.java",
     "line" : 22,
     "adrs" : [ "0023" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
+    "packageName" : "io.github.tlaplus.hardening.gen.ir",
+    "kind" : "CLASS",
+    "role" : null,
+    "key" : false,
+    "summary" : "Array conversions for the builder's generic varargs APIs.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/ir/BuilderArrays.java",
+    "line" : 10,
+    "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.gen.ir.IrAlpha",
     "packageName" : "io.github.tlaplus.hardening.gen.ir",
@@ -3048,6 +3057,46 @@
     "path" : "src/main/java/io/github/tlaplus/hardening/gen/rewrite/Tautologies.java",
     "line" : 33,
     "adrs" : [ "0016", "0023" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "packageName" : "io.github.tlaplus.hardening.gen.trace",
+    "kind" : "RECORD",
+    "role" : "MODEL",
+    "key" : true,
+    "summary" : "The states of one recorded counterexample and what its last state claims (ADR 0034 §1, §2).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/trace/Trace.java",
+    "line" : 22,
+    "adrs" : [ "0034" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
+    "packageName" : "io.github.tlaplus.hardening.gen.trace",
+    "kind" : "INTERFACE",
+    "role" : "MODEL",
+    "key" : true,
+    "summary" : "What the last state of a recorded trace claims (ADR 0034 §1), which decides what its replay checks there.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/trace/TraceEnding.java",
+    "line" : 12,
+    "adrs" : [ "0034" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.trace.TraceLiterals",
+    "packageName" : "io.github.tlaplus.hardening.gen.trace",
+    "kind" : "CLASS",
+    "role" : "CODEC",
+    "key" : true,
+    "summary" : "Builds the typed IR literal of a recorded value (ADR 0034 §3).",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/trace/TraceLiterals.java",
+    "line" : 41,
+    "adrs" : [ "0034" ]
+  }, {
+    "name" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "packageName" : "io.github.tlaplus.hardening.gen.trace",
+    "kind" : "RECORD",
+    "role" : "CODEC",
+    "key" : true,
+    "summary" : "The payload of a `trace` input (ADR 0034 §2), a CBOR array in deterministic encoding:",
+    "path" : "src/main/java/io/github/tlaplus/hardening/gen/trace/TracePayload.java",
+    "line" : 35,
+    "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.mutation.ByteMutator",
     "packageName" : "io.github.tlaplus.hardening.mutation",
@@ -4006,7 +4055,7 @@
     "key" : true,
     "summary" : "Assembles the module checked by the parser and model-checker stages.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/FuzzInputModule.java",
-    "line" : 38,
+    "line" : 47,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation",
@@ -4019,15 +4068,15 @@
     "line" : 13,
     "adrs" : [ ]
   }, {
-    "name" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "name" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "packageName" : "io.github.tlaplus.hardening.workflow.spec",
     "kind" : "CLASS",
     "role" : "ADAPTER",
     "key" : false,
-    "summary" : "Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise.",
-    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/GraphOutcomes.java",
-    "line" : 18,
-    "adrs" : [ "0023" ]
+    "summary" : "Predicts the outcome of an entry whose kind predicts one: a graph entry, by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise; a trace entry (ADR 0034 §4): a counterexample of exactly the trace's transitions, which its payload states without decoding the base.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/PredictedOutcomes.java",
+    "line" : 26,
+    "adrs" : [ "0023", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
     "packageName" : "io.github.tlaplus.hardening.workflow.spec",
@@ -4046,7 +4095,7 @@
     "key" : true,
     "summary" : "One assembled module, what its checkers are asked about it, and what its decoder produced.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecArtifact.java",
-    "line" : 40,
+    "line" : 41,
     "adrs" : [ "0014" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
@@ -4056,7 +4105,7 @@
     "key" : true,
     "summary" : "Immutable registry of the decoders that turn stored payloads into checkable modules.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/spec/SpecDecoders.java",
-    "line" : 47,
+    "line" : 48,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.spec.SpecText",
@@ -4537,6 +4586,14 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
     "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheArguments",
     "kind" : "DEPENDS"
   }, {
@@ -4549,7 +4606,7 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
-    "to" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",
@@ -6180,6 +6237,10 @@
     "to" : "io.github.tlaplus.hardening.corpus.StageRecord",
     "kind" : "HAS"
   }, {
+    "from" : "io.github.tlaplus.hardening.corpus.AggregationInput",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "HAS"
+  }, {
     "from" : "io.github.tlaplus.hardening.corpus.AggregationRecovery",
     "to" : "io.github.tlaplus.hardening.corpus.AggregationInput",
     "kind" : "DEPENDS"
@@ -7052,6 +7113,10 @@
     "to" : "io.github.tlaplus.hardening.corpus.StageRecord",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.corpus.Oracle",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "USES"
+  }, {
     "from" : "io.github.tlaplus.hardening.corpus.Ranking",
     "to" : "io.github.tlaplus.hardening.checker.ExplorationCount",
     "kind" : "USES"
@@ -7825,10 +7890,6 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.AbstractExprGenFactory",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.AbstractExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.Field",
     "kind" : "DEPENDS"
   }, {
@@ -7874,6 +7935,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.AbstractExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.ValueAtomBudget",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.AbstractExprGenFactory",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.ActionGenFactory",
@@ -7929,10 +7994,6 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.ActionGenFactory",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.ActionGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.GenerationContext",
     "kind" : "USES"
   }, {
@@ -7972,6 +8033,10 @@
     "to" : "io.github.tlaplus.hardening.gen.engine.VisibleActionOperators",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.ActionGenFactory",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.ActionEffect",
     "kind" : "DEPENDS"
@@ -7991,10 +8056,6 @@
     "from" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.AbstractExprGenFactory",
     "kind" : "EXTENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.GenerationContext",
@@ -8031,6 +8092,10 @@
     "from" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.VisibleActionOperators",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.ActionShapeGenFactory",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.ApplicativeExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.CollectionLimits",
@@ -8405,10 +8470,6 @@
     "kind" : "EXTENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.GeneralExprGenFactory",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.GeneralExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.ConstantType",
     "kind" : "DEPENDS"
   }, {
@@ -8490,6 +8551,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.GeneralExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.VariantType",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.GeneralExprGenFactory",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.GeneralExpressionKind",
@@ -8625,10 +8690,6 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IndexedValues",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.IndexedValues",
     "to" : "io.github.tlaplus.hardening.gen.engine.ConstantType",
     "kind" : "DEPENDS"
   }, {
@@ -8678,6 +8739,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IndexedValues",
     "to" : "io.github.tlaplus.hardening.gen.engine.VariantType",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.IndexedValues",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IntegerExprGenFactory",
@@ -8997,10 +9062,6 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
     "to" : "io.github.tlaplus.hardening.gen.engine.CustomExpressionKind",
     "kind" : "DEPENDS"
   }, {
@@ -9066,6 +9127,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
     "to" : "io.github.tlaplus.hardening.gen.graph.TransitionGraph",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.IrGraphGeneratorEngine",
@@ -9485,10 +9550,6 @@
     "kind" : "EXTENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.ConstantType",
     "kind" : "DEPENDS"
   }, {
@@ -9538,6 +9599,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.VariantType",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.OtherExprGenFactory",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.OtherExpressionKind",
@@ -9741,10 +9806,6 @@
     "kind" : "EXTENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.SetExprGenFactory",
-    "to" : "io.github.tlaplus.hardening.gen.engine.BuilderArrays",
-    "kind" : "DEPENDS"
-  }, {
-    "from" : "io.github.tlaplus.hardening.gen.engine.SetExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.FunctionType",
     "kind" : "DEPENDS"
   }, {
@@ -9794,6 +9855,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.SetExprGenFactory",
     "to" : "io.github.tlaplus.hardening.gen.engine.VariantType",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.engine.SetExprGenFactory",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.gen.engine.SetExpressionKind",
@@ -10466,6 +10531,42 @@
   }, {
     "from" : "io.github.tlaplus.hardening.gen.rewrite.Tautologies",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.RuleParameter",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TraceLiterals",
+    "to" : "io.github.tlaplus.hardening.gen.InputRejectedException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TraceLiterals",
+    "to" : "io.github.tlaplus.hardening.gen.ir.BuilderArrays",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "to" : "io.github.tlaplus.hardening.gen.InputKind",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "to" : "io.github.tlaplus.hardening.gen.InputRejectedException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.mutation.ByteMutator",
@@ -11541,7 +11642,7 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
-    "to" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "to" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
@@ -13129,6 +13230,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "to" : "io.github.tlaplus.hardening.gen.InputRejectedException",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "to" : "io.github.tlaplus.hardening.gen.TemporalProperty",
     "kind" : "USES"
   }, {
@@ -13139,6 +13244,18 @@
     "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Orientation",
     "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TraceEnding",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TraceLiterals",
+    "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.FuzzInputModule",
     "to" : "io.github.tlaplus.hardening.workflow.spec.PropertyRelation",
@@ -13188,31 +13305,39 @@
     "to" : "io.github.tlaplus.hardening.workflow.worker.ToolInput",
     "kind" : "USES"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusInput",
     "kind" : "USES"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.corpus.ExpectedOutcome",
     "kind" : "USES"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.corpus.ExpectedOutcomes",
     "kind" : "IMPLEMENTS"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.gen.InputKind",
     "kind" : "DEPENDS"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.gen.graph.GeneratedGraph",
     "kind" : "USES"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "kind" : "DEPENDS"
   }, {
-    "from" : "io.github.tlaplus.hardening.workflow.spec.GraphOutcomes",
+    "from" : "io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes",
     "to" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "kind" : "HAS"
   }, {
@@ -13250,6 +13375,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Rewrite",
+    "kind" : "USES"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecArtifact",
@@ -13370,6 +13499,14 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
     "to" : "io.github.tlaplus.hardening.gen.rewrite.Tautologies",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "to" : "io.github.tlaplus.hardening.gen.trace.Trace",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
+    "to" : "io.github.tlaplus.hardening.gen.trace.TracePayload",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.spec.SpecDecoders",
@@ -14155,7 +14292,7 @@
   }, {
     "from" : "gen",
     "to" : "common",
-    "typePairs" : 16,
+    "typePairs" : 18,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.gen.ActionLimits",
@@ -14195,10 +14332,10 @@
   }, {
     "from" : "corpus",
     "to" : "gen",
-    "typePairs" : 6,
+    "typePairs" : 8,
     "allowed" : true,
     "implied" : false,
-    "exampleFrom" : "io.github.tlaplus.hardening.corpus.CorpusDirectory",
+    "exampleFrom" : "io.github.tlaplus.hardening.corpus.AggregationInput",
     "exampleTo" : "io.github.tlaplus.hardening.gen.InputKind"
   }, {
     "from" : "corpus",
@@ -14299,7 +14436,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 70,
+    "typePairs" : 79,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -14355,7 +14492,7 @@
   }, {
     "from" : "cli",
     "to" : "gen",
-    "typePairs" : 11,
+    "typePairs" : 13,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

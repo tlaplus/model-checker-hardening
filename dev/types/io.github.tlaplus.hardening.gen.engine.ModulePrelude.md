@@ -1,6 +1,6 @@
 # `ModulePrelude`
 
-`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/gen/engine/ModulePrelude.java#L17) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/gen/engine/ModulePrelude.java#L17) · module [gen](../modules/gen.md)
 
 The declarations every generated module begins with: its state variables and its state-free auxiliary definitions.
 

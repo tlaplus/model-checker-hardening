@@ -1,6 +1,6 @@
 # `InputKind`
 
-`io.github.tlaplus.hardening.gen` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/gen/InputKind.java#L17) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/gen/InputKind.java#L17) · module [gen](../modules/gen.md)
 
 What a generator payload decodes to.
 
@@ -12,11 +12,17 @@ classDiagram
   class FuzzTlaConfig {
     <<config>>
   }
+  class AggregationInput {
+    <<record>>
+  }
   class CorpusInput {
     <<record>>
   }
   class Technique {
     <<enum>>
+  }
+  class TracePayload {
+    <<codec>>
   }
   class GenerationPlan {
     <<model>>
@@ -36,6 +42,9 @@ classDiagram
   class CorpusEntryStore {
     <<store>>
   }
+  class Oracle {
+    <<policy>>
+  }
   class MetamorphicShrinker {
     <<facade>>
   }
@@ -45,33 +54,39 @@ classDiagram
   class KnownDefectQuarantine
   class ParentPool
   FuzzTlaConfig --> InputKind : has
+  AggregationInput --> InputKind : has
   CorpusInput --> InputKind : has
   Technique --> InputKind : has
+  TracePayload --> InputKind : has
   GenerationPlan --> InputKind : has
   SpecDecoders --> InputKind : has
   ConfigSchema ..> InputKind : uses
   ConfigValueType ..> InputKind : uses
   CorpusDirectory ..> InputKind : uses
   CorpusEntryStore ..> InputKind : uses
+  Oracle ..> InputKind : uses
   MetamorphicShrinker ..> InputKind : uses
   InputAdmission ..> InputKind : uses
   KnownDefectQuarantine ..> InputKind : uses
   ParentPool ..> InputKind : uses
 ```
 
-The diagram draws 13 of 26 relations; the table lists them all.
+The diagram draws 16 of 29 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | ← | has | [FuzzTlaConfig](io.github.tlaplus.hardening.config.FuzzTlaConfig.md) | Complete configuration of input generation and workflow execution. |
+| ← | has | [AggregationInput](io.github.tlaplus.hardening.corpus.AggregationInput.md) | A logical corpus entry whose non-crash checker results are ready for aggregation. |
 | ← | has | [CorpusInput](io.github.tlaplus.hardening.corpus.CorpusInput.md) | The required fields of one encoded corpus input. |
 | ← | has | [Technique](io.github.tlaplus.hardening.corpus.Technique.md) | The fuzzing technique a corpus runs: `[workflow] technique`, which `fuzztla init --how` sets (ADR 0025 §1), so every run and every replay decodes and judges its entries the same way. |
+| ← | has | [TracePayload](io.github.tlaplus.hardening.gen.trace.TracePayload.md) | The payload of a `trace` input (ADR 0034 §2), a CBOR array in deterministic encoding: |
 | ← | has | [GenerationPlan](io.github.tlaplus.hardening.workflow.input.GenerationPlan.md) | One contiguous range of target entries the input stage admits: which input kind, for which generation, from which seed, how many entries from each candidate source, and with at most how many workers. |
 | ← | has | [SpecDecoders](io.github.tlaplus.hardening.workflow.spec.SpecDecoders.md) | Immutable registry of the decoders that turn stored payloads into checkable modules. |
 | ← | uses | [ConfigSchema](io.github.tlaplus.hardening.config.ConfigSchema.md) | The declaration of every key in `config.toml`: where it lives, what it means, how its value is read, and how it is written back. |
 | ← | uses | [ConfigValueType](io.github.tlaplus.hardening.config.ConfigValueType.md) | How the value of one configuration key is read from TOML and written back as TOML syntax. |
 | ← | uses | [CorpusDirectory](io.github.tlaplus.hardening.corpus.CorpusDirectory.md) | Owns the on-disk layout and integrity checks for one FuzzTLA corpus. |
 | ← | uses | [CorpusEntryStore](io.github.tlaplus.hardening.corpus.CorpusEntryStore.md) | Admits generated payloads to the input stage and preserves the ones that broke the generator. |
+| ← | uses | [Oracle](io.github.tlaplus.hardening.corpus.Oracle.md) | How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5). |
 | ← | uses | [MetamorphicShrinker](io.github.tlaplus.hardening.workflow.MetamorphicShrinker.md) | Reduces a metamorphic counterexample for triage (ADR 0016 §8). |
 | ← | uses | [InputAdmission](io.github.tlaplus.hardening.workflow.input.InputAdmission.md) | Decides whether a decoded candidate enters `00-inputs`, and where a known defect goes. |
 | ← | uses | [KnownDefectQuarantine](io.github.tlaplus.hardening.workflow.input.KnownDefectQuarantine.md) | Keeps at most a fixed number of quarantined candidates per primary known-defect signature in `00-known-defects`; past the cap, a match is counted by the caller and discarded here. |
@@ -88,4 +103,4 @@ The diagram draws 13 of 26 relations; the table lists them all.
 | ← | depends | [WorkflowRunner](io.github.tlaplus.hardening.workflow.WorkflowRunner.md) | Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget. |
 | ← | depends | [InputStage](io.github.tlaplus.hardening.workflow.input.InputStage.md) | Concurrent input stage: admits reserved target ranges from adjacent generations. |
 | ← | depends | [GeneratedInputPreparation](io.github.tlaplus.hardening.workflow.spec.GeneratedInputPreparation.md) | Regenerates and renders one tool input while preserving generator-crash artifacts. |
-| ← | depends | [GraphOutcomes](io.github.tlaplus.hardening.workflow.spec.GraphOutcomes.md) | Predicts the outcome of a graph entry by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise. |
+| ← | depends | [PredictedOutcomes](io.github.tlaplus.hardening.workflow.spec.PredictedOutcomes.md) | Predicts the outcome of an entry whose kind predicts one: a graph entry, by replaying it through the decoders (ADR 0023 §4): a counterexample of the target's distance when a behaviour reaches the target within the step bound, and a pass otherwise; a trace entry (ADR 0034 §4): a counterexample of exactly the trace's transitions, which its payload states without decoding the base. |

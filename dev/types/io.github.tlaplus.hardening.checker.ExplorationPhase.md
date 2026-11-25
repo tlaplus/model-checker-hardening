@@ -1,6 +1,6 @@
 # `ExplorationPhase`
 
-`io.github.tlaplus.hardening.checker` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/checker/ExplorationPhase.java#L4) · module [checker](../modules/checker.md)
+`io.github.tlaplus.hardening.checker` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/checker/ExplorationPhase.java#L4) · module [checker](../modules/checker.md)
 
 How far a model checker got before its verdict was fixed.
 

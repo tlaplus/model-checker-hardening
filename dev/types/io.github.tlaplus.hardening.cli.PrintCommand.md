@@ -1,6 +1,6 @@
 # `PrintCommand`
 
-`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/70629b77cdc32904ca4bee1787c9d1446340bd90/src/main/java/io/github/tlaplus/hardening/cli/PrintCommand.java#L38) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ec784e8112438ead18c35b5a2e7e27b2d25a076b/src/main/java/io/github/tlaplus/hardening/cli/PrintCommand.java#L38) · module [cli](../modules/cli.md)
 
 `fuzztla print`: decodes a payload or corpus envelope and renders it, with the known defects it matches.
 
