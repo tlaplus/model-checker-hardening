@@ -521,12 +521,19 @@ entries), which no signature can express, because labels are skipped.
 `ManyanDefectsTest` checks the database.
 
 [`manyan-003`](../../findings/manyan/manyan-003.md) to
-[`manyan-009`](../../findings/manyan/manyan-009.md) have no signature either. Whether
+[`manyan-009`](../../findings/manyan/manyan-009.md) and
+[`manyan-012`](../../findings/manyan/manyan-012.md) have no signature either. Whether
 Manyan fails depends on run-time values, so the closest shapes match mostly inputs that
 Manyan checks correctly. For example, a `~>` whose left side is constant matched 932 of
 10,000 pbt entries, and only 65 of them had the tautology error of `manyan-003`.
 [`script/triager.py`](../../script/triager.py) classifies the crashes of `manyan-005` to
 `manyan-008` instead.
+
+[`manyan-010`](../../findings/manyan/manyan-010.md), a `LET` with a temporal body under a
+temporal operator, and [`manyan-011`](../../findings/manyan/manyan-011.md), an operator
+argument applied to a primed expression, are shapes, but no signature has been measured
+for them. [`manyan-013`](../../findings/manyan/manyan-013.md) and
+[`manyan-014`](../../findings/manyan/manyan-014.md) are performance defects.
 
 ## Background
 

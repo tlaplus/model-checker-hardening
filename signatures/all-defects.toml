@@ -53,11 +53,12 @@
 # - apalache-typechecker-001: occurs when a custom-operator library is typechecked, not in
 #   generated inputs, whose definitions carry @type annotations; the recursion library annotates
 #   the affected operators.
-# - manyan-001 to manyan-009: defects of Manyan on inputs that SANY and TLC accept. A corpus
+# - manyan-001 to manyan-014: defects of Manyan on inputs that SANY and TLC accept. A corpus
 #   that does not run Manyan must keep these inputs, so manyan-001's signature is in
 #   manyan-defects.toml. manyan-002 depends on a label, and labels are skipped. manyan-003 to
-#   manyan-009 depend on run-time values; script/triager.py classifies the crashes of
-#   manyan-005 to manyan-008.
+#   manyan-009 and manyan-012 depend on run-time values; script/triager.py classifies the
+#   crashes of manyan-005 to manyan-008. manyan-010 and manyan-011 have shapes that no
+#   signature has been measured for yet. manyan-013 and manyan-014 are performance defects.
 #
 # References are relative to this file.
 
