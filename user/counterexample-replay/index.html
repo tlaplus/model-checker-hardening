@@ -27,7 +27,7 @@
     
     
       
-        <title>Counterexample replay (proposed) - FuzzTLA user manual</title>
+        <title>Counterexample replay - FuzzTLA user manual</title>
       
     
     
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Counterexample replay (proposed)
+              Counterexample replay
             
           </span>
         </div>
@@ -781,7 +781,7 @@
   <span class="md-ellipsis">
     
   
-    Counterexample replay (proposed)
+    Counterexample replay
   
 
     
@@ -799,7 +799,7 @@
   <span class="md-ellipsis">
     
   
-    Counterexample replay (proposed)
+    Counterexample replay
   
 
     
@@ -1438,10 +1438,11 @@ partial term as it may on any input. Otherwise the <code>trace</code> entry move
 <p>A checker that failed on the parent entry may fail on its replay too: a trace of Apalache
 can pass through a state where TLC cannot evaluate a partial term, such as a function
 applied outside its domain. This is the parent's disagreement again.</p>
-<p>Apalache gives a partial term some value of its type, and it need not give the same term
-the same value in two searches. A replay of its own trace may then pass, for example after
-a sequence indexed past its end or a <code>CHOOSE</code> without a witness. Triage such a failure as
-a partial-term difference before suspecting the trace.</p>
+<p>Apalache may refute its own trace. A trace passing through a <code>CHOOSE</code> without a witness
+does so when Apalache treated the <code>CHOOSE</code> as free in its search but fixes it in the
+replay, where the trace's values assign the variables
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-bmc/apalache-bmc-024.md"><code>apalache-bmc-024</code></a>). A replay that
+Apalache refutes after a sequence indexed past its end has not been analysed yet.</p>
 <p><code>fuzztla print</code> shows a <code>trace</code> entry's length, what its last state claims, the outcome it
 predicts, and the replay module, which holds the recorded states as literals. The parent's
 digest is in <code>gen.parent</code>, and its stage map says which checker recorded the trace. A

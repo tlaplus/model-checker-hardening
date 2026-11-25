@@ -1,6 +1,6 @@
 # `LibrarySources`
 
-`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/workflow/library/LibrarySources.java#L18) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.library` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/library/LibrarySources.java#L18) · module [workflow](../modules/workflow.md)
 
 Materializes an ordered module search path as one source-only snapshot for SANY.
 

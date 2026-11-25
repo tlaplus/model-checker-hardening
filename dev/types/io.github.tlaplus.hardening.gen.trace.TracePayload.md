@@ -1,10 +1,10 @@
 # `TracePayload`
 
-`io.github.tlaplus.hardening.gen.trace` · record · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/gen/trace/TracePayload.java#L35) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.trace` · record · codec · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/gen/trace/TracePayload.java#L35) · module [gen](../modules/gen.md)
 
 The payload of a `trace` input (ADR 0034 §2), a CBOR array in deterministic encoding:
 
-**Decisions:** [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/docs/decisions/0034-counterexample-replay.md)
+**Decisions:** [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/docs/decisions/0034-counterexample-replay.md)
 
 ```mermaid
 classDiagram

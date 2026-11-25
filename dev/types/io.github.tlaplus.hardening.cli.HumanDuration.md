@@ -1,6 +1,6 @@
 # `HumanDuration`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/cli/HumanDuration.java#L8) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/cli/HumanDuration.java#L8) · module [cli](../modules/cli.md)
 
 Formats nonnegative durations as compact day, hour, minute, and second parts.
 

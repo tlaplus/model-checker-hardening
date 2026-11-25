@@ -1,6 +1,6 @@
 # `IrPattern`
 
-`io.github.tlaplus.hardening.signature` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/signature/IrPattern.java#L32) · module [signature](../modules/signature.md)
+`io.github.tlaplus.hardening.signature` · interface · contract · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/signature/IrPattern.java#L32) · module [signature](../modules/signature.md)
 
 One pattern over the typed Apalache IR, as parsed by `PatternParser`.
 

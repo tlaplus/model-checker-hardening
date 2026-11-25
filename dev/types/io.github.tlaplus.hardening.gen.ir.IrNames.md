@@ -1,6 +1,6 @@
 # `IrNames`
 
-`io.github.tlaplus.hardening.gen.ir` · class · utility · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/33d03ca7780f0879c0203f4b1eede232bb04eb8e/src/main/java/io/github/tlaplus/hardening/gen/ir/IrNames.java#L28) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.ir` · class · utility · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/gen/ir/IrNames.java#L28) · module [gen](../modules/gen.md)
 
 Names in typed IR: injective renaming and the names an expression reads from its context.
 
