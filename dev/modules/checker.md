@@ -33,5 +33,5 @@ classDiagram
 
 ## Decisions
 
-- [ADR 0003: Shared model-checker failure codes](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0003-checker-failure-codes.md)
-- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0008-exploration-metrics.md)
+- [ADR 0003: Shared model-checker failure codes](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0003-checker-failure-codes.md)
+- [ADR 0008: Exploration metrics](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0008-exploration-metrics.md)

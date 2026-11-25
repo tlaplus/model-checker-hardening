@@ -1,6 +1,6 @@
 # `CorpusDatabaseWriter`
 
-`io.github.tlaplus.hardening.database` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/database/CorpusDatabaseWriter.java#L23) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · class · store · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/database/CorpusDatabaseWriter.java#L23) · module [database](../modules/database.md)
 
 Writes the rows of one export into a new SQLite file, in a single transaction.
 

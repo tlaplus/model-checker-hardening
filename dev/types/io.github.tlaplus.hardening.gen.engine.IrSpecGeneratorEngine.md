@@ -1,6 +1,6 @@
 # `IrSpecGeneratorEngine`
 
-`io.github.tlaplus.hardening.gen.engine` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/gen/engine/IrSpecGeneratorEngine.java#L32) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.engine` · class · facade · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/gen/engine/IrSpecGeneratorEngine.java#L32) · module [gen](../modules/gen.md)
 
 Reusable coordinator for generating the declarations of one TLA+ module.
 

@@ -1,6 +1,6 @@
 # `ActionEffect`
 
-`io.github.tlaplus.hardening.gen` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/gen/ActionEffect.java#L8) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/gen/ActionEffect.java#L8) · module [gen](../modules/gen.md)
 
 Nonempty, duplicate-free effect in variable declaration order, with set-style identity.
 

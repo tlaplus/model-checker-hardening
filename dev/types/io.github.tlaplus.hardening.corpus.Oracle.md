@@ -1,10 +1,10 @@
 # `Oracle`
 
-`io.github.tlaplus.hardening.corpus` · enum · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/corpus/Oracle.java#L20) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · enum · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/corpus/Oracle.java#L20) · module [corpus](../modules/corpus.md)
 
 How the aggregator judges the checker results of one entry (fuzzing-workflows.md §1.3, ADR 0016 §4, ADR 0019, ADR 0023 §5).
 
-**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0016-metamorphic-testing.md), [ADR 0019: State-count agreement of completed searches](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0019-state-count-agreement.md), [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0023-graph-based-testing.md)
+**Decisions:** [ADR 0016: Metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0016-metamorphic-testing.md), [ADR 0019: State-count agreement of completed searches](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0019-state-count-agreement.md), [ADR 0023: Graph-based testing](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0023-graph-based-testing.md)
 
 ```mermaid
 classDiagram

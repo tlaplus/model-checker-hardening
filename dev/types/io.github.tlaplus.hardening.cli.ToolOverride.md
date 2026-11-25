@@ -1,10 +1,10 @@
 # `ToolOverride`
 
-`io.github.tlaplus.hardening.cli` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/cli/ToolOverride.java#L18) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/cli/ToolOverride.java#L18) · module [cli](../modules/cli.md)
 
 One `--tool TOOL=FILE` of `fuzztla init`: the JAR a new corpus copies into ` tools/` in place of the staged one (ADR 0032 §2).
 
-**Decisions:** [ADR 0032: Earlier TLC and Apalache builds](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0032-earlier-checker-builds.md)
+**Decisions:** [ADR 0032: Earlier TLC and Apalache builds](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0032-earlier-checker-builds.md)
 
 ```mermaid
 classDiagram

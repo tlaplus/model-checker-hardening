@@ -1,10 +1,10 @@
 # `RetiredEntrySample`
 
-`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/workflow/RetiredEntrySample.java#L17) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/workflow/RetiredEntrySample.java#L17) · module [workflow](../modules/workflow.md)
 
 Which retired entries startup decodes (ADR 0031 §2).
 
-**Decisions:** [ADR 0031: Sampled validation of retired entries at startup](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/docs/decisions/0031-sampled-startup-validation.md)
+**Decisions:** [ADR 0031: Sampled validation of retired entries at startup](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/docs/decisions/0031-sampled-startup-validation.md)
 
 ```mermaid
 classDiagram

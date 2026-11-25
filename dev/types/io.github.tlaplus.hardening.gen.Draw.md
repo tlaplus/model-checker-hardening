@@ -1,6 +1,6 @@
 # `Draw`
 
-`io.github.tlaplus.hardening.gen` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/fa5b6c03c36b49df3e797d3e6300c7eb0fea3a6b/src/main/java/io/github/tlaplus/hardening/gen/Draw.java#L37) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/ba2e1e4c25060fbc3e55fc04bbd3969141180293/src/main/java/io/github/tlaplus/hardening/gen/Draw.java#L37) · module [gen](../modules/gen.md)
 
 A forward-only deterministic cursor that decodes structured choices from an unstructured byte array.
 
