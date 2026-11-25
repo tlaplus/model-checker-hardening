@@ -80,7 +80,7 @@ nav:
       - Recursive operators: recursive-operators.md
       - Metamorphic testing: metamorphic-testing.md
       - Graph-based testing: graph-based-testing.md
-      - Counterexample replay (proposed): counterexample-replay.md
+      - Counterexample replay: counterexample-replay.md
   - Tuning inputs:
       - Collection sizes: collection-size.md
       - Integer literals: integer-literals.md
