@@ -111,7 +111,9 @@ fixed single-state module; a `module` entry decodes to a whole module's
 declarations, and a `graph` entry to a module over a control graph (§1.5). Either
 way the stage receives one assembled module and a
 `CheckRequest`: the exploration depth it asks for and whether it has a temporal
-property.
+property. A `trace` entry embeds the payload of another kind and a recorded
+counterexample, and decodes to the module that replays the trace against the
+module of that payload ([ADR 0034][]).
 
 Every assembled module defines the entry points `Init`, `Next`, `Inv`,
 `Fairness`, `Spec`, `Prop` and `Liveness`
@@ -500,7 +502,7 @@ differ:
   `CorpusStage.counterexampleSearch()` is `SHORTEST`.
 - **Expected outcomes.** The corpus judges an aggregation at run time and again at
   recovery, but cannot decode. `CheckingPolicy` therefore carries a
-  `corpus.ExpectedOutcomes`, which `workflow.spec.GraphOutcomes` implements by
+  `corpus.ExpectedOutcomes`, which `workflow.spec.PredictedOutcomes` implements by
   replaying the entry, and `AggregationInput` holds the prediction for its entry.
   Storage keeps only the bytes.
 - **Checkers.** The prediction is the oracle, so a corpus that runs one checker is
@@ -571,9 +573,13 @@ The fields have the following meaning:
       fairness.
     - When `"kind"` is `"graph"`, the field `"input"` encodes a control graph and a
       module over it, whose outcome the graph predicts (§1.5).
+    - When `"kind"` is `"trace"`, the field `"input"` is a CBOR array of the kind and
+      payload of a generated entry and the states of one counterexample of its module
+      ([ADR 0034][]). No generator draws it: the workflow derives it from a checker's
+      output, and every technique judges it by the counterexample it predicts.
 
-   The three encodings are independent, so a change to one cannot reinterpret an
-   entry stored under another.
+   The three generated encodings are independent, so a change to one cannot
+   reinterpret an entry stored under another.
 
 ### 2.3. Corpus storage
 
@@ -837,6 +843,7 @@ The metadata depends on the stage. The minimal set of fields is:
 [ADR 0017]: ../decisions/0017-rewrite-rule-library.md
 [ADR 0023]: ../decisions/0023-graph-based-testing.md
 [ADR 0033]: ../decisions/0033-generic-checker.md
+[ADR 0034]: ../decisions/0034-counterexample-replay.md
 [ADR 0024]: ../decisions/0024-graph-action-coverage.md
 [ADR 0025]: ../decisions/0025-self-contained-corpora.md
 [ADR 0027]: ../decisions/0027-temporal-metamorphic-testing.md

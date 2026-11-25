@@ -20,6 +20,14 @@ belongs to:
 - `IrGenerators.graphs` produces a `GeneratedGraph`: a `GeneratedSpec` over a
   control graph, the graph and its target node (section 12).
 
+**Implemented extension** ([ADR 0034](../decisions/0034-counterexample-replay.md)).
+`InputKind.TRACE` names no generator. Its payload is a CBOR array that embeds the
+payload of one of the three kinds above and the states of a recorded counterexample;
+`gen.trace` reads it and builds the recorded values as typed IR literals. It is
+*derived*: the workflow produces it from checker output, no technique generates it,
+and the mutator never edits it. Unlike the generators, its decoder rejects malformed
+bytes, so requirements 2 and 3 below do not apply to it.
+
 Both accept an immutable prepared custom-operator library. With a nonempty
 library, their output may reference its exported operators; the workflow linker
 closes those references before rendering. Neither loads source files or invokes

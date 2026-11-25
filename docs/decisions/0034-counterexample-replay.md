@@ -2,7 +2,7 @@
 
 **Authors:** Igor Konnov and Claude
 
-**Status:** Proposed
+**Status:** Accepted; phase 1 implemented
 
 **Date:** 2026-11-25
 
@@ -148,11 +148,15 @@ Inv == idx /= n \/ Last
 | `loop l` | `idx /= n \/ <<v1, ..., vm>> /= <<cl_1, ..., cl_m>>` |
 | `prefix` | `idx /= n` |
 
-- **The trace's assignments come first,** before `BaseInit` and `BaseNext`. TLC then binds
-  every variable from a constant, so `BaseInit` and `BaseNext` only check values instead of
-  enumerating successors that the constants would discard. Apalache's assignment finder
-  picks the leftmost assignment, so it too takes the constants, and `BaseNext` becomes a
-  constraint.
+- **The trace's equalities come first,** before `BaseInit` and `BaseNext`. TLC evaluates a
+  conjunction from left to right and binds an unbound primed variable at its first equality, so
+  it binds every variable from a constant, and `BaseInit` and `BaseNext` only check values instead
+  of enumerating successors that the constants would discard. Apalache's assignment finder
+  takes the leftmost candidates, which are also the trace's. Apalache, however, desugars
+  `UNCHANGED x` into the assignment `x' := x` and rejects a second assignment of a variable
+  ("Manual assignment is spurious"). The replay module therefore writes every `UNCHANGED e` of
+  the base as `e' = e`, which means the same, and both checkers check it against the trace's
+  values.
 - **One disjunct per transition.** A tuple of states indexed by `idx` would need a
   variable index into a heterogeneous tuple, which Apalache's type system rejects. n is at
   most the step bound, so the disjunction stays short.
@@ -189,11 +193,14 @@ kinds of entry it judges.
 
 A `trace` entry is judged by prediction under every technique. Unlike a `graph` entry,
 which a `pbt` corpus judges by conformance, it exists only to test its prediction.
-- The fact belongs to the kind: `InputKind.TRACE` carries it.
-- `Technique.oracle(InputKind)` returns `GRAPH` for such a kind, and the technique's own
-  oracle otherwise. `AggregationInput.verdict` asks it for the entry's kind.
-- `ExpectedOutcomes` becomes keyed by kind. `GraphOutcomes` serves `graph`, and a new
-  `ReplayOutcomes` serves `trace`. Recovery judges again through the same path.
+- The fact belongs to the kind: `InputKind.derived()` holds for `TRACE`. No technique
+  generates a derived kind, and `[generator] kind` rejects it.
+- `Oracle.forKind(InputKind)` returns `GRAPH` for a derived kind, and the oracle itself
+  otherwise. `AggregationInput` holds the entry's kind, and its `verdict` asks for that kind's
+  oracle.
+- `GraphOutcomes` becomes `PredictedOutcomes`, which predicts both kinds: a `graph` entry by
+  decoding it, and a `trace` entry from its payload's states, without decoding the base.
+  Recovery judges again through the same path.
 
 `ExpectedOutcome.admits` accepts `fail`, which a partial term causes on any input. Whether a
 replay should admit it is open until probe P3. The original checker evaluated the same
@@ -319,7 +326,7 @@ entries of an existing `pbt` corpus whose modules have temporal properties.
 
 ## Implementation phases
 
-1. `gen.trace`, `InputKind.TRACE`, the replay module, `ReplayOutcomes`, the oracle per
+1. `gen.trace`, `InputKind.TRACE`, the replay module, `PredictedOutcomes`, the oracle per
    kind, and `fuzztla print` for `trace` entries.
 2. Capture: the `ToolResult` field and its protocol, the TLC recorder, the Apalache ITF
    reader, normalization, and `stages.<checker>.trace`.
@@ -341,8 +348,8 @@ Each phase is a branch of its own, stacked on the previous one. Types that carry
   Each replays only its own traces, so neither checks one tool's trace with another.
 - **ITF JSON as the payload.** ITF is readable, but it is not canonical and is ambiguous
   without types, so equal traces from TLC and Apalache would not deduplicate.
-- **`BaseNext` before the trace's assignments.** The checkers would enumerate every
-  successor of `BaseNext` and then discard all but one.
+- **`BaseNext` before the trace's equalities.** TLC would enumerate every successor of
+  `BaseNext` and then discard all but one.
 - **States as a tuple indexed by `idx`.** It is shorter, but Apalache cannot index a
   heterogeneous tuple with a variable.
 - **Replays as a share of `generation_size`.** This bounds the cost, but it lets replays
