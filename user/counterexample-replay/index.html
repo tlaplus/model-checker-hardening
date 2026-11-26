@@ -1394,8 +1394,12 @@ the following in the <code>[workflow]</code> table of <code>config.toml</code>:<
 <p>With replay enabled, TLC, TLC-n and Apalache record the trace of every counterexample in
 the entry, under <code>stages.&lt;checker&gt;.trace</code>. After a generation settles, each recorded trace
 of its aggregated entries becomes a <code>trace</code> entry of the next generation. Equal traces from
-different checkers become one entry. These entries come on top of <code>generation_size</code>.
-After the last generation, one generation of replays alone follows.</p>
+different checkers become one entry. These entries come on top of <code>generation_size</code> and
+of <code>workflow.max_entries</code>. After the last generation, one generation of replays alone
+follows.</p>
+<p>The run screen counts them apart. <code>Entries 90.5k/100k</code> counts the entries that
+<code>max_entries</code> bounds, and <code>Replays 49.9k</code> counts the replays on top of them. The final
+summary prints the same counts as <code>Entries (max_entries)</code> and <code>Replays</code>.</p>
 <p>A <code>trace</code> entry checks a module that allows exactly the recorded behavior. Its invariant
 fails in the last state exactly when that state is what the checker claimed:</p>
 <table>

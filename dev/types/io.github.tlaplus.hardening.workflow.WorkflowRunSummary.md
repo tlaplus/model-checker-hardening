@@ -1,6 +1,6 @@
 # `WorkflowRunSummary`
 
-`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunSummary.java#L14) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunSummary.java#L14) · module [workflow](../modules/workflow.md)
 
 Cumulative corpus statistics and stopping reason after one complete workflow invocation.
 
@@ -14,6 +14,9 @@ classDiagram
   }
   class CorpusStage {
     <<model>>
+  }
+  class CorpusEntryCounts {
+    <<record>>
   }
   class GeneratorSummary {
     <<record>>
@@ -36,6 +39,7 @@ classDiagram
   }
   WorkflowRunSummary --> CorpusInventory : has
   WorkflowRunSummary --> CorpusStage : has
+  WorkflowRunSummary --> CorpusEntryCounts : has
   WorkflowRunSummary --> GeneratorSummary : has
   WorkflowRunSummary --> StageVerdictSummary : has
   RunOutput ..> WorkflowRunSummary : uses
@@ -45,12 +49,13 @@ classDiagram
   WorkflowRunner ..> WorkflowRunSummary : uses
 ```
 
-The diagram draws 9 of 12 relations; the table lists them all.
+The diagram draws 10 of 13 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CorpusInventory](io.github.tlaplus.hardening.corpus.CorpusInventory.md) | Immutable startup inventory used to seed stage queues and capacities. |
 | → | has | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
+| → | has | [CorpusEntryCounts](io.github.tlaplus.hardening.workflow.CorpusEntryCounts.md) | How many entries a corpus holds, split the way `workflow.max_entries` counts them (ADR 0034 §6): `sized` entries share the generations' sizes and are bounded by `maximum`, while `replays` come on top of them and are not. |
 | → | has | [GeneratorSummary](io.github.tlaplus.hardening.workflow.execution.GeneratorSummary.md) | Cumulative generation statistics decorated with invocation-facing replay and timing fields. |
 | → | has | [StageVerdictSummary](io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary.md) | Cumulative verdict counters and summed worker elapsed time for one stage. |
 | ← | uses | [RunOutput](io.github.tlaplus.hardening.cli.RunOutput.md) | The output of one run: the command's configured writer and an optional live display in front of it. |

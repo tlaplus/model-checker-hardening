@@ -1,6 +1,6 @@
 # `AggregatorStage`
 
-`io.github.tlaplus.hardening.workflow.aggregator` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/aggregator/AggregatorStage.java#L30) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.aggregator` · class · process · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/workflow/aggregator/AggregatorStage.java#L30) · module [workflow](../modules/workflow.md)
 
 Joins completed TLC and Apalache results with one in-process worker.
 

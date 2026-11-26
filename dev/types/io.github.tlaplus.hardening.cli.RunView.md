@@ -1,6 +1,6 @@
 # `RunView`
 
-`io.github.tlaplus.hardening.cli` · record · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/cli/RunView.java#L20) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · record · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/cli/RunView.java#L21) · module [cli](../modules/cli.md)
 
 The statistics shared by live and final reports, without layout or terminal state.
 
@@ -11,6 +11,9 @@ classDiagram
   }
   class CorpusStage {
     <<model>>
+  }
+  class CorpusEntryCounts {
+    <<record>>
   }
   class GeneratorSummary {
     <<record>>
@@ -31,6 +34,7 @@ classDiagram
     <<record>>
   }
   RunView --> CorpusStage : has
+  RunView --> CorpusEntryCounts : has
   RunView --> GeneratorSummary : has
   RunView --> StageVerdictSummary : has
   RunView ..> RunMetric : uses
@@ -40,11 +44,12 @@ classDiagram
   RunMetric ..> RunView : uses
 ```
 
-The diagram draws 8 of 12 relations; the table lists them all.
+The diagram draws 9 of 13 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
+| → | has | [CorpusEntryCounts](io.github.tlaplus.hardening.workflow.CorpusEntryCounts.md) | How many entries a corpus holds, split the way `workflow.max_entries` counts them (ADR 0034 §6): `sized` entries share the generations' sizes and are bounded by `maximum`, while `replays` come on top of them and are not. |
 | → | has | [GeneratorSummary](io.github.tlaplus.hardening.workflow.execution.GeneratorSummary.md) | Cumulative generation statistics decorated with invocation-facing replay and timing fields. |
 | → | has | [StageVerdictSummary](io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary.md) | Cumulative verdict counters and summed worker elapsed time for one stage. |
 | → | uses | [RunMetric](io.github.tlaplus.hardening.cli.RunMetric.md) | Stable field identity, independent of screen coordinates or formatted text. |

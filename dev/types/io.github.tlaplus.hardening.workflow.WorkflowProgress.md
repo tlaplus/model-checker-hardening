@@ -1,6 +1,6 @@
 # `WorkflowProgress`
 
-`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowProgress.java#L19) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowProgress.java#L19) · module [workflow](../modules/workflow.md)
 
 Best-effort snapshot of cumulative corpus statistics and current pending work.
 
@@ -11,6 +11,9 @@ classDiagram
   }
   class CorpusStage {
     <<model>>
+  }
+  class CorpusEntryCounts {
+    <<record>>
   }
   class GeneratorSummary {
     <<record>>
@@ -29,6 +32,7 @@ classDiagram
     <<facade>>
   }
   WorkflowProgress --> CorpusStage : has
+  WorkflowProgress --> CorpusEntryCounts : has
   WorkflowProgress --> GeneratorSummary : has
   WorkflowProgress --> StageVerdictSummary : has
   WorkflowProgressMonitor --> WorkflowProgress : has
@@ -37,11 +41,12 @@ classDiagram
   WorkflowRunner ..> WorkflowProgress : uses
 ```
 
-The diagram draws 7 of 10 relations; the table lists them all.
+The diagram draws 8 of 11 relations; the table lists them all.
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | has | [CorpusStage](io.github.tlaplus.hardening.corpus.CorpusStage.md) | One implemented stage of the fuzzing pipeline, and the corpus directories it owns. |
+| → | has | [CorpusEntryCounts](io.github.tlaplus.hardening.workflow.CorpusEntryCounts.md) | How many entries a corpus holds, split the way `workflow.max_entries` counts them (ADR 0034 §6): `sized` entries share the generations' sizes and are bounded by `maximum`, while `replays` come on top of them and are not. |
 | → | has | [GeneratorSummary](io.github.tlaplus.hardening.workflow.execution.GeneratorSummary.md) | Cumulative generation statistics decorated with invocation-facing replay and timing fields. |
 | → | has | [StageVerdictSummary](io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary.md) | Cumulative verdict counters and summed worker elapsed time for one stage. |
 | ← | has | [WorkflowProgressMonitor](io.github.tlaplus.hardening.workflow.execution.WorkflowProgressMonitor.md) | Periodically publishes serialized workflow snapshots without delaying stage workers. |

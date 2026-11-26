@@ -1,10 +1,10 @@
 # `GenerationProgress`
 
-`io.github.tlaplus.hardening.workflow` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/GenerationProgress.java#L44) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/workflow/GenerationProgress.java#L44) · module [workflow](../modules/workflow.md)
 
 Where every generation of a run stands, tracked from stage events instead of a corpus rescan (ADR 0010).
 
-**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/docs/decisions/0010-mutation.md)
+**Decisions:** [ADR 0010: Generational mutation](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/docs/decisions/0010-mutation.md)
 
 ```mermaid
 classDiagram
@@ -57,6 +57,8 @@ classDiagram
   GenerationProgress ..> EntryOrigin : uses
 ```
 
+The diagram draws 11 of 12 relations; the table lists them all.
+
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
 | → | implements | [WorkflowEvents](io.github.tlaplus.hardening.workflow.execution.WorkflowEvents.md) | Durable admission and stage transitions, reported to whatever schedules generations (ADR 0010). |
@@ -70,3 +72,4 @@ classDiagram
 | → | uses | [CorpusInventory](io.github.tlaplus.hardening.corpus.CorpusInventory.md) | Immutable startup inventory used to seed stage queues and capacities. |
 | → | uses | [CorpusVerdict](io.github.tlaplus.hardening.corpus.CorpusVerdict.md) | A verdict supported by the implemented corpus stages. |
 | → | uses | [EntryOrigin](io.github.tlaplus.hardening.corpus.EntryOrigin.md) | Which candidate source admitted an entry, as its generation metadata records it (ADR 0010, ADR 0016 §6, ADR 0034 §6). |
+| ← | depends | [WorkflowRunner](io.github.tlaplus.hardening.workflow.WorkflowRunner.md) | Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget. |

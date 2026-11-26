@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "dd877bc2dce59141917dd1003529d40721d7efc1"
+    "commit" : "6fa04b06239faa249744652fc9a20140aed0d561"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -705,7 +705,7 @@
     "key" : true,
     "summary" : "The statistics shared by live and final reports, without layout or terminal state.",
     "path" : "src/main/java/io/github/tlaplus/hardening/cli/RunView.java",
-    "line" : 20,
+    "line" : 21,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.cli.ShrinkCommand",
@@ -1515,7 +1515,7 @@
     "key" : false,
     "summary" : "Which candidate source admitted an entry, as its generation metadata records it (ADR 0010, ADR 0016 §6, ADR 0034 §6).",
     "path" : "src/main/java/io/github/tlaplus/hardening/corpus/EntryOrigin.java",
-    "line" : 13,
+    "line" : 14,
     "adrs" : [ "0010", "0016", "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.corpus.EntryProgress",
@@ -3328,6 +3328,16 @@
     "line" : 29,
     "adrs" : [ ]
   }, {
+    "name" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
+    "packageName" : "io.github.tlaplus.hardening.workflow",
+    "kind" : "RECORD",
+    "role" : null,
+    "key" : false,
+    "summary" : "How many entries a corpus holds, split the way `workflow.max_entries` counts them (ADR 0034 §6): `sized` entries share the generations' sizes and are bounded by `maximum`, while `replays` come on top of them and are not.",
+    "path" : "src/main/java/io/github/tlaplus/hardening/workflow/CorpusEntryCounts.java",
+    "line" : 10,
+    "adrs" : [ "0034" ]
+  }, {
     "name" : "io.github.tlaplus.hardening.workflow.CorpusTools",
     "packageName" : "io.github.tlaplus.hardening.workflow",
     "kind" : "CLASS",
@@ -3475,7 +3485,7 @@
     "key" : true,
     "summary" : "Runs generation, parsing, TLC, Apalache, conformance aggregation and the quality gate under one CPU budget.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/WorkflowRunner.java",
-    "line" : 47,
+    "line" : 48,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.aggregator.AggregatorStage",
@@ -5250,6 +5260,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunMetric",
+    "to" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunMetric",
     "to" : "io.github.tlaplus.hardening.workflow.execution.GeneratorSummary",
     "kind" : "DEPENDS"
   }, {
@@ -5416,6 +5430,10 @@
     "from" : "io.github.tlaplus.hardening.cli.RunView",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusVerdict",
     "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.cli.RunView",
+    "to" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
+    "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.cli.RunView",
     "to" : "io.github.tlaplus.hardening.workflow.WorkflowProgress",
@@ -10913,6 +10931,10 @@
     "to" : "io.github.tlaplus.hardening.workflow.tool.ToolBackend",
     "kind" : "USES"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
+    "to" : "io.github.tlaplus.hardening.common.Preconditions",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.CorpusTools",
     "to" : "io.github.tlaplus.hardening.config.FuzzTlaConfig",
     "kind" : "USES"
@@ -11514,6 +11536,10 @@
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowProgress",
+    "to" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowProgress",
     "to" : "io.github.tlaplus.hardening.workflow.execution.GeneratorSummary",
     "kind" : "HAS"
   }, {
@@ -11535,6 +11561,10 @@
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunSummary",
     "to" : "io.github.tlaplus.hardening.corpus.CorpusStage",
+    "kind" : "HAS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunSummary",
+    "to" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
     "kind" : "HAS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunSummary",
@@ -11630,6 +11660,10 @@
     "kind" : "USES"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
+    "to" : "io.github.tlaplus.hardening.corpus.EntryOrigin",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.corpus.ExpectedOutcomes",
     "kind" : "DEPENDS"
   }, {
@@ -11670,11 +11704,19 @@
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
+    "to" : "io.github.tlaplus.hardening.workflow.CorpusEntryCounts",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.workflow.CorpusTools",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
     "to" : "io.github.tlaplus.hardening.workflow.GenerationLoop",
+    "kind" : "DEPENDS"
+  }, {
+    "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
+    "to" : "io.github.tlaplus.hardening.workflow.GenerationProgress",
     "kind" : "DEPENDS"
   }, {
     "from" : "io.github.tlaplus.hardening.workflow.WorkflowRunner",
@@ -14644,7 +14686,7 @@
   }, {
     "from" : "workflow",
     "to" : "common",
-    "typePairs" : 77,
+    "typePairs" : 78,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -14684,7 +14726,7 @@
   }, {
     "from" : "workflow",
     "to" : "corpus",
-    "typePairs" : 191,
+    "typePairs" : 192,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",
@@ -14764,7 +14806,7 @@
   }, {
     "from" : "cli",
     "to" : "workflow",
-    "typePairs" : 40,
+    "typePairs" : 42,
     "allowed" : true,
     "implied" : false,
     "exampleFrom" : "io.github.tlaplus.hardening.cli.DecodedInputRenderer",

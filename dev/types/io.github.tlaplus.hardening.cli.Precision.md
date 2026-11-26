@@ -1,6 +1,6 @@
 # `Precision`
 
-`io.github.tlaplus.hardening.cli` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/cli/Precision.java#L4) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/cli/Precision.java#L4) · module [cli](../modules/cli.md)
 
 How a reported value is rendered: exactly for scrollback, or bounded for live screens.
 

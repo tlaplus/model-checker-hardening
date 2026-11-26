@@ -1,6 +1,6 @@
 # `PropertyRelation`
 
-`io.github.tlaplus.hardening.workflow.spec` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/spec/PropertyRelation.java#L9) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.spec` · enum · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/workflow/spec/PropertyRelation.java#L9) · module [workflow](../modules/workflow.md)
 
 How the relation module of a metamorphic pair of modules treats their properties and fairness.
 

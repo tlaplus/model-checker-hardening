@@ -1,6 +1,6 @@
 # `WorkflowException`
 
-`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dd877bc2dce59141917dd1003529d40721d7efc1/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowException.java#L4) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/workflow/WorkflowException.java#L4) · module [workflow](../modules/workflow.md)
 
 Reports an infrastructure or lifecycle failure in a fuzzing workflow.
 
