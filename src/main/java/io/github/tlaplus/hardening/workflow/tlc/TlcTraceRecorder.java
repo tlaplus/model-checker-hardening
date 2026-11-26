@@ -7,6 +7,7 @@ import io.github.tlaplus.hardening.workflow.spec.FuzzInputModule;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import tlc2.output.EC;
 import tlc2.output.IMessagePrinterRecorder;
@@ -26,10 +27,21 @@ import tlc2.tool.TLCStateInfo;
  *
  * <p>The last state claims to violate {@code Inv} when TLC names it; a property TLC checks as an
  * invariant names a conjunct instead, and its trace claims only reachability.
+ *
+ * <p>Only the first counterexample is recorded. After an invariant violation, TLC still checks the
+ * properties on the states it explored and may report a second counterexample, whose states would
+ * otherwise extend the first. A counterexample followed by an unexpected exception (1000) is not
+ * recorded: TLC prints an invariant violation's trace by generating the successors again, and an
+ * evaluation error in another successor cuts the trace short (tlc-024).
  */
 final class TlcTraceRecorder implements IMessagePrinterRecorder {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
+
+    /** The messages with which TLC begins a counterexample. */
+    private static final Set<Integer> VIOLATIONS = Set.of(EC.TLC_INVARIANT_VIOLATED_INITIAL,
+            EC.TLC_PROPERTY_VIOLATED_INITIAL, EC.TLC_INVARIANT_VIOLATED_BEHAVIOR,
+            EC.TLC_ACTION_PROPERTY_VIOLATED_BEHAVIOR, EC.TLC_DEADLOCK_REACHED, EC.TLC_TEMPORAL_PROPERTY_VIOLATED);
 
     private final Supplier<Optional<TLCState>> lastInitialState;
     private final List<JsonNode> states = new ArrayList<>();
@@ -38,6 +50,8 @@ final class TlcTraceRecorder implements IMessagePrinterRecorder {
     private int loop = -1;
     private boolean stuttering;
     private boolean unrecordable;
+    private boolean begun;
+    private boolean ended;
 
     /** @param lastInitialState the last initial state TLC wrote, empty before the first */
     TlcTraceRecorder(Supplier<Optional<TLCState>> lastInitialState) {
@@ -46,6 +60,17 @@ final class TlcTraceRecorder implements IMessagePrinterRecorder {
 
     @Override
     public synchronized void record(int code, Object... objects) {
+        if (VIOLATIONS.contains(code)) {
+            ended = begun;
+            begun = true;
+        }
+        if (ended) {
+            return;
+        }
+        if (begun && code == EC.GENERAL) {
+            unrecordable = true;
+            return;
+        }
         try {
             switch (code) {
                 case EC.TLC_INVARIANT_VIOLATED_INITIAL, EC.TLC_PROPERTY_VIOLATED_INITIAL -> {

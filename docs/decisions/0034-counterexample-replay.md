@@ -162,7 +162,8 @@ Inv == idx /= n \/ Last
   `UNCHANGED x` into the assignment `x' := x` and rejects a second assignment of a variable
   ("Manual assignment is spurious"). The replay module therefore writes every `UNCHANGED e` of
   the base as `e' = e`, which means the same, and both checkers check it against the trace's
-  values.
+  values. The second copy of `e` loses its labels. SANY rejects a definition with two labels
+  of one name, and in corpus90 it rejected 19 replays that way.
 - **One disjunct per transition.** A tuple of states indexed by `idx` would need a
   variable index into a heterogeneous tuple, which Apalache's type system rejects. n is at
   most the step bound, so the disjunction stays short.
@@ -245,6 +246,14 @@ and never for a `trace` entry. The worker protocol carries the flag (version 9).
   `TlcStateMetrics` saw. `TlcItfValues` converts TLC's values: a tuple as an array, a record
   as an object, a function as `#map`, and any other enumerable set as `#set`. TLC's
   `Variant(t, v)` is the function `t :> v`.
+
+  The recorder keeps the first counterexample only. Each of 2107, 2108, 2110, 2112, 2114
+  and 2116 begins a counterexample, and every message after the second one is ignored.
+  After an invariant violation, TLC still checks the properties on the states it explored
+  and may report their counterexample as well. Before this rule, corpus90 joined the two
+  traces into one. A counterexample followed by an unexpected exception (1000) is recorded
+  without a trace: TLC then printed a trace that an evaluation error cut short
+  ([`tlc-024`](../../findings/TLC/tlc-024.md)).
 - **Apalache.** `ApalacheWorkerMain` reads `violation1.itf.json` before it deletes the job
   directory. `ApalacheTrace` replaces `ApalacheTraceLength` and gives both the trace and its
   length. Probe P2 showed how the temporal encoding marks a lasso. It adds variables whose
@@ -376,7 +385,8 @@ entries is still to be run. Setup:
     confirmed every trace of TLC.
   - **Refuted by Apalache itself.** One of Apalache's own traces, of 4 transitions,
     passed when Apalache replayed it. Its invariant reads `<<"1", "2", "3">>[step]`
-    beyond the sequence's end; this case has not been analysed. A seed `0x7acf` sample
+    beyond the sequence's end, which corpus90 traced to an Apalache defect,
+    [`apalache-bmc-025`](../../findings/apalache-bmc/apalache-bmc-025.md). A seed `0x7acf` sample
     showed the same with a 16-step graph trace, whose node action is a `CHOOSE` without a
     witness. That one is an Apalache defect,
     [`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md). Apalache
