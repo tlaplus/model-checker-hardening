@@ -385,7 +385,8 @@ entries is still to be run. Setup:
     confirmed every trace of TLC.
   - **Refuted by Apalache itself.** One of Apalache's own traces, of 4 transitions,
     passed when Apalache replayed it. Its invariant reads `<<"1", "2", "3">>[step]`
-    beyond the sequence's end; this case has not been analysed. A seed `0x7acf` sample
+    beyond the sequence's end, which corpus90 traced to an Apalache defect,
+    [`apalache-bmc-025`](../../findings/apalache-bmc/apalache-bmc-025.md). A seed `0x7acf` sample
     showed the same with a 16-step graph trace, whose node action is a `CHOOSE` without a
     witness. That one is an Apalache defect,
     [`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md). Apalache

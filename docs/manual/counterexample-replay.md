@@ -70,8 +70,10 @@ applied outside its domain. This is the parent's disagreement again.
 Apalache may refute its own trace. A trace passing through a `CHOOSE` without a witness
 does so when Apalache treated the `CHOOSE` as free in its search but fixes it in the
 replay, where the trace's values assign the variables
-([`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md)). A replay that
-Apalache refutes after a sequence indexed past its end has not been analysed yet.
+([`apalache-bmc-024`](../../findings/apalache-bmc/apalache-bmc-024.md)). A sequence indexed
+past its end does the same: Apalache's value is free when the index was computed, and fixed
+when the replay assigns the index a literal
+([`apalache-bmc-025`](../../findings/apalache-bmc/apalache-bmc-025.md)).
 
 `fuzztla print` shows a `trace` entry's length, what its last state claims, the outcome it
 predicts, and the replay module, which holds the recorded states as literals. The parent's

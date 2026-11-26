@@ -61,6 +61,10 @@
 #   crashes of manyan-005 to manyan-008. manyan-010 and manyan-011 have shapes that no
 #   signature has been measured for yet. manyan-013 and manyan-014 are performance defects.
 #   Manyan v0.18.0 fixes all fourteen.
+# - apalache-bmc-025: any sequence application with a non-literal index can reach an index past
+#   the end at run time; a signature for it would quarantine most generated modules.
+# - tlc-024: any partial term in a branch of the violating action cuts TLC's trace short, and
+#   only when a successor in another branch violates the invariant.
 #
 # References are relative to this file.
 

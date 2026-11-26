@@ -48,6 +48,7 @@ class AllDefectsTest {
             "findings/apalache-bmc/apalache-bmc-017.md",
             "findings/apalache-bmc/apalache-bmc-018.md",
             "findings/apalache-bmc/apalache-bmc-021.md",
+            "findings/apalache-bmc/apalache-bmc-025.md",
             "findings/apalache-builder/apalache-builder-001.md",
             "findings/apalache-json/apalache-json-001.md",
             "findings/apalache-json/apalache-json-002.md",
@@ -82,6 +83,7 @@ class AllDefectsTest {
             "findings/TLC/tlc-019.md",
             "findings/TLC/tlc-020.md",
             "findings/TLC/tlc-022.md",
+            "findings/TLC/tlc-024.md",
             "findings/tlc-performance/tlc-performance-001.md",
             "findings/tlc-performance/tlc-performance-002.md",
             "findings/tlc-performance/tlc-performance-003.md");
