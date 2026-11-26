@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "218ef666053227c924e8c5067ad85b75f69870ca"
+    "commit" : "b1d642d707df18a7597ce87d7e826c837e78f842"
   },
   "decisions" : [ {
     "number" : "0001",
@@ -3535,7 +3535,7 @@
     "key" : true,
     "summary" : "Renders an assembled module as the typed Apalache IR JSON that Apalache consumes.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheIrJson.java",
-    "line" : 23,
+    "line" : 19,
     "adrs" : [ ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier",
@@ -4265,7 +4265,7 @@
     "key" : false,
     "summary" : "Records the counterexample TLC prints (ADR 0034 §5), as the JSON a worker returns: its states in the Informal Trace Format and what its last state claims.",
     "path" : "src/main/java/io/github/tlaplus/hardening/workflow/tlc/TlcTraceRecorder.java",
-    "line" : 30,
+    "line" : 37,
     "adrs" : [ "0034" ]
   }, {
     "name" : "io.github.tlaplus.hardening.workflow.tlc.TlcValueShape",
@@ -11955,6 +11955,10 @@
     "to" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier",
     "kind" : "DEPENDS"
   }, {
+    "from" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheIrJson",
+    "to" : "io.github.tlaplus.hardening.gen.ir.IrNames",
+    "kind" : "DEPENDS"
+  }, {
     "from" : "io.github.tlaplus.hardening.workflow.apalache.ApalacheOutcomeClassifier",
     "to" : "io.github.tlaplus.hardening.checker.CheckerFailureCode",
     "kind" : "DEPENDS"
@@ -14702,7 +14706,7 @@
   }, {
     "from" : "workflow",
     "to" : "gen",
-    "typePairs" : 87,
+    "typePairs" : 88,
     "allowed" : true,
     "implied" : true,
     "exampleFrom" : "io.github.tlaplus.hardening.workflow.AdoptableBase",

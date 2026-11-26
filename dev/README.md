@@ -1,6 +1,6 @@
 # FuzzTLA architecture atlas
 
-Generated from commit [`218ef66`](https://github.com/tlaplus/model-checker-hardening/commit/218ef666053227c924e8c5067ad85b75f69870ca) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/218ef666053227c924e8c5067ad85b75f69870ca/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
+Generated from commit [`b1d642d`](https://github.com/tlaplus/model-checker-hardening/commit/b1d642d707df18a7597ce87d7e826c837e78f842) by `make architecture` ([ADR 0022](https://github.com/tlaplus/model-checker-hardening/blob/b1d642d707df18a7597ce87d7e826c837e78f842/docs/decisions/0022-architecture-atlas.md)). The [interactive explorer](https://tlaplus.github.io/model-checker-hardening/dev/) draws the same model.
 
 ## Modules
 

@@ -1445,8 +1445,10 @@ applied outside its domain. This is the parent's disagreement again.</p>
 <p>Apalache may refute its own trace. A trace passing through a <code>CHOOSE</code> without a witness
 does so when Apalache treated the <code>CHOOSE</code> as free in its search but fixes it in the
 replay, where the trace's values assign the variables
-(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-bmc/apalache-bmc-024.md"><code>apalache-bmc-024</code></a>). A replay that
-Apalache refutes after a sequence indexed past its end has not been analysed yet.</p>
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-bmc/apalache-bmc-024.md"><code>apalache-bmc-024</code></a>). A sequence indexed
+past its end does the same: Apalache's value is free when the index was computed, and fixed
+when the replay assigns the index a literal
+(<a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/apalache-bmc/apalache-bmc-025.md"><code>apalache-bmc-025</code></a>).</p>
 <p><code>fuzztla print</code> shows a <code>trace</code> entry's length, what its last state claims, the outcome it
 predicts, and the replay module, which holds the recorded states as literals. The parent's
 digest is in <code>gen.parent</code>, and its stage map says which checker recorded the trace. A

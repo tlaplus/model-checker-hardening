@@ -1,6 +1,6 @@
 # `RunPalette`
 
-`io.github.tlaplus.hardening.cli` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/218ef666053227c924e8c5067ad85b75f69870ca/src/main/java/io/github/tlaplus/hardening/cli/RunPalette.java#L12) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/b1d642d707df18a7597ce87d7e826c837e78f842/src/main/java/io/github/tlaplus/hardening/cli/RunPalette.java#L12) · module [cli](../modules/cli.md)
 
 Capability-aware styles on the terminal's own palette and default background.
 
