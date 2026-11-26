@@ -7,7 +7,7 @@
 (*                                                                         *)
 (*   (none)   top-level RECURSIVE operator                                 *)
 (*   LetRec   LET RECURSIVE operator                                       *)
-(*   Fun      recursive function definition                                *)
+(*   Fun      recursive function definition, in a LET or at the top level  *)
 (*   HO       higher-order RECURSIVE helper taking an operator argument    *)
 (*                                                                         *)
 (* A recursion that picks set elements with CHOOSE combines them           *)
@@ -63,6 +63,15 @@ SetPowerset(S) ==
              P == SetPowerset(S \ {x})
          IN P \cup {T \cup {x} : T \in P}
 
+\* A recursive function keyed by subsets, whose values are sets of sets.
+SetPowersetFun(S) ==
+    LET ps[T \in SUBSET S] ==
+            IF T = {} THEN {{}}
+            ELSE LET x == Any(T)
+                     P == ps[T \ {x}]
+                 IN P \cup {U \cup {x} : U \in P}
+    IN ps[S]
+
 RECURSIVE SetMaxWith(_, _)
 SetMaxWith(S, d) ==
     IF S = {} THEN d
@@ -108,6 +117,12 @@ SeqSumFun(s) ==
 
 RECURSIVE SeqReverse(_)
 SeqReverse(s) == IF s = <<>> THEN <<>> ELSE SeqReverse(Tail(s)) \o <<Head(s)>>
+
+\* A recursive function keyed by sequences: the suffixes of s, including <<>>.
+SeqReverseFun(s) ==
+    LET rev[t \in {SubSeq(s, i, Len(s)) : i \in 1..Len(s) + 1}] ==
+            IF t = <<>> THEN <<>> ELSE rev[Tail(t)] \o <<Head(t)>>
+    IN rev[s]
 
 RECURSIVE SeqToSet(_)
 SeqToSet(s) == IF s = <<>> THEN {} ELSE {Head(s)} \cup SeqToSet(Tail(s))
@@ -162,6 +177,12 @@ FunIncrementAll(f) ==
         Inc(g, D) == IF D = {} THEN g ELSE LET x == Any(D) IN Inc([g EXCEPT ![x] = @ + 1], D \ {x})
     IN Inc(f, DOMAIN f)
 
+\* A recursive function whose values are functions, updated through EXCEPT.
+FunIncrementAllFun(f) ==
+    LET inc[D \in SUBSET DOMAIN f] ==
+            IF D = {} THEN f ELSE LET x == Any(D) IN [inc[D \ {x}] EXCEPT ![x] = @ + 1]
+    IN inc[DOMAIN f]
+
 ---------------------------------------------------------------------------
 (* Relations *)
 
@@ -170,6 +191,15 @@ RECURSIVE TransitiveClosure(_)
 TransitiveClosure(R) ==
     LET step == R \cup {<<pq[1][1], pq[2][2]>> : pq \in {pq \in R \X R : pq[1][2] = pq[2][1]}}
     IN IF step = R THEN R ELSE TransitiveClosure(step)
+
+\* A recursive function whose values are relations: step k adds the paths of k + 1 edges.
+\* A shortest path has at most Cardinality(R) edges.
+TransitiveClosureFun(R) ==
+    LET tc[k \in 0..Cardinality(R)] ==
+            IF k = 0 THEN R
+            ELSE LET prev == tc[k - 1]
+                 IN prev \cup {<<pq[1][1], pq[2][2]>> : pq \in {pq \in prev \X R : pq[1][2] = pq[2][1]}}
+    IN tc[Cardinality(R)]
 
 \* The elements reachable from x in one or more steps, by recursion over a frontier.
 Reachable(R, x) ==
@@ -188,13 +218,34 @@ IntTriangle(n) ==
         Tri(k) == IF k = 0 THEN 0 ELSE k + Tri(k - 1)
     IN Tri(Clamp(n, 30))
 
+\* A LET recursive function over an infinite domain.
+IntTriangleFun(n) ==
+    LET tri[k \in Nat] == IF k = 0 THEN 0 ELSE k + tri[k - 1]
+    IN tri[Clamp(n, 30)]
+
 RECURSIVE Pow2(_)
 Pow2(k) == IF k = 0 THEN 1 ELSE 2 * Pow2(k - 1)
 IntPow2(n) == Pow2(Clamp(n, 20))
 
+\* A top-level recursive function over an infinite domain.
+pow2[k \in Nat] == IF k = 0 THEN 1 ELSE 2 * pow2[k - 1]
+IntPow2Fun(n) == pow2[Clamp(n, 20)]
+
 IntFactorial(n) ==
     LET fact[k \in 0..Clamp(n, 12)] == IF k = 0 THEN 1 ELSE k * fact[k - 1]
     IN fact[Clamp(n, 12)]
+
+\* The recursive function itself, compared as a whole value.
+IntFactorialTableFun(n) ==
+    LET fact[k \in 0..Clamp(n, 12)] == IF k = 0 THEN 1 ELSE k * fact[k - 1]
+    IN fact
+
+\* A recursive function of two arguments: Pascal's triangle; 0 unless 0 <= k <= m.
+IntBinomialFun(n, k) ==
+    LET m == Clamp(n, 12)
+        c[i \in 0..m, j \in 0..m] ==
+            IF j = 0 \/ j = i THEN 1 ELSE IF j > i THEN 0 ELSE c[i - 1, j - 1] + c[i - 1, j]
+    IN IF k < 0 \/ k > m THEN 0 ELSE c[m, k]
 
 \* Doubly recursive, so the clamp keeps the number of calls near 20 000.
 RECURSIVE Fib(_)
@@ -220,7 +271,21 @@ IsEven(k) == IF k = 0 THEN TRUE ELSE IsOdd(k - 1)
 IsOdd(k) == IF k = 0 THEN FALSE ELSE IsEven(k - 1)
 IntIsEven(n) == IsEven(n % 64)
 
+\* Mutual recursion as one recursive function with record values.
+IntIsEvenFun(n) ==
+    LET parity[k \in 0..63] ==
+            IF k = 0 THEN [even |-> TRUE, odd |-> FALSE]
+            ELSE LET p == parity[k - 1] IN [even |-> p.odd, odd |-> p.even]
+    IN parity[n % 64].even
+
 \* Recursion inside set and function constructors.
 SetTriangles(S) == {IntTriangle(x) : x \in S}
 FunTriangles(S) == [x \in S |-> IntTriangle(x)]
+
+\* A recursive function whose domain depends on the constructor's bound variable.
+FunTrianglesFun(S) ==
+    [x \in S |->
+        LET m == Clamp(x, 30)
+            tri[k \in 0..m] == IF k = 0 THEN 0 ELSE k + tri[k - 1]
+        IN tri[m]]
 =============================================================================

@@ -38,6 +38,7 @@ SetCount(S) == Cardinality(S)
 SetUnionAll(SS) == UNION SS
 
 SetPowerset(S) == SUBSET S
+SetPowersetFun(S) == SetPowerset(S)
 
 SetMaxWith(S, d) == LET Max(m, x) == IF x > m THEN x ELSE m IN ApaFoldSet(Max, d, S)
 
@@ -67,6 +68,7 @@ SeqSumLetRec(s) == SeqSum(s)
 SeqSumFun(s) == SeqSum(s)
 
 SeqReverse(s) == LET Prepend(r, x) == <<x>> \o r IN ApaFoldSeqLeft(Prepend, <<>>, s)
+SeqReverseFun(s) == SeqReverse(s)
 
 SeqToSet(s) == LET Add(S, x) == S \cup {x} IN ApaFoldSeqLeft(Add, {}, s)
 
@@ -98,6 +100,7 @@ FunSumValues(f) == LET Plus(a, x) == a + f[x] IN ApaFoldSet(Plus, 0, DOMAIN f)
 
 \* @type: (a -> Int) => (a -> Int);
 FunIncrementAll(f) == [x \in DOMAIN f |-> f[x] + 1]
+FunIncrementAllFun(f) == FunIncrementAll(f)
 
 ---------------------------------------------------------------------------
 (* Relations *)
@@ -108,6 +111,7 @@ TransitiveClosure(R) ==
     LET nodes == {e[1] : e \in R} \cup {e[2] : e \in R}
         Pivot(T, k) == T \cup {e \in nodes \X nodes : <<e[1], k>> \in T /\ <<k, e[2]>> \in T}
     IN ApaFoldSet(Pivot, R, nodes)
+TransitiveClosureFun(R) == TransitiveClosure(R)
 
 \* @type: (Set(<<a, a>>), a) => Set(a);
 Reachable(R, x) == {e[2] : e \in {e \in TransitiveClosure(R) : e[1] = x}}
@@ -117,11 +121,21 @@ Reachable(R, x) == {e[2] : e \in {e \in TransitiveClosure(R) : e[1] = x}}
 
 \* @type: (Int) => Int;
 IntTriangle(n) == LET k == Clamp(n, 30) IN (k * (k + 1)) \div 2
+IntTriangleFun(n) == IntTriangle(n)
 
 IntPow2(n) == 2 ^ Clamp(n, 20)
+IntPow2Fun(n) == IntPow2(n)
 
 IntFactorial(n) ==
     LET Mult(a, i) == a * i IN ApaFoldSet(Mult, 1, Iterations(Clamp(n, 12), 12))
+
+\* @type: (Int) => (Int -> Int);
+IntFactorialTableFun(n) == [k \in {i \in 0..12 : i <= Clamp(n, 12)} |-> IntFactorial(k)]
+
+\* @type: (Int, Int) => Int;
+IntBinomialFun(n, k) ==
+    LET m == Clamp(n, 12)
+    IN IF k < 0 \/ k > m THEN 0 ELSE IntFactorial(m) \div (IntFactorial(k) * IntFactorial(m - k))
 
 IntFib(n) ==
     LET \* @type: (<<Int, Int>>, Int) => <<Int, Int>>;
@@ -160,7 +174,9 @@ IntGcd(a, b) ==
        ELSE p6[1]
 
 IntIsEven(n) == n % 2 = 0
+IntIsEvenFun(n) == IntIsEven(n)
 
 SetTriangles(S) == {IntTriangle(x) : x \in S}
 FunTriangles(S) == [x \in S |-> IntTriangle(x)]
+FunTrianglesFun(S) == FunTriangles(S)
 =============================================================================
