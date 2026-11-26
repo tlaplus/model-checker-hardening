@@ -2304,6 +2304,8 @@ temporal operator, and <a href="https://github.com/tlaplus/model-checker-hardeni
 argument applied to a primed expression, are shapes, but no signature has been measured
 for them. <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-013.md"><code>manyan-013</code></a> and
 <a href="https://github.com/tlaplus/model-checker-hardening/blob/main/findings/manyan/manyan-014.md"><code>manyan-014</code></a> are performance defects.</p>
+<p>Manyan <code>v0.18.0</code> fixes <code>manyan-001</code> to <code>manyan-014</code>, so <code>manyan-literal-subscript</code> is
+closed: it no longer quarantines, and its inputs are checked again for regressions.</p>
 <h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/tlaplus/model-checker-hardening/blob/main/docs/decisions/0006-known-defect-signatures.md">ADR 0006</a> records the design and its
 rationale.</p>

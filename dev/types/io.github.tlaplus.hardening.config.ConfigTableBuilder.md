@@ -1,6 +1,6 @@
 # `ConfigTableBuilder`
 
-`io.github.tlaplus.hardening.config` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dc773e71f8f182a2870398126f091b88fadea49d/src/main/java/io/github/tlaplus/hardening/config/ConfigTableBuilder.java#L9) · module [config](../modules/config.md)
+`io.github.tlaplus.hardening.config` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/218ef666053227c924e8c5067ad85b75f69870ca/src/main/java/io/github/tlaplus/hardening/config/ConfigTableBuilder.java#L9) · module [config](../modules/config.md)
 
 Registers typed keys in document order, then snapshots them as an immutable schema table.
 
