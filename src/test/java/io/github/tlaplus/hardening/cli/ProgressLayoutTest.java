@@ -25,7 +25,8 @@ class ProgressLayoutTest {
         assertEquals(FIRST_BRANCH_ROW + 2 * BRANCHES + 5, lines.size());
         assertTrue(lines.stream().allMatch(line -> line.columnLength() <= 79));
         // Each count reserves one column for its change marker; elapsed times never get one.
-        assertEquals("FuzzTLA RUNNING  Gen 3   Entries 1240   Elapsed 2m17s", lines.getFirst().toString());
+        assertEquals("FuzzTLA RUNNING  Gen 3   Entries 1000/1500   Replays 240   Elapsed 2m17s",
+                lines.getFirst().toString());
         assertTrue(output.contains("each pass goes to every checker"));
         assertTrue(output.contains("every non-crash result"));
         assertTrue(output.contains("gate at generation end"));
@@ -93,7 +94,7 @@ class ProgressLayoutTest {
         assertEquals(14, lines.size());
         assertTrue(lines.stream().allMatch(line -> line.columnLength() <= 59));
         assertEquals("""
-                FuzzTLA RUNNING  Gen 3   Entries 1240
+                FuzzTLA RUNNING  Gen 3   Entries 1000/1500
                 Elapsed 2m17s; cumulative totals / time
                 Inputs -> Parser -> checkers -> join -> Quality
                 Stage          Queued  Pass    Cex     Fail    Crash

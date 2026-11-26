@@ -14,6 +14,7 @@ import io.github.tlaplus.hardening.corpus.CorpusEnvelope;
 import io.github.tlaplus.hardening.corpus.CorpusException;
 import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.corpus.EntryOrigin;
 import io.github.tlaplus.hardening.corpus.Technique;
 import io.github.tlaplus.hardening.gen.InputRejectedException;
 import io.github.tlaplus.hardening.signature.KnownDefectDatabase;
@@ -153,7 +154,7 @@ public final class WorkflowRunner {
                         invocationElapsed,
                         progressListener);
             }
-            return result.summary(statistics.totalElapsed());
+            return result.summary(statistics.totalElapsed(), maximumEntries());
         }
     }
 
@@ -216,7 +217,7 @@ public final class WorkflowRunner {
         }
     }
 
-    private static WorkflowProgress progressSnapshot(
+    private WorkflowProgress progressSnapshot(
             WorkflowProgress.Phase phase,
             GenerationLoop.Generation generation,
             long seed,
@@ -225,16 +226,20 @@ public final class WorkflowRunner {
         var generatorSummary = metrics.generator().summary(seed);
         var graph = generation.graph();
         var stages = graph.summaries();
-        var corpusEntries = generatorSummary.generated();
+        var admitted = graph.progress().admittedByOrigin();
+        var entries = new CorpusEntryCounts(
+                EntryOrigin.sized(admitted),
+                admitted.getOrDefault(EntryOrigin.REPLAY, 0L),
+                maximumEntries());
         var backlog = graph.backlog();
-        backlog.replaceAll((stage, pending) -> Math.min(pending, corpusEntries));
+        backlog.replaceAll((stage, pending) -> Math.min(pending, entries.total()));
         return new WorkflowProgress(
                 phase,
                 generation.number(),
                 generatorSummary,
                 stages,
                 backlog,
-                corpusEntries,
+                entries,
                 metrics.totalElapsed(invocationElapsed.elapsed()));
     }
 
@@ -263,6 +268,11 @@ public final class WorkflowRunner {
         };
     }
 
+    /** Returns {@code workflow.max_entries}, which bounds every entry but the replays (ADR 0034 §6). */
+    private long maximumEntries() {
+        return setup.config().workflow().maximumEntries();
+    }
+
     /** Requires an entry to record the generation that admitted it (ADR 0010). */
     private static void requireGeneration(Path entry, CorpusEnvelope envelope) throws CorpusException {
         if (envelope.generation().filter(metadata -> metadata.generation().isPresent()).isEmpty()) {
@@ -275,8 +285,10 @@ public final class WorkflowRunner {
             GeneratorSummary generator,
             Map<CorpusStage, StageVerdictSummary> stages,
             CorpusInventory corpus) {
-        WorkflowRunSummary summary(Duration totalElapsed) {
-            return new WorkflowRunSummary(stopReason, generator, stages, corpus, totalElapsed);
+        WorkflowRunSummary summary(Duration totalElapsed, long maximumEntries) {
+            var entries = new CorpusEntryCounts(
+                    corpus.sizedEntries(), corpus.totalEntries() - corpus.sizedEntries(), maximumEntries);
+            return new WorkflowRunSummary(stopReason, generator, stages, corpus, entries, totalElapsed);
         }
     }
 

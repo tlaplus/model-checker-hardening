@@ -5,6 +5,7 @@ import io.github.tlaplus.hardening.corpus.CorpusInventory;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.corpus.CorpusVerdict;
 import io.github.tlaplus.hardening.corpus.StageEntryCounts;
+import io.github.tlaplus.hardening.workflow.CorpusEntryCounts;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -38,7 +39,7 @@ final class RunDisplayFixture {
                 Map.of(CorpusStage.PARSER, 40L, CorpusStage.TLC, 20L, CorpusStage.TLCN, 21L,
                         CorpusStage.APALACHE, 86L, CorpusStage.GENERIC, 30L,
                         CorpusStage.AGGREGATOR, 2L, CorpusStage.QUALITY, 0L),
-                1240, Duration.ofSeconds(137));
+                new CorpusEntryCounts(1000, 240, 1500), Duration.ofSeconds(137));
     }
 
     private static StageVerdictSummary summary(long pass, long cex, long fail, long crash, long seconds) {
@@ -56,7 +57,7 @@ final class RunDisplayFixture {
         }
         return new WorkflowProgress(WorkflowProgress.Phase.RUNNING, 0,
                 new GeneratorSummary(42, 0, GeneratorAggregate.empty(), Duration.ZERO),
-                stages, queues, 0, Duration.ZERO);
+                stages, queues, new CorpusEntryCounts(0, 0, 0), Duration.ZERO);
     }
 
     static WorkflowProgress extreme() {
@@ -74,7 +75,7 @@ final class RunDisplayFixture {
                 new GeneratorSummary(42, max, new GeneratorAggregate(max, max, max, max, max,
                         Map.of("known", max), new GeneratorAggregate.Richness(max, Double.MIN_VALUE,
                                 Double.MAX_VALUE, Double.MAX_VALUE / 2)), duration),
-                stages, queues, max, duration);
+                stages, queues, new CorpusEntryCounts(max, 0, max), duration);
     }
 
     static WorkflowRunSummary finished(WorkflowProgress source) {
@@ -90,7 +91,8 @@ final class RunDisplayFixture {
                     source.stage(stage).processed()));
         }
         return new WorkflowRunSummary(WorkflowRunSummary.StopReason.COMPLETED, source.generator(),
-                source.stages(), new CorpusInventory(stages, new TreeMap<>(), Map.of()), source.totalElapsed());
+                source.stages(), new CorpusInventory(stages, new TreeMap<>(), Map.of()), source.entries(),
+                source.totalElapsed());
     }
 
     static Map<RunMetric, RunValue> values(WorkflowProgress source) {

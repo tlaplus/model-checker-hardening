@@ -269,7 +269,9 @@ class WorkflowRunnerTest {
         var config = new FuzzTlaConfig(base.generatedKind(), base.generator(), base.workflow().withReplay(true),
                 base.pbt(), base.mutator(), base.libraries(), base.metamorphic());
 
-        var summary = new WorkflowRunner(config.withTechnique(Technique.GBT)).run(corpus, RunMode.FRESH, 1);
+        var observed = new CopyOnWriteArrayList<WorkflowProgress>();
+        var summary = new WorkflowRunner(config.withTechnique(Technique.GBT))
+                .run(corpus, RunMode.FRESH, 1, observed::add);
 
         var inventory = summary.corpus();
         assertEquals(WorkflowRunSummary.StopReason.COMPLETED, summary.stopReason());
@@ -277,6 +279,9 @@ class WorkflowRunnerTest {
         var replays = inventory.admitted(1, EntryOrigin.REPLAY);
         assertTrue(replays > 0, "no counterexample was replayed");
         assertEquals(8, inventory.sizedEntries());
+        // workflow.max_entries bounds the generated entries; the replays are counted apart.
+        assertEquals(new CorpusEntryCounts(8, replays, 8), summary.entries());
+        assertEquals(summary.entries(), observed.getLast().entries());
         assertEquals(8 + replays, inventory.totalEntries());
         assertEquals(replays, inventory.entries(1));
         assertTrue(counterexamples >= 2 * replays, "each replay is a counterexample of TLC on its base and on itself");
@@ -357,7 +362,7 @@ class WorkflowRunnerTest {
         var initial = observed.getFirst();
         assertEquals(WorkflowProgress.Phase.RUNNING, initial.phase());
         assertEquals(42, initial.generator().seed());
-        assertEquals(0, initial.corpusEntries());
+        assertEquals(new CorpusEntryCounts(0, 0, 8), initial.entries());
         assertEquals(0, initial.backlog(CorpusStage.PARSER));
         assertEquals(0, initial.backlog(CorpusStage.TLC));
         assertEquals(0, initial.backlog(CorpusStage.APALACHE));
@@ -367,7 +372,8 @@ class WorkflowRunnerTest {
         assertEquals(WorkflowProgress.Phase.FINALIZING, last.phase());
         assertEquals(summary.generator(), last.generator());
         assertEquals(summary.stage(CorpusStage.PARSER), last.stage(CorpusStage.PARSER));
-        assertEquals(summary.corpus().totalEntries(), last.corpusEntries());
+        assertEquals(summary.entries(), last.entries());
+        assertEquals(summary.corpus().totalEntries(), last.entries().total());
         assertEquals(summary.corpus().pendingEntries(CorpusStage.PARSER), last.backlog(CorpusStage.PARSER));
         assertEquals(summary.corpus().pendingEntries(CorpusStage.TLC), last.backlog(CorpusStage.TLC));
         assertEquals(summary.corpus().pendingEntries(CorpusStage.APALACHE), last.backlog(CorpusStage.APALACHE));
@@ -387,7 +393,7 @@ class WorkflowRunnerTest {
                 assertFalse(finalizing, "workflow phase must not return to RUNNING");
             }
             assertTrue(progress.generator().generated() >= generated);
-            assertTrue(progress.corpusEntries() >= corpusEntries);
+            assertTrue(progress.entries().total() >= corpusEntries);
             assertTrue(progress.stage(CorpusStage.PARSER).processed() >= parsed);
             assertTrue(progress.backlog(CorpusStage.PARSER) >= 0);
             assertTrue(progress.backlog(CorpusStage.TLC) >= 0);
@@ -395,7 +401,7 @@ class WorkflowRunnerTest {
             assertTrue(progress.backlog(CorpusStage.AGGREGATOR) >= 0);
             assertTrue(progress.totalElapsed().compareTo(totalElapsed) >= 0);
             generated = progress.generator().generated();
-            corpusEntries = progress.corpusEntries();
+            corpusEntries = progress.entries().total();
             parsed = progress.stage(CorpusStage.PARSER).processed();
             totalElapsed = progress.totalElapsed();
         }

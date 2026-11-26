@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.tlaplus.hardening.corpus.CorpusStage;
 import io.github.tlaplus.hardening.common.GeneratorAggregate;
+import io.github.tlaplus.hardening.workflow.CorpusEntryCounts;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.execution.StageVerdictSummary;
 import java.time.Duration;
@@ -43,8 +44,8 @@ class WorkflowProgressMonitorTest {
         assertTrue(observed.size() >= 3);
         assertEquals(1, maximumActiveCallbacks.get());
         for (var index = 1; index < observed.size(); index++) {
-            assertTrue(observed.get(index).corpusEntries()
-                    > observed.get(index - 1).corpusEntries());
+            assertTrue(observed.get(index).entries().total()
+                    > observed.get(index - 1).entries().total());
         }
     }
 
@@ -92,7 +93,7 @@ class WorkflowProgressMonitorTest {
                         Duration.ofSeconds(value)),
                 stageSummaries(),
                 backlog(),
-                value,
+                new CorpusEntryCounts(value, 0, value),
                 Duration.ofSeconds(value));
     }
 }

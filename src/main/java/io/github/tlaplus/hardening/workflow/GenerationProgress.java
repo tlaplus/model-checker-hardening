@@ -172,6 +172,16 @@ final class GenerationProgress implements WorkflowEvents {
         }
     }
 
+    /** Returns how many admitted entries came from each origin, over every generation of the corpus. */
+    Map<EntryOrigin, Long> admittedByOrigin() {
+        synchronized (lock) {
+            var total = new EnumMap<EntryOrigin, Long>(EntryOrigin.class);
+            generations.values().forEach(counts -> counts.origins.forEach(
+                    (origin, admitted) -> total.merge(origin, admitted, Long::sum)));
+            return Map.copyOf(total);
+        }
+    }
+
     /** Returns how many of one generation's entries no stage has finished with. */
     long unsettled(int generation) {
         synchronized (lock) {
@@ -238,7 +248,7 @@ final class GenerationProgress implements WorkflowEvents {
 
         /** Returns the admitted entries of the origins that share the generation's size. */
         long sized() {
-            return EntryOrigin.SIZED.stream().mapToLong(origin -> origins.getOrDefault(origin, 0L)).sum();
+            return EntryOrigin.sized(origins);
         }
 
         /** Returns the replay targets that settled: replays admitted, and targets skipped. */

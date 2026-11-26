@@ -13,7 +13,8 @@ class RunTableTest {
         var source = RunDisplayFixture.sample();
         var output = RunDisplayFixture.plain(
                 RunTable.finished(Path.of("corpus"), RunDisplayFixture.finished(source), RunPalette.PLAIN));
-        assertTrue(output.contains("Corpus entries: 1240"));
+        assertTrue(output.contains("Entries (max_entries): 1000/1500"));
+        assertTrue(output.contains("Replays: 240"));
         assertTrue(output.contains("  Generated inputs: 1240"));
         assertTrue(output.contains("  Candidate attempts: 1860"));
         assertTrue(output.contains("  Known defects: 10"));

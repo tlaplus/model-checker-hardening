@@ -51,7 +51,8 @@ direction. When the run ends, it prints a summary:
 Random seed: 42
 Technique: pbt
 Workflow run finished for 'my-corpus'
-Corpus entries: 20
+Entries (max_entries): 20/20
+Replays: 0
 Total elapsed: 48s
 Stop reason: COMPLETED
 

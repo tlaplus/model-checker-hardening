@@ -16,12 +16,14 @@ public record WorkflowRunSummary(
         GeneratorSummary generator,
         Map<CorpusStage, StageVerdictSummary> stages,
         CorpusInventory corpus,
+        CorpusEntryCounts entries,
         Duration totalElapsed) {
     public WorkflowRunSummary {
         Objects.requireNonNull(stopReason, "stopReason");
         Objects.requireNonNull(generator, "generator");
         stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "stages");
         Objects.requireNonNull(corpus, "corpus");
+        Objects.requireNonNull(entries, "entries");
         Objects.requireNonNull(totalElapsed, "totalElapsed");
         Preconditions.require(!totalElapsed.isNegative(), "total elapsed time must be nonnegative");
     }

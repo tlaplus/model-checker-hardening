@@ -422,7 +422,9 @@ class MainTest {
         assertTrue(result.out().contains("Workflow run finished for '"));
         assertFalse(result.out().contains("random seed"));
         assertTrue(result.out().lines()
-                .anyMatch(line -> line.equals("Corpus entries: 8")));
+                .anyMatch(line -> line.equals("Entries (max_entries): 8/8")));
+        assertTrue(result.out().lines()
+                .anyMatch(line -> line.equals("Replays: 0")));
         assertTrue(result.out().lines()
                 .anyMatch(line -> line.equals("  Generated inputs: 8")));
         var entryCount = 0;
