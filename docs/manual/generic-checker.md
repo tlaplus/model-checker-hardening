@@ -46,7 +46,7 @@ JARs, and writes the table into `config.toml` with the copied path. Without
 [generic]
 name = "Manyan"
 compatibility = "tlc"
-executable = "../target/checkers/manyan-a9ca4f38028f"
+executable = "../target/checkers/manyan-5522fa6b11b9"
 arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 ```
 

@@ -242,7 +242,7 @@ weights = {}
 # "tlc" or "apalache": the checker whose configuration file and exit statuses the tool follows.
 # compatibility = "tlc"
 # The tool, relative to this config file.
-# executable = "tools/manyan-a9ca4f38028f"
+# executable = "tools/manyan-5522fa6b11b9"
 # The command line, one element per argument. An element may contain the placeholders
 # {dir}, {module}, {module_name}, {config}, {init}, {next}, {inv}, {temporal}, {length}
 # and {ir}. Have the tool use one worker: FuzzTLA runs several invocations at once.
