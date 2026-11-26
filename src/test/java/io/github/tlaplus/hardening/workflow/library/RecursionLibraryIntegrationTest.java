@@ -27,8 +27,9 @@ class RecursionLibraryIntegrationTest {
     private static final Path PAIRS = Path.of("src/test/resources/recursion/RecursionPairs.tla");
     /** The operators whose signatures have type variables; every other one is monomorphic. */
     private static final Set<String> POLYMORPHIC = Set.of(
-            "SetCount", "SetUnionAll", "SetPowerset", "SeqReverse", "SeqToSet", "SeqFlatten", "SeqCountOf",
-            "SeqEvenLength", "FunSumValues", "FunIncrementAll", "TransitiveClosure", "Reachable");
+            "SetCount", "SetUnionAll", "SetPowerset", "SetPowersetFun", "SeqReverse", "SeqReverseFun", "SeqToSet",
+            "SeqFlatten", "SeqCountOf", "SeqEvenLength", "FunSumValues", "FunIncrementAll", "FunIncrementAllFun",
+            "TransitiveClosure", "TransitiveClosureFun", "Reachable");
 
     @Test
     void everyOperatorIsDiffLinkedAndPassesPreparation() throws Exception {

@@ -100,12 +100,12 @@ under TLC.
 
 ## 4. Operators
 
-`libraries/recursion.toml` selects 39 operators from
+`libraries/recursion.toml` selects 49 operators from
 `libraries/recursion/RecursionTLC.tla` and `RecursionApalache.tla`. A suffix names TLC's
 recursion mechanism: none for a top-level `RECURSIVE` operator, `LetRec` for
-`LET RECURSIVE`, `Fun` for a recursive function definition, and `HO` for a higher-order
-`RECURSIVE` helper. Operators without a suffix may use more than one mechanism, as the
-table shows.
+`LET RECURSIVE`, `Fun` for a recursive function definition (in a `LET` or at the top
+level), and `HO` for a higher-order `RECURSIVE` helper. Operators without a suffix may use
+more than one mechanism, as the table shows.
 
 | Group | Operators | TLC | Apalache |
 | --- | --- | --- | --- |
@@ -121,6 +121,13 @@ table shows.
 | Relations | `TransitiveClosure`, `Reachable(R, x)` | fixed point, frontier search | Warshall fold over the nodes |
 | Integers | `IntTriangle` (≤ 30), `IntPow2` (≤ 20), `IntFactorial` (≤ 12), `IntFib` (≤ 20), `IntFibFun` (≤ 20) | `LET RECURSIVE`, `RECURSIVE`, recursive functions, double recursion | closed forms, folds over constant ranges |
 | | `IntDigitSum`, `IntGcd(a, b)`, `IntIsEven` | recursion on `\div 10`, Euclid, mutual recursion on `n % 64` | fold over `0..9`, six folds of 8 Euclid steps, `n % 2 = 0` |
+| Recursive functions | `IntPow2Fun` (≤ 20), `IntTriangleFun` (≤ 30) | a top-level and a `LET` function over `Nat` | aliases |
+| | `IntIsEvenFun` | one function on `0..63` with record values, for mutual recursion | alias |
+| | `IntBinomialFun(n, k)` (`n` ≤ 12) | two-argument function, Pascal's triangle | factorial quotient |
+| | `IntFactorialTableFun` (≤ 12) | the function itself as the result | function constructor over a filtered constant range |
+| | `SeqReverseFun`, `SetPowersetFun` | domains of sequences (the suffixes of `s`) and of sets (`SUBSET S`) | aliases |
+| | `FunIncrementAllFun`, `TransitiveClosureFun` | function and relation values, the former through `EXCEPT` with `@` | aliases |
+| | `FunTrianglesFun` | a function whose domain depends on the bound variable of a function constructor | alias |
 
 The bound in parentheses is the clamp. The first argument is clamped to `0..bound`, with
 the same clamp on both sides. The Apalache folds over integer ranges apply one step
