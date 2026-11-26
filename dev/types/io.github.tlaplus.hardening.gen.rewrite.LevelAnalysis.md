@@ -1,10 +1,10 @@
 # `LevelAnalysis`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/src/main/java/io/github/tlaplus/hardening/gen/rewrite/LevelAnalysis.java#L17) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/dc773e71f8f182a2870398126f091b88fadea49d/src/main/java/io/github/tlaplus/hardening/gen/rewrite/LevelAnalysis.java#L17) · module [gen](../modules/gen.md)
 
 Computes the `RuleLevels` of a rule as its loader checks it (ADR 0027 §1).
 
-**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/6fa04b06239faa249744652fc9a20140aed0d561/docs/decisions/0027-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/dc773e71f8f182a2870398126f091b88fadea49d/docs/decisions/0027-temporal-metamorphic-testing.md)
 
 ```mermaid
 classDiagram
