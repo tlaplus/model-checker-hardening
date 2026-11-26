@@ -162,7 +162,7 @@ class TomlConfigTest {
     @Test
     void readsTheGenericChecker(@TempDir Path directory) throws Exception {
         var defaults = TomlConfig.render(FuzzTlaConfig.defaults());
-        assertTrue(defaults.contains("\n# executable = \"tools/manyan-a9ca4f38028f\"\n"), defaults);
+        assertTrue(defaults.contains("\n# executable = \"tools/manyan-5522fa6b11b9\"\n"), defaults);
         assertEquals(Optional.empty(), readConfig(directory, defaults).tools().generic());
 
         var checker = new GenericCheckerConfig("Manyan", GenericCompatibility.APALACHE, Path.of("tools/manyan"),
@@ -275,7 +275,7 @@ class TomlConfigTest {
         var examples = Path.of("generic").toAbsolutePath();
         var manyan = TomlConfig.readGeneric(examples.resolve("manyan.toml"));
         assertEquals(GenericCompatibility.TLC, manyan.compatibility());
-        assertEquals(examples.resolveSibling("target/checkers/manyan-a9ca4f38028f").normalize(), manyan.executable());
+        assertEquals(examples.resolveSibling("target/checkers/manyan-5522fa6b11b9").normalize(), manyan.executable());
         assertEquals(GenericCompatibility.APALACHE,
                 TomlConfig.readGeneric(examples.resolve("manyan-symbolic.toml")).compatibility());
         assertEquals(GenericCapabilities.FULL, manyan.capabilities());

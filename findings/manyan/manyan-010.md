@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -24,6 +24,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 revision. The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `fa5b6c03`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`882643d`.
 
 ## Reproduction
 
@@ -93,3 +96,17 @@ TLC prints the same message for the temporal formulas it cannot handle
 ([tlc-temporal-formula-limits](../../conformance/tlc-temporal-formula-limits.md)), so the
 message alone does not show which tool is at fault, and `script/triager.py` has no rule
 for it.
+
+## Resolution
+
+Manyan fixed this in
+[`882643d`](https://github.com/soasme/manyan/commit/882643d08ee76b1a2a8935da4052b2da00623149),
+"Expand X_LET in to_tf() in explicit mode as well as symbolic mode", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: The five rows that Manyan could not handle give TLC's exit
+statuses: 13, 13, 13, 12 and 0. FuzzTLA `dc773e71`.

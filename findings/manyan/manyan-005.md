@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -22,6 +22,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`). The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `390ea420`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`8b58d06`.
 
 ## Reproduction
 
@@ -95,3 +98,17 @@ values. `script/triager.py` classifies the crashes instead. It matches an exit 2
 first error is a domain error, printed right after the initial states, with no
 `TLC threw an unexpected exception` wrapper. In the campaign this rule picked out 87 crashes.
 TLC crashed on one of them as well.
+
+## Resolution
+
+Manyan fixed this in
+[`8b58d06`](https://github.com/soasme/manyan/commit/8b58d064e1211520fc23e5dcbee3836005bf4fee),
+"Use fail() instead of fail_module() in lambda_outside()", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 75 on the five rows that exited 255, inside
+TLC's unexpected-exception wrapper, as TLC does. FuzzTLA `dc773e71`.

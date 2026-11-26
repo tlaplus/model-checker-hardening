@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -25,6 +25,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`). The reference is SANY in TLC `7e64fd0`
 (tlaplus/tlaplus `7e64fd0376ce8a3d9087fc267b917564df7e2c3a`). Apalache 0.63.0 is
 not involved. FuzzTLA `f8e3696a`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`a6c9f69`.
 
 ## Reproduction
 
@@ -76,3 +79,18 @@ ordinary verdicts ([ADR 0033](../../docs/decisions/0033-generic-checker.md#probe
 The signature `manyan-literal-subscript` in
 [`signatures/manyan-defects.toml`](../../signatures/manyan-defects.toml) quarantines
 these inputs in a corpus that runs Manyan.
+
+## Resolution
+
+Manyan fixed this in
+[`a6c9f69`](https://github.com/soasme/manyan/commit/a6c9f69be930ccc3756810e24eafeeef84c573fb),
+"Accept TRUE, FALSE, BOOLEAN, and STRING as action/fairness subscripts", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 0 on the reproduction with each of the four
+keywords as the subscript, and `-lint` accepts every row that the table above marks as
+rejected. FuzzTLA `dc773e71`.

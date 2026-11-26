@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -24,6 +24,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 revision. The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `fa5b6c03`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`3138cbb`.
 
 ## Reproduction
 
@@ -80,3 +83,22 @@ In corpus89-manyan, a 250,000-entry pbt campaign, Manyan timed out after 30 s on
 With `A == x = 1` and `B == x = 2` in the module above, Manyan exceeds 60 s and 3 GB, and
 TLC reports a violation in 0.4 s. The generator writes `~> FALSE` often, because `FALSE`
 is a terminal of every Boolean position.
+
+## Resolution
+
+Manyan fixed this in
+[`3138cbb`](https://github.com/soasme/manyan/commit/3138cbbdc6a930855ed0ac6a95662b082ffd9072),
+"Hash-cons TF nodes, simplify temporal constants, and hash tableau nodes", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan reports the violation at depths 7, 8 and 10 in
+under 0.01 s with 2 MB of resident memory, as on the property of `3d215d97` under
+Impact. Right sides that do not simplify away still grow, but more slowly than TLC: with
+`~> (x = 0)`, Manyan takes 0.05 s and 5 MB at depth 10, 0.43 s and 14 MB at depth 12,
+and 58 s and 388 MB at depth 16. On the same property TLC `1138302` (tlaplus/tlaplus
+`1138302995a41cc5649c0321992e4146d8ff06e2`) takes 1.6 s at depth 7 and does not finish
+within 120 s at depth 12. Apalache is not involved. FuzzTLA `dc773e71`.

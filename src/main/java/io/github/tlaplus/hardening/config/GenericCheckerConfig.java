@@ -23,7 +23,7 @@ public record GenericCheckerConfig(
         GenericCapabilities capabilities) {
     /** The table a configuration without a generic checker shows, commented out: Manyan, against TLC. */
     static final GenericCheckerConfig EXAMPLE = new GenericCheckerConfig(
-            "Manyan", GenericCompatibility.TLC, ToolsConfig.DIRECTORY.resolve("manyan-a9ca4f38028f"),
+            "Manyan", GenericCompatibility.TLC, ToolsConfig.DIRECTORY.resolve("manyan-5522fa6b11b9"),
             List.of("-workers", "1", "-deadlock", "-config", GenericPlaceholder.CONFIG.token(),
                     GenericPlaceholder.MODULE.token()), GenericCapabilities.FULL);
 

@@ -15,8 +15,8 @@ CHECKERS_DIR ?= target/checkers
 TLC_BUILD ?=
 # An Apalache release version, such as 0.62.0.
 APALACHE_VERSION ?=
-# The Manyan revision that manyan-build builds (ADR 0033): a commit or a tag.
-MANYAN_REV ?= a9ca4f38028f4e8b4cc3f016167d071b55e3abe0
+# The Manyan revision that manyan-build builds (ADR 0033): a commit or a tag. v0.18.0.
+MANYAN_REV ?= 5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9
 # The tla-rs revision that tla-rs-build builds (ADR 0033 §7): a commit or a tag. v0.24.11.
 TLA_RS_REV ?= 9438572f8278df75427460597ca48b0e0026684c
 

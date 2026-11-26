@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -22,6 +22,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`). The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `390ea420`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`fec8f48`.
 
 ## Reproduction
 
@@ -92,3 +95,17 @@ In a 10,000-entry pbt campaign, Manyan aborted on three entries: `58a9e9e7`, `a9
 passed `e73dd9dd`, so on that entry Manyan aborts on a specification without error. No
 known-defect signature quarantines these inputs, because the abort depends on when Manyan
 builds a function. `script/triager.py` classifies a Manyan exit 134 as this finding.
+
+## Resolution
+
+Manyan fixed this in
+[`fec8f48`](https://github.com/soasme/manyan/commit/fec8f4866b2c374862274f4dea3fc4569b24dcd5),
+"Classify V_LAMBDA as V_FCN in elem_kind() for set union merging", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 75 on the reproduction with TLC's `CHOOSE`
+error instead of aborting. FuzzTLA `dc773e71`.

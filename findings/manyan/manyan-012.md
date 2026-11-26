@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -29,6 +29,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 revision. The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `fa5b6c03`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`11b727c`.
 
 ## Reproduction
 
@@ -89,3 +92,17 @@ Manyan verdict in 2 entries. In `249ac0cb` and `fa984c7e` the invariant is
 `VariantGetOrElse("Tag7", Variant("Tag6", (CHOOSE b \in S : FALSE)[k]), FALSE)`, where
 `Variant` builds `[t \in {"Tag6"} |-> ...]`. TLC fails with status 75, and Manyan reports
 that the invariant is violated by the initial state.
+
+## Resolution
+
+Manyan fixed this in
+[`11b727c`](https://github.com/soasme/manyan/commit/11b727c0d3b87938891aaf5cea1e1ee1a5fe2b65),
+"Restore EvalState on caught errors so keep_lazy does not leak", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 75 on the three rows that it checked without
+error, with TLC's `\div` and `CHOOSE` errors. FuzzTLA `dc773e71`.

@@ -60,6 +60,7 @@
 #   manyan-009 and manyan-012 depend on run-time values; script/triager.py classifies the
 #   crashes of manyan-005 to manyan-008. manyan-010 and manyan-011 have shapes that no
 #   signature has been measured for yet. manyan-013 and manyan-014 are performance defects.
+#   Manyan v0.18.0 fixes all fourteen.
 #
 # References are relative to this file.
 

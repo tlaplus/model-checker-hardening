@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -28,6 +28,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`) on aarch64. The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `390ea420`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`416ca2a`.
 
 ## Reproduction
 
@@ -92,3 +95,18 @@ In a 25,000-entry pbt campaign, Manyan crashed this way on four entries: `643bdb
 lines, and all four fault in `op_info` on a `<=`. TLC failed with status 75 on all four, so
 the crash hid TLC's evaluation error. `script/triager.py` classifies a Manyan exit 139 as
 this finding.
+
+## Resolution
+
+Manyan fixed this in
+[`416ca2a`](https://github.com/soasme/manyan/commit/416ca2a700d998ad65bba67cd02374f6097f1a3d),
+"Sequence string table lookup after interning in S() and op_info()", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 0 on the reproduction for every number of
+definitions from 1 to 4,200, which crosses the string table's reallocations at 1,024,
+2,048 and 4,096 entries. FuzzTLA `dc773e71`.

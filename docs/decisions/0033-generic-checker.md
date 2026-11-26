@@ -194,7 +194,7 @@ The repository ships two files for `init --generic`, pre-filled for Manyan:
 - `generic/manyan-symbolic.toml` compares its bounded mode with Apalache, which rejects
   most modules (probe P4).
 
-Their `executable` is the staged binary, `../target/checkers/manyan-a9ca4f38028f`, and
+Their `executable` is the staged binary, `../target/checkers/manyan-5522fa6b11b9`, and
 follows `MANYAN_REV`. A `config.toml` without a generic checker shows the table
 commented out, as Manyan in TLC mode:
 
@@ -202,7 +202,7 @@ commented out, as Manyan in TLC mode:
 [generic]
 # name = "Manyan"
 # compatibility = "tlc"
-# executable = "tools/manyan-a9ca4f38028f"
+# executable = "tools/manyan-5522fa6b11b9"
 # arguments = ["-workers", "1", "-deadlock", "-config", "{config}", "{module}"]
 ```
 
