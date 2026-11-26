@@ -82,6 +82,47 @@ class TlcTraceRecorderTest {
                 result);
     }
 
+    /**
+     * After an invariant violation, TLC still checks the property on the states it explored and
+     * reports its counterexample too. Only the first counterexample is recorded.
+     */
+    @Test
+    void recordsOnlyTheFirstOfTwoCounterexamples() throws Exception {
+        var result = check(module("x = 0", "x' = x + 1", "x < 1", "[][][]FALSE"), true);
+
+        assertTrace("{\"ending\":\"invariant\",\"states\":[{\"step\":0,\"x\":0},{\"step\":1,\"x\":1}]}",
+                result);
+    }
+
+    /**
+     * TLC prints the trace of an invariant violation by generating the predecessor's successors
+     * again; an evaluation error in another successor cuts the trace short (tlc-024). Such a
+     * counterexample is recorded without a trace.
+     */
+    @Test
+    void recordsNoTraceThatAnEvaluationErrorCutShort() throws Exception {
+        var source = """
+                ---- MODULE FuzzInput ----
+                EXTENDS Integers, Sequences, FiniteSets, TLC, Apalache, Variants
+                VARIABLES x, step
+                vars == <<x, step>>
+                RECURSIVE AllPos(_)
+                AllPos(S) == S = {} \\/ (LET y == CHOOSE z \\in S : TRUE IN y > 0 /\\ AllPos(S \\ {y}))
+                Init == x = 0 /\\ step = 0
+                Next == step < 3 /\\ AllPos({1}) /\\ x' = x /\\ step' = step + 1
+                Inv == step = 0
+                Fairness == TRUE
+                Spec == Init /\\ [][Next]_vars /\\ Fairness
+                Prop == TRUE
+                Liveness == Fairness => Prop
+                ====
+                """;
+
+        var result = check(source, false);
+
+        assertEquals(Optional.empty(), result.trace());
+    }
+
     @Test
     void recordsNoTraceUnlessAsked() throws Exception {
         var request = new CheckRequest(3, CheckKind.INVARIANT);
