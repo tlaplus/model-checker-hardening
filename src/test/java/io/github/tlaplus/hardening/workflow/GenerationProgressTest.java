@@ -162,7 +162,9 @@ class GenerationProgressTest {
             stages.put(stage, new CorpusInventory.StageEntries(List.of(), StageEntryCounts.empty(), 0));
         }
         var generations = new TreeMap<Integer, CorpusInventory.GenerationEntries>();
-        generations.put(2, new CorpusInventory.GenerationEntries(Map.of(EntryOrigin.MUTANT, 2L, EntryOrigin.PBT, 4L), 1));
+        generations.put(1, new CorpusInventory.GenerationEntries(Map.of(EntryOrigin.PBT, 6L), 0));
+        generations.put(2, new CorpusInventory.GenerationEntries(
+                Map.of(EntryOrigin.MUTANT, 2L, EntryOrigin.PBT, 4L, EntryOrigin.REPLAY, 3L), 1));
         var pending = new EntryName("pending.cbor");
         var inventory = new CorpusInventory(
                 stages,
@@ -170,8 +172,12 @@ class GenerationProgressTest {
                 Map.of(pending, EntryProgress.admitted(2).with(CorpusStage.PARSER, CorpusVerdict.PASS)));
         var progress = new GenerationProgress(inventory, new WorkflowControl(new WorkQueue<>()), CheckerSet.DEFAULT);
 
-        assertEquals(6, progress.admitted(2));
+        assertEquals(9, progress.admitted(2));
         assertEquals(2, progress.admittedByOrigin(2).get(EntryOrigin.MUTANT));
+        progress.admitted(new EntryName("replay.cbor"), 3, EntryOrigin.REPLAY);
+        // The run's totals span every generation, the recovered ones included.
+        assertEquals(Map.of(EntryOrigin.MUTANT, 2L, EntryOrigin.PBT, 10L, EntryOrigin.REPLAY, 4L),
+                progress.admittedByOrigin());
         assertEquals(1, progress.unsettled(2));
         assertEquals(2, progress.generationOf(pending));
     }

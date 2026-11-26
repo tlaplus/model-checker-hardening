@@ -12,7 +12,10 @@ sealed interface RunMetric {
     /** Run-wide fields; each carries its report label, live-screen label, and report section. */
     enum Field implements RunMetric {
         GENERATION(Section.SUMMARY, "Generation", "Gen", view -> new RunValue.Count(view.generation())),
-        ENTRIES(Section.SUMMARY, "Corpus entries", "Entries", view -> new RunValue.Count(view.corpusEntries())),
+        ENTRIES(Section.SUMMARY, "Entries (max_entries)", "Entries",
+                view -> new RunValue.Bounded(view.entries().sized(), view.entries().maximum())),
+        /** Replays come on top of {@code workflow.max_entries} (ADR 0034 §6). */
+        REPLAYS(Section.SUMMARY, "Replays", "Replays", view -> new RunValue.Count(view.entries().replays())),
         TOTAL_ELAPSED(Section.SUMMARY, "Total elapsed", "Elapsed", view -> new RunValue.Elapsed(view.elapsed())),
         GENERATED(Section.INPUTS, "Generated inputs", "Admitted",
                 view -> new RunValue.Count(view.generator().generated())),

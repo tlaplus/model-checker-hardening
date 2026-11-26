@@ -28,8 +28,13 @@ The following are configuration errors:
 With replay enabled, TLC, TLC-n and Apalache record the trace of every counterexample in
 the entry, under `stages.<checker>.trace`. After a generation settles, each recorded trace
 of its aggregated entries becomes a `trace` entry of the next generation. Equal traces from
-different checkers become one entry. These entries come on top of `generation_size`.
-After the last generation, one generation of replays alone follows.
+different checkers become one entry. These entries come on top of `generation_size` and
+of `workflow.max_entries`. After the last generation, one generation of replays alone
+follows.
+
+The run screen counts them apart. `Entries 90.5k/100k` counts the entries that
+`max_entries` bounds, and `Replays 49.9k` counts the replays on top of them. The final
+summary prints the same counts as `Entries (max_entries)` and `Replays`.
 
 A `trace` entry checks a module that allows exactly the recorded behavior. Its invariant
 fails in the last state exactly when that state is what the checker claimed:

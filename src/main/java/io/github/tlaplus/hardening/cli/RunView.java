@@ -4,6 +4,7 @@ import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
 import io.github.tlaplus.hardening.corpus.CorpusStage;
+import io.github.tlaplus.hardening.workflow.CorpusEntryCounts;
 import io.github.tlaplus.hardening.workflow.WorkflowProgress;
 import io.github.tlaplus.hardening.workflow.WorkflowRunSummary;
 import io.github.tlaplus.hardening.workflow.execution.GeneratorSummary;
@@ -19,12 +20,12 @@ import java.util.Map;
  */
 @ArchRole(Role.VIEW)
 @Key
-record RunView(Enum<?> status, int generation, long corpusEntries, GeneratorSummary generator,
+record RunView(Enum<?> status, int generation, CorpusEntryCounts entries, GeneratorSummary generator,
         Map<CorpusStage, StageVerdictSummary> stages, Map<CorpusStage, Long> backlog,
         Duration elapsed) {
 
     static RunView live(WorkflowProgress progress) {
-        return new RunView(progress.phase(), progress.generation(), progress.corpusEntries(),
+        return new RunView(progress.phase(), progress.generation(), progress.entries(),
                 progress.generator(), progress.stages(), progress.backlog(), progress.totalElapsed());
     }
 
@@ -34,7 +35,7 @@ record RunView(Enum<?> status, int generation, long corpusEntries, GeneratorSumm
             backlog.put(stage, summary.corpus().pendingEntries(stage));
         }
         return new RunView(summary.stopReason(), summary.corpus().latestGeneration(),
-                summary.corpus().totalEntries(), summary.generator(), summary.stages(), backlog,
+                summary.entries(), summary.generator(), summary.stages(), backlog,
                 summary.totalElapsed());
     }
 

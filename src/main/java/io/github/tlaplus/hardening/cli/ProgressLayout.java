@@ -56,7 +56,8 @@ final class ProgressLayout {
     private static List<AttributedString> flow(RunText text, boolean feedback) {
         var glyphs = text.palette().glyphs();
         var lines = new ArrayList<AttributedString>();
-        lines.add(header(text).field("  ", GENERATION).field("  ", ENTRIES).field("  ", TOTAL_ELAPSED).build());
+        lines.add(header(text).field("  ", GENERATION).field("  ", ENTRIES).field("  ", REPLAYS)
+                .field("  ", TOTAL_ELAPSED).build());
         lines.add(text.line().text("Cumulative totals / time").build());
         inputDetails(lines, text);
         lines.add(text.line().padTo(SPINE_COLUMN).text(glyphs.vertical()).build());

@@ -14,7 +14,7 @@ import java.util.Objects;
  *
  * <p>Per-stage figures are keyed by {@link CorpusStage}: {@code stages} holds what each stage has
  * produced, and {@code backlog} how many inputs currently wait for it. {@code generation} is the
- * generation the workflow is admitting or settling.
+ * generation the workflow is admitting or settling, and {@code entries} counts what the corpus holds.
  */
 public record WorkflowProgress(
         Phase phase,
@@ -22,7 +22,7 @@ public record WorkflowProgress(
         GeneratorSummary generator,
         Map<CorpusStage, StageVerdictSummary> stages,
         Map<CorpusStage, Long> backlog,
-        long corpusEntries,
+        CorpusEntryCounts entries,
         Duration totalElapsed) {
     public WorkflowProgress {
         Objects.requireNonNull(phase, "phase");
@@ -30,11 +30,11 @@ public record WorkflowProgress(
         Objects.requireNonNull(generator, "generator");
         stages = EnumMaps.requireAllKeys(CorpusStage.class, stages, "stages");
         backlog = EnumMaps.requireAllKeys(CorpusStage.class, backlog, "backlog");
+        Objects.requireNonNull(entries, "entries");
         Objects.requireNonNull(totalElapsed, "totalElapsed");
-        Preconditions.require(corpusEntries >= 0, "workflow progress counters must be nonnegative");
         for (var pending : backlog.values()) {
             Preconditions.require(pending >= 0, "workflow progress counters must be nonnegative");
-            Preconditions.require(pending <= corpusEntries, "pending stage counts must not exceed corpus entries");
+            Preconditions.require(pending <= entries.total(), "pending stage counts must not exceed corpus entries");
         }
         Preconditions.require(!totalElapsed.isNegative(), "total elapsed time must be nonnegative");
     }

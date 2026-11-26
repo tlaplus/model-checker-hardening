@@ -46,6 +46,24 @@ sealed interface RunValue {
         }
     }
 
+    /** A count and the limit it runs up to, such as the entries {@code workflow.max_entries} bounds. */
+    record Bounded(long value, long limit) implements RunValue {
+        @Override
+        public String format(Precision precision) {
+            return new Count(value).format(precision) + "/" + new Count(limit).format(precision);
+        }
+
+        @Override
+        public boolean directional() {
+            return true;
+        }
+
+        @Override
+        public Direction since(RunValue previous) {
+            return previous instanceof Bounded(var old, _) && value < old ? Direction.DOWN : Direction.UP;
+        }
+    }
+
     record Richness(OptionalDouble value) implements RunValue {
         static Richness of(long samples, double value) {
             return new Richness(samples == 0 ? OptionalDouble.empty() : OptionalDouble.of(value));

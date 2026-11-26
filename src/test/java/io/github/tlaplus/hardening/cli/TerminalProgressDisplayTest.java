@@ -132,7 +132,7 @@ class TerminalProgressDisplayTest {
                 assertFalse(terminalOutput.contains("Workflow run finished"));
                 var report = configured.toString();
                 assertTrue(report.contains("Workflow run finished"));
-                assertTrue(AttributedString.fromAnsi(report).toString().contains("Corpus entries: 1240"));
+                assertTrue(AttributedString.fromAnsi(report).toString().contains("Entries (max_entries): 1000/1500"));
                 assertTrue(report.contains("\u001b["), "the report keeps the terminal palette");
                 assertFalse(report.contains("\u2191"), "transient markers do not reach the report");
                 display.update(RunDisplayFixture.empty());
@@ -147,7 +147,7 @@ class TerminalProgressDisplayTest {
         try (var output = RunOutput.open(new PrintWriter(configured), TerminalAcquisition.NONE, true)) {
             output.finish(Path.of("corpus"), RunDisplayFixture.finished(RunDisplayFixture.sample()));
         }
-        assertTrue(configured.toString().contains("Corpus entries: 1240" + System.lineSeparator()));
+        assertTrue(configured.toString().contains("Entries (max_entries): 1000/1500" + System.lineSeparator()));
         assertFalse(configured.toString().contains("\u001b"));
     }
 
