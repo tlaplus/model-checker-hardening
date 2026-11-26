@@ -1,23 +1,19 @@
 package io.github.tlaplus.hardening.workflow.apalache;
 
-import at.forsyte.apalache.tla.lir.OperEx;
 import at.forsyte.apalache.tla.lir.TlaDecl;
-import at.forsyte.apalache.tla.lir.TlaEx;
 import at.forsyte.apalache.tla.lir.TlaModule;
 import at.forsyte.apalache.tla.lir.TlaOperDecl;
 import io.github.tlaplus.hardening.common.ArchRole;
 import io.github.tlaplus.hardening.common.Key;
 import io.github.tlaplus.hardening.common.Role;
+import io.github.tlaplus.hardening.gen.ir.IrNames;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import org.apalache_mc.tla.jio.TlaJson;
 import org.apalache_mc.tla.jio.TlaJsonException;
-import org.apalache_mc.tla.jir.TlaDeclarations;
-import org.apalache_mc.tla.jir.TlaExpressions;
 import org.apalache_mc.tla.jir.TlaModules;
-import org.apalache_mc.tla.jir.TlaOperators;
 
 /** Renders an assembled module as the typed Apalache IR JSON that Apalache consumes. */
 @ArchRole(Role.CODEC)
@@ -74,15 +70,6 @@ public final class ApalacheIrJson {
     }
 
     private static TlaDecl eraseLabels(TlaDecl declaration) {
-        return declaration instanceof TlaOperDecl operator
-                ? TlaDeclarations.rewrite(operator, ApalacheIrJson::eraseLabel)
-                : declaration;
-    }
-
-    /** The walk is bottom-up, so a nested label has already been replaced by its operand. */
-    private static TlaEx eraseLabel(TlaEx expression) {
-        return expression instanceof OperEx operator && operator.oper() == TlaOperators.LABEL
-                ? TlaExpressions.arguments(operator).getFirst()
-                : expression;
+        return declaration instanceof TlaOperDecl operator ? IrNames.eraseLabels(operator) : declaration;
     }
 }

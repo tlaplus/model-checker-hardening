@@ -96,6 +96,21 @@ class FuzzInputModuleTest {
                 TlaIrTestSupport.print(next.body()));
     }
 
+    /**
+     * A replay writes {@code UNCHANGED e} as {@code e' = e} (ADR 0034 §3). A label in {@code e} stays
+     * in one copy only, since SANY rejects a definition with two labels of one name.
+     */
+    @Test
+    void aReplayKeepsALabelOfAnUnchangedExpressionOnce() {
+        var b = new TlaTypedScopeUncheckedBuilder();
+        var x = b.name("var0", TlaTypes.INT);
+        var unchanged = b.unchanged(b.label(b.tuple(x), "label1"));
+
+        var equality = FuzzInputModule.unchangedAsEquality(unchanged);
+
+        assertEquals("(label1 :: <<var0>>)' = <<var0>>", TlaIrTestSupport.print(equality));
+    }
+
     @Test
     void placesActionOperatorsAfterAuxiliaryOperatorsAndBeforeTheEntryPoints() {
         var random = new Random(0xF1F0L);

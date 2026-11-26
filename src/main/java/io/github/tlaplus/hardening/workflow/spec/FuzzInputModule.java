@@ -408,14 +408,16 @@ public final class FuzzInputModule {
     /**
      * Replaces {@code UNCHANGED e} by {@code e' = e}, which means the same (ADR 0034 §3). Apalache
      * desugars {@code UNCHANGED} into assignments {@code x' := x}, and rejects them once the trace's
-     * equalities have assigned every variable; an equality it checks as a constraint.
+     * equalities have assigned every variable; an equality it checks as a constraint. The copy of
+     * {@code e} loses its labels, since SANY rejects a definition with two labels of one name.
      */
-    private static TlaEx unchangedAsEquality(TlaEx expression) {
+    static TlaEx unchangedAsEquality(TlaEx expression) {
         return TlaExpressions.rewrite(expression, node -> {
             if (node instanceof OperEx application && application.oper() == TlaOperators.UNCHANGED) {
                 var builder = new TlaTypedScopeUncheckedBuilder();
                 var unchanged = TlaExpressions.arguments(application).getFirst();
-                return builder.eql(builder.prime(unchanged), TlaExpressions.deepCopy(unchanged));
+                return builder.eql(builder.prime(unchanged),
+                        IrNames.eraseLabels(TlaExpressions.deepCopy(unchanged)));
             }
             return node;
         });

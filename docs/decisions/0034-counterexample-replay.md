@@ -162,7 +162,8 @@ Inv == idx /= n \/ Last
   `UNCHANGED x` into the assignment `x' := x` and rejects a second assignment of a variable
   ("Manual assignment is spurious"). The replay module therefore writes every `UNCHANGED e` of
   the base as `e' = e`, which means the same, and both checkers check it against the trace's
-  values.
+  values. The second copy of `e` loses its labels. SANY rejects a definition with two labels
+  of one name, and in corpus90 it rejected 19 replays that way.
 - **One disjunct per transition.** A tuple of states indexed by `idx` would need a
   variable index into a heterogeneous tuple, which Apalache's type system rejects. n is at
   most the step bound, so the disjunction stays short.

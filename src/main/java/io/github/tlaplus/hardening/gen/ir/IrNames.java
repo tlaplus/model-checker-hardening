@@ -74,6 +74,26 @@ public final class IrNames {
     }
 
     /**
+     * Replaces every label in {@code expression} by its operand. A label only names a subexpression,
+     * so the result means the same.
+     */
+    public static TlaEx eraseLabels(TlaEx expression) {
+        return TlaExpressions.rewrite(expression, IrNames::eraseLabel);
+    }
+
+    /** Replaces every label in the body of {@code declaration} by its operand. */
+    public static TlaOperDecl eraseLabels(TlaOperDecl declaration) {
+        return TlaDeclarations.rewrite(declaration, IrNames::eraseLabel);
+    }
+
+    /** The walk is bottom-up, so a nested label has already been replaced by its operand. */
+    private static TlaEx eraseLabel(TlaEx node) {
+        return node instanceof OperEx application && application.oper() == TlaOperators.LABEL
+                ? TlaExpressions.arguments(application).getFirst()
+                : node;
+    }
+
+    /**
      * Returns every name {@code expression} reads, binds or labels, which a name drawn for a new
      * binder or label must avoid.
      */
