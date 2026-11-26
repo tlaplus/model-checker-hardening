@@ -1511,12 +1511,12 @@ SetSumLetRec(S) == SetSum(S)
 and asserts <code>A!Op(x) = T!Op(x)</code> in <code>ASSUME</code> over small domains, and <code>make test</code> runs it
 under TLC.</p>
 <h2 id="4-operators">4. Operators<a class="headerlink" href="#4-operators" title="Permanent link">&para;</a></h2>
-<p><code>libraries/recursion.toml</code> selects 39 operators from
+<p><code>libraries/recursion.toml</code> selects 49 operators from
 <code>libraries/recursion/RecursionTLC.tla</code> and <code>RecursionApalache.tla</code>. A suffix names TLC's
 recursion mechanism: none for a top-level <code>RECURSIVE</code> operator, <code>LetRec</code> for
-<code>LET RECURSIVE</code>, <code>Fun</code> for a recursive function definition, and <code>HO</code> for a higher-order
-<code>RECURSIVE</code> helper. Operators without a suffix may use more than one mechanism, as the
-table shows.</p>
+<code>LET RECURSIVE</code>, <code>Fun</code> for a recursive function definition (in a <code>LET</code> or at the top
+level), and <code>HO</code> for a higher-order <code>RECURSIVE</code> helper. Operators without a suffix may use
+more than one mechanism, as the table shows.</p>
 <table>
 <thead>
 <tr>
@@ -1598,6 +1598,48 @@ table shows.</p>
 <td><code>IntDigitSum</code>, <code>IntGcd(a, b)</code>, <code>IntIsEven</code></td>
 <td>recursion on <code>\div 10</code>, Euclid, mutual recursion on <code>n % 64</code></td>
 <td>fold over <code>0..9</code>, six folds of 8 Euclid steps, <code>n % 2 = 0</code></td>
+</tr>
+<tr>
+<td>Recursive functions</td>
+<td><code>IntPow2Fun</code> (≤ 20), <code>IntTriangleFun</code> (≤ 30)</td>
+<td>a top-level and a <code>LET</code> function over <code>Nat</code></td>
+<td>aliases</td>
+</tr>
+<tr>
+<td></td>
+<td><code>IntIsEvenFun</code></td>
+<td>one function on <code>0..63</code> with record values, for mutual recursion</td>
+<td>alias</td>
+</tr>
+<tr>
+<td></td>
+<td><code>IntBinomialFun(n, k)</code> (<code>n</code> ≤ 12)</td>
+<td>two-argument function, Pascal's triangle</td>
+<td>factorial quotient</td>
+</tr>
+<tr>
+<td></td>
+<td><code>IntFactorialTableFun</code> (≤ 12)</td>
+<td>the function itself as the result</td>
+<td>function constructor over a filtered constant range</td>
+</tr>
+<tr>
+<td></td>
+<td><code>SeqReverseFun</code>, <code>SetPowersetFun</code></td>
+<td>domains of sequences (the suffixes of <code>s</code>) and of sets (<code>SUBSET S</code>)</td>
+<td>aliases</td>
+</tr>
+<tr>
+<td></td>
+<td><code>FunIncrementAllFun</code>, <code>TransitiveClosureFun</code></td>
+<td>function and relation values, the former through <code>EXCEPT</code> with <code>@</code></td>
+<td>aliases</td>
+</tr>
+<tr>
+<td></td>
+<td><code>FunTrianglesFun</code></td>
+<td>a function whose domain depends on the bound variable of a function constructor</td>
+<td>alias</td>
 </tr>
 </tbody>
 </table>

@@ -1,10 +1,10 @@
 # `GenericCheckerBackend`
 
-`io.github.tlaplus.hardening.workflow.generic` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/b1d642d707df18a7597ce87d7e826c837e78f842/src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericCheckerBackend.java#L40) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.generic` · class · adapter · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericCheckerBackend.java#L40) · module [workflow](../modules/workflow.md)
 
 Runs the generic checker of ADR 0033 as one native process per input, the lifecycle `ToolBackend` describes for TLC, but without a JVM.
 
-**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/b1d642d707df18a7597ce87d7e826c837e78f842/docs/decisions/0033-generic-checker.md)
+**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/docs/decisions/0033-generic-checker.md)
 
 ```mermaid
 classDiagram

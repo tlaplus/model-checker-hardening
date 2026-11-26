@@ -1,10 +1,10 @@
 # `ApalacheWorkerMain`
 
-`io.github.tlaplus.hardening.workflow.apalache` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/b1d642d707df18a7597ce87d7e826c837e78f842/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheWorkerMain.java#L31) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.apalache` · class · entry point · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/workflow/apalache/ApalacheWorkerMain.java#L31) · module [workflow](../modules/workflow.md)
 
 Persistent child process that invokes Apalache's `Tool.run` sequentially.
 
-**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/b1d642d707df18a7597ce87d7e826c837e78f842/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0029: Apalache in temporal metamorphic testing](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/docs/decisions/0029-apalache-temporal-metamorphic-testing.md)
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|
