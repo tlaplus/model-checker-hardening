@@ -15,7 +15,8 @@
 # crashes of manyan-005 to manyan-008 by their diagnostics. manyan-010, a LET with a temporal
 # body under a temporal operator, and manyan-011, an operator argument applied to a primed
 # expression, have no measured signature yet. manyan-013 and manyan-014 are performance
-# defects.
+# defects. Manyan v0.18.0 fixes manyan-001 to manyan-014, so the signature is closed: it no
+# longer quarantines, and a corpus checks its inputs again for regressions.
 #
 # docs/manual/known-defect-signatures.md describes the format. References are relative to this
 # file.
@@ -24,7 +25,7 @@
 id = "manyan-literal-subscript"
 references = ["../findings/manyan/manyan-001.md"]
 description = "Manyan rejects FALSE, TRUE, STRING or BOOLEAN as an action or fairness subscript."
-status = "open"
+status = "closed"
 match = [
   '(STUTTER _ FALSE)', '(STUTTER _ TRUE)', '(STUTTER _ STRING)', '(STUTTER _ BOOLEAN)',
   '(NO_STUTTER _ FALSE)', '(NO_STUTTER _ TRUE)', '(NO_STUTTER _ STRING)', '(NO_STUTTER _ BOOLEAN)',

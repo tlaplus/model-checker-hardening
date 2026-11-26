@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -23,6 +23,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`). The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `390ea420`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`40ebc1f`.
 
 ## Reproduction
 
@@ -80,3 +83,17 @@ five. The generated properties nest fairness under `[]`, as in
 
 `script/triager.py` has no rule for this message. TLC prints the same message for the forms
 it rejects, so the message alone does not show which tool is at fault.
+
+## Resolution
+
+Manyan fixed this in
+[`40ebc1f`](https://github.com/soasme/manyan/commit/40ebc1f0a4ade43e8d7fc2659fdafabf86b901fb),
+"Expand WF_v(A) as []<>(~ENABLED <<A>>_v \/ <<A>>_v) to accept []WF_v(A)", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 0 on `[]WF_x(FALSE)` and `[]WF_x(x = 5)`, as
+TLC does. FuzzTLA `dc773e71`.

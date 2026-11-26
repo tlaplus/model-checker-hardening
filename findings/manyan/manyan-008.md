@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -24,6 +24,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`). The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `390ea420`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`aab57fd`.
 
 ## Reproduction
 
@@ -94,3 +97,17 @@ In a 25,000-entry pbt campaign, 18 Manyan crashes had this message. TLC complete
 normally on 11 of them: it passed `1ce3f997`, found a property violation on two, and failed
 with status 75 on eight. TLC crashed on the other seven for its own reasons, six of them
 `tlc-010`. `script/triager.py` classifies the Manyan crashes by the message.
+
+## Resolution
+
+Manyan fixed this in
+[`aab57fd`](https://github.com/soasme/manyan/commit/aab57fdbdc29bdbb8bc10bbb804855adeba9f948),
+"Check level_in_bound() in to_tf() and tf_atom() when level is 0", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: The five rows that failed with `x` undefined give TLC's
+exit statuses: 0, 0, 0, 13 and 13. FuzzTLA `dc773e71`.

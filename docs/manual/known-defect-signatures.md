@@ -535,6 +535,9 @@ argument applied to a primed expression, are shapes, but no signature has been m
 for them. [`manyan-013`](../../findings/manyan/manyan-013.md) and
 [`manyan-014`](../../findings/manyan/manyan-014.md) are performance defects.
 
+Manyan `v0.18.0` fixes `manyan-001` to `manyan-014`, so `manyan-literal-subscript` is
+closed: it no longer quarantines, and its inputs are checked again for regressions.
+
 ## Background
 
 [ADR 0006](../decisions/0006-known-defect-signatures.md) records the design and its

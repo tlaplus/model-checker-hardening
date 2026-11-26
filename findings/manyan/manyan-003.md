@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -27,6 +27,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 (`make manyan PGO_TOOLS=`). The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `390ea420`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`87203c4`.
 
 ## Reproduction
 
@@ -92,3 +95,17 @@ often have a constant left side of `~>`, which is why the error is common.
 No known-defect signature quarantines these inputs. The closest pattern is a `LEADS_TO`
 whose left side names no variable and applies no operator. It matched 932 of the 10,000
 entries, and only 65 of them carried the error.
+
+## Resolution
+
+Manyan fixed this in
+[`87203c4`](https://github.com/soasme/manyan/commit/87203c48ebd3a338a4dc4dbb2a4716d369f7c8f1),
+"Do not fold <>FALSE in tf_false() tautology check", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 0 on the five rows that it reported as
+tautologies, as TLC does. FuzzTLA `dc773e71`.

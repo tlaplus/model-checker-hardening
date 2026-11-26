@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -27,6 +27,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 revision. The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1. Apalache is not
 involved. FuzzTLA `fa5b6c03`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`188c9ad`.
 
 ## Reproduction
 
@@ -110,3 +113,19 @@ in `b7a06b95`, the invariant is
 `Lambda6(p4, p5) == p4`. Manyan exits 75 on the initial state, and TLC reports a
 violation of the property. The generator rarely passes an action to an operator argument,
 so the campaign does not measure how often the defect occurs in practice.
+
+## Resolution
+
+Manyan fixed this in
+[`188c9ad`](https://github.com/soasme/manyan/commit/188c9adfa47f47fdba72880cc1629baf1dff8fe3),
+"Fix EXCEPT @ scoping, lazy empty sets/V_LAMBDA, veq/filter/arg_pure, and generator
+HO/LET/fairness", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan exits 0 on the reproduction and on the four
+`ENABLED` rows that failed, including `ENABLED K(F, x' = x, 1)`, and with `P == x \in
+{0}` it reports the violation (exit 12), as TLC does. FuzzTLA `dc773e71`.

@@ -1,5 +1,5 @@
 ---
-state: open
+state: closed
 labels: [manyan]
 ---
 
@@ -25,6 +25,9 @@ Observed with Manyan `v0.17.0` (soasme/manyan
 revision. The reference is TLC `bc1b506` (tlaplus/tlaplus
 `bc1b506bdcad80bb518bf3776a9161c34ff0fc4c`) on OpenJDK 25.0.5.1 with
 `-XX:+UseParallelGC` and the default heap. Apalache is not involved. FuzzTLA `fa5b6c03`.
+
+Fixed in [Manyan v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0), by
+`07dab1a`.
 
 ## Reproduction
 
@@ -91,3 +94,18 @@ this defect; their stacks are in Manyan's printer. TLC failed on each of them wi
 witness (`1a4d7860`). Rerun without the limit, `d0d7abb1` reached 18.7 GB in 40 s. The
 generator nests functions built by folds of `LAMBDA`s, whose values Manyan computes
 while printing.
+
+## Resolution
+
+Manyan fixed this in
+[`07dab1a`](https://github.com/soasme/manyan/commit/07dab1a113b60ce3abc8fcbcb6c46e8163a03bc6),
+"Skip error formatting inside try_realize() to prevent exponential cascade", released in
+[v0.18.0](https://github.com/soasme/manyan/releases/tag/v0.18.0) (soasme/manyan
+`5522fa6b11b9e35ae60d46a31d0d33ce77df8ff9`, 2026-11-26). It is the first commit between
+`v0.17.0` and `v0.18.0` that passes the reproduction; each commit was built with `make
+manyan PGO_TOOLS=`.
+
+Rechecked on 2026-11-26 with `v0.18.0`, built by `make manyan-build`, against the exit
+statuses that TLC gave above: Manyan prints the error for `G(12)` and `G(14)` in under
+0.01 s with 2 MB of resident memory. It now exits 75, as TLC does, since
+[`manyan-005`](manyan-005.md) is fixed. FuzzTLA `dc773e71`.
