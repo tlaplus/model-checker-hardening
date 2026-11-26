@@ -44,7 +44,12 @@ import org.junit.jupiter.api.io.TempDir;
  * on a partial term in the trace's states, which conformance already compares.
  */
 class ReplayRoundTripTest {
-    private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 120, 1024, 1);
+    /**
+     * A generous timeout. Apalache checks every transition of a replay module at every step, so a
+     * replay costs quadratically in its length: on CI, a 16-step graph trace took about 8 s per step
+     * and ran past 120 s.
+     */
+    private static final CheckerStageConfig CONFIG = new CheckerStageConfig(10, 600, 1024, 1);
     private static final List<CorpusStage> CHECKERS = List.of(CorpusStage.TLC, CorpusStage.APALACHE);
     /** Counterexamples each checker must record, and how many of them must have transitions. */
     private static final int RECORDED = 6;
