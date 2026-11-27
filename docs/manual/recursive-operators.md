@@ -122,7 +122,7 @@ more than one mechanism, as the table shows.
 | Integers | `IntTriangle` (≤ 30), `IntPow2` (≤ 20), `IntFactorial` (≤ 12), `IntFib` (≤ 20), `IntFibFun` (≤ 20) | `LET RECURSIVE`, `RECURSIVE`, recursive functions, double recursion | closed forms, folds over constant ranges |
 | | `IntDigitSum`, `IntGcd(a, b)`, `IntIsEven` | recursion on `\div 10`, Euclid, mutual recursion on `n % 64` | fold over `0..9`, six folds of 8 Euclid steps, `n % 2 = 0` |
 | Recursive functions | `IntPow2Fun` (≤ 20), `IntTriangleFun` (≤ 30) | a top-level and a `LET` function over `Nat` | aliases |
-| | `IntIsEvenFun` | one function on `0..63` with record values, for mutual recursion | alias |
+| | `IntIsEvenFun` | one function on `0..15` with record values, for mutual recursion | alias |
 | | `IntBinomialFun(n, k)` (`n` ≤ 12) | two-argument function, Pascal's triangle | factorial quotient |
 | | `IntFactorialTableFun` (≤ 12) | the function itself as the result | function constructor over a filtered constant range |
 | | `SeqReverseFun`, `SetPowersetFun` | domains of sequences (the suffixes of `s`) and of sets (`SUBSET S`) | aliases |

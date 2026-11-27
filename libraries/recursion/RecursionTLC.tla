@@ -271,12 +271,14 @@ IsEven(k) == IF k = 0 THEN TRUE ELSE IsOdd(k - 1)
 IsOdd(k) == IF k = 0 THEN FALSE ELSE IsEven(k - 1)
 IntIsEven(n) == IsEven(n % 64)
 
-\* Mutual recursion as one recursive function with record values.
+\* Mutual recursion as one recursive function with record values, on n % 16,
+\* which has the parity of n. Each application nests deeper Java frames than a
+\* RECURSIVE operator does: a domain of 0..63 overflowed a 1 MB thread stack.
 IntIsEvenFun(n) ==
-    LET parity[k \in 0..63] ==
+    LET parity[k \in 0..15] ==
             IF k = 0 THEN [even |-> TRUE, odd |-> FALSE]
             ELSE LET p == parity[k - 1] IN [even |-> p.odd, odd |-> p.even]
-    IN parity[n % 64].even
+    IN parity[n % 16].even
 
 \* Recursion inside set and function constructors.
 SetTriangles(S) == {IntTriangle(x) : x \in S}
