@@ -1,10 +1,10 @@
 # `GenericConvention`
 
-`io.github.tlaplus.hardening.workflow.generic` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericConvention.java#L37) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.generic` · record · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericConvention.java#L37) · module [workflow](../modules/workflow.md)
 
 What a compatibility means to the generic checker (ADR 0033 §2): the configuration file written as `{config}`, how an exit status becomes a verdict, and which exploration metrics the tool's output gives (§5).
 
-**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/docs/decisions/0033-generic-checker.md)
+**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/docs/decisions/0033-generic-checker.md)
 
 ```mermaid
 classDiagram

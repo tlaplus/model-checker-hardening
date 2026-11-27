@@ -1,10 +1,10 @@
 # `InputAdmission`
 
-`io.github.tlaplus.hardening.workflow.input` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/workflow/input/InputAdmission.java#L26) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.input` · class · policy · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/workflow/input/InputAdmission.java#L26) · module [workflow](../modules/workflow.md)
 
 Decides whether a decoded candidate enters `00-inputs`, and where a known defect goes.
 
-**Decisions:** [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/docs/decisions/0002-pbt-richness-score.md)
+**Decisions:** [ADR 0002: PBT collection-richness score](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/docs/decisions/0002-pbt-richness-score.md)
 
 ```mermaid
 classDiagram

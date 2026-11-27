@@ -1,6 +1,6 @@
 # `WorkerOutput`
 
-`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/workflow/worker/WorkerOutput.java#L16) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.worker` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/workflow/worker/WorkerOutput.java#L16) · module [workflow](../modules/workflow.md)
 
 Everything a child process says outside the control channel, and the scratch tree it says it in.
 

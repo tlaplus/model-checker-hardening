@@ -1,10 +1,10 @@
 # `AggregationInput`
 
-`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/corpus/AggregationInput.java#L16) · module [corpus](../modules/corpus.md)
+`io.github.tlaplus.hardening.corpus` · record · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/corpus/AggregationInput.java#L16) · module [corpus](../modules/corpus.md)
 
 A logical corpus entry whose non-crash checker results are ready for aggregation.
 
-**Decisions:** [ADR 0019: State-count agreement of completed searches](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/docs/decisions/0019-state-count-agreement.md)
+**Decisions:** [ADR 0019: State-count agreement of completed searches](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/docs/decisions/0019-state-count-agreement.md)
 
 ```mermaid
 classDiagram

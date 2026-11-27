@@ -1,6 +1,6 @@
 # `TerminalAcquisition`
 
-`io.github.tlaplus.hardening.cli` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/cli/TerminalAcquisition.java#L10) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · interface · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/cli/TerminalAcquisition.java#L10) · module [cli](../modules/cli.md)
 
 Acquires a live progress display for one run.
 

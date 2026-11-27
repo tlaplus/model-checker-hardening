@@ -1,10 +1,10 @@
 # `RewritePositions`
 
-`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewritePositions.java#L40) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.rewrite` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/gen/rewrite/RewritePositions.java#L40) · module [gen](../modules/gen.md)
 
 Where the rewriter may apply a rule.
 
-**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/docs/decisions/0027-temporal-metamorphic-testing.md)
+**Decisions:** [ADR 0027: Metamorphic testing of temporal properties](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/docs/decisions/0027-temporal-metamorphic-testing.md)
 
 | Direction | Relation | Type | Summary |
 |---|---|---|---|

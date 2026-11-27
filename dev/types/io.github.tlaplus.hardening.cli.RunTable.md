@@ -1,6 +1,6 @@
 # `RunTable`
 
-`io.github.tlaplus.hardening.cli` · class · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/f185e6a13b0789fcdcc56a03ebad24544e2f772e/src/main/java/io/github/tlaplus/hardening/cli/RunTable.java#L14) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · view · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/cli/RunTable.java#L14) · module [cli](../modules/cli.md)
 
 Complete, exact statistics grouped by stage; suitable for scrollback and redirected output.
 
