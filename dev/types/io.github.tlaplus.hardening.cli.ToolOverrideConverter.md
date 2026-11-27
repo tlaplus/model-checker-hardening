@@ -1,6 +1,6 @@
 # `ToolOverrideConverter`
 
-`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/cli/ToolOverrideConverter.java#L10) · module [cli](../modules/cli.md)
+`io.github.tlaplus.hardening.cli` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/src/main/java/io/github/tlaplus/hardening/cli/ToolOverrideConverter.java#L10) · module [cli](../modules/cli.md)
 
 Reads a `--tool TOOL=FILE` option of `fuzztla init`, TOOL being a `[tools]` key.
 

@@ -1,10 +1,10 @@
 # `Trace`
 
-`io.github.tlaplus.hardening.gen.trace` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/gen/trace/Trace.java#L22) · module [gen](../modules/gen.md)
+`io.github.tlaplus.hardening.gen.trace` · record · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/src/main/java/io/github/tlaplus/hardening/gen/trace/Trace.java#L22) · module [gen](../modules/gen.md)
 
 The states of one recorded counterexample and what its last state claims (ADR 0034 §1, §2).
 
-**Decisions:** [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/docs/decisions/0034-counterexample-replay.md)
+**Decisions:** [ADR 0034: Replaying counterexamples as corpus inputs](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/docs/decisions/0034-counterexample-replay.md)
 
 ```mermaid
 classDiagram

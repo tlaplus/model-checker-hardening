@@ -1,6 +1,6 @@
 # `EntryBatchExporter`
 
-`io.github.tlaplus.hardening.database` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/database/EntryBatchExporter.java#L28) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · class · other · [source](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/src/main/java/io/github/tlaplus/hardening/database/EntryBatchExporter.java#L28) · module [database](../modules/database.md)
 
 Exports listed entry files in chunks.
 

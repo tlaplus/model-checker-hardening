@@ -1,10 +1,10 @@
 # `GenericInvocation`
 
-`io.github.tlaplus.hardening.workflow.generic` · record · model · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericInvocation.java#L24) · module [workflow](../modules/workflow.md)
+`io.github.tlaplus.hardening.workflow.generic` · record · model · [source](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/src/main/java/io/github/tlaplus/hardening/workflow/generic/GenericInvocation.java#L24) · module [workflow](../modules/workflow.md)
 
 The files and the command line of one generic checker invocation in its working directory (ADR 0033 §3, §4).
 
-**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/docs/decisions/0033-generic-checker.md)
+**Decisions:** [ADR 0033: A generic checker for TLC- and Apalache-compatible tools](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/docs/decisions/0033-generic-checker.md)
 
 ```mermaid
 classDiagram

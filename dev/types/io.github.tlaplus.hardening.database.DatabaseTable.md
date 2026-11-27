@@ -1,6 +1,6 @@
 # `DatabaseTable`
 
-`io.github.tlaplus.hardening.database` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75/src/main/java/io/github/tlaplus/hardening/database/DatabaseTable.java#L16) · module [database](../modules/database.md)
+`io.github.tlaplus.hardening.database` · enum · model · key · [source](https://github.com/tlaplus/model-checker-hardening/blob/1397e7b533b2a521ed26d8d6ad957519716682dc/src/main/java/io/github/tlaplus/hardening/database/DatabaseTable.java#L16) · module [database](../modules/database.md)
 
 A table of the corpus database: its name, columns and keys.
 

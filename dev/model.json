@@ -1,7 +1,7 @@
 {
   "source" : {
     "repository" : "https://github.com/tlaplus/model-checker-hardening",
-    "commit" : "86f4053a56eb75f027c9ac8d2b7ff84a4acf6d75"
+    "commit" : "1397e7b533b2a521ed26d8d6ad957519716682dc"
   },
   "decisions" : [ {
     "number" : "0001",
